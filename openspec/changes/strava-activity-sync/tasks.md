@@ -2,7 +2,7 @@
 
 - [x] 1.1 Definir job/trigger diário de sincronização incremental por atleta conectado
 - [x] 1.2 Garantir deduplicação por `externalId + atletaId`
-- [ ] 1.3 Garantir isolamento multi-tenant em todo o fluxo
+- [x] 1.3 Garantir isolamento multi-tenant em todo o fluxo
 - [x] 1.4 Implementar estratégia híbrida MVP: scheduler diário + endpoint manual on-demand por atleta
 
 ## 2. Matching Planned vs Completed
