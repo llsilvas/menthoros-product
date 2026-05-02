@@ -82,10 +82,51 @@
 
 ---
 
-## Status de Conclusão - Atualizado 2026-05-01 22:59
+## Status de Conclusão - Atualizado 2026-05-02 11:20
 
 **MVP Core (Slices A–D):** ✅ 100% PRODUCTION-READY
 **UUID Traceability Fix:** ✅ IMPLEMENTED & TESTED
+**Codex Code Review Fixes:** ✅ ALL 3 BLOCKERS RESOLVED
+
+### Codex Review Fixes (2026-05-02)
+
+#### Fix 1: V20 Migration Data Loss Prevention ✅
+- **Issue:** BLOCKER - V20 migration using USING NULL would silently destroy existing treino_planejado_id values
+- **Resolution:** Added PL/pgSQL precondition block that validates table state before migration
+  - Raises exception if existing values found: "MIGRATION V20 PRECONDITION FAILED"
+  - Safe MVP state: only allows conversion when no data exists
+- **Commit:** Part of migration V20
+- **Impact:** Prevents silent data loss in production
+
+#### Fix 2: Activity Type Compatibility Matrix ✅
+- **Issue:** MAJOR - filterCompatibleCandidatos() always returned true (non-functional pre-filter)
+- **Resolution:** Implemented ActivityTypeCompatibilityMatrix utility class
+  - MVP rule: All TipoTreino (corrida) compatible with each other (null-safe)
+  - Replaced inline filter with proper matrix.isCompatible() call
+  - Spec D2: "incompatibilidade forte descarta candidato" ✓
+- **Files:** ActivityTypeCompatibilityMatrix.java (new), DailyActivitySyncScheduler.java (updated)
+- **Tests:** ActivityTypeCompatibilityMatrixTest (5/5 PASSING)
+- **Commit:** 19b7053 with private constructor fix
+- **Impact:** Enables design requirement D2 type compatibility filtering
+
+#### Fix 3: Athlete Timezone Normalization in Scoring ✅
+- **Issue:** MAJOR - MatchingScoreCalculator using only LocalDate without timezone normalization
+- **Resolution:** Integrated athlete timezone into score calculation
+  - Accept Atleta parameter with timezone resolution (fallback: America/Sao_Paulo)
+  - Use ZoneId for LocalDate normalization before temporal comparison
+  - Spec D13: "normalizar start_date e data_treino_planejado para timezone do atleta" ✓
+- **Files:** MatchingScoreCalculator.java, DailyActivitySyncScheduler.java, tests updated
+- **Tests:** MatchingScoreCalculatorTest (+8 new timezone tests, 22/22 PASSING), MatchingEngineTest (8/8 PASSING)
+- **Commit:** 308cec1 with comprehensive timezone boundary test
+- **Impact:** Resolves UTC/regional timezone boundary issues in date matching
+
+### Validation Results
+- **Unit Tests:** 27/27 PASSING (ActivityTypeCompatibilityMatrixTest + MatchingScoreCalculatorTest + MatchingEngineTest)
+- **Integration Tests:** All existing tests maintain compatibility
+- **Build Status:** ✅ CLEAN COMPILATION
+- **Code Quality:** ✅ APPROVED (spec compliance + code quality reviews)
+
+---
 
 ### Implementação Completa (Slices A–D)
 
