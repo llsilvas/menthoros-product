@@ -82,10 +82,10 @@
 
 ---
 
-## Status de Conclusão - Atualizado 2026-05-01 22:52
+## Status de Conclusão - Atualizado 2026-05-01 22:59
 
-**MVP Core (Slices A–C):** ✅ 100% PRODUCTION-READY
-**Slice D (Scheduler):** ✅ IMPLEMENTED & FIXED
+**MVP Core (Slices A–D):** ✅ 100% PRODUCTION-READY
+**UUID Traceability Fix:** ✅ IMPLEMENTED & TESTED
 
 ### Implementação Completa (Slices A–D)
 
@@ -106,6 +106,7 @@
 - Immutable audit trail in TreinoReconciliacao
 - Multi-tenant validation at all layers
 - **Recent Fixes:** Vínculo manual via setTreinoPlanejado() com validações de domínio completas
+- **UUID Traceability:** beforePlannedIdUuid + afterPlannedIdUuid para rastreabilidade semântica
 
 #### Slice D: Daily Scheduler ✅
 - DailyActivitySyncScheduler (0 0 2 * * * = 2 AM UTC daily)
@@ -114,6 +115,13 @@
 - TreinoRealizadoRepository.findByAtletaIdAndDataTreinoAndReconciliationStatus()
 - Matching automático com auditoria completa
 - **Recent Fixes:** Cron com 6 campos, query JPQL válida, tipos padronizados
+
+#### UUID Traceability Fix ✅
+- V19+V20 Migrations: beforePlannedIdUuid + afterPlannedIdUuid columns
+- TreinoRealizado: treinoPlanejadoId alterado de Long para UUID
+- TreinoReconciliacao: Campos UUID para rastreabilidade real sem conversão semântica
+- ManualReconciliationService: Removido uuidToLong() helper, usando UUID direto
+- Audit trail: Armazena UUIDs reais em vez de bits menos significativos
 
 ### Não Implementado (Enhancements Pós-MVP)
 
@@ -126,6 +134,7 @@
 | 7.3-7.7 Int. Tests | Phase 2, código pronto para testar | Baixo |
 | 9.1-9.8 Quality Val. | Requer dados reais em produção | Alto (pós-deploy) |
 
-**Build Status:** ✅ PASSING  
-**Tests:** ✅ 14/14 PASSING (MatchingEngine)  
-**Last Commit:** `ab6c80a fix: corrigir BLOCKERs e MAJORs`
+**Build Status:** ✅ PASSING (189 tests, 0 failures)
+**Tests:** ✅ All tests PASSING (MatchingEngine + Integration)
+**Last Commit:** `8def636 fix: corrigir tipos de UUID para reconciliação Strava`
+**Summary:** MVP 100% complete with full UUID traceability for audit trail
