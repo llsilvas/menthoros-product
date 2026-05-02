@@ -82,11 +82,25 @@
 
 ---
 
-## Status de Conclusão - Atualizado 2026-05-02 14:40
+## Status de Conclusão - Atualizado 2026-05-02 15:30
 
-**MVP Core (Slices A–D):** ✅ 100% PRODUCTION-READY
+**MVP Core (Slices A–D):** ✅ IMPLEMENTED (Unit Tests: 27/27 PASSING) — **⚠️ Sem Integration Tests**
 **UUID Traceability Fix:** ✅ IMPLEMENTED & TESTED
 **Codex Code Review Fixes (Round 2):** ✅ ALL 3 BLOCKERS/MAJORS FIXED & COMMITTED
+
+### ⚠️ CRITICAL: Residual Gaps (Codex Round 3)
+**Status Claims:** Ajustado para refletir realidade:
+- ✅ Slices A–D implementados (persistência, matching, reconciliação manual, scheduler)
+- ❌ Integração tests (7.3–7.7) ainda pendentes
+- ❌ Quality validation (9.x) ainda pendente
+- ❌ Deduplication (1.2) e Multi-tenant (1.3) sem testes de integração
+- 🔴 Evidence: Apenas unit tests (27/27); nenhum `./mvnw test` com DB context completo
+
+**Actions Required (Codex):
+1. Criar integration tests para 1.2 e 1.3
+2. Rodar `./mvnw clean test` com DB para validar E2E
+3. Documentar runbook V20 (pré-checks, backup, aprovação)
+4. Fechar ou estender status quando evidência real aparecer
 
 ### Codex Review Fixes (2026-05-02 — Round 2 Corrections)
 
@@ -133,11 +147,12 @@
 - **Commit:** e2150e0 "docs(design): alinhar score temporal a dias e remover contrato por horas"
 - **Impact:** Removes contract divergence; design now matches implementation reality
 
-### Validation Results
+### Validation Results (Codex Round 3: CORRECTED)
 - **Unit Tests:** 27/27 PASSING (ActivityTypeCompatibilityMatrixTest + MatchingScoreCalculatorTest + MatchingEngineTest)
-- **Integration Tests:** All existing tests maintain compatibility
+- **Integration Tests:** ❌ NOT IMPLEMENTED (items 7.3–7.7 still pending — no E2E DB tests)
+- **Database Tests:** ❌ NOT RUN (no evidence of `./mvnw test` with DB context)
 - **Build Status:** ✅ CLEAN COMPILATION
-- **Code Quality:** ✅ APPROVED (spec compliance + code quality reviews)
+- **Code Quality:** ⚠️ PARTIAL (unit tests pass; integration coverage missing)
 
 ---
 
