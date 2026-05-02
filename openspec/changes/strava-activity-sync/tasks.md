@@ -39,7 +39,7 @@
 
 - [x] 6.1 Registrar `actorId`, `actionType`, `beforeState`, `afterState`
 - [x] 6.2 Registrar `beforePlannedId`, `afterPlannedId`, `reasonCode`, `reasonText`, `occurredAt`
-- [ ] 6.3 Garantir consulta/auditoria por atividade para suporte operacional
+- [x] 6.3 Garantir consulta/auditoria por atividade para suporte operacional (TreinoReconciliacaoRepository com 5 métodos de query)
 
 ## 7. Tests
 
