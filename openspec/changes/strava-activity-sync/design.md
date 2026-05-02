@@ -52,11 +52,13 @@ Pré-filtro obrigatório:
 - tipo de treino compatível (incompatibilidade forte descarta candidato)
 
 Subscores (0..1):
-- `score_tempo`
-  - diferença <= 2h: 1.0
-  - diferença <= 6h: 0.7
-  - diferença <= 12h: 0.4
-  - diferença > 12h: 0.1
+- `score_tempo` (calculado por diferença de data no timezone do atleta — Design D13)
+  - mesma data (0 dias): 1.0
+  - 1 dia de diferença: 0.75
+  - 2 dias de diferença: 0.50
+  - > 2 dias: 0.0
+
+  **Justificativa**: sincronização incremental opera com granularidade **diária**; score por horas requereria `start_date` com hora exata do Strava no MVP, informação não garantida no campo `dataTreino` (`LocalDate`, sem hora). Abordagem por dias é robusta para ciclo diário e timezone-normalizado.
 - `score_duracao` (erro relativo `abs(real-plan)/plan`)
   - <= 10%: 1.0
   - <= 20%: 0.8
