@@ -90,31 +90,36 @@
 
 ### Codex Review Fixes (2026-05-02 — Round 2 Corrections)
 
-#### Fix 1: V20 Migration — Backfill Strategy (BLOCKER) ✅
+#### Fix 1: V20 Migration — Environmental Blocker (BLOCKER) ✅
 - **Issue:** BLOCKER - V20 uses `ALTER COLUMN USING NULL` (destructive, silently zeros data)
-- **Root Cause:** BIGINT → UUID conversion has no safe path; precondition-only approach was insufficient
-- **Solution:** Implement safe backfill strategy
-  1. Rename old BIGINT column → `treino_planejado_id_bigint_old`
-  2. Add new UUID column → `treino_planejado_id`
-  3. Validate & log data loss with `RAISE WARNING` (explicit, not silent)
-  4. Cutover: drop old column after validation
-- **Files:** V20__Fix_treino_ids_to_uuid.sql (refactored)
-- **Tests:** Clean compilation, migration safety documented
-- **Commit:** 23d09dc "refactor(migration): V20 — implementar estratégia de backfill seguro para UUID"
-- **Impact:** Prevents silently destructive operations; provides intervention point for DBA
+- **Root Cause:** BIGINT → UUID conversion has no safe path; drop without backfill is destructive
+- **Solution:** Environmental blocker that validates before executing
+  1. Pré-migração: `DO $$ RAISE EXCEPTION` se houver dados em treino_planejado_id
+  2. Falha explícita com instruções: "Backup requerido" ou "Ambiente vazio?"
+  3. MVP (ambiente vazio): bloqueador passa → conversão segura procede
+  4. Produção (ambiente com dados): bloqueador falha early → sem corrupção silenciosa
+- **Files:** V20__Fix_treino_ids_to_uuid.sql (refactored with environmental guard)
+- **Tests:** Clean compilation, guard logic prevents data loss
+- **Commit:** 6ded9fd "fix: V20 migration — adicionar bloqueador ambiental BIGINT→UUID"
+- **Impact:** Eliminates silent data destruction; enforces explicit operator validation
 
 #### Fix 2: Activity Type Compatibility Matrix — Sport-Based Rule (MAJOR) ✅
-- **Issue:** MAJOR - Matrix returns `true` for all types (doesn't enforce Design D2 incompatibility rule)
-- **Root Cause:** "All types compatible" logic was correct for MVP, but didn't implement sport-based filtering structure
-- **Solution:** Implement sport-based compatibility using EnumSet
-  - Add `EnumSet<TipoTreino> TIPOS_CORRIDA` with all 10 types (MVP: all are running sport)
-  - Implement `mesmoEsporte()`: types compatible IFF same sport
-  - MVP result: all TipoTreino → all in TIPOS_CORRIDA → compatible (correct)
-  - Structure ready: when natação/ciclismo added to enum, exclude from TIPOS_CORRIDA → incompatible
-- **Files:** ActivityTypeCompatibilityMatrix.java (refactored with EnumSet sport grouping)
-- **Tests:** ActivityTypeCompatibilityMatrixTest (5/5 PASSING, validates mesmoEsporte logic)
-- **Commit:** d9424fd "refactor: implementar regra de compatibilidade por esporte na matriz"
-- **Impact:** Implements Design D2 contract: "incompatibilidade forte descarta candidato" (structure now enforces sport rules)
+- **Issue:** MAJOR - Matrix uses boolean comparison (false==false) allowing incompatible types to match
+- **Root Cause:** Previous approach `TIPOS_CORRIDA.contains(a) == TIPOS_CORRIDA.contains(b)` had logic flaw
+  - If natação/ciclismo added to enum but excluded from TIPOS_CORRIDA:
+  - natacao: contains(natacao) = false
+  - ciclismo: contains(ciclismo) = false
+  - false == false = TRUE ❌ (incompatible types being compatible!)
+- **Solution:** Explicit sport modeling with getEsporte()
+  - Add `getEsporte(TipoTreino)` returning explicit sport string
+  - MVP: all TipoTreino → "CORRIDA"
+  - Future: natação → "NATACAO_DESCONHECIDO" (unique per type)
+  - `isCompatible()` compares sport strings directly
+  - Prevents false==false logic error
+- **Files:** ActivityTypeCompatibilityMatrix.java (refactored with getEsporte() explicit modeling)
+- **Tests:** ActivityTypeCompatibilityMatrixTest (5/5 PASSING, validates sport comparison)
+- **Commits:** d9424fd (initial), a65c1cf (fix boolean comparison bug)
+- **Impact:** Implements Design D2 safely: structure prevents false-positive incompatibility matches
 
 #### Fix 3: Design.md — Align Temporal Score to Implementation (MAJOR) ✅
 - **Issue:** MAJOR - Design.md specifies temporal score by HOURS (≤2h, ≤6h, ≤12h), implementation uses DAYS (0,1,2)
