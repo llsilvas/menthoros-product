@@ -1,8 +1,8 @@
 ## 1. Incremental Daily Sync
 
 - [x] 1.1 Definir job/trigger diário de sincronização incremental por atleta conectado
-- [x] 1.2 Garantir deduplicação por `externalId + atletaId`
-- [x] 1.3 Garantir isolamento multi-tenant em todo o fluxo
+- [ ] 1.2 Garantir deduplicação por `externalId + atletaId` (Implementado: V23 + saveIdempotent, pendente: evidência de testes com DB)
+- [ ] 1.3 Garantir isolamento multi-tenant em todo o fluxo (Implementado: DailyActivitySyncScheduler validações, pendente: evidência de testes de integração)
 - [x] 1.4 Implementar estratégia híbrida MVP: scheduler diário + endpoint manual on-demand por atleta
 
 ## 2. Matching Planned vs Completed
