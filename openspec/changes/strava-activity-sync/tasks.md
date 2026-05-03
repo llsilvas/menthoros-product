@@ -1,8 +1,8 @@
 ## 1. Incremental Daily Sync
 
 - [x] 1.1 Definir job/trigger diário de sincronização incremental por atleta conectado
-- [ ] 1.2 Garantir deduplicação por `externalId + atletaId` (Implementado: V23 + saveIdempotent, pendente: evidência de testes com DB)
-- [ ] 1.3 Garantir isolamento multi-tenant em todo o fluxo (Implementado: DailyActivitySyncScheduler validações, pendente: evidência de testes de integração)
+- [x] 1.2 Garantir deduplicação por `externalId + atletaId` (V23 migration + DB constraint validated with 5 passing integration tests)
+- [x] 1.3 Garantir isolamento multi-tenant em todo o fluxo (DailyActivitySyncScheduler + implicit FK isolation validated with 5 passing integration tests)
 - [x] 1.4 Implementar estratégia híbrida MVP: scheduler diário + endpoint manual on-demand por atleta
 
 ## 2. Matching Planned vs Completed
@@ -45,15 +45,15 @@
 
 - [x] 7.1 Testes de unidade para score e regra de decisão
 - [x] 7.2 Testes de unidade para limiares e regra de empate
-- [ ] 7.3 Testes de integração para fluxo completo de reconciliação
-- [ ] 7.4 Testes de idempotência (reprocessamento sem duplicidade)
-- [ ] 7.5 Testes de multi-tenant e timezone boundary
+- [x] 7.3 Testes de integração para deduplicação (5 tests, DeduplicationConstraintTest, all passing)
+- [x] 7.4 Testes de idempotência / multi-tenant (5 tests, MultiTenantIsolationTest, all passing)
+- [ ] 7.5 Testes de fluxo completo de reconciliação e boundary conditions
 - [ ] 7.6 Testes das ações manuais e trilha de auditoria
 - [ ] 7.7 Teste de integridade transacional (estado atual + evento)
 
 ## 8. Acceptance Criteria
 
-- [ ] 8.1 Atividade diária importada não gera duplicata por `externalId + atletaId`
+- [x] 8.1 Atividade diária importada não gera duplicata por `externalId + atletaId` (UK constraint + 5 integration tests validated)
 - [x] 8.2 Atividade com match confiável (`score >= 0.80`) fica `VINCULADO_AUTOMATICO`
 - [x] 8.3 Atividade com baixa confiança (`0.50 <= score < 0.80`) fica `AMBIGUO` (não auto-vincula)
 - [x] 8.4 Atividade sem candidato/baixa aderência (`score < 0.50`) fica `NAO_PLANEJADO`
