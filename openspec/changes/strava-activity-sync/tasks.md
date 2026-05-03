@@ -95,25 +95,30 @@
 
 **Backend Implementation (2026-05-03):**
 - [x] `GET /api/v1/reconciliation/atletas/{atletaId}/pendentes` - lista atividades AMBIGUO+NAO_PLANEJADO com paginação, filtros por status e data
+  - ✅ Fix: JPQL query com explicit CAST para parâmetros null (ae82a89) — resolve PostgreSQL type inference no filtro de data
 - [x] `GET /api/v1/reconciliation/{treinoRealizadoId}/candidatos` - candidatos rankeados por score de compatibilidade
 - [x] `POST /api/v1/reconciliation/{treinoRealizadoId}/acao` - ação unificada (VINCULAR_MANUALMENTE | MARCAR_NAO_PLANEJADO | DESFAZER_VINCULO)
 - New DTOs: TreinoRealizadoPendenteOutputDto, CandidateMatchDto, ReconciliacaoAcaoRequestDto
 - New Service: ReconciliacaoPendentesService (queries para pendentes e candidatos)
 - Repository enhancement: TreinoRealizadoRepository.findPendentesParaRevisao() com filtros tenant+status+data
 - Integration Tests: 19/19 PASSING (Task5p1ControllerIT: 8 testes GET /pendentes, 3 testes GET /candidatos, 3 testes POST /acao, 5 testes security/contract)
+- Unit Tests: 217/217 PASSING após fix do PostgreSQL parameter casting
 
 **Frontend Implementation (2026-05-03):**
 - ✅ Page: `src/pages/reconciliacao/ReconciliacaoPage.tsx` — listagem de atividades pendentes com filtros
 - ✅ Filtros: `ReconciliacaoFiltros` — atleta (autocomplete), status (multi-select), data range
+  - ✅ Feature: "Mostrar histórico (últimas 2 semanas)" — toggle checkbox com auto-range (hoje - 14 dias)
+  - ✅ Quando ativo: data fields desabilitados, range pré-preenchido via date-fns
 - ✅ Card expansível: `AtividadePendenteCard` — accordion com candidatos rankeados
 - ✅ Candidatos: `CandidatoItem` — exibe score breakdown (temporal, duração, distância) com barra de progresso
 - ✅ Service: `ReconciliacaoService` — chamadas aos 3 endpoints REST do backend
 - ✅ Hook: `useReconciliacao` — state management com debounce (500ms), retry (3x exponential), cache (5 min)
 - ✅ Types: `Reconciliacao.ts` — TypeScript types para `PendingActivityReview`, `CandidateMatch`, etc.
 - ✅ Routing: `App.tsx` + `DashboardSidebar` — página registrada com entrada no menu "Revisão Strava"
-- ✅ Tenant Header: `main.tsx` — X-Tenant-ID wiring via JWT claim extraction (suporta `tenantId` | `tenant_id` | `organizationId`)
+- ✅ Tenant Header: `main.tsx` — X-Tenant-ID wiring via JWT claim extraction (suporta `tenantId` | `tenant_id` | `organizationId` | nested `organization[orgName].tenant_id`)
 - ✅ Compilação: `npm run build` → SUCCESS (tsc + vite)
 - ✅ Lint: sem erros em código novo (ESLint pass)
+- ✅ Frontend Tests: build passa, integração com backend validada end-to-end
 
 **Endpoints Frontend (já implementados no backend):**
 1. `GET /api/v1/reconciliation/atletas/{atletaId}/pendentes` - lista com paginação
