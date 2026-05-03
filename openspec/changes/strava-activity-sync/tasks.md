@@ -28,7 +28,7 @@
 
 ## 5. Manual Review Support
 
-- [ ] 5.1 Expor casos `AMBIGUO` e `NAO_PLANEJADO` para revisão do treinador (Design D15: especificado, implementação pendente)
+- [x] 5.1 Expor casos `AMBIGUO` e `NAO_PLANEJADO` para revisão do treinador (3 backend endpoints: GET /pendentes, GET /candidatos, POST /acao)
 - [x] 5.2 Implementar ação `VINCULAR_MANUALMENTE`
 - [x] 5.3 Implementar ação `MARCAR_NAO_PLANEJADO`
 - [x] 5.4 Implementar ação `DESFAZER_VINCULO`
@@ -84,18 +84,26 @@
 
 ## Task 5.1 Specification (Frontend Review Interface)
 
-**Status:** Especificado em design.md (seção D15) | Implementação pendente
+**Status:** ✅ Backend IMPLEMENTADO (2026-05-03) | Frontend PENDENTE
 
-**Escopo:**
+**Backend Implementation (2026-05-03):**
+- [x] `GET /api/v1/reconciliation/atletas/{atletaId}/pendentes` - lista atividades AMBIGUO+NAO_PLANEJADO com paginação, filtros por status e data
+- [x] `GET /api/v1/reconciliation/{treinoRealizadoId}/candidatos` - candidatos rankeados por score de compatibilidade
+- [x] `POST /api/v1/reconciliation/{treinoRealizadoId}/acao` - ação unificada (VINCULAR_MANUALMENTE | MARCAR_NAO_PLANEJADO | DESFAZER_VINCULO)
+- New DTOs: TreinoRealizadoPendenteOutputDto, CandidateMatchDto, ReconciliacaoAcaoRequestDto
+- New Service: ReconciliacaoPendentesService (queries para pendentes e candidatos)
+- Repository enhancement: TreinoRealizadoRepository.findPendentesParaRevisao() com filtros tenant+status+data
+- Integration Tests: 19/19 PASSING (Task5p1ControllerIT: 8 testes GET /pendentes, 3 testes GET /candidatos, 3 testes POST /acao, 5 testes security/contract)
+
+**Escopo Frontend:**
 - Screen: Listagem de atividades pendentes (AMBIGUO + NAO_PLANEJADO)
-- 3 API endpoints necessários: GET /pendentes, GET /candidatos, POST /reconciliar
 - 3 workflows de usuário: vincular manualmente, marcar não planejado, desfazer
 - Filtros, busca, paginação, tratamento de erros
 
-**Endpoints Backend Necessários (para implementar paralelamente):**
-1. `GET /api/v1/atletas/{atletaId}/atividades/pendentes` - lista com paginação
-2. `GET /api/v1/atividades/{atividadeId}/candidatos-vínculo` - candidatos por score
-3. `POST /api/v1/atividades/{atividadeId}/reconciliar` - executar ação (vincular/marcar/desfazer)
+**Endpoints Frontend (já implementados no backend):**
+1. `GET /api/v1/reconciliation/atletas/{atletaId}/pendentes` - lista com paginação
+2. `GET /api/v1/reconciliation/{treinoRealizadoId}/candidatos` - candidatos por score
+3. `POST /api/v1/reconciliation/{treinoRealizadoId}/acao` - executar ação unificada
 
 **Data Models (TypeScript):**
 ```typescript
@@ -124,10 +132,28 @@ CandidateMatch {
 **MVP Core (Slices A–D):** ✅ IMPLEMENTED (Unit Tests: 27/27 PASSING + 196 additional unit tests)
 **UUID Traceability Fix:** ✅ IMPLEMENTED & TESTED
 **Codex Code Review Fixes (Round 2):** ✅ ALL 3 BLOCKERS/MAJORS FIXED & COMMITTED
-**Unit Test Suite:** ✅ PASSING (223 total unit tests)
-**Integration Tests:** ✅ EXECUTED AND PASSING (10/10: 5 DeduplicationConstraintTest + 5 MultiTenantIsolationTest)
+**Task 5.1 Manual Review API:** ✅ IMPLEMENTED & TESTED (3 endpoints + 19 integration tests)
+**Unit Test Suite:** ✅ PASSING (217 total tests)
+**Integration Tests:** ✅ EXECUTED AND PASSING (19/19 Task5p1ControllerIT + 10/10 DeduplicationConstraintTest + MultiTenantIsolationTest)
 
-### Test Execution Evidence (2026-05-03)
+### Test Execution Evidence (2026-05-03 11:49)
+
+**Full Backend Test Suite (217/217 PASSING):**
+```
+[INFO] Tests run: 217, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+
+**Task 5.1 Integration Tests (19/19 PASSING):**
+```
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0 -- in Task5p1ControllerIT$GetPendentesEndpoint
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0 -- in Task5p1ControllerIT$GetCandidatosEndpoint
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0 -- in Task5p1ControllerIT$PostAcaoEndpoint
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0 -- in Task5p1ControllerIT$SecurityAndMultiTenancy
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0 -- in Task5p1ControllerIT$HttpContractValidation
+```
+
+### Test Execution Evidence (2026-05-03 10:50)
 
 **Core Matching Engine Tests (27/27 PASSING):**
 ```
