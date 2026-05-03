@@ -214,3 +214,327 @@ Evolução planejada:
 - Integridade de deduplicação: 0 duplicatas por `externalId + atletaId`
 - Integridade de auditoria: 100% das ações manuais com trilha completa
 - Saúde de sync diário: taxa de falha técnica < 3% (com retry)
+
+## D15: Frontend Review Interface Specification
+
+### Overview
+
+A interface de revisão permite que o **treinador** visualize atividades sincronizadas que não foram auto-vinculadas (`AMBIGUO` ou `NAO_PLANEJADO`) e execute ações manuais de reconciliação.
+
+**Atores:** Treinador de assessoria (autenticado, com acesso ao tenant)
+
+**Objetivos:**
+- Listar atividades pendentes de revisão por atleta
+- Revisar candidatos de vínculo para casos ambíguos
+- Executar ações: vincular manualmente, marcar como não planejado, desfazer vínculos incorretos
+- Manter auditoria completa de cada intervenção
+
+### D15.1: Screen Structure - "Atividades Pendentes"
+
+#### Layout Principal
+```
+┌─────────────────────────────────────────────────────┐
+│ Atividades Pendentes de Revisão                     │
+├─────────────────────────────────────────────────────┤
+│ Filtros: [Atleta ▼] [Status ▼] [Data ▼] [Buscar]  │
+├─────────────────────────────────────────────────────┤
+│ Tabela:                                             │
+│ ┌─────┬────────┬──────────┬──────┬──────┬────────┐ │
+│ │Data │Atleta  │Atividade │Tipo  │Dist. │Ação    │ │
+│ ├─────┼────────┼──────────┼──────┼──────┼────────┤ │
+│ │5/3  │João    │Corrida   │FÁCIL │10km  │Revisar │ │ (status: AMBIGUO)
+│ │5/3  │Maria   │Ciclismo  │-     │25km  │Revisar │ │ (status: NAO_PLANEJADO)
+│ └─────┴────────┴──────────┴──────┴──────┴────────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+#### Cards Expandíveis (por atividade)
+Ao clicar "Revisar", expande para:
+```
+┌──────────────────────────────────────────┐
+│ AMBIGUO - João Silva - 5/3/2026          │
+├──────────────────────────────────────────┤
+│ Atividade Real:                          │
+│ • Data: 5/3/2026                         │
+│ • Tipo: Corrida (FÁCIL)                  │
+│ • Distância: 10.2 km                     │
+│ • Duração: 1h 05min                      │
+│ • Fonte: Strava (ID: strava_12345)       │
+├──────────────────────────────────────────┤
+│ Candidatos de Vínculo (Score):           │
+│ ☐ [0.75] Corrida fácil (seg, 5/3) - 10km│
+│ ☐ [0.65] Corrida moderada (ter, 4/3)    │
+├──────────────────────────────────────────┤
+│ Ações:                                   │
+│ [Vincular] [Marcar Não Planejado] [Fechar]
+└──────────────────────────────────────────┘
+```
+
+### D15.2: API Endpoints (Backend Responsibility)
+
+#### 1. Listar atividades pendentes por atleta
+```
+GET /api/v1/atletas/{atletaId}/atividades/pendentes
+Query params: ?status=AMBIGUO,NAO_PLANEJADO&dataInicio=2026-05-01&dataFim=2026-05-31&sortBy=data&order=desc
+
+Response: 200 OK
+{
+  "data": [
+    {
+      "id": "uuid-activity-1",
+      "externalId": "strava_12345",
+      "dataTreino": "2026-05-03",
+      "tipoTreino": "FÁCIL",
+      "distanciaKm": 10.2,
+      "duracaoMin": 65,
+      "reconciliationStatus": "AMBIGUO",
+      "reconciliationScore": 0.75,
+      "fonte": "STRAVA",
+      "atletaId": "uuid-joao",
+      "atletaNome": "João Silva"
+    }
+  ],
+  "pagination": {
+    "total": 5,
+    "page": 1,
+    "pageSize": 20
+  }
+}
+```
+
+#### 2. Obter candidatos de vínculo para atividade AMBIGUO
+```
+GET /api/v1/atividades/{atividadeId}/candidatos-vínculo
+
+Response: 200 OK
+{
+  "atividadeId": "uuid-activity-1",
+  "status": "AMBIGUO",
+  "candidatos": [
+    {
+      "treino_planejado_id": "uuid-plan-1",
+      "data": "2026-05-03",
+      "tipoTreino": "FÁCIL",
+      "distanciaKm": 10.0,
+      "duracaoMin": 60,
+      "score": 0.75,
+      "scoreBreakdown": {
+        "scoreTempora": 1.0,
+        "scoreDuracao": 0.8,
+        "scoreDistancia": 0.5
+      }
+    },
+    {
+      "treino_planejado_id": "uuid-plan-2",
+      "data": "2026-05-04",
+      "tipoTreino": "CONTINUO",
+      "distanciaKm": 12.0,
+      "duracaoMin": 70,
+      "score": 0.65,
+      "scoreBreakdown": {
+        "scoreTempora": 0.75,
+        "scoreDuracao": 0.7,
+        "scoreDistancia": 0.6
+      }
+    }
+  ]
+}
+```
+
+#### 3. Executar ação de reconciliação
+```
+POST /api/v1/atividades/{atividadeId}/reconciliar
+
+Content-Type: application/json
+{
+  "action": "VINCULAR_MANUALMENTE",  // ou "MARCAR_NAO_PLANEJADO" ou "DESFAZER_VINCULO"
+  "treinoPlanejadoId": "uuid-plan-1",  // obrigatório para VINCULAR_MANUALMENTE
+  "reasonText": "Atleta confirmou que é este treino"  // opcional
+}
+
+Response: 200 OK
+{
+  "atividadeId": "uuid-activity-1",
+  "reconciliationStatus": "VINCULADO_MANUAL",
+  "treinoPlanejadoId": "uuid-plan-1",
+  "reconciliationScore": 0.75,
+  "reconciledAt": "2026-05-03T10:50:00Z",
+  "reconciledBy": "USER:uuid-treinador"
+}
+
+Response: 400 Bad Request
+{
+  "error": "INVALID_ACTION",
+  "message": "Não é possível vincular a um treino de outro atleta",
+  "details": {
+    "expectedAthleteId": "uuid-joao",
+    "providedTrainingAthlete": "uuid-maria"
+  }
+}
+```
+
+### D15.3: Frontend State Management
+
+#### Data Structure in Frontend State
+```typescript
+interface PendingActivityReview {
+  id: string;
+  externalId: string;
+  atletaId: string;
+  atletaNome: string;
+  dataTreino: string;  // ISO date
+  tipoTreino: string;
+  distanciaKm: number;
+  duracaoMin: number;
+  reconciliationStatus: "AMBIGUO" | "NAO_PLANEJADO";
+  reconciliationScore: number | null;
+  fonte: "STRAVA";
+  
+  // UI State
+  isExpanded: boolean;
+  candidates?: CandidateMatch[];
+  selectedCandidateId?: string;  // para AMBIGUO
+  isSubmitting: boolean;
+  error?: string;
+}
+
+interface CandidateMatch {
+  treinoPlanejadoId: string;
+  data: string;
+  tipoTreino: string;
+  distanciaKm: number;
+  duracaoMin: number;
+  score: number;
+  scoreBreakdown: {
+    scoreTempora: number;
+    scoreDuracao: number;
+    scoreDistancia: number;
+  };
+}
+```
+
+### D15.4: User Workflows
+
+#### Workflow 1: Revisar AMBIGUO e Vincular
+```
+1. Treinador acessa "Atividades Pendentes"
+2. Sistema mostra lista com AMBIGUO + NAO_PLANEJADO
+3. Treinador clica "Revisar" em atividade AMBIGUO
+4. Frontend: GET /api/v1/atividades/{id}/candidatos-vínculo
+5. Sistema exibe card com candidatos ranqueados por score
+6. Treinador seleciona o candidato correto
+7. Treinador clica "Vincular"
+8. Frontend: POST /api/v1/atividades/{id}/reconciliar
+   {
+     "action": "VINCULAR_MANUALMENTE",
+     "treinoPlanejadoId": "uuid-selecionado"
+   }
+9. Backend valida, persiste, retorna novo estado
+10. Frontend atualiza lista, marca atividade como VINCULADO_MANUAL
+11. Toast/alert: "✓ Atividade vinculada com sucesso"
+```
+
+#### Workflow 2: Marcar como Não Planejado
+```
+1. Treinador revisa atividade (AMBIGUO ou NAO_PLANEJADO)
+2. Confirma que atividade é extra/não planejada
+3. Clica "Marcar como Não Planejado"
+4. Frontend: POST /api/v1/atividades/{id}/reconciliar
+   {
+     "action": "MARCAR_NAO_PLANEJADO",
+     "reasonText": "Treino extra do atleta, não estava no plano"
+   }
+5. Backend persiste, atualiza status para NAO_PLANEJADO
+6. Frontend remove da lista pendentes
+```
+
+#### Workflow 3: Desfazer Vínculo Incorreto
+```
+1. Treinador visualiza atividade vinculada (VINCULADO_AUTOMATICO ou VINCULADO_MANUAL)
+2. Nota que vínculo está incorreto
+3. Clica "Desfazer"
+4. Frontend: POST /api/v1/atividades/{id}/reconciliar
+   {
+     "action": "DESFAZER_VINCULO",
+     "reasonText": "Erro ao vincular, tipo de treino diferente"
+   }
+5. Backend volta status para AMBIGUO (com novos candidatos) ou NAO_PLANEJADO
+6. Atividade volta para fila de revisão
+```
+
+### D15.5: Frontend Validation Rules
+
+#### Validações obrigatórias
+- **VINCULAR_MANUALMENTE:**
+  - `treinoPlanejadoId` deve estar presente
+  - Treino planejado deve pertencer ao mesmo atleta
+  - Não é permitido vincular ao mesmo treino planejado múltiplas vezes
+  
+- **MARCAR_NAO_PLANEJADO:**
+  - Nenhuma validação além de autorização (mesmo tenant)
+  
+- **DESFAZER_VINCULO:**
+  - Atividade deve estar em estado `VINCULADO_AUTOMATICO` ou `VINCULADO_MANUAL`
+
+#### Feedback ao usuário (Frontend)
+- ✅ Sucesso: Toast verde, remove da lista ou atualiza status
+- ❌ Erro: Modal ou snackbar vermelho com mensagem clara
+  - "Treino planejado pertence a outro atleta"
+  - "Atividade já está vinculada a este treino"
+  - "Erro ao conectar com servidor (retry automático em 5s)"
+
+### D15.6: Filtros e Busca
+
+#### Filtros Disponíveis
+```
+- Status: [Ambiguo] [Não Planejado] (checkboxes multi-select)
+- Atleta: [Dropdown com lista de atletas do tenant]
+- Data: [Data Início] - [Data Fim] (range picker)
+- Fonte: [Strava] (por enquanto apenas)
+```
+
+#### Ordenação Padrão
+- Primary: `dataTreino DESC` (mais recentes primeiro)
+- Secondary: `reconciliationStatus` (AMBIGUO antes de NAO_PLANEJADO)
+
+#### Busca Textual
+- Campo de busca por nome do atleta ou `externalId`
+
+### D15.7: Error Handling and Edge Cases
+
+#### Cenários de Erro
+```
+1. Atleta desconectou do Strava entre sincronização e revisão
+   → Aviso ao usuário: "Dados podem estar desatualizados"
+
+2. Treino planejado foi deletado
+   → Candidato desaparece da lista
+   → Mensagem: "Treino planejado foi removido"
+
+3. Outra instância reconciliou a atividade enquanto era revista
+   → Aviso: "Atividade foi reconciliada por outro usuário"
+   → Reload automático da lista
+
+4. Timeout na chamada POST
+   → Retry automático 3x com backoff exponencial
+   → Após 3 falhas, exibir modal com opção de retry manual
+```
+
+### D15.8: Accessibility & Performance
+
+#### Accessibility
+- ARIA labels em botões de ação
+- Tabindex correto para navegação por teclado
+- Suporte a leitores de tela para status de reconciliação
+
+#### Performance
+- Lazy load de imagens de atleta
+- Paginação: 20 itens por página (carregamento on-demand)
+- Cache local de candidatos enquanto card expandido (até 5 min ou ao fechar)
+- Debounce em filtros: 500ms antes de disparar GET
+
+#### Load Time Targets
+- Time to First Paint: < 2s
+- GET /pendentes com 20 itens: < 500ms
+- GET /candidatos: < 300ms
+- POST /reconciliar: < 1s
