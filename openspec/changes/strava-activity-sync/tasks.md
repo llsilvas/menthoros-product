@@ -28,7 +28,7 @@
 
 ## 5. Manual Review Support
 
-- [ ] 5.1 Expor casos `AMBIGUO` e `NAO_PLANEJADO` para revisão do treinador
+- [ ] 5.1 Expor casos `AMBIGUO` e `NAO_PLANEJADO` para revisão do treinador (Design D15: especificado, implementação pendente)
 - [x] 5.2 Implementar ação `VINCULAR_MANUALMENTE`
 - [x] 5.3 Implementar ação `MARCAR_NAO_PLANEJADO`
 - [x] 5.4 Implementar ação `DESFAZER_VINCULO`
@@ -82,7 +82,44 @@
 
 ---
 
-## Status de Conclusão - Atualizado 2026-05-03 10:09
+## Task 5.1 Specification (Frontend Review Interface)
+
+**Status:** Especificado em design.md (seção D15) | Implementação pendente
+
+**Escopo:**
+- Screen: Listagem de atividades pendentes (AMBIGUO + NAO_PLANEJADO)
+- 3 API endpoints necessários: GET /pendentes, GET /candidatos, POST /reconciliar
+- 3 workflows de usuário: vincular manualmente, marcar não planejado, desfazer
+- Filtros, busca, paginação, tratamento de erros
+
+**Endpoints Backend Necessários (para implementar paralelamente):**
+1. `GET /api/v1/atletas/{atletaId}/atividades/pendentes` - lista com paginação
+2. `GET /api/v1/atividades/{atividadeId}/candidatos-vínculo` - candidatos por score
+3. `POST /api/v1/atividades/{atividadeId}/reconciliar` - executar ação (vincular/marcar/desfazer)
+
+**Data Models (TypeScript):**
+```typescript
+PendingActivityReview {
+  id, externalId, atletaId, dataTreino, tipoTreino, 
+  distanciaKm, duracaoMin, reconciliationStatus, score, ...
+}
+
+CandidateMatch {
+  treinoPlanejadoId, data, tipoTreino, distanciaKm, duracaoMin,
+  score, scoreBreakdown { scoreTempora, scoreDuracao, scoreDistancia }
+}
+```
+
+**Validações Frontend:**
+- VINCULAR_MANUALMENTE: treino escolhido deve ser do mesmo atleta
+- MARCAR_NAO_PLANEJADO: simples (apenas confirmação)
+- DESFAZER_VINCULO: apenas para estados VINCULADO_*
+
+**Referência Detalhada:** `design.md` seção **D15** (8 subsections)
+
+---
+
+## Status de Conclusão - Atualizado 2026-05-03 10:50
 
 **MVP Core (Slices A–D):** ✅ IMPLEMENTED (Unit Tests: 27/27 PASSING + 196 additional unit tests)
 **UUID Traceability Fix:** ✅ IMPLEMENTED & TESTED
