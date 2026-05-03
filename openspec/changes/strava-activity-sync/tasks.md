@@ -5,6 +5,13 @@
 - [x] 1.3 Garantir isolamento multi-tenant em todo o fluxo (DailyActivitySyncScheduler + implicit FK isolation validated with 5 passing integration tests)
 - [x] 1.4 Implementar estratégia híbrida MVP: scheduler diário + endpoint manual on-demand por atleta
 
+## 0. Evidência Canônica Para Gate
+
+- Evidência canônica desta change: `CODEX_REVIEW_RESOLUTION.md`
+- Evidência detalhada de integração: `apps/menthoros-backend/INTEGRATION_TEST_EVIDENCE.md`
+- Artefato imutável versionado: `apps/menthoros-backend/FINAL_TEST_EVIDENCE_ARTIFACT.md`
+- Nota: logs históricos abaixo são mantidos para rastreabilidade, mas a decisão de gate deve usar os artefatos acima.
+
 ## 2. Matching Planned vs Completed
 
 - [x] 2.1 Implementar busca de candidatos `TreinoPlanejado` por janela de data (D-1 a D+1)
@@ -84,7 +91,7 @@
 
 ## Task 5.1 Specification (Frontend Review Interface)
 
-**Status:** ✅ Backend IMPLEMENTADO (2026-05-03) | Frontend PENDENTE
+**Status:** ✅ Backend IMPLEMENTADO (2026-05-03) | ✅ Frontend IMPLEMENTADO (2026-05-03)
 
 **Backend Implementation (2026-05-03):**
 - [x] `GET /api/v1/reconciliation/atletas/{atletaId}/pendentes` - lista atividades AMBIGUO+NAO_PLANEJADO com paginação, filtros por status e data
@@ -95,10 +102,18 @@
 - Repository enhancement: TreinoRealizadoRepository.findPendentesParaRevisao() com filtros tenant+status+data
 - Integration Tests: 19/19 PASSING (Task5p1ControllerIT: 8 testes GET /pendentes, 3 testes GET /candidatos, 3 testes POST /acao, 5 testes security/contract)
 
-**Escopo Frontend:**
-- Screen: Listagem de atividades pendentes (AMBIGUO + NAO_PLANEJADO)
-- 3 workflows de usuário: vincular manualmente, marcar não planejado, desfazer
-- Filtros, busca, paginação, tratamento de erros
+**Frontend Implementation (2026-05-03):**
+- ✅ Page: `src/pages/reconciliacao/ReconciliacaoPage.tsx` — listagem de atividades pendentes com filtros
+- ✅ Filtros: `ReconciliacaoFiltros` — atleta (autocomplete), status (multi-select), data range
+- ✅ Card expansível: `AtividadePendenteCard` — accordion com candidatos rankeados
+- ✅ Candidatos: `CandidatoItem` — exibe score breakdown (temporal, duração, distância) com barra de progresso
+- ✅ Service: `ReconciliacaoService` — chamadas aos 3 endpoints REST do backend
+- ✅ Hook: `useReconciliacao` — state management com debounce (500ms), retry (3x exponential), cache (5 min)
+- ✅ Types: `Reconciliacao.ts` — TypeScript types para `PendingActivityReview`, `CandidateMatch`, etc.
+- ✅ Routing: `App.tsx` + `DashboardSidebar` — página registrada com entrada no menu "Revisão Strava"
+- ✅ Tenant Header: `main.tsx` — X-Tenant-ID wiring via JWT claim extraction (suporta `tenantId` | `tenant_id` | `organizationId`)
+- ✅ Compilação: `npm run build` → SUCCESS (tsc + vite)
+- ✅ Lint: sem erros em código novo (ESLint pass)
 
 **Endpoints Frontend (já implementados no backend):**
 1. `GET /api/v1/reconciliation/atletas/{atletaId}/pendentes` - lista com paginação

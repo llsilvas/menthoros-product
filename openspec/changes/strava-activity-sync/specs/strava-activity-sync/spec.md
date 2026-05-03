@@ -99,3 +99,24 @@ O sistema SHALL garantir que atividades importadas sejam associadas ao `tenant_i
 #### Scenario: Sync de atleta de outro tenant
 - **WHEN** `POST /api/strava/sync/{atletaId}` é chamado para atleta de outro tenant
 - **THEN** o sistema retorna HTTP 404
+
+---
+
+### Requirement: API de revisão manual de reconciliação
+O sistema SHALL expor endpoints de revisão manual para casos `AMBIGUO` e `NAO_PLANEJADO`, com isolamento por tenant e validação de contrato HTTP.
+
+#### Scenario: Listar pendentes por atleta
+- **WHEN** `GET /api/v1/reconciliation/atletas/{atletaId}/pendentes` é chamado com `X-Tenant-ID`
+- **THEN** o sistema retorna lista paginada apenas com status `AMBIGUO` e `NAO_PLANEJADO` do atleta no tenant informado
+
+#### Scenario: Listar candidatos de vínculo
+- **WHEN** `GET /api/v1/reconciliation/{treinoRealizadoId}/candidatos` é chamado com `X-Tenant-ID`
+- **THEN** o sistema retorna candidatos ordenados por score de compatibilidade para o mesmo tenant
+
+#### Scenario: Executar ação manual
+- **WHEN** `POST /api/v1/reconciliation/{treinoRealizadoId}/acao` é chamado com ação válida (`VINCULAR_MANUALMENTE`, `MARCAR_NAO_PLANEJADO`, `DESFAZER_VINCULO`)
+- **THEN** o sistema aplica a transição de reconciliação, respeitando validações de domínio e tenant
+
+#### Scenario: Header de tenant ausente
+- **WHEN** qualquer endpoint de reconciliação manual é chamado sem `X-Tenant-ID`
+- **THEN** o sistema retorna HTTP 400 com mensagem indicando header obrigatório ausente

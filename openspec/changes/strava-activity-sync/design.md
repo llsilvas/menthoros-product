@@ -274,7 +274,7 @@ Ao clicar "Revisar", expande para:
 
 #### 1. Listar atividades pendentes por atleta
 ```
-GET /api/v1/atletas/{atletaId}/atividades/pendentes
+GET /api/v1/reconciliation/atletas/{atletaId}/pendentes
 Query params: ?status=AMBIGUO,NAO_PLANEJADO&dataInicio=2026-05-01&dataFim=2026-05-31&sortBy=data&order=desc
 
 Response: 200 OK
@@ -304,7 +304,7 @@ Response: 200 OK
 
 #### 2. Obter candidatos de vínculo para atividade AMBIGUO
 ```
-GET /api/v1/atividades/{atividadeId}/candidatos-vínculo
+GET /api/v1/reconciliation/{treinoRealizadoId}/candidatos
 
 Response: 200 OK
 {
@@ -343,7 +343,7 @@ Response: 200 OK
 
 #### 3. Executar ação de reconciliação
 ```
-POST /api/v1/atividades/{atividadeId}/reconciliar
+POST /api/v1/reconciliation/{treinoRealizadoId}/acao
 
 Content-Type: application/json
 {
@@ -364,12 +364,22 @@ Response: 200 OK
 
 Response: 400 Bad Request
 {
-  "error": "INVALID_ACTION",
-  "message": "Não é possível vincular a um treino de outro atleta",
-  "details": {
-    "expectedAthleteId": "uuid-joao",
-    "providedTrainingAthlete": "uuid-maria"
-  }
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Não é possível vincular a um treino de outro atleta"
+}
+```
+
+#### Header obrigatório de tenant
+Todos os endpoints de reconciliação manual exigem `X-Tenant-ID` (UUID).
+
+Quando ausente:
+
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Header obrigatório ausente: X-Tenant-ID"
 }
 ```
 
@@ -420,11 +430,11 @@ interface CandidateMatch {
 1. Treinador acessa "Atividades Pendentes"
 2. Sistema mostra lista com AMBIGUO + NAO_PLANEJADO
 3. Treinador clica "Revisar" em atividade AMBIGUO
-4. Frontend: GET /api/v1/atividades/{id}/candidatos-vínculo
+4. Frontend: GET /api/v1/reconciliation/{id}/candidatos
 5. Sistema exibe card com candidatos ranqueados por score
 6. Treinador seleciona o candidato correto
 7. Treinador clica "Vincular"
-8. Frontend: POST /api/v1/atividades/{id}/reconciliar
+8. Frontend: POST /api/v1/reconciliation/{id}/acao
    {
      "action": "VINCULAR_MANUALMENTE",
      "treinoPlanejadoId": "uuid-selecionado"
@@ -439,7 +449,7 @@ interface CandidateMatch {
 1. Treinador revisa atividade (AMBIGUO ou NAO_PLANEJADO)
 2. Confirma que atividade é extra/não planejada
 3. Clica "Marcar como Não Planejado"
-4. Frontend: POST /api/v1/atividades/{id}/reconciliar
+4. Frontend: POST /api/v1/reconciliation/{id}/acao
    {
      "action": "MARCAR_NAO_PLANEJADO",
      "reasonText": "Treino extra do atleta, não estava no plano"
@@ -453,7 +463,7 @@ interface CandidateMatch {
 1. Treinador visualiza atividade vinculada (VINCULADO_AUTOMATICO ou VINCULADO_MANUAL)
 2. Nota que vínculo está incorreto
 3. Clica "Desfazer"
-4. Frontend: POST /api/v1/atividades/{id}/reconciliar
+4. Frontend: POST /api/v1/reconciliation/{id}/acao
    {
      "action": "DESFAZER_VINCULO",
      "reasonText": "Erro ao vincular, tipo de treino diferente"
@@ -537,4 +547,4 @@ interface CandidateMatch {
 - Time to First Paint: < 2s
 - GET /pendentes com 20 itens: < 500ms
 - GET /candidatos: < 300ms
-- POST /reconciliar: < 1s
+- POST /reconciliation/{id}/acao: < 1s
