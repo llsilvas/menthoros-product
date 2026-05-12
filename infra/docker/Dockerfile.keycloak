@@ -1,7 +1,6 @@
 FROM quay.io/keycloak/keycloak:26.0.0
 
-# Create entrypoint script inline
-RUN printf '#!/bin/bash\nset -e\nif [ -n "$KC_DB" ]; then\n  echo "Rebuilding Keycloak with KC_DB=$KC_DB..."\n  /opt/keycloak/bin/kc.sh build\nfi\nexec /opt/keycloak/bin/kc.sh start --optimized\n' > /entrypoint.sh && \
-    chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
+# Use the default image - let Keycloak handle build/rebuild as needed
+# On first start: will do build automatically
+# On subsequent starts with same DB: uses optimized mode
+CMD ["start"]
