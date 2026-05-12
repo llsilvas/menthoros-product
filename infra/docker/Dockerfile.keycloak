@@ -1,4 +1,5 @@
 FROM quay.io/keycloak/keycloak:26.0.0
 
-# Use default entrypoint, just specify the command
-CMD ["start"]
+# Start Keycloak in optimized production mode
+ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
+CMD ["start", "--optimized"]
