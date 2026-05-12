@@ -1,17 +1,4 @@
-FROM quay.io/keycloak/keycloak:23.0.0 AS builder
+FROM quay.io/keycloak/keycloak:26.0.0
 
-USER root
-
-# Pre-build Keycloak image for production (avoids build at runtime)
-RUN /opt/keycloak/bin/kc.sh build
-
-# ── Final Stage ────────────────────────────────────────────────────────────
-FROM quay.io/keycloak/keycloak:23.0.0
-
-COPY --from=builder /opt/keycloak/lib /opt/keycloak/lib
-
-USER 1000
-
-# Run Keycloak in production mode (no build needed)
-ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
+# Use default entrypoint, just specify the command
 CMD ["start"]
