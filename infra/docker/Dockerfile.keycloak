@@ -1,8 +1,12 @@
 FROM quay.io/keycloak/keycloak:23.0.0
 
-# Arquivo de configuração padrão
-ENV KC_FEATURES=
+USER root
+
+# Create and set execute permission for startup script in one step
+RUN echo '#!/bin/bash\nset -e\nexec /opt/keycloak/bin/kc.sh start' > /opt/keycloak/start.sh && \
+    chmod +x /opt/keycloak/start.sh
+
+USER 1000
 
 # Entrypoint para iniciar o Keycloak em modo production
-ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
-CMD ["start"]
+ENTRYPOINT ["/opt/keycloak/start.sh"]
