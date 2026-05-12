@@ -1,0 +1,8 @@
+FROM quay.io/keycloak/keycloak:23.0.0
+
+# Arquivo de configuração padrão
+ENV KC_FEATURES=
+
+# Entrypoint para iniciar o Keycloak em modo production
+ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
+CMD ["start"]
