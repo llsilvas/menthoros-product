@@ -1,8 +1,3 @@
 FROM quay.io/keycloak/keycloak:26.0.0
 
-# Copy entrypoint script
-COPY infra/docker/keycloak-entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# Use custom entrypoint to start Keycloak
-ENTRYPOINT ["/entrypoint.sh"]
+# Just use the image as-is, Railway will pass commands
