@@ -1,14 +1,4 @@
-FROM quay.io/keycloak/keycloak:26.0.0 AS builder
-
-# Build optimized Keycloak runtime
-RUN /opt/keycloak/bin/kc.sh build
-
-# Final image
 FROM quay.io/keycloak/keycloak:26.0.0
 
-# Copy prebuilt libs from builder
-COPY --from=builder /opt/keycloak/lib /opt/keycloak/lib
-COPY --from=builder /opt/keycloak/bin /opt/keycloak/bin
-
-# Start Keycloak
-CMD ["start"]
+# Start Keycloak in optimized mode - let it build/rebuild as needed
+CMD ["start", "--optimized"]
