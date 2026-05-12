@@ -1,7 +1,8 @@
 FROM quay.io/keycloak/keycloak:26.0.0
 
-# Build Keycloak optimizations (required before using --optimized)
-RUN /opt/keycloak/bin/kc.sh build || true
+# Copy entrypoint script that handles rebuild on environment change
+COPY infra/docker/keycloak-entrypoint.sh /
+RUN chmod +x /keycloak-entrypoint.sh
 
-# Start in optimized mode
-CMD ["start", "--optimized"]
+# Use entrypoint to handle rebuild and start
+ENTRYPOINT ["/keycloak-entrypoint.sh"]
