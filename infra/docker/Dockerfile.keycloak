@@ -1,8 +1,7 @@
 FROM quay.io/keycloak/keycloak:26.0.0
 
-# Copy entrypoint script that handles rebuild on environment change
-COPY infra/docker/keycloak-entrypoint.sh /
-RUN chmod +x /keycloak-entrypoint.sh
+# Create entrypoint script inline
+RUN printf '#!/bin/bash\nset -e\nif [ -n "$KC_DB" ]; then\n  echo "Rebuilding Keycloak with KC_DB=$KC_DB..."\n  /opt/keycloak/bin/kc.sh build\nfi\nexec /opt/keycloak/bin/kc.sh start --optimized\n' > /entrypoint.sh && \
+    chmod +x /entrypoint.sh
 
-# Use entrypoint to handle rebuild and start
-ENTRYPOINT ["/keycloak-entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
