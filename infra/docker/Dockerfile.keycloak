@@ -2,11 +2,12 @@ FROM quay.io/keycloak/keycloak:23.0.0
 
 USER root
 
-# Create and set execute permission for startup script in one step
-RUN echo '#!/bin/bash\nset -e\nexec /opt/keycloak/bin/kc.sh start' > /opt/keycloak/start.sh && \
-    chmod +x /opt/keycloak/start.sh
+# Create startup script correctly with proper line breaks
+RUN printf '#!/bin/bash\nset -e\nexec /opt/keycloak/bin/kc.sh start' > /opt/keycloak/start.sh && \
+    chmod +x /opt/keycloak/start.sh && \
+    cat /opt/keycloak/start.sh
 
 USER 1000
 
-# Entrypoint para iniciar o Keycloak em modo production
-ENTRYPOINT ["/opt/keycloak/start.sh"]
+# Run Keycloak in production mode
+ENTRYPOINT ["/bin/bash", "-c", "/opt/keycloak/bin/kc.sh start"]
