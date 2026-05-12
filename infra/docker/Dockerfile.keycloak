@@ -1,5 +1,8 @@
 FROM quay.io/keycloak/keycloak:26.0.0
 
-# Start Keycloak in optimized production mode
-ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
-CMD ["start", "--optimized"]
+# Copy entrypoint script
+COPY infra/docker/keycloak-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Use custom entrypoint to start Keycloak
+ENTRYPOINT ["/entrypoint.sh"]
