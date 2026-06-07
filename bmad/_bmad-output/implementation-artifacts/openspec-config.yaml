@@ -1,0 +1,30 @@
+project:
+  name: menthoros-skills
+  type: spring-ai-skills
+  base_path: src/main/resources/skills
+
+skills:
+  structure:
+    skill_file: SKILL.md
+    scripts_dir: scripts
+    references_dir: references
+  
+  validation:
+    require_version: true
+    require_examples: true
+    require_output_schema: true
+
+generation:
+  model: claude-sonnet-4-6
+  temperature: 0.3
+  
+  style:
+    architecture: simplified-layered
+    language: en-US
+    output_language: en-US
+    code_style: pep8
+
+output:
+  create_tests: true
+  create_integration_code: true
+  integration_framework: spring-boot

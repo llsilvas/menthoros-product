@@ -1,0 +1,60 @@
+project:
+  name: menthoros-backend
+  language: java
+  framework: spring-boot
+  architecture: simplified-layered
+
+setup:
+  phase: multi-model-skills-implementation
+  description: "Setup de Spring AI Skills + Multi-Modelo"
+
+  tasks:
+    - name: multi-model-config
+      description: "Configurar 4 modelos LLM (Mini, Haiku, Sonnet, GPT-4o)"
+      files:
+        - src/main/java/br/com/menthoros/backend/config/MultiModelConfig.java
+        - src/main/java/br/com/menthoros/backend/routing/ModelRouter.java
+        - src/main/java/br/com/menthoros/backend/routing/TaskComplexity.java
+      validation:
+        - mvn compile
+        - mvn test -Dtest=MultiModelConfigTest
+
+    - name: skills-setup
+      description: "Configurar Spring AI Skills"
+      dependencies: [multi-model-config]
+      files:
+        - src/main/java/br/com/menthoros/backend/config/SkillsConfig.java
+        - src/main/resources/skills/analise/workout-analyzer/SKILL.md
+      validation:
+        - mvn compile
+
+    - name: translation-layer
+      description: "Implementar camada de tradução EN→PT"
+      dependencies: [multi-model-config]
+      files:
+        - src/main/java/br/com/menthoros/backend/translation/WorkoutAnalysisTranslator.java
+      validation:
+        - mvn test -Dtest=WorkoutAnalysisTranslatorTest
+
+    - name: integration
+      description: "Integrar com eventos Spring"
+      dependencies: [skills-setup, translation-layer]
+      files:
+        - src/main/java/br/com/menthoros/backend/events/listeners/WorkoutAnalysisListener.java
+      validation:
+        - mvn test -Dtest=WorkoutAnalysisE2ETest
+
+code_quality:
+  max_lines_per_file: 300
+  enforce:
+    - single_responsibility
+    - dependency_injection
+
+testing:
+  framework: junit5
+  coverage_threshold: 70
+  auto_generate_tests: true
+
+output:
+  create_documentation: true
+  log_level: INFO

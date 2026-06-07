@@ -1,0 +1,202 @@
+skill:
+  name: workout-analyzer
+  description: Post-workout analysis comparing planned vs actual execution with technical interpretation
+  version: 1.0.0
+  language: en-US
+  tags:
+    - analysis
+    - post-workout
+    - rpe
+    - fatigue-detection
+
+input:
+  entities:
+    - TreinoRealizado
+    - TreinoPlanejado
+    - Atleta
+  
+  context:
+    - TSB (Training Stress Balance)
+    - CTL (Chronic Training Load)
+    - Consecutive load days
+  
+  schema:
+    planned:
+      type: LONG_RUN | INTERVAL | TEMPO | RECOVERY | EASY
+      distance_km: number
+      target_pace: string (optional, format "MM:SS/km")
+      target_hr_zone: string (optional, Z1-Z5)
+      expected_rpe: integer (1-10)
+    
+    actual:
+      distance_km: number
+      avg_pace: string (optional, format "MM:SS/km")
+      avg_hr: integer (optional, bpm)
+      rpe: integer (1-10)
+    
+    athlete_context:
+      tsb: number
+      ctl: number
+      consecutive_load_days: integer
+
+process:
+  steps:
+    - name: calculate_execution_delta
+      type: python_script
+      description: "Calculate objective metrics between planned and actual"
+      inputs:
+        - planned_id: integer
+        - realizado_id: integer
+      outputs:
+        - distance_delta_km: float
+        - distance_delta_percent: float
+        - rpe_delta: integer
+        - pace_delta_seconds: float (optional)
+    
+    - name: analyze_rpe_delta
+      type: llm_reasoning
+      description: "Interpret RPE delta with fatigue context"
+      framework: |
+        RPE Delta Classification:
+        - >= +3: CONCERNING (significantly harder)
+        - +1 to +2: MODERATE (slightly harder)
+        - -1 to +1: NORMAL (as expected)
+        - <= -2: EASY (easier than expected)
+        
+        Context Integration:
+        - RPE delta +3 AND TSB < -20 → ACCUMULATED_FATIGUE
+        - RPE delta +3 AND TSB > -10 → ENVIRONMENTAL_FACTORS
+        - Consecutive days >= 5 → CNS_FATIGUE
+    
+    - name: generate_recommendation
+      type: llm_reasoning
+      description: "Provide actionable advice based on analysis"
+
+output:
+  format: json
+  schema:
+    summary:
+      type: string
+      max_length: 100
+      description: "Concise headline of analysis"
+    
+    technical_interpretation:
+      type: string
+      description: "Detailed technical analysis"
+    
+    primary_cause:
+      type: enum
+      values:
+        - ACCUMULATED_FATIGUE
+        - ENVIRONMENTAL_FACTORS
+        - PACING_ERROR
+        - CNS_FATIGUE
+        - NORMAL
+        - UNDERTRAINING
+    
+    recommendation:
+      type: string
+      description: "Actionable advice for next steps"
+    
+    tags:
+      type: array
+      items: string
+      description: "Classification tags"
+    
+    execution_score:
+      type: integer
+      min: 1
+      max: 10
+      description: "Quality of execution (10 = perfect)"
+    
+    rationale:
+      type: string
+      description: "Explanation of score and findings"
+
+examples:
+  - name: excellent_execution
+    description: "Perfect adherence to plan"
+    input:
+      planned:
+        type: LONG_RUN
+        distance_km: 18
+        target_pace: "5:30-5:45/km"
+        expected_rpe: 4
+      actual:
+        distance_km: 17.8
+        avg_pace: "5:38/km"
+        rpe: 4
+      athlete_context:
+        tsb: 2
+        ctl: 45
+        consecutive_load_days: 2
+    
+    expected_output:
+      summary: "Excellent adherence to plan"
+      technical_interpretation: "Long run executed precisely as prescribed. Pace within target range (5:38/km vs 5:30-5:45/km target). RPE matched expectations (4/10), indicating good pacing and appropriate fitness for the workout. Positive TSB (+2) suggests good recovery status."
+      primary_cause: NORMAL
+      recommendation: "Continue current training load. Consider slight progression next week."
+      tags:
+        - EXCELLENT_EXECUTION
+        - GOOD_RECOVERY
+      execution_score: 10
+      rationale: "RPE delta = 0, pace on target, positive TSB indicates well-recovered athlete executing prescribed stimulus correctly."
+  
+  - name: accumulated_fatigue
+    description: "Clear signs of overreaching"
+    input:
+      planned:
+        type: INTERVAL
+        distance_km: 12
+        target_pace: "4:20/km"
+        expected_rpe: 6
+      actual:
+        distance_km: 10
+        avg_pace: "4:45/km"
+        rpe: 9
+      athlete_context:
+        tsb: -28
+        ctl: 52
+        consecutive_load_days: 7
+    
+    expected_output:
+      summary: "Clear signs of accumulated fatigue - recovery needed"
+      technical_interpretation: "Interval workout significantly harder than expected. RPE delta of +3 (9 vs 6 expected) combined with TSB of -28 and 7 consecutive load days indicates accumulated fatigue. Workout terminated early (10km vs 12km planned) and pace slower than target (4:45/km vs 4:20/km). Classic signs of overreaching."
+      primary_cause: ACCUMULATED_FATIGUE
+      recommendation: "Mandatory recovery: 2-3 days of active recovery (Z1-Z2 easy runs, 30-45 minutes) or complete rest. Do not attempt quality workouts until TSB > -15."
+      tags:
+        - FATIGUE_DETECTED
+        - ACCUMULATED_FATIGUE
+        - CNS_FATIGUE
+        - RECOVERY_NEEDED
+        - WORKOUT_INCOMPLETE
+      execution_score: 3
+      rationale: "RPE delta +3, negative TSB beyond -25, extended consecutive load period, and incomplete workout are strong indicators of overtraining risk. Immediate recovery required to prevent injury and allow adaptation."
+
+scripts:
+  - name: calculate_execution_delta.py
+    language: python
+    version: "3.11+"
+    dependencies: []
+    description: "Calculate objective metrics between planned and actual workout"
+
+references:
+  - name: rpe_guidelines.md
+    description: "Borg CR10 Scale interpretation with context-dependent adjustments"
+    topics:
+      - RPE scale (1-10)
+      - Context adjustments (TSB, consecutive days, environment)
+      - HR correlation
+
+integration:
+  trigger: TreinoRegistradoEvent
+  async: true
+  transaction: REQUIRES_NEW
+  
+  service: WorkoutAnalysisListener
+  method: onTreinoRegistrado
+  
+  dependencies:
+    - ChatClient (with skills)
+    - WorkoutAnalysisTranslator
+    - AiWorkoutAnalysisRepository
