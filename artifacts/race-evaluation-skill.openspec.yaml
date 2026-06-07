@@ -1,0 +1,384 @@
+################################################################################
+# OPENSPEC — RaceEvaluationSkill
+# Feature: Avaliação pós-prova do atleta
+# Version: 0.1.0 (draft — amadurecimento em progresso)
+# Author: Menthoros Core
+# Last updated: 2026-05-21
+################################################################################
+
+skill:
+  name: race-evaluation
+  class: com.menthoros.skills.race.RaceEvaluationSkill
+  description: |
+    Analisa o desempenho do atleta em uma prova concluída. Combina uma camada
+    determinística (cálculos de splits, fade, TSB, desvio de pace) com uma
+    camada LLM para geração de narrativa contextualizada em português.
+    
+    O coach sempre revisa o output antes de o atleta ter acesso — alinhado com
+    o modelo coach-in-the-loop do Menthoros.
+  version: 0.1.0
+  status: draft            # draft | review | stable | deprecated
+  tags:
+    - race
+    - pos-prova
+    - analise
+    - coach-in-the-loop
+  trigger: post_race_registration   # disparo automático após atleta registrar prova
+
+  # ---------------------------------------------------------------------------
+  # MODELO LLM
+  # ---------------------------------------------------------------------------
+  llm:
+    provider: anthropic
+    model: claude-haiku-4          # narrativa estruturada, custo baixo
+    fallback_model: claude-sonnet-4
+    max_tokens: 1200
+    temperature: 0.3               # análise técnica requer baixa criatividade
+    language_strategy: code_switching
+    # instruções e dados técnicos em inglês; output narrativo em português
+    prompt_file: src/main/resources/skills/race/evaluation/SKILL.md
+
+  # ---------------------------------------------------------------------------
+  # INPUT
+  # ---------------------------------------------------------------------------
+  input:
+    source: menthoros-database
+    dto: RaceEvaluationInput
+
+    fields:
+      race:
+        type: Race
+        required: true
+        fields:
+          - id: Long
+          - name: String
+          - distance_m: Integer         # distância em metros
+          - race_type: Enum             # ROAD | TRAIL | TRACK
+          - elevation_gain_m: Integer
+          - date: LocalDate
+
+      result:
+        type: RaceResult
+        required: true
+        fields:
+          - finish_time_seconds: Long
+          - average_pace_sec_per_km: Integer
+          - average_hr: Integer
+          - max_hr: Integer
+          - splits: List<KmSplit>       # pace_sec + hr por km/trecho
+          - garmin_activity_id: String  # nullable — enriquecimento futuro
+          - strava_activity_id: String  # nullable
+
+      km_split:
+        type: KmSplit
+        description: Dados de cada km ou trecho da prova
+        fields:
+          - km: Integer
+          - pace_sec_per_km: Integer
+          - hr_avg: Integer
+
+      athlete:
+        type: AthleteProfile
+        required: true
+        fields:
+          - id: Long
+          - age: Integer
+          - sex: Enum                   # MALE | FEMALE
+          - weight_kg: Double
+          - max_hr: Integer
+          - hr_zones: HRZones           # Z1..Z5 em bpm
+          - vo2max_estimated: Double    # nullable
+
+      training_context:
+        type: TrainingContext
+        required: true
+        description: Contexto de carga de treino na semana da prova
+        fields:
+          - ctl_on_race_day: Double     # Chronic Training Load
+          - atl_on_race_day: Double     # Acute Training Load
+          - tsb_on_race_day: Double     # Training Stress Balance = CTL - ATL
+          - ctl_trend_4w: Double        # variação de CTL nas últimas 4 semanas
+          - recent_feedbacks: List<WorkoutFeedbackSummary>
+          - periodization_phase: Enum  # BASE | BUILD | ESPECIFICO | TAPER
+
+      goal:
+        type: RaceGoal
+        required: false
+        description: Meta definida pelo coach antes da prova
+        fields:
+          - target_time_seconds: Long   # nullable
+          - target_pace_sec_per_km: Integer
+          - priority: Enum              # A_RACE | B_RACE | C_RACE
+
+  # ---------------------------------------------------------------------------
+  # CAMADA DETERMINÍSTICA (executa antes do LLM — sub-50ms, zero custo LLM)
+  # ---------------------------------------------------------------------------
+  deterministic_layer:
+    description: |
+      Todos os cálculos objetivos são resolvidos antes da chamada LLM.
+      O resultado é serializado em JSON e injetado no prompt como contexto
+      estruturado. O LLM recebe apenas os dados calculados + texto do atleta.
+    
+    calculations:
+
+      pace_analysis:
+        description: Análise de consistência de pace ao longo da prova
+        outputs:
+          - first_half_avg_pace_sec: Integer
+          - second_half_avg_pace_sec: Integer
+          - split_type: Enum            # NEGATIVE | EVEN | POSITIVE | FADE
+          - fade_pct: Double            # degradação % da segunda metade
+          - fastest_km: Integer
+          - slowest_km: Integer
+          - pace_variability_cv: Double # coeficiente de variação dos splits
+        rules:
+          - fade se second_half_avg > first_half_avg em mais de 5%
+          - positive split se first_half < second_half
+          - negative split se first_half > second_half em mais de 3%
+          - even se diferença < 3%
+
+      hr_zone_distribution:
+        description: Distribuição do tempo em cada zona de FC
+        outputs:
+          - pct_z1: Double
+          - pct_z2: Double
+          - pct_z3: Double
+          - pct_z4: Double
+          - pct_z5: Double
+          - dominant_zone: Integer
+          - time_above_z4_pct: Double
+        notes: requer splits com hr_avg; estimado linearmente se faltarem dados
+
+      load_context_analysis:
+        description: Avalia se o TSB na largada estava no range ideal
+        outputs:
+          - tsb_assessment: Enum        # OPTIMAL | FATIGUED | UNDERTAPERED | FRESH
+          - tsb_delta_from_ideal: Double # distância do range ideal (-5 a +10)
+        rules:
+          - OPTIMAL: TSB entre -5 e +10
+          - FATIGUED: TSB < -10
+          - UNDERTAPERED: TSB > +15 (descansado demais, perda de fitness agudo)
+          - FRESH: TSB entre +10 e +15
+
+      goal_deviation:
+        description: Desvio do tempo real em relação à meta (se definida)
+        outputs:
+          - time_delta_seconds: Long    # positivo = mais lento que a meta
+          - pace_delta_sec_per_km: Integer
+          - goal_achieved: Boolean
+          - deviation_pct: Double
+        condition: somente se goal.target_time_seconds não for null
+
+      hot_start_detection:
+        description: Detecta largada acima do pace alvo
+        outputs:
+          - hot_start: Boolean
+          - first_km_vs_target_pct: Double
+        rule: hot_start se primeiro km > 5% mais rápido que target_pace
+
+  # ---------------------------------------------------------------------------
+  # OUTPUT
+  # ---------------------------------------------------------------------------
+  output:
+    dto: RaceEvaluationOutput
+    destination: coach_dashboard      # coach vê primeiro; atleta só após aprovação
+
+    fields:
+      overall_assessment:
+        type: String
+        language: pt-BR
+        description: Parágrafo narrativo de 3-5 frases resumindo a prova
+        max_chars: 600
+
+      pace_analysis:
+        type: PaceAnalysisResult
+        source: deterministic_layer.pace_analysis
+        include_in_llm_context: true
+
+      hr_zone_distribution:
+        type: HRZoneDistributionResult
+        source: deterministic_layer.hr_zone_distribution
+        include_in_llm_context: true
+
+      load_context:
+        type: LoadContextResult
+        source: deterministic_layer.load_context_analysis
+        include_in_llm_context: true
+
+      strengths:
+        type: List<String>
+        language: pt-BR
+        max_items: 3
+        description: Pontos fortes objetivos identificados na prova
+
+      improvement_areas:
+        type: List<ImprovementArea>
+        language: pt-BR
+        max_items: 3
+        fields:
+          - area: String              # ex: "Gestão de pace na primeira metade"
+          - observation: String       # observação técnica
+          - suggested_focus: String   # o que trabalhar no treino
+
+      coach_note:
+        type: String
+        language: pt-BR
+        description: |
+          Insight técnico direcionado ao coach — não visível para o atleta.
+          Pode incluir alertas de sobrecarga, sugestões de ajuste de plano,
+          ou flags para investigação (ex: FC muito alta para o pace realizado).
+        max_chars: 400
+
+      metadata:
+        type: EvaluationMetadata
+        fields:
+          - generated_at: Instant
+          - model_used: String
+          - deterministic_version: String
+          - coach_reviewed: Boolean     # false até coach aprovar
+          - coach_reviewed_at: Instant  # nullable
+          - coach_id: Long              # nullable
+
+  # ---------------------------------------------------------------------------
+  # PROMPT ENGINEERING
+  # ---------------------------------------------------------------------------
+  prompt:
+    strategy: code_switching
+    language_instructions: English
+    language_data_labels: English
+    language_output: Portuguese (pt-BR)
+    sports_terms: preserved in English (TSS, CTL, ATL, TSB, pace, HR zones, splits)
+
+    system_prompt_outline: |
+      You are an expert running coach analyst embedded in the Menthoros platform.
+      Your role is to interpret pre-calculated race metrics and generate a
+      structured, technically assertive evaluation in Brazilian Portuguese.
+
+      Context provided (pre-calculated, do not recalculate):
+      - pace_analysis: {pace_analysis_json}
+      - hr_zones: {hr_zone_json}
+      - load_context: {load_context_json}
+      - goal_deviation: {goal_deviation_json}
+      - athlete_profile: {athlete_profile_json}
+      - periodization_phase: {periodization_phase}
+
+      Output format (strict JSON, no markdown, no preamble):
+      {
+        "overall_assessment": "...",
+        "strengths": ["...", "...", "..."],
+        "improvement_areas": [
+          { "area": "...", "observation": "...", "suggested_focus": "..." }
+        ],
+        "coach_note": "..."
+      }
+
+      Tone: honest, technically grounded, motivational without false positivity.
+      Never fabricate metrics. Base all observations strictly on provided data.
+
+  # ---------------------------------------------------------------------------
+  # PERFORMANCE TARGETS
+  # ---------------------------------------------------------------------------
+  performance:
+    deterministic_layer_max_ms: 50
+    llm_call_max_ms: 2000
+    total_skill_p95_ms: 2500
+    estimated_cost_per_call_usd: 0.0008   # Haiku ~800 tokens input+output
+
+  # ---------------------------------------------------------------------------
+  # TESTES E VALIDAÇÃO
+  # ---------------------------------------------------------------------------
+  testing:
+    test_class: RaceEvaluationSkillTest
+    test_data_script: src/test/resources/sql/race_evaluation_seed.sql
+    scenarios:
+      - id: sc_001
+        description: Atleta com fade severo e TSB positivo (descansou demais)
+        expected_split_type: FADE
+        expected_tsb_assessment: UNDERTAPERED
+        expected_hot_start: false
+
+      - id: sc_002
+        description: Atleta com largada quente e PR frustrado
+        expected_split_type: POSITIVE
+        expected_hot_start: true
+        expected_goal_achieved: false
+
+      - id: sc_003
+        description: Prova perfeita — negative split, TSB ótimo, meta batida
+        expected_split_type: NEGATIVE
+        expected_tsb_assessment: OPTIMAL
+        expected_goal_achieved: true
+
+      - id: sc_004
+        description: Dados de HR ausentes (Garmin não sincronizou)
+        expected_hr_zone_distribution: estimated_only
+        expected_coach_note_flag: missing_hr_data
+
+  # ---------------------------------------------------------------------------
+  # ROADMAP / MATURAÇÃO
+  # ---------------------------------------------------------------------------
+  roadmap:
+    v0_1:
+      status: current
+      scope:
+        - Splits manuais (entrada pelo atleta)
+        - Análise determinística completa
+        - Narrativa LLM com Haiku
+        - Coach dashboard (somente leitura + aprovação)
+
+    v0_2:
+      scope:
+        - Ingestão automática via Garmin API (activity sync)
+        - HR data real por km (fim das estimativas)
+        - Comparação com provas anteriores da mesma distância
+
+    v0_3:
+      scope:
+        - Comparação de pace vs treinos equivalentes (Z3/Z4 workouts)
+        - Alertas automáticos de overreaching (TSB < -15 recorrente)
+        - Feed de evolução multi-prova (histórico visual)
+
+    v1_0:
+      scope:
+        - Coach pode editar narrativa antes de liberar ao atleta
+        - Atleta pode reagir ao feedback (emoji + comentário curto)
+        - Integração com ML feedback loop (coach accept/modify/reject)
+
+  # ---------------------------------------------------------------------------
+  # DEPENDÊNCIAS
+  # ---------------------------------------------------------------------------
+  dependencies:
+    internal:
+      - MetricasCalculator          # CTL, ATL, TSB
+      - HRZoneCalculator            # zonas por atleta
+      - PeriodizacaoRule            # fase atual do plano
+    external:
+      - spring-ai: 1.0.0
+      - anthropic-sdk: via spring-ai
+    optional:
+      - GarminIntegrationService    # enriquecimento automático v0.2
+      - StravaIntegrationService    # enriquecimento automático v0.2
+
+  # ---------------------------------------------------------------------------
+  # ABERTO / DECISÕES PENDENTES
+  # ---------------------------------------------------------------------------
+  open_questions:
+    - id: oq_001
+      question: |
+        Atletas sem splits por km (apenas tempo total) devem receber avaliação
+        parcial ou bloqueada? Qual UX apresentar para o coach?
+      status: open
+      proposed: avaliação parcial com badge "dados incompletos"
+
+    - id: oq_002
+      question: |
+        O coach_note deve ser visível apenas no dashboard do coach ou também
+        ficar acessível via API para integrações futuras (ex: relatório PDF)?
+      status: open
+
+    - id: oq_003
+      question: |
+        Qual o threshold mínimo de dados históricos para ativar a skill?
+        (Ex: atleta com apenas 2 semanas de treino no sistema)
+      status: open
+      proposed: mínimo 4 semanas ou flag de confiança LOW no output

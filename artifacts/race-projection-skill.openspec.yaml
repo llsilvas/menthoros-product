@@ -1,0 +1,655 @@
+################################################################################
+# OPENSPEC — RaceProjectionSkill
+# Feature: Projeção de tempos para provas futuras
+# Version: 0.1.0 (draft — amadurecimento em progresso)
+# Author: Menthoros Core
+# Last updated: 2026-05-21
+################################################################################
+
+skill:
+  name: race-projection
+  class: com.menthoros.skills.race.RaceProjectionSkill
+  description: |
+    Projeta tempos futuros do atleta para distâncias alvo (5k, 10k, 21k, 42k)
+    combinando três modelos: regressão de pace normalizado por FC, fórmula de
+    Riegel para conversão entre distâncias, e ajuste por fase de periodização
+    e TSB projetado.
+
+    Acionada sob demanda pelo coach — tipicamente nas semanas que antecedem
+    uma prova, quando o treinador precisa calibrar expectativas, ajustar metas
+    de pace e definir estratégia de corrida com base na forma atual do atleta.
+
+    O output é sempre revisado pelo coach antes de chegar ao atleta.
+    Confiança explicitamente sinalizada (LOW/MEDIUM/HIGH) para orientar
+    o coach na comunicação de expectativas com o atleta.
+  version: 0.1.0
+  status: draft
+  tags:
+    - race
+    - projecao
+    - planejamento
+    - coach-in-the-loop
+    - on-demand
+
+  trigger:
+    mode: on_demand_coach
+    description: |
+      O coach aciona manualmente a partir do perfil do atleta ou do
+      calendário de provas. Não há disparo automático — a projeção é uma
+      ferramenta de apoio à decisão do treinador, não um relatório periódico.
+    ui_entry_points:
+      - athlete_profile: botão "Gerar Projeção de Prova"
+      - race_calendar: botão "Projetar Tempo" ao lado de cada prova futura
+      - weekly_review_panel: ação opcional durante revisão semanal
+
+  on_demand_context:
+    description: |
+      Por ser sob demanda, o coach pode fornecer contexto adicional no momento
+      do acionamento para enriquecer a projeção além dos dados históricos.
+    optional_coach_inputs:
+      target_race:
+        type: RaceReference
+        description: Prova específica do calendário do atleta (se cadastrada)
+        fields:
+          - race_id: Long
+          - name: String
+          - distance_m: Integer
+          - date: LocalDate
+          - race_type: Enum            # ROAD | TRAIL | TRACK
+          - elevation_gain_m: Integer
+          - expected_conditions: Enum  # IDEAL | HEAT | HILLY | WIND
+      
+      coach_goal_override:
+        type: CoachGoalOverride
+        description: |
+          Coach pode informar a meta oficial da prova para comparar com a
+          projeção e destacar o gap no coach_note.
+        fields:
+          - target_time_seconds: Long
+          - target_pace_sec_per_km: Integer
+          - goal_rationale: String     # texto livre opcional ("atleta quer PR")
+      
+      weeks_to_race_override:
+        type: Integer
+        description: |
+          Semanas até a prova. Se race_id informado, calculado automaticamente.
+          Override útil para projeções hipotéticas ("e se a prova fosse daqui
+          a 4 semanas?").
+      
+      include_distances:
+        type: List<Integer>
+        description: Coach define quais distâncias projetar nesta chamada
+        default: distância da prova + distâncias adjacentes padrão
+
+  # ---------------------------------------------------------------------------
+  # MODELO LLM
+  # ---------------------------------------------------------------------------
+  llm:
+    provider: anthropic
+    model: claude-haiku-4
+    fallback_model: claude-sonnet-4
+    max_tokens: 1000
+    temperature: 0.2               # projeção numérica exige máxima consistência
+    language_strategy: code_switching
+    prompt_file: src/main/resources/skills/race/projection/SKILL.md
+
+  # ---------------------------------------------------------------------------
+  # INPUT
+  # ---------------------------------------------------------------------------
+  input:
+    source: menthoros-database
+    dto: RaceProjectionInput
+
+    fields:
+      athlete:
+        type: AthleteProfile
+        required: true
+        fields:
+          - id: Long
+          - age: Integer
+          - sex: Enum
+          - weight_kg: Double
+          - max_hr: Integer
+          - hr_zones: HRZones
+          - vo2max_estimated: Double     # nullable
+
+      training_history:
+        type: TrainingHistory
+        required: true
+        description: |
+          Histórico de treinos dos últimos 60-90 dias usado para regressão.
+          Mínimo recomendado: 4 semanas de dados consistentes.
+        fields:
+          - workouts: List<WorkoutSummary>
+          - data_quality: Enum           # FULL | PARTIAL | SPARSE
+          - weeks_available: Integer
+
+      workout_summary:
+        type: WorkoutSummary
+        description: Resumo de cada treino para análise de tendência
+        fields:
+          - date: LocalDate
+          - type: Enum                   # EASY | TEMPO | INTERVAL | LONG | RACE
+          - distance_m: Integer
+          - duration_seconds: Long
+          - avg_pace_sec_per_km: Integer
+          - avg_hr: Integer
+          - tss: Double
+          - rpe: Integer                 # 1-10, nullable
+
+      load_projection:
+        type: LoadProjection
+        required: true
+        description: Projeção de carga até a data alvo
+        fields:
+          - current_ctl: Double
+          - current_atl: Double
+          - current_tsb: Double
+          - target_race_date: LocalDate
+          - weeks_to_race: Integer
+          - planned_periodization_phase: Enum  # BASE | BUILD | ESPECIFICO | TAPER
+          - projected_ctl_on_race_day: Double  # estimado pelo coach ou sistema
+          - projected_tsb_on_race_day: Double
+
+      race_history:
+        type: List<PastRace>
+        required: false
+        description: Provas anteriores para calibrar o expoente de Riegel
+        fields:
+          - distance_m: Integer
+          - finish_time_seconds: Long
+          - date: LocalDate
+          - conditions: Enum             # IDEAL | HEAT | RAIN | HILLY | WIND
+
+      target_distances:
+        type: List<Integer>
+        description: Distâncias para projeção em metros
+        default: [5000, 10000, 21097, 42195]
+        notes: coach pode customizar (ex: 15k para São Silvestre)
+
+  # ---------------------------------------------------------------------------
+  # CAMADA DETERMINÍSTICA — Modelo de 3 camadas
+  # ---------------------------------------------------------------------------
+  deterministic_layer:
+    description: |
+      Toda a matemática de projeção é determinística. O LLM recebe apenas
+      os números calculados e gera a narrativa de evolução e premissas.
+    
+    # ---- CAMADA 1: Regressão de Pace Normalizado -------------------------
+    layer_1_pace_regression:
+      description: |
+        Calcula o pace "de esforço equivalente" normalizando pelo HR para
+        remover o efeito de calor, altitude e tipo de treino. Aplica regressão
+        linear simples sobre as últimas 8-12 semanas para identificar tendência.
+      
+      inputs:
+        - workouts (tipo TEMPO + LONG filtrados, mínimo 6 sessões)
+      
+      calculation:
+        normalized_pace: pace_sec_per_km / (avg_hr / lactate_threshold_hr)
+        # lactate_threshold_hr estimado como 88% do max_hr se não disponível
+        
+        regression:
+          x_axis: semana_ordinal          # 1..N
+          y_axis: normalized_pace_sec     # menor = mais rápido
+          method: ordinary_least_squares
+          output:
+            - slope: Double               # negativo = melhora de pace
+            - r_squared: Double           # qualidade do fit
+            - projected_pace_at_race_week: Integer
+      
+      confidence_signals:
+        - r_squared >= 0.7 → HIGH
+        - r_squared >= 0.4 → MEDIUM
+        - r_squared < 0.4 ou < 6 sessões → LOW
+      
+      notes: >
+        Se data_quality = SPARSE (< 4 semanas), usar apenas provas anteriores
+        como âncora e sinalizar confiança LOW obrigatoriamente.
+
+    # ---- CAMADA 2: Conversão entre Distâncias (Riegel) -------------------
+    layer_2_riegel:
+      description: |
+        Fórmula de Riegel para estimar tempo em distâncias não treinadas.
+        Expoente padrão 1.06; calibrado se atleta tiver 2+ provas históricas
+        em distâncias diferentes.
+      
+      formula: t2 = t1 * (d2 / d1) ^ exponent
+      
+      default_exponent: 1.06
+      
+      calibration:
+        condition: race_history com 2+ provas em distâncias distintas
+        method: |
+          Para cada par de provas (d1,t1) e (d2,t2):
+            exponent = log(t2/t1) / log(d2/d1)
+          Média ponderada por recência (provas recentes têm peso 2x)
+        output:
+          - calibrated_exponent: Double
+          - calibration_quality: Enum   # CALIBRATED | DEFAULT
+          - calibration_sample_size: Integer
+      
+      anchor_time:
+        description: Tempo base para a conversão
+        priority:
+          1: pace projetado pela Camada 1 × distância alvo mais próxima treinada
+          2: melhor prova recente (< 12 meses) na distância mais próxima
+          3: pace de treino TEMPO × fator conservador 1.05
+
+    # ---- CAMADA 3: Ajuste por Periodização e TSB -------------------------
+    layer_3_periodization:
+      description: |
+        Ajusta o tempo projetado baseado no estado de treino esperado
+        na data da prova. Um atleta saindo de TAPER com TSB ótimo
+        performa diferente de um saindo de BUILD pesado.
+      
+      adjustments:
+        TAPER_optimal:
+          condition: phase = TAPER AND tsb_projected BETWEEN -5 AND 10
+          factor: 0.975     # ganho de 2.5% sobre o baseline
+          rationale: super-compensação completa
+        
+        BUILD_peak:
+          condition: phase = BUILD AND tsb_projected BETWEEN -15 AND -5
+          factor: 1.00      # tempo nominal, sem ajuste
+          rationale: fitness alto, fadiga presente
+        
+        ESPECIFICO_fresh:
+          condition: phase = ESPECIFICO AND tsb_projected BETWEEN -5 AND 5
+          factor: 0.985
+          rationale: especificidade alta + relativamente descansado
+        
+        BASE_conservative:
+          condition: phase = BASE
+          factor: 1.05      # 5% mais conservador
+          rationale: base aeróbica, sem especificidade de prova
+        
+        FATIGUED:
+          condition: tsb_projected < -15
+          factor: 1.08      # 8% mais conservador
+          rationale: fadiga residual impacta performance
+        
+        OVERTAPERED:
+          condition: tsb_projected > 15
+          factor: 1.03      # 3% mais conservador
+          rationale: perda de fitness agudo, excesso de descanso
+      
+      outputs:
+        - adjustment_factor: Double
+        - adjustment_rationale_key: String  # chave para texto em PT no LLM
+
+    # ---- OUTPUT FINAL DA CAMADA DETERMINÍSTICA ---------------------------
+    final_calculation:
+      for_each_target_distance:
+        - base_time_riegel_sec: Long
+        - adjusted_time_sec: Long
+        - adjustment_pct: Double
+        - pace_sec_per_km: Integer
+        - confidence: Enum              # LOW | MEDIUM | HIGH
+      
+      overall_confidence:
+        rule: min(confidence_layer1, confidence_calibration)
+        description: confiança final é o mínimo das duas camadas
+
+  # ---------------------------------------------------------------------------
+  # OUTPUT
+  # ---------------------------------------------------------------------------
+  output:
+    dto: RaceProjectionOutput
+    destination: coach_dashboard
+
+    fields:
+      projections:
+        type: Map<Distance, RaceProjection>
+        description: Projeção para cada distância solicitada
+        per_distance_fields:
+          - distance_m: Integer
+          - projected_time_seconds: Long
+          - projected_pace_sec_per_km: Integer
+          - time_range_optimistic_sec: Long    # ± intervalo de confiança
+          - time_range_conservative_sec: Long
+          - confidence: Enum                   # LOW | MEDIUM | HIGH
+          - pr_potential: Boolean              # projeta abaixo do PR atual?
+
+      progression_narrative:
+        type: String
+        language: pt-BR
+        max_chars: 500
+        description: |
+          Texto descrevendo a evolução observada nos treinos e o que fundamenta
+          as projeções. Ex: "Nas últimas 8 semanas seu pace normalizado melhorou
+          4.2%, indicando uma base aeróbica sólida..."
+
+      ctl_forecast:
+        type: CTLForecast
+        fields:
+          - current_ctl: Double
+          - projected_ctl_race_day: Double
+          - ctl_trend: Enum            # BUILDING | STABLE | DECLINING
+          - weeks_to_peak: Integer     # nullable
+
+      key_assumptions:
+        type: List<String>
+        language: pt-BR
+        max_items: 5
+        description: |
+          Premissas transparentes para o coach. Ex: "Projeção assume manutenção
+          do volume atual nas próximas 6 semanas" ou "Expoente de Riegel baseado
+          em apenas 1 prova — calibração limitada."
+
+      coach_note:
+        type: String
+        language: pt-BR
+        max_chars: 400
+        description: |
+          Alert flags e recomendações direcionadas ao coach.
+          Ex: confiança LOW por dados insuficientes, atleta em risco de
+          overreaching, meta atual inconsistente com tendência.
+
+      goal_gap_analysis:
+        type: GoalGapAnalysis
+        visibility: coach_only
+        condition: somente quando coach_goal_override for informado
+        description: |
+          Compara a projeção com a meta definida pelo coach para a prova.
+          Reportado apenas ao treinador — sem sugestão de ajuste de meta.
+          O coach decide o que fazer com a informação baseado no contexto
+          e nas ambições do atleta.
+        fields:
+          - goal_time_seconds: Long
+          - projected_time_seconds: Long        # da distância alvo da prova
+          - gap_seconds: Long                   # positivo = projeção mais lenta
+          - gap_pct: Double
+          - gap_assessment: Enum                # ON_TRACK | REACHABLE | STRETCH | UNLIKELY
+          - gap_assessment_thresholds:
+              ON_TRACK: gap_pct <= 2%           # dentro da margem de erro
+              REACHABLE: gap_pct entre 2% e 5%  # possível com boa preparação
+              STRETCH: gap_pct entre 5% e 10%  # exige tudo correr bem
+              UNLIKELY: gap_pct > 10%           # gap significativo vs forma atual
+          - coach_note_gap: String              # ex: "Projeção atual: 1h52. Meta: 1h45 (gap 6.3% — STRETCH)."
+
+      persistence:
+        description: |
+          Toda projeção gerada é persistida automaticamente como snapshot imutável.
+          Não há projeções descartáveis — cada chamada cria um registro histórico
+          que permite rastrear a evolução da forma do atleta ao longo do tempo.
+        table: tb_race_projection_snapshot
+        behavior:
+          - imutável após criação (append-only)
+          - coach pode marcar uma projeção como "oficial" para a prova (is_official=true)
+          - apenas uma projeção pode ser oficial por atleta/prova/distância
+          - projeções não-oficiais ficam visíveis no histórico do coach
+        schema:
+          - id: Long (PK)
+          - athlete_id: Long (FK)
+          - race_id: Long (FK, nullable — prova pode não estar cadastrada)
+          - generated_at: Instant
+          - weeks_to_race_at_generation: Integer
+          - projections_json: JSONB             # snapshot completo do output
+          - confidence: Enum
+          - is_official: Boolean (default false)
+          - coach_id: Long (FK)
+          - coach_reviewed_at: Instant (nullable)
+          - ctl_at_generation: Double
+          - tsb_at_generation: Double
+          - regression_r_squared: Double
+          - riegel_exponent_used: Double
+          - riegel_calibrated: Boolean
+          - training_weeks_used: Integer
+          - model_used: String
+
+      athlete_dashboard_projection:
+        type: AthleteProjectionView
+        visibility: athlete
+        condition: somente quando is_official=true E coach_reviewed=true
+        description: |
+          Versão simplificada da projeção visível ao atleta no dashboard.
+          Mostra apenas a distância da prova alvo e a evolução ao longo
+          do tempo — sem confiança numérica, sem gap de meta, sem coach_note.
+          Cada melhora na projeção oficial gera uma atualização no dashboard.
+        fields:
+          - target_distance_m: Integer
+          - projected_time_seconds: Long
+          - projected_pace_sec_per_km: Integer
+          - progression_history: List<ProjectionPoint>
+          - progression_narrative: String       # narrativa gerada pelo LLM
+        projection_point_fields:
+          - snapshot_date: LocalDate
+          - weeks_to_race: Integer
+          - projected_time_seconds: Long
+          - delta_vs_previous_sec: Long         # negativo = melhora
+        display_rule: |
+          Mostrar apenas projeções oficiais no gráfico de evolução.
+          Destacar deltas positivos (melhora) com indicador visual.
+          Não exibir projeções com confiança LOW diretamente ao atleta
+          — coach decide se libera mesmo assim (flag override disponível).
+
+      metadata:
+        type: ProjectionMetadata
+        description: Embutido no snapshot persistido — não retornado separadamente na API
+        fields:
+          - generated_at: Instant
+          - model_used: String
+          - riegel_exponent_used: Double
+          - riegel_calibrated: Boolean
+          - regression_r_squared: Double
+          - training_weeks_used: Integer
+          - coach_reviewed: Boolean
+          - coach_reviewed_at: Instant
+          - coach_id: Long
+          - is_official: Boolean
+
+  # ---------------------------------------------------------------------------
+  # PROMPT ENGINEERING
+  # ---------------------------------------------------------------------------
+  prompt:
+    strategy: code_switching
+    language_instructions: English
+    language_output: Portuguese (pt-BR)
+    sports_terms: preserved in English
+
+    system_prompt_outline: |
+      You are an expert running performance analyst embedded in Menthoros.
+      You receive pre-calculated race time projections and must generate:
+      1. A progression narrative explaining the athlete's recent evolution
+      2. A list of key assumptions behind the projections (transparent to coach)
+      3. A coach note with any flags or concerns
+
+      Pre-calculated data (do not recalculate):
+      - projections_by_distance: {projections_json}
+      - regression_summary: {regression_json}
+      - ctl_forecast: {ctl_json}
+      - periodization_context: {periodization_json}
+      - athlete_profile: {athlete_json}
+
+      Output format (strict JSON, no markdown, no preamble):
+      {
+        "progression_narrative": "...",
+        "key_assumptions": ["...", "..."],
+        "coach_note": "..."
+      }
+
+      Tone: data-driven, honest about uncertainty. When confidence is LOW,
+      the narrative must acknowledge limitations without being dismissive.
+      Never project certainty where the data doesn't support it.
+      Never fabricate trends. Base all observations on provided regression data.
+
+  # ---------------------------------------------------------------------------
+  # PERFORMANCE TARGETS
+  # ---------------------------------------------------------------------------
+  performance:
+    deterministic_layer_max_ms: 100    # regressão pode ser levemente mais pesada
+    llm_call_max_ms: 2000
+    total_skill_p95_ms: 2500
+    estimated_cost_per_call_usd: 0.0007
+
+  # ---------------------------------------------------------------------------
+  # TESTES E VALIDAÇÃO
+  # ---------------------------------------------------------------------------
+  testing:
+    test_class: RaceProjectionSkillTest
+    test_data_script: src/test/resources/sql/race_projection_seed.sql
+    
+    scenarios:
+      - id: sc_001
+        description: Atleta com 12 semanas de treino consistente, TAPER próximo
+        expected_confidence: HIGH
+        expected_adjustment_factor: 0.975
+        expected_riegel_calibrated: false  # sem histórico de provas
+
+      - id: sc_002
+        description: Atleta com 3 semanas de dados (onboarding recente)
+        expected_confidence: LOW
+        expected_key_assumptions_contains: "dados insuficientes"
+
+      - id: sc_003
+        description: Atleta com 3 provas históricas calibrando Riegel
+        expected_riegel_calibrated: true
+        expected_confidence: MEDIUM_or_HIGH
+
+      - id: sc_004
+        description: Atleta com TSB projetado de -18 (BUILD pesado)
+        expected_adjustment_factor: 1.08
+        expected_tsb_assessment: FATIGUED
+        expected_coach_note_flag: high_fatigue_on_race_day
+
+      - id: sc_005
+        description: Meta do atleta é 20% mais rápida que a projeção
+        expected_pr_potential: false
+        expected_coach_note_flag: goal_vs_projection_gap
+
+  # ---------------------------------------------------------------------------
+  # ROADMAP / MATURAÇÃO
+  # ---------------------------------------------------------------------------
+  roadmap:
+    v0_1:
+      status: current
+      scope:
+        - Trigger on-demand pelo coach (perfil do atleta + calendário de provas)
+        - Regressão linear de pace normalizado (8-12 semanas)
+        - Riegel com expoente padrão 1.06
+        - Ajuste por fase de periodização e TSB projetado
+        - Projeta 5k, 10k, 21k, 42k (customizável pelo coach)
+        - Confiança sinalizada (LOW/MEDIUM/HIGH)
+        - Persistência automática de snapshots (tb_race_projection_snapshot)
+        - Coach marca projeção como "oficial" (is_official=true)
+        - Gap analysis vs meta do atleta → exibido apenas ao coach
+        - Dashboard do atleta: evolução de projeções oficiais ao longo das semanas
+
+    v0_2:
+      scope:
+        - Calibração do expoente de Riegel com histórico de provas do atleta
+        - Ingestão automática via Garmin/Strava (sem entrada manual de splits)
+        - Intervalo de confiança estatístico (substituir qualitativo por range numérico)
+        - CTL forecast automático baseado no plano de treino aprovado
+        - Projeções customizáveis por distância não-padrão (ex: 15k, 25k trail)
+
+    v0_3:
+      scope:
+        - Detecção de platô: pace sem melhora > 6 semanas → alerta coach
+        - Comparação projeção vs resultado real pós-prova (fechamento do ciclo)
+        - Histórico de accuracy das projeções por coach (quantos % de acerto)
+
+    v1_0:
+      scope:
+        - Digital Twin: simulação Monte Carlo de cenários (otimista/realista/conservador)
+        - Integração com ML feedback loop para refinamento do expoente de Riegel
+          por atleta ao longo do tempo
+        - Pre-Race Simulator: "e se eu fizer um taper extra de 1 semana?"
+
+  # ---------------------------------------------------------------------------
+  # DEPENDÊNCIAS
+  # ---------------------------------------------------------------------------
+  dependencies:
+    internal:
+      - MetricasCalculator             # CTL, ATL, TSB
+      - PeriodizacaoRule               # fase e semanas até prova
+      - RaceEvaluationSkill            # âncora de performance em provas reais
+      - HRZoneCalculator               # normalização de pace por FC
+    external:
+      - spring-ai: 1.0.0
+      - commons-math3: 3.6.1           # regressão OLS (OLSMultipleLinearRegression)
+    optional:
+      - GarminIntegrationService       # enriquecimento automático v0.2
+      - StravaIntegrationService
+
+  # ---------------------------------------------------------------------------
+  # ABERTO / DECISÕES PENDENTES
+  # ---------------------------------------------------------------------------
+  open_questions:
+    - id: oq_001
+      question: |
+        Devemos mostrar o intervalo de confiança (range otimista/conservador)
+        para o atleta ou apenas para o coach? Há risco de confundir o atleta
+        com um range muito amplo?
+      status: open
+      proposed: mostrar apenas para o coach na v0.1; avaliar com piloto
+
+    - id: oq_002
+      question: |
+        O CTL projetado na data da prova deve ser estimado automaticamente
+        (baseado no plano aprovado) ou entrada manual pelo coach?
+      status: open
+      proposed: entrada manual na v0.1 (coach sabe melhor); automático na v0.2
+
+    - id: oq_003
+      question: |
+        Com trigger on-demand, o coach controla quando gerar projeções.
+        Devemos adicionar um lembrete automático (ex: "faltam 4 semanas para
+        a Prova X — considere gerar uma projeção atualizada") no dashboard?
+      status: open
+      proposed: |
+        Lembrete passivo no dashboard do coach, não push notification.
+        Threshold sugerido: 8, 4 e 1 semana antes de cada prova cadastrada.
+
+    - id: oq_004
+      question: |
+        Para atletas sem dados de FC nos treinos (sem Garmin/Apple Watch),
+        a normalização de pace é inviável. Fallback: usar pace bruto com
+        penalidade de confiança, ou bloquear a skill?
+      status: open
+      proposed: pace bruto com confiança LOW e key_assumption explícita
+
+    - id: oq_005
+      question: |
+        A fórmula de Riegel subestima performance em atletas de elite e
+        superestima em iniciantes. Devemos aplicar fator de correção por
+        nível do atleta (estimado pelo VO2max ou pace em Z2)?
+      status: open
+      proposed: investigar na v0.2 com dados reais do piloto
+
+    - id: oq_006
+      question: |
+        O coach deve poder salvar uma projeção como "oficial" para aquela prova,
+        congelando o snapshot de forma e servindo como baseline de comparação
+        pós-prova? Ou cada chamada é stateless e descartável?
+      status: decided
+      decision: |
+        Toda projeção é persistida automaticamente (append-only).
+        Coach marca uma projeção como "oficial" (is_official=true) — apenas
+        uma oficial por atleta/prova/distância. Histórico completo disponível
+        para análise posterior e futuro ML feedback loop.
+
+    - id: oq_007
+      question: |
+        Com trigger on-demand, o coach pode gerar múltiplas projeções para o
+        mesmo atleta/prova em momentos diferentes (ex: 8 semanas antes, 4 semanas
+        antes, 1 semana antes). Como apresentar essa evolução de forma útil?
+      status: decided
+      decision: |
+        Evolução exibida no dashboard do atleta a cada melhora nas projeções
+        oficiais — gráfico de linha mostrando projected_time ao longo das semanas
+        até a prova. Delta vs projeção anterior destacado visualmente.
+        Schema já suporta desde v0.1 via tb_race_projection_snapshot.
+        Dashboard do atleta mostra apenas projeções aprovadas pelo coach.
+
+    - id: oq_008
+      question: |
+        Quando o coach informa coach_goal_override e a projeção está muito abaixo
+        da meta, o sistema deve sugerir ajuste de meta ou apenas reportar o gap?
+      status: decided
+      decision: |
+        Reportar o gap ao coach sem qualquer sugestão de ajuste de meta.
+        O coach toma as decisões baseado nas metas e contexto do atleta.
+        Tom neutro e factual: "Projeção atual: X. Meta: Y (gap Z% — STRETCH)."
+        Visível apenas no coach_note — atleta nunca vê o gap diretamente.
