@@ -1,0 +1,336 @@
+skill:
+  name: weekly-plan-validator
+  description: Validates a proposed weekly training plan against physiological rules before persistence, blocking unsafe plans and suggesting corrections
+  version: 1.0.0
+  language: en-US
+  tags:
+    - validation
+    - plan-generation
+    - safety-guard
+    - periodization
+    - prescription
+
+input:
+  entities:
+    - PlanoSemanal (proposed, not yet persisted)
+    - TreinoPlanejado (list of planned workouts in the week)
+    - PlanoMetaDados (current TSB, CTL, ATL, phase)
+    - Atleta (level, injury flags, availability)
+
+  context:
+    - TSB (Training Stress Balance) — current fatigue state
+    - CTL (Chronic Training Load) — fitness baseline
+    - Weekly volume history (last 4 weeks)
+    - Current periodization phase (BASE, BUILD, PEAK, TAPER, RECOVERY)
+    - Last intense session date
+    - Active injury or restriction flags
+
+  schema:
+    proposed_plan:
+      week_number: integer
+      workouts:
+        - type: LONG_RUN | INTERVAL | TEMPO | RECOVERY | EASY | REST
+          distance_km: number
+          tss_estimated: number
+          day_of_week: MON | TUE | WED | THU | FRI | SAT | SUN
+          target_hr_zone: Z1 | Z2 | Z3 | Z4 | Z5 (optional)
+          target_pace: string (optional, "MM:SS/km")
+      total_volume_km: number
+      total_tss_estimated: number
+
+    athlete_context:
+      tsb: number
+      ctl: number
+      atl: number
+      periodization_phase: BASE | BUILD | PEAK | TAPER | RECOVERY
+      athlete_level: BEGINNER | INTERMEDIATE | ADVANCED | ELITE
+      active_injury: boolean
+      injury_description: string (optional)
+      available_days: integer (days available this week)
+
+    historical_context:
+      avg_volume_last_4_weeks_km: number
+      avg_tss_last_4_weeks: number
+      max_volume_last_12_weeks_km: number
+      last_interval_session_days_ago: integer
+      consecutive_load_days_current: integer
+
+process:
+  checks:
+    - name: load_progression
+      type: deterministic
+      description: "Week-over-week volume and TSS increase must not exceed safe thresholds"
+      rules:
+        - max_volume_increase_percent: 10
+        - max_tss_increase_percent: 15
+        - beginner_max_weekly_km: 30
+        - intermediate_max_weekly_km: 60
+        - advanced_max_weekly_km: 120
+        - elite_max_weekly_km: 200
+
+    - name: recovery_adequacy
+      type: deterministic
+      description: "Fatigue state and rest day placement must meet minimum safety requirements"
+      rules:
+        - tsb_critical_threshold: -25
+        - tsb_warning_threshold: -15
+        - max_consecutive_load_days_beginner: 3
+        - max_consecutive_load_days_intermediate: 4
+        - max_consecutive_load_days_advanced: 5
+        - max_consecutive_load_days_elite: 6
+        - min_rest_days_after_interval: 1
+
+    - name: zone_distribution
+      type: llm_reasoning
+      description: "Training intensity distribution should follow 80/20 polarization or phase-appropriate model"
+      framework: |
+        BASE phase: 85-90% Z1-Z2, 10-15% Z3-Z5
+        BUILD phase: 80% Z1-Z2, 20% Z3-Z5
+        PEAK phase: 75% Z1-Z2, 25% Z3-Z5
+        TAPER phase: 85-90% Z1-Z2, 10-15% Z3-Z5
+        RECOVERY phase: 95-100% Z1-Z2
+
+    - name: periodization_coherence
+      type: llm_reasoning
+      description: "Workout selection and sequencing must be coherent with current training phase and weekly pattern"
+      framework: |
+        INTERVAL sessions: max 2 per week; never back-to-back
+        LONG_RUN: typically 1 per week, never after INTERVAL
+        TEMPO: max 1 per week in BASE; max 2 in BUILD/PEAK
+        RECOVERY: required after INTERVAL or LONG_RUN
+        REST: at least 1 per week regardless of level
+
+    - name: monotony_index
+      type: deterministic
+      description: "Day-to-day TSS variance must prevent training monotony (monotony index < 2.0)"
+      script: calculate_plan_metrics.py
+      formula: "monotony = avg_daily_tss / std_daily_tss"
+      threshold:
+        safe: "< 1.5"
+        warning: "1.5 – 2.0"
+        critical: "> 2.0"
+
+output:
+  format: json
+  schema:
+    decision:
+      type: enum
+      values:
+        - APPROVED
+        - ADJUSTMENT_NEEDED
+        - REJECTED
+      description: "APPROVED = safe to persist; ADJUSTMENT_NEEDED = warnings present, coach should review; REJECTED = critical violations, must not persist"
+
+    violations:
+      type: array
+      items:
+        check_name: string
+        severity: CRITICAL | WARNING
+        description: string
+        actual_value: string
+        threshold_value: string
+        suggested_fix: string
+
+    summary:
+      type: string
+      max_length: 150
+      description: "Concise explanation of the decision"
+
+    coach_notes:
+      type: string
+      description: "Actionable guidance for the coach if ADJUSTMENT_NEEDED or REJECTED"
+
+    regeneration_constraints:
+      type: object
+      description: "Structured constraints to pass back to LLM for plan regeneration (only when REJECTED)"
+      fields:
+        max_volume_km: number
+        max_tss: number
+        max_consecutive_days: integer
+        forbidden_workout_types: array
+        required_rest_days: array
+        phase_constraints: string
+
+    validation_score:
+      type: integer
+      min: 0
+      max: 100
+      description: "Overall plan safety score (100 = perfect, <60 = rejected)"
+
+examples:
+  - name: approved_build_phase
+    description: "Well-structured BUILD week with appropriate load"
+    input:
+      proposed_plan:
+        week_number: 8
+        total_volume_km: 62
+        total_tss_estimated: 520
+        workouts:
+          - type: EASY
+            distance_km: 10
+            tss_estimated: 55
+            day_of_week: MON
+            target_hr_zone: Z2
+          - type: INTERVAL
+            distance_km: 12
+            tss_estimated: 130
+            day_of_week: TUE
+          - type: RECOVERY
+            distance_km: 8
+            tss_estimated: 35
+            day_of_week: WED
+            target_hr_zone: Z1
+          - type: TEMPO
+            distance_km: 12
+            tss_estimated: 110
+            day_of_week: THU
+          - type: REST
+            distance_km: 0
+            tss_estimated: 0
+            day_of_week: FRI
+          - type: LONG_RUN
+            distance_km: 20
+            tss_estimated: 150
+            day_of_week: SAT
+            target_hr_zone: Z2
+          - type: EASY
+            distance_km: 0
+            tss_estimated: 40
+            day_of_week: SUN
+      athlete_context:
+        tsb: -8
+        ctl: 55
+        atl: 63
+        periodization_phase: BUILD
+        athlete_level: ADVANCED
+        active_injury: false
+        available_days: 6
+      historical_context:
+        avg_volume_last_4_weeks_km: 58
+        avg_tss_last_4_weeks: 490
+        max_volume_last_12_weeks_km: 65
+        last_interval_session_days_ago: 6
+        consecutive_load_days_current: 0
+
+    expected_output:
+      decision: APPROVED
+      violations: []
+      summary: "Plan approved. BUILD week with appropriate load progression (+6.9% volume). TSB manageable at -8. Good polarization and recovery placement."
+      coach_notes: null
+      regeneration_constraints: null
+      validation_score: 92
+
+  - name: rejected_overload
+    description: "Dangerous overload with critical TSB and excessive consecutive days"
+    input:
+      proposed_plan:
+        week_number: 5
+        total_volume_km: 85
+        total_tss_estimated: 720
+        workouts:
+          - type: INTERVAL
+            distance_km: 14
+            tss_estimated: 160
+            day_of_week: MON
+          - type: INTERVAL
+            distance_km: 14
+            tss_estimated: 160
+            day_of_week: TUE
+          - type: TEMPO
+            distance_km: 15
+            tss_estimated: 140
+            day_of_week: WED
+          - type: LONG_RUN
+            distance_km: 22
+            tss_estimated: 170
+            day_of_week: THU
+          - type: EASY
+            distance_km: 10
+            tss_estimated: 50
+            day_of_week: FRI
+          - type: TEMPO
+            distance_km: 10
+            tss_estimated: 40
+            day_of_week: SAT
+      athlete_context:
+        tsb: -28
+        ctl: 48
+        atl: 76
+        periodization_phase: BUILD
+        athlete_level: INTERMEDIATE
+        active_injury: false
+        available_days: 6
+      historical_context:
+        avg_volume_last_4_weeks_km: 52
+        avg_tss_last_4_weeks: 420
+        max_volume_last_12_weeks_km: 58
+        last_interval_session_days_ago: 3
+        consecutive_load_days_current: 4
+
+    expected_output:
+      decision: REJECTED
+      violations:
+        - check_name: recovery_adequacy
+          severity: CRITICAL
+          description: "TSB at -28 indicates severe accumulated fatigue. Risk of overreaching injury."
+          actual_value: "TSB: -28"
+          threshold_value: "Critical threshold: -25"
+          suggested_fix: "Reduce total TSS by at least 35% or insert a recovery week"
+        - check_name: load_progression
+          severity: CRITICAL
+          description: "Volume increase of 63.5% far exceeds safe weekly progression limit of 10%"
+          actual_value: "85 km vs avg 52 km"
+          threshold_value: "Max increase: 10% (+5.2 km)"
+          suggested_fix: "Cap weekly volume at 57 km"
+        - check_name: periodization_coherence
+          severity: CRITICAL
+          description: "Two consecutive INTERVAL sessions (MON+TUE) violate minimum recovery between intense sessions"
+          actual_value: "INTERVAL on MON, INTERVAL on TUE"
+          threshold_value: "Minimum 1 rest/easy day between interval sessions"
+          suggested_fix: "Replace TUE INTERVAL with RECOVERY or EASY"
+        - check_name: monotony_index
+          severity: WARNING
+          description: "High monotony index (2.4) — insufficient day-to-day TSS variation"
+          actual_value: "Monotony: 2.4"
+          threshold_value: "Safe threshold: < 1.5, Critical: > 2.0"
+          suggested_fix: "Add REST day and vary intensities more"
+      summary: "Plan REJECTED. 3 critical violations: severe fatigue (TSB -28), 63% volume spike, back-to-back intervals. High injury risk."
+      coach_notes: "This plan would push an INTERMEDIATE athlete into overreaching territory. Recommend a recovery week (TSS ~280, all Z1-Z2) before resuming BUILD phase."
+      regeneration_constraints:
+        max_volume_km: 57
+        max_tss: 430
+        max_consecutive_days: 4
+        forbidden_workout_types:
+          - INTERVAL
+          - TEMPO
+        required_rest_days:
+          - FRI
+          - SUN
+        phase_constraints: "Recovery week: 95% Z1-Z2, no quality sessions"
+      validation_score: 22
+
+integration:
+  trigger: post_llm_plan_generation
+  position: before_persistence
+  async: false
+  transaction: same_as_caller
+
+  service: TrainingPrescriptionGuardSkill
+  method: execute
+
+  on_rejected:
+    action: throw_exception
+    exception: PrescriptionViolatedException
+    retry_with_constraints: true
+    max_retries: 2
+
+  on_adjustment_needed:
+    action: pass_to_caller
+    include_violations: true
+    coach_review_required: false
+
+  dependencies:
+    - PlanoMetadadosRepository
+    - TreinoHistoricoProvider
+    - IntervalEligibilitySkill (delegate for interval checks)
+    - TsbService (for TSS calculations)

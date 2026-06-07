@@ -1,0 +1,260 @@
+skill:
+  name: insights-extractor
+  description: Extracts recurring behavioral and physiological patterns from an athlete's training history, builds a learning profile, and generates actionable constraints for plan personalization
+  version: 1.0.0
+  language: en-US
+  tags:
+    - learning
+    - pattern-detection
+    - personalization
+    - athlete-profile
+    - longitudinal-analysis
+
+input:
+  entities:
+    - AthleteLearningProfile (existing patterns and maturity score)
+    - WeeklyFeedback (last N weeks, including current)
+    - AnaliseWorkout (per-workout analysis from last N weeks)
+    - TreinoRealizado (raw workout data from last N weeks)
+    - PlanoSemanal (planned weeks for context)
+    - Atleta (level, goal, profile)
+
+  context:
+    - Minimum 4 weeks of data required for meaningful pattern detection
+    - Pattern confidence grows with occurrences and recency
+    - Existing patterns are re-evaluated each week — not just new ones
+    - Actionable constraints are only extracted from CONFIRMED patterns
+
+  schema:
+    current_profile:
+      atleta_id: UUID
+      total_weeks_tracked: integer
+      profile_maturity_score: integer (0-100)
+      existing_patterns:
+        - pattern_id: UUID
+          category: string
+          observation: string
+          status: EMERGING | CONFIRMED | INVALIDATED
+          confidence: integer (0-100)
+          occurrences: integer
+          first_observed_week: integer
+          last_observed_week: integer
+          constraint_type: string (optional)
+          constraint_value: string (optional)
+
+    recent_history:
+      weeks_analyzed: integer
+      weekly_summaries:
+        - week_number: integer
+          grade: EXCEPTIONAL | GOOD | SOLID | CHALLENGING | DIFFICULT
+          week_score: integer
+          adherence_rate: number
+          volume_km: number
+          tss: number
+          tsb_end: number
+          quality_sessions_completed: integer
+          missed_quality_sessions: integer
+          accumulated_fatigue_sessions: integer
+
+      workout_signals:
+        - week_number: integer
+          workout_type: string
+          execution_score: integer (optional)
+          primary_cause: string (optional)
+          rpe_delta: integer (optional)
+          tsb_at_time: number (optional)
+
+    current_week:
+      week_number: integer
+      grade: string
+      week_score: integer
+      adherence_rate: number
+      volume_km: number
+      tss: number
+      tsb_end: number
+      missed_quality_sessions: integer
+      accumulated_fatigue_sessions: integer
+      notable_events: list (any flags from weekly-feedback)
+
+    athlete_context:
+      atleta_id: UUID
+      athlete_level: BEGINNER | INTERMEDIATE | ADVANCED | ELITE
+      primary_goal: string
+      weeks_to_goal_race: integer (optional)
+
+    computed_metrics:
+      pattern_scores: object (from calculate_pattern_metrics.py)
+      maturity_delta: integer
+      evidence_windows: object
+
+process:
+  steps:
+    - name: calculate_pattern_metrics
+      type: python_script
+      description: "Compute confidence scores for each pattern category based on recency-weighted occurrence count"
+      script: calculate_pattern_metrics.py
+
+    - name: evaluate_existing_patterns
+      type: llm_reasoning
+      description: "Re-score each existing pattern against current week's evidence — promote, maintain, or invalidate"
+
+    - name: detect_new_patterns
+      type: llm_reasoning
+      description: "Identify novel behavioral signals in the current week not yet captured in the profile"
+      categories:
+        - recovery_pattern
+        - performance_response
+        - fatigue_indicator
+        - pacing_behavior
+        - load_tolerance
+        - contextual_factor
+        - goal_alignment
+
+    - name: extract_constraints
+      type: llm_reasoning
+      description: "Convert CONFIRMED patterns into structured constraints for plan generation"
+
+    - name: update_maturity_score
+      type: deterministic
+      description: "Recalculate profile_maturity_score based on confirmed pattern count and weeks tracked"
+
+output:
+  format: json
+  schema:
+    patterns_updated:
+      type: array
+      description: "Existing patterns whose confidence or status changed this week"
+      items:
+        pattern_id: UUID
+        category: string
+        observation: string
+        status: EMERGING | CONFIRMED | INVALIDATED
+        confidence: integer (0-100)
+        occurrences: integer
+        confidence_delta: integer (positive = growing, negative = weakening)
+        status_changed: boolean
+
+    patterns_new:
+      type: array
+      description: "Newly detected patterns this week (start as EMERGING)"
+      items:
+        category: string
+        observation: string
+        status: EMERGING
+        confidence: integer (20-40 for first detection)
+        occurrences: integer (always 1 on first detection)
+        evidence: string (what specific data triggered this detection)
+
+    patterns_invalidated:
+      type: array
+      description: "Previously CONFIRMED patterns that lost consistency"
+      items:
+        pattern_id: UUID
+        observation: string
+        invalidation_reason: string
+
+    actionable_constraints:
+      type: array
+      description: "Structured constraints extracted from CONFIRMED patterns, ready for plan generation"
+      items:
+        applies_to: PLAN_GENERATION | INTERVAL_SCHEDULING | LOAD_MANAGEMENT | RECOVERY
+        constraint_type: string
+        constraint_value: string
+        example_application: string
+        source_pattern_id: UUID
+        confidence: integer
+
+    profile_maturity_delta: integer
+    new_maturity_score: integer
+    weeks_tracked: integer
+
+    extraction_summary:
+      type: string
+      description: "Brief narrative of what was learned this week (for coach dashboard)"
+      max_length: 300
+
+examples:
+  - name: emerging_recovery_pattern
+    description: "Athlete shows consistent pattern of needing 2 days to recover from intervals"
+    current_week:
+      week_number: 7
+      grade: GOOD
+      week_score: 78
+      accumulated_fatigue_sessions: 0
+      notable_events:
+        - "INTERVAL session on TUE had execution_score 9.1"
+        - "EASY session on WED (day after interval) had RPE 2 points above expected"
+        - "RECOVERY session on THU had execution_score 8.8"
+    existing_patterns:
+      - pattern_id: "uuid-1"
+        category: recovery_pattern
+        observation: "Shows elevated RPE on easy runs the day after interval sessions"
+        status: EMERGING
+        confidence: 45
+        occurrences: 2
+    expected_output:
+      patterns_updated:
+        - pattern_id: "uuid-1"
+          category: recovery_pattern
+          observation: "Shows elevated RPE on easy runs the day after interval sessions"
+          status: CONFIRMED
+          confidence: 72
+          occurrences: 3
+          confidence_delta: 27
+          status_changed: true
+      actionable_constraints:
+        - applies_to: INTERVAL_SCHEDULING
+          constraint_type: mandatory_buffer_after_interval
+          constraint_value: "2 days minimum before next quality session"
+          example_application: "If INTERVAL on TUE, next quality session no earlier than THU"
+          source_pattern_id: "uuid-1"
+          confidence: 72
+      extraction_summary: "Padrão de recuperação confirmado: Carlos consistentemente mostra RPE elevado no dia seguinte a intervalados. Planos futuros devem garantir 2 dias de buffer após sessões intensas."
+
+  - name: load_tolerance_detection
+    description: "New pattern detected — athlete performs best at 55-65km/week range"
+    current_week:
+      week_number: 12
+      grade: EXCEPTIONAL
+      week_score: 94
+      volume_km: 62
+      tsb_end: -5
+      notable_events:
+        - "Third consecutive week in 55-65km range with EXCEPTIONAL or GOOD grade"
+        - "All weeks above 70km had CHALLENGING or DIFFICULT grade"
+    existing_patterns: []
+    expected_output:
+      patterns_new:
+        - category: load_tolerance
+          observation: "Performs optimally in 55-65km/week range — grades drop consistently above 70km"
+          status: EMERGING
+          confidence: 35
+          occurrences: 1
+          evidence: "3 consecutive EXCEPTIONAL/GOOD weeks at 55-65km vs 2 CHALLENGING weeks above 70km in recent history"
+      extraction_summary: "Novo padrão de tolerância de carga detectado: Carlos consistentemente performa melhor entre 55-65km semanais. Semanas acima de 70km correlacionam com grades CHALLENGING/DIFFICULT."
+
+integration:
+  trigger: WeeklyFeedbackCompletedEvent
+  async: true
+  transaction: REQUIRES_NEW
+  position: after_weekly_feedback
+
+  service: InsightsExtractorListener
+  method: onWeeklyFeedbackCompleted
+
+  minimum_weeks_required: 4
+  on_insufficient_data:
+    action: skip_silently
+    log: "Insufficient history for pattern detection (< 4 weeks)"
+
+  dependencies:
+    - ChatClient (claudeSonnetClient — COMPLEX reasoning)
+    - AthleteLearningProfileRepository
+    - WeeklyFeedbackRepository
+    - AiWorkoutAnalysisRepository
+    - TreinoRealizadoRepository
+
+  profile_update:
+    atomic: true
+    merge_strategy: upsert_by_pattern_id
+    invalidation_retention: 90_days

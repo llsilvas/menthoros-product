@@ -1,0 +1,400 @@
+skill:
+  name: weekly-feedback
+  description: Holistic post-week analysis generating personalized narrative feedback with adaptive tone, grade classification, and actionable next-week guidance
+  version: 1.0.0
+  language: en-US
+  tags:
+    - feedback
+    - weekly-review
+    - adherence
+    - motivation
+    - athlete-engagement
+
+input:
+  entities:
+    - PlanoSemanal (the week's planned training)
+    - TreinoRealizado (list of completed workouts this week)
+    - TreinoPlanejado (list of planned workouts matched to completed)
+    - AnaliseWorkout (per-workout analysis results, when available)
+    - PlanoMetaDados (TSB, CTL, ATL at end of week)
+    - Atleta (level, name, goals)
+
+  context:
+    - Week number and date range
+    - Adherence rate (% of planned workouts completed)
+    - Volume completion rate (actual km / planned km)
+    - TSS completion rate (actual TSS / planned TSS)
+    - Per-workout execution scores (from workout-analyzer, optional)
+    - TSB delta through the week (start vs end)
+    - Consecutive weeks of data (for trend detection)
+
+  schema:
+    week_summary:
+      week_number: integer
+      week_start_date: string (ISO 8601)
+      week_end_date: string (ISO 8601)
+      planned_workouts_count: integer
+      completed_workouts_count: integer
+      planned_volume_km: number
+      actual_volume_km: number
+      planned_tss: number
+      actual_tss: number
+
+    completed_workouts:
+      - workout_type: LONG_RUN | INTERVAL | TEMPO | RECOVERY | EASY
+        planned_distance_km: number (optional)
+        actual_distance_km: number
+        planned_rpe: integer (optional)
+        actual_rpe: integer (optional)
+        execution_score: integer (1-10, from workout-analyzer, optional)
+        primary_cause: string (from workout-analyzer, optional)
+        completed: boolean
+        day_of_week: MON | TUE | WED | THU | FRI | SAT | SUN
+
+    missed_workouts:
+      - workout_type: string
+        planned_distance_km: number
+        day_of_week: string
+        reason: string (optional, from athlete input)
+
+    athlete_context:
+      name: string
+      athlete_level: BEGINNER | INTERMEDIATE | ADVANCED | ELITE
+      primary_goal: string (e.g. "5km under 25 min", "complete first marathon")
+      tsb_start_of_week: number
+      tsb_end_of_week: number
+      ctl_end_of_week: number
+      consecutive_weeks_training: integer
+
+    computed_metrics:
+      adherence_rate: number (0.0-1.0, from calculate_week_metrics.py)
+      volume_completion_rate: number (0.0-1.0)
+      tss_completion_rate: number (0.0-1.0)
+      avg_execution_score: number (optional, 1-10)
+      quality_sessions_completed: integer
+      tsb_delta: number (end - start)
+      week_score: integer (0-100, from calculate_week_metrics.py)
+
+process:
+  steps:
+    - name: calculate_week_metrics
+      type: python_script
+      description: "Compute adherence, completion rates, execution quality score, and week_score"
+      script: calculate_week_metrics.py
+
+    - name: classify_grade
+      type: deterministic
+      description: "Assign week grade based on week_score"
+      thresholds:
+        EXCEPTIONAL: "week_score >= 90"
+        GOOD:        "week_score >= 75"
+        SOLID:       "week_score >= 60"
+        CHALLENGING: "week_score >= 40"
+        DIFFICULT:   "week_score < 40"
+
+    - name: identify_achievements
+      type: llm_reasoning
+      description: "Extract specific positive moments worth celebrating from the week's data"
+
+    - name: identify_main_challenge
+      type: llm_reasoning
+      description: "Surface the most significant difficulty of the week with context-aware explanation"
+
+    - name: generate_narrative
+      type: llm_reasoning
+      description: "Write personalized week summary with adaptive tone matching the grade"
+      tone_guide:
+        EXCEPTIONAL: "Celebratory, energizing, reinforce what worked"
+        GOOD:        "Encouraging, acknowledge effort, highlight progress"
+        SOLID:       "Balanced, honest about gaps, constructive framing"
+        CHALLENGING: "Empathetic, normalize difficulty, rebuild confidence"
+        DIFFICULT:   "Compassionate, focus on rest and recovery, no judgement"
+
+    - name: generate_next_week_guidance
+      type: llm_reasoning
+      description: "Provide 2-3 specific, actionable recommendations for the coming week"
+
+output:
+  format: json
+  schema:
+    grade:
+      type: enum
+      values:
+        - EXCEPTIONAL
+        - GOOD
+        - SOLID
+        - CHALLENGING
+        - DIFFICULT
+      description: "Overall week classification"
+
+    week_score:
+      type: integer
+      min: 0
+      max: 100
+      description: "Composite score combining adherence, execution quality, and load management"
+
+    week_summary:
+      type: string
+      description: "Personalized narrative, 2-3 paragraphs. Tone adaptive to grade. Written in Brazilian Portuguese."
+
+    key_achievements:
+      type: array
+      items: string
+      max_items: 3
+      description: "Specific positive moments from the week (empty array if DIFFICULT with nothing notable)"
+
+    main_challenge:
+      type: string
+      description: "The most significant difficulty this week, explained with context. Null if EXCEPTIONAL."
+
+    next_week_guidance:
+      type: array
+      items:
+        recommendation: string
+        priority: HIGH | MEDIUM | LOW
+      max_items: 3
+      description: "Specific, actionable recommendations. Phrased as clear instructions."
+
+    motivation_message:
+      type: string
+      max_length: 120
+      description: "Short, punchy closing message adapted to grade. Like a coach ending a debrief."
+
+    stats_highlight:
+      type: object
+      description: "Key numbers to display in the UI alongside the narrative"
+      fields:
+        adherence_percent: integer
+        volume_km: number
+        tss_completed: number
+        quality_sessions: integer
+        tsb_delta: string (e.g. "-3 → +1")
+
+examples:
+  - name: exceptional_week
+    description: "Perfect week in BUILD phase — all sessions completed with high quality"
+    input:
+      week_summary:
+        week_number: 9
+        week_start_date: "2026-05-11"
+        week_end_date: "2026-05-17"
+        planned_workouts_count: 5
+        completed_workouts_count: 5
+        planned_volume_km: 60
+        actual_volume_km: 61.5
+        planned_tss: 510
+        actual_tss: 525
+      missed_workouts: []
+      athlete_context:
+        name: "Carlos"
+        athlete_level: ADVANCED
+        primary_goal: "Sub-3h30 na maratona de São Paulo"
+        tsb_start_of_week: -12
+        tsb_end_of_week: -6
+        ctl_end_of_week: 58
+        consecutive_weeks_training: 9
+      computed_metrics:
+        adherence_rate: 1.0
+        volume_completion_rate: 1.025
+        tss_completion_rate: 1.029
+        avg_execution_score: 9.2
+        quality_sessions_completed: 2
+        tsb_delta: 6
+        week_score: 96
+
+    expected_output:
+      grade: EXCEPTIONAL
+      week_score: 96
+      week_summary: |
+        Carlos, que semana! Você completou todas as 5 sessões planejadas com uma qualidade de execução excepcional. O intervalado de terça foi especialmente impressionante — pace controlado do início ao fim, com decaimento mínimo. Isso mostra que sua base aeróbica está respondendo muito bem ao bloco BUILD.
+
+        O seu longão de sábado (22km) foi executado em negative split, exatamente o que precisamos para treinar o seu sistema para a maratona. A recuperação ao longo da semana também foi eficiente — o TSB subiu 6 pontos, o que indica que você absorveu bem a carga sem acumular fadiga excessiva.
+
+        Você está em uma trajetória sólida para o sub-3h30. Continue exatamente assim.
+      key_achievements:
+        - "100% de aderência — 5/5 sessões completadas"
+        - "Longão de 22km em negative split (-12s/km na segunda metade)"
+        - "CTL de 58 — recorde histórico pessoal neste ciclo"
+      main_challenge: null
+      next_week_guidance:
+        - recommendation: "Mantenha o mesmo volume desta semana (60-62km). Não aumente — semana 10 deve consolidar a adaptação antes do próximo bloco."
+          priority: HIGH
+        - recommendation: "No intervalado, tente pace 3-5s/km mais rápido que o desta semana. Você tem capacidade agora."
+          priority: MEDIUM
+        - recommendation: "Hidrate bem nos dias anteriores ao longão — previsão de calor para o fim de semana."
+          priority: LOW
+      motivation_message: "9 semanas sem parar. Isso não é sorte, é consistência. Continue."
+      stats_highlight:
+        adherence_percent: 100
+        volume_km: 61.5
+        tss_completed: 525
+        quality_sessions: 2
+        tsb_delta: "-12 → -6"
+
+  - name: challenging_week
+    description: "Difficult week — 3 of 5 sessions missed due to work and fatigue"
+    input:
+      week_summary:
+        week_number: 6
+        week_start_date: "2026-04-20"
+        week_end_date: "2026-04-26"
+        planned_workouts_count: 5
+        completed_workouts_count: 2
+        planned_volume_km: 52
+        actual_volume_km: 18
+        planned_tss: 440
+        actual_tss: 120
+      missed_workouts:
+        - workout_type: INTERVAL
+          planned_distance_km: 12
+          day_of_week: TUE
+          reason: "Trabalho atrasado"
+        - workout_type: TEMPO
+          planned_distance_km: 10
+          day_of_week: THU
+          reason: null
+        - workout_type: LONG_RUN
+          planned_distance_km: 20
+          day_of_week: SAT
+          reason: "Muito cansado"
+      athlete_context:
+        name: "Carlos"
+        athlete_level: ADVANCED
+        primary_goal: "Sub-3h30 na maratona de São Paulo"
+        tsb_start_of_week: -18
+        tsb_end_of_week: -8
+        ctl_end_of_week: 52
+        consecutive_weeks_training: 6
+      computed_metrics:
+        adherence_rate: 0.40
+        volume_completion_rate: 0.346
+        tss_completion_rate: 0.272
+        avg_execution_score: 7.5
+        quality_sessions_completed: 0
+        tsb_delta: 10
+        week_score: 44
+
+    expected_output:
+      grade: CHALLENGING
+      week_score: 44
+      week_summary: |
+        Carlos, foi uma semana difícil — você completou 2 das 5 sessões planejadas. Isso acontece, especialmente em períodos de alta demanda no trabalho. O mais importante é reconhecer o que aconteceu sem julgar.
+
+        A boa notícia: as 2 sessões que você fez foram bem executadas, e o seu TSB subiu 10 pontos (de -18 para -8). Seu corpo aproveitou o volume reduzido para recuperar. Isso pode até ser um alívio bem-vindo antes do próximo bloco.
+
+        Semanas assim fazem parte do processo. O que importa é o padrão de longo prazo — e você tem 6 semanas sólidas de histórico. Uma semana não desfaz isso.
+      key_achievements:
+        - "TSB recuperou 10 pontos — corpo descansou bem"
+        - "As 2 sessões completadas tiveram boa execução (score médio 7.5)"
+      main_challenge: "3 sessões perdidas por conta de trabalho e fadiga acumulada. O longão de sábado, em particular, seria importante para o objetivo de maratona."
+      next_week_guidance:
+        - recommendation: "Retome com volume moderado — planeje 40-45km, não tente compensar as sessões perdidas esta semana."
+          priority: HIGH
+        - recommendation: "Priorize o longão como sessão inegociável. Se precisar cortar algo, corte o intervalado — não o longo."
+          priority: HIGH
+        - recommendation: "Revise a agenda da semana com antecedência. Bloqueie os horários de treino como compromissos fixos."
+          priority: MEDIUM
+      motivation_message: "Semanas difíceis revelam caráter. Você apareceu quando pôde. Próxima semana, é recomeço."
+      stats_highlight:
+        adherence_percent: 40
+        volume_km: 18
+        tss_completed: 120
+        quality_sessions: 0
+        tsb_delta: "-18 → -8"
+
+  - name: solid_week
+    description: "Consistent week with minor missed session and one fatigue flag"
+    input:
+      week_summary:
+        week_number: 4
+        week_start_date: "2026-04-06"
+        week_end_date: "2026-04-12"
+        planned_workouts_count: 5
+        completed_workouts_count: 4
+        planned_volume_km: 48
+        actual_volume_km: 43
+        planned_tss: 390
+        actual_tss: 340
+      missed_workouts:
+        - workout_type: EASY
+          planned_distance_km: 8
+          day_of_week: FRI
+          reason: null
+      athlete_context:
+        name: "Carlos"
+        athlete_level: ADVANCED
+        primary_goal: "Sub-3h30 na maratona de São Paulo"
+        tsb_start_of_week: -5
+        tsb_end_of_week: -10
+        ctl_end_of_week: 48
+        consecutive_weeks_training: 4
+      computed_metrics:
+        adherence_rate: 0.80
+        volume_completion_rate: 0.896
+        tss_completion_rate: 0.872
+        avg_execution_score: 8.0
+        quality_sessions_completed: 1
+        tsb_delta: -5
+        week_score: 75
+
+    expected_output:
+      grade: GOOD
+      week_score: 75
+      week_summary: |
+        Carlos, boa semana. 4 de 5 sessões completadas, com qualidade consistente nas execuções. O intervalado foi o destaque — pace controlado e boa recuperação entre blocos.
+
+        A sessão de sexta (corrida fácil) ficou pelo caminho, mas isso é de baixo impacto no quadro geral. O TSB caiu um pouco (-5 pontos), o que é esperado numa semana de carga normal em BASE. Seu CTL chegou a 48, o que mostra progressão real de forma física.
+
+        Você está construindo uma base sólida. Consistência semana a semana é exatamente o que produz resultados no longo prazo.
+      key_achievements:
+        - "4/5 sessões completadas com 89.6% do volume planejado"
+        - "Intervalado executado com score 8.5 — boa qualidade"
+        - "CTL atingiu 48 — crescimento constante no ciclo"
+      main_challenge: "TSB caiu 5 pontos ao longo da semana, indicando leve acúmulo de fadiga. Normal para este ponto do ciclo, mas vale monitorar."
+      next_week_guidance:
+        - recommendation: "Mantenha o volume desta semana (48km). Ainda não é hora de aumentar — primeiro consolide."
+          priority: HIGH
+        - recommendation: "Não pule a sessão de recuperação. Ela é o que permite qualidade nas sessões intensas."
+          priority: MEDIUM
+        - recommendation: "Se o TSB continuar caindo na próxima semana, sinalize para revisão do plano."
+          priority: LOW
+      motivation_message: "4 semanas seguidas. Você está construindo algo real aqui."
+      stats_highlight:
+        adherence_percent: 80
+        volume_km: 43
+        tss_completed: 340
+        quality_sessions: 1
+        tsb_delta: "-5 → -10"
+
+integration:
+  trigger: SemanaConcluidaEvent
+  async: true
+  transaction: REQUIRES_NEW
+
+  service: WeeklyFeedbackListener
+  method: onSemanaConcluida
+
+  trigger_conditions:
+    - last_workout_of_week_registered: true
+    - OR scheduler_monday_6am: true
+
+  dependencies:
+    - ChatClient (claudeSonnetClient — COMPLEX task)
+    - WeeklyFeedbackTranslator (EN → PT-BR for narrative fields)
+    - WeeklyFeedbackRepository
+    - PlanoMetadadosRepository
+    - TreinoRealizadoRepository
+    - AiWorkoutAnalysisRepository (to fetch per-workout scores)
+
+  output_language: pt-BR
+  fields_translated:
+    - week_summary
+    - key_achievements
+    - main_challenge
+    - next_week_guidance[].recommendation
+    - motivation_message
+  fields_not_translated:
+    - grade
+    - week_score
+    - stats_highlight
+    - next_week_guidance[].priority
