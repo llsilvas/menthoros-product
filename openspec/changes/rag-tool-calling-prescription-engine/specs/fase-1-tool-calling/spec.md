@@ -34,17 +34,30 @@ O sistema SHALL expor os dados dinâmicos do atleta como tools `@Tool` do Spring
 - **THEN** o sistema SHALL disponibilizar a tool `getWeeklyAvailability(atletaId)` retornando: dias disponíveis e dia preferido para longão
 - **THEN** o plano SHALL conter sessões apenas nos dias disponíveis retornados por esta tool
 
+### Requirement: Vincular o atletaId server-side, fora do controle do LLM
+
+O sistema SHALL resolver o `atletaId` da geração a partir do contexto do request (escopo de request), e NÃO SHALL expô-lo como parâmetro de tool preenchido pelo LLM. Isso evita acesso cross-athlete dentro do mesmo tenant por alucinação do modelo. Todos os IDs SHALL ser `UUID`.
+
+#### Scenario: Tool resolve atletaId do contexto, não de parâmetro do LLM
+- **WHEN** qualquer tool de `AthleteQueryTools` for invocada
+- **THEN** o `atletaId` consultado SHALL ser obtido do contexto do request (vinculado por `PlanoSemanalService` antes da chamada ao LLM)
+- **THEN** a assinatura da tool NÃO SHALL conter um `@ToolParam` de `atletaId` que o LLM possa preencher
+
+#### Scenario: LLM não consegue redirecionar a consulta para outro atleta
+- **WHEN** o LLM tentar consultar dados de um `atletaId` diferente do vinculado ao request
+- **THEN** o sistema SHALL ignorar qualquer ID fornecido pelo LLM e usar exclusivamente o `atletaId` do contexto
+
 ### Requirement: Garantir isolamento multi-tenant em todas as tools
 
-O sistema SHALL garantir que nenhuma tool retorne dados de atleta pertencente a tenant diferente do contexto ativo.
+O sistema SHALL garantir que nenhuma tool retorne dados de atleta pertencente a tenant diferente do contexto ativo. O guard `TenantGuard.assertAtletaBelongsToTenant(atletaId, tenantId)` SHALL ser a primeira linha de toda tool, antes de qualquer query.
 
 #### Scenario: Tentativa de acesso cross-tenant
-- **WHEN** uma tool for invocada com `atletaId` de atleta pertencente a tenant diferente do `TenantContext` ativo
+- **WHEN** o `atletaId` vinculado ao request pertencer a tenant diferente do `TenantContext` ativo
 - **THEN** o sistema SHALL lançar `AccessDeniedException`
 - **THEN** nenhum dado do atleta alvo SHALL ser retornado ou logado
 
 #### Scenario: Tool invocada com tenant correto
-- **WHEN** uma tool for invocada com `atletaId` de atleta pertencente ao tenant ativo
+- **WHEN** o `atletaId` vinculado ao request pertencer ao tenant ativo
 - **THEN** a tool SHALL retornar os dados normalmente
 
 ### Requirement: Substituir injeção upfront de dados no prompt

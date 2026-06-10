@@ -6,8 +6,9 @@ O sistema SHALL manter uma base vetorial de conhecimento científico sobre trein
 
 #### Scenario: Documentos indexados com metadata estruturado
 - **WHEN** um documento for ingerido na base de conhecimento
-- **THEN** o sistema SHALL criar chunks de 400–600 tokens com overlap de 10%
-- **THEN** cada chunk SHALL conter metadata: `domain` (periodizacao | fisiologia | recuperacao | nutricao), `language` (en), `source` (nome do arquivo), `source_hash` (MD5 do conteúdo), `ingested_at`
+- **THEN** o sistema SHALL criar chunks de aproximadamente 400–600 tokens (baseline: `TokenTextSplitter` com 512 tokens)
+- **NOTA:** o `TokenTextSplitter` do Spring AI **não suporta overlap** — não há requisito de "10% de overlap". Se a avaliação (golden set) indicar perda de contexto nas bordas, migrar para splitter com overlap real ou chunking por seção (ver design D6)
+- **THEN** cada chunk SHALL conter metadata: `domain` (periodizacao | fisiologia | recuperacao | nutricao), `language` (en), `source` (nome do arquivo), `source_hash` (MD5 do conteúdo), `ingested_at`, `embedding_model` (modelo + versão usados para gerar o embedding, para suportar reindexação em troca de modelo)
 
 #### Scenario: Deduplicação de documentos na ingestão
 - **WHEN** um documento for ingerido com mesmo `source` e `source_hash` já existentes na base
@@ -39,17 +40,19 @@ O sistema SHALL usar `QuestionAnswerAdvisor` para recuperar e injetar automatica
 #### Scenario: RAG ativo na geração com fase de periodização
 - **WHEN** `gerarPlano(atletaId, semana)` for invocado
 - **THEN** o `QuestionAnswerAdvisor` SHALL executar busca por similaridade com query contextualizada pela fase de periodização do atleta (BASE | BUILD | ESPECIFICO | TAPER)
-- **THEN** ao menos 3 chunks com score ≥ 0.72 SHALL ser injetados no contexto antes da geração
+- **THEN** os chunks recuperados (até `topK`) que passarem o threshold SHALL ser injetados no contexto antes da geração
 
-#### Scenario: Threshold de similaridade garante relevância
+#### Scenario: Threshold de similaridade como filtro suave
 - **WHEN** a busca por similaridade retornar chunks
-- **THEN** apenas chunks com score de similaridade ≥ 0.72 SHALL ser incluídos no contexto
+- **THEN** o sistema SHALL recuperar `topK` chunks e incluir apenas os com score ≥ threshold (ponto de partida ≈ 0.72, **específico do modelo** e calibrado contra golden set — ver design D4/D11)
+- **THEN** o sistema NÃO SHALL exigir um número mínimo fixo de chunks acima do threshold
 - **THEN** se nenhum chunk atingir o threshold, o sistema SHALL gerar o plano sem contexto RAG e logar warning: "nenhum chunk relevante recuperado para fase {fase}"
 
-#### Scenario: Filtro por domínio na query
+#### Scenario: Filtro por idioma e domínio na query
 - **WHEN** o `QuestionAnswerAdvisor` executar a busca
 - **THEN** a query SHALL filtrar por `language = 'en'`
-- **THEN** o topK SHALL ser configurável via propriedade `app.ai.rag.top-k` (default: 4)
+- **THEN** a query SHALL filtrar por `domain` relevante à fase de periodização (ex.: TAPER → `recuperacao`, `periodizacao`)
+- **THEN** o threshold SHALL ser configurável via `app.ai.rag.similarity-threshold` e o topK via `app.ai.rag.top-k` (default: 4)
 
 ### Requirement: Indexar o pgvector com HNSW para busca eficiente
 

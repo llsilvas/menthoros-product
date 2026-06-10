@@ -2,7 +2,7 @@
 
 ### 1. TenantGuard e infraestrutura de segurança
 
-- [ ] 1.1 Criar `TenantGuard` em `com.menthoros.ai.tools` com método `assertAtletaBelongsToTenant(Long atletaId, Long tenantId)` — lança `AccessDeniedException` se atleta não pertencer ao tenant
+- [ ] 1.1 Criar `TenantGuard` em `com.menthoros.ai.tools` com método `assertAtletaBelongsToTenant(UUID atletaId, UUID tenantId)` — lança `AccessDeniedException` se atleta não pertencer ao tenant (IDs são `UUID` em todo o projeto)
 - [ ] 1.2 Criar teste unitário: `TenantGuard` lança `AccessDeniedException` quando atleta não pertence ao tenant; passa silenciosamente quando pertence
 - [ ] 1.3 Criar teste de segurança multi-tenant: tool invocada em sessão de tenant A não retorna dados de tenant B
 
@@ -17,18 +17,22 @@
 ### 3. Tabela de métricas calculadas
 
 - [ ] 3.1 Criar migration `Vxx__Create_tb_metricas_atleta.sql` com colunas (id, atleta_id, tenant_id, ctl, atl, tsb, weekly_tss, fase_atual, semana_fase, calculado_em) e UNIQUE (atleta_id, DATE(calculado_em))
-- [ ] 3.2 Criar entidade `MetricasAtleta` e `MetricasAtletaRepository` com `findLatestByAtletaId(Long atletaId)`
-- [ ] 3.3 Criar `MetricasService.calcularMetricasAtuais(Long atletaId)`: calcula CTL/ATL/TSB on-the-fly a partir de `tb_treino_realizado` e persiste em `tb_metricas_atleta` (cache por dia)
+- [ ] 3.2 Criar entidade `MetricasAtleta` e `MetricasAtletaRepository` com `findLatestByAtletaId(UUID atletaId)`
+- [ ] 3.3 Criar `MetricasService.calcularMetricasAtuais(UUID atletaId)`: calcula CTL/ATL/TSB on-the-fly a partir de `tb_treino_realizado` e persiste em `tb_metricas_atleta` (cache por dia). **Reusar** o cálculo existente em `TsbServiceImpl`/`MetricasAgregadasServiceImpl` em vez de reimplementar CTL/ATL/TSB
 
-### 4. AtletaTools — 5 tools
+### 4. AthleteQueryTools
 
-- [ ] 4.1 Criar `AtletaTools` com `@Component` no pacote `com.menthoros.ai.tools`
-- [ ] 4.2 Implementar `getMetricasCarga(@ToolParam Long atletaId)`: guard → `MetricasService.calcularMetricasAtuais()` → retorna `AtletaMetricasDto`
-- [ ] 4.3 Implementar `getHistoricoTreinos(@ToolParam Long atletaId, @ToolParam int dias)`: guard → query últimos N dias → retorna `List<TreinoRealizadoResumoDto>`
-- [ ] 4.4 Implementar `getPerfilAtleta(@ToolParam Long atletaId)`: guard → join atleta + lesões ativas + próximas provas + notas → retorna `AtletaPerfilDto`
-- [ ] 4.5 Implementar `getFeedbackRecente(@ToolParam Long atletaId, @ToolParam int dias)`: guard → query feedback → retorna `List<FeedbackTreinoDto>`
-- [ ] 4.6 Implementar `getProximoMicrociclo(@ToolParam Long atletaId)`: guard → query próximo microciclo não aprovado → retorna `MicrocicloDto` (nullable se não existir)
-- [ ] 4.7 Testes unitários de cada tool: retorno correto, guard chamado, mock de repository
+> **Correção (A2/A4):** o `atletaId` NÃO é `@ToolParam` preenchido pelo LLM — é resolvido do contexto do request (ex.: `AiRequestContext`/escopo de request), vinculado por `PlanoSemanalService` antes da chamada. IDs são `UUID`. O guard é a primeira linha de toda tool.
+>
+> **Pendência de reconciliação:** a lista de tools abaixo (5 tools, `AtletaTools`) diverge da lista canônica de `fase-1-tool-calling` (`AthleteQueryTools`, 6 tools: `getAthleteProfile`, `getRecentWorkouts`, `getRecoveryStatus`, `getTrainingZones`, `getIntervalEligibility`, `getWeeklyAvailability`). **Adotar a lista do spec `fase-1` como fonte de verdade** e ajustar os subitens abaixo numa próxima revisão de tasks.
+
+- [ ] 4.1 Criar `AthleteQueryTools` com `@Component` no pacote `com.menthoros.ai.tools` (atletaId via contexto, não @ToolParam)
+- [ ] 4.2 Implementar `getRecoveryStatus()`: guard → `MetricasService.calcularMetricasAtuais(atletaId-do-contexto)` → retorna `AtletaMetricasDto`
+- [ ] 4.3 Implementar `getRecentWorkouts(@ToolParam int dias)`: guard → query últimos N dias → retorna `List<TreinoRealizadoResumoDto>`
+- [ ] 4.4 Implementar `getAthleteProfile()`: guard → join atleta + lesões ativas + próximas provas + notas → retorna `AtletaPerfilDto`
+- [ ] 4.5 Implementar `getTrainingZones()` e `getIntervalEligibility()`: guard → retorna zonas Z1–Z5 / elegibilidade
+- [ ] 4.6 Implementar `getWeeklyAvailability()` e `getFeedbackRecente(@ToolParam int dias)`: guard → disponibilidade / feedback recente
+- [ ] 4.7 Testes unitários de cada tool: retorno correto, guard chamado, atletaId resolvido do contexto (LLM não consegue redirecionar), mock de repository
 
 ### 5. Validação com atleta de desenvolvimento
 
@@ -44,14 +48,14 @@
 
 - [ ] 6.1 Adicionar dependência `spring-ai-pgvector-store-spring-boot-starter` no `pom.xml` (se não presente)
 - [ ] 6.2 Criar `RagConfig` com bean `VectorStore`: `PgVectorStore.builder().dimensions(1536).distanceType(COSINE_DISTANCE).indexType(HNSW).build()`
-- [ ] 6.3 Criar bean `TokenTextSplitter(512, 50, 10, 10000, true)` em `RagConfig`
+- [ ] 6.3 Criar bean `TokenTextSplitter(512, 50, 10, 10000, true)` em `RagConfig` — params `(chunkSize=512, minChunkSizeChars=50, minChunkLengthToEmbed=10, maxNumChunks=10000, keepSeparator=true)`. **Atenção:** `TokenTextSplitter` **não tem overlap**; o `50` é tamanho mínimo em chars, não overlap (ver design D6). Migrar para splitter com overlap/por-seção só se a avaliação indicar perda de contexto
 - [ ] 6.4 Criar migration `Vxx__Create_vector_store_hnsw_index.sql` com `CREATE INDEX ON vector_store USING hnsw (embedding vector_cosine_ops) WITH (m=16, ef_construction=64)`
 - [ ] 6.5 Verificar que `vector_store` é criada corretamente pelo Spring AI no startup (schema `id, content, metadata JSONB, embedding vector(1536)`)
 
 ### 7. KnowledgeIngestionService
 
 - [ ] 7.1 Criar `KnowledgeIngestionService` com método `ingestDocument(Resource pdfResource, String domain, String phaseRelevance)`
-- [ ] 7.2 Usar `PagePdfDocumentReader` com `withPagesPerDocument(2)`; aplicar `TokenTextSplitter`; adicionar metadata: domain, phase_relevance, source, language, ingested_at
+- [ ] 7.2 Usar `PagePdfDocumentReader` com `withPagesPerDocument(2)`; aplicar `TokenTextSplitter`; adicionar metadata: domain, phase_relevance, source, `source_hash` (MD5), language, ingested_at, `embedding_model` (modelo + versão, para reindexação em troca de modelo — A8). Avaliar limpeza de cabeçalho/rodapé/referências dos PDFs antes do split
 - [ ] 7.3 Implementar deduplicação: checar `metadata->>'source'` e hash MD5 do conteúdo antes de ingerir — não re-ingerir documentos já presentes
 - [ ] 7.4 Criar `RagInitializer` (`ApplicationRunner`) ativo no profile `rag-init` que varre `src/main/resources/knowledge-base/` e ingere todos os PDFs encontrados com domain derivado do subdiretório
 - [ ] 7.5 Log estruturado ao final: quantos chunks ingeridos por domínio, total de documentos novos vs já existentes
@@ -64,9 +68,10 @@
 
 ### 9. QuestionAnswerAdvisor e query strategy
 
-- [ ] 9.1 Implementar `buildRagAdvisor(String fase)` em `PlanoSemanalService`: cria `QuestionAnswerAdvisor` com query contextualizada pela fase (BASE/BUILD/ESPECIFICO/TAPER), topK=4, threshold=0.72, filter `language == 'en'`
-- [ ] 9.2 Testar qualidade dos chunks retornados para 5 queries reais (ver tabela seção 3.6 do spec): verificar que chunks retornados são semanticamente relevantes para o caso de uso
-- [ ] 9.3 Ajustar threshold se necessário (baseline 0.72; intervalo aceitável 0.70–0.80)
+- [ ] 9.1 Implementar `buildRagAdvisor(String fase)` em `PlanoSemanalService`: cria `QuestionAnswerAdvisor` com query contextualizada pela fase (BASE/BUILD/ESPECIFICO/TAPER), `topK` (default 4, via `app.ai.rag.top-k`), threshold suave (via `app.ai.rag.similarity-threshold`, ponto de partida ≈0.72), filtros `language == 'en'` **e `domain` relevante à fase** (A9). Não exigir número mínimo fixo de chunks acima do threshold (A7)
+- [ ] 9.2 Criar **golden set** rotulado: as 5 queries reais (seção 3.6 do spec) mapeadas aos chunks relevantes esperados; medir **context precision/recall@k** (código Java/SQL próprio) — base para tunar threshold/topK e debugar retrieval isoladamente da qualidade do LLM (A6/D11)
+- [ ] 9.3 Ajustar threshold/topK com base nas métricas do golden set (intervalo de busca 0.70–0.80; valor é específico do modelo de embedding)
+- [ ] 9.4 (evolução) Avaliar busca **híbrida** (vetor + FTS inglês + RRF) e **reranking** do top-k vs. densa pura, medindo ganho de precisão contra o golden set (A5)
 
 ---
 
@@ -75,7 +80,7 @@
 ### 10. PlanoSemanalService refatorado
 
 - [ ] 10.1 Adicionar feature flag `app.ai.rag-tool-calling.enabled` (default `false`) em `application.yml`
-- [ ] 10.2 Criar `PlanoSemanalService.gerarPlanoV2(Long atletaId, int semana)` combinando `QuestionAnswerAdvisor` + `AtletaTools` + system prompt com ordem de tool calls (1→5)
+- [ ] 10.2 Criar `PlanoSemanalService.gerarPlanoV2(UUID atletaId, int semana)` combinando `QuestionAnswerAdvisor` + `AthleteQueryTools` + system prompt com ordem de tool calls. **Vincular `atletaId` ao contexto do request antes da chamada** (não passar ao LLM). **Avaliar (D10/A1):** como a ordem das tools é fixa, medir round-trips de tool calling vs. pré-buscar os dados server-side e injetar como contexto numa única geração — escolher pela latência real (ver 15.2)
 - [ ] 10.3 System prompt em inglês: "expert running coach assistant", "ALWAYS review by human coach", "reference specific metrics from tool results"
 - [ ] 10.4 User prompt com instrução de sequência explícita de tool calls (Steps 1–5) + output em português BR com terminologia esportiva em inglês
 - [ ] 10.5 `.call().entity(PlanoSemanalDto.class)` com campos: `List<TreinoDiarioDto>` (7 itens), `justificativaFisiologica`, `alertasCoach`, `tssSemanaPlanejado`, `fasePeriodizacao`

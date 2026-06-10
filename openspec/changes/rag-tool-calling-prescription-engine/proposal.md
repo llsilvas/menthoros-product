@@ -19,9 +19,9 @@ Tool Calling → "O que está acontecendo com este atleta"  (dados dinâmicos, i
 
 ## What Changes
 
-**Tool Calling — 5 tools de domínio:**
-- `AtletaTools` com as tools `getMetricasCarga`, `getHistoricoTreinos`, `getPerfilAtleta`, `getFeedbackRecente`, `getProximoMicrociclo`
-- `TenantGuard` como guard obrigatório em todas as tools (isolamento multi-tenant crítico)
+**Tool Calling — tools de domínio:**
+- `AthleteQueryTools` (lista canônica em `specs/fase-1-tool-calling`). O `atletaId` é vinculado server-side a partir do contexto do request — nunca um `@ToolParam` escolhido pelo LLM (proteção cross-athlete); IDs são `UUID`
+- `TenantGuard` como guard obrigatório (primeira linha) em todas as tools (isolamento multi-tenant crítico)
 - `tb_metricas_atleta` como cache semanal de CTL/ATL/TSB calculados
 
 **RAG — base de conhecimento vetorial:**
@@ -30,7 +30,7 @@ Tool Calling → "O que está acontecendo com este atleta"  (dados dinâmicos, i
 - Ingestão inicial de 15–20 documentos com chunking de 400–600 tokens e metadata estruturado por domínio
 
 **Integração — PlanoSemanalService refatorado:**
-- `PlanoSemanalService.gerarPlano()` combinando `QuestionAnswerAdvisor` (RAG) + `AtletaTools` (Tool Calling)
+- `PlanoSemanalService.gerarPlano()` combinando `QuestionAnswerAdvisor` (RAG) + `AthleteQueryTools` (Tool Calling)
 - Prompt com instrução explícita de ordem de chamada de tools (1→5) antes de gerar o plano
 - Output estruturado obrigatório via `.entity(PlanoSemanalDto.class)`
 
