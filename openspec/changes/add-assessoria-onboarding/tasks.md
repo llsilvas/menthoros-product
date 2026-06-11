@@ -35,10 +35,13 @@
 > Adapter real implementado: `KeycloakOrganizationGatewayImpl` via **Keycloak Admin REST API**
 > (Spring `RestClient`, sem bump de dependência — admin-client 25.0.3 não tem a API de Organizations).
 > Config em `keycloak.admin.*` (`KeycloakAdminProperties` + `KeycloakAdminRestClientConfig` com timeouts).
-> Falhas → `KeycloakIntegrationException` (502). Contrato REST validado ao vivo (criar org → 201 +
-> Location; atributos persistem). **Pendente de verificação**: smoke end-to-end app→KC (POST
-> `/api/admin/assessorias` com JWT ADMIN cria assessoria + Organization no dev) e o disparo real de
-> convite (evitado nos testes para não gerar emails/usuários espúrios no dev).
+> Falhas → `KeycloakIntegrationException` (502).
+>
+> **Smoke end-to-end verificado** (contra o dev, com limpeza): `POST /api/admin/assessorias` com JWT
+> ADMIN do realm `menthoros` → **201** com `keycloakOrganizationId`; a Organization foi criada no
+> Keycloak com `attributes.tenant_id` == id da assessoria; a linha persistiu em `tb_assessoria`.
+> Recursos de teste removidos depois (org no KC + linha no DB). **Não verificado ao vivo**: o disparo
+> real de convite de atleta (evitado para não gerar emails/usuários espúrios no dev).
 
 ## 3. Cadastro de Assessoria
 
