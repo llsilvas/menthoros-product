@@ -18,16 +18,27 @@
   em `tb_atleta` + índice `idx_atleta_usuario`; vínculo `@ManyToOne Usuario` em `entity/Atleta.java`.
 - [x] 1.5 `./mvnw clean compile` — 0 erros.
 
-## 2. Keycloak — Organizations  _(Fase 5 — pendente, requer ambiente)_
+## 2. Keycloak — Organizations  _(realm de dev configurado; adapter real implementado)_
 
-- [ ] 2.1 Habilitar Organizations no realm `menthoros-app` (config do realm / docker-compose).
-- [ ] 2.2 Configurar attribute/claim mapper que injeta `tenant_id` da Organization no token.
-- [ ] 2.3 Adicionar client role `ATLETA` no Keycloak.
-- [ ] 2.4 Validar o formato real do claim emitido e confirmar que `JwtTenantFilter` o resolve;
-  ajustar o parsing apenas se o shape divergir de `organization.<org>.tenant_id`.
+> Realm real em uso é **`menthoros`** (não `menthoros-app` — esse é o `spring.application.name`).
+> Servidor de dev: **Keycloak 26.6.0** (Organizations GA). `192.168.15.24:8080`.
 
-> Implementado o **seam**: interface `KeycloakOrganizationGateway` + placeholder
-> `KeycloakOrganizationGatewayImpl` (lança `UnsupportedOperationException` → 501) até o adapter real.
+- [x] 2.1 Organizations **já habilitado** no realm `menthoros` (`organizationsEnabled=true`,
+  feature `ORGANIZATION` ativa).
+- [x] 2.2 Mapper já configurado: client scope `organization` com `oidc-organization-membership-mapper`
+  (`addOrganizationAttributes=true`, `multivalued=true`) → claim `organization.<alias>.tenant_id`.
+  Org demo "Assessoria Demo" já tem `attributes.tenant_id`.
+- [x] 2.3 Client role `ATLETA` criada no realm `menthoros`.
+- [x] 2.4 Claim `organization.<alias>.tenant_id` resolvido pelo `JwtTenantFilter` (shape já em uso
+  pelo app em runtime) — sem ajuste de parsing necessário.
+
+> Adapter real implementado: `KeycloakOrganizationGatewayImpl` via **Keycloak Admin REST API**
+> (Spring `RestClient`, sem bump de dependência — admin-client 25.0.3 não tem a API de Organizations).
+> Config em `keycloak.admin.*` (`KeycloakAdminProperties` + `KeycloakAdminRestClientConfig` com timeouts).
+> Falhas → `KeycloakIntegrationException` (502). Contrato REST validado ao vivo (criar org → 201 +
+> Location; atributos persistem). **Pendente de verificação**: smoke end-to-end app→KC (POST
+> `/api/admin/assessorias` com JWT ADMIN cria assessoria + Organization no dev) e o disparo real de
+> convite (evitado nos testes para não gerar emails/usuários espúrios no dev).
 
 ## 3. Cadastro de Assessoria
 
