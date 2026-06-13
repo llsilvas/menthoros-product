@@ -1,7 +1,7 @@
 # Menthoros - Enhanced AI-First Development Playbook
 
-**Data:** 2026-05-15  
-**Versão:** 2.0 (com integrações de Claude Code Skills)  
+**Data:** 2026-06-13  
+**Versão:** 2.1 (pré-requisitos de toolchain + nomes de skill reais)  
 **Status:** Ativo
 
 ---
@@ -21,6 +21,31 @@ BMAD (Produto) → OpenSpec (Contrato) → Claude Code (Execução)
 **Sem OpenSpec → não existe feature**
 
 Toda implementação começa com especificação formal, nunca com código.
+
+---
+
+## 0️⃣ Pré-requisitos — Toolchain (Claude Code CLI)
+
+> Este workflow roda no **Claude Code (CLI)**. Os plugins abaixo precisam estar instalados **nesse ambiente** antes da FASE 1 — não vêm por padrão e **não são compartilhados com o Cowork** (cada ambiente tem sua própria config de plugins). Sem eles, as fases 1-7 referenciam skills que não existem e travam o operador.
+
+### Plugins necessários
+
+| Plugin | Cobre no playbook | Instalação (Claude Code CLI) |
+|---|---|---|
+| **Superpowers** (obra) | `superpowers:*`, brainstorming, planos | `/plugin marketplace add obra/superpowers-marketplace` → `/plugin install superpowers@superpowers-marketplace` |
+| **BMAD-METHOD** | `bmad-*` (FASE 1) | `npx bmad-method install` (ou via `/plugin`) |
+| **OpenSpec** (Fission-AI) | `openspec-*` (FASE 2) | CLI: `npx openspec init`; skills via repo `openspec-skills` ou `/plugin` |
+
+Confira com `/plugin` (ou `claude plugin list`) que Superpowers, BMAD e OpenSpec aparecem ativos antes de começar.
+
+### Nomes reais (corrigir as invocações ao longo do doc)
+
+- `superpowers:writing-plans` → comando **`/write-plan`** (e `/brainstorm`, `/execute-plan`)
+- `openspec-propose` → skill **`openspec-proposal`** (+ `openspec-apply`, `openspec-archive`)
+
+### Gap conhecido (decisão pendente)
+
+`springboot-patterns`, `frontend-patterns`, `e2e-testing`, `database-patterns` e `tdd-workflow` **não são plugins públicos** — não há o que instalar; hoje são referências órfãs. Decidir entre **mapear** para o plugin `fullstack-dev-skills` (`spring-boot-engineer`, `java-architect`, `test-master`, `playwright-expert`) ou **criá-las** como skills internas via `skill-creator`. Até a decisão, tratar como placeholder — não como skill existente.
 
 ---
 
@@ -705,6 +730,6 @@ These domain skills are loaded via `SkillLoader` and executed asynchronously aft
 
 ---
 
-**Last Updated:** 2026-05-15  
+**Last Updated:** 2026-06-13  
 **Owner:** Leandro Silva (Senior Engineer)  
 **Status:** Active & Evolving
