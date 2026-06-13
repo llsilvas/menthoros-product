@@ -104,6 +104,14 @@ Ordenadas por criticidade dentro do bloco: segurança (exposição de dados) ant
 
 ---
 
+## Changes concluídas (fora de sprint)
+
+| Change | Tasks | Conclusão | Arquivo |
+|---|:---:|:---:|---|
+| `add-status-endpoint` | 13/13 | 2026-06-13 | `changes/archive/2026-06/2026-06-13-add-status-endpoint/` — cobaia do workflow `/implement → /qa → /ship`; endpoint público `GET /api/v1/status`. |
+
+---
+
 ## Nota de capacidade
 
 Com 1 dev, o caminho completo até a fronteira do MVP (Bloco 0 + 1 + 2) é da ordem de **~20 sprints / ~40 semanas**, sem contar o Bloco de Segurança. Trade-off explícito da escolha IA-first: a base fica robusta, mas o treinador só vê a jornada madura no fim.
