@@ -1,20 +1,21 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+# Contexto mostrado à IA ao criar artefatos (constraint, não vai pro arquivo).
+context: |
+  Stack: backend Java 21 / Spring Boot 3.5 (apps/menthoros-backend); frontend React 19 / Vite / MUI
+  (apps/menthoros-front). PostgreSQL + Flyway; Keycloak multi-tenant via TenantContext.
+  Conventional Commits em PT-BR. As regras canônicas de código vivem nos CLAUDE.md de cada repo e na raiz.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Toda change declara Tamanho (XS/S/M/L/XL) e Trilha:
+  - XS/S  -> Fast track (sem design.md formal; QA = /review + testes)
+  - M/L/XL -> Full track (com design.md + pre-mortem the-fool; QA = code-reviewer + security-reviewer + test-master)
+  Suba para Full se a change: tocar mais de um repo; mudar contrato de API ou schema de banco;
+  tiver incerteza de design; ou tiver risco de segurança/multi-tenancy. Na dúvida, suba.
+
+# Regras por artefato (constraints para a IA ao gerar cada um).
+rules:
+  proposal:
+    - "Comece o proposal com a linha de classificação: **Tamanho:** <XS|S|M|L|XL> · **Trilha:** <Fast|Full>, escolhida pelos critérios do contexto acima."
+    - "Mantenha o escopo mínimo e dentro da change; sem feature creep."
+  tasks:
+    - "Tasks granulares e numeradas (N.M), cada bloco com passo de validação explícito (backend: ./mvnw clean test; frontend: npm run lint && npm run build)."
