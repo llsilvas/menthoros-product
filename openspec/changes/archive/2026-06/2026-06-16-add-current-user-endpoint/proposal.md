@@ -14,9 +14,11 @@ atleta para as telas de progresso.
 
 ## What Changes
 
-- Novo `UsuarioController` com `GET /api/v1/users/me` (`@RequireTenant`): retorna `role`, `nome`,
-  `email`, dados da `assessoria` e `atletaId` (presente apenas quando a role for `ATLETA` e o vínculo
-  existir). DTO `UsuarioMeOutputDto` (record, `@JsonInclude(NON_NULL)`).
+- Novo `UsuarioController` com `GET /api/v1/users/me` (autenticado, tenant-aware): retorna `role`,
+  `nome`, `email`, dados da `assessoria` e `atletaId` (presente apenas quando a role for `ATLETA` e o
+  vínculo existir). DTO `UsuarioMeOutputDto` (record, `@JsonInclude(NON_NULL)`). Sem `@RequireTenant`
+  (anotação por método para validar ID de recurso; `/me` é self-resolving) — o isolamento vem do
+  `TenantContext` + query tenant-scoped no service.
 - `UsuarioService.getCurrentUser()` resolve o `Usuario` pelo `sub` do JWT no tenant atual (reusa
   `TenantContext.getRequiredTenantId()` + `UsuarioRepository`) e, quando `ATLETA`, resolve o `Atleta`
   vinculado (`Atleta.usuario_id`, criado em `add-assessoria-onboarding`).
