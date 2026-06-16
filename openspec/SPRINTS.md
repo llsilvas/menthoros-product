@@ -26,12 +26,14 @@ Ordem de execução das changes ativas, organizada por sprint. **Prioridade: bas
 
 ---
 
-## Bloco 0 — Identidade mínima (desbloqueio)
+## Bloco 0 — Identidade mínima (desbloqueio) — ✅ CONCLUÍDO (Sprint 1, 2026-06-16)
+
+Sprint 1 encerrada: ambas as changes mergeadas em `develop` e arquivadas (ver "Changes concluídas").
 
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
-| 1 | `add-current-user-endpoint` | 10 | "Quem sou eu" → roteia shell coach/atleta, resolve contexto. | — |
-| 1 | `add-assessoria-onboarding` | 1 restante (23/24) | Fechar a última task. Base de tenant + role ATLETA. | — |
+| 1 | ~~`add-current-user-endpoint`~~ ✅ | 13/13 | "Quem sou eu" → roteia shell coach/atleta, resolve contexto. | — |
+| 1 | ~~`add-assessoria-onboarding`~~ ✅ | 24/24 | Base de tenant + role ATLETA. **Infra Keycloak de produção pendente** (operacional — runbook). | — |
 
 ---
 
