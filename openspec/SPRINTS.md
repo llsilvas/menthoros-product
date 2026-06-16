@@ -120,6 +120,7 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 | `harden-tenant-isolation` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-harden-tenant-isolation/` — `TenantContext` usa `ThreadLocal`; finders sem tenant removidos/documentados. |
 | `harden-actuator-admin-exposure` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-harden-actuator-admin-exposure/` — health `show-details: when-authorized`; isenção `/api/admin` documentada. |
 | `current-user-quality-debt` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-current-user-quality-debt/` — foldada em `add-current-user-endpoint` (DIP, `@WebMvcTest`, índice descartado). |
+| `add-assessoria-onboarding` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-add-assessoria-onboarding/` — cadastro de assessoria (Keycloak Organizations), role `ATLETA`, vínculo `Usuario`↔`Atleta`, convite. Código em develop; **infra Keycloak de produção + migração Groups→Organizations pendentes** (runbook `docs/add-assessoria-onboarding-keycloak-runbook.md`). |
 
 ---
 

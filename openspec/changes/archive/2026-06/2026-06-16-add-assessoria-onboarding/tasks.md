@@ -83,9 +83,11 @@
   `dominio` duplicado; propaga erro do gateway sem persistir org id. `AssessoriaMapperTest` (null-checks).
 - [x] 6.2 `AtletaServiceImplConviteTest`: gera convite; atleta de outro tenant → not found; sem email → 422;
   sem org id → 422. `UsuarioSyncServiceImplLinkTest`: vincula quando ATLETA + email bate; não revincula.
-- [ ] 6.3 `JwtTenantFilter`: resolver `tenant_id` a partir do claim de **Organization** (Fase 5 —
-  depende do token real). Entregue `JwtTenantFilterShouldNotFilterTest` (libera `/api/admin/**`).
-- [x] 6.4 `./mvnw test` — verde (662 testes, 0 falhas).
+- [x] 6.3 `JwtTenantFilter`: resolução de `tenant_id` coberta por `JwtTenantFilterTenantResolutionTest`
+  (claim `organization.<alias>.tenant_id` e claim direto → prossegue; ausente/não-UUID → 403) com
+  tokens construídos — determinístico, sem depender de Keycloak real. Mantém também
+  `JwtTenantFilterShouldNotFilterTest` (libera `/api/admin/**`).
+- [x] 6.4 `./mvnw test` — verde (702 testes, 0 falhas — após a base de hoje).
 
 ## 7. OpenSpec
 
