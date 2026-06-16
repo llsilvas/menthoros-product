@@ -2,7 +2,7 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-06-13
+**Última atualização:** 2026-06-13 (pivô de ingestão: first-party no MVP, Strava deferido)
 **Fonte canônica de especificação:** `changes/<change-id>/` (estrutura flat — este doc NÃO move pastas)
 **Roadmap por ondas/dependências:** `ROADMAP.md`
 **Capacidade assumida:** 1 dev (solo/CTO), sprints de 2 semanas (~1 change média por sprint; changes grandes ocupam 2+).
@@ -57,11 +57,14 @@ Ordem de execução das changes ativas, organizada por sprint. **Prioridade: bas
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
 | 17 | `add-athlete-progress-endpoints` | 22 | Curva PMC, distribuição de zonas, PRs, readiness, resumo de hoje. Base da revisão profunda do atleta. | Bloco 0 |
-| 18 | `add-post-workout-debrief` + `add-weekly-athlete-review` | 17 + 12 | Planejado vs realizado + consolidação semanal. Fecha o loop pós-execução. | progress-endpoints; débito-técnico (parsing confiável) |
-| 19 | `strava-oauth` + `strava-activity-sync` | 20 + 12 restantes (43/55) | Dado real mínimo viável: conexão + sync/reconciliação manual. | Bloco 0 |
-| 20 | `add-athlete-coach-messaging` | 23 | Mensageria atleta↔coach + cards de `plan_adjustment`. Item mais independente. | Bloco 0 |
+| 18 | `first-party-ingestion-architecture` | ~23 | **Dado real first-party e ML-safe:** upload de `.fit` + entrada manual, dedup cross-source, tenant guard, compute-on-import. Roda no front web atual; sem API de terceiros. Substitui o Strava como ingestão do MVP. | Bloco 0 |
+| 19 | `add-workout-metrics-analyzer` | ~22 | Métricas determinísticas (tempo em zona, decoupling) + skill `workout-analyzer` (proposta ao treinador). Reconcilia o `WorkoutAnalysisListener` existente. | first-party-ingestion; suggestion-inbox |
+| 20 | `add-post-workout-debrief` + `add-weekly-athlete-review` | 17 + 12 | Planejado vs realizado + consolidação semanal — agora sobre métricas reais. | metrics-analyzer; progress-endpoints |
+| 21 | `add-athlete-coach-messaging` | 23 | Mensageria atleta↔coach + cards de `plan_adjustment`. Item mais independente. | Bloco 0 |
 
-> **Fronteira do MVP (jornada completa coach-in-the-loop):** ao fim do Sprint 20, a jornada está entregue — identidade → casa do treinador → fila de atenção → sugestão IA explicável → revisão do atleta → debrief → revisão semanal → dado real (Strava mínimo) → mensageria.
+> **Fronteira do MVP (jornada completa coach-in-the-loop):** ao fim do Sprint 21, a jornada está entregue — identidade → casa do treinador → fila de atenção → sugestão IA explicável → revisão do atleta → **dado real first-party (upload `.fit`)** → métricas + análise → debrief → revisão semanal → mensageria.
+>
+> **Mudança estratégica de ingestão:** o MVP passa a usar **ingestão first-party** (FIT upload/manual) em vez do Strava. Dado *ownable* e ML-safe; a família `strava-*` fica **deferida** (ver pós-MVP) — alinhado à arquitetura, que proíbe treinar o ML acceptance predictor com dado da API do Strava.
 
 ---
 
@@ -93,8 +96,11 @@ Ordenadas por criticidade dentro do bloco: segurança (exposição de dados) ant
 **Capabilities de produto avançadas:**
 `add-race-evaluation-skill` (77) · `add-taper-guidance` (29) · `add-macrociclo-structure` (36).
 
-**Strava avançado:**
-`strava-async-import` (88, backfill 90d) · `strava-webhooks` (23) · `strava-conditional-insights` (48) · `strava-risk-semaphore` (59).
+**Strava (deferido atrás de clareza legal):**
+A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 restantes) · `strava-async-import` (88, backfill 90d) · `strava-webhooks` (23) · `strava-conditional-insights` (48) · `strava-risk-semaphore` (59) — **sai do caminho do MVP**. Só entra com (a) clareza legal sobre uso inference-only e (b) caminho de exibição por atleta que satisfaça a restrição do Strava (nov/2024). **Nunca** alimentar o ML acceptance predictor com dado da API do Strava.
+
+**Onda mobile (futura — depende da decisão de construir app mobile):**
+`add-health-connect-ingestion` (~22) — read layer on-device (Health Connect/HealthKit) para sync first-party automático. O **importer backend já entra no `first-party-ingestion-architecture`** (testável via POST); só o read layer mobile fica gated num shell Android/iOS/RN, que ainda não existe.
 
 **Lançamento:**
 `marketing-landing-page` (17).
@@ -109,6 +115,11 @@ Ordenadas por criticidade dentro do bloco: segurança (exposição de dados) ant
 | Change | Tasks | Conclusão | Arquivo |
 |---|:---:|:---:|---|
 | `add-status-endpoint` | 13/13 | 2026-06-13 | `changes/archive/2026-06/2026-06-13-add-status-endpoint/` — cobaia do workflow `/implement → /qa → /ship`; endpoint público `GET /api/v1/status`. |
+| `add-current-user-endpoint` | 13/13 | 2026-06-16 | `changes/archive/2026-06/2026-06-16-add-current-user-endpoint/` — `GET /api/v1/users/me`; DIP no service + `@WebMvcTest` (current-user-quality-debt foldada). |
+| `reject-inactive-users` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-reject-inactive-users/` — `JwtTenantFilter` rejeita `ativo=false` com 423 (fail-safe via leitura direta / 503). |
+| `harden-tenant-isolation` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-harden-tenant-isolation/` — `TenantContext` usa `ThreadLocal`; finders sem tenant removidos/documentados. |
+| `harden-actuator-admin-exposure` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-harden-actuator-admin-exposure/` — health `show-details: when-authorized`; isenção `/api/admin` documentada. |
+| `current-user-quality-debt` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-current-user-quality-debt/` — foldada em `add-current-user-endpoint` (DIP, `@WebMvcTest`, índice descartado). |
 
 ---
 
