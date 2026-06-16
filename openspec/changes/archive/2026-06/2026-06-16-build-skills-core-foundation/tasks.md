@@ -1,4 +1,24 @@
-## 1. Contratos Base — pacote `skills/`
+> **STATUS: ARQUIVADA — SUPERADA (2026-06-16).**
+> A infraestrutura desta change (Seções 1–4) já foi entregue e mergeada em `develop`
+> pela change `introduce-domain-skills-architecture` (arquivada 2026-06-02) e seus commits
+> de follow-up (`feat(skills): ...`). O código real **excede** este escopo: pacote
+> `skills/core` (`DomainSkill`, `SkillContext`, `SkillResult`, `SkillCategory`,
+> `SkillSeverity`, `AthleteAnalysisSnapshot`, `SkillRegistry`, `SkillOrchestratorService`),
+> entidade `SkillExecution` + repo + migration `V32`, e 7+ skills implementadas
+> (analysis, eligibility, prescription, recovery, race) com testes e `DomainSkillContractTest`.
+> Os serviços legados (`IntervaladoElegibilidadeService`, `MetricasAlertaService`) já delegam
+> às skills (D6).
+>
+> **Único gap real:** a Seção 5 (integração do orquestrador na geração de plano —
+> `IaServiceImpl` → orquestrador, `PlanoTreinoPromptBuilder` consome o snapshot) **não foi
+> implementada** — foi explicitamente *adiada* na change original (tasks 4.3/4.4/6.5 de
+> `introduce-domain-skills-architecture`). Esse gap foi extraído para a change dedicada
+> **`wire-skills-into-plan-generation`**.
+>
+> Disposição por seção: §1–§4 ✅ entregues (outra change) · §5 ➡️ movida para
+> `wire-skills-into-plan-generation` · §6–§7 ➡️ verificação coberta pela change nova.
+
+## 1. Contratos Base — pacote `skills/` — ✅ ENTREGUE (`introduce-domain-skills-architecture`)
 
 - [ ] 1.1 Criar enum `SkillSeverity` em `br.com.menthoros.backend.skills` com valores: `NONE, INFO, WARNING, CRITICAL`
 - [ ] 1.2 Criar enum `SkillCategory` em `br.com.menthoros.backend.skills` com valores: `LOAD_MANAGEMENT, INTERVAL_ELIGIBILITY, PRESCRIPTION_GUARD, WORKOUT_ANALYSIS`
@@ -30,7 +50,7 @@
   - Método `toMarkdown()` serializando cada resultado como subseção `### <skillKey>`
   - Factory method estático `AthleteAnalysisSnapshot.empty()`
 
-## 2. Registry e Orquestrador
+## 2. Registry e Orquestrador — ✅ ENTREGUE (`introduce-domain-skills-architecture`)
 
 - [ ] 2.1 Criar `SkillRegistry` anotado com `@Component` em `br.com.menthoros.backend.skills`:
   - Construtor recebe `List<DomainSkill> skills` (injeção automática Spring)
@@ -44,7 +64,7 @@
     - Retorna snapshot consolidado
   - Documenta: **Idempotent: NO** | **Side Effects: Database insert (SkillExecution)** | **Tenant-aware: YES**
 
-## 3. Persistência — Entidade e Migration
+## 3. Persistência — Entidade e Migration — ✅ ENTREGUE (`introduce-domain-skills-architecture`, migration `V32`)
 
 - [ ] 3.1 Criar entity `SkillExecution` em `br.com.menthoros.backend.entity` com campos:
   - `UUID id` (gerado)
@@ -68,7 +88,7 @@
   - `List<SkillExecution> findByTreinoRealizadoIdAndTenantId(UUID treinoId, UUID tenantId)`
   - `List<SkillExecution> findByAtletaIdAndSeverityAndTenantId(UUID atletaId, String severity, UUID tenantId)`
 
-## 4. Skills Iniciais — Formalização de Lógica Existente
+## 4. Skills Iniciais — Formalização de Lógica Existente — ✅ ENTREGUE (`skills/eligibility`, `skills/recovery`; serviços legados delegam — D6)
 
 - [ ] 4.1 Criar `IntervalEligibilitySkill` em `br.com.menthoros.backend.skills.impl` implementando `DomainSkill`:
   - `key()` → `"interval-eligibility"`
@@ -94,7 +114,7 @@
   - Métodos existentes delegam para a skill e convertem resultado
   - Nenhum caller externo é afetado
 
-## 5. Integração com Geração de Plano
+## 5. Integração com Geração de Plano — ➡️ MOVIDA para `wire-skills-into-plan-generation` (gap real, ainda não feita)
 
 - [ ] 5.1 Adaptar `TreinoHistoricoProvider` para expor os dados necessários ao `SkillContext` (verificar se já está adequado ou se precisa de novos métodos)
 - [ ] 5.2 Adaptar `PlanoTreinoPromptBuilder.buildOptimizedPrompt(...)` para aceitar `AthleteAnalysisSnapshot` como parâmetro adicional (nullable para retrocompatibilidade):
@@ -106,7 +126,7 @@
   - Passar o `AthleteAnalysisSnapshot` resultante ao `PlanoTreinoPromptBuilder`
   - Documentar os novos side effects: **Side Effects: SkillExecution persists (async via orchestrator)**
 
-## 6. Testes
+## 6. Testes — ✅ §1–4 cobertas (testes existentes) · ➡️ §6.6 (PromptBuilder) movida para `wire-skills-into-plan-generation`
 
 - [ ] 6.1 Criar `SkillRegistryTest` — verificar que registry retorna apenas skills com `isApplicable = true`
 - [ ] 6.2 Criar `SkillOrchestratorServiceTest`:
@@ -119,7 +139,7 @@
 - [ ] 6.6 Criar `PlanoTreinoPromptBuilderTest` — verificar que seção `## Skills Analysis` aparece no prompt quando snapshot é fornecido e não aparece quando snapshot é nulo/vazio
 - [ ] 6.7 Executar `./mvnw clean test` — todos os testes devem passar sem regressões
 
-## 7. Validação Final
+## 7. Validação Final — ➡️ coberta por `wire-skills-into-plan-generation`
 
 - [ ] 7.1 Executar `./mvnw clean test` com suite completa passando
 - [ ] 7.2 Verificar que `IntervaladoElegibilidadeService` e `MetricasAlertaService` continuam funcionando para seus callers existentes (sem breaking changes)
