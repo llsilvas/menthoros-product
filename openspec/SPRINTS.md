@@ -41,7 +41,7 @@ Sprint 1 encerrada: ambas as changes mergeadas em `develop` e arquivadas (ver "C
 
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
-| 2–3 | `build-skills-core-foundation` | 30 | **A base.** Contratos `DomainSkill`/`SkillContext`/`SkillResult`, `SkillRegistry`, `SkillOrchestratorService`, persistência audit-first, integração mínima com geração de plano. | Bloco 0 |
+| 2–3 | `wire-skills-into-plan-generation` | ~12 | **Fecha a base de IA.** Os contratos/registry/orquestrador/persistência + 7 skills já estão em `develop` (`build-skills-core-foundation` arquivada como superada). Resta o último elo: injetar `AthleteAnalysisSnapshot` no prompt de `geraPlanoSemanalAvancado`. | skills já em develop |
 | 4–5 | `debito-tecnico-camada-ia` | 41 | Confiabilidade: corrige parsing frágil de JSON do LLM, versiona prompts, melhora rastreabilidade/custo. Gate antes de empilhar mais IA. | skills-core |
 | 6 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador; roda sobre dados já existentes. | Bloco 0 |
 | 7–8 | `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
@@ -123,6 +123,7 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 | `harden-actuator-admin-exposure` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-harden-actuator-admin-exposure/` — health `show-details: when-authorized`; isenção `/api/admin` documentada. |
 | `current-user-quality-debt` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-current-user-quality-debt/` — foldada em `add-current-user-endpoint` (DIP, `@WebMvcTest`, índice descartado). |
 | `add-assessoria-onboarding` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-add-assessoria-onboarding/` — cadastro de assessoria (Keycloak Organizations), role `ATLETA`, vínculo `Usuario`↔`Atleta`, convite. Código em develop; **infra Keycloak de produção + migração Groups→Organizations pendentes** (runbook `docs/add-assessoria-onboarding-keycloak-runbook.md`). |
+| `build-skills-core-foundation` | superada | 2026-06-16 | `changes/archive/2026-06/2026-06-16-build-skills-core-foundation/` — §1–4 (contratos/registry/orquestrador/persistência `V32`/skills) já entregues por `introduce-domain-skills-architecture` e follow-ups. §5 (integração na geração de plano) extraída para `wire-skills-into-plan-generation`. |
 
 ---
 
