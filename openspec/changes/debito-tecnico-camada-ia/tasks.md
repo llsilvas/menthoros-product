@@ -39,7 +39,7 @@
 
 - [x] 4.1 Mapear pontos de injeção de `ChatClient` sem `@Qualifier` — confirmado: `IaServiceImpl` era o único (o `ModelRouter` já usa `@Qualifier`); `@Primary` em `ChatClientConfig` mantido para injeções não-plano
 - [x] 4.2 Adicionar `PLANO` ao enum `TaskComplexity` com javadoc
-- [x] 4.3 Criar bean `gpt4oPlanoClient` em `MultiModelConfig` (`model("gpt-4o")`, `temperature(0.7)`, `maxTokens(6000)`, javadoc de custo) — gpt-4o (OpenAI) por compatibilidade com `defaultJsonSchemaOptions()`
+- [x] 4.3 Criar bean `gpt4oPlanoClient` em `MultiModelConfig` (`model("gpt-4o")`, javadoc de custo) — gpt-4o (OpenAI) por compatibilidade com `defaultJsonSchemaOptions()`. **temperature/maxTokens ajustados de `0.7/6000` (escritos na task) para `0.2/12000`**: o `@Primary` antigo não definia options e herdava `0.2/12000` do `application.yml`; usar `0.7/6000` violaria o Non-Goal "não alterar comportamento do modelo" e elevaria a taxa de planos estruturalmente inválidos.
 - [x] 4.4 Adicionar `case PLANO -> gpt4oPlanoClient` em `ModelRouter.route()` (+ teste `plano_routes_to_gpt4oPlano`)
 - [x] 4.5 Substituir `ChatClient chatClient` em `IaServiceImpl` por `ModelRouter modelRouter`; `route(TaskComplexity.PLANO)` em `gerarPlanoSemanal()` e `geraPlanoSemanalAvancado()`
 - [x] 4.6 Executar `./mvnw clean test` (701 testes, 0 falhas) — novo bean injeta no contexto Spring
@@ -61,6 +61,6 @@
 
 - [x] 6.1 `./mvnw clean test` — 701 testes, 0 falhas
 - [x] 6.2 (MANUAL — validado em 2026-06-17) Treino com RPE → análise pós-treino criada (`COMPLETED`) e traduzida para PT corretamente
-- [ ] 6.3 (MANUAL — pendente: requer gerar um plano) Verificar log de geração de plano: roteamento `TaskComplexity.PLANO`/`gpt4oPlanoClient` explícito (linha de log já adicionada). Fluxo distinto do de análise; não exercitado neste smoke-test.
+- [x] 6.3 (MANUAL — validado em 2026-06-17) Geração de plano logou `Geração de plano (avançado) roteada via TaskComplexity.PLANO (bean gpt4oPlanoClient)` — roteamento explícito confirmado em runtime (sem `@Primary` genérico). Obs.: nesse run o plano falhou depois na validação estrutural (REGENERATIVO com 2 etapas) — gap de resiliência pré-existente capturado na nova change `harden-plan-generation-resilience`.
 - [x] 6.4 `git diff develop...HEAD` confirma exatamente 3 templates deletados + 3 criados; os 2 templates usados (otimizado-claude, prompt) intactos
 - [x] 6.5 `docs/mental-model-ia.md`: síntese atualizada — itens resolvidos movidos de `❌ DÉBITO`/`⚠️ ATENÇÃO` para `✅ BOM HOJE`; débito restante marcado como escopo futuro (Sprint 3)
