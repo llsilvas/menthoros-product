@@ -7,15 +7,32 @@ Estado real (2026-06-16):
 - `SkillOrchestratorService.execute(List<DomainSkill<?,?>>, SkillContext)` → `List<SkillResult<?>>`, persiste `SkillExecution`. Mas chama `skill.execute(null, context)` — **não passa input tipado**. Skills do plano exigem inputs (ex.: `IntervaladoElegibilidadeInput`, `RecoveryCargaInput`).
 - `AthleteAnalysisSnapshot(atletaId, dataReferencia, List<SkillResult<?>>)` — hoje só `toPromptSummary()` (plano demais), `hasBlocker()`, `hasCritical()`.
 
-## D1 — Snapshot prompt-capable (pré-requisito de tudo)
+## D1 — Snapshot prompt-capable: renderer de três camadas, duas fontes
 
-A serialização atual (`toPromptSummary`) é uma lista plana. Para substituir os formatters precisa reproduzir a **semântica de prioridade e mandatoriedade** do prompt atual:
+A serialização atual (`toPromptSummary`) é uma lista plana `[SEVERITY] skillKey: payload`. Ela não reproduz a semântica do prompt atual, e — mais importante — o prompt mistura **dois tipos de conteúdo** que não cabem na mesma forma:
 
-- Seções ordenadas por prioridade (constraints mandatórias no topo, depois análises, depois dados de apoio).
-- Bloco explícito de **constraints mandatórias** derivado dos resultados `BLOCKER`/`CRITICAL`, com instrução textual de que o LLM não pode contrariá-las (equivalente aos marcadores `[PROIBIDO]`/`[FORBIDDEN]` de hoje).
-- Cada `SkillResult` expõe payload/evidence/recommendations já no padrão de saída desejado.
+- **Decisões/constraints** (elegibilidade de intervalado, descanso obrigatório, teto de pace, dias permitidos): têm severidade, evidência, recomendação → encaixam no `SkillResult`. São o que o LLM **não pode** sobrescrever.
+- **Dados/contexto** (zonas fisiológicas, volume das 3 semanas, histórico de pace, dados da prova): apresentação de dados do atleta. **Não têm severidade nem decisão** — forçá-los em `SkillResult` com `severity=INFO` de mentira é prego quadrado.
 
-Decisão: estender `AthleteAnalysisSnapshot` (ou introduzir um `SnapshotPromptRenderer` dedicado e testável) para emitir essas seções. Renderer dedicado é preferível — mantém o record do snapshot limpo e isola a formatação em uma unidade testável.
+**Decisão: `SnapshotPromptRenderer` dedicado, com TRÊS camadas e DUAS fontes.**
+
+```
+renderer(snapshot, inputs)            ← Opção B: dois canais
+  snapshot = List<SkillResult>  (decisões)
+  inputs   = atleta / metaDados / histórico  (dados, já construídos pelo runner do D2)
+
+  → [1] CONSTRAINTS MANDATÓRIAS (topo)  ← Constraints declaradas (ver D7) + assessments BLOCKER/CRITICAL
+        bloco "REGRAS QUE VOCÊ NÃO PODE VIOLAR" (equivale aos [PROIBIDO]/[FORBIDDEN] de hoje)
+  → [2] ANÁLISE / ADVISORY (meio)       ← results WARNING/INFO + recommendations
+  → [3] DADOS / CONTEXTO (base)         ← renderizado direto dos inputs (não via skill)
+```
+
+Implicações:
+- O record `AthleteAnalysisSnapshot` permanece limpo; a formatação vive no renderer testável.
+- **Um domínio pode alimentar mais de uma camada** — ex.: `pace-ceiling` contribui com o teto em [1] (constraint) e a tabela de histórico em [3] (dado).
+- **Nem todo domínio vira `DomainSkill`.** A skill é o lar da *decisão*; o resíduo de *formatação de dado* (zonas, volume, histórico) permanece como **helper de formatação enxuto** (função testável), apenas movido para alimentar a camada [3]. Isso encolhe o escopo do strangler: cada incremento extrai a **decisão/constraint** para uma skill e deixa o dado como helper, em vez de criar uma skill monolítica por formatter.
+
+Aberto (refinar quando chegar lá): se [2] advisory continua como camada própria ou colapsa (em [1] como "considerações" ou inline com os dados em [3]). Decisão registrada: começar com as três camadas separadas.
 
 ## D2 — Inputs reais + fim da execução-sombra
 
@@ -43,7 +60,9 @@ Por incremento: (a) skill produz o resultado; (b) renderer injeta a seção a pa
 
 ## D4 — `PromptBuilder` como montador fino
 
-Estado final: `buildOptimizedPrompt` monta `SkillContext` → roda o runner de skills → obtém `AthleteAnalysisSnapshot` → `SnapshotPromptRenderer` produz as seções determinísticas → concatena com dados do atleta + template. Os 8 formatters deixam de existir; a lógica vive nas skills (testáveis isoladamente).
+Estado final: `buildOptimizedPrompt` monta `SkillContext` → roda o runner de skills (D2) → obtém `AthleteAnalysisSnapshot` → `SnapshotPromptRenderer(snapshot, inputs)` produz as três camadas (D1) → concatena com o template.
+
+Os formatters deixam de **orquestrar o prompt**, mas nem todo código de formatter "some": a **decisão** de cada um migra para uma skill (camadas [1]/[2]); o **resíduo de formatação de dado** (zonas, volume, histórico de pace) permanece como helper enxuto e testável alimentando a camada [3]. O que desaparece é o método de 533 linhas e os formatters como pontos de composição do prompt — a lógica de decisão passa a viver em skills isoladamente testáveis.
 
 ## D6 — Resiliência estrutural do plano gerado (folded de `harden-plan-generation-resilience`)
 
@@ -71,6 +90,48 @@ A validação pós-geração em `IaServiceImpl.validarENormalizarPlanoGerado` re
 4. **Falha clara** (erro de domínio mapeado no `GlobalExceptionHandler`) só após reparo + retry esgotados.
 
 Onde mora: como o D4 já reescreve `buildOptimizedPrompt`/o miolo da geração, a orquestração de reparo+retry entra junto — preferir um colaborador dedicado (não re-inflar o `IaServiceImpl`; coordenar com `refactor-iaservice-decomposition`). As **regras** de validação permanecem inalteradas — muda só o comportamento de recuperação.
+
+## D7 — `Constraint` declarativa: fonte única para prompt e checker
+
+Descer no `pace-ceiling` (5 métodos do `PaceHistoricoFormatter`) revelou dois pontos que refinam o D1:
+
+**Problema: rotear a camada [1] por severidade é insuficiente.** Há dois tipos de coisa que precisam ir para o bloco mandatório:
+- **Assessment** — observação sobre o estado do atleta, com severidade (`recovery` BLOCKER → "descanso obrigatório"; `interval-eligibility` degradado).
+- **Regra/constraint** — derivada de dado, **mandatória por natureza e sem severidade** (`teto de pace`; `dias permitidos`; `TSS alvo semanal`; `máx. dias consecutivos`).
+
+O `SkillResult` atual (`severity/evidence/recommendations`) só modela o primeiro. Não há onde declarar "esta é uma regra que o plano deve satisfazer". Hoje essas regras vivem **duplicadas e desacopladas**: viram prosa no prompt (`formatarTetoPace`) E são validadas em outro lugar na normalização (`paceValidator` usa teto/piso).
+
+**Decisão: skills de plano declaram `List<Constraint>` (ortogonal à severidade).** Uma `Constraint` é uma regra declarativa que o plano gerado deve satisfazer. Declarada **uma vez** pela skill, é usada **duas vezes**:
+
+```
+        skill (ex.: pace-ceiling)
+        declara Constraint("ritmoAlvo ≤ teto por tipo", dados)
+              │
+   ┌──────────┴───────────┐
+   ▼                      ▼
+[1] no PROMPT          PlanQualityChecker (pós-geração)
+"NÃO ultrapasse X"     verifica: nenhuma etapa mais rápida que o teto
+(instrui o LLM)        (confere se o LLM obedeceu)
+```
+
+Forma de saída das skills de plano:
+
+```
+SkillResult {
+  severity, evidence, recommendations,   // o assessment (já existe)
+  constraints: List<Constraint>          // NOVO — regras que o plano deve satisfazer
+}
+```
+
+Roteamento do renderer (revisa o D1):
+- `[1]` = todas as `constraints` (de qualquer skill) + assessments `BLOCKER`/`CRITICAL`
+- `[2]` = assessments `WARNING`/`INFO` + recommendations
+- `[3]` = dado (helper, dos inputs)
+- **`PlanQualityChecker`** = checa as mesmas `constraints` → a regra do checker por domínio (tasks 3.4, 4.4, 5.4, 7.4) deixa de ser reimplementada: é a constraint declarada.
+
+**Benefícios:** elimina a dupla implementação (prompt vs. validação); a regra do checker sai de graça; e a constraint vira o ponto de extensão por domínio. **Bônus de determinismo:** ao virar skill, `verificarPaceLimiarAtualizado` (que hoje usa `LocalDate.now()`) passa a usar `dataReferencia` do `SkillContext` — fecha um dos buracos de não-determinismo do golden-master.
+
+**Aberto (refinar ao implementar a 1ª constraint):** a forma exata de `Constraint` — predicado verificável por código (ideal para o checker) vs. texto humano + chave (mais simples para o prompt). Começar mínimo e crescer; a 1ª fatia (interval-eligibility, task 3.x) é onde o contrato `Constraint` se prova, junto com a 1ª regra do checker.
 
 ## D5 — Relação com as changes vizinhas
 
