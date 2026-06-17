@@ -10,7 +10,7 @@
 - [x] 1.6 Criar `src/main/resources/prompts/workout-analysis-user-prompt.txt` com a instrução `"Analyze this workout and respond with valid JSON only:\n%s"` externalizada; carregar via `PromptTemplateLoader.loadAndFormat()`
 - [x] 1.7 Ajustar `WorkoutAnalysisListener` para injetar `PromptTemplateLoader` e usar `loadAndFormat("workout-analysis-user-prompt.txt", promptData)`
 - [x] 1.8 Executar `./mvnw clean test` (703 testes, 0 falhas) — `WorkoutAnalysisTranslatorTest` e `IaServiceImplFcValidationTest` passando
-- [ ] 1.9 (MANUAL — requer app + LLM) Testar: registrar um treino com RPE preenchido e verificar no log análise `COMPLETED` com campos em português
+- [x] 1.9 (MANUAL — validado em 2026-06-17) Treino com RPE → listener disparou, `workout-analysis-user-prompt.txt` carregado, `.entity()` parseou o Sonnet, análise `COMPLETED` em português
 
 ### 2. Migrar RaceProjectionNarrativeGenerator para `.entity()`
 
@@ -60,7 +60,7 @@
 ## Validação Final
 
 - [x] 6.1 `./mvnw clean test` — 701 testes, 0 falhas
-- [ ] 6.2 (MANUAL — requer app + LLM) Subir app, registrar treino com RPE; verificar análise pós-treino criada e traduzida
-- [ ] 6.3 (MANUAL — requer app + LLM) Verificar log de geração de plano: roteamento `TaskComplexity.PLANO`/`gpt4oPlanoClient` explícito (linha de log já adicionada)
+- [x] 6.2 (MANUAL — validado em 2026-06-17) Treino com RPE → análise pós-treino criada (`COMPLETED`) e traduzida para PT corretamente
+- [ ] 6.3 (MANUAL — pendente: requer gerar um plano) Verificar log de geração de plano: roteamento `TaskComplexity.PLANO`/`gpt4oPlanoClient` explícito (linha de log já adicionada). Fluxo distinto do de análise; não exercitado neste smoke-test.
 - [x] 6.4 `git diff develop...HEAD` confirma exatamente 3 templates deletados + 3 criados; os 2 templates usados (otimizado-claude, prompt) intactos
 - [x] 6.5 `docs/mental-model-ia.md`: síntese atualizada — itens resolvidos movidos de `❌ DÉBITO`/`⚠️ ATENÇÃO` para `✅ BOM HOJE`; débito restante marcado como escopo futuro (Sprint 3)
