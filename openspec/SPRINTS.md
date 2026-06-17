@@ -2,7 +2,7 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-06-16 (eval-harness mergeado; rede de regressão pronta antes da migração formatters→skills)
+**Última atualização:** 2026-06-17 (debito-tecnico-camada-ia mergeado; nova change harden-plan-generation-resilience no backlog)
 **Fonte canônica de especificação:** `changes/<change-id>/` (estrutura flat — este doc NÃO move pastas)
 **Roadmap por ondas/dependências:** `ROADMAP.md`
 **Capacidade assumida:** 1 dev (solo/CTO), sprints de 2 semanas (~1 change média por sprint; changes grandes ocupam 2+).
@@ -61,7 +61,7 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 |:---:|---|:---:|---|---|
 | — | 🤖 ~~`build-skills-core-foundation`~~ ✅ superada | 30 | **Fundação de skills já em `develop`** (contratos, `SkillRegistry`, `SkillOrchestratorService`, persistência `V32`, 7+ skills) — entregue por `introduce-domain-skills-architecture` + follow-ups. Arquivada como superada (ver "Changes concluídas"). | Bloco 0 |
 | 2 | 🤖 ~~`add-plan-generation-eval-harness`~~ ✅ | S | **A rede (mínima).** Golden-master de `buildOptimizedPrompt` (533 linhas → 707 testes). Trilho de regressão ANTES da migração de formatters. Reescopada (product-lens): o `PlanQualityChecker` vai na migração; eval ao vivo no Pós-MVP. | skills-core (em develop) |
-| 3–4 | 🤖 `debito-tecnico-camada-ia` | 41 | Confiabilidade: corrige parsing frágil de JSON do LLM, versiona prompts, melhora rastreabilidade/custo. Gate antes de empilhar mais IA. | eval-harness |
+| 3–4 | 🤖 ~~`debito-tecnico-camada-ia`~~ ✅ | 41 | Confiabilidade: `.entity()` no lugar de parsing frágil, prompts externalizados, roteamento de modelo explícito (`TaskComplexity.PLANO`), limpeza. Gate antes de empilhar mais IA. | eval-harness |
 | 5 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador; roda sobre dados já existentes. Adiantada para quebrar a maratona de infra (depende só do Bloco 0). | Bloco 0 |
 | 6–8 | 🤖 `migrate-plan-prompt-to-skills` | L/XL | **O coração.** Migração strangler: a lógica determinística dos 8 formatters vira/usa skills; `PromptBuilder` vira montador fino sobre o `AthleteAnalysisSnapshot`; formatters retraídos. Organizado, testável, menos alucinação. Cada domínio validado contra o golden-master + constrói uma regra do `PlanQualityChecker`. | eval-harness |
 | 9 | `add-coach-attention-queue` + `add-recommendation-explainability` *(visível)* | 13 + 9 | Fila diária de atenção + camada de explicabilidade. Hook diário do treinador. | shell-dashboards |
@@ -111,6 +111,7 @@ Ordenadas por criticidade dentro do bloco: segurança (exposição de dados) ant
 
 **Dívida técnica estrutural:**
 `refactor-iaservice-decomposition` (~26) — decompõe `IaServiceImpl` (~1500 linhas: schema + geração + validação) em colaboradores testáveis, sem mudança de comportamento. **Sequenciar logo após `debito-tecnico-camada-ia`** (mesma classe) para não re-inflar; não é bloqueante de feature nem de beta, por isso fica no pós-MVP.
+`harden-plan-generation-resilience` (M) — geração de plano resiliente a violações estruturais ocasionais da LLM (reparo determinístico + retry com feedback + telemetria), em vez de 503 na 1ª violação. Criada a partir de falha real em produção (REGENERATIVO com 2 etapas). **Coordenar janela do `IaServiceImpl`** com `migrate-plan-prompt-to-skills` e `refactor-iaservice-decomposition`.
 
 **Refino do motor analítico:**
 `refine-tss-tsb-precision` (45) · `add-continuous-daily-load-management` (21) · `validate-interval-workout-standards` (79) · `add-running-field-tests` (35).
@@ -148,6 +149,7 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 | `add-assessoria-onboarding` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-add-assessoria-onboarding/` — cadastro de assessoria (Keycloak Organizations), role `ATLETA`, vínculo `Usuario`↔`Atleta`, convite. Código em develop; **infra Keycloak de produção + migração Groups→Organizations pendentes** (runbook `docs/add-assessoria-onboarding-keycloak-runbook.md`). |
 | `build-skills-core-foundation` | superada | 2026-06-16 | `changes/archive/2026-06/2026-06-16-build-skills-core-foundation/` — §1–4 (contratos/registry/orquestrador/persistência `V32`/skills) já entregues por `introduce-domain-skills-architecture` e follow-ups. §5 (integração na geração de plano) reavaliada: a thread de IA (`eval-harness → debito-tecnico → llm-tool-use → llm-code-switching`) cobre a modernização do prompt. |
 | `add-plan-generation-eval-harness` | 12/12 | 2026-06-16 | `changes/archive/2026-06/add-plan-generation-eval-harness/` — Golden-master determinístico de `buildOptimizedPrompt` (5 arquétipos, 707 testes); rede de regressão antes da migração formatters→skills. `LocalDate.now()` congelado, `Locale` pt-BR, leitura classpath-safe. Zero mudança de produção (apenas `src/test/`). |
+| `debito-tecnico-camada-ia` | ✓ | 2026-06-17 | `changes/archive/2026-06/debito-tecnico-camada-ia/` — Confiabilidade da camada IA: `.entity()` (Spring AI structured output) em `WorkoutAnalysisListener` e `RaceProjectionNarrativeGenerator` no lugar de parsing manual; 3 user prompts externalizados; roteamento explícito `TaskComplexity.PLANO`/`gpt4oPlanoClient`; cache thread-safe; limpeza de templates órfãos/embedding morto. Validado em produção (análise pós-treino + log de roteamento). Suíte 701/701. Gap de resiliência estrutural → `harden-plan-generation-resilience`. |
 
 ---
 
