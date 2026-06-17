@@ -6,6 +6,11 @@ context: |
   (apps/menthoros-front). PostgreSQL + Flyway; Keycloak multi-tenant via TenantContext.
   Conventional Commits em PT-BR. As regras canônicas de código vivem nos CLAUDE.md de cada repo e na raiz.
 
+  Produto — estrela-guia: o Menthoros existe para OTIMIZAR A ROTINA DO TREINADOR (coach). Persona primária
+  é o treinador; o atleta é secundário. Coach-in-the-loop: a IA propõe, o treinador aprova/edita/rejeita —
+  nunca automatizar o treinador para fora do circuito nem expor saída de IA ao atleta sem ação dele.
+  Toda feature deve melhorar a rotina/decisão do treinador (tempo economizado, decisão melhor, mais atletas atendidos).
+
   Toda change declara Tamanho (XS/S/M/L/XL) e Trilha:
   - XS/S  -> Fast track (sem design.md formal; QA = /review + testes)
   - M/L/XL -> Full track (com design.md + pre-mortem the-fool; QA = code-reviewer + security-reviewer + test-master)
@@ -17,5 +22,8 @@ rules:
   proposal:
     - "Comece o proposal com a linha de classificação: **Tamanho:** <XS|S|M|L|XL> · **Trilha:** <Fast|Full>, escolhida pelos critérios do contexto acima."
     - "Mantenha o escopo mínimo e dentro da change; sem feature creep."
+    - "Inclua **Critérios de aceite** testáveis (Given/When/Then ou EARS) — cada critério verificável por um teste."
+    - "Inclua a seção **Open Questions & Assumptions** com as premissas assumidas e o que ainda está em aberto."
+    - "Declare a **Métrica de sucesso** mensurável, ligada à rotina do treinador (ex.: minutos por revisão, % de propostas aceitas)."
   tasks:
     - "Tasks granulares e numeradas (N.M), cada bloco com passo de validação explícito (backend: ./mvnw clean test; frontend: npm run lint && npm run build)."
