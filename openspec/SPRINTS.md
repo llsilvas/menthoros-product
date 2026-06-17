@@ -62,15 +62,15 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 | — | 🤖 ~~`build-skills-core-foundation`~~ ✅ superada | 30 | **Fundação de skills já em `develop`** (contratos, `SkillRegistry`, `SkillOrchestratorService`, persistência `V32`, 7+ skills) — entregue por `introduce-domain-skills-architecture` + follow-ups. Arquivada como superada (ver "Changes concluídas"). | Bloco 0 |
 | 2 | 🤖 `add-plan-generation-eval-harness` | S | **A rede (mínima).** Golden-master de `buildOptimizedPrompt` (533 linhas, 0 testes hoje). Trilho de segurança ANTES de qualquer mutação de prompt. Só observa — sem mudar a geração. Reescopada (product-lens): o `PlanQualityChecker` vai na migração; eval ao vivo no Pós-MVP. | skills-core (em develop) |
 | 3–4 | 🤖 `debito-tecnico-camada-ia` | 41 | Confiabilidade: corrige parsing frágil de JSON do LLM, versiona prompts, melhora rastreabilidade/custo. Gate antes de empilhar mais IA. | eval-harness |
-| 5–6 | 🤖 `migrate-plan-prompt-to-skills` | L/XL | **O coração.** Migração strangler: a lógica determinística dos 8 formatters vira/usa skills; `PromptBuilder` vira montador fino sobre o `AthleteAnalysisSnapshot`; formatters retraídos. Organizado, testável, menos alucinação. Cada domínio validado contra o golden-master + constrói uma regra do `PlanQualityChecker`. | eval-harness |
-| 6 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador; roda sobre dados já existentes. | Bloco 0 |
-| 7–8 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
-| 9 | `add-coach-attention-queue` + `add-recommendation-explainability` *(visível)* | 13 + 9 | Fila diária de atenção + camada de explicabilidade. Hook diário do treinador. | shell-dashboards |
-| 10–12 | 🤖 `rag-tool-calling-prescription-engine` | 64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado em metodologia. Destrava a família `rag-*`. | llm-tool-use |
-| 13 | `add-coach-suggestion-inbox` *(visível)* | 21 | Workflow aprovar/rejeitar/ajustar sugestões IA — **centro do coach-in-the-loop**. Melhor agora, com citações do RAG. | RAG, explainability, attention-queue |
-| 14 | 🤖 `llm-code-switching` | 21 | Otimização PT/EN (assertividade + custo). Reduzida pela migração — skills já emitem estrutura EN / valores PT. | migrate-plan-prompt, llm-tool-use |
-| 15 | 🤖 `rag-injury-aware-prescription` | 24 | Prescrição lesão-aware: protocolos de retorno, sessões contraindicadas, escalonamento de bandeira-vermelha. | RAG, explainability, attention-queue |
-| 16 | 🤖 `rag-coach-methodology-personalization` | 29 | Aprende com planos aprovados/editados — personaliza para a "voz do coach". | RAG, explainability |
+| 5–7 | 🤖 `migrate-plan-prompt-to-skills` | L/XL | **O coração.** Migração strangler: a lógica determinística dos 8 formatters vira/usa skills; `PromptBuilder` vira montador fino sobre o `AthleteAnalysisSnapshot`; formatters retraídos. Organizado, testável, menos alucinação. Cada domínio validado contra o golden-master + constrói uma regra do `PlanQualityChecker`. | eval-harness |
+| 8 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador; roda sobre dados já existentes. | Bloco 0 |
+| 9–10 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
+| 11 | `add-coach-attention-queue` + `add-recommendation-explainability` *(visível)* | 13 + 9 | Fila diária de atenção + camada de explicabilidade. Hook diário do treinador. | shell-dashboards |
+| 12–14 | 🤖 `rag-tool-calling-prescription-engine` | 64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado em metodologia. Destrava a família `rag-*`. | llm-tool-use |
+| 15 | `add-coach-suggestion-inbox` *(visível)* | 21 | Workflow aprovar/rejeitar/ajustar sugestões IA — **centro do coach-in-the-loop**. Melhor agora, com citações do RAG. | RAG, explainability, attention-queue |
+| 16 | 🤖 `llm-code-switching` | 21 | Otimização PT/EN (assertividade + custo). Reduzida pela migração — skills já emitem estrutura EN / valores PT. | migrate-plan-prompt, llm-tool-use |
+| 17 | 🤖 `rag-injury-aware-prescription` | 24 | Prescrição lesão-aware: protocolos de retorno, sessões contraindicadas, escalonamento de bandeira-vermelha. | RAG, explainability, attention-queue |
+| 18 | 🤖 `rag-coach-methodology-personalization` | 29 | Aprende com planos aprovados/editados — personaliza para a "voz do coach". | RAG, explainability |
 
 ---
 
@@ -78,13 +78,13 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
-| 17 | `add-athlete-progress-endpoints` | 22 | Curva PMC, distribuição de zonas, PRs, readiness, resumo de hoje. Base da revisão profunda do atleta. | Bloco 0 |
-| 18 | `first-party-ingestion-architecture` | ~23 | **Dado real first-party e ML-safe:** upload de `.fit` + entrada manual, dedup cross-source, tenant guard, compute-on-import. Roda no front web atual; sem API de terceiros. Substitui o Strava como ingestão do MVP. | Bloco 0 |
-| 19 | `add-workout-metrics-analyzer` | ~22 | Métricas determinísticas (tempo em zona, decoupling) + skill `workout-analyzer` (proposta ao treinador). Reconcilia o `WorkoutAnalysisListener` existente. | first-party-ingestion; suggestion-inbox |
-| 20 | `add-post-workout-debrief` + `add-weekly-athlete-review` | 17 + 12 | Planejado vs realizado + consolidação semanal — agora sobre métricas reais. | metrics-analyzer; progress-endpoints |
-| 21 | `add-athlete-coach-messaging` | 23 | Mensageria atleta↔coach + cards de `plan_adjustment`. Item mais independente. | Bloco 0 |
+| 19 | `add-athlete-progress-endpoints` | 22 | Curva PMC, distribuição de zonas, PRs, readiness, resumo de hoje. Base da revisão profunda do atleta. | Bloco 0 |
+| 20 | `first-party-ingestion-architecture` | ~23 | **Dado real first-party e ML-safe:** upload de `.fit` + entrada manual, dedup cross-source, tenant guard, compute-on-import. Roda no front web atual; sem API de terceiros. Substitui o Strava como ingestão do MVP. | Bloco 0 |
+| 21 | `add-workout-metrics-analyzer` | ~22 | Métricas determinísticas (tempo em zona, decoupling) + skill `workout-analyzer` (proposta ao treinador). Reconcilia o `WorkoutAnalysisListener` existente. | first-party-ingestion; suggestion-inbox |
+| 22 | `add-post-workout-debrief` + `add-weekly-athlete-review` | 17 + 12 | Planejado vs realizado + consolidação semanal — agora sobre métricas reais. | metrics-analyzer; progress-endpoints |
+| 23 | `add-athlete-coach-messaging` | 23 | Mensageria atleta↔coach + cards de `plan_adjustment`. Item mais independente. | Bloco 0 |
 
-> **Fronteira do MVP (jornada completa coach-in-the-loop):** ao fim do Sprint 21, a jornada está entregue — identidade → casa do treinador → fila de atenção → sugestão IA explicável → revisão do atleta → **dado real first-party (upload `.fit`)** → métricas + análise → debrief → revisão semanal → mensageria.
+> **Fronteira do MVP (jornada completa coach-in-the-loop):** ao fim do Sprint 23, a jornada está entregue — identidade → casa do treinador → fila de atenção → sugestão IA explicável → revisão do atleta → **dado real first-party (upload `.fit`)** → métricas + análise → debrief → revisão semanal → mensageria.
 >
 > **Mudança estratégica de ingestão:** o MVP passa a usar **ingestão first-party** (FIT upload/manual) em vez do Strava. Dado *ownable* e ML-safe; a família `strava-*` fica **deferida** (ver pós-MVP) — alinhado à arquitetura, que proíbe treinar o ML acceptance predictor com dado da API do Strava.
 
