@@ -2,7 +2,7 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-06-13 (pivô de ingestão: first-party no MVP, Strava deferido)
+**Última atualização:** 2026-06-16 (eval-harness mergeado; rede de regressão pronta antes da migração formatters→skills)
 **Fonte canônica de especificação:** `changes/<change-id>/` (estrutura flat — este doc NÃO move pastas)
 **Roadmap por ondas/dependências:** `ROADMAP.md`
 **Capacidade assumida:** 1 dev (solo/CTO), sprints de 2 semanas (~1 change média por sprint; changes grandes ocupam 2+).
@@ -60,7 +60,7 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
 | — | 🤖 ~~`build-skills-core-foundation`~~ ✅ superada | 30 | **Fundação de skills já em `develop`** (contratos, `SkillRegistry`, `SkillOrchestratorService`, persistência `V32`, 7+ skills) — entregue por `introduce-domain-skills-architecture` + follow-ups. Arquivada como superada (ver "Changes concluídas"). | Bloco 0 |
-| 2 | 🤖 `add-plan-generation-eval-harness` | S | **A rede (mínima).** Golden-master de `buildOptimizedPrompt` (533 linhas, 0 testes hoje). Trilho de segurança ANTES de qualquer mutação de prompt. Só observa — sem mudar a geração. Reescopada (product-lens): o `PlanQualityChecker` vai na migração; eval ao vivo no Pós-MVP. | skills-core (em develop) |
+| 2 | 🤖 ~~`add-plan-generation-eval-harness`~~ ✅ | S | **A rede (mínima).** Golden-master de `buildOptimizedPrompt` (533 linhas → 707 testes). Trilho de regressão ANTES da migração de formatters. Reescopada (product-lens): o `PlanQualityChecker` vai na migração; eval ao vivo no Pós-MVP. | skills-core (em develop) |
 | 3–4 | 🤖 `debito-tecnico-camada-ia` | 41 | Confiabilidade: corrige parsing frágil de JSON do LLM, versiona prompts, melhora rastreabilidade/custo. Gate antes de empilhar mais IA. | eval-harness |
 | 5 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador; roda sobre dados já existentes. Adiantada para quebrar a maratona de infra (depende só do Bloco 0). | Bloco 0 |
 | 6–8 | 🤖 `migrate-plan-prompt-to-skills` | L/XL | **O coração.** Migração strangler: a lógica determinística dos 8 formatters vira/usa skills; `PromptBuilder` vira montador fino sobre o `AthleteAnalysisSnapshot`; formatters retraídos. Organizado, testável, menos alucinação. Cada domínio validado contra o golden-master + constrói uma regra do `PlanQualityChecker`. | eval-harness |
@@ -147,6 +147,7 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 | `current-user-quality-debt` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-current-user-quality-debt/` — foldada em `add-current-user-endpoint` (DIP, `@WebMvcTest`, índice descartado). |
 | `add-assessoria-onboarding` | ✓ | 2026-06-16 | `changes/archive/2026-06/2026-06-16-add-assessoria-onboarding/` — cadastro de assessoria (Keycloak Organizations), role `ATLETA`, vínculo `Usuario`↔`Atleta`, convite. Código em develop; **infra Keycloak de produção + migração Groups→Organizations pendentes** (runbook `docs/add-assessoria-onboarding-keycloak-runbook.md`). |
 | `build-skills-core-foundation` | superada | 2026-06-16 | `changes/archive/2026-06/2026-06-16-build-skills-core-foundation/` — §1–4 (contratos/registry/orquestrador/persistência `V32`/skills) já entregues por `introduce-domain-skills-architecture` e follow-ups. §5 (integração na geração de plano) reavaliada: a thread de IA (`eval-harness → debito-tecnico → llm-tool-use → llm-code-switching`) cobre a modernização do prompt. |
+| `add-plan-generation-eval-harness` | 12/12 | 2026-06-16 | `changes/archive/2026-06/add-plan-generation-eval-harness/` — Golden-master determinístico de `buildOptimizedPrompt` (5 arquétipos, 707 testes); rede de regressão antes da migração formatters→skills. `LocalDate.now()` congelado, `Locale` pt-BR, leitura classpath-safe. Zero mudança de produção (apenas `src/test/`). |
 
 ---
 
