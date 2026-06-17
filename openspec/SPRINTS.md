@@ -2,7 +2,7 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-06-17 (auditoria de cadência: thread de IA em 3 changes, migrate deferido; renumeração Bloco 1/2)
+**Última atualização:** 2026-06-17 (progress-endpoints movido p/ Bloco 1 sprint 5 — destrava a shell; cascata Bloco 1/2)
 **Fonte canônica de especificação:** `changes/<change-id>/` (estrutura flat — este doc NÃO move pastas)
 **Roadmap por ondas/dependências:** `ROADMAP.md`
 **Capacidade assumida:** 1 dev (solo/CTO), sprints de 2 semanas (~1 change média por sprint; changes grandes ocupam 2+).
@@ -54,30 +54,31 @@ skills-core ✅ ─▶ eval-harness ✅ ─▶ introduce-plan-constraints ─▶
   harden-plan-generation-resilience  ── irmã independente (reparo + 1 retry do 503; valida estrutura de etapas)
 ```
 
-- **eval-harness** é a rede; **introduce-plan-constraints** fatia o anti-alucinação pra frente (bloco mandatório no topo + checker, usando os valores que os formatters já calculam — **sem** migrar lógica); **migrate-prompt** é o strangler que troca a *fonte* das `Constraint` (formatter→skill) por baixo do seam estável — **deferido** (Sprint 17–19), pois virou refactor de manutenibilidade depois que o anti-alucinação saiu na frente; **code-switching** vem após o migrate.
+- **eval-harness** é a rede; **introduce-plan-constraints** fatia o anti-alucinação pra frente (bloco mandatório no topo + checker, usando os valores que os formatters já calculam — **sem** migrar lógica); **migrate-prompt** é o strangler que troca a *fonte* das `Constraint` (formatter→skill) por baixo do seam estável — **deferido** (Sprint 18–20), pois virou refactor de manutenibilidade depois que o anti-alucinação saiu na frente; **code-switching** vem após o migrate.
 - A `Constraint` declarativa (key+descrição+params) é o **seam**: declarada uma vez, usada no prompt [1] **e** no `PlanQualityChecker`; quem produz (formatter→skill) troca sem mexer em renderer/checker.
 - **harden-plan-generation-resilience** é irmã independente (validade estrutural de etapas ≠ constraint de coaching); não depende do seam nem do strangler — sequencia livre.
 - **debito-tecnico** ✅ e **add-llm-tool-use** são camadas complementares; **RAG** fundamenta a prescrição.
 - `refactor-iaservice-decomposition` (Pós-MVP) é a irmã estrutural — mesma classe `IaServiceImpl`; coordenar janela com migrate/harden.
 
-As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `explainability`, `suggestion-inbox`) ficam **intercaladas** na tabela para preservar time-to-value — não fazem parte do guarda-chuva. Cadência (pós-auditoria, opção "deferir migrate"): entregável visível em **5** (shell), **8** (attention/explainability) e **14** (inbox) — a jornada coach-in-the-loop **fecha no Sprint 14**. O trecho **9–13** (`tool-use` + `rag-tool-calling`) é a maratona de infra **estrutural** (o inbox depende do RAG e não pode vir antes). Os sprints **15–20** são aprofundamento de IA pós-jornada: `rag-injury`/`rag-coach`, o `migrate` (strangler de manutenibilidade, deferido) e `code-switching`.
+As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `explainability`, `suggestion-inbox`) ficam **intercaladas** na tabela para preservar time-to-value — não fazem parte do guarda-chuva. Cadência (pós-auditoria): **5** `progress-endpoints` (dado da shell) → **6** shell (visível) → **9** attention/explainability (visível) → **15** inbox (visível), que **fecha a jornada coach-in-the-loop**. O trecho **10–14** (`tool-use` + `rag-tool-calling`) é a maratona de infra **estrutural** (o inbox depende do RAG). Os sprints **16–21** são aprofundamento de IA pós-jornada: `rag-injury`/`rag-coach`, o `migrate` (strangler de manutenibilidade, deferido) e `code-switching`.
 
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
 | — | 🤖 ~~`build-skills-core-foundation`~~ ✅ superada | 30 | **Fundação de skills já em `develop`** (contratos, `SkillRegistry`, `SkillOrchestratorService`, persistência `V32`, 7+ skills) — entregue por `introduce-domain-skills-architecture` + follow-ups. Arquivada como superada (ver "Changes concluídas"). | Bloco 0 |
 | 2 | 🤖 ~~`add-plan-generation-eval-harness`~~ ✅ | S | **A rede (mínima).** Golden-master de `buildOptimizedPrompt` (533 linhas → 707 testes). Trilho de regressão ANTES da migração de formatters. Reescopada (product-lens): o `PlanQualityChecker` vai na migração; eval ao vivo no Pós-MVP. | skills-core (em develop) |
 | 3–4 | 🤖 ~~`debito-tecnico-camada-ia`~~ ✅ | 41 | Confiabilidade: `.entity()` no lugar de parsing frágil, prompts externalizados, roteamento de modelo explícito (`TaskComplexity.PLANO`), limpeza. Gate antes de empilhar mais IA. | eval-harness |
-| 5 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador; roda sobre dados já existentes. | Bloco 0 |
-| 6 | 🤖 `introduce-plan-constraints` | M | **Anti-alucinação (o "coração" agora).** Seam `Constraint` (key+descrição+params); formatters emitem Constraints; bloco mandatório [1] no topo + `PlanQualityChecker`. Sem migrar skill. | eval-harness |
-| 7 | 🤖 `harden-plan-generation-resilience` | M | Resiliência estrutural: reparo-first + 1 retry (fim do 503 do `REGENERATIVO` 2 etapas). Independente do seam e do strangler. | debito-tecnico ✅ |
-| 8 | `add-coach-attention-queue` + `add-recommendation-explainability` *(visível)* | 13 + 9 | Fila diária de atenção + camada de explicabilidade. Hook diário do treinador. | shell-dashboards |
-| 9–10 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
-| 11–13 | 🤖 `rag-tool-calling-prescription-engine` | 64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado em metodologia. Destrava a família `rag-*`. | llm-tool-use |
-| 14 | `add-coach-suggestion-inbox` *(visível)* | 21 | Workflow aprovar/rejeitar/ajustar sugestões IA — **centro do coach-in-the-loop**; fecha a jornada. Melhor agora, com citações do RAG. | RAG, explainability, attention-queue |
-| 15 | 🤖 `rag-injury-aware-prescription` | 24 | Prescrição lesão-aware: protocolos de retorno, sessões contraindicadas, escalonamento de bandeira-vermelha. | RAG, explainability, attention-queue |
-| 16 | 🤖 `rag-coach-methodology-personalization` | 29 | Aprende com planos aprovados/editados — personaliza para a "voz do coach". | RAG, explainability |
-| 17–19 | 🤖 `migrate-plan-prompt-to-skills` | L | **Strangler de manutenibilidade (deferido).** Troca a FONTE das `Constraint` e seções de formatter→skill por baixo do seam estável; `PromptBuilder` vira montador fino. Anti-alucinação já entregue em `introduce-plan-constraints` → menor urgência; janela contínua no `IaServiceImpl` coordenada com `refactor-iaservice-decomposition`. | introduce-plan-constraints |
-| 20 | 🤖 `llm-code-switching` | 21 | Otimização PT/EN (assertividade + custo). Reduzida pela migração — skills já emitem estrutura EN / valores PT. | migrate-plan-prompt, llm-tool-use |
+| 5 | `add-athlete-progress-endpoints` *(visível, dado)* | 22 | Curva PMC, distribuição de zonas, PRs, readiness, resumo de hoje. **Camada de dados da shell** (PMC/zonas) e base da revisão profunda do atleta. Movida do Bloco 2 para destravar a shell. | Bloco 0 |
+| 6 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador. Flags ainda não entregues (`hasPendingSuggestion`) iniciam `false`. | progress-endpoints; Bloco 0 |
+| 7 | 🤖 `introduce-plan-constraints` | M | **Anti-alucinação (o "coração" agora).** Seam `Constraint` (key+descrição+params); formatters emitem Constraints; bloco mandatório [1] no topo + `PlanQualityChecker`. Sem migrar skill. | eval-harness |
+| 8 | 🤖 `harden-plan-generation-resilience` | M | Resiliência estrutural: reparo-first + 1 retry (fim do 503 do `REGENERATIVO` 2 etapas). Independente do seam e do strangler. | debito-tecnico ✅ |
+| 9 | `add-coach-attention-queue` + `add-recommendation-explainability` *(visível)* | 13 + 9 | Fila diária de atenção + camada de explicabilidade. Hook diário do treinador. | shell-dashboards |
+| 10–11 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
+| 12–14 | 🤖 `rag-tool-calling-prescription-engine` | 64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado em metodologia. Destrava a família `rag-*`. | llm-tool-use |
+| 15 | `add-coach-suggestion-inbox` *(visível)* | 21 | Workflow aprovar/rejeitar/ajustar sugestões IA — **centro do coach-in-the-loop**; fecha a jornada. Melhor agora, com citações do RAG. | RAG, explainability, attention-queue |
+| 16 | 🤖 `rag-injury-aware-prescription` | 24 | Prescrição lesão-aware: protocolos de retorno, sessões contraindicadas, escalonamento de bandeira-vermelha. | RAG, explainability, attention-queue |
+| 17 | 🤖 `rag-coach-methodology-personalization` | 29 | Aprende com planos aprovados/editados — personaliza para a "voz do coach". | RAG, explainability |
+| 18–20 | 🤖 `migrate-plan-prompt-to-skills` | L | **Strangler de manutenibilidade (deferido).** Troca a FONTE das `Constraint` e seções de formatter→skill por baixo do seam estável; `PromptBuilder` vira montador fino. Anti-alucinação já entregue em `introduce-plan-constraints` → menor urgência; janela contínua no `IaServiceImpl` coordenada com `refactor-iaservice-decomposition`. | introduce-plan-constraints |
+| 21 | 🤖 `llm-code-switching` | 21 | Otimização PT/EN (assertividade + custo). Reduzida pela migração — skills já emitem estrutura EN / valores PT. | migrate-plan-prompt, llm-tool-use |
 
 ---
 
@@ -85,7 +86,6 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
-| 21 | `add-athlete-progress-endpoints` | 22 | Curva PMC, distribuição de zonas, PRs, readiness, resumo de hoje. Base da revisão profunda do atleta. | Bloco 0 |
 | 22 | `first-party-ingestion-architecture` | ~23 | **Dado real first-party e ML-safe:** upload de `.fit` + entrada manual, dedup cross-source, tenant guard, compute-on-import. Roda no front web atual; sem API de terceiros. Substitui o Strava como ingestão do MVP. | Bloco 0 |
 | 23 | `add-workout-metrics-analyzer` | ~22 | Métricas determinísticas (tempo em zona, decoupling) + skill `workout-analyzer` (proposta ao treinador). Reconcilia o `WorkoutAnalysisListener` existente. | first-party-ingestion; suggestion-inbox |
 | 24 | `add-post-workout-debrief` + `add-weekly-athlete-review` | 17 + 12 | Planejado vs realizado + consolidação semanal — agora sobre métricas reais. | metrics-analyzer; progress-endpoints |
