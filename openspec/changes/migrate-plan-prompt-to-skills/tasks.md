@@ -59,10 +59,21 @@
 - [ ] 8.3 Confirmar que `IaServiceImpl.geraPlanoSemanalAvancado` segue funcionando (mesma assinatura pública)
 - [ ] 8.4 Golden-master final revisado + eval + `./mvnw clean test`
 
-## 9. Validação Final
+## 9. Resiliência estrutural da geração (D6 — folded de `harden-plan-generation-resilience`)
 
-- [ ] 9.1 `./mvnw clean test` verde (suíte completa, sem regressão)
-- [ ] 9.2 Eval determinística sem novas `ViolacaoQualidade` vs. baseline
-- [ ] 9.3 Confirmar nenhum controller, DTO de API, entidade ou migration alterado
-- [ ] 9.4 Confirmar que a lógica determinística agora vive em skills testadas e que os formatters migrados foram removidos
-- [ ] 9.5 Atualizar este `tasks.md` com os checkmarks
+- [ ] 9.1 Unificar os 4 validadores idênticos (`REGENERATIVO`/`LONGO`/`CONTINUO`/`TEMPO_RUN`) em um `validarEstrutura3Etapas(tipo)` + ponto único de reparo (remove duplicação)
+- [ ] 9.2 (TDD) Reparo determinístico: aquecimento/desaquecimento faltante → sintetizar etapa formulaica (zona fácil); ordem trocada com os 3 tipos presentes → reordenar. Casos: "2 etapas (falta desaq)" → 3 válidas; ordem invertida → canônica
+- [ ] 9.3 (TDD) Reparo de `repeticoes != 1` por expansão (reaproveitar `expandirEtapasAgregadas`)
+- [ ] 9.4 (TDD) Retry único com feedback: quando o reparo não se aplica (ex.: falta PRINCIPAL, regras de intervalado), re-chamar o LLM 1x injetando o motivo da rejeição; cobrir "falha → retry → sucesso" e "falha → retry falha → erro de domínio claro"
+- [ ] 9.5 Extrair a orquestração reparo+retry para um colaborador dedicado (não inflar `IaServiceImpl`; coordenar com `refactor-iaservice-decomposition`)
+- [ ] 9.6 Telemetria Micrometer: violações por tipo, reparos aplicados, retries, falhas finais
+- [ ] 9.7 Golden-master + eval + `./mvnw clean test`
+
+## 10. Validação Final
+
+- [ ] 10.1 `./mvnw clean test` verde (suíte completa, sem regressão)
+- [ ] 10.2 Eval determinística sem novas `ViolacaoQualidade` vs. baseline
+- [ ] 10.3 Confirmar nenhum controller, DTO de API, entidade ou migration alterado
+- [ ] 10.4 Confirmar que a lógica determinística agora vive em skills testadas e que os formatters migrados foram removidos
+- [ ] 10.5 (MANUAL) Reproduzir o cenário `REGENERATIVO` inválido e confirmar recuperação (reparo ou retry) em vez de 503; regras de validação inalteradas
+- [ ] 10.6 Atualizar este `tasks.md` com os checkmarks

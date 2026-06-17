@@ -45,6 +45,33 @@ Por incremento: (a) skill produz o resultado; (b) renderer injeta a seção a pa
 
 Estado final: `buildOptimizedPrompt` monta `SkillContext` → roda o runner de skills → obtém `AthleteAnalysisSnapshot` → `SnapshotPromptRenderer` produz as seções determinísticas → concatena com dados do atleta + template. Os 8 formatters deixam de existir; a lógica vive nas skills (testáveis isoladamente).
 
+## D6 — Resiliência estrutural do plano gerado (folded de `harden-plan-generation-resilience`)
+
+A validação pós-geração em `IaServiceImpl.validarENormalizarPlanoGerado` rejeita o plano inteiro com `LLMException` (→ 503, após ~80s) na primeira violação estrutural que a LLM produz. Como a saída é não-determinística, isso ocorre de forma intermitente (caso real 2026-06-17: `REGENERATIVO` com 2 etapas). A `debito-tecnico-camada-ia` já reduziu a frequência ao baixar a temperatura para 0.2, mas não elimina.
+
+**Inventário real das validações que HARD-FAIL (throw):**
+
+| Validação | Reparável (determinístico)? |
+|---|---|
+| 4 validadores "3 etapas" **idênticos** (`REGENERATIVO`/`LONGO`/`CONTINUO`/`TEMPO_RUN`): `size != 3` ou ordem ≠ AQUEC→…→DESAQ | Parcial — ver abaixo |
+| `validarRepeticoes` (`repeticoes != 1`) | ✅ sim — expandir (lógica `expandirEtapasAgregadas` já existe) |
+| `validarTreinoIntervalado` (regras de FC/intervalo) | ❌ não — retry |
+
+> Já são **WARN-only** (não falham, sem ação): `validarTrianguloPaceDuracaoDistancia`, `validarDistribuicaoCargaSemanal`, limites "mínimo recomendado" de duração/distância.
+
+**Classificação de reparo dos "3 etapas":**
+- Falta **AQUECIMENTO** ou **DESAQUECIMENTO** → ✅ sintetizar (formulaico: zona fácil, ~5–10 min).
+- Ordem trocada mas os 3 tipos presentes → ✅ reordenar para o canônico.
+- Falta **PRINCIPAL** (o estímulo real) → ❌ retry (inventar o treino principal é perigoso).
+
+**Decisão — reparo-first + 1 retry (teto):**
+1. **Dedup primeiro:** unificar os 4 validadores idênticos em um `validarEstrutura3Etapas(tipo)` e um único ponto de reparo.
+2. **Reparar** o que é seguro (aquec/desaq faltante, ordem, `repeticoes`) — cobre o caso comum sem custo de LLM; reparo **logado e contado** (telemetria Micrometer), nunca silencioso.
+3. **Retry único** (1 tentativa, ~80s) só quando o reparo não se aplica, re-chamando o LLM com o motivo da rejeição anexado ao prompt. Teto = 1 para não criar esperas de minutos.
+4. **Falha clara** (erro de domínio mapeado no `GlobalExceptionHandler`) só após reparo + retry esgotados.
+
+Onde mora: como o D4 já reescreve `buildOptimizedPrompt`/o miolo da geração, a orquestração de reparo+retry entra junto — preferir um colaborador dedicado (não re-inflar o `IaServiceImpl`; coordenar com `refactor-iaservice-decomposition`). As **regras** de validação permanecem inalteradas — muda só o comportamento de recuperação.
+
 ## D5 — Relação com as changes vizinhas
 
 - **`add-plan-generation-eval-harness` (depende):** rede obrigatória. Sem ela, esta migração é cega.
