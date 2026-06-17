@@ -119,9 +119,45 @@ Forma de saída das skills de plano:
 ```
 SkillResult {
   severity, evidence, recommendations,   // o assessment (já existe)
-  constraints: List<Constraint>          // NOVO — regras que o plano deve satisfazer
+  constraints: List<Constraint>          // NOVO — 0..N regras que o plano deve satisfazer
 }
 ```
+
+**Validação em 3 domínios de formatos diferentes** (confirma que generaliza além do pace):
+
+```
+DOMÍNIO         CONSTRAINT (predicado)                      ESCOPO              SEVERIDADE?
+────────────    ─────────────────────────────────────      ─────────────────   ──────────────
+pace-ceiling    ritmoAlvo[tipo] não mais rápido que teto    por etapa (numérico) não — regra de dado
+interval-elig.  Substituído: plano NÃO contém INTERVALADO    presença/categoria   sim → constraint
+                Degradado:  intervalado ≤ categoriaSegura      no plano             (lesão = BLOCKER)
+                Elegível:   (permissão — emite 0 constraints)
+disponibilidade treino.diaSemana ∈ diasEfetivos             conjunto (membership) não — regra dura
+                ≤ N dias consecutivos                        agregado da semana
+```
+
+Conclusões da validação:
+- "Mandatório independente de severidade" vale nos três → routing por severidade sozinho falharia. Confirma a necessidade de `constraints` explícitas.
+- `List<Constraint>` é **0..N**: Elegível (permissão) e dia-preferido-longo (advisory) emitem **zero** constraints.
+- `RecomendacaoIntervalado` (sealed Elegivel/Degradado/Substituido, cada uma já com `instrucaoParaLlm`) já é praticamente um carregador de `Constraint` — bom template; por isso migrar interval primeiro (D3 fatia 3.x) prova o contrato no caso mais rico.
+
+**Forma da `Constraint` (fecha o ponto que estava aberto): `key + descrição + params`, não predicate puro.** Uma constraint tem duas metades: a **descrição** (→ prompt [1]) é uniforme e fácil (os 3 domínios já emitem texto via `instrucaoParaLlm`); a **verificação** (→ checker) é heterogênea (numérico / conjunto / presença / agregado-de-semana) e fecha sobre dados próprios. Um `Predicate<PlanoSemanalLlmDto>` puro resolveria, mas quebra a serialização — e a `SkillExecution` (`V32`) persiste resultados de skill. Então:
+
+```
+Constraint {
+  ConstraintKey  key;          // PACE_TETO, INTERVALADO_PROIBIDO, INTERVALADO_MAX_CATEGORIA,
+                               // DIAS_PERMITIDOS, MAX_CONSECUTIVOS…
+  String         descricao;    // → renderiza no prompt [1]  (o instrucaoParaLlm de hoje)
+  Map<String,?>  params;       // teto-por-tipo / set-de-dias / tipoFallback / N  (dado serializável)
+}
+        │
+        ▼
+PlanQualityChecker faz dispatch por `key` → avalia `params` contra o plano gerado
+```
+
+A **declaração** (key + descrição + params) é a fonte única e serializável; o **algoritmo** de verificação vive no checker, mas é *dirigido* pela constraint declarada (lê o limiar/conjunto dos `params`, não reimplementa). Meio-termo entre "texto opaco" (não verificável) e "predicate puro" (não serializável).
+
+**Cruzamento com o D6:** `MAX_CONSECUTIVOS` é um agregado da semana — exatamente o que `validarDistribuicaoCargaSemanal` hoje só **avisa** (WARN). Promovê-la a `Constraint` unifica prompt [1] + checker + resiliência (D6) na mesma declaração.
 
 Roteamento do renderer (revisa o D1):
 - `[1]` = todas as `constraints` (de qualquer skill) + assessments `BLOCKER`/`CRITICAL`
@@ -131,7 +167,7 @@ Roteamento do renderer (revisa o D1):
 
 **Benefícios:** elimina a dupla implementação (prompt vs. validação); a regra do checker sai de graça; e a constraint vira o ponto de extensão por domínio. **Bônus de determinismo:** ao virar skill, `verificarPaceLimiarAtualizado` (que hoje usa `LocalDate.now()`) passa a usar `dataReferencia` do `SkillContext` — fecha um dos buracos de não-determinismo do golden-master.
 
-**Aberto (refinar ao implementar a 1ª constraint):** a forma exata de `Constraint` — predicado verificável por código (ideal para o checker) vs. texto humano + chave (mais simples para o prompt). Começar mínimo e crescer; a 1ª fatia (interval-eligibility, task 3.x) é onde o contrato `Constraint` se prova, junto com a 1ª regra do checker.
+**Aberto (refinar fatia a fatia):** o conjunto de `ConstraintKey` e o schema de `params` de cada domínio (acima já há os candidatos). A forma do contrato (`key + descrição + params` + dispatch no checker) está decidida; a 1ª fatia (interval-eligibility, task 3.x) materializa o contrato `Constraint` + `ConstraintKey.INTERVALADO_*` + a 1ª regra do checker, e cada domínio seguinte adiciona suas keys.
 
 ## D5 — Relação com as changes vizinhas
 
