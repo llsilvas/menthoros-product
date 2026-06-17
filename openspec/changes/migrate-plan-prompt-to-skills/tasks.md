@@ -1,4 +1,4 @@
-> **Pré-requisito:** `add-plan-generation-eval-harness` mergeado (golden-master + eval determinística são a rede desta migração). Cada incremento de domínio (seções 3+) só fecha com o golden-master verde (ou divergência revisada) e sem nova `ViolacaoQualidade`.
+> **Pré-requisito:** `add-plan-generation-eval-harness` mergeado (golden-master é a rede desta migração). O **`PlanQualityChecker` é construído AQUI**, por domínio (movido da eval-harness pelo reescopo product-lens). Cada incremento de domínio (seções 3+) só fecha com o golden-master verde (ou divergência revisada) e sem nova `ViolacaoQualidade`.
 
 ## 1. Snapshot prompt-capable (D1)
 
@@ -18,21 +18,24 @@
 - [ ] 3.1 Caracterizar `formatarDecisaoIntervalado` (teste) antes de remover
 - [ ] 3.2 Renderizar a decisão de intervalado a partir do snapshot (`IntervaladoElegibilidadeSkill`); remover `formatarDecisaoIntervalado` do `PromptBuilder`
 - [ ] 3.3 Remover a execução-sombra (`UUID.randomUUID()`) de `IntervaladoElegibilidadeService`; o caminho real passa pelo runner
-- [ ] 3.4 Golden-master: revisar e regenerar diff intencional; eval sem nova violação; `./mvnw clean test`
+- [ ] 3.4 (TDD) Criar o contrato `PlanQualityChecker` (`ViolacaoQualidade` record) + 1ª regra (intervalado proibido/degradado) + teste offline com fixtures de plano "bom"/"alucinado" (sem LLM)
+- [ ] 3.5 Golden-master: revisar e regenerar diff intencional; eval sem nova violação; `./mvnw clean test`
 
 ## 4. Strangler — load/recovery (skill existe)
 
 - [ ] 4.1 Caracterizar `AlertasPromptFormatter.gerarAlertasObrigatorios`/`gerarHierarquiaDecisao` antes de remover
 - [ ] 4.2 Renderizar alertas/hierarquia a partir do snapshot (`RecoveryCargaSkill`); remover as chamadas no `PromptBuilder`
 - [ ] 4.3 Remover a execução-sombra em `MetricasAlertaService`
-- [ ] 4.4 Golden-master + eval + `./mvnw clean test`
+- [ ] 4.4 (TDD) Regra do checker para o domínio: dias consecutivos + restrições de lesão respeitadas no plano
+- [ ] 4.5 Golden-master + eval + `./mvnw clean test`
 
 ## 5. Strangler — periodization (nova skill)
 
 - [ ] 5.1 Caracterizar `PeriodizacaoPromptFormatter` (provas, evento competitivo, periodização, TSS alvo, tipo de semana)
 - [ ] 5.2 (TDD) Criar skill de periodização (input record + payload + `*SkillTest`)
 - [ ] 5.3 Renderizar via snapshot; remover/retrair `PeriodizacaoPromptFormatter` no `PromptBuilder`
-- [ ] 5.4 Golden-master + eval + `./mvnw clean test`
+- [ ] 5.4 (TDD) Regra do checker para o domínio: TSS alvo semanal respeitado (dentro da tolerância)
+- [ ] 5.5 Golden-master + eval + `./mvnw clean test`
 
 ## 6. Strangler — variability (nova skill)
 
@@ -46,7 +49,8 @@
 - [ ] 7.1 Absorver `RecuperacaoPromptFormatter` (em `RecoveryCargaSkill` ou nova skill); retrair o formatter
 - [ ] 7.2 (TDD) Criar skill de teto de pace a partir de `PaceHistoricoFormatter.calcularTetoPorTipo`; renderizar via snapshot; retrair
 - [ ] 7.3 (TDD) Migrar regras de `DisponibilidadePromptFormatter` (máx. dias consecutivos, distribuição semanal) para skill/regra; renderizar via snapshot; retrair
-- [ ] 7.4 Golden-master + eval + `./mvnw clean test`
+- [ ] 7.4 (TDD) Regra do checker para o domínio: teto de pace respeitado (nenhuma sessão mais rápida que o teto por tipo)
+- [ ] 7.5 Golden-master + eval + `./mvnw clean test`
 
 ## 8. PromptBuilder como montador fino (D4)
 

@@ -23,6 +23,7 @@ Nem `add-llm-tool-use` (adiciona getters de dado + prompt enxuto) nem `llm-code-
   6. **pace-ceiling** — nova skill a partir de `PaceHistoricoFormatter` (teto de pace).
   7. **availability** — regras de `DisponibilidadePromptFormatter`.
 - **`PromptBuilder` vira montador fino:** passa a compor o prompt a partir do snapshot + dados do atleta, em vez de orquestrar 8 formatters. Cada formatter migrado é **deletado**.
+- **`PlanQualityChecker` por domínio (herdado da eval-harness):** contrato (`ViolacaoQualidade`) + 1ª regra (intervalado) na primeira fatia; **uma regra nova a cada domínio migrado** (teto de pace, TSS alvo, dias consecutivos, lesão). Verifica que o plano gerado respeita as constraints determinísticas — eval offline sobre fixtures "bom"/"alucinado", sem chamar o LLM. (Originalmente previsto em `add-plan-generation-eval-harness`; movido para cá pelo reescopo product-lens — só faz sentido onde há plano para verificar.)
 
 ## Capabilities
 

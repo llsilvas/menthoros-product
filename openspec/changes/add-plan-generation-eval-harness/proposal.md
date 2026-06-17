@@ -1,42 +1,35 @@
-**Tamanho · Trilha:** M · Full
+**Tamanho · Trilha:** S · Fast
+
+> **Reescopo (product-lens, 2026-06-16):** esta change foi reduzida ao **trilho mínimo** — apenas o golden-master (Camada A). O `PlanQualityChecker` (Camada B) foi movido para `migrate-plan-prompt-to-skills`, onde é construído **por domínio**, conforme cada formatter é migrado (tem plano para verificar e a constraint vira relevante). A eval ao vivo com LLM (Camada C) foi **deferida ao Pós-MVP** — depende de uso real para ter baseline. Ver `PRODUCT-BRIEF.md`.
 
 ## Why
 
-A geração de plano semanal é o fluxo mais caro e mais crítico do Menthoros, e hoje está **sem rede de segurança de regressão**:
+A geração de plano semanal é o coração do produto e está **sem rede de regressão**: `PlanoTreinoPromptBuilder.buildOptimizedPrompt` tem **533 linhas, 8 formatters e zero testes**, calibrado por tentativa-e-erro.
 
-- `PlanoTreinoPromptBuilder.buildOptimizedPrompt` tem **533 linhas, 8 formatters e zero testes**. O prompt foi calibrado por tentativa-e-erro (as anotações "Fase 1/2/3/5", tetos de pace, penalidade de TSB são cicatrizes disso).
-- Não existe nenhuma verificação determinística sobre a **saída** do LLM — não há como afirmar se um plano gerado respeita ou viola as constraints que o motor determinístico já calculou (decisão de intervalado, teto de pace, TSS alvo, restrições de lesão).
-
-Toda a thread de IA do Bloco 1 vai **mutar o prompt e a interação com o LLM**: `debito-tecnico-camada-ia` (structured output), `add-llm-tool-use` (fim do prompt monolítico) e `llm-code-switching` (PT→EN). Cada uma muda o texto enviado ao modelo → muda a saída → muda a qualidade do plano. **Sem uma rede de medição, não há como saber se cada passo modernizou ou regrediu** — e o objetivo declarado ("organizado, testável, menos alucinação") fica sem prova.
-
-Esta change cria essa rede **antes** de qualquer modernização: é o trilho sobre o qual o resto da thread de IA corre com segurança.
+A thread de modernização de IA (`debito-tecnico → migrate-plan-prompt-to-skills → add-llm-tool-use → llm-code-switching`) vai **mutar o prompt repetidamente**. Sem uma rede, uma regressão no texto do prompt — e portanto na qualidade do plano — passa **silenciosa**. Esta change cria a rede mínima **antes** das mutações: um golden-master que falha no diff quando o prompt muda sem querer.
 
 ## What Changes
 
-- **Camada A — Golden-master do prompt montado:** harness de caracterização que congela a saída de `buildOptimizedPrompt` para um conjunto de **arquétipos de atleta** (iniciante sem lesão, avançado com TSB baixo, lesão ativa, taper/semana de prova, dados ausentes/fallbacks). Determinístico (clock/data fixos via fixture). Qualquer mudança futura no prompt tem de manter o golden-master ou divergir **de propósito**, com diff revisado.
-- **Camada B — Eval determinística de qualidade do plano:** um `PlanQualityChecker` que verifica a **saída** (plano JSON) contra as constraints determinísticas como oráculo:
-  - respeita a decisão mandatória de intervalado (não prescreve INTERVALADO quando proibido/degradado)?
-  - respeita o teto de pace por tipo? não inventa pace abaixo do teto?
-  - fica dentro do TSS alvo semanal e do máximo de dias consecutivos?
-  - respeita restrições de lesão?
-  - Reusa os motores já existentes como verdade: `IntervaladoElegibilidadeService`, `TrainingPrescriptionGuardSkill`, lógica de teto de pace.
-- **Eval offline (CI):** testes que rodam o `PlanQualityChecker` sobre planos-fixture ("bom" e "alucinado") para provar que o checker **detecta** as violações — sem chamar o LLM.
-- **Eval ao vivo (opt-in, fora do CI unitário):** profile/flag que chama o LLM real para um atleta-fixture e pontua a saída — para uso manual/nightly, não no gate de build.
+- **Golden-master de `buildOptimizedPrompt`:** harness de caracterização que congela a saída do prompt para um conjunto de **arquétipos de atleta** (iniciante sem lesão, avançado com TSB baixo, lesão ativa, taper/semana de prova, dados ausentes/fallbacks).
+- **Determinismo:** data de referência fixada (clock/`TreinoHistoricoProvider` stubado) para o prompt ser reprodutível.
+- **Regeneração explícita:** flag dedicada reescreve os arquivos golden; nunca automática — toda mudança de golden é decisão revisada no diff.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `plan-generation-quality`: caracterização do prompt de geração de plano (golden-master) e verificação determinística de aderência do plano gerado às constraints do motor determinístico (rede de regressão da thread de IA).
+- `plan-generation-quality`: caracterização (golden-master) do prompt de geração de plano como rede de regressão da thread de modernização de IA.
 
 ## Impact
 
 **Backend (`apps/menthoros-backend`):**
-- Novos fixtures/builders de arquétipos de atleta para teste de `buildOptimizedPrompt`.
-- Golden-master em `src/test/resources/` + harness de captura/assert/regeneração documentada.
-- `PlanQualityChecker` determinístico (reusável; pode no futuro virar guard de produção — fora do escopo aqui) + testes com fixtures "bom"/"alucinado".
-- Profile opt-in de eval ao vivo (sem entrar no `./mvnw clean test` padrão).
+- Fixtures/builders de arquétipos de atleta para teste de `buildOptimizedPrompt`.
+- Golden-masters em `src/test/resources/` + harness de captura/assert/regeneração.
 
-**Sem impacto em:** o fluxo de geração em si (nenhuma mudança de comportamento em `IaServiceImpl`/`PlanoTreinoPromptBuilder` — esta change só **observa e mede**), DTOs, entidades, migrations, controllers, frontend.
+**Sem impacto em:** o fluxo de geração (a change só **observa**, zero mudança de comportamento), DTOs, entidades, migrations, controllers, frontend.
 
-**Posicionamento:** sequenciar **antes** de `debito-tecnico-camada-ia` no Bloco 1 — é a rede sobre a qual `debito-tecnico → add-llm-tool-use → llm-code-switching` vão se apoiar.
+**Fora de escopo (movido/deferido):**
+- `PlanQualityChecker` (aderência do plano às constraints) → **`migrate-plan-prompt-to-skills`**, por domínio.
+- Eval ao vivo com LLM real → **Pós-MVP** (precisa de uso real para baseline).
+
+**Posicionamento:** primeira da thread 🤖 no Bloco 1, **antes** de `migrate-plan-prompt-to-skills` — é a rede sobre a qual a migração corre.

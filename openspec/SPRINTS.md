@@ -60,9 +60,9 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
 | — | 🤖 ~~`build-skills-core-foundation`~~ ✅ superada | 30 | **Fundação de skills já em `develop`** (contratos, `SkillRegistry`, `SkillOrchestratorService`, persistência `V32`, 7+ skills) — entregue por `introduce-domain-skills-architecture` + follow-ups. Arquivada como superada (ver "Changes concluídas"). | Bloco 0 |
-| 2 | 🤖 `add-plan-generation-eval-harness` | ~M | **A rede.** Golden-master de `buildOptimizedPrompt` (533 linhas, 0 testes hoje) + eval determinística de aderência do plano às constraints. Trilho de segurança ANTES de qualquer mutação de prompt/LLM. Só observa/mede — sem mudar a geração. | skills-core (em develop) |
+| 2 | 🤖 `add-plan-generation-eval-harness` | S | **A rede (mínima).** Golden-master de `buildOptimizedPrompt` (533 linhas, 0 testes hoje). Trilho de segurança ANTES de qualquer mutação de prompt. Só observa — sem mudar a geração. Reescopada (product-lens): o `PlanQualityChecker` vai na migração; eval ao vivo no Pós-MVP. | skills-core (em develop) |
 | 3–4 | 🤖 `debito-tecnico-camada-ia` | 41 | Confiabilidade: corrige parsing frágil de JSON do LLM, versiona prompts, melhora rastreabilidade/custo. Gate antes de empilhar mais IA. | eval-harness |
-| 5–6 | 🤖 `migrate-plan-prompt-to-skills` | L/XL | **O coração.** Migração strangler: a lógica determinística dos 8 formatters vira/usa skills; `PromptBuilder` vira montador fino sobre o `AthleteAnalysisSnapshot`; formatters retraídos. Organizado, testável, menos alucinação. Cada domínio validado contra o golden-master. | eval-harness |
+| 5–6 | 🤖 `migrate-plan-prompt-to-skills` | L/XL | **O coração.** Migração strangler: a lógica determinística dos 8 formatters vira/usa skills; `PromptBuilder` vira montador fino sobre o `AthleteAnalysisSnapshot`; formatters retraídos. Organizado, testável, menos alucinação. Cada domínio validado contra o golden-master + constrói uma regra do `PlanQualityChecker`. | eval-harness |
 | 6 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador; roda sobre dados já existentes. | Bloco 0 |
 | 7–8 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
 | 9 | `add-coach-attention-queue` + `add-recommendation-explainability` *(visível)* | 13 + 9 | Fila diária de atenção + camada de explicabilidade. Hook diário do treinador. | shell-dashboards |
@@ -114,6 +114,9 @@ Ordenadas por criticidade dentro do bloco: segurança (exposição de dados) ant
 
 **Refino do motor analítico:**
 `refine-tss-tsb-precision` (45) · `add-continuous-daily-load-management` (21) · `validate-interval-workout-standards` (79) · `add-running-field-tests` (35).
+
+**Eval ao vivo da geração de plano (Camada C, deferida):**
+Eval que chama o LLM real e pontua a qualidade do plano gerado (aderência + heurísticas), reaberta quando houver **uso real** para baseline de comparação. Saiu de `add-plan-generation-eval-harness` no reescopo product-lens (golden-master + checker determinístico cobrem o de-risco da migração sem custo/flakiness de LLM).
 
 **Capabilities de produto avançadas:**
 `add-race-evaluation-skill` (77) · `add-taper-guidance` (29) · `add-macrociclo-structure` (36).
