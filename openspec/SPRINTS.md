@@ -55,17 +55,17 @@ skills-core ✅ ─▶ add-plan-generation-eval-harness ─▶ migrate-plan-prom
 - **debito-tecnico** (structured output, versionamento de prompt, routing) e **add-llm-tool-use** (dado sob demanda) são camadas complementares; a família **RAG** fundamenta a prescrição.
 - `refactor-iaservice-decomposition` (Pós-MVP) é a irmã estrutural — mesma classe `IaServiceImpl`; coordenar janela com a migração.
 
-As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `explainability`, `suggestion-inbox`) ficam **intercaladas** na tabela para preservar time-to-value — não fazem parte do guarda-chuva.
+As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `explainability`, `suggestion-inbox`) ficam **intercaladas** na tabela para preservar time-to-value — não fazem parte do guarda-chuva. Cadência: entregável visível a cada ~3 sprints de infra (sprint 5, 9, 15). O trecho 10–14 (`tool-use` + `rag-tool-calling`) é a única maratona de infra remanescente — **estrutural**, pois `suggestion-inbox` depende do RAG e não pode vir antes.
 
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
 | — | 🤖 ~~`build-skills-core-foundation`~~ ✅ superada | 30 | **Fundação de skills já em `develop`** (contratos, `SkillRegistry`, `SkillOrchestratorService`, persistência `V32`, 7+ skills) — entregue por `introduce-domain-skills-architecture` + follow-ups. Arquivada como superada (ver "Changes concluídas"). | Bloco 0 |
 | 2 | 🤖 `add-plan-generation-eval-harness` | S | **A rede (mínima).** Golden-master de `buildOptimizedPrompt` (533 linhas, 0 testes hoje). Trilho de segurança ANTES de qualquer mutação de prompt. Só observa — sem mudar a geração. Reescopada (product-lens): o `PlanQualityChecker` vai na migração; eval ao vivo no Pós-MVP. | skills-core (em develop) |
 | 3–4 | 🤖 `debito-tecnico-camada-ia` | 41 | Confiabilidade: corrige parsing frágil de JSON do LLM, versiona prompts, melhora rastreabilidade/custo. Gate antes de empilhar mais IA. | eval-harness |
-| 5–7 | 🤖 `migrate-plan-prompt-to-skills` | L/XL | **O coração.** Migração strangler: a lógica determinística dos 8 formatters vira/usa skills; `PromptBuilder` vira montador fino sobre o `AthleteAnalysisSnapshot`; formatters retraídos. Organizado, testável, menos alucinação. Cada domínio validado contra o golden-master + constrói uma regra do `PlanQualityChecker`. | eval-harness |
-| 8 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador; roda sobre dados já existentes. | Bloco 0 |
-| 9–10 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
-| 11 | `add-coach-attention-queue` + `add-recommendation-explainability` *(visível)* | 13 + 9 | Fila diária de atenção + camada de explicabilidade. Hook diário do treinador. | shell-dashboards |
+| 5 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador; roda sobre dados já existentes. Adiantada para quebrar a maratona de infra (depende só do Bloco 0). | Bloco 0 |
+| 6–8 | 🤖 `migrate-plan-prompt-to-skills` | L/XL | **O coração.** Migração strangler: a lógica determinística dos 8 formatters vira/usa skills; `PromptBuilder` vira montador fino sobre o `AthleteAnalysisSnapshot`; formatters retraídos. Organizado, testável, menos alucinação. Cada domínio validado contra o golden-master + constrói uma regra do `PlanQualityChecker`. | eval-harness |
+| 9 | `add-coach-attention-queue` + `add-recommendation-explainability` *(visível)* | 13 + 9 | Fila diária de atenção + camada de explicabilidade. Hook diário do treinador. | shell-dashboards |
+| 10–11 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
 | 12–14 | 🤖 `rag-tool-calling-prescription-engine` | 64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado em metodologia. Destrava a família `rag-*`. | llm-tool-use |
 | 15 | `add-coach-suggestion-inbox` *(visível)* | 21 | Workflow aprovar/rejeitar/ajustar sugestões IA — **centro do coach-in-the-loop**. Melhor agora, com citações do RAG. | RAG, explainability, attention-queue |
 | 16 | 🤖 `llm-code-switching` | 21 | Otimização PT/EN (assertividade + custo). Reduzida pela migração — skills já emitem estrutura EN / valores PT. | migrate-plan-prompt, llm-tool-use |
