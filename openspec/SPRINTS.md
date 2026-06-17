@@ -39,19 +39,38 @@ Sprint 1 encerrada: ambas as changes mergeadas em `develop` e arquivadas (ver "C
 
 ## Bloco 1 — Base de IA (núcleo da repriorização)
 
+### 🤖 Guarda-chuva: Modernização do motor de IA
+
+Thread única que moderniza a geração de plano — **skills determinísticas como fonte do prompt** (não mais um monólito de formatters), com rede de testes e estratégia EN/PT, reduzindo alucinação. Marcada com 🤖 na tabela abaixo. Ordem e dependências:
+
+```
+skills-core ✅ ─▶ add-plan-generation-eval-harness ─▶ migrate-plan-prompt-to-skills ─▶ llm-code-switching
+   (fundação)        (rede: golden-master + eval)        (formatters → skills)            (EN/PT do que sobrar)
+                                  │
+                                  └▶ debito-tecnico-camada-ia ─▶ add-llm-tool-use ─▶ RAG family
+                                     (confiabilidade / gate)      (dado sob demanda)   (fundamentação)
+```
+
+- **eval-harness** é a rede; **migrate-prompt** é o coração do objetivo ("organizado e testável", menos alucinação); **code-switching** vem **depois** da migração (não traduzir formatters que serão aposentados).
+- **debito-tecnico** (structured output, versionamento de prompt, routing) e **add-llm-tool-use** (dado sob demanda) são camadas complementares; a família **RAG** fundamenta a prescrição.
+- `refactor-iaservice-decomposition` (Pós-MVP) é a irmã estrutural — mesma classe `IaServiceImpl`; coordenar janela com a migração.
+
+As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `explainability`, `suggestion-inbox`) ficam **intercaladas** na tabela para preservar time-to-value — não fazem parte do guarda-chuva.
+
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
-| — | ~~`build-skills-core-foundation`~~ ✅ superada | 30 | **Fundação de skills já em `develop`** (contratos, `SkillRegistry`, `SkillOrchestratorService`, persistência `V32`, 7+ skills) — entregue por `introduce-domain-skills-architecture` + follow-ups. Arquivada como superada (ver "Changes concluídas"). | Bloco 0 |
-| 2 | `add-plan-generation-eval-harness` | ~M | **A rede.** Golden-master de `buildOptimizedPrompt` (533 linhas, 0 testes hoje) + eval determinística de aderência do plano às constraints. Trilho de segurança ANTES de qualquer mutação de prompt/LLM. Só observa/mede — sem mudar a geração. | skills-core (em develop) |
-| 3–4 | `debito-tecnico-camada-ia` | 41 | Confiabilidade: corrige parsing frágil de JSON do LLM, versiona prompts, melhora rastreabilidade/custo. Gate antes de empilhar mais IA. | eval-harness |
+| — | 🤖 ~~`build-skills-core-foundation`~~ ✅ superada | 30 | **Fundação de skills já em `develop`** (contratos, `SkillRegistry`, `SkillOrchestratorService`, persistência `V32`, 7+ skills) — entregue por `introduce-domain-skills-architecture` + follow-ups. Arquivada como superada (ver "Changes concluídas"). | Bloco 0 |
+| 2 | 🤖 `add-plan-generation-eval-harness` | ~M | **A rede.** Golden-master de `buildOptimizedPrompt` (533 linhas, 0 testes hoje) + eval determinística de aderência do plano às constraints. Trilho de segurança ANTES de qualquer mutação de prompt/LLM. Só observa/mede — sem mudar a geração. | skills-core (em develop) |
+| 3–4 | 🤖 `debito-tecnico-camada-ia` | 41 | Confiabilidade: corrige parsing frágil de JSON do LLM, versiona prompts, melhora rastreabilidade/custo. Gate antes de empilhar mais IA. | eval-harness |
+| 5–6 | 🤖 `migrate-plan-prompt-to-skills` | L/XL | **O coração.** Migração strangler: a lógica determinística dos 8 formatters vira/usa skills; `PromptBuilder` vira montador fino sobre o `AthleteAnalysisSnapshot`; formatters retraídos. Organizado, testável, menos alucinação. Cada domínio validado contra o golden-master. | eval-harness |
 | 6 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador; roda sobre dados já existentes. | Bloco 0 |
-| 7–8 | `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
+| 7–8 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
 | 9 | `add-coach-attention-queue` + `add-recommendation-explainability` *(visível)* | 13 + 9 | Fila diária de atenção + camada de explicabilidade. Hook diário do treinador. | shell-dashboards |
-| 10–12 | `rag-tool-calling-prescription-engine` | 64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado em metodologia. Destrava a família `rag-*`. | llm-tool-use |
+| 10–12 | 🤖 `rag-tool-calling-prescription-engine` | 64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado em metodologia. Destrava a família `rag-*`. | llm-tool-use |
 | 13 | `add-coach-suggestion-inbox` *(visível)* | 21 | Workflow aprovar/rejeitar/ajustar sugestões IA — **centro do coach-in-the-loop**. Melhor agora, com citações do RAG. | RAG, explainability, attention-queue |
-| 14 | `llm-code-switching` | 21 | Otimização PT/EN (assertividade + custo). | llm-tool-use |
-| 15 | `rag-injury-aware-prescription` | 24 | Prescrição lesão-aware: protocolos de retorno, sessões contraindicadas, escalonamento de bandeira-vermelha. | RAG, explainability, attention-queue |
-| 16 | `rag-coach-methodology-personalization` | 29 | Aprende com planos aprovados/editados — personaliza para a "voz do coach". | RAG, explainability |
+| 14 | 🤖 `llm-code-switching` | 21 | Otimização PT/EN (assertividade + custo). Reduzida pela migração — skills já emitem estrutura EN / valores PT. | migrate-plan-prompt, llm-tool-use |
+| 15 | 🤖 `rag-injury-aware-prescription` | 24 | Prescrição lesão-aware: protocolos de retorno, sessões contraindicadas, escalonamento de bandeira-vermelha. | RAG, explainability, attention-queue |
+| 16 | 🤖 `rag-coach-methodology-personalization` | 29 | Aprende com planos aprovados/editados — personaliza para a "voz do coach". | RAG, explainability |
 
 ---
 
