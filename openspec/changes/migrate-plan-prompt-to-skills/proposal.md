@@ -12,7 +12,7 @@ Nem `add-llm-tool-use` (adiciona getters de dado + prompt enxuto) nem `llm-code-
 
 ## What Changes
 
-- **Snapshot vira "prompt-capable":** serialização estruturada do `AthleteAnalysisSnapshot` em seções ordenadas por prioridade, com bloco de **constraints mandatórias** (severidade `BLOCKER`/`CRITICAL`) marcado de forma que o LLM não possa ignorar — substituindo a semântica de "instrução mandatória" hoje nos formatters.
+- **Snapshot vira "prompt-capable":** serialização estruturada do `AthleteAnalysisSnapshot` em seções ordenadas por prioridade (renderer de 3 camadas, ver design). O bloco mandatório [1] e o seam `Constraint` já existem (de `introduce-plan-constraints`, alimentados por formatters) — esta change faz o **snapshot** passar a alimentá-los.
 - **Orquestrador roda com inputs reais:** as skills do plano recebem inputs tipados construídos das entidades via mappers (regra "JPA não cruza para a skill"), com `atletaId`/`tenantId` corretos (fim da execução-sombra com `UUID.randomUUID()`), e persistem `SkillExecution`.
 - **Migração strangler, um domínio por vez** (cada incremento validado contra o golden-master de `add-plan-generation-eval-harness`):
   1. **interval-eligibility** — `IntervaladoElegibilidadeSkill` vira a fonte; aposenta `formatarDecisaoIntervalado` + a execução-sombra em `IntervaladoElegibilidadeService`.
@@ -22,9 +22,10 @@ Nem `add-llm-tool-use` (adiciona getters de dado + prompt enxuto) nem `llm-code-
   5. **recovery-detail** — absorver `RecuperacaoPromptFormatter` (na RecoveryCarga ou nova skill).
   6. **pace-ceiling** — nova skill a partir de `PaceHistoricoFormatter` (teto de pace).
   7. **availability** — regras de `DisponibilidadePromptFormatter`.
-- **`PromptBuilder` vira montador fino:** passa a compor o prompt a partir do snapshot + dados do atleta, em vez de orquestrar 8 formatters. Cada formatter migrado é **deletado**.
-- **`PlanQualityChecker` por domínio (herdado da eval-harness):** contrato (`ViolacaoQualidade`) + 1ª regra (intervalado) na primeira fatia; **uma regra nova a cada domínio migrado** (teto de pace, TSS alvo, dias consecutivos, lesão). Verifica que o plano gerado respeita as constraints determinísticas — eval offline sobre fixtures "bom"/"alucinado", sem chamar o LLM. (Originalmente previsto em `add-plan-generation-eval-harness`; movido para cá pelo reescopo product-lens — só faz sentido onde há plano para verificar.)
-- **Resiliência estrutural da geração (folded de `harden-plan-generation-resilience`):** a validação pós-geração (`validarENormalizarPlanoGerado`) deixa de derrubar o plano inteiro com `LLMException`/503 na primeira violação estrutural ocasional da LLM. Estratégia **reparo-first + 1 retry**: reparar deterministicamente o que é seguro (aquecimento/desaquecimento faltante, ordem das etapas, `repeticoes != 1`) e, só quando o reparo não se aplica (ex.: falta a etapa PRINCIPAL, regras de intervalado), fazer **1 retry** ao LLM com feedback do motivo. Reparos logados/contados (telemetria). As **regras** de validação não mudam. Como esta change já reescreve o miolo da geração, a resiliência é construída sobre a base nova em vez de remendar o `IaServiceImpl` que será desmontado.
+- **`PromptBuilder` vira montador fino:** passa a compor o prompt a partir do snapshot + dados do atleta, em vez de orquestrar 8 formatters. A **decisão** de cada formatter migra para skill; o **resíduo de formatação de dado** (zonas, volume, histórico) vira helper enxuto — não tudo é deletado.
+- **Skills passam a declarar as `Constraint`:** o seam `Constraint` e o `PlanQualityChecker` vêm de `introduce-plan-constraints` (com formatters como fonte). Aqui a **fonte** troca para as skills — cada skill declara as `Constraint` que o formatter emitia (a `RecomendacaoIntervalado` já é quase isso). O checker e o bloco [1] não mudam; só passam a ser alimentados por skills.
+
+> **Fora do escopo desta change** (agora changes irmãs): o `PlanQualityChecker` e o bloco [1] são de `introduce-plan-constraints`; a resiliência estrutural de etapas (reparo + 1 retry / o 503 do `REGENERATIVO`) é de `harden-plan-generation-resilience`.
 
 ## Capabilities
 

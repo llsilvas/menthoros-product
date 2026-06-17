@@ -44,16 +44,23 @@ Sprint 1 encerrada: ambas as changes mergeadas em `develop` e arquivadas (ver "C
 Thread única que moderniza a geração de plano — **skills determinísticas como fonte do prompt** (não mais um monólito de formatters), com rede de testes e estratégia EN/PT, reduzindo alucinação. Marcada com 🤖 na tabela abaixo. Ordem e dependências:
 
 ```
-skills-core ✅ ─▶ add-plan-generation-eval-harness ─▶ migrate-plan-prompt-to-skills ─▶ llm-code-switching
-   (fundação)        (rede: golden-master + eval)        (formatters → skills)            (EN/PT do que sobrar)
-                                  │
-                                  └▶ debito-tecnico-camada-ia ─▶ add-llm-tool-use ─▶ RAG family
-                                     (confiabilidade / gate)      (dado sob demanda)   (fundamentação)
+skills-core ✅ ─▶ eval-harness ✅ ─▶ introduce-plan-constraints ─▶ migrate-plan-prompt-to-skills ─▶ llm-code-switching
+   (fundação)       (rede)            (seam Constraint + bloco [1]      (troca a FONTE das Constraint   (EN/PT do que sobrar)
+                                       no topo + PlanQualityChecker)     de formatter → skill)
+                         │                    anti-alucinação cedo
+                         └▶ debito-tecnico ✅ ─▶ add-llm-tool-use ─▶ RAG family
+                            (confiabilidade)      (dado sob demanda)   (fundamentação)
+
+  harden-plan-generation-resilience  ── irmã independente (reparo + 1 retry do 503; valida estrutura de etapas)
 ```
 
-- **eval-harness** é a rede; **migrate-prompt** é o coração do objetivo ("organizado e testável", menos alucinação); **code-switching** vem **depois** da migração (não traduzir formatters que serão aposentados).
-- **debito-tecnico** (structured output, versionamento de prompt, routing) e **add-llm-tool-use** (dado sob demanda) são camadas complementares; a família **RAG** fundamenta a prescrição.
-- `refactor-iaservice-decomposition` (Pós-MVP) é a irmã estrutural — mesma classe `IaServiceImpl`; coordenar janela com a migração.
+- **eval-harness** é a rede; **introduce-plan-constraints** fatia o anti-alucinação pra frente (bloco mandatório no topo + checker, usando os valores que os formatters já calculam — **sem** migrar lógica); **migrate-prompt** é o strangler que troca a *fonte* das `Constraint` (formatter→skill) por baixo do seam estável; **code-switching** vem depois.
+- A `Constraint` declarativa (key+descrição+params) é o **seam**: declarada uma vez, usada no prompt [1] **e** no `PlanQualityChecker`; quem produz (formatter→skill) troca sem mexer em renderer/checker.
+- **harden-plan-generation-resilience** é irmã independente (validade estrutural de etapas ≠ constraint de coaching); não depende do seam nem do strangler — sequencia livre.
+- **debito-tecnico** ✅ e **add-llm-tool-use** são camadas complementares; **RAG** fundamenta a prescrição.
+- `refactor-iaservice-decomposition` (Pós-MVP) é a irmã estrutural — mesma classe `IaServiceImpl`; coordenar janela com migrate/harden.
+
+> **Sequência de sprints pendente de um passo dedicado:** inserir `introduce-plan-constraints` e `harden-plan-generation-resilience` desloca a numeração e mexe na cadência de features visíveis (hoje shell=5/attn=9/inbox=15). A ordem *relativa* está acima; os números de sprint serão repassados numa auditoria de cadência (evitando colisão, como na renumeração anterior).
 
 As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `explainability`, `suggestion-inbox`) ficam **intercaladas** na tabela para preservar time-to-value — não fazem parte do guarda-chuva. Cadência: entregável visível a cada ~3 sprints de infra (sprint 5, 9, 15). O trecho 10–14 (`tool-use` + `rag-tool-calling`) é a única maratona de infra remanescente — **estrutural**, pois `suggestion-inbox` depende do RAG e não pode vir antes.
 
@@ -63,7 +70,9 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 | 2 | 🤖 ~~`add-plan-generation-eval-harness`~~ ✅ | S | **A rede (mínima).** Golden-master de `buildOptimizedPrompt` (533 linhas → 707 testes). Trilho de regressão ANTES da migração de formatters. Reescopada (product-lens): o `PlanQualityChecker` vai na migração; eval ao vivo no Pós-MVP. | skills-core (em develop) |
 | 3–4 | 🤖 ~~`debito-tecnico-camada-ia`~~ ✅ | 41 | Confiabilidade: `.entity()` no lugar de parsing frágil, prompts externalizados, roteamento de modelo explícito (`TaskComplexity.PLANO`), limpeza. Gate antes de empilhar mais IA. | eval-harness |
 | 5 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador; roda sobre dados já existentes. Adiantada para quebrar a maratona de infra (depende só do Bloco 0). | Bloco 0 |
-| 6–8 | 🤖 `migrate-plan-prompt-to-skills` | L/XL | **O coração.** Migração strangler: a lógica determinística dos 8 formatters vira/usa skills; `PromptBuilder` vira montador fino sobre o `AthleteAnalysisSnapshot`; formatters retraídos. Organizado, testável, menos alucinação. Cada domínio validado contra o golden-master + constrói uma regra do `PlanQualityChecker`. **Inclui resiliência estrutural** (reparo-first + 1 retry; folded de `harden-plan-generation-resilience`). | eval-harness |
+| 5†* | 🤖 `introduce-plan-constraints` | M | **Anti-alucinação cedo.** Seam `Constraint` (key+descrição+params); formatters emitem Constraints; bloco mandatório [1] no topo do prompt; `PlanQualityChecker` verifica. Sem migrar skill. | eval-harness |
+| 6†* | 🤖 `harden-plan-generation-resilience` | M | Resiliência estrutural: reparo-first + 1 retry (fim do 503 do `REGENERATIVO` 2 etapas). Independente do seam e do strangler. | debito-tecnico ✅ |
+| 7–9* | 🤖 `migrate-plan-prompt-to-skills` | L | **O coração (strangler).** Troca a FONTE das `Constraint` e seções de formatter→skill, por baixo do seam estável; `PromptBuilder` vira montador fino sobre o `AthleteAnalysisSnapshot`. Renderer [1] e checker não mudam. | introduce-plan-constraints |
 | 9 | `add-coach-attention-queue` + `add-recommendation-explainability` *(visível)* | 13 + 9 | Fila diária de atenção + camada de explicabilidade. Hook diário do treinador. | shell-dashboards |
 | 10–11 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
 | 12–14 | 🤖 `rag-tool-calling-prescription-engine` | 64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado em metodologia. Destrava a família `rag-*`. | llm-tool-use |
@@ -71,6 +80,8 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 | 16 | 🤖 `llm-code-switching` | 21 | Otimização PT/EN (assertividade + custo). Reduzida pela migração — skills já emitem estrutura EN / valores PT. | migrate-plan-prompt, llm-tool-use |
 | 17 | 🤖 `rag-injury-aware-prescription` | 24 | Prescrição lesão-aware: protocolos de retorno, sessões contraindicadas, escalonamento de bandeira-vermelha. | RAG, explainability, attention-queue |
 | 18 | 🤖 `rag-coach-methodology-personalization` | 29 | Aprende com planos aprovados/editados — personaliza para a "voz do coach". | RAG, explainability |
+
+> `*` **número de sprint provisório** — as duas changes novas da thread de IA (`introduce-plan-constraints`, `harden-plan-generation-resilience`) foram inseridas e colidem de propósito com a numeração atual (shell=5, attention=9…); a renumeração definitiva + cadência sai numa auditoria dedicada (ver nota no guarda-chuva). `†` change criada nesta sessão de exploração.
 
 ---
 
