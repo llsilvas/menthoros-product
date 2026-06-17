@@ -2,7 +2,7 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-06-17 (progress-endpoints movido p/ Bloco 1 sprint 5 — destrava a shell; cascata Bloco 1/2)
+**Última atualização:** 2026-06-17 (add-athlete-progress-endpoints mergeado e arquivado; sprint 5 ✅)
 **Fonte canônica de especificação:** `changes/<change-id>/` (estrutura flat — este doc NÃO move pastas)
 **Roadmap por ondas/dependências:** `ROADMAP.md`
 **Capacidade assumida:** 1 dev (solo/CTO), sprints de 2 semanas (~1 change média por sprint; changes grandes ocupam 2+).
@@ -67,7 +67,7 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 | — | 🤖 ~~`build-skills-core-foundation`~~ ✅ superada | 30 | **Fundação de skills já em `develop`** (contratos, `SkillRegistry`, `SkillOrchestratorService`, persistência `V32`, 7+ skills) — entregue por `introduce-domain-skills-architecture` + follow-ups. Arquivada como superada (ver "Changes concluídas"). | Bloco 0 |
 | 2 | 🤖 ~~`add-plan-generation-eval-harness`~~ ✅ | S | **A rede (mínima).** Golden-master de `buildOptimizedPrompt` (533 linhas → 707 testes). Trilho de regressão ANTES da migração de formatters. Reescopada (product-lens): o `PlanQualityChecker` vai na migração; eval ao vivo no Pós-MVP. | skills-core (em develop) |
 | 3–4 | 🤖 ~~`debito-tecnico-camada-ia`~~ ✅ | 41 | Confiabilidade: `.entity()` no lugar de parsing frágil, prompts externalizados, roteamento de modelo explícito (`TaskComplexity.PLANO`), limpeza. Gate antes de empilhar mais IA. | eval-harness |
-| 5 | `add-athlete-progress-endpoints` *(visível, dado)* | 22 | Curva PMC, distribuição de zonas, PRs, readiness, resumo de hoje. **Camada de dados da shell** (PMC/zonas) e base da revisão profunda do atleta. Movida do Bloco 2 para destravar a shell. | Bloco 0 |
+| 5 | ~~`add-athlete-progress-endpoints`~~ ✅ *(visível, dado)* | 22 | Curva PMC, distribuição de zonas, PRs, readiness, resumo de hoje. **Camada de dados da shell** (PMC/zonas) e base da revisão profunda do atleta. Movida do Bloco 2 para destravar a shell. | Bloco 0 |
 | 6 | `add-coach-shell-dashboards` *(visível)* | 16 | Roster + calendário semanal + KPIs por tenant. Primeira "casa" do treinador. Flags ainda não entregues (`hasPendingSuggestion`) iniciam `false`. | progress-endpoints; Bloco 0 |
 | 7 | 🤖 `introduce-plan-constraints` | M | **Anti-alucinação (o "coração" agora).** Seam `Constraint` (key+descrição+params); formatters emitem Constraints; bloco mandatório [1] no topo + `PlanQualityChecker`. Sem migrar skill. | eval-harness |
 | 8 | 🤖 `harden-plan-generation-resilience` | M | Resiliência estrutural: reparo-first + 1 retry (fim do 503 do `REGENERATIVO` 2 etapas). Independente do seam e do strangler. | debito-tecnico ✅ |
@@ -158,6 +158,7 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 | `build-skills-core-foundation` | superada | 2026-06-16 | `changes/archive/2026-06/2026-06-16-build-skills-core-foundation/` — §1–4 (contratos/registry/orquestrador/persistência `V32`/skills) já entregues por `introduce-domain-skills-architecture` e follow-ups. §5 (integração na geração de plano) reavaliada: a thread de IA (`eval-harness → debito-tecnico → llm-tool-use → llm-code-switching`) cobre a modernização do prompt. |
 | `add-plan-generation-eval-harness` | 12/12 | 2026-06-16 | `changes/archive/2026-06/add-plan-generation-eval-harness/` — Golden-master determinístico de `buildOptimizedPrompt` (5 arquétipos, 707 testes); rede de regressão antes da migração formatters→skills. `LocalDate.now()` congelado, `Locale` pt-BR, leitura classpath-safe. Zero mudança de produção (apenas `src/test/`). |
 | `debito-tecnico-camada-ia` | ✓ | 2026-06-17 | `changes/archive/2026-06/debito-tecnico-camada-ia/` — Confiabilidade da camada IA: `.entity()` (Spring AI structured output) em `WorkoutAnalysisListener` e `RaceProjectionNarrativeGenerator` no lugar de parsing manual; 3 user prompts externalizados; roteamento explícito `TaskComplexity.PLANO`/`gpt4oPlanoClient`; cache thread-safe; limpeza de templates órfãos/embedding morto. Validado em produção (análise pós-treino + log de roteamento). Suíte 701/701. Gap de resiliência estrutural (503 no REGENERATIVO) → folded em `migrate-plan-prompt-to-skills` (seção 9). |
+| `add-athlete-progress-endpoints` | ✓ | 2026-06-17 | `changes/archive/2026-06/add-athlete-progress-endpoints/` — 5 endpoints read-only (PMC, zonas, recordes, readiness, home) sob `/api/v1/atletas`; readiness com heurística objetiva provisória; isolamento via service-layer (404 cross-tenant); Clock injetável. Suíte 733/733. **Follow-up:** extrair `CurrentAtletaResolver` quando `shell-dashboards` reusar a resolução `me`. |
 
 ---
 
