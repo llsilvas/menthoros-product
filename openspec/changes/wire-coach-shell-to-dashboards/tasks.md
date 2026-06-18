@@ -3,12 +3,17 @@
 > Frontend-only (`apps/menthoros-front`). Validação por bloco: `npm run lint && npm run build`
 > (e `npm run test:run` nos blocos com teste). Não editar `src/api/` à mão.
 
-## 0. Pré-requisito — cliente gerado
+## 0. Cliente curado do coach (NÃO `generate:api` — ver A1/D3)
 
-- [ ] 0.1 Subir o backend local (`develop`) e confirmar os 3 endpoints em `/api-docs`.
-- [ ] 0.2 `npm run generate:api`; conferir no diff que surgiram o serviço de `/api/v1/coach/**` e os
-  tipos `CoachAtletaResumoDto`, `CoachCalendarioDto`, `CoachInsightsDto`. **Validação:** `npm run build`
-  (tsc) verde — regeneração não quebrou tipos existentes (R5). Se faltar endpoint, PARAR (R1).
+> Descoberto no init: `src/api/` é curado à mão; `generate:api` é destrutivo. Seguir o padrão do
+> `AtletasService` (serviço nomeado + tipos em `src/types/`). Backend em execução serve só de
+> referência de contrato (`/api-docs` já confirma os 3 endpoints).
+
+- [ ] 0.1 `src/types/Coach.ts` — tipos de domínio dos DTOs (`CoachAtletaResumo`, `CoachCalendario` +
+  `TreinoAgendado`, `CoachInsights` + `Kpis`/`PontoCargaSemanal`/`TopAtleta`); `status` como union.
+- [ ] 0.2 `src/api/services/CoachDashboardService.ts` (padrão `AtletasService`): `getRoster()`,
+  `getCalendario(from?)`, `getInsights(from?, to?)` contra `/api/v1/coach/**`; export em
+  `src/api/index.ts`. **Validação:** `npm run build` (tsc) verde — sem tocar nos serviços curados existentes.
 
 ## 1. Hooks de fetch (`src/hooks/`)
 

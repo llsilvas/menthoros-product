@@ -81,11 +81,24 @@ Um hook por endpoint em `src/hooks/`, espelhando `useAtletas`/`useRaceProjection
 mount. Sem `@tanstack/react-query` (proibido no `CLAUDE.md` frontend). O `from/to` dos hooks de
 calendário/insights são parâmetros da ação, não da assinatura do hook.
 
-## D3 — Tipos
+## D3 — Tipos e cliente (revisado no init: cliente curado, não gerado)
 
-DTOs vêm do **cliente gerado** (`src/api/`, fonte-verdade) — não duplicar em `src/types/`.
-View-models de UI (ex.: `WorkoutType`, `FormVariant`) permanecem em `src/features/coach/types/`; os
-adaptadores DTO→view-model ficam junto do hook ou em `src/features/coach/adapters/`.
+O `src/api/` do repo é **curado à mão**, não saída de `generate:api` (ver A1): serviços com nomes
+limpos importam tipos de `src/types/` (ex.: `AtletasService` → `import { Atleta } from '../../types/Atleta'`),
+e **não existe `src/api/models/`**. Seguimos esse padrão:
+
+- **`src/types/Coach.ts`** — tipos de domínio dos DTOs (`CoachAtletaResumo`, `CoachCalendario` +
+  `TreinoAgendado`, `CoachInsights` + `Kpis`/`PontoCargaSemanal`/`TopAtleta`), espelhando os campos do
+  contrato real (seção "Contrato real dos DTOs"). `status` como union `'active'|'warning'|'danger'|'paused'`.
+- **`src/api/services/CoachDashboardService.ts`** — nome limpo (padrão `AtletasService`); métodos
+  `getRoster()`, `getCalendario(from?)`, `getInsights(from?, to?)` usando `__request(OpenAPI, {...})`
+  contra os paths `/api/v1/coach/**`; importa os tipos de `src/types/Coach.ts`.
+- Export em `src/api/index.ts`.
+- View-models de UI (`WorkoutType`, `FormVariant`) permanecem em `src/features/coach/types/`;
+  adaptadores DTO→view-model junto do hook ou em `src/features/coach/adapters/`.
+
+**Não rodar `generate:api`** nesta change — é destrutivo contra o cliente curado. Tornar a geração
+determinística é tech-debt para change própria (ver handoff).
 
 ## D4 — Mapeamento de enums
 

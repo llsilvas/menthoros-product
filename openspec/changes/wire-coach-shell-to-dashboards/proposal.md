@@ -22,9 +22,9 @@ loading/error/empty. É puramente de consumo — **não altera contrato de API n
 
 Apenas frontend (`apps/menthoros-front`). Sem migração, sem mudança de contrato.
 
-- **Cliente gerado:** `npm run generate:api` passa a incluir os serviços de `/api/v1/coach/**`
-  (`CoachService` ou equivalente) e os tipos `CoachAtletaResumoDto`, `CoachCalendarioDto`,
-  `CoachInsightsDto`.
+- **Cliente curado** (não `generate:api` — ver A1): `src/api/services/CoachDashboardService.ts` (nome
+  limpo, padrão `AtletasService`) + tipos de domínio em `src/types/Coach.ts` (`CoachAtletaResumo`,
+  `CoachCalendario`, `CoachInsights`), exportados em `src/api/index.ts`.
 - **Hooks** (`src/hooks/`): `useCoachRoster`, `useCoachCalendar(from?)`, `useCoachInsights(from?, to?)`
   — cada um expõe `{ data, loading, error, fetch/refetch }`, seguindo `useAtletas`/`useRaceProjection`.
 - **`CoachAthletesPage`**: troca `MOCK_ATHLETES` pelo roster real; KPI cards e filtros derivados dos
@@ -74,8 +74,12 @@ treinador *usa* o que foi conectado, não só se os dados são reais. *(produto-
 
 ## Open Questions & Assumptions
 
-- **A1:** O backend já está em `develop` e o `/api-docs` expõe os 3 endpoints — `generate:api` os
-  captura sem ajuste manual. *(verificar no init: subir backend local e regenerar.)*
+- **A1 (revisada no init):** ❌ `generate:api` **NÃO** se aplica. Descoberto no init que o `src/api/`
+  do repo é **curado à mão** (serviços com nomes limpos em inglês, tipos importados de `src/types/`,
+  sem `models/`), divergindo do `CLAUDE.md`. Rodar `generate:api` é destrutivo (renomeia serviços a
+  partir dos `@Tag` PT-BR e quebra ~13 arquivos de outras features). **Decisão:** seguir o padrão
+  curado — `CoachDashboardService.ts` (nome limpo) + `src/types/Coach.ts`, espelhando `AtletasService`.
+  O `/api-docs` em execução confirma os 3 endpoints (usado só como referência de contrato).
 - **A2:** `sport` (running/cycling) na `CoachAthletesPage` não tem fonte no `CoachAtletaResumoDto`.
   **Assunção:** plataforma é running-only hoje → fixar `running` ou remover a coluna/filtro de esporte.
 - **A3:** A `CoachCalendarPage` exibe `distanceKm/durationMin` por treino, ausentes no
