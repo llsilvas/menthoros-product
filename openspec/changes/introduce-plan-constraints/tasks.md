@@ -3,7 +3,7 @@
 ## 1. Contrato `Constraint` + `ConstraintKey`
 
 - [ ] 1.1 (TDD) Criar records `Constraint(ConstraintKey key, String descricao, Map<String,Object> params)` e enum `ConstraintKey` (`INTERVALADO_PROIBIDO`, `INTERVALADO_MAX_CATEGORIA`, `PACE_TETO`, `DIAS_PERMITIDOS`, `MAX_CONSECUTIVOS`); serializáveis
-- [ ] 1.2 Definir o schema de `params` por `key` (documentado no record/enum)
+- [ ] 1.2 Definir o schema de `params` por `key` (documentado no record/enum) — **não pular; fechar antes das tasks 2.x** (A3). Mínimo: `PACE_TETO.teto` (map tipo→pace), `DIAS_PERMITIDOS.dias` (set), `MAX_CONSECUTIVOS.n` (int)
 
 ## 2. Formatters emitem `Constraint`
 
@@ -22,9 +22,9 @@
 ## 4. `PlanQualityChecker`
 
 - [ ] 4.1 (TDD) `PlanQualityChecker.check(plano, List<Constraint>) → List<ViolacaoQualidade>` com dispatch por `key`
-- [ ] 4.2 (TDD) Regras: `PACE_TETO` (nenhuma etapa mais rápida que o teto), `INTERVALADO_PROIBIDO` (sem INTERVALADO), `DIAS_PERMITIDOS` (treino ∈ dias), `MAX_CONSECUTIVOS` (≤ N)
-- [ ] 4.3 (TDD) Fixtures offline de plano "bom" (0 violações) e "alucinado" (violações esperadas), sem LLM
-- [ ] 4.4 Integrar o checker ao fluxo de geração (logar/contar violações; ação sobre violação fica em `harden-plan-generation-resilience`)
+- [ ] 4.2 (TDD) Regras das **4 keys verificadas**: `PACE_TETO` (nenhuma etapa mais rápida que o teto), `INTERVALADO_PROIBIDO` (sem INTERVALADO), `DIAS_PERMITIDOS` (treino ∈ dias), `MAX_CONSECUTIVOS` (≤ N). `INTERVALADO_MAX_CATEGORIA` é declarada/renderizada mas **não verificada** aqui (precisa do mapa de categorias — fatia futura)
+- [ ] 4.3 (TDD) Fixtures offline de plano "bom" (0 violações) e "alucinado" (violações esperadas), sem LLM — derivar de casos reais de alucinação quando possível (R7)
+- [ ] 4.4 Integrar o checker ao fluxo de geração: incrementar contador **Micrometer** `violacoes_plano{key=...}` no registry existente (mede aderência). **Não agir** sobre a violação (reparo/retry = `harden-plan-generation-resilience`); sem entidade/DTO/UI
 - [ ] 4.5 `./mvnw clean test`
 
 ## 5. Validação Final
