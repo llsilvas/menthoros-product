@@ -25,10 +25,10 @@
 
 ## 2. Adapters DTO→view-model + mapa de enums
 
-- [ ] 2.1 `tipoTreino` (enum backend) → `WorkoutType` da UI, com default seguro p/ desconhecido (D4).
+- [x] 2.1 `tipoTreino` (enum backend) → `WorkoutType` da UI, com default seguro p/ desconhecido (D4).
   **Teste:** cada enum do backend mapeia; tipo inválido cai no default sem lançar. **Validação:** `npm run test:run`.
-- [ ] 2.2 Adapter do calendário: agrupar `treinos[]` por `atletaId` em linhas de atleta na semana (D1/Calendar).
-- [ ] 2.3 Adapter de KPIs derivados do roster ("Em risco"=`status∈{warning,danger}`, "Em taper"=
+- [x] 2.2 Adapter do calendário: agrupar `treinos[]` por `atletaId` em linhas de atleta na semana (D1/Calendar).
+- [x] 2.3 Adapter de KPIs derivados do roster ("Em risco"=`status∈{warning,danger}`, "Em taper"=
   `fase==TAPER`, "Sem atividade 7d"=`lastActivity>7d`) — derivar só de campos do DTO (R3). **Teste** dos limites.
 
 ## 3. CoachAthletesPage
