@@ -1,5 +1,39 @@
 # Design: fix-openapi-client-generation
 
+## ⚠️ Descoberta na Fase B (2026-06-18) — DECISÃO PENDENTE
+
+A Fase B (regen do front) revelou que a estimativa "~13 import sites" do proposal **subestimou
+drasticamente** o custo. Fatos validados na branch `feature/fix-openapi-client-generation` (front):
+
+1. **O problema de geração está RESOLVIDO:** com os `@Tag` ASCII (Fase A ✅ em develop) + a flag
+   **`--useUnionTypes`** no `generate:api` (gera union types em vez de `enum`/`namespace`, que violam
+   `erasableSyntaxOnly` do tsconfig), a regen produz nomes limpos (CA2 ✓), **idempotente** (CA1 ✓,
+   diff vazio na 2ª rodada) e sem corrupção.
+2. **MAS o `src/api` curado não é só "tipos renomeados" — é uma camada de abstração deliberada.** Os
+   serviços curados têm **nomes de método hand-crafted** (`obterTreino`, `marcarComoRealizado`,
+   `gerarProjecao`, `listarHistorico`, `getCalendario`, `recalcularMetricas`, `listarProximas`…) que
+   **não existem** no cliente gerado (que usa nomes derivados do operationId: `marcarPerdido`,
+   `recalcularMetricasAtleta`, `deletePlanoSemanal`, `listarProvas`…). Há ainda **divergência de
+   shape** (ex.: `listarAtletas` curado retorna array; gerado retorna objeto; `CreateProva`→`ProvaInputDto`;
+   wrappers de paginação).
+3. **Custo real de adotar o cliente gerado:** ~42 erros de tipo em **18 arquivos** de **6+ features**
+   (atletas, planos, provas, race-projection, strava, reconciliação) — reescrita da camada de dados,
+   **sem cobertura de teste** para pegar regressões de runtime (só `tsc`).
+
+### Opções (decisão do usuário)
+
+- **A — Migração completa agora:** adotar o cliente gerado em todas as features; reescrever ~18 call
+  sites (nomes de método + shapes). Atende CA3 (src/api 100% gerado). Alto esforço/risco sem testes.
+- **B — Reescopar: pipeline corrigido, adoção adiada (recomendado).** A entrega real desta change vira
+  "tornar `generate:api` determinístico e correto" (Fase A `@Tag` ASCII ✅ + `--useUnionTypes`).
+  Mantém o cliente curado como camada de abstração; documenta no `CLAUDE.md` que o gerado é a base e o
+  curado a fachada. CA3 é abandonado conscientemente. Baixo risco.
+- **C — Adoção incremental:** migrar feature por feature, cada uma em change própria com testes, ao
+  longo do tempo. Combina o pipeline corrigido (B) com adoção gradual.
+
+> Branch da Fase B deixado **pristine** (== develop) até a decisão. O fix `--useUnionTypes` está
+> documentado aqui mas não commitado.
+
 ## Problema
 
 `openapi-typescript-codegen@0.29` nomeia cada serviço pelo **primeiro `@Tag`** da operação,
