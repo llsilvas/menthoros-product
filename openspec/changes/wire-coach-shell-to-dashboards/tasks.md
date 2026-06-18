@@ -41,13 +41,13 @@
 
 ## 4. CoachCalendarPage
 
-- [ ] 4.1 Trocar `buildMockAthletes()` por `useCoachCalendar(from)`; default = semana atual; navegação
+- [x] 4.1 Trocar `buildMockAthletes()` por `useCoachCalendar(from)`; default = semana atual; navegação
   prev/next/hoje repassa `from`.
-- [ ] 4.2 Tiles via adapter (2.1/2.2): `tipoTreino` + flags `isKeyWorkout/hasAlert/hasPendingSuggestion`;
+- [x] 4.2 Tiles via adapter (2.1/2.2): `tipoTreino` + flags `isKeyWorkout/hasAlert/hasPendingSuggestion`;
   **sem** `distanceKm/durationMin` (A3); `phase/status` por linha **ocultos** (D6, sem fetch extra);
   `isInFocus` só client-side ou oculto (D1).
-- [ ] 4.3 Estados loading/error/empty (semana sem treinos) — CA4.
-- [ ] 4.4 Remover mocks órfãos. **Validação:** `npm run lint && npm run build && npm run test:run`.
+- [x] 4.3 Estados loading/error/empty (semana sem treinos) — CA4.
+- [x] 4.4 Remover mocks órfãos. **Validação:** `npm run lint && npm run build && npm run test:run`.
 
 ## 5. CoachInsightsPage
 
