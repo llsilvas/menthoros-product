@@ -2,8 +2,8 @@
 
 ## 1. Contrato `Constraint` + `ConstraintKey`
 
-- [ ] 1.1 (TDD) Criar records `Constraint(ConstraintKey key, String descricao, Map<String,Object> params)` e enum `ConstraintKey` (`INTERVALADO_PROIBIDO`, `INTERVALADO_MAX_CATEGORIA`, `PACE_TETO`, `DIAS_PERMITIDOS`, `MAX_CONSECUTIVOS`); serializáveis
-- [ ] 1.2 Definir o schema de `params` por `key` (documentado no record/enum) — **não pular; fechar antes das tasks 2.x** (A3). Mínimo: `PACE_TETO.teto` (map tipo→pace), `DIAS_PERMITIDOS.dias` (set), `MAX_CONSECUTIVOS.n` (int)
+- [x] 1.1 (TDD) Criar records `Constraint(ConstraintKey key, String descricao, Map<String,Object> params)` e enum `ConstraintKey` (`INTERVALADO_PROIBIDO`, `INTERVALADO_MAX_CATEGORIA`, `PACE_TETO`, `DIAS_PERMITIDOS`, `MAX_CONSECUTIVOS`); serializáveis
+- [x] 1.2 Definir o schema de `params` por `key` (documentado no record/enum) — **não pular; fechar antes das tasks 2.x** (A3). Mínimo: `PACE_TETO.teto` (map tipo→pace), `DIAS_PERMITIDOS.dias` (set), `MAX_CONSECUTIVOS.n` (int)
 
 ## 2. Formatters emitem `Constraint`
 
