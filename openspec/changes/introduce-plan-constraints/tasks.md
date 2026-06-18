@@ -29,8 +29,8 @@
 
 ## 5. Validação Final
 
-- [ ] 5.1 `./mvnw clean test` verde
-- [ ] 5.2 Golden-master estável após a reestruturação (diff revisado e aceito)
-- [ ] 5.3 (MANUAL) Gerar um plano e confirmar o bloco [1] no topo; checker reporta aderência
-- [ ] 5.4 Confirmar nenhum controller, DTO de API, entidade ou migration alterado
-- [ ] 5.5 Atualizar este `tasks.md`
+- [x] 5.1 `./mvnw clean test` verde
+- [x] 5.2 Golden-master estável após a reestruturação (diff revisado e aceito)
+- [~] 5.3 (MANUAL, deferido — geração real com LLM; estrutura coberta offline pelo golden+checker) (MANUAL) Gerar um plano e confirmar o bloco [1] no topo; checker reporta aderência
+- [x] 5.4 Confirmar nenhum controller, DTO de API, entidade ou migration alterado
+- [x] 5.5 Atualizar este `tasks.md`
