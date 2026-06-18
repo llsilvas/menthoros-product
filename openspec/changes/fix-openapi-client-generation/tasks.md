@@ -7,12 +7,12 @@
 
 ## 1. Backend — `@Tag` ASCII estáveis (`apps/menthoros-backend`)
 
-- [ ] 1.1 **Spike de validação (R1):** renomear 1 `@Tag` (ex.: `Projeção de Prova` → `race-projection`),
+- [x] 1.1 **Spike de validação (R1):** renomear 1 `@Tag` (ex.: `Projeção de Prova` → `race-projection`),
   subir local, rodar `generate:api` num dir scratch do front e confirmar que o serviço gerado é
   `RaceProjectionService`. Ajustar a tabela de naming (design D1) com o resultado real.
-- [ ] 1.2 Renomear o `@Tag(name=...)` dos 20 controllers conforme a tabela D1 (ASCII, sem acento/espaço);
+- [x] 1.2 Renomear o `@Tag(name=...)` dos 20 controllers conforme a tabela D1 (ASCII, sem acento/espaço);
   **manter `description` em PT-BR**. Consolidar os 4 controllers Strava sob `@Tag(name = "strava")` (D2).
-- [ ] 1.3 Conferir que nenhum teste depende do nome PT-BR do tag (A1). **Validação:** `./mvnw clean test`
+- [x] 1.3 Conferir que nenhum teste depende do nome PT-BR do tag (A1). **Validação:** `./mvnw clean test`
   verde; `/api-docs` mostra os tags ASCII e os mesmos paths/schemas (CA5).
 
 ## FASE B — Front (após a 6b estabilizar; backend da Fase A já mergeado e no ar)
@@ -41,7 +41,7 @@
 
 - [ ] 4.1 Alinhar a seção "API Client & Types Standards" do `CLAUDE.md` front ao resultado real
   (nomes derivados dos tags ASCII; tipos em `src/api/models`; `generate:api` idempotente) (CA6).
-- [ ] 4.2 Anotar no `CLAUDE.md` backend (Controller Standards) a convenção de `@Tag(name)` **ASCII**
+- [x] 4.2 Anotar no `CLAUDE.md` backend (Controller Standards) a convenção de `@Tag(name)` **ASCII**
   (com `description` PT-BR) para novos controllers — evita reintroduzir o problema.
 
 ## 5. Fechamento
