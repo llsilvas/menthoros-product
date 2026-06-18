@@ -2,9 +2,9 @@
 
 ## 1. Inventário e dedup
 
-- [ ] 1.1 (teste) Caracterizar o comportamento atual: treino estruturalmente inválido derruba o plano inteiro com `LLMException` (fixture offline, sem LLM)
-- [ ] 1.2 Unificar os 4 validadores idênticos (`REGENERATIVO`/`LONGO`/`CONTINUO`/`TEMPO_RUN`) em `validarEstrutura3Etapas(tipo)` + ponto único de reparo
-- [ ] 1.3 Classificar cada hard-fail como reparável vs. requer-retry (decisão registrada no design)
+- [x] 1.1 (teste) Caracterizar o comportamento atual: treino estruturalmente inválido derruba o plano inteiro com `LLMException` (fixture offline, sem LLM)
+- [x] 1.2 Unificar os 4 validadores idênticos (`REGENERATIVO`/`LONGO`/`CONTINUO`/`TEMPO_RUN`) em `validarEstrutura3Etapas(tipo)` + ponto único de reparo
+- [x] 1.3 Classificar cada hard-fail como reparável vs. requer-retry (decisão registrada no design)
 
 ## 2. Reparo determinístico
 
