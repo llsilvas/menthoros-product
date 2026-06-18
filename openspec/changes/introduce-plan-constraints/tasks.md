@@ -34,3 +34,16 @@
 - [~] 5.3 (MANUAL, deferido — geração real com LLM; estrutura coberta offline pelo golden+checker) (MANUAL) Gerar um plano e confirmar o bloco [1] no topo; checker reporta aderência
 - [x] 5.4 Confirmar nenhum controller, DTO de API, entidade ou migration alterado
 - [x] 5.5 Atualizar este `tasks.md`
+
+## 6. Follow-ups de QA (deferidos — não-bugs / melhorias)
+
+> QA gate (code + security + clean-code) rodado. Corrigidos: double-compute eliminado (buildOptimizedPrompt
+> retorna PromptGerado(prompt, regras); sem recomputar contexto pós-LLM), check() capturado+logado com
+> atletaId, INTERVALADO_PROIBIDO cobre INTERVALADO/TIRO/SUBIDA/FARTLEK, JavaDoc órfão, PARAM_* package-private
+> + accessor categoriaSegura(), guard de tamanho no parse de pace, testes de boundary (pace==teto, máx==limite,
+> plano nulo, tipo desconhecido, round-trip PACE_TETO, key nula). Deferidos:
+
+- [ ] 6.1 `Constraint.params` ainda é `Map<String,Object>` (accessor do record é público) — avaliar `sealed ConstraintParams` tipado se um 3º consumidor surgir.
+- [ ] 6.2 `MAX_CONSECUTIVOS`: detecção é linear (não pega sequência circular SAB→DOM→SEG) e `maxConsecutivosConstraint` sempre emite (mesmo sem metaDados) — aceitável no MVP warn-only; revisar com a `harden`.
+- [ ] 6.3 `descricaoLesao` (texto livre, truncado 80) entra na descrição da Constraint→prompt (pré-existente) — se Constraint vier a ser persistida, codificar em vez de texto literal.
+- [ ] 6.4 Cosméticos: `switch`-expression em `calcularMaxDiasConsecutivos`; extrair constante do header do bloco; incremento de métrica inline (1 pass); `@ExtendWith(MockitoExtension)` no `ConstraintEmissionTest`.
