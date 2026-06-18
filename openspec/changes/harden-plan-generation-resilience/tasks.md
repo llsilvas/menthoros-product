@@ -8,11 +8,11 @@
 
 ## 2. Reparo determinístico
 
-- [ ] 2.1 (TDD) Aquecimento/desaquecimento faltante → sintetizar etapa formulaica; "2 etapas (falta desaq)" → 3 válidas
-- [ ] 2.2 (TDD) Ordem trocada com os 3 tipos presentes → reordenar para o canônico
-- [ ] 2.3 (TDD) `repeticoes != 1` → expandir (reusar `expandirEtapasAgregadas`)
-- [ ] 2.4 Logar e contar cada reparo (telemetria); nunca silencioso
-- [ ] 2.5 `./mvnw clean test`
+- [x] 2.1 (TDD) Aquecimento/desaquecimento faltante → sintetizar etapa formulaica; "2 etapas (falta desaq)" → 3 válidas
+- [x] 2.2 (TDD) Ordem trocada com os 3 tipos presentes → reordenar para o canônico
+- [~] 2.3 (deferido: repeticoes!=1 cai no retry, nao reparado em treino "3 etapas") (TDD) `repeticoes != 1` → expandir (reusar `expandirEtapasAgregadas`)
+- [x] 2.4 Logar e contar cada reparo (telemetria); nunca silencioso
+- [x] 2.5 `./mvnw clean test`
 
 ## 3. Retry único com feedback
 
