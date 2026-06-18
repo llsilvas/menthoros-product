@@ -15,10 +15,31 @@
 - [x] 1.3 Conferir que nenhum teste depende do nome PT-BR do tag (A1). **Validação:** `./mvnw clean test`
   verde; `/api-docs` mostra os tags ASCII e os mesmos paths/schemas (CA5).
 
-## FASE B — Front (após a 6b estabilizar; backend da Fase A já mergeado e no ar)
+## FASE A2 — Backend: corrigir schemas de resposta de lista no OpenAPI (pré-requisito da Fase B)
+
+> Descoberto na Fase B: o `/api-docs` declara endpoints de lista com schema de **objeto único** (ou
+> sem schema), porque os `@ApiResponse(content=@Content(schema=@Schema(implementation=X.class)))`
+> omitem `array`. O cliente gerado herda tipos errados. Referência correta: `CoachDashboardController.getRoster`
+> (sem override → springdoc infere `array` do `List<>`).
+
+- [ ] A2.1 Corrigir o `@ApiResponse` do `200` nos endpoints que retornam `List<>`/`Page<>` para declarar
+  `array` (via `@ArraySchema` ou removendo o override `implementation=` e deixando o springdoc inferir):
+  `AtletaController.listarAtletas`, `ProvaController.listarProvas`, `AtletaProgressController.getHistoricoPmc`
+  e `getRecordes`, `RaceProjectionController.getHistory`, `ManualReconciliationController.listarCandidatos`
+  (List) e `listarPendentes` (Page). Conferir cada um no `/api-docs` (schema `type: array`).
+- [ ] A2.2 `@Operation`/`@ApiResponses` sem schema explícito onde o tipo de retorno já basta (evita
+  reintroduzir o gap). **Validação:** `./mvnw clean test` verde; `/api-docs` mostra `array` nesses paths.
+- [ ] A2.3 (doc) Nota no `CLAUDE.md` backend (Swagger Standards): endpoints de coleção devem declarar
+  `array` no `@ApiResponse` (ou não sobrescrever o schema), senão o cliente gerado vem com tipo errado.
+
+> **Ship da Fase A2** (backend) antes de retomar a Fase B. Só então o `generate:api` produz tipos corretos.
+
+## FASE B — Front (após Fase A2 mergeada e no ar)
 
 ## 2. Front — regeneração (`apps/menthoros-front`, backend novo no ar)
 
+- [ ] 2.0 `generate:api` passa a usar `--useUnionTypes` (gera union types; evita `enum`/`namespace`
+  que violam `erasableSyntaxOnly` do tsconfig). Já validado na Fase B (idempotente + compila).
 - [ ] 2.1 `npm run generate:api`; revisar o diff de `src/api/` — serviços com os nomes esperados (D1),
   `src/api/models/` criado, sem nomes corrompidos (CA2). Backend deve refletir os tags novos.
 - [ ] 2.2 **Idempotência (CA1/D4):** rodar `generate:api` de novo → diff vazio na 2ª rodada. Se não,
