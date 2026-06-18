@@ -33,11 +33,11 @@
 
 ## 3. CoachAthletesPage
 
-- [ ] 3.1 Trocar `MOCK_ATHLETES` por `useCoachRoster`; grade e KPI cards a partir do roster real + adapters (2.3).
-- [ ] 3.2 `sport`: fixar `running` ou remover coluna/filtro (A2/D1). Sem inventar dado.
-- [ ] 3.3 Estados loading (skeleton da grade) / error (msg + retry) / empty (sem atletas) — CA4.
+- [x] 3.1 Trocar `MOCK_ATHLETES` por `useCoachRoster`; grade e KPI cards a partir do roster real + adapters (2.3).
+- [x] 3.2 `sport`: fixar `running` ou remover coluna/filtro (A2/D1). Sem inventar dado.
+- [x] 3.3 Estados loading (skeleton da grade) / error (msg + retry) / empty (sem atletas) — CA4.
   Empty informativo p/ tenant novo (RP1); atleta sem sync/`lastActivity` nulo distinguido de "zero" (Q2/RP2).
-- [ ] 3.4 Remover tipos/funções mock órfãos. **Validação:** `npm run lint && npm run build && npm run test:run`.
+- [x] 3.4 Remover tipos/funções mock órfãos. **Validação:** `npm run lint && npm run build && npm run test:run`.
 
 ## 4. CoachCalendarPage
 
