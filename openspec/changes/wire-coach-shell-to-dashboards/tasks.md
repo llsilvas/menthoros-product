@@ -9,9 +9,9 @@
 > `AtletasService` (serviço nomeado + tipos em `src/types/`). Backend em execução serve só de
 > referência de contrato (`/api-docs` já confirma os 3 endpoints).
 
-- [ ] 0.1 `src/types/Coach.ts` — tipos de domínio dos DTOs (`CoachAtletaResumo`, `CoachCalendario` +
+- [x] 0.1 `src/types/Coach.ts` — tipos de domínio dos DTOs (`CoachAtletaResumo`, `CoachCalendario` +
   `TreinoAgendado`, `CoachInsights` + `Kpis`/`PontoCargaSemanal`/`TopAtleta`); `status` como union.
-- [ ] 0.2 `src/api/services/CoachDashboardService.ts` (padrão `AtletasService`): `getRoster()`,
+- [x] 0.2 `src/api/services/CoachDashboardService.ts` (padrão `AtletasService`): `getRoster()`,
   `getCalendario(from?)`, `getInsights(from?, to?)` contra `/api/v1/coach/**`; export em
   `src/api/index.ts`. **Validação:** `npm run build` (tsc) verde — sem tocar nos serviços curados existentes.
 
