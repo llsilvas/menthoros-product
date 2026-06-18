@@ -51,13 +51,13 @@
 
 ## 5. CoachInsightsPage
 
-- [ ] 5.1 Trocar `MOCK_INSIGHTS` por `useCoachInsights`; KPIs mapeados de `kpis`; BarChart de
+- [x] 5.1 Trocar `MOCK_INSIGHTS` por `useCoachInsights`; KPIs mapeados de `kpis`; BarChart de
   `tendenciaCargaSemanal` (volume + TSS).
-- [ ] 5.2 LineChart CTL/ATL por semana: ajustar p/ o que o DTO entrega (volume/TSS) ou placeholder (D1).
-- [ ] 5.3 Top atletas de `topAtletas[]` (nome + volume).
-- [ ] 5.4 Widgets sem fonte (`adherenceRate`, `pendingValidations`, `alertsCount`, `sparklineData`) e abas
+- [x] 5.2 LineChart CTL/ATL por semana: ajustar p/ o que o DTO entrega (volume/TSS) ou placeholder (D1).
+- [x] 5.3 Top atletas de `topAtletas[]` (nome + volume).
+- [x] 5.4 Widgets sem fonte (`adherenceRate`, `pendingValidations`, `alertsCount`, `sparklineData`) e abas
   Performance/Saúde/Comparativos → placeholder "em breve" ligado à change-fonte (CA6/R2).
-- [ ] 5.5 Estados loading/error/empty — CA4. Remover mocks órfãos.
+- [x] 5.5 Estados loading/error/empty — CA4. Remover mocks órfãos.
   **Validação:** `npm run lint && npm run build && npm run test:run`.
 
 ## 6. Fechamento
