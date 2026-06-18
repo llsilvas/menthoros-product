@@ -23,8 +23,8 @@
 
 ## 4. Telemetria
 
-- [ ] 4.1 Contadores Micrometer: violações por tipo, reparos aplicados, retries, falhas finais
-- [ ] 4.2 Expor no registry Prometheus existente; nomes/labels consistentes com o padrão do projeto
+- [x] 4.1 Contadores Micrometer: violações por tipo, reparos aplicados, retries, falhas finais
+- [x] 4.2 Expor no registry Prometheus existente; nomes/labels consistentes com o padrão do projeto
 
 ## 5. Validação Final
 
