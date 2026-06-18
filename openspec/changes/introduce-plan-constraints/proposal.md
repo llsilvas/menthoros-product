@@ -21,7 +21,32 @@ Esta change entrega o valor anti-alucinação **cedo e mensurável**, e deixa pr
 - **`Constraint` declarativa (o seam):** tipo `Constraint(ConstraintKey key, String descricao, Map params)` — `descricao` alimenta o prompt; `key`+`params` alimentam o checker. Serializável (compatível com `SkillExecution`/`V32`). Keys iniciais: `INTERVALADO_PROIBIDO`, `INTERVALADO_MAX_CATEGORIA`, `PACE_TETO`, `DIAS_PERMITIDOS`, `MAX_CONSECUTIVOS`.
 - **Formatters passam a emitir `Constraint`:** os blocos mandatórios de hoje (decisão de intervalado, teto de pace, dias permitidos) viram `Constraint` declaradas, sem mover lógica para skills. Adaptador fino — os valores já são calculados.
 - **Bloco [1] consolidado no topo do prompt:** o renderer compõe um bloco único "REGRAS QUE VOCÊ NÃO PODE VIOLAR" no início, a partir das `Constraint`. As demais seções (dados/análise) permanecem como estão. **Diff grande e intencional no golden-master**, revisado de uma vez.
-- **`PlanQualityChecker` por `key`:** verifica o plano gerado contra as `Constraint` declaradas (`ViolacaoQualidade` por violação), via dispatch por `key` sobre os `params`. Eval offline sobre fixtures de plano "bom"/"alucinado", sem chamar o LLM.
+- **`PlanQualityChecker` por `key`:** verifica o plano gerado contra as `Constraint` declaradas (`ViolacaoQualidade` por violação), via dispatch por `key` sobre os `params`. Eval offline sobre fixtures de plano "bom"/"alucinado", sem chamar o LLM. **Verifica 4 keys** (`INTERVALADO_PROIBIDO`, `PACE_TETO`, `DIAS_PERMITIDOS`, `MAX_CONSECUTIVOS`); `INTERVALADO_MAX_CATEGORIA` é **declarada e renderizada** no prompt mas a verificação fica para fatia futura (precisa do mapa de categorias).
+- **Sink da violação = métrica Micrometer/Prometheus:** o checker incrementa um contador por `key` (`violacoes_plano{key=...}`) no registry existente. Esta change **mede** a aderência em produção; **não age** sobre a violação (reparo/retry é `harden-plan-generation-resilience`) nem expõe ao treinador (sem mudança de entidade/DTO/UI).
+
+## Critérios de aceite
+
+- **CA1 — Constraint declarada** — *Given* uma regra mandatória derivada (intervalado/pace/dias), *When* o builder a produz, *Then* ela é uma `Constraint(key, descricao, params)`; uma permissão (intervalado elegível) emite **zero** constraints. *(verificável: teste de unidade dos formatters)*
+- **CA2 — Bloco [1] no topo** — *Given* o prompt montado, *Then* as `Constraint` ativas aparecem num bloco "regras que não pode violar" no topo, e a regra **não** se repete dispersa no corpo. *(golden-master)*
+- **CA3 — Checker detecta violação** — *Given* um plano que viola uma das 4 keys verificadas, *When* o `PlanQualityChecker` avalia, *Then* retorna `ViolacaoQualidade` com a `key`; plano "bom" → zero. Offline, sem LLM. *(fixtures)*
+- **CA4 — Seam estável** — *Given* a fonte da `Constraint` muda (formatter→skill), *Then* renderer e checker permanecem inalterados. *(contrato — verificado quando o strangler rodar)*
+- **CA5 — Métrica exposta** — *Given* uma geração de plano, *Then* o checker incrementa o contador Micrometer por `key` violada. *(teste de integração do contador)*
+- **CA6 — Sem impacto de contrato** — `./mvnw clean test` verde; nenhum controller/DTO de API/entidade/migration alterado.
+
+## Métrica de sucesso
+
+**Métrica de entrega (verificável agora):** o `PlanQualityChecker` retorna 0 violações para fixtures de plano "bom" e detecta todas as violações esperadas nas fixtures "alucinadas" (4 keys) — a rede determinística existe e funciona.
+
+**Métrica de aderência (a acompanhar pós-deploy, honesta):** taxa de violação por `key` (contador Micrometer) nas gerações reais. **Baseline:** auditar manualmente ~10–20 planos históricos para estimar a taxa de violação *antes* da consolidação; comparar com a taxa medida pós-deploy. *Sem eval ao vivo com LLM nesta change — a prova final da hipótese "regra no topo reduz alucinação" é a queda do contador em produção.*
+
+## Open Questions & Assumptions
+
+- **A1 (resolvida):** sink da violação = **contador Micrometer** por `key` (não entidade/UI). *(common-ground)*
+- **A2 (resolvida):** `INTERVALADO_MAX_CATEGORIA` é declarada+renderizada mas **não verificada** nesta change (verificação precisa do mapa de categorias → fatia futura). *(common-ground)*
+- **A3:** schema exato de `params` por `key` — **fechar na task 1.2 antes** das tasks 2.x (não pular). Mínimo: `PACE_TETO.teto` (map tipo→pace), `DIAS_PERMITIDOS.dias` (set), `MAX_CONSECUTIVOS.n` (int).
+- **A4:** quais formatters emitem `Constraint` nesta change = **mínimo** (intervalado, pace-teto, dias); os demais ficam para o strangler.
+- **Q1:** existe um conjunto de planos históricos auditável para a baseline (A-acima)? Se não, o "antes" fica como estimativa manual pontual.
+- **R-janela:** `harden-plan-generation-resilience` toca o mesmo pós-geração — coordenar janela para evitar conflito no ponto de integração do checker (task 4.4).
 
 ## Capabilities
 
