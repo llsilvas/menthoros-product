@@ -7,10 +7,10 @@
 
 ## 2. Formatters emitem `Constraint`
 
-- [ ] 2.1 `IntervaladoElegibilidadeService`/decisão → emitir `Constraint` a partir de `RecomendacaoIntervalado` (Substituído → `INTERVALADO_PROIBIDO`; Degradado → `INTERVALADO_MAX_CATEGORIA`; Elegível → nenhuma)
-- [ ] 2.2 `PaceHistoricoFormatter.calcularTetoPorTipo` → `Constraint(PACE_TETO, params={teto por tipo})`
-- [ ] 2.3 `DisponibilidadePromptFormatter` → `Constraint(DIAS_PERMITIDOS, params={dias})` (+ `MAX_CONSECUTIVOS` se aplicável)
-- [ ] 2.4 Manter o texto/descrição equivalente ao `instrucaoParaLlm` atual (sem perda de conteúdo)
+- [x] 2.1 `IntervaladoElegibilidadeService`/decisão → emitir `Constraint` a partir de `RecomendacaoIntervalado` (Substituído → `INTERVALADO_PROIBIDO`; Degradado → `INTERVALADO_MAX_CATEGORIA`; Elegível → nenhuma)
+- [x] 2.2 `PaceHistoricoFormatter.calcularTetoPorTipo` → `Constraint(PACE_TETO, params={teto por tipo})`
+- [x] 2.3 `DisponibilidadePromptFormatter` → `Constraint(DIAS_PERMITIDOS, params={dias})` (+ `MAX_CONSECUTIVOS` se aplicável)
+- [x] 2.4 Manter o texto/descrição equivalente ao `instrucaoParaLlm` atual (sem perda de conteúdo)
 
 ## 3. Bloco [1] consolidado no topo
 
