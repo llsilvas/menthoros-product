@@ -17,11 +17,11 @@
 
 ## 1. Hooks de fetch (`src/hooks/`)
 
-- [ ] 1.1 `useCoachRoster` → `{ roster, loading, error, fetchRoster }`, chama o serviço de
+- [x] 1.1 `useCoachRoster` → `{ roster, loading, error, fetchRoster }`, chama o serviço de
   `/coach/atletas`. Espelha `useAtletas` (useState + useCallback). **Teste:** sucesso popula `roster`;
   erro popula `error`. **Validação:** `npm run test:run`.
-- [ ] 1.2 `useCoachCalendar(from?)` → `{ calendario, loading, error, fetchCalendario }`, repassa `from`.
-- [ ] 1.3 `useCoachInsights(from?, to?)` → `{ insights, loading, error, fetchInsights }`.
+- [x] 1.2 `useCoachCalendar(from?)` → `{ calendario, loading, error, fetchCalendario }`, repassa `from`.
+- [x] 1.3 `useCoachInsights(from?, to?)` → `{ insights, loading, error, fetchInsights }`.
 
 ## 2. Adapters DTO→view-model + mapa de enums
 
@@ -66,3 +66,11 @@
   (métrica de sucesso).
 - [ ] 6.2 Suíte completa verde: `npm run lint && npm run build && npm run test:run`.
 - [ ] 6.3 (Se tocar fluxo crítico) `npm run test:e2e` do shell do coach.
+
+## 7. Follow-ups (dívida pré-existente — fora do escopo da 6b)
+
+- [ ] 7.1 Lint do front tem 23 erros pré-existentes em 17 arquivos de terceiros (cliente gerado +
+  componentes) — `npm run lint` global está vermelho independentemente desta change. Validação da 6b
+  feita lintando só os arquivos tocados (0 erros). Cliente gerado será regenerado pela Fase B de
+  `fix-openapi-client-generation`; resto é dívida de saúde do front.
+- [x] 7.2 vitest passou a excluir `tests/e2e/**` (Playwright não roda sob vitest) — corrigido nesta change.
