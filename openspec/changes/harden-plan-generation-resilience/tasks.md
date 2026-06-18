@@ -28,11 +28,11 @@
 
 ## 5. Validação Final
 
-- [ ] 5.1 `./mvnw clean test` verde (suíte completa)
-- [ ] 5.2 Golden-master sem regressão não-intencional
-- [ ] 5.3 (MANUAL) Reproduzir o cenário `REGENERATIVO` inválido e confirmar recuperação (reparo ou retry) em vez de 503
-- [ ] 5.4 Confirmar nenhuma mudança nas regras de validação (só no comportamento de recuperação)
-- [ ] 5.5 Atualizar este `tasks.md`
+- [x] 5.1 `./mvnw clean test` verde (suíte completa)
+- [x] 5.2 Golden-master sem regressão não-intencional
+- [ ] 5.3 (MANUAL — diferido p/ smoke test com LLM ao vivo) Reproduzir o cenário `REGENERATIVO` inválido e confirmar recuperação (reparo ou retry) em vez de 503
+- [x] 5.4 Confirmar nenhuma mudança nas regras de validação (só no comportamento de recuperação)
+- [x] 5.5 Atualizar este `tasks.md`
 
 ## 6. Follow-ups / decisões (common-ground + product-review)
 
@@ -40,3 +40,9 @@
 - [ ] 6.2 (Q2) Avaliar instrumentar custo/latência por geração (com/sem retry) — barato, útil p/ decisão de modelo.
 - [ ] 6.3 (A1, deferido) Sinalização visual do reparo ao treinador — quando existir tela de revisão de plano por etapa (não há consumidor hoje; nesta change só telemetria/log).
 - [x] Decisões fechadas: A1 = telemetria/log (sem campo de auditoria no contrato); A2 = erro de domínio com mensagem ao treinador.
+
+### Follow-ups do QA gate (não-bloqueantes — fora do escopo de resiliência)
+
+- [ ] 6.4 (perf) Pré-computar contexto do atleta (findByIdAndTenantId + histórico + zonas) antes de `gerarComResiliencia` para o `validar` não re-consultar o BD no retry — ganho marginal (retry é caminho raro), mas evita N+1 no caminho de recuperação.
+- [ ] 6.5 (débito preexistente) `Object atletaId` nos validadores privados de `IaServiceImpl` deveria ser `UUID`; e `gerarPlanoSemanal` (legado) empacota tudo como `LLMException`→503 sem passar pela resiliência. Fora do diff atual.
+- [ ] 6.6 (segurança, preexistente) `GlobalExceptionHandler` expõe `details: ex.getMessage()` no 503 de `LLMException` — restringir a profile de dev. Avaliar `LLMStructuralException` p/ separar falha de validação de falha de infra.
