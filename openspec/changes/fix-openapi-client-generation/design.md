@@ -59,6 +59,27 @@ front adota tipos incorretos e quebra em runtime. Isso é muito além de "renome
   como fachada é o caminho de menor risco. Entrega = pipeline determinístico (tags ASCII ✅ +
   `--useUnionTypes`) + doc. Abandona CA3.
 
+### 🔴🔴 Execução de A′ (pós-A2) — 3 bloqueios concretos com evidência (decisão pendente)
+
+Com A2 em develop (arrays corretos) + `--useUnionTypes`, a regen ficou limpa/idempotente, mas a
+adoção (CA3) revelou que o cliente curado é uma **fachada com valor real**, não dívida:
+
+1. **Models gerados são TODOS opcionais** (`status?: string`, `isKeyWorkout?: boolean`, `kpis?`,
+   `treinos?`…) — os DTOs do backend não marcam `required`. Adotá-los **degrada a tipagem** (perde a
+   union `CoachAtletaStatus`, exige null-handling pervasivo em código já limpo).
+2. **Nomes de método divergem** — o curado renomeou para ergonomia (`getCalendario`,`gerarProjecao`,
+   `obterTreino`,`listarPlanosPorAtleta`…); o gerado usa operationId (`getCalendarioSemanal`,`generate`,…).
+   ~18 call sites a reescrever em 6 features **sem testes de runtime**.
+3. **Calls pendurados (hard-blocker):** `DetalheTreinoDialog`→`TreinoService.obterTreino` chama
+   `GET /api/v1/treinos/{treinoId}` que **não existe** no backend e **não tem método gerado**. O curado
+   referencia endpoints inexistentes → cada caso exige decisão (código morto? criar endpoint? remover?).
+
+**Conclusão:** o objetivo "generate:api determinístico/correto" está **atingido** (Fase A + A2 +
+`--useUnionTypes`). A adoção total (CA3) é cara, arriscada (6 features sem teste) e **degrada** o
+código, além de esbarrar em endpoints inexistentes. **Recomendação forte: opção B** — fechar a change
+com o pipeline corrigido + doc, manter o cliente curado como fachada, e tratar adoção (se desejada)
+como changes incrementais por-feature com testes.
+
 ## Problema
 
 `openapi-typescript-codegen@0.29` nomeia cada serviço pelo **primeiro `@Tag`** da operação,
