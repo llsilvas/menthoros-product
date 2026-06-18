@@ -3,7 +3,7 @@
 > Multi-repo. Backend primeiro (tags), depois front (regen + migração). Gates:
 > backend `./mvnw clean test`; front `npm run lint && npm run build && npm run test:run`.
 
-## FASE A — Backend (mergeável sozinha; pode preceder a 6b)
+## FASE A — Backend (mergeável sozinha; pode preceder a 6b) — ✅ MERGEADA em develop (c8d1b95)
 
 ## 1. Backend — `@Tag` ASCII estáveis (`apps/menthoros-backend`)
 
