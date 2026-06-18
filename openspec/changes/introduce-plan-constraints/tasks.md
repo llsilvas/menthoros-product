@@ -14,10 +14,10 @@
 
 ## 3. Bloco [1] consolidado no topo
 
-- [ ] 3.1 Renderer compõe "## ⛔ REGRAS QUE VOCÊ NÃO PODE VIOLAR" no topo a partir das `Constraint`
-- [ ] 3.2 Remover as regras das posições dispersas atuais (evitar duplicação no prompt)
-- [ ] 3.3 Golden-master: regenerar com diff intencional revisado (reestruturação)
-- [ ] 3.4 `./mvnw clean test`
+- [x] 3.1 Renderer compõe "## ⛔ REGRAS QUE VOCÊ NÃO PODE VIOLAR" no topo a partir das `Constraint`
+- [x] 3.2 Remover as regras das posições dispersas atuais (evitar duplicação no prompt)
+- [x] 3.3 Golden-master: regenerar com diff intencional revisado (reestruturação)
+- [x] 3.4 `./mvnw clean test`
 
 ## 4. `PlanQualityChecker`
 
