@@ -74,3 +74,19 @@
   feita lintando só os arquivos tocados (0 erros). Cliente gerado será regenerado pela Fase B de
   `fix-openapi-client-generation`; resto é dívida de saúde do front.
 - [x] 7.2 vitest passou a excluir `tests/e2e/**` (Playwright não roda sob vitest) — corrigido nesta change.
+
+### Follow-ups de QA (deferidos — refactors de manutenibilidade, não-bugs)
+
+- [ ] 7.3 Extrair `<AsyncContent loading error onRetry>` compartilhado (`src/shared/components/`) e
+  dedupe do bloco loading/error/empty das 3 telas; uniformizar a condição `loading && !data`
+  (CC-C2/C3). Hoje cada tela repete o padrão (correto, mas duplicado).
+- [ ] 7.4 `interface XxxProps` nomeada nos sub-componentes novos (WorkoutBlock, TabVisaoGeral, TabCarga)
+  em vez de tipo inline (FE-I5).
+- [ ] 7.5 Relocar `WORKOUT_COLORS`/`WORKOUT_LABEL` para o adapter `workoutType` (coesão) e decidir
+  `rest`/`strength` no `WorkoutType` (sem fonte no backend hoje) (CC-I2/m3).
+- [ ] 7.6 Minúsculos: `TABS` co-localizado (switch→tabela) em Insights; alias `@/` nos imports dos hooks;
+  `formatWeekRange` via date-fns; `hoje` injetável p/ testes de componente.
+
+> QA gate (frontend-reviewer + clean-code-reviewer) rodado. Corrigidos: bug de domingo no getWeekDates
+> (startOfISOWeek), loading inicial=true (sem flash), hex→token, constantes nomeadas (TSB -30, 7 dias)
+> + DRY do daysSince, teste de loading nos 3 hooks. Itens acima deferidos como dívida de design.
