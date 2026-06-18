@@ -22,14 +22,14 @@
 > omitem `array`. O cliente gerado herda tipos errados. Referência correta: `CoachDashboardController.getRoster`
 > (sem override → springdoc infere `array` do `List<>`).
 
-- [ ] A2.1 Corrigir o `@ApiResponse` do `200` nos endpoints que retornam `List<>`/`Page<>` para declarar
+- [x] A2.1 Corrigir o `@ApiResponse` do `200` nos endpoints que retornam `List<>`/`Page<>` para declarar
   `array` (via `@ArraySchema` ou removendo o override `implementation=` e deixando o springdoc inferir):
   `AtletaController.listarAtletas`, `ProvaController.listarProvas`, `AtletaProgressController.getHistoricoPmc`
   e `getRecordes`, `RaceProjectionController.getHistory`, `ManualReconciliationController.listarCandidatos`
   (List) e `listarPendentes` (Page). Conferir cada um no `/api-docs` (schema `type: array`).
-- [ ] A2.2 `@Operation`/`@ApiResponses` sem schema explícito onde o tipo de retorno já basta (evita
+- [x] A2.2 `@Operation`/`@ApiResponses` sem schema explícito onde o tipo de retorno já basta (evita
   reintroduzir o gap). **Validação:** `./mvnw clean test` verde; `/api-docs` mostra `array` nesses paths.
-- [ ] A2.3 (doc) Nota no `CLAUDE.md` backend (Swagger Standards): endpoints de coleção devem declarar
+- [x] A2.3 (doc) Nota no `CLAUDE.md` backend (Swagger Standards): endpoints de coleção devem declarar
   `array` no `@ApiResponse` (ou não sobrescrever o schema), senão o cliente gerado vem com tipo errado.
 
 > **Ship da Fase A2** (backend) antes de retomar a Fase B. Só então o `generate:api` produz tipos corretos.
