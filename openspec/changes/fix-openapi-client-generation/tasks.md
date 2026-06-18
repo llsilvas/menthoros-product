@@ -15,7 +15,7 @@
 - [x] 1.3 Conferir que nenhum teste depende do nome PT-BR do tag (A1). **Validação:** `./mvnw clean test`
   verde; `/api-docs` mostra os tags ASCII e os mesmos paths/schemas (CA5).
 
-## FASE A2 — Backend: corrigir schemas de resposta de lista no OpenAPI (pré-requisito da Fase B)
+## FASE A2 — Backend: schemas array de lista — ✅ MERGEADA em develop (24d606a)
 
 > Descoberto na Fase B: o `/api-docs` declara endpoints de lista com schema de **objeto único** (ou
 > sem schema), porque os `@ApiResponse(content=@Content(schema=@Schema(implementation=X.class)))`
