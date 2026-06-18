@@ -34,6 +34,31 @@ drasticamente** o custo. Fatos validados na branch `feature/fix-openapi-client-g
 > Branch da Fase B deixado **pristine** (== develop) até a decisão. O fix `--useUnionTypes` está
 > documentado aqui mas não commitado.
 
+### 🔴 Achado crítico adicional — tipos gerados estão INCORRETOS para endpoints de lista
+
+Ao tentar a migração (opção A), descobriu-se que o cliente gerado herda **tipos errados**, não só
+nomes diferentes:
+
+- `GET /api/v1/atletas` declara no `/api-docs` o `200` como **`AtletaOutputDto` (objeto único)**, não
+  `array` → `listarAtletas()` gerado retorna `AtletaOutputDto`, quebrando `.map`/`.slice` em runtime.
+- `GET /api/v1/provas` → **sem schema** de resposta declarado.
+- Causa: as anotações `@ApiResponse(content=@Content(schema=@Schema(implementation=...)))` dos
+  controllers antigos **omitem `array`** (springdoc não infere a lista). O **cliente curado corrige
+  esses tipos à mão** (`Array<Atleta>`) — essa é uma das razões de ele existir.
+
+**Consequência para a opção A:** adotar o cliente gerado exige **primeiro corrigir as anotações
+OpenAPI do backend** em ~todos os endpoints de lista (outro esforço de backend + re-ship), senão o
+front adota tipos incorretos e quebra em runtime. Isso é muito além de "renomear call sites".
+
+### Opção revisada
+
+- **A′ — Corrigir OpenAPI do backend primeiro:** anotar `array` em todos os endpoints de lista
+  (`@ApiResponse` com `array = true`), re-shipar backend, então regenerar + migrar front. Maior escopo
+  (backend + front, multi-ship), maior risco.
+- **B — Reescopar (recomendação reforçada):** o cliente curado corrige gaps reais do OpenAPI; mantê-lo
+  como fachada é o caminho de menor risco. Entrega = pipeline determinístico (tags ASCII ✅ +
+  `--useUnionTypes`) + doc. Abandona CA3.
+
 ## Problema
 
 `openapi-typescript-codegen@0.29` nomeia cada serviço pelo **primeiro `@Tag`** da operação,
