@@ -62,10 +62,10 @@
 
 ## 6. Fechamento
 
-- [ ] 6.1 Garantir 0 referências a `MOCK_ATHLETES`/`buildMockAthletes`/`MOCK_INSIGHTS` nas 3 páginas
+- [x] 6.1 Garantir 0 referências a `MOCK_ATHLETES`/`buildMockAthletes`/`MOCK_INSIGHTS` nas 3 páginas
   (métrica de sucesso).
-- [ ] 6.2 Suíte completa verde: `npm run lint && npm run build && npm run test:run`.
-- [ ] 6.3 (Se tocar fluxo crítico) `npm run test:e2e` do shell do coach.
+- [x] 6.2 Suíte completa verde: `npm run lint && npm run build && npm run test:run`.
+- [~] 6.3 (deferido — sem specs e2e do coach; harness e2e fora do gate vitest) (Se tocar fluxo crítico) `npm run test:e2e` do shell do coach.
 
 ## 7. Follow-ups (dívida pré-existente — fora do escopo da 6b)
 
