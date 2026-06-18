@@ -16,10 +16,10 @@
 
 ## 3. Retry único com feedback
 
-- [ ] 3.1 (TDD) Quando o reparo não se aplica (falta PRINCIPAL, intervalado), re-chamar o LLM 1x com o motivo da rejeição; cobrir "falha → retry → sucesso" e "falha → retry falha → erro de domínio com mensagem orientada ao treinador (A2; detalhe estrutural so em log)"
-- [ ] 3.2 Extrair a orquestração reparo+retry para um colaborador dedicado (não inflar `IaServiceImpl`)
-- [ ] 3.3 Teto = 1 retry (latência ~80s/tentativa); sem backoff longo
-- [ ] 3.4 `./mvnw clean test`
+- [x] 3.1 (TDD) Quando o reparo não se aplica (falta PRINCIPAL, intervalado), re-chamar o LLM 1x com o motivo da rejeição; cobrir "falha → retry → sucesso" e "falha → retry falha → erro de domínio com mensagem orientada ao treinador (A2; detalhe estrutural so em log)"
+- [x] 3.2 Extrair a orquestração reparo+retry para um colaborador dedicado (não inflar `IaServiceImpl`)
+- [x] 3.3 Teto = 1 retry (latência ~80s/tentativa); sem backoff longo
+- [x] 3.4 `./mvnw clean test`
 
 ## 4. Telemetria
 
