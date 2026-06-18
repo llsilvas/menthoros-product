@@ -34,38 +34,24 @@
 
 > **Ship da Fase A2** (backend) antes de retomar a Fase B. Só então o `generate:api` produz tipos corretos.
 
-## FASE B — Front (após Fase A2 mergeada e no ar)
+## FASE B — Front — REESCOPADA (opção B): pipeline corrigido, cliente curado mantido
 
-## 2. Front — regeneração (`apps/menthoros-front`, backend novo no ar)
+> Decisão (2026-06-18): a adoção do cliente cru-gerado foi **adiada** (3 bloqueios concretos: models
+> all-optional, renames de método, endpoints curados inexistentes — ver design.md). Entrega = pipeline
+> de geração determinístico/correto + doc. Cliente curado permanece como fachada.
 
-- [ ] 2.0 `generate:api` passa a usar `--useUnionTypes` (gera union types; evita `enum`/`namespace`
-  que violam `erasableSyntaxOnly` do tsconfig). Já validado na Fase B (idempotente + compila).
-- [ ] 2.1 `npm run generate:api`; revisar o diff de `src/api/` — serviços com os nomes esperados (D1),
-  `src/api/models/` criado, sem nomes corrompidos (CA2). Backend deve refletir os tags novos.
-- [ ] 2.2 **Idempotência (CA1/D4):** rodar `generate:api` de novo → diff vazio na 2ª rodada. Se não,
-  investigar fonte de não-determinismo antes de seguir.
+- [x] 2.0 `generate:api` usa `--useUnionTypes` (evita `enum`/`namespace` que violam `erasableSyntaxOnly`).
+- [x] 2.1/2.2 (validados, não adotados) Regen com tags ASCII + arrays (A2) + union types produz cliente
+  limpo, sem corrupção (CA2 ✓) e **idempotente** (CA1 ✓). Saída **não** commitada — ver decisão acima.
+- [~] 3.1–3.4 **ADIADOS (opção B):** migração dos call sites ao cliente gerado não executada (degrada
+  tipagem; endpoints pendurados como `obterTreino`→`GET /treinos/{id}` inexistente). CA3/CA7 abandonados
+  conscientemente. Migração futura, se desejada, é incremental por-feature com testes.
+- [x] 4.1 `CLAUDE.md` front reescrito: `src/api` é cliente **curado** (fachada sobre o OpenAPI);
+  `generate:api --useUnionTypes` é base/referência; fluxo de port à mão documentado (CA6).
+- [x] 4.2 `CLAUDE.md` backend: convenção `@Tag` ASCII (Fase A) + `array` em endpoints de coleção (A2).
 
-## 3. Front — migração de import sites e tipos
+## 5. Fechamento (opção B)
 
-- [ ] 3.1 Migrar imports de **tipo** dos hooks/componentes de `src/types/*` para `src/api/models/*`
-  onde duplicam o contrato (D3), guiado por `npm run build` (tsc). Serviços curados com nome igual
-  (D1) não precisam de troca de import de serviço.
-- [ ] 3.2 Strava (R3): conferir que `SyncStravaButton`, `useStravaSync`, `StravaStatusWidget` chamam
-  métodos existentes no `StravaService` gerado/consolidado; ajustar assinaturas se diferirem.
-- [ ] 3.3 Remover de `src/types/` os tipos que passaram a viver em `src/api/models/` (CA3); manter
-  domain/UI types (`WorkoutType`, `FormVariant`, `AvatarStatus`...).
-- [ ] 3.4 **Smoke auth/tenant obrigatório (CA7/R5):** chamada autenticada real envia `Authorization` +
-  `X-Tenant-ID` (a regen sobrescreve `core/OpenAPI.ts`; pode compilar e falhar em runtime). Confirmar
-  `main.tsx`/`OpenAPI.HEADERS` intactos. **Validação:** `npm run lint && npm run build && npm run test:run` (CA4) **+ smoke**.
-
-## 4. Docs
-
-- [ ] 4.1 Alinhar a seção "API Client & Types Standards" do `CLAUDE.md` front ao resultado real
-  (nomes derivados dos tags ASCII; tipos em `src/api/models`; `generate:api` idempotente) (CA6).
-- [x] 4.2 Anotar no `CLAUDE.md` backend (Controller Standards) a convenção de `@Tag(name)` **ASCII**
-  (com `description` PT-BR) para novos controllers — evita reintroduzir o problema.
-
-## 5. Fechamento
-
-- [ ] 5.1 CA1–CA6 verificados; diff de regen limpo e revisado (R4).
-- [ ] 5.2 Gates finais: backend `./mvnw clean test`; front `npm run lint && npm run build && npm run test:run`.
+- [x] 5.1 Atingidos: CA1 (idempotência), CA2 (nomes limpos), CA5 (sem mudança de contrato/A2 só metadados),
+  CA6 (doc alinhada). **Abandonados (doc):** CA3 (src/api 100% gerado), CA7 (smoke da regen adotada).
+- [x] 5.2 Gates: backend `./mvnw clean test` ✓ (746); front `build` + `test:run` ✓ (36); cliente curado intacto.
