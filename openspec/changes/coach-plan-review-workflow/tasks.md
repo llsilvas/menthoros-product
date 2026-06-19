@@ -74,7 +74,7 @@
 
 ## Seção 3 — Backend: controller e testes
 
-- [ ] **3.1** Criar `CoachPlanoReviewController` em `controller/`:
+- [x] **3.1** Criar `CoachPlanoReviewController` em `controller/`:
   - `@Tag(name = "coach-plan-review", description = "Revisão e aprovação de planos gerados pela IA")`
   - `GET  /api/v1/coach/planos/pendentes` — `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")`
   - `POST /api/v1/coach/planos/{id}/aprovar` — `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")` + `@RequireTenant`
@@ -84,7 +84,7 @@
   - `TenantContext.getRequiredTenantId()` para resolver tenant
   - **verify:** `./mvnw clean compile`
 
-- [ ] **3.2** Testes unitários: `PlanoReviewServiceImplTest` (`@ExtendWith(MockitoExtension.class)`):
+- [x] **3.2** Testes unitários: `PlanoReviewServiceImplTest` (`@ExtendWith(MockitoExtension.class)`):
   - `ListarPlanosPendentes`: retorna lista filtrada por tenant e status; lista vazia quando não há pendentes
   - `AprovarPlano`:
     - happy path: reviewStatus → APROVADO, reviewer é o tenantId correto
@@ -98,7 +98,7 @@
     - cross-tenant (plano de outro tenant) → `DomainNotFoundException`
   - **verify:** `./mvnw clean test`
 
-- [ ] **3.3** Testes controller: `CoachPlanoReviewControllerTest` (`@WebMvcTest`):
+- [x] **3.3** Testes controller: `CoachPlanoReviewControllerTest` (`@WebMvcTest`):
   - GET pendentes: 200 com lista; 403 sem role TECNICO
   - POST aprovar: 200; 403 sem role; 422 transição ilegal
   - POST rejeitar: 200; 400 sem motivo; 403 sem role; 422 transição ilegal
