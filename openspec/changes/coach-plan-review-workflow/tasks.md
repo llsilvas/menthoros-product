@@ -35,22 +35,22 @@
 
 ## Seção 2 — Backend: serviço de revisão
 
-- [ ] **2.1** Criar record `PlanoRejectionInputDto` em `dto/input/`:
+- [x] **2.1** Criar record `PlanoRejectionInputDto` em `dto/input/`:
   - Campos: `motivo` (`@NotBlank`, `@Size(max=1000)`)
   - `@Schema` em classe e campo
   - **verify:** `./mvnw clean compile`
 
-- [ ] **2.2** Atualizar `PlanoSemanalOutputDto` com campos de revisão:
+- [x] **2.2** Atualizar `PlanoSemanalOutputDto` com campos de revisão:
   - Adicionar `PlanoReviewStatus reviewStatus` e `String reviewComment`
   - `@Schema` em ambos
   - **verify:** `./mvnw clean compile`
 
-- [ ] **2.3** Atualizar `PlanoSemanalMapper` para mapear novos campos:
+- [x] **2.3** Atualizar `PlanoSemanalMapper` para mapear novos campos:
   - `toOutputDto()` deve incluir `reviewStatus` e `reviewComment`
   - Null check nos inputs (padrão do CLAUDE.md)
   - **verify:** `./mvnw clean compile`
 
-- [ ] **2.4** Criar interface `PlanoReviewService` e `PlanoReviewServiceImpl`:
+- [x] **2.4** Criar interface `PlanoReviewService` e `PlanoReviewServiceImpl`:
   - `listarPlanosPendentes(UUID tenantId): List<PlanoSemanalOutputDto>`
   - `aprovarPlano(UUID planoId, UUID tenantId): PlanoSemanalOutputDto`
   - `rejeitarPlano(UUID planoId, UUID tenantId, String motivo): PlanoSemanalOutputDto`
@@ -59,12 +59,12 @@
   - JavaDoc com Idempotent/Side Effects/Tenant-aware por método
   - **verify:** `./mvnw clean compile`
 
-- [ ] **2.5** Modificar `PlanoServiceImpl.gerarPlanoTreino()` para setar `reviewStatus = AGUARDANDO_REVISAO`:
+- [x] **2.5** Modificar `PlanoServiceImpl.gerarPlanoTreino()` para setar `reviewStatus = AGUARDANDO_REVISAO`:
   - Localizar onde o `PlanoSemanal` é construído e persistido
   - Adicionar `.reviewStatus(PlanoReviewStatus.AGUARDANDO_REVISAO)` ao builder
   - **verify:** `./mvnw clean test` (testes existentes de geração devem continuar verdes)
 
-- [ ] **2.6** Modificar `PlanoServiceImpl.buscarPlanoPorAtleta()` para filtrar por `reviewStatus`:
+- [x] **2.6** Modificar `PlanoServiceImpl.buscarPlanoPorAtleta()` para filtrar por `reviewStatus`:
   - Verificar roles via `SecurityContextHolder.getContext().getAuthentication().getAuthorities()`
   - Se caller tem role `ATLETA`: usar `findByAtletaIdAndReviewStatus(atletaId, APROVADO)` → 404 se não houver
   - Se caller tem role `TECNICO` ou `ADMIN`: comportamento atual (mais recente não-CONCLUIDO)
