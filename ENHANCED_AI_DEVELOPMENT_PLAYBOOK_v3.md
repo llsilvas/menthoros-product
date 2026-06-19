@@ -64,7 +64,7 @@ Confira com `/plugin` que os quatro aparecem antes de começar.
 | 5. Qualidade | `code-reviewer` + `springboot-security` (ECC) | `springboot-verification` (ECC), `security-reviewer`, `test-master`, `debugging-wizard`, cmds `/review` `/security-review` |
 | 6. Frontend | `react-expert` | `typescript-pro` |
 | 7. E2E | `playwright-expert` | `test-master` |
-| 8. Merge/Loop | Superpowers `finishing-a-development-branch` | `openspec-archive`, atualizar `SPRINTS.md` |
+| 8. Merge/Loop | `/ship` (abre PR via `gh`) → CI + branch protection | `/land` (archive + SPRINTS + cleanup) |
 
 ### Por tecnologia
 
@@ -190,8 +190,10 @@ Quando: API backend pronta e testada. Seguir `apps/menthoros-front/CLAUDE.md` (M
 
 ## 8️⃣ Merge & Loop (fechar o ciclo)
 
-- `superpowers:finishing-a-development-branch` + `requesting-code-review`: PR com `change-id` no corpo, merge `--no-ff` em `develop` (ver `CLAUDE.md` raiz, "Diretrizes de Git").
-- **Fechar o loop OpenSpec:** marcar `tasks.md`, `openspec-archive` para `changes/archive/YYYY-MM/`, e **atualizar a linha da change no `SPRINTS.md`**. (A v2 não fazia isso — era o elo perdido.)
+- **`/ship <id>` abre o PR** (feature → `develop`) via `gh pr create` — **nunca merge local**. A `develop`
+  é integrada só no remoto, com **CI verde + branch protection** (≥1 approval; self-approval no solo).
+- Depois que o PR mergeia, **`/land <id>`** fecha o loop OpenSpec: marca `tasks.md`, `openspec-archive`
+  para `changes/archive/YYYY-MM/`, atualiza a linha no `SPRINTS.md` e limpa a branch.
 
 ---
 
