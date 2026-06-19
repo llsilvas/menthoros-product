@@ -68,16 +68,16 @@
 
 ## 4. Contrato do DTO da fila (campo aditivo)
 
-- [ ] 4.1 Atualizar `CoachAttentionItemOutputDto`: adicionar campo `explanation: RecommendationExplanation` (último campo; `@Schema`); `@JsonInclude(NON_NULL)` já está na classe.
+- [x] 4.1 Atualizar `CoachAttentionItemOutputDto`: adicionar campo `explanation: RecommendationExplanation` (último campo; `@Schema`); `@JsonInclude(NON_NULL)` já está na classe.
   - verify: `./mvnw clean compile` ok; campo novo no final do record.
 
-- [ ] 4.2 Atualizar `CoachAttentionQueueServiceImpl.montarItem`: construir `RecommendationExplanation` a partir de `principal.rationale()`, `principal.sourceRules()` e `ExplanationConfidence.HIGH`; passar no construtor do DTO.
+- [x] 4.2 Atualizar `CoachAttentionQueueServiceImpl.montarItem`: construir `RecommendationExplanation` a partir de `principal.rationale()`, `principal.sourceRules()` e `ExplanationConfidence.HIGH`; passar no construtor do DTO.
   - verify: `./mvnw clean compile` ok; sem NPE no fluxo feliz.
 
-- [ ] 4.3 Atualizar `CoachAttentionQueueServiceImplTest`: assertar `item.explanation() != null` (não usar isNotNull() como único assert — verificar também `rationale` e `confidence`); validar `confidence = HIGH` e `rationale` não-blank no teste `fadigaCritica`; idem nos demais testes que verificam o item.
+- [x] 4.3 Atualizar `CoachAttentionQueueServiceImplTest`: assertar `item.explanation() != null` (não usar isNotNull() como único assert — verificar também `rationale` e `confidence`); validar `confidence = HIGH` e `rationale` não-blank no teste `fadigaCritica`; idem nos demais testes que verificam o item.
   - verify: `./mvnw clean test` verde; 7 testes existentes; `explanation` assertada em cada um.
 
-- [ ] 4.4 Atualizar os 3 stubs de teste que constroem `CoachAttentionItemOutputDto` com 8 args:
+- [x] 4.4 Atualizar os 3 stubs de teste que constroem `CoachAttentionItemOutputDto` com 8 args:
   - `CoachAttentionQueueControllerTest.java:48` e `:53` — adicionar 9º arg `explanation` com valor real; adicionar `jsonPath("$[0].explanation.confidence").value("HIGH")` e `jsonPath("$[0].explanation.rationale").isString()` no teste `fila`.
   - `CoachDashboardServiceImplTest.java:197` — adicionar 9º arg `explanation` (pode ser `new RecommendationExplanation("sem plano ativo", List.of(...), ExplanationConfidence.HIGH)` ou qualquer valor válido — o teste verifica apenas `hasAlert`, não `explanation`).
   - **ATENÇÃO:** 4.1 + 4.2 + 4.4 devem ser commitados atomicamente — o build NUNCA deve ficar vermelho entre tasks desta seção.
@@ -89,10 +89,10 @@
 
 ## 5. Validação final
 
-- [ ] 5.1 `./mvnw clean test` verde (suíte completa — baseline 825, deve aumentar com novos asserts).
-- [ ] 5.2 Confirmar: `evidence[]` e `suggestedAction` inalterados no DTO pai (contrato original preservado).
-- [ ] 5.3 Confirmar: `explanation` não duplica `evidence` (apenas `rationale`, `sourceRules`, `confidence`).
-- [ ] 5.4 Atualizar este `tasks.md` (implementado vs adiado).
+- [x] 5.1 `./mvnw clean test` verde (833 testes, +8 vs baseline 825).
+- [x] 5.2 Confirmar: `evidence[]` e `suggestedAction` inalterados no DTO pai (contrato original preservado).
+- [x] 5.3 Confirmar: `explanation` não duplica `evidence` (apenas `rationale`, `sourceRules`, `confidence`).
+- [x] 5.4 Atualizar este `tasks.md` (implementado vs adiado).
 
 ---
 
