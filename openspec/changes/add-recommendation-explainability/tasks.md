@@ -14,13 +14,13 @@
 
 ## 1. Contrato de explicabilidade (novos tipos)
 
-- [ ] 1.1 Criar `ExplanationConfidence` enum em `enums/`: valores `HIGH`, `MEDIUM`, `LOW`; JavaDoc explicando o critério de cada nível (HIGH=determinístico, MEDIUM=heurístico, LOW=LLM-derivado); v1 produz apenas `HIGH`.
+- [x] 1.1 Criar `ExplanationConfidence` enum em `enums/`: valores `HIGH`, `MEDIUM`, `LOW`; JavaDoc explicando o critério de cada nível (HIGH=determinístico, MEDIUM=heurístico, LOW=LLM-derivado); v1 produz apenas `HIGH`.
   - verify: `./mvnw clean compile` ok; enum com os 3 valores.
 
-- [ ] 1.2 Criar `RecommendationExplanation` record em `dto/output/`: campos `rationale: String`, `sourceRules: List<String>`, `confidence: ExplanationConfidence`; `@JsonInclude(NON_NULL)`; `@Schema` em cada campo; Javadoc explicando que descreve apenas o sinal principal.
+- [x] 1.2 Criar `RecommendationExplanation` record em `dto/output/`: campos `rationale: String`, `sourceRules: List<String>`, `confidence: ExplanationConfidence`; `@JsonInclude(NON_NULL)`; `@Schema` em cada campo; Javadoc explicando que descreve apenas o sinal principal.
   - verify: `./mvnw clean compile` ok; record com os 3 campos.
 
-- [ ] 1.3 Testes unitários do contrato: construção do record com valores válidos; `@JsonInclude(NON_NULL)` verificado via serialização Jackson.
+- [x] 1.3 Testes unitários do contrato: construção do record com valores válidos; `@JsonInclude(NON_NULL)` verificado via serialização Jackson.
   - verify: `./mvnw clean test` verde.
 
 - **Validação do bloco:** `./mvnw clean test`.
@@ -29,10 +29,10 @@
 
 ## 2. Enriquecimento do `SinalAtencao` (interno)
 
-- [ ] 2.1 Atualizar `SinalAtencao` record: adicionar `rationale: String` e `sourceRules: List<String>` como campos novos (sem default — o evaluator SEMPRE deve fornecer ambos).
+- [x] 2.1 Atualizar `SinalAtencao` record: adicionar `rationale: String` e `sourceRules: List<String>` como campos novos (sem default — o evaluator SEMPRE deve fornecer ambos).
   - verify: todos os construtores de `SinalAtencao` nos testes continuam compilando com os novos campos.
 
-- [ ] 2.2 **Nenhum teste constrói `SinalAtencao` diretamente** — `CoachAttentionSignalEvaluatorTest` usa o evaluator real e `CoachAttentionQueueServiceImplTest` instancia o evaluator como colaborador real. A atualização dos construtores de `SinalAtencao` ocorre inteiramente no Bloco 3 (nos 6 call sites do evaluator). Esta tarefa confirma isso e valida que o Bloco 2.1 compila sem quebrar os testes existentes.
+- [x] 2.2 **Nenhum teste constrói `SinalAtencao` diretamente** — `CoachAttentionSignalEvaluatorTest` usa o evaluator real e `CoachAttentionQueueServiceImplTest` instancia o evaluator como colaborador real. A atualização dos construtores de `SinalAtencao` ocorre inteiramente no Bloco 3 (nos 6 call sites do evaluator). Esta tarefa confirma isso e valida que o Bloco 2.1 compila sem quebrar os testes existentes.
   - verify: `./mvnw clean test` verde imediatamente após 2.1 (os testes não usam o construtor antigo diretamente).
 
 - **Validação do bloco:** `./mvnw clean test`.
@@ -41,25 +41,25 @@
 
 ## 3. Rationale + sourceRules nos 6 evaluators
 
-- [ ] 3.0 Declarar constantes estáticas privadas em `CoachAttentionSignalEvaluator` para os valores de `sourceRules` (ex.: `private static final String SOURCE_FADIGA = "CoachAttentionSignalEvaluator.avaliarFadiga";`, `private static final String SOURCE_FAIXA_PREFIX = "FaixaTsb.";`, etc.). Centraliza a atualização em caso de renomeação de classe.
+- [x] 3.0 Declarar constantes estáticas privadas em `CoachAttentionSignalEvaluator` para os valores de `sourceRules` (ex.: `private static final String SOURCE_FADIGA = "CoachAttentionSignalEvaluator.avaliarFadiga";`, `private static final String SOURCE_FAIXA_PREFIX = "FaixaTsb.";`, etc.). Centraliza a atualização em caso de renomeação de classe.
   - verify: `./mvnw clean compile` ok; constantes declaradas antes do primeiro método que as usa.
 
-- [ ] 3.1 `avaliarFadiga(Double tsb)`: produzir `rationale` com valor de TSB usando `Locale.US` (`String.format(Locale.US, "TSB em %.1f situa-se na zona %s (%s)...", tsb, faixa.name(), faixa.getInterpretacao())`); `sourceRules = [SOURCE_FADIGA, SOURCE_FAIXA_PREFIX + faixa.name()]`.
+- [x] 3.1 `avaliarFadiga(Double tsb)`: produzir `rationale` com valor de TSB usando `Locale.US` (`String.format(Locale.US, "TSB em %.1f situa-se na zona %s (%s)...", tsb, faixa.name(), faixa.getInterpretacao())`); `sourceRules = [SOURCE_FADIGA, SOURCE_FAIXA_PREFIX + faixa.name()]`.
   - verify: teste snapshot do `rationale` completo para TSB=-40.0 (assertar string exata com ponto decimal); teste que `sourceRules` contém exatamente `["CoachAttentionSignalEvaluator.avaliarFadiga", "FaixaTsb.CRITICO"]`.
 
-- [ ] 3.2 `avaliarSobrecarga(...)`: `rationale` descreve o primeiro flag ativo por prioridade (sobrecarga > necessitaDescanso > rampAlto > diasConsecutivos); `sourceRules` lista **todos** os flags ativos como entradas separadas (`"PlanoMetaDados.alertaSobrecarga"`, `"PlanoMetaDados.alertaNecessitaDescanso"`, etc.).
+- [x] 3.2 `avaliarSobrecarga(...)`: `rationale` descreve o primeiro flag ativo por prioridade (sobrecarga > necessitaDescanso > rampAlto > diasConsecutivos); `sourceRules` lista **todos** os flags ativos como entradas separadas (`"PlanoMetaDados.alertaSobrecarga"`, `"PlanoMetaDados.alertaNecessitaDescanso"`, etc.).
   - verify: `@ParameterizedTest` com pelo menos 4 combinações: (1) só `sobrecarga=true`, (2) só `rampAlto=true`, (3) `sobrecarga=true` + `rampAlto=true` → sourceRules contém ambos via `containsExactlyInAnyOrder`; (4) nenhum ativo → Optional.empty().
 
-- [ ] 3.3 `avaliarAderencia(long perdidos)`: `rationale` menciona a contagem e a janela de 14 dias; `sourceRules = ["CoachAttentionSignalEvaluator.avaliarAderencia", "TreinoExecucaoStatus.PERDIDO|PARCIAL"]`.
+- [x] 3.3 `avaliarAderencia(long perdidos)`: `rationale` menciona a contagem e a janela de 14 dias; `sourceRules = ["CoachAttentionSignalEvaluator.avaliarAderencia", "TreinoExecucaoStatus.PERDIDO|PARCIAL"]`.
   - verify: rationale de perdidos=3 menciona "3".
 
-- [ ] 3.4 `avaliarInatividade(Long dias)`: `rationale` menciona os dias; `sourceRules = ["CoachAttentionSignalEvaluator.avaliarInatividade"]`.
+- [x] 3.4 `avaliarInatividade(Long dias)`: `rationale` menciona os dias; `sourceRules = ["CoachAttentionSignalEvaluator.avaliarInatividade"]`.
   - verify: rationale de dias=17 menciona "17".
 
-- [ ] 3.5 `avaliarZonasVencidas` e `avaliarSemPlano`: rationale descritivo fixo; `sourceRules` com o método e a regra de origem (`"Atleta.precisaAtualizarTestes"` / `"CoachAttentionSignalEvaluator.avaliarSemPlano"`).
+- [x] 3.5 `avaliarZonasVencidas` e `avaliarSemPlano`: rationale descritivo fixo; `sourceRules` com o método e a regra de origem (`"Atleta.precisaAtualizarTestes"` / `"CoachAttentionSignalEvaluator.avaliarSemPlano"`).
   - verify: rationale não-vazio; sourceRules com pelo menos 1 elemento.
 
-- [ ] 3.6 Atualizar `CoachAttentionSignalEvaluatorTest`: cada teste do evaluator verifica `sinal.rationale()` não-vazio e `sinal.sourceRules()` não-vazio; BVA existente mantido.
+- [x] 3.6 Atualizar `CoachAttentionSignalEvaluatorTest`: cada teste do evaluator verifica `sinal.rationale()` não-vazio e `sinal.sourceRules()` não-vazio; BVA existente mantido.
   - verify: `./mvnw clean test` verde; 0 testes quebrados nos 21 existentes + novos asserts.
 
 - **Validação do bloco:** `./mvnw clean test`.
