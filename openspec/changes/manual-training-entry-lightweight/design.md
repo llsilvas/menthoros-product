@@ -4,11 +4,11 @@
 
 ### D1 — Reutilizar `TreinoService.lancarTreino()` vs. novo método
 
-**Opção A (escolhida):** Extrair lógica comum de `lancarTreino()` para método privado compartilhado; criar `registrarTreinoManualAtleta(UUID atletaId, TreinoManualInputDto)` que: resolve atletaId do token, seta campos fixos (fonteDados=MANUAL, status=REALIZADO, criadoPor="ATLETA") e chama a lógica compartilhada.
+**Opção A (escolhida):** criar `TreinoService.registrarTreinoManualAtleta(UUID atletaId, TreinoManualInputDto)` que: resolve atleta por athleteId+tenant, seta campos fixos (fonteDados=MANUAL, status=REALIZADO, criadoPor="ATLETA", fcMedia=null, paceMedia=null), executa best-effort match, salva, publica `TreinoRegistradoEvent`.
 
-**Opção B:** Criar serviço separado `AtletaTreinoService`. Descartada — duplicaria lógica de TSB update, evento e match com planejado. Violaria DRY sem ganho de isolamento.
+**Confirmado no código:** `lancarTreino()` **não chama `TssCalculatorService` diretamente** — TSS é calculado assincronamente pelo handler do `TreinoRegistradoEvent` (que já existe). O novo método deve seguir o mesmo padrão: salvar + publicar evento + chamar `tsbService.atualizarTsbDia()`. O listener existente calcula o TSS automaticamente.
 
-**Motivo:** `TreinoService` já tem TSS, evento e match. O `@RequireTenant` e resolução de `atletaId` do JWT são a única diferença de contexto. Manter tudo no mesmo serviço é mais simples.
+**Opção B:** Criar serviço separado `AtletaTreinoService`. Descartada — duplicaria lógica de evento, TSB e match com planejado.
 
 ---
 
@@ -49,10 +49,19 @@
 
 **Problema:** o avaliador de aderência lê `TreinoPlanejado.statusTreino` — um treino manual sem vínculo não atualiza o status do planejado, gerando falso positivo de aderência baixa.
 
-**Decisão:** match por `(atletaId, data, tipoTreino)` com prioridade:
-1. Busca `TreinoPlanejado` com mesma data e mesmo tipo, sem `treinoRealizado` vinculado, com `statusTreino IN (PERDIDO, PLANEJADO)`.
-2. Se encontrado: atualiza `statusTreino = REALIZADO`, vincula `treinoRealizadoId`, salva.
-3. Se não encontrado: persiste `TreinoRealizado` com `treinoPlanejadoId = null`. Sem erro — treino livre.
+**Estado do código:** `TreinoPlanejadoRepository.matchByAtletaAndDateAndType()` existe mas **não filtra por `treinoRealizado IS NULL`** — pode sobrescrever vínculo existente. É necessário **novo método** no repositório.
+
+**Decisão:** criar `findFirstByAtletaIdAndDataTreinoAndTipoTreinoAndTreinoRealizadoIsNull()` com JPQL:
+```java
+@Query("SELECT tp FROM TreinoPlanejado tp WHERE tp.atleta.id = :atletaId AND tp.dataTreino = :data AND tp.tipoTreino = :tipo AND tp.treinoRealizado IS NULL AND tp.statusTreino IN ('PERDIDO', 'PLANEJADO') ORDER BY tp.criadoEm ASC")
+Optional<TreinoPlanejado> findFirstForManualMatch(@Param("atletaId") UUID atletaId, @Param("data") LocalDate data, @Param("tipo") TipoTreino tipo);
+```
+
+**Fluxo de match:**
+1. Chama `findFirstForManualMatch(atletaId, data, tipo)`.
+2. Se encontrado: atualiza `statusTreino = REALIZADO`, seta `treinoRealizado = treinoSalvo`, salva `TreinoPlanejado`.
+3. Seta `treinoRealizado.treinoPlanejadoId = treinoPlanejado.getId()`.
+4. Se não encontrado: persiste standalone com `treinoPlanejadoId = null`. Sem erro.
 
 **Cenário de ambiguidade:** atleta tem dois treinos planejados do mesmo tipo no mesmo dia (raro, mas possível em duplos). Nesse caso, vincula o primeiro encontrado (ordenado por `criadoEm`). Comportamento documentado — não tratar no v1.
 

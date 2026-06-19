@@ -88,12 +88,17 @@ Esta change é um **desbloqueador de MVP**: com dado real fluindo, a fila de ate
 **CA1 — Atleta registra treino e inatividade some da fila:**
 - Given: atleta sem treinos nos últimos 14 dias
 - When: `POST /atletas/me/treinos` com tipo=CONTINUO, data=hoje, duracaoMinutos=45, percepcaoEsforco=6
-- Then: 201 Created; `GET /atletas/me/treinos?dias=7` retorna o registro; `avaliarInatividade` não dispara mais para este atleta
+- Then: (1) resposta 201 com `id` e `fonteDados=MANUAL` no body; (2) `GET /atletas/me/treinos?dias=7` retorna o registro; (3) `GET /api/v1/coach/attention-queue` não inclui sinal `INATIVIDADE` para esse atleta
 
-**CA2 — Best-effort match atualiza aderência:**
-- Given: atleta tem `TreinoPlanejado` para hoje com tipo=CONTINUO, status=PERDIDO
+**CA2a — Best-effort match com planejado PERDIDO atualiza aderência:**
+- Given: atleta tem `TreinoPlanejado` para hoje com tipo=CONTINUO, `statusTreino=PERDIDO`, sem realizado vinculado
 - When: registra treino manual com tipo=CONTINUO, data=hoje
-- Then: `TreinoPlanejado` do mesmo dia tem status=REALIZADO; avaliador de aderência não conta esse treino como perdido
+- Then: `TreinoPlanejado` do mesmo dia tem `statusTreino=REALIZADO`; `treinoPlanejadoId` no treino manual aponta para ele; avaliador de aderência não conta esse treino como perdido
+
+**CA2b — Best-effort match com planejado ainda PLANEJADO atualiza aderência:**
+- Given: atleta tem `TreinoPlanejado` para hoje com tipo=CONTINUO, `statusTreino=PLANEJADO`, sem realizado vinculado
+- When: registra treino manual com tipo=CONTINUO, data=hoje
+- Then: `TreinoPlanejado` do mesmo dia tem `statusTreino=REALIZADO`; `treinoPlanejadoId` vinculado
 
 **CA3 — Treino manual sem planejado correspondente é standalone:**
 - Given: atleta não tem treino planejado para hoje
@@ -108,9 +113,10 @@ Esta change é um **desbloqueador de MVP**: com dado real fluindo, a fila de ate
 - Given: endpoint usa `/me` (resolução via JWT)
 - Then: sem parâmetro de atletaId exposto; registro sempre vai para o atleta do token
 
-**CA6 — TSS calculado pelo serviço existente:**
-- Given: duração=60min, RPE=7
-- Then: `tssCalculado` persistido = valor calculado pelo `TssCalculatorService` (método RPE) — não por fórmula duplicada
+**CA6 — TSS calculado via pipeline de evento existente:**
+- Given: duração=60min, RPE=7 (sem fcMedia nem paceMedia)
+- When: treino manual é salvo e `TreinoRegistradoEvent` é processado
+- Then: `tssCalculado` persistido é não-nulo e `metodoCalculoTss = 'RPE'` — calculado pelo handler do evento, não por fórmula duplicada no service
 
 **CA7 — Dado manual identificado visualmente:**
 - Given: coach abre o shell e há itens da fila derivados de treino manual
@@ -122,11 +128,18 @@ Esta change é um **desbloqueador de MVP**: com dado real fluindo, a fila de ate
 
 ## Métrica de Sucesso
 
-**Primária (coach):** sinais de "inatividade" na fila de atenção com dado real fluindo caem ≥ 50% em atletas que usam o formulário — o coach vê uma fila que reflete a realidade.
+**Primária (coach):** sinais de inatividade na fila de atenção caem ≥ 50% em atletas que usam o formulário ao menos 1×/semana.
+- Medido via: `SELECT COUNT(*) FROM tb_sinal_atencao WHERE motivo='INATIVIDADE' AND atleta_id IN (SELECT DISTINCT atleta_id FROM tb_treino_realizado WHERE fonte_dados='MANUAL' AND data_treino >= NOW() - 7)` — comparar semana pré vs. pós-entrega.
+- Baseline: não coletado pré-entrega (sprint 0 desta métrica); coletar no dia do deploy e 7 dias depois.
+- Janela: 14 dias após disponibilização do formulário.
 
-**Secundária (adoção):** ≥ 1 treino registrado manualmente por atleta ativo por semana — proxy de que o fluxo de dado está funcionando.
+**Secundária (adoção):** ≥ 1 treino manual registrado por atleta ativo por semana após 2 semanas de uso.
+- Medido via: `SELECT atleta_id, COUNT(*) FROM tb_treino_realizado WHERE fonte_dados='MANUAL' AND data_treino >= NOW() - 7 GROUP BY atleta_id`.
+- Baseline: 0 (nenhum registro MANUAL existe antes desta change).
 
-**Terciária (IA):** % de sugestões geradas pelo inbox que têm pelo menos 1 treino manual como evidência nos últimos 14 dias — prova que o dado alimenta a inteligência.
+**Terciária (IA):** ≥ 60% das sugestões geradas no inbox têm pelo menos 1 treino realizado (qualquer fonte) nos 14 dias anteriores como insumo.
+- Medido via: verificar `tb_sinal_atencao` — sinais do tipo INATIVIDADE diminuem após ingestion de dado manual.
+- Baseline: não coletado; observar após 30 dias de uso.
 
 ## Riscos e Mitigações
 
@@ -156,7 +169,18 @@ Esta change é um **desbloqueador de MVP**: com dado real fluindo, a fila de ate
 - v1 atleta registra o próprio treino; coach registra pelo atleta usando endpoint existente (TECNICO/ADMIN).
 - Observações não aparecem no coach shell no v1 — apenas no shell do atleta.
 
+**Confirmações adicionais do levantamento de código (2026-06-19):**
+- `fc_media` e `pace_media` são **NULLABLE** no DDL real (V1, linhas 218/221). Migration V37 para nullable **não é necessária**. O que existe é divergência entre DDL (nullable) e anotação JPA (`@Column(nullable = false)`) — corrigir a anotação na entidade como task 1.1.
+- `TreinoService.lancarTreino()` **não chama `TssCalculatorService` diretamente** — TSS é calculado via handler do `TreinoRegistradoEvent`. O service salva e dispara o evento; o cálculo ocorre assincronamente no listener.
+- `matchByAtletaAndDateAndType()` existe em `TreinoPlanejadoRepository` mas **sem filtro "sem realizado"** — necessário criar novo método `findFirstByAtletaIdAndDataTreinoAndTipoTreinoAndTreinoRealizadoIsNull()` (task 1.3).
+- `TreinoRealizadoOutputDto.duracaoMin` é `String` no DTO de saída (formato "HH:MM:SS" ou "MM:SS") — frontend deve exibir assim ou converter para minutos.
+- `@PreAuthorize("hasRole('ATLETA')")` é o padrão correto (confirmado em `AtletaProgressController`).
+
+**Decisão de rollback:**
+- Esta change não tem migration DDL (nenhuma coluna nova, nenhuma tabela nova — os campos já existem). Rollback = reverter commit no backend + redeploy. Registros manuais já persistidos ficam no banco com `fonte_dados='MANUAL'` — são inofensivos e invisíveis ao atleta após rollback (endpoint some), visíveis apenas em queries diretas.
+- Rollback do frontend = reverter commit + rebuild. Formulário some da navegação.
+- Não é necessária migration de down-rollback.
+
 **Em aberto:**
-- `fcMedia` e `paceMedia`: são `NOT NULL` no DDL real? Verificar V1 antes de escrever a migration V37.
-- O form deve exibir o `TipoTreino` com label amigável (ex: "Corrida Contínua" para CONTINUO)? Mapear labels no frontend.
-- Limite de 7 dias retroativos: validar se coaches aceitam essa restrição ou se precisam de backfill ocasional via endpoint TECNICO.
+- O form deve exibir `TipoTreino` com label amigável (ex: "Corrida Contínua" para CONTINUO)? Mapear labels no frontend — sim, definido na tabela do design.md D3.
+- Limite de 7 dias retroativos: decision tomada (task 1.3 valida); endpoint TECNICO existente cobre backfill ilimitado para coaches.

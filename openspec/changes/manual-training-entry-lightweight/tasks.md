@@ -8,24 +8,29 @@
 
 ## Seção 1 — Backend: investigação e setup
 
-- [ ] **1.1** Verificar DDL de V1: `fc_media` e `pace_media` são `NOT NULL`?
-  - Ler `V1__*.sql` e confirmar nullable status no banco.
-  - Se `NOT NULL`: criar migration `V37__Make_fc_media_pace_media_nullable.sql` com `ALTER TABLE tb_treino_realizado ALTER COLUMN fc_media DROP NOT NULL, ALTER COLUMN pace_media DROP NOT NULL`.
-  - Se já nullable: pular migration V37 (próxima migration livre continua sendo V37 para outro uso).
-  - **verify:** `./mvnw clean compile` deve passar com ou sem a migration.
+- [x] **1.1** ~~Verificar DDL de V1: `fc_media` e `pace_media` são `NOT NULL`?~~ **CONCLUÍDO (investigação pré-branch)**
+  - **Resultado:** ambos NULLABLE no DDL real (V1 linhas 218/221). Migration V37 **não será criada** nesta change.
+  - **Ação necessária:** corrigir anotação JPA divergente na entidade `TreinoRealizado`: alterar `@Column(name = "fc_media", nullable = false)` e `@Column(name = "pace_media", nullable = false)` para `nullable = true`. Sem migration DDL — apenas alinhamento do mapeamento com o banco real.
+  - **verify:** `./mvnw clean compile`.
 
 - [ ] **1.2** Criar record `TreinoManualInputDto` em `dto/input/`:
   - Campos: `tipo` (TipoTreino, @NotNull), `data` (LocalDate, @NotNull, @PastOrPresent), `duracaoMinutos` (@Positive @NotNull), `distanciaKm` (BigDecimal, nullable), `percepcaoEsforco` (@Min(1) @Max(10) @NotNull), `observacoes` (String, nullable, @Size(max=500)).
   - Anotações Swagger: `@Schema` em cada campo.
   - **verify:** compilação.
 
+- [ ] **1.2b** Criar método `findFirstForManualMatch` em `TreinoPlanejadoRepository`:
+  - JPQL: `SELECT tp FROM TreinoPlanejado tp WHERE tp.atleta.id = :atletaId AND tp.dataTreino = :data AND tp.tipoTreino = :tipo AND tp.treinoRealizado IS NULL AND tp.statusTreino IN ('PERDIDO', 'PLANEJADO') ORDER BY tp.criadoEm ASC`.
+  - Signature: `Optional<TreinoPlanejado> findFirstForManualMatch(@Param("atletaId") UUID, @Param("data") LocalDate, @Param("tipo") TipoTreino)`.
+  - Atenção: o método existente `matchByAtletaAndDateAndType()` **não tem** filtro `treinoRealizado IS NULL` — não reutilizá-lo.
+  - **verify:** `./mvnw clean compile`.
+
 - [ ] **1.3** Implementar `TreinoService.registrarTreinoManualAtleta(UUID atletaId, TreinoManualInputDto input)`:
   - Valida que atleta pertence ao tenant (`atletaRepository.findByIdAndTenantId`).
-  - Valida `input.data()` não anterior a `LocalDate.now().minusDays(7)` (máx 7 dias retroativos).
+  - Valida `input.data()` não anterior a `LocalDate.now().minusDays(7)` (máx 7 dias retroativos) — lançar `DomainRuleViolationException`.
   - Converte no mapper: `Duration.ofMinutes(input.duracaoMinutos())`, seta `fonteDados=MANUAL`, `status=REALIZADO`, `criadoPor="ATLETA"`, `fcMedia=null`, `paceMedia=null`.
-  - Chama `TssCalculatorService` (método existente) — não duplicar lógica RPE.
-  - Best-effort match: `treinoPlanejadoRepository.findFirstByAtletaIdAndDataTreinoAndTipoTreinoAndTreinoRealizadoIsNull(atletaId, data, tipo)` — se encontrado, atualiza `statusTreino=REALIZADO` e seta `treinoPlanejadoId`.
-  - Salva, publica `TreinoRegistradoEvent`, chama `tsbService.atualizarTsbDia()`.
+  - **NÃO chamar `TssCalculatorService` diretamente** — TSS é calculado pelo handler do `TreinoRegistradoEvent` que já existe. Apenas publicar o evento.
+  - Best-effort match via `treinoPlanejadoRepository.findFirstForManualMatch(atletaId, data, tipo)` (task 1.2b) — se encontrado: atualiza `statusTreino=REALIZADO`, vincula `treinoRealizado`, salva planejado, seta `treinoPlanejadoId` no realizado.
+  - Salva `TreinoRealizado`, publica `TreinoRegistradoEvent`, chama `tsbService.atualizarTsbDia()`.
   - Documenta: `Idempotent: NO / Side Effects: Database insert + event / Tenant-aware: YES`.
   - **verify:** `./mvnw clean compile`.
 
@@ -44,8 +49,8 @@
   - Retorna `ResponseEntity<List<TreinoRealizadoOutputDto>>` (200).
   - **verify:** `./mvnw clean compile`.
 
-- [ ] **1.6** Verificar se `TreinoRealizadoOutputDto` expõe `fonteDados`. Se não, adicionar campo ao record e ao mapper.
-  - **verify:** `./mvnw clean compile`.
+- [x] **1.6** ~~Verificar se `TreinoRealizadoOutputDto` expõe `fonteDados`.~~ **CONCLUÍDO (investigação pré-branch)**
+  - **Resultado:** `fonteDados` já está no DTO (linha 100). `duracaoMin` é serializado como `String` ("HH:MM:SS" / "MM:SS") — não como Integer. Frontend deve converter se precisar exibir em minutos.
 
 - [ ] **1.7** Testes: `AtletaTreinoServiceImplTest` — `@Nested` por método:
   - `RegistrarTreinoManualAtleta`:
