@@ -1,6 +1,6 @@
 # Proposal: manual-training-entry-lightweight
 
-**Tamanho:** XS · **Trilha:** Fast
+**Tamanho:** S · **Trilha:** Full
 
 ## Status
 
@@ -12,116 +12,151 @@ Toda a inteligência do Menthoros — TSB, fila de atenção, debrief, sugestõe
 
 Enquanto isso, o sistema está **funcionalmente cego**: a fila de atenção avalia aderência sem saber o que o atleta efetivamente fez, o TSB não se move, e o inbox de sugestões dispara alertas de "sem treinos recentes" que são reais mas vazios de conteúdo.
 
-Um log manual de 4 campos (tipo + duração + RPE + data) resolve isso. Não é elegante — é um **desbloqueador de MVP**. Com dado real fluindo, a fila de atenção passa a refletir a realidade do atleta, o debrief tem conteúdo para exibir e o coach começa a ver valor nos painéis que já existem.
+A infraestrutura backend existe: `TreinoRealizado` já tem `percepcaoEsforco`, `fonteDados` (enum com `MANUAL`), `distanciaKm`, `tssCalculado`. O `TssCalculatorService` já calcula TSS por RPE como fallback. O `TreinoService.lancarTreino()` já persiste, publica evento e atualiza TSB — mas está exposto apenas para `TECNICO`/`ADMIN`. O que falta é **expor essa capacidade para o atleta** via um endpoint próprio e um formulário no shell.
 
-Esta change é **substituída naturalmente** por `first-party-ingestion-architecture` quando o upload de `.fit` estiver disponível. Os registros manuais convivem com os importados sem conflito, porque o campo `fonte` os diferencia.
+Esta change é um **desbloqueador de MVP**: com dado real fluindo, a fila de atenção reflete a realidade, o debrief tem conteúdo, e o coach começa a ver valor nos painéis entregues.
+
+É **substituída naturalmente** pelo `first-party-ingestion-architecture`: os registros manuais convivem com os importados via campo `fonteDados`.
 
 ## What Changes
 
 ### Backend
 
-- Verificar se `TreinoRealizado` já tem os campos necessários (`tipo`, `duracaoMinutos`, `distanciaKm`, `percepcaoEsforco`, `data`, `fonte`). Se sim, apenas adicionar o endpoint — sem migration.
-- Se campos faltarem: migration mínima adicionando `percepcao_esforco SMALLINT` e `fonte VARCHAR(20) DEFAULT 'MANUAL'` a `tb_treino_realizado`.
-- Novo endpoint `POST /api/v1/atletas/me/treinos/manual` — atleta registra o próprio treino:
-  - Body: `{ "tipo": "CORRIDA", "data": "2026-06-19", "duracaoMinutos": 60, "distanciaKm": 10.0, "percepcaoEsforco": 7, "observacoes": "..." }`
-  - Valida: `tipo` ∈ enum `TipoTreino`, `percepcaoEsforco` ∈ [1,10], `duracaoMinutos` > 0, `data` ≤ hoje.
-  - Persiste com `fonte = MANUAL` e calcula TSS estimado com a fórmula simplificada: `tss = (duracaoMinutos / 60.0) × rpeNormalizado² × 100` onde `rpeNormalizado = percepcaoEsforco / 10.0`.
-  - Retorna `TreinoRealizadoOutputDto` (201 Created).
-- Endpoint `GET /api/v1/atletas/me/treinos/recentes?dias=7` — últimas N entradas (manual + importadas), ordenadas por data desc. Verifica se já existe antes de criar.
-- Isolamento: `atletaId` resolvido do token JWT via `CurrentAtletaResolver` — sem `@PathVariable` expondo IDs.
+- **Novo record de input** `TreinoManualInputDto`: `tipo` (TipoTreino), `data` (≤ hoje), `duracaoMinutos` (Integer — convertido para `Duration` no mapper), `distanciaKm` (BigDecimal, opcional), `percepcaoEsforco` (1–10), `observacoes` (String opcional). `fonteDados` e `status` são fixados em `MANUAL` e `REALIZADO` respectivamente — não expostos no input.
+
+- **Novo método** `TreinoService.registrarTreinoManualAtleta(UUID atletaId, TreinoManualInputDto)`:
+  - Resolve tenant de `TenantContext.getRequiredTenantId()`
+  - Valida atletaId pertence ao tenant
+  - Converte `duracaoMinutos` → `Duration.ofMinutes(n)` no mapper
+  - Seta `fcMedia = null`, `paceMedia = null` (nullable — confirmado na investigação de schema)
+  - Chama `TssCalculatorService` existente (método RPE) — sem duplicar fórmula
+  - **Best-effort match**: busca `TreinoPlanejado` por `(atletaId, data, tipo)` com status `PERDIDO` ou sem realizado vinculado; se encontrado, atualiza `statusTreino = REALIZADO` e vincula via `treinoPlanejadoId`. Se não encontrado, persiste standalone (sem vínculo)
+  - Seta `criadoPor = "ATLETA"` e `fonteDados = MANUAL`
+  - Publica `TreinoRegistradoEvent` (já existente)
+  - Atualiza TSB via `TsbService.atualizarTsbDia()`
+
+- **Novo endpoint** `POST /api/v1/atletas/me/treinos` — `@PreAuthorize("hasRole('ATLETA')")`. Resolve `atletaId` internamente via cadeia JWT → `AuthenticatedPrincipalResolver` → `Usuario` → `Atleta` (padrão existente em `TreinoRealizadoController`). Retorna `TreinoRealizadoOutputDto` (201).
+
+- **Novo endpoint** `GET /api/v1/atletas/me/treinos?dias=7` — `@PreAuthorize("hasRole('ATLETA')")`. Retorna lista dos últimos `dias` dias (default 7, max 30). Usa método de repositório por `(atletaId, dataInicio, dataFim)`.
+
+- **Migration V37**: apenas se DDL de `fc_media` ou `pace_media` for `NOT NULL` — nesse caso, tornar nullable. Os campos `percepcao_esforco` e `fonte_dados` já existem desde V1. Nenhuma tabela nova.
 
 ### Frontend
 
-- Nova rota no shell do atleta: `/atleta/treinos/registrar`.
-- Componente `ManualTrainingForm`:
-  - Seletor de tipo: chips com ícone (corrida, bicicleta, natação, musculação, descanso ativo).
-  - Date picker com default = hoje.
-  - Campo de duração em minutos (number input).
-  - Campo de distância em km (optional — oculto para tipos sem distância como musculação).
-  - Slider de RPE 1–10 com label textual: 1–3 Leve / 4–6 Moderado / 7–8 Intenso / 9–10 Máximo.
-  - Campo de observações (textarea, opcional).
-  - Botão "Registrar treino".
-- Componente `RecentTrainingsList`: lista dos últimos 7 dias com tipo + duração + distância + RPE + data. Exibido abaixo do formulário.
-- Link de entrada na `AtletaHomePage` ou nav do atleta: "Registrar treino de hoje".
+- **Nova rota** `/atleta/treinos/registrar` → `ManualTrainingFormPage`.
+- **`ManualTrainingForm`**: seletor de tipo (chips com os valores do enum `TipoTreino` — running-specific, v1); date picker com default = hoje; campo de duração em minutos; campo de distância em km (opcional, oculto para tipo REGENERATIVO); slider de RPE 1–10 com label textual ("1–3 Leve / 4–6 Moderado / 7–8 Intenso / 9–10 Máximo"); campo de observações (opcional); **preview de TSS estimado em tempo real** (calculado client-side: `(duracaoMin/60) × (rpe/10)² × 100`); botão "Registrar treino".
+- **`RecentTrainingsList`**: últimos 7 dias — tipo + duração + distância + RPE + TSS estimado + data. Exibido abaixo do formulário. Badge `MANUAL` em cada item.
+- Entrada na navegação do atleta: "Registrar treino" como ação rápida na `AtletaHomePage`.
+- **Novo hook** `useManualTraining` + **`ManualTrainingService`** (POST + GET no cliente curado).
 
 ## Capabilities
 
 ### New Capabilities
 
-- `manual-training-entry`: atleta registra treino manualmente (sem GPS/dispositivo); dados fluem para TSB, fila de atenção e debrief.
+- `manual-training-entry`: atleta registra treino manualmente (sem GPS/dispositivo); dados fluem para TSB, fila de atenção e debrief. Best-effort match com treino planejado elimina falsos positivos de aderência.
 
 ### Modified Capabilities
 
-- `coach-attention-queue`: sinal de "inatividade" e "aderência baixa" passa a ter dado real para avaliar (em vez de sempre disparar por falta de dado).
-- `plan-adherence-tracking`: aderência calculada sobre treinos realizados reais, não apenas planejados sem contraparte.
+- `coach-attention-queue`: sinal de "inatividade" e "aderência baixa" passa a ter dado real — treino manual com match bem-sucedido atualiza status do planejado para REALIZADO.
+- `plan-adherence-tracking`: aderência avaliada sobre treinos realizados reais, não apenas planejados sem contraparte.
 
 ## Impact
 
 **Banco de dados:**
-- Verificar `tb_treino_realizado` antes de qualquer migration. Campos mínimos: `percepcao_esforco SMALLINT`, `fonte VARCHAR(20)`.
-- Se ambos ausentes: migration `Vxx__Add_manual_training_fields_to_tb_treino_realizado.sql`.
+- Verificar DDL de `fc_media` e `pace_media` em V1: se `NOT NULL`, migration V37 torna nullable.
+- Todos os outros campos necessários já existem desde V1 (`percepcao_esforco`, `fonte_dados`, `distancia_km`, `duracao_min`, `criado_por`).
 - Nenhuma tabela nova.
 
 **APIs novas:**
-- `POST /api/v1/atletas/me/treinos/manual`
-- `GET /api/v1/atletas/me/treinos/recentes?dias=7` (verificar se já existe; se sim, só usar)
+- `POST /api/v1/atletas/me/treinos` — `@PreAuthorize("hasRole('ATLETA')")`
+- `GET /api/v1/atletas/me/treinos?dias=7` — `@PreAuthorize("hasRole('ATLETA')")`
 
-**Dados existentes:**
-- Registros existentes em `tb_treino_realizado` recebem `fonte = 'IMPORTADO'` via migration UPDATE (retrocompatível).
+**Endpoint existente não alterado:**
+- `POST /api/v1/treinos/{atletaId}/lancar-treino` (TECNICO/ADMIN) permanece; a lógica do service será parcialmente compartilhada via extração de método.
 
 **Dependências:**
-- `add-current-user-endpoint` ✅ — resolução da identidade do atleta.
+- `add-current-user-endpoint` ✅ — resolução de identidade.
 - `add-assessoria-onboarding` ✅ — tenant resolution.
-- Substituído futuramente por `first-party-ingestion-architecture` (Sprint 22): os campos manuais sobrevivem, o `fonte` diferencia as origens.
-- Desbloqueia: `add-post-workout-debrief` (dados para comparar planejado vs realizado) e `add-daily-readiness-checkin` (complemento de contexto diário).
+- Desbloqueia: `add-post-workout-debrief`, `athlete-profile-drilldown` (9f usa `GET /atletas/me/treinos`).
+- Substituído futuramente por `first-party-ingestion-architecture` (Sprint 22).
 
 **Multi-tenancy:**
-- `atletaId` resolvido do token — sem possibilidade de cross-tenant por construção.
+- `atletaId` resolvido da cadeia JWT → `Usuario` → `Atleta` do mesmo tenant. Sem path param exposto.
 
 ## Critérios de Aceite
 
-**CA1 — Atleta registra treino e dado aparece no sistema:**
-- Given: atleta autenticado sem treinos registrados
-- When: envia `POST /atletas/me/treinos/manual` com tipo=CORRIDA, duração=45min, distância=8km, RPE=6
-- Then: resposta 201 com id; `GET /atletas/me/treinos/recentes` retorna o registro; fila de atenção não dispara mais "sem treinos recentes" para este atleta
+**CA1 — Atleta registra treino e inatividade some da fila:**
+- Given: atleta sem treinos nos últimos 14 dias
+- When: `POST /atletas/me/treinos` com tipo=CONTINUO, data=hoje, duracaoMinutos=45, percepcaoEsforco=6
+- Then: 201 Created; `GET /atletas/me/treinos?dias=7` retorna o registro; `avaliarInatividade` não dispara mais para este atleta
 
-**CA2 — Validação de RPE:**
-- Given: atleta envia RPE=11
-- Then: resposta 422 com mensagem "percepcaoEsforco deve estar entre 1 e 10"
+**CA2 — Best-effort match atualiza aderência:**
+- Given: atleta tem `TreinoPlanejado` para hoje com tipo=CONTINUO, status=PERDIDO
+- When: registra treino manual com tipo=CONTINUO, data=hoje
+- Then: `TreinoPlanejado` do mesmo dia tem status=REALIZADO; avaliador de aderência não conta esse treino como perdido
 
-**CA3 — Data futura rejeitada:**
-- Given: atleta envia data = amanhã
-- Then: resposta 422 com mensagem "data não pode ser futura"
+**CA3 — Treino manual sem planejado correspondente é standalone:**
+- Given: atleta não tem treino planejado para hoje
+- When: registra treino manual
+- Then: treino persiste com `treinoPlanejadoId = null`; sistema não lança erro
 
-**CA4 — TSS estimado calculado:**
-- Given: treino com duração=60min e RPE=7
-- When: registro criado
-- Then: campo `tssEstimado` no retorno = 49 (60/60 × 0.49 × 100)
+**CA4 — Validações de entrada:**
+- Given: dados inválidos (RPE=11, data futura, duração=0)
+- Then: 422 com mensagem descritiva para cada caso
 
-**CA5 — Isolamento: atleta não registra por outro atleta:**
-- Given: endpoint usa `me` (resolução via JWT)
-- Then: não há parâmetro de atletaId exposto; registro sempre vai para o atleta autenticado
+**CA5 — Isolamento: atleta A não registra pelo atleta B:**
+- Given: endpoint usa `/me` (resolução via JWT)
+- Then: sem parâmetro de atletaId exposto; registro sempre vai para o atleta do token
 
-**CA6 — Frontend: formulário disponível e funcional:**
-- Given: atleta autenticado abre o shell
-- When: navega para "Registrar treino"
-- Then: formulário exibe campos; submissão bem-sucedida mostra confirmação e atualiza lista recente
+**CA6 — TSS calculado pelo serviço existente:**
+- Given: duração=60min, RPE=7
+- Then: `tssCalculado` persistido = valor calculado pelo `TssCalculatorService` (método RPE) — não por fórmula duplicada
+
+**CA7 — Dado manual identificado visualmente:**
+- Given: coach abre o shell e há itens da fila derivados de treino manual
+- Then: itens exibem indicador `fonte=MANUAL` (badge ou label) para o coach distinguir de dado de dispositivo
+
+**CA8 — GET com limite de dias respeitado:**
+- Given: `GET /atletas/me/treinos?dias=100`
+- Then: retorna no máximo 30 dias de histórico (max hard cap)
 
 ## Métrica de Sucesso
 
-**Primária:** ≥ 1 treino registrado manualmente por atleta ativo por semana — indica que o fluxo de dado está funcionando e a fila de atenção tem insumo real.
+**Primária (coach):** sinais de "inatividade" na fila de atenção com dado real fluindo caem ≥ 50% em atletas que usam o formulário — o coach vê uma fila que reflete a realidade.
 
-**Secundária:** taxa de "sinal de inatividade" na fila de atenção cai ≥ 50% após ativação — prova que o dado está fluindo para os avaliadores.
+**Secundária (adoção):** ≥ 1 treino registrado manualmente por atleta ativo por semana — proxy de que o fluxo de dado está funcionando.
+
+**Terciária (IA):** % de sugestões geradas pelo inbox que têm pelo menos 1 treino manual como evidência nos últimos 14 dias — prova que o dado alimenta a inteligência.
+
+## Riscos e Mitigações
+
+| Risco | Prob | Impacto | Mitigação no v1 |
+|---|:---:|:---:|---|
+| RPE sistemático alto (=10) infla CTL/ATL, corrompendo futuro histórico | HIGH | HIGH | Preview TSS no form com label "estimativa (±30%)"; campo `metodoCalculoTss='RPE'` já salvo — usar para filtro no coach shell |
+| Backfill retroativo mascara inatividade real | MEDIUM | HIGH | Limitar `data` a no máximo 7 dias no passado no endpoint |
+| Aderência falsa se match não ocorrer | HIGH | HIGH | Best-effort match por data+tipo obrigatório no serviço — não é follow-up |
+| `duracaoMin` é `Duration`, form envia Integer | HIGH | MEDIUM | Conversão no mapper (`Duration.ofMinutes(n)`) — testada na suíte |
+| UPDATE retroativo de `fonte_dados` pode bloquear tabela | MEDIUM | HIGH | Não executar UPDATE retroativo — valores existentes com NULL ficam como NULL; código Java trata NULL como IMPORTADO |
+| Dois treinos no mesmo dia somam TSS elevado | HIGH | MEDIUM | Soft-warning no form se já existe treino na data selecionada |
+| Observações visíveis na IA sem sanitização | LOW | MEDIUM | Truncar observações a 200 chars antes de injetar em contexto LLM (follow-up Sprint 22) |
 
 ## Open Questions & Assumptions
 
-**Premissas assumidas:**
-- `TreinoRealizado` já existe em `develop` (referenciado em múltiplas changes); verificar estrutura antes de criar migration.
-- Formula de TSS simplificada é boa o suficiente para o MVP; `first-party-ingestion-architecture` substituirá por TSS real baseado em FC/pace.
-- v1 append-only: sem edição ou exclusão de registros manuais (reduz complexidade; adicionar em follow-up se necessário).
-- Atleta registra o próprio treino; coach não registra pelo atleta no v1.
+**Premissas confirmadas pelo levantamento de código (2026-06-19):**
+- `TreinoRealizado` tem todos os campos necessários: `percepcaoEsforco`, `fonteDados` (enum com MANUAL), `distanciaKm`, `duracaoMin` (Duration), `criadoPor`.
+- `FonteDados.MANUAL` já existe no enum.
+- `TssCalculatorService` já implementa cálculo por RPE — não duplicar lógica.
+- `TreinoService.lancarTreino()` já persiste, publica evento e atualiza TSB — reutilizar lógica.
+- Próxima migration disponível: V37.
+- `TipoTreino` é running-specific (sem musculação/natação/bicicleta) — usar como está no v1.
+
+**Decisões de produto tomadas:**
+- v1 running-only: formulário usa `TipoTreino` existente. Tipos de cross-training (musculação, natação, bicicleta) entram em change futura com expansão do enum.
+- v1 append-only: sem edição ou exclusão de registros manuais.
+- v1 atleta registra o próprio treino; coach registra pelo atleta usando endpoint existente (TECNICO/ADMIN).
+- Observações não aparecem no coach shell no v1 — apenas no shell do atleta.
 
 **Em aberto:**
-- `CurrentAtletaResolver` já existe como componente reutilizável? Se não, criar e reusar em `athlete-profile-drilldown` também.
-- `TipoTreino` enum já cobre os tipos relevantes (corrida, bicicleta, natação, musculação, descanso)? Verificar antes de criar novo.
-- Distância obrigatória para esportes de endurance ou sempre opcional? Definir no design se necessário — para Fast track, fazer opcional simplifica validação.
+- `fcMedia` e `paceMedia`: são `NOT NULL` no DDL real? Verificar V1 antes de escrever a migration V37.
+- O form deve exibir o `TipoTreino` com label amigável (ex: "Corrida Contínua" para CONTINUO)? Mapear labels no frontend.
+- Limite de 7 dias retroativos: validar se coaches aceitam essa restrição ou se precisam de backfill ocasional via endpoint TECNICO.
