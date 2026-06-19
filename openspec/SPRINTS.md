@@ -2,7 +2,7 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-06-19 (add-coach-suggestion-inbox arquivado; sprint 9c ✅ concluída; coach-in-the-loop v1 entregue; 2 gaps de produto identificados: `coach-plan-review-workflow` + `athlete-profile-drilldown` propostos para sprint 9d)
+**Última atualização:** 2026-06-19 (add-coach-suggestion-inbox arquivado; sprint 9c ✅ concluída; coach-in-the-loop v1 entregue; 3 gaps de produto identificados e escalonados: `manual-training-entry-lightweight` 9d, `coach-plan-review-workflow` 9e, `athlete-profile-drilldown` 9f)
 **Fonte canônica de especificação:** `changes/<change-id>/` (estrutura flat — este doc NÃO move pastas)
 **Roadmap por ondas/dependências:** `ROADMAP.md`
 **Capacidade assumida:** 1 dev (solo/CTO), sprints de 2 semanas (~1 change média por sprint; changes grandes ocupam 2+).
@@ -76,6 +76,9 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 | 9 | ~~`add-coach-attention-queue`~~ ✅ + ~~`add-recommendation-explainability`~~ ✅ *(visível)* | 13 + 9 | Fila de atenção on-demand (2026-06-18) + explicabilidade estruturada (2026-06-19). Hook diário do treinador + rationale determinístico por sinal. | shell-dashboards |
 | 9b | ~~`wire-coach-identity-and-attention-queue`~~ ✅ *(visível, front)* | 14/14 | **Liga identidade e fila de atenção reais ao shell.** Substitui `mockCoach`/`mockTenant` por `GET /api/v1/users/me`; cria `CoachAttentionQueuePage` wired a `GET /api/v1/coach/attention-queue` com `explanation.rationale`; badge do Inbox com count real. Frontend-only, zero backend. | `add-coach-attention-queue` ✅, `add-current-user-endpoint` ✅ |
 | 9c | ~~`add-coach-suggestion-inbox`~~ ✅ *(visível, backend+front)* | 21 | **Coach-in-the-loop completo (v1 sem RAG).** Workflow aprovar/rejeitar sugestões IA geradas dos sinais da fila de atenção: migration `tb_sugestao_coach`, listener idempotente, service + controller CRUD, UI 3-colunas real (substituindo o placeholder do 9b). Sem RAG no v1 — a fundamentação com citações entra pós-RAG via upgrade. | `wire-coach-identity-and-attention-queue`, `add-recommendation-explainability` ✅ |
+| 9d | `manual-training-entry-lightweight` *(XS, visível, backend+front)* | ~8 | **Desbloqueador de dado real.** Log manual do atleta: tipo + duração + distância + RPE + data → persiste em `TreinoRealizado` com `fonte=MANUAL`; TSS estimado calculado. Desbloqueia fila de atenção com dado real, antecipa debrief e métricas sem esperar `first-party-ingestion-architecture` (Sprint 22). | `add-current-user-endpoint` ✅, `add-assessoria-onboarding` ✅ |
+| 9e | `coach-plan-review-workflow` *(M, visível, backend+front)* | ~18 | **Desbloqueador de confiança e adoção.** Coach revisa e aprova planos gerados pela IA antes de chegarem ao atleta. `review_status` (AGUARDANDO_REVISAO → APROVADO/REJEITADO) em `tb_plano_semanal`; `GET /coach/planos/pendentes` + `POST aprovar/rejeitar`; `CoachPlanReviewPage` 2-colunas; badge de pendentes no nav. Sem aprovação, nenhum treinador profissional adota a plataforma. | `add-coach-shell-dashboards` ✅, `add-coach-suggestion-inbox` ✅ |
+| 9f | `athlete-profile-drilldown` *(M, visível, backend+front)* | ~16 | **Prontuário do atleta.** Tela `/coach/athletes/:id` com PMC 90d, aderência 8 semanas, plano vigente (7 cards), últimos 3 sinais e 3 sugestões, recordes. Endpoint agregador `GET /coach/atletas/{id}/perfil`. Navegação do roster → perfil. Coach tem contexto completo antes de qualquer decisão. | `athlete-progress-endpoints` ✅, `add-coach-attention-queue` ✅, `add-coach-suggestion-inbox` ✅ |
 | 10–11 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
 | 12–14 | 🤖 `rag-tool-calling-prescription-engine` | 64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado em metodologia. Destrava a família `rag-*`. | llm-tool-use |
 | 15+ | `add-coach-suggestion-inbox` *(upgrade RAG)* | — | Enriquecer as sugestões do 9c com citações RAG — fundamentação de metodologia no `reasoning`. O workflow já existe; só muda a fonte dos dados. | RAG, 9c |
@@ -90,14 +93,14 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
-| 22 | `first-party-ingestion-architecture` | ~23 | **Dado real first-party e ML-safe:** upload de `.fit` + entrada manual, dedup cross-source, tenant guard, compute-on-import. Roda no front web atual; sem API de terceiros. Substitui o Strava como ingestão do MVP. | Bloco 0 |
-| 23 | `add-workout-metrics-analyzer` | ~22 | Métricas determinísticas (tempo em zona, decoupling) + skill `workout-analyzer` (proposta ao treinador). Reconcilia o `WorkoutAnalysisListener` existente. | first-party-ingestion; suggestion-inbox |
-| 24 | `add-post-workout-debrief` + `add-weekly-athlete-review` | 17 + 12 | Planejado vs realizado + consolidação semanal — agora sobre métricas reais. | metrics-analyzer; progress-endpoints |
+| 22 | `first-party-ingestion-architecture` | ~23 | **Dado first-party completo e ML-safe:** upload de `.fit`, dedup cross-source, tenant guard, compute-on-import com métricas reais de FC e pace. Sucede e substitui o log manual do 9d com dado rico. | `manual-training-entry-lightweight` 9d |
+| 23 | `add-workout-metrics-analyzer` | ~22 | Métricas determinísticas (tempo em zona, decoupling, drift cardíaco) + skill `workout-analyzer` (proposta ao treinador). Reconcilia o `WorkoutAnalysisListener` existente. | first-party-ingestion; suggestion-inbox |
+| 24 | `add-post-workout-debrief` + `add-weekly-athlete-review` | 17 + 12 | Planejado vs realizado + consolidação semanal — sobre métricas reais do `.fit`. *Nota: versão simplificada (sem métricas de zona) pode ser antecipada para logo após o 9d, usando apenas os dados do log manual.* | metrics-analyzer; progress-endpoints |
 | 25 | `add-athlete-coach-messaging` | 23 | Mensageria atleta↔coach + cards de `plan_adjustment`. Item mais independente. | Bloco 0 |
 
-> **Fronteira do MVP (jornada completa coach-in-the-loop):** ao fim do Sprint 25, a jornada está entregue — identidade → casa do treinador → fila de atenção → sugestão IA explicável → revisão do atleta → **dado real first-party (upload `.fit`)** → métricas + análise → debrief → revisão semanal → mensageria.
+> **Fronteira do MVP (jornada completa coach-in-the-loop):** ao fim do Sprint 25, a jornada está entregue — identidade → casa do treinador → dado real (log manual 9d) → fila de atenção → sugestão IA explicável → **aprovação de plano pelo coach (9e)** → perfil completo do atleta (9f) → ingestion FIT completo → métricas + análise → debrief → revisão semanal → mensageria.
 >
-> **Mudança estratégica de ingestão:** o MVP passa a usar **ingestão first-party** (FIT upload/manual) em vez do Strava. Dado *ownable* e ML-safe; a família `strava-*` fica **deferida** (ver pós-MVP) — alinhado à arquitetura, que proíbe treinar o ML acceptance predictor com dado da API do Strava.
+> **Mudança estratégica de ingestão:** o MVP passa a usar **ingestão first-party** (log manual 9d → FIT upload Sprint 22) em vez do Strava. O 9d desbloqueia dado real imediatamente; o Sprint 22 adiciona dado rico de GPS e FC. A família `strava-*` fica **deferida** (ver pós-MVP).
 
 ---
 
@@ -176,12 +179,12 @@ Items identificados como importantes para a jornada do coach, mas sem sprint def
 
 | Change | Status | Por que está no radar | Ação sugerida |
 |---|:---:|---|---|
-| `coach-plan-review-workflow` | Proposed (2026-06-19) | **Desbloqueador de confiança e adoção.** Sem revisão/aprovação pelo coach antes do atleta ver, nenhum treinador profissional adota. Principal gap da jornada. | Priorizar como sprint 9d; implementar antes de `add-post-workout-debrief`. |
-| `athlete-profile-drilldown` | Proposed (2026-06-19) | **Prontuário do atleta.** O coach não tem onde mergulhar antes de decidir — PMC, aderência, plano vigente, sinais, sugestões em uma tela. Complementa `coach-plan-review-workflow`. | Priorizar como sprint 9d, em paralelo ou logo após o review workflow. |
-| `manual-training-entry-lightweight` | **Não proposto** | **Desbloqueador de dados para o MVP.** `first-party-ingestion-architecture` (Sprint 22, L) é pesado demais para desbloquear a cadeia de IA. Um log manual simples (distância + tempo + RPE) é XS e viabiliza debrief, métricas e fila de atenção com dado real meses antes. | Criar proposal XS; entregar antes de `first-party-ingestion-architecture` como substituto mínimo. |
-| `add-post-workout-debrief` | Roadmap Sprint 24 — **muito tarde** | **Hook diário do coach.** A tela "o que aconteceu ontem na equipe" é o que o coach abre toda manhã. Hoje está atrás de ingestion (22) + metrics (23) — cego até o fim do ciclo. | Avaliar dependência real: se `manual-training-entry-lightweight` entrar antes, o debrief pode ser antecipado para sprint ~10. |
-| `add-daily-readiness-checkin` | Pós-MVP (29 tasks) — **spec completo** | **Diferencial competitivo.** 3 perguntas ao atleta → o sistema sabe como ele acordou → melhora a fila de atenção antes do TSB reagir. Spec maduro, implementação bem definida. | Promover para MVP track após `manual-training-entry-lightweight`; antes do Bloco de Segurança. |
-| `complete-authorization-controllers` | Bloco de Segurança — 29 tasks | Brechas de autorização abertas nos controllers. Obrigatório antes do beta. | Não escalonar como feature — intercalar como tarefa de hardening em qualquer sprint que toque controllers. |
+| ~~`coach-plan-review-workflow`~~ | ✅ **Escalonado Sprint 9e** | Desbloqueador de confiança — aprovado e inserido no roadmap. | — |
+| ~~`athlete-profile-drilldown`~~ | ✅ **Escalonado Sprint 9f** | Prontuário do atleta — aprovado e inserido no roadmap. | — |
+| ~~`manual-training-entry-lightweight`~~ | ✅ **Escalonado Sprint 9d** | Desbloqueador de dado real — proposto e inserido no roadmap. | — |
+| `add-post-workout-debrief` | Roadmap Sprint 24 — **avaliar antecipação** | Com dado real disponível a partir do 9d (log manual), a dependência com `first-party-ingestion` (22) cai. Uma versão simplificada do debrief pode ser viabilizada antes do Sprint 22. | Revisar tasks.md: separar o que depende de métricas FIT do que funciona com log manual. Antecipável para Sprint ~10–11 se as tasks básicas forem independentes. |
+| `add-daily-readiness-checkin` | Pós-MVP — **spec completo, 29 tasks** | Diferencial competitivo: 3 perguntas ao atleta melhoram a fila de atenção antes do TSB reagir. Spec maduro, só precisa de decisão de prioridade. | Promover para MVP track após os sprints 9d–9f. Encaixar entre Sprint 10 e o Bloco de Segurança. |
+| `complete-authorization-controllers` | Bloco de Segurança — 29 tasks | Brechas de autorização abertas nos controllers. Obrigatório antes do beta. | Intercalar como hardening em sprints que toquem controllers — não tratar como feature isolada. |
 
 ### Por que esses 3 são os prioritários
 
