@@ -1,17 +1,98 @@
-## 1. Modelo
+## Âncoras de código (backend)
 
-- [ ] 1.1 Definir estrutura de explicabilidade para recomendações e bloqueios
-- [ ] 1.2 Definir campos mínimos: motivo, evidências, regra/skill, ação sugerida
-- [ ] 1.3 Definir campo de confiança/limitação da explicação
+- **`CoachAttentionItemOutputDto`** — `dto/output/CoachAttentionItemOutputDto.java`; campo `explanation` é aditivo.
+- **`SinalAtencao`** — `services/helper/SinalAtencao.java`; ganha `rationale` + `sourceRules`.
+- **`CoachAttentionSignalEvaluator`** — `services/helper/CoachAttentionSignalEvaluator.java`; 6 métodos produzem rationale + sourceRules.
+- **`CoachAttentionQueueServiceImpl.montarItem`** — `services/impl/CoachAttentionQueueServiceImpl.java`; monta `RecommendationExplanation` do sinal principal.
+- **Sem migration** (última = V35). Mudança aditiva; sem novo endpoint.
 
-## 2. Integração
+---
 
-- [ ] 2.1 Integrar explicabilidade à geração de plano
-- [ ] 2.2 Integrar explicabilidade à análise pós-treino
-- [ ] 2.3 Integrar explicabilidade a itens da fila de atenção
-- [ ] 2.4 Garantir reuso da mesma estrutura em múltiplos fluxos
+## 1. Contrato de explicabilidade (novos tipos)
 
-## 3. Testes
+- [ ] 1.1 Criar `ExplanationConfidence` enum em `enums/`: valores `HIGH`, `MEDIUM`, `LOW`; JavaDoc explicando o critério de cada nível (HIGH=determinístico, MEDIUM=heurístico, LOW=LLM-derivado); v1 produz apenas `HIGH`.
+  - verify: `./mvnw clean compile` ok; enum com os 3 valores.
 
-- [ ] 3.1 Criar testes unitários da estrutura de explicabilidade
-- [ ] 3.2 Criar testes para recomendações bloqueadas por regra determinística
+- [ ] 1.2 Criar `RecommendationExplanation` record em `dto/output/`: campos `rationale: String`, `sourceRules: List<String>`, `confidence: ExplanationConfidence`; `@JsonInclude(NON_NULL)`; `@Schema` em cada campo; Javadoc explicando que descreve apenas o sinal principal.
+  - verify: `./mvnw clean compile` ok; record com os 3 campos.
+
+- [ ] 1.3 Testes unitários do contrato: construção do record com valores válidos; `@JsonInclude(NON_NULL)` verificado via serialização Jackson.
+  - verify: `./mvnw clean test` verde.
+
+- **Validação do bloco:** `./mvnw clean test`.
+
+---
+
+## 2. Enriquecimento do `SinalAtencao` (interno)
+
+- [ ] 2.1 Atualizar `SinalAtencao` record: adicionar `rationale: String` e `sourceRules: List<String>` como campos novos (sem default — o evaluator SEMPRE deve fornecer ambos).
+  - verify: todos os construtores de `SinalAtencao` nos testes continuam compilando com os novos campos.
+
+- [ ] 2.2 Atualizar construções de `SinalAtencao` nos testes existentes (`CoachAttentionSignalEvaluatorTest`, `CoachAttentionQueueServiceImplTest`) para passar `rationale` e `sourceRules` — sem mudar a lógica de negócio dos testes.
+  - verify: `./mvnw clean test` verde; sem `UnnecessaryStubbingException`.
+
+- **Validação do bloco:** `./mvnw clean test`.
+
+---
+
+## 3. Rationale + sourceRules nos 6 evaluators
+
+- [ ] 3.0 Declarar constantes estáticas privadas em `CoachAttentionSignalEvaluator` para os valores de `sourceRules` (ex.: `private static final String SOURCE_FADIGA = "CoachAttentionSignalEvaluator.avaliarFadiga";`, `private static final String SOURCE_FAIXA_PREFIX = "FaixaTsb.";`, etc.). Centraliza a atualização em caso de renomeação de classe.
+  - verify: `./mvnw clean compile` ok; constantes declaradas antes do primeiro método que as usa.
+
+- [ ] 3.1 `avaliarFadiga(Double tsb)`: produzir `rationale` com valor de TSB usando `Locale.US` (`String.format(Locale.US, "TSB em %.1f situa-se na zona %s (%s)...", tsb, faixa.name(), faixa.getInterpretacao())`); `sourceRules = [SOURCE_FADIGA, SOURCE_FAIXA_PREFIX + faixa.name()]`.
+  - verify: teste snapshot do `rationale` completo para TSB=-40.0 (assertar string exata com ponto decimal); teste que `sourceRules` contém exatamente `["CoachAttentionSignalEvaluator.avaliarFadiga", "FaixaTsb.CRITICO"]`.
+
+- [ ] 3.2 `avaliarSobrecarga(...)`: `rationale` descreve o primeiro flag ativo por prioridade (sobrecarga > necessitaDescanso > rampAlto > diasConsecutivos); `sourceRules` lista **todos** os flags ativos como entradas separadas (`"PlanoMetaDados.alertaSobrecarga"`, `"PlanoMetaDados.alertaNecessitaDescanso"`, etc.).
+  - verify: `@ParameterizedTest` com pelo menos 4 combinações: (1) só `sobrecarga=true`, (2) só `rampAlto=true`, (3) `sobrecarga=true` + `rampAlto=true` → sourceRules contém ambos via `containsExactlyInAnyOrder`; (4) nenhum ativo → Optional.empty().
+
+- [ ] 3.3 `avaliarAderencia(long perdidos)`: `rationale` menciona a contagem e a janela de 14 dias; `sourceRules = ["CoachAttentionSignalEvaluator.avaliarAderencia", "TreinoExecucaoStatus.PERDIDO|PARCIAL"]`.
+  - verify: rationale de perdidos=3 menciona "3".
+
+- [ ] 3.4 `avaliarInatividade(Long dias)`: `rationale` menciona os dias; `sourceRules = ["CoachAttentionSignalEvaluator.avaliarInatividade"]`.
+  - verify: rationale de dias=17 menciona "17".
+
+- [ ] 3.5 `avaliarZonasVencidas` e `avaliarSemPlano`: rationale descritivo fixo; `sourceRules` com o método e a regra de origem (`"Atleta.precisaAtualizarTestes"` / `"CoachAttentionSignalEvaluator.avaliarSemPlano"`).
+  - verify: rationale não-vazio; sourceRules com pelo menos 1 elemento.
+
+- [ ] 3.6 Atualizar `CoachAttentionSignalEvaluatorTest`: cada teste do evaluator verifica `sinal.rationale()` não-vazio e `sinal.sourceRules()` não-vazio; BVA existente mantido.
+  - verify: `./mvnw clean test` verde; 0 testes quebrados nos 21 existentes + novos asserts.
+
+- **Validação do bloco:** `./mvnw clean test`.
+
+---
+
+## 4. Contrato do DTO da fila (campo aditivo)
+
+- [ ] 4.1 Atualizar `CoachAttentionItemOutputDto`: adicionar campo `explanation: RecommendationExplanation` (último campo; `@Schema`); `@JsonInclude(NON_NULL)` já está na classe.
+  - verify: `./mvnw clean compile` ok; campo novo no final do record.
+
+- [ ] 4.2 Atualizar `CoachAttentionQueueServiceImpl.montarItem`: construir `RecommendationExplanation` a partir de `principal.rationale()`, `principal.sourceRules()` e `ExplanationConfidence.HIGH`; passar no construtor do DTO.
+  - verify: `./mvnw clean compile` ok; sem NPE no fluxo feliz.
+
+- [ ] 4.3 Atualizar `CoachAttentionQueueServiceImplTest`: assertar `item.explanation() != null` (não usar isNotNull() como único assert — verificar também `rationale` e `confidence`); validar `confidence = HIGH` e `rationale` não-blank no teste `fadigaCritica`; idem nos demais testes que verificam o item.
+  - verify: `./mvnw clean test` verde; 7 testes existentes; `explanation` assertada em cada um.
+
+- [ ] 4.4 Atualizar `CoachAttentionQueueControllerTest`: atualizar construção de `CoachAttentionItemOutputDto` no stub (9º argumento `explanation`); adicionar `jsonPath("$[0].explanation.confidence").value("HIGH")` e `jsonPath("$[0].explanation.rationale").isString()` no teste `fila`. **ATENÇÃO:** os Blocos 2, 3 e 4 devem produzir um build verde em cada commit intermediário — não commitar com `SinalAtencao` de 5 campos antes de atualizar os testes.
+  - verify: `./mvnw clean test` verde; jsonPath de explanation presente.
+
+- **Validação do bloco:** `./mvnw clean test`.
+
+---
+
+## 5. Validação final
+
+- [ ] 5.1 `./mvnw clean test` verde (suíte completa — baseline 825, deve aumentar com novos asserts).
+- [ ] 5.2 Confirmar: `evidence[]` e `suggestedAction` inalterados no DTO pai (contrato original preservado).
+- [ ] 5.3 Confirmar: `explanation` não duplica `evidence` (apenas `rationale`, `sourceRules`, `confidence`).
+- [ ] 5.4 Atualizar este `tasks.md` (implementado vs adiado).
+
+---
+
+## Itens adiados explicitamente
+
+- Explicabilidade na geração de plano LLM → Sprint 10+ (`add-llm-tool-use`).
+- Análise pós-treino explicável → Sprint 23+ (`add-workout-metrics-analyzer`).
+- `ExplanationConfidence.MEDIUM` e `LOW` → quando o primeiro consumer LLM existir.
+- I18n do `rationale` → pós-MVP.
+- Frontend exibindo `explanation` → change de frontend separada (scopo desta change: contrato disponível na API).
