@@ -26,12 +26,24 @@
   `StatusSugestao` (`PENDING`, `APPROVED`, `REJECTED`) no pacote `enums/`.
   - verify: compile ✓
 
-- [ ] 1.4 `SugestaoCoachRepository`: `findByIdAndTenantId`, `findByTenantIdAndStatus`,
-  `existsByAtletaIdAndTipoAndStatus` (para idempotência na camada Java).
+- [ ] 1.4 `SugestaoCoachRepository` (`JpaRepository<SugestaoCoach, UUID>`):
+  - `findByIdAndTenantId(UUID id, UUID tenantId)` — para `detalhe()` e `aprovar()`/`rejeitar()`.
+  - `findByTenantIdAndStatus(UUID tenantId, StatusSugestao status)` — para `listar()`.
+  - `existsByIdAndTenantId(UUID id, UUID tenantId)` — necessário para `TenantValidationRepository`.
+  - `existsByAtletaIdAndTipoAndStatus(UUID atletaId, TipoSugestao tipo, StatusSugestao status)` — idempotência na camada Java.
   - verify: compile ✓
 
-- [ ] 1.5 Registrar `SugestaoCoachRepository` no `TenantValidationRepository` para que
-  `@RequireTenant(resourceParamIndex = 0)` valide IDs de sugestão corretamente.
+- [ ] 1.5 Adicionar `SugestaoCoachRepository` ao `TenantValidationRepository`:
+  - Campo `private final SugestaoCoachRepository sugestaoCoachRepository` (constructor injection via `@RequiredArgsConstructor`).
+  - Adicionar bloco ao método `resourceBelongsToTenant` após o último `if` existente:
+    ```java
+    // Tenta SugestaoCoach
+    if (sugestaoCoachRepository.existsByIdAndTenantId(resourceId, tenantId)) {
+        log.debug("TenantValidation: resourceId {} pertence a tenant {} (SugestaoCoach)", resourceId, tenantId);
+        return true;
+    }
+    ```
+  - `@EnableScheduling` já está em `MenthorosServicesApplication` — nenhuma alteração necessária.
   - verify: `./mvnw clean test` ✓ (nenhum teste de tenant isolation quebra)
 
 ---
