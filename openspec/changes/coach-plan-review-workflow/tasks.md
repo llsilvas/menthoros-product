@@ -8,24 +8,24 @@
 
 ## Seção 1 — Backend: persistence e domínio
 
-- [ ] **1.1** Migration V37 — adicionar `review_status` e `review_comment` em `tb_plano_semanal`:
+- [x] **1.1** Migration V37 — adicionar `review_status` e `review_comment` em `tb_plano_semanal`:
   - `ALTER TABLE tb_plano_semanal ADD COLUMN review_status VARCHAR(30) NOT NULL DEFAULT 'AGUARDANDO_REVISAO'`
   - `ALTER TABLE tb_plano_semanal ADD COLUMN review_comment TEXT`
   - `UPDATE tb_plano_semanal SET review_status = 'APROVADO'` (backfill de retrocompatibilidade)
   - `CREATE INDEX IF NOT EXISTS idx_plano_review_status_tenant ON tb_plano_semanal(tenant_id, review_status)`
   - **verify:** `./mvnw clean compile` (Flyway não roda sem banco no compile; verificar SQL manualmente)
 
-- [ ] **1.2** Criar enum `PlanoReviewStatus` em `enums/`:
+- [x] **1.2** Criar enum `PlanoReviewStatus` em `enums/`:
   - Valores: `AGUARDANDO_REVISAO`, `APROVADO`, `REJEITADO`
   - Seguir padrão dos outros enums (value, label, description)
   - **verify:** `./mvnw clean compile`
 
-- [ ] **1.3** Adicionar campos à entidade `PlanoSemanal`:
+- [x] **1.3** Adicionar campos à entidade `PlanoSemanal`:
   - `@Enumerated(EnumType.STRING) @Column(name = "review_status", nullable = false) PlanoReviewStatus reviewStatus`
   - `@Column(name = "review_comment", columnDefinition = "TEXT") String reviewComment`
   - **verify:** `./mvnw clean compile`
 
-- [ ] **1.4** Adicionar queries ao `PlanoSemanalRepository`:
+- [x] **1.4** Adicionar queries ao `PlanoSemanalRepository`:
   - `findByAtletaIdAndReviewStatus(UUID atletaId, PlanoReviewStatus status)` — para `buscarPlanoPorAtleta` filtrado por APROVADO
   - `findByAssessoriaIdAndReviewStatusOrderBySemanaInicioAsc(UUID tenantId, PlanoReviewStatus status)` — para listagem de pendentes
   - `findByIdAndAssessoriaId(UUID id, UUID tenantId)` — já existe `findByIdAndTenantId`, verificar se reutilizável
