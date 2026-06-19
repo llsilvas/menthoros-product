@@ -68,3 +68,11 @@
 - [x] 6.1 `./mvnw clean test` verde (suíte completa).
 - [x] 6.2 Confirmar: sem migration nova, sem mutação de estado, contratos existentes intactos (só `hasAlert`).
 - [x] 6.3 Atualizar este `tasks.md` (implementado vs adiado).
+
+## 7. Follow-ups do QA gate (não-bloqueantes)
+
+- [ ] 7.1 (segurança, defesa em profundidade) Queries de detalhe por atleta (`findLatestByAtletaId`, `findByAtletaId`, `findByAtletaIdAndDataBetween`, `findTopByAtletaIdOrderByDataTreinoDesc`) recebem só `atletaId`; isolamento ancora no roster tenant-scoped (mesmo padrão do `CoachDashboardServiceImpl` já mergeado). Adicionar variantes com `tenantId`/`assessoriaId` em ambos os serviços de agregação do coach.
+- [ ] 7.2 (perf) `contarNaoCumpridos` carrega a lista e filtra em memória → `COUNT` no banco por status; filtrar `INATIVO` na query (usar método que já filtra `ativo`) em vez de em memória. Relaciona-se ao custo O(N) on-demand.
+- [ ] 7.3 (DRY) Extrair `nomeCompleto(Atleta)` duplicado em `CoachAttentionQueueServiceImpl` e `CoachDashboardServiceImpl` para um helper compartilhado.
+- [ ] 7.4 (type-safety) `deriveStatus` (pré-existente) retorna strings mágicas (`active/warning/danger/paused`) → enum.
+- [ ] 7.5 (testes) Cobertura 401/403 nos `@WebMvcTest` do coach (lacuna do módulo — também afeta `CoachDashboardControllerTest`): testar `@PreAuthorize` com SecurityFilterChain parcial em vez de `addFilters=false`.
