@@ -2,7 +2,7 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-06-19 (add-recommendation-explainability mergeado e arquivado; sprint 9 ✅ concluída)
+**Última atualização:** 2026-06-19 (add-recommendation-explainability arquivado; sprint 9 ✅ concluída; change wire-coach-identity-and-attention-queue criada e add-coach-suggestion-inbox reprioritizado para Sprint 9b)
 **Fonte canônica de especificação:** `changes/<change-id>/` (estrutura flat — este doc NÃO move pastas)
 **Roadmap por ondas/dependências:** `ROADMAP.md`
 **Capacidade assumida:** 1 dev (solo/CTO), sprints de 2 semanas (~1 change média por sprint; changes grandes ocupam 2+).
@@ -74,9 +74,11 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 | 7 | 🤖 ~~`introduce-plan-constraints`~~ ✅ | M | **Anti-alucinação (o "coração").** Seam `Constraint` (key+descrição+params); formatters emitem Constraints; bloco mandatório [1] no topo + `PlanQualityChecker` (4 keys, offline) com contador Micrometer. Sem migrar skill. Golden regenerado. | eval-harness |
 | 8 | 🤖 ~~`harden-plan-generation-resilience`~~ ✅ | M | Resiliência estrutural: reparo determinístico (`PlanoEstruturaReparador`) + 1 retry com feedback (`PlanoResilienceService`) → fim do 503 do `REGENERATIVO` 2 etapas (vira 422 com mensagem ao treinador). Dedup dos 4 validadores em `validarEstrutura3Etapas` + telemetria Micrometer (taxa de sucesso). Independente do seam e do strangler. | debito-tecnico ✅ |
 | 9 | ~~`add-coach-attention-queue`~~ ✅ + ~~`add-recommendation-explainability`~~ ✅ *(visível)* | 13 + 9 | Fila de atenção on-demand (2026-06-18) + explicabilidade estruturada (2026-06-19). Hook diário do treinador + rationale determinístico por sinal. | shell-dashboards |
+| 9b | `wire-coach-identity-and-attention-queue` *(visível, front)* | ~14 | **Liga identidade e fila de atenção reais ao shell.** Substitui `mockCoach`/`mockTenant` por `GET /api/v1/users/me`; cria `CoachAttentionQueuePage` wired a `GET /api/v1/coach/attention-queue` com `explanation.rationale`; badge do Inbox com count real. Frontend-only, zero backend. | `add-coach-attention-queue` ✅, `add-current-user-endpoint` ✅ |
+| 9c | `add-coach-suggestion-inbox` *(visível, backend+front)* | 21 | **Coach-in-the-loop completo (v1 sem RAG).** Workflow aprovar/rejeitar sugestões IA geradas dos sinais da fila de atenção: migration `tb_sugestao_coach`, listener idempotente, service + controller CRUD, UI 3-colunas real (substituindo o placeholder do 9b). Sem RAG no v1 — a fundamentação com citações entra pós-RAG via upgrade. | `wire-coach-identity-and-attention-queue`, `add-recommendation-explainability` ✅ |
 | 10–11 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
 | 12–14 | 🤖 `rag-tool-calling-prescription-engine` | 64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado em metodologia. Destrava a família `rag-*`. | llm-tool-use |
-| 15 | `add-coach-suggestion-inbox` *(visível)* | 21 | Workflow aprovar/rejeitar/ajustar sugestões IA — **centro do coach-in-the-loop**; fecha a jornada. Melhor agora, com citações do RAG. | RAG, explainability, attention-queue |
+| 15+ | `add-coach-suggestion-inbox` *(upgrade RAG)* | — | Enriquecer as sugestões do 9c com citações RAG — fundamentação de metodologia no `reasoning`. O workflow já existe; só muda a fonte dos dados. | RAG, 9c |
 | 16 | 🤖 `rag-injury-aware-prescription` | 24 | Prescrição lesão-aware: protocolos de retorno, sessões contraindicadas, escalonamento de bandeira-vermelha. | RAG, explainability, attention-queue |
 | 17 | 🤖 `rag-coach-methodology-personalization` | 29 | Aprende com planos aprovados/editados — personaliza para a "voz do coach". | RAG, explainability |
 | 18–20 | 🤖 `migrate-plan-prompt-to-skills` | L | **Strangler de manutenibilidade (deferido).** Troca a FONTE das `Constraint` e seções de formatter→skill por baixo do seam estável; `PromptBuilder` vira montador fino. Anti-alucinação já entregue em `introduce-plan-constraints` → menor urgência; janela contínua no `IaServiceImpl` coordenada com `refactor-iaservice-decomposition`. | introduce-plan-constraints |
