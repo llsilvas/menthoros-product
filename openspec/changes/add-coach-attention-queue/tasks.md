@@ -35,15 +35,15 @@
 
 ## 3. Serviço de consolidação, priorização e dedup
 
-- [ ] 3.1 `CoachAttentionQueueService`/Impl: carrega roster tenant-scoped, aplica os helpers por atleta.
+- [x] 3.1 `CoachAttentionQueueService`/Impl: carrega roster tenant-scoped, aplica os helpers por atleta.
   - verify: roster vem de `findAllByTenantIdOrderByNome`; nenhum acesso a repository fora do tenant.
-- [ ] 3.2 Dedup por `(atletaId, primaryReason)`: motivo principal = maior severidade (desempate priorityScore); consolidar evidências.
+- [x] 3.2 Dedup por `(atletaId, primaryReason)`: motivo principal = maior severidade (desempate priorityScore); consolidar evidências.
   - verify: teste — atleta com 2 sinais mesmo motivo ⇒ 1 item; com motivos diferentes ⇒ vence maior severidade.
-- [ ] 3.3 Ordenação severity desc → priorityScore desc → mais recente; **filtro de corte `severity ≥ ALTA`** (MEDIA computado mas não exibido na v1); cap N=20; janela de aderência 14d.
+- [x] 3.3 Ordenação severity desc → priorityScore desc → mais recente; **filtro de corte `severity ≥ ALTA`** (MEDIA computado mas não exibido na v1); cap N=20; janela de aderência 14d.
   - verify: teste — atleta só-MEDIA não aparece; ordem determinística; cap aplicado.
-- [ ] 3.4 JavaDoc Idempotent: YES / Side Effects: NONE / Tenant-aware: YES em cada método público.
+- [x] 3.4 JavaDoc Idempotent: YES / Side Effects: NONE / Tenant-aware: YES em cada método público.
   - verify: JavaDoc presente nos métodos públicos.
-- [ ] 3.5 Testes: priorização determinística, dedup/consolidação, **corte de severidade** (MEDIA não exibido), cap N, e **isolamento de tenant (negativo)** — atleta de outro tenant não aparece.
+- [x] 3.5 Testes: priorização determinística, dedup/consolidação, **corte de severidade** (MEDIA não exibido), cap N, e **isolamento de tenant (negativo)** — atleta de outro tenant não aparece.
   - verify: `./mvnw clean test` verde; teste cross-tenant garante zero vazamento.
 - **Validação do bloco:** `./mvnw clean test`.
 
