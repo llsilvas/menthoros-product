@@ -132,13 +132,13 @@
 
 ## Seção 5 — Frontend: UI
 
-- [ ] **5.1** Criar componente `PlanoPendenteItem` em `src/features/coach/components/`:
+- [x] **5.1** Criar componente `PlanoPendenteItem` em `src/features/coach/components/`:
   - Props: `plano: PlanoSemanalDto`, `selecionado: boolean`, `onSelect: () => void`
   - Exibe: nome do atleta, semana, contagem de sessões, data de geração
   - Estado visual diferente quando selecionado
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **5.2** Criar componente `PlanoDetalhePanel` em `src/features/coach/components/`:
+- [x] **5.2** Criar componente `PlanoDetalhePanel` em `src/features/coach/components/`:
   - Props: `plano: PlanoSemanalDto | null`, `isActing: boolean`, `onAprovar: () => void`, `onRejeitar: (motivo: string) => void`
   - Exibe: nome atleta, semana, lista de sessões (dia/tipo/volume/objetivo)
   - Rodapé: botão `[Aprovar]` (verde) e `[Rejeitar]` (abre modal)
@@ -146,23 +146,23 @@
   - Estado vazio: "Selecione um plano da lista"
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **5.3** Criar `CoachPlanReviewPage` em `src/features/coach/pages/`:
+- [x] **5.3** Criar `CoachPlanReviewPage` em `src/features/coach/pages/`:
   - Layout 2-colunas: `PlanoPendenteItem` list (esq) + `PlanoDetalhePanel` (dir)
   - Consume `useCoachPlanReview`; estado vazio global: "Nenhum plano aguardando revisão"
   - Toast de confirmação após aprovar/rejeitar
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **5.4** Badge de pendentes no nav do `CoachLayout`:
+- [x] **5.4** Badge de pendentes no nav do `CoachLayout`:
   - Hook interno `useCoachPlanPendingCount` (chama `listarPendentes` e retorna `length`)
   - Badge numérico ao lado do item de nav "Revisão de planos" — visível apenas quando count > 0
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **5.5** Adicionar rota `/coach/planos/revisao` no roteador (`App.tsx` ou equivalente):
+- [x] **5.5** Adicionar rota `/coach/planos/revisao` no roteador (`App.tsx` ou equivalente):
   - Lazy import de `CoachPlanReviewPage`
   - Item de navegação no `CoachLayout` linkando para a rota
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **5.6** Testes: `CoachPlanReviewPage.test.tsx`:
+- [x] **5.6** Testes: `CoachPlanReviewPage.test.tsx`:
   - Renderiza lista de planos pendentes
   - Selecionar plano exibe detalhe
   - Clicar Aprovar chama `aprovar(id)` e remove plano da lista
