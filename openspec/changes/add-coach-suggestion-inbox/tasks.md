@@ -73,19 +73,19 @@
 
 ## 3. Service (backend)
 
-- [ ] 3.1 Interface `SugestaoCoachService` + `SugestaoCoachServiceImpl`:
+- [x] 3.1 Interface `SugestaoCoachService` + `SugestaoCoachServiceImpl`:
   - `listar(StatusSugestao status)`:
     - Idempotent: YES. Side Effects: NONE. Tenant-aware: YES.
     - Se `status == PENDING`: filtra `expires_at IS NULL OR expires_at > NOW()`.
     - Usa `TenantContext.getRequiredTenantId()`.
   - verify: teste unitário ✓
 
-- [ ] 3.2 `detalhe(UUID id)`:
+- [x] 3.2 `detalhe(UUID id)`:
   - Idempotent: YES. Side Effects: NONE. Tenant-aware: YES.
   - `findByIdAndTenantId(id, tenantId)` → `DomainNotFoundException` se ausente.
   - verify: teste unitário ✓
 
-- [ ] 3.3 `aprovar(UUID id)`:
+- [x] 3.3 `aprovar(UUID id)`:
   - Idempotent: YES (aprovar já-approved = no-op). Side Effects: DB update. Tenant-aware: YES.
   - `UPDATE ... SET status='approved', reviewed_at=NOW() WHERE id=? AND tenant_id=? AND status='pending'`.
   - Verificar `rowsAffected`: 0 = sugestão não-pending; load atual para distinguir no-op vs. transição ilegal.
@@ -93,7 +93,7 @@
   - v1: **sem efeito de plano** (apenas transição de status).
   - verify: teste unitário com casos: pending→approved, reaprovar=no-op, rejected→aprovar=ilegal ✓
 
-- [ ] 3.4 `rejeitar(UUID id)`:
+- [x] 3.4 `rejeitar(UUID id)`:
   - Idempotent: YES. Side Effects: DB update. Tenant-aware: YES.
   - Transição ilegal (`approved → rejected`) → `DomainRuleViolationException`.
   - verify: teste unitário ✓
@@ -141,7 +141,7 @@
 
 ## 5. Testes backend
 
-- [ ] 5.1 `SugestaoCoachServiceImplTest`:
+- [x] 5.1 `SugestaoCoachServiceImplTest`:
   - `listar`: filtra por status, filtra expiradas no caso `PENDING`, tenant-scoped.
   - `detalhe`: cross-tenant → not found; próprio tenant → retorna DTO.
   - `aprovar`: pending→approved; reaprovar=no-op; approved→rejeitar=ilegal (422).
