@@ -11,11 +11,11 @@
 
 ## 1. Contrato (DTO + enums)
 
-- [ ] 1.1 `CoachAttentionItemOutputDto` (record, `@JsonInclude(NON_NULL)`, `@Schema`): atletaId, athleteName, severity, priorityScore, primaryReason, suggestedAction, generatedAt, evidence[].
+- [x] 1.1 `CoachAttentionItemOutputDto` (record, `@JsonInclude(NON_NULL)`, `@Schema`): atletaId, athleteName, severity, priorityScore, primaryReason, suggestedAction, generatedAt, evidence[].
   - verify: `./mvnw clean compile` ok; record com os 8 campos e `@JsonInclude(NON_NULL)`.
-- [ ] 1.2 Enums `Severidade` (CRITICA/ALTA/MEDIA) e `MotivoAtencao` (FADIGA/SOBRECARGA/ADERENCIA/INATIVIDADE/SEM_PLANO/ZONAS_VENCIDAS); record `Evidencia(label, value)`.
+- [x] 1.2 Enums `Severidade` (CRITICA/ALTA/MEDIA) e `MotivoAtencao` (FADIGA/SOBRECARGA/ADERENCIA/INATIVIDADE/SEM_PLANO/ZONAS_VENCIDAS); record `Evidencia(label, value)`.
   - verify: compila; enums com os valores exatos.
-- [ ] 1.3 Mapa de `suggestedAction` (6 templates determinísticos por motivo, tabela na proposal) e pesos de `priorityScore` por motivo/severidade.
+- [x] 1.3 Mapa de `suggestedAction` (6 templates determinísticos por motivo, tabela na proposal) e pesos de `priorityScore` por motivo/severidade.
   - verify: cada `MotivoAtencao` tem template não-vazio; mapeamento total (sem motivo sem template).
 - **Validação do bloco:** `./mvnw clean compile`.
 
