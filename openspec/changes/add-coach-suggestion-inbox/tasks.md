@@ -2,7 +2,7 @@
 
 > **Trilha Full — backend + frontend.** Leia `design.md` integralmente antes de começar.
 > Stack: backend Java 21 / Spring Boot 3.5; frontend React 19 / TS / MUI.
-> Confirmação pendente pré-task 2.1: threshold de severidade mínima (proposta: CRITICA + ALTA).
+> Threshold ratificado: somente `Severidade in (CRITICA, ALTA)` gera sugestão; `MEDIA` descartada.
 
 ---
 
@@ -39,10 +39,12 @@
 ## 2. Geração de sugestões (backend)
 
 - [ ] 2.1 `SugestaoCoachGeneratorJob` (`@Component` + `@Scheduled(cron = "0 0 6 * * *")`):
-  - Itera `assessoriaRepository.findAllTenantIds()`.
-  - Para cada `tenantId`: `try { TenantContext.set(tenantId); gerarPorTenant(tenantId); } finally { TenantContext.clear(); }`.
-  - `gerarPorTenant`: chama `CoachAttentionQueueService.listarItensAtencao(tenantId)`,
-    filtra `severity in (CRITICA, ALTA)`, mapeia via tabela do `design.md` Decisão 1.
+  - Itera `assessoriaRepository.findByAtivoTrue().stream().map(Assessoria::getId).toList()` —
+    método existente em `develop`, sem adicionar query nova.
+  - Para cada `tenantId`: `try { TenantContext.setTenantId(tenantId); gerarPorTenant(); } finally { TenantContext.clear(); }`.
+  - `gerarPorTenant()`: chama `coachAttentionQueueService.getAttentionQueue()` (sem parâmetro —
+    resolve tenant via `TenantContext` internamente), filtra `severity in (CRITICA, ALTA)`,
+    mapeia via tabela do `design.md` Decisão 1.
   - Para cada item: preenche `summary = item.suggestedAction()`, `reasoning` do `item.explanation()`,
     `confidence` mapeado de `item.severity()`, `expires_at = now() + 7d`.
   - Captura `DataIntegrityViolationException` no INSERT e ignora (UNIQUE index faz o resto).
@@ -109,18 +111,19 @@
 
 - [ ] 4.4 `POST /{id}/aprovar`:
   - `@RequireTenant(resourceParamIndex = 0)` no método.
-  - `@ApiResponses(200, 403, 404, 409)`.
+  - `@ApiResponses(200, 403, 404, 422)` — 422 porque `DomainRuleViolationException` → 422.
   - verify: `./mvnw clean test` ✓
 
 - [ ] 4.5 `POST /{id}/rejeitar`:
   - `@RequireTenant(resourceParamIndex = 0)` no método.
-  - `@ApiResponses(200, 403, 404, 409)`.
+  - `@ApiResponses(200, 403, 404, 422)` — 422 porque `DomainRuleViolationException` → 422.
   - verify: `./mvnw clean test` ✓
 
-- [ ] 4.6 Verificar `GlobalExceptionHandler`:
-  - `DomainRuleViolationException` handler já existe — confirmar que retorna **409** (não 400/422).
-  - Se retornar outro status, atualizar o handler (e atualizar os `@ApiResponse` em conformidade).
-  - verify: `./mvnw clean test` + teste de integração que dispara transição ilegal ✓
+- [ ] 4.6 `GlobalExceptionHandler`:
+  - **Decisão registrada:** `DomainRuleViolationException` retorna **422 Unprocessable Entity**
+    (handler já existe em `develop` com esse status — nenhuma alteração necessária).
+  - Confirmar no código que o handler está presente e retorna 422; nenhum handler novo a criar.
+  - verify: `grep -n "DomainRuleViolationException" GlobalExceptionHandler.java` mostra 422 ✓
 
 ---
 
@@ -129,14 +132,14 @@
 - [ ] 5.1 `SugestaoCoachServiceImplTest`:
   - `listar`: filtra por status, filtra expiradas no caso `PENDING`, tenant-scoped.
   - `detalhe`: cross-tenant → not found; próprio tenant → retorna DTO.
-  - `aprovar`: pending→approved; reaprovar=no-op; approved→rejeitar=ilegal (409).
-  - `rejeitar`: pending→rejected; re-rejeitar=no-op; rejected→aprovar=ilegal (409).
+  - `aprovar`: pending→approved; reaprovar=no-op; approved→rejeitar=ilegal (422).
+  - `rejeitar`: pending→rejected; re-rejeitar=no-op; rejected→aprovar=ilegal (422).
   - verify: `./mvnw clean test` ✓
 
 - [ ] 5.2 `@WebMvcTest(CoachSugestaoController.class)`:
   - `GET /?status=pending` sem JWT → 401; com JWT sem role → 403; com role → 200.
   - `POST /{id}/aprovar` com ID de outro tenant → 403.
-  - Transição ilegal → 409.
+  - Transição ilegal → 422.
   - verify: `./mvnw clean test` ✓
 
 - [ ] 5.3 Suite completa verde:

@@ -1,6 +1,7 @@
 # Design: add-coach-suggestion-inbox
 
 > Atualizado em 2026-06-19 com decisões do ciclo Full-track (product-reviewer + assumptions + pre-mortem).
+> Corrigido em 2026-06-19 após gate DoR (spec-reviewer): método real do serviço, query de tenants, status HTTP de transição ilegal.
 
 ## Problema
 
@@ -13,9 +14,9 @@ O inbox do coach precisa de itens acionáveis e persistentes, distintos da fila 
 
 **Escolhido:** `@Scheduled` job diário que converte sinais elegíveis em `SugestaoCoach pending`.
 
-- A `CoachAttentionQueueServiceImpl` produz sinais de risco por atleta. O job (6h UTC) chama
-  `CoachAttentionQueueService.listarItensAtencao(tenantId)` por tenant e converte os sinais
-  conforme o mapeamento abaixo.
+- A `CoachAttentionQueueServiceImpl` produz sinais de risco por atleta. O job (6h UTC) seta o
+  `TenantContext` para cada tenant e chama `CoachAttentionQueueService.getAttentionQueue()` (sem
+  parâmetro — a interface real não recebe `tenantId`; resolve via `TenantContext` internamente).
 - O `GET /sugestoes` apenas lê persistência — não dispara IA. Leitura barata e idempotente.
 - **`@Scheduled` escolhido sobre listener** porque: (a) `CoachAttentionQueueService` é
   read-only e não publica eventos; (b) o job precisa iterar todos os tenants
@@ -32,18 +33,22 @@ O inbox do coach precisa de itens acionáveis e persistentes, distintos da fila 
 | `ADERENCIA` | `plan_adjust` | Plano não está sendo seguido — sugerir revisão de aderência |
 | `ZONAS_VENCIDAS` | `plan_adjust` | Zonas de treinamento desatualizadas — sugerir reavaliação |
 
-Somente sinais com `Severidade in (CRITICA, ALTA)` geram sugestão em v1. `MEDIA` é descartada
-(threshold a confirmar antes da task 2.1).
+Somente sinais com `Severidade in (CRITICA, ALTA)` geram sugestão em v1. `MEDIA` é descartada.
+**Decisão ratificada** — não é mais um ponto em aberto.
 
 ### TenantContext em contexto assíncrono
 
 O job itera tenants sem depender de `ThreadLocal` herdado:
 
 ```java
-for (UUID tenantId : assessoriaRepository.findAllTenantIds()) {
+// assessoriaRepository.findByAtivoTrue() existe em develop — mapeia para UUID sem método novo
+List<UUID> tenantIds = assessoriaRepository.findByAtivoTrue()
+    .stream().map(Assessoria::getId).toList();
+
+for (UUID tenantId : tenantIds) {
     try {
         TenantContext.setTenantId(tenantId);
-        gerarSugestoesPorTenant(tenantId);
+        gerarSugestoesPorTenant();   // usa getAttentionQueue() internamente (sem parâmetro)
     } finally {
         TenantContext.clear();
     }
@@ -69,7 +74,8 @@ Roadmap para v2 (change subsequente):
 `POST /rejeitar` transiciona `pending → rejected`. Sem efeito de plano em qualquer versão.
 
 Transições ilegais (`approved → rejected`, `rejected → approved`) lançam `DomainRuleViolationException`
-→ 409 (handler já existe em `GlobalExceptionHandler`).
+→ **422 Unprocessable Entity** (handler existente em `GlobalExceptionHandler` retorna 422 — não 409;
+`@ApiResponses` dos endpoints de aprovação/rejeição devem declarar 422, não 409).
 
 Aprovar novamente uma sugestão já `approved` → **no-op** (idempotente): verificar `rowsAffected == 1`
 após `UPDATE ... WHERE status = 'pending'` para evitar race condition em aprovação dupla.

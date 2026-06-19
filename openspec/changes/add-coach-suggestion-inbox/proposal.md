@@ -95,7 +95,7 @@ Esta change introduz essa camada de workflow: a IA propõe, o treinador decide, 
   com `status=approved`, `reviewedAt` preenchido. Segundo POST → 200 sem duplicar efeito.
 - **CA5 — Rejeitar registra e é idempotente:** `POST /{id}/rejeitar` → 200 com `status=rejected`.
   Segundo POST → no-op.
-- **CA6 — Transição ilegal rejeitada:** `POST /{id}/aprovar` em sugestão já `rejected` → 409.
+- **CA6 — Transição ilegal rejeitada:** `POST /{id}/aprovar` em sugestão já `rejected` → 422 (handler `DomainRuleViolationException` existente retorna 422).
 - **CA7 — Expiração:** sugestões `pending` com `expires_at` no passado não aparecem na listagem
   `?status=pending`.
 - **CA8 — Frontend exibe lista e detalhe:** inbox carrega sugestões pendentes, exibe detalhe ao
@@ -118,9 +118,7 @@ Esta change introduz essa camada de workflow: a IA propõe, o treinador decide, 
 
 ### Em aberto (pré-implementação)
 
-- **Threshold de `confidence` mínimo:** qual severidade mínima gera sugestão? Proposta: apenas
-  `CRITICA` e `ALTA` (equivalente a HIGH+MEDIUM); `MEDIA` descartada no v1. Confirmar antes de
-  implementar a task 2.1.
+- **Threshold de `confidence` mínimo:** ~~em aberto~~ → **Resolvido:** somente `Severidade in (CRITICA, ALTA)` gera sugestão; `MEDIA` descartada em v1.
 - **Frequência do job:** diário às 6h é suficiente ou deve ser 2×/dia? Ajustar em função do SLA
   esperado de "sugestão disponível para revisão".
 - **Badge count do sidebar:** hoje mostra attention-queue count; v1 mantém assim (follow-up para
