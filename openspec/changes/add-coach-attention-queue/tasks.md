@@ -49,9 +49,9 @@
 
 ## 4. Endpoint
 
-- [ ] 4.1 `CoachAttentionQueueController` `GET /api/v1/coach/attention-queue` → `ResponseEntity<List<CoachAttentionItemOutputDto>>`; `@Tag`(ASCII `coach-attention-queue`)/`@Operation`/`@ApiResponses`; `array` no 200; injeta só o Service.
+- [x] 4.1 `CoachAttentionQueueController` `GET /api/v1/coach/attention-queue` → `ResponseEntity<List<CoachAttentionItemOutputDto>>`; `@Tag`(ASCII `coach-attention-queue`)/`@Operation`/`@ApiResponses`; `array` no 200; injeta só o Service.
   - verify: rota responde 200; `@Tag` ASCII; só Service injetado (sem Repository).
-- [ ] 4.2 `@WebMvcTest` + `MockMvc`: 200 com lista, rota/JSON, severidade/ordem no payload.
+- [x] 4.2 `@WebMvcTest` + `MockMvc`: 200 com lista, rota/JSON, severidade/ordem no payload.
   - verify: `./mvnw clean test` verde; jsonPath confere campos e ordem.
 - **Validação do bloco:** `./mvnw clean test`.
 
