@@ -2,7 +2,7 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-06-19 (add-coach-suggestion-inbox arquivado; sprint 9c ✅ concluída; coach-in-the-loop v1 entregue)
+**Última atualização:** 2026-06-19 (add-coach-suggestion-inbox arquivado; sprint 9c ✅ concluída; coach-in-the-loop v1 entregue; 2 gaps de produto identificados: `coach-plan-review-workflow` + `athlete-profile-drilldown` propostos para sprint 9d)
 **Fonte canônica de especificação:** `changes/<change-id>/` (estrutura flat — este doc NÃO move pastas)
 **Roadmap por ondas/dependências:** `ROADMAP.md`
 **Capacidade assumida:** 1 dev (solo/CTO), sprints de 2 semanas (~1 change média por sprint; changes grandes ocupam 2+).
