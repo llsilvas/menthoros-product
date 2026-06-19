@@ -1,58 +1,204 @@
 # Design: add-coach-suggestion-inbox
 
+> Atualizado em 2026-06-19 com decisões do ciclo Full-track (product-reviewer + assumptions + pre-mortem).
+
 ## Problema
 
 O inbox do coach precisa de itens acionáveis e persistentes, distintos da fila de priorização da
-`add-coach-attention-queue`. Duas decisões em aberto: (1) como as sugestões são geradas/populadas e
-(2) qual o efeito de "aprovar".
+`add-coach-attention-queue`. Quatro decisões em aberto foram resolvidas neste ciclo.
 
-## Decisão 1 — Origem das sugestões
+---
 
-**Escolhido:** derivar de gatilhos, não gerar sob demanda na leitura do inbox.
+## Decisão 1 — Origem das sugestões: gatilho, não on-demand
 
-- A `add-coach-attention-queue` produz sinais de risco/atenção por atleta. Um processo (listener de
-  evento ou job agendado) converte sinais elegíveis em `SugestaoCoach` com `status=pending`,
-  preenchendo `tipo`, `confidence`, `summary` e `reasoning` (este último via
-  `add-recommendation-explainability`).
-- O inbox apenas **lê** sugestões persistidas — `GET` não dispara IA (mantém o endpoint idempotente e
-  barato). A geração é assíncrona e fora do caminho de request.
-- Idempotência da geração: no máximo uma sugestão `pending` por `(atletaId, tipo)` ativo — reprocessar
-  o mesmo sinal não cria duplicatas.
+**Escolhido:** `@Scheduled` job diário que converte sinais elegíveis em `SugestaoCoach pending`.
 
-> Distinção da attention-queue: a fila prioriza/observa; o inbox materializa um item com estado de
-> workflow (`pending`→`approved`/`rejected`) e histórico (`reviewedAt`).
+- A `CoachAttentionQueueServiceImpl` produz sinais de risco por atleta. O job (6h UTC) chama
+  `CoachAttentionQueueService.listarItensAtencao(tenantId)` por tenant e converte os sinais
+  conforme o mapeamento abaixo.
+- O `GET /sugestoes` apenas lê persistência — não dispara IA. Leitura barata e idempotente.
+- **`@Scheduled` escolhido sobre listener** porque: (a) `CoachAttentionQueueService` é
+  read-only e não publica eventos; (b) o job precisa iterar todos os tenants
+  explicitamente, o que é mais claro como job do que como listener.
 
-## Decisão 2 — Efeito de "aprovar" por tipo
+### Mapeamento `MotivoAtencao` → `TipoSugestao`
 
-`POST /aprovar` transiciona `pending → approved` (idempotente: aprovar já-aprovada é no-op) e dispara
-o efeito conforme o `tipo`:
+| MotivoAtencao | TipoSugestao | Rationale |
+|---|---|---|
+| `FADIGA` | `recovery` | Atleta com TSB negativo extremo — sugerir descanso/redução de carga |
+| `SOBRECARGA` | `recovery` | Carga ATL > CTL threshold — sugerir recuperação |
+| `INATIVIDADE` | `recovery` | Atleta inativo — sugerir protocolo de retorno gradual |
+| `SEM_PLANO` | `new_plan` | Atleta sem plano vigente — sugerir geração de plano |
+| `ADERENCIA` | `plan_adjust` | Plano não está sendo seguido — sugerir revisão de aderência |
+| `ZONAS_VENCIDAS` | `plan_adjust` | Zonas de treinamento desatualizadas — sugerir reavaliação |
 
-- `plan_adjust` → aciona o ajuste do plano vigente do atleta (reusa a infra de geração/edição de
-  plano existente).
-- `new_plan` → aciona a geração de um novo plano para o atleta.
-- `recovery` → registra a recomendação de recuperação (ajuste de carga/descanso) no fluxo do atleta.
+Somente sinais com `Severidade in (CRITICA, ALTA)` geram sugestão em v1. `MEDIA` é descartada
+(threshold a confirmar antes da task 2.1).
 
-`POST /rejeitar` transiciona `pending → rejected` (idempotente) e não produz efeito de plano.
+### TenantContext em contexto assíncrono
 
-Transições ilegais (`approved → rejected`, `rejected → approved`) SHALL ser rejeitadas com erro de
-regra de domínio. O efeito de plano roda após o commit da transição de status, para não corromper o
-estado se a regeneração falhar (a sugestão permanece `approved`; falha de efeito é logada e
-re-tentável).
+O job itera tenants sem depender de `ThreadLocal` herdado:
 
-## Modelo de dados (`tb_sugestao_coach`)
+```java
+for (UUID tenantId : assessoriaRepository.findAllTenantIds()) {
+    try {
+        TenantContext.setTenantId(tenantId);
+        gerarSugestoesPorTenant(tenantId);
+    } finally {
+        TenantContext.clear();
+    }
+}
+```
 
-- `id UUID PK DEFAULT gen_random_uuid()`
-- `tenant_id UUID NOT NULL`
-- `atleta_id UUID NOT NULL REFERENCES tb_atleta(id) ON DELETE CASCADE`
-- `tipo VARCHAR NOT NULL` (`plan_adjust`/`recovery`/`new_plan`)
-- `status VARCHAR NOT NULL DEFAULT 'pending'` (`pending`/`approved`/`rejected`)
-- `confidence NUMERIC` , `summary TEXT`, `reasoning JSONB`
-- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`, `reviewed_at TIMESTAMPTZ NULL`
-- índices: `idx_sugestao_coach_atleta`, composto `(tenant_id, status)`.
+---
 
-## Alternativas consideradas
+## Decisão 2 — Efeito de "aprovar" em v1: workflow step somente
 
-- **Gerar sugestões sob demanda no GET:** rejeitado — torna a leitura cara/não-idempotente e acopla o
-  inbox ao tempo de resposta da IA.
-- **Reusar a própria attention-queue como inbox:** rejeitado — mistura priorização efêmera com
-  workflow de aprovação persistente.
+**Escolhido:** aprovar transiciona `pending → approved` e registra `reviewedAt`. Nenhum efeito
+automático de plano é disparado no v1.
+
+**Motivação:** o efeito automático de `plan_adjust`/`new_plan` criaria dois problemas antes que
+exista um fluxo de confirmação intermediário: (1) plano alterado imediatamente sem preview do
+coach; (2) timeout do `IaServiceImpl` bloquearia a thread do request com retry implícito.
+
+Roadmap para v2 (change subsequente):
+- Adicionar coluna `effect_status VARCHAR NULL` (`pending_effect`/`effect_ok`/`effect_failed`).
+- `POST /aprovar` retorna 200 imediatamente; efeito de plano dispara via `@Async` / evento.
+- Frontend exibe indicador "processando" enquanto `effect_status != effect_ok`.
+
+`POST /rejeitar` transiciona `pending → rejected`. Sem efeito de plano em qualquer versão.
+
+Transições ilegais (`approved → rejected`, `rejected → approved`) lançam `DomainRuleViolationException`
+→ 409 (handler já existe em `GlobalExceptionHandler`).
+
+Aprovar novamente uma sugestão já `approved` → **no-op** (idempotente): verificar `rowsAffected == 1`
+após `UPDATE ... WHERE status = 'pending'` para evitar race condition em aprovação dupla.
+
+---
+
+## Decisão 3 — Idempotência real via constraint no banco
+
+**Escolhido:** UNIQUE partial index no PostgreSQL.
+
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS uk_sugestao_pending
+    ON tb_sugestao_coach(atleta_id, tipo)
+    WHERE status = 'pending';
+```
+
+Quando a sugestão é aprovada/rejeitada, o índice parcial deixa de cobrir a linha, permitindo
+nova `pending` para o mesmo `(atleta_id, tipo)` no próximo ciclo do job.
+
+O service captura `DataIntegrityViolationException` do INSERT duplicado e ignora silenciosamente
+(idempotência real mesmo sob concorrência).
+
+---
+
+## Decisão 4 — Modelo de dados (`tb_sugestao_coach`)
+
+```sql
+CREATE TABLE IF NOT EXISTS tb_sugestao_coach (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id   UUID NOT NULL,
+    atleta_id   UUID NOT NULL REFERENCES tb_atleta(id) ON DELETE CASCADE,
+    tipo        VARCHAR NOT NULL,   -- plan_adjust | recovery | new_plan
+    status      VARCHAR NOT NULL DEFAULT 'pending',  -- pending | approved | rejected
+    confidence  VARCHAR NOT NULL DEFAULT 'MEDIUM',   -- HIGH | MEDIUM | LOW
+    summary     TEXT NOT NULL,      -- cópia de suggestedAction do sinal
+    reasoning   JSONB,              -- RecommendationExplanation serializado; nullable em v1
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    reviewed_at TIMESTAMPTZ,
+    expires_at  TIMESTAMPTZ,        -- NULL = sem expiração; job preenche com created_at + 7 days
+    CONSTRAINT chk_sugestao_tipo   CHECK (tipo   IN ('plan_adjust','recovery','new_plan')),
+    CONSTRAINT chk_sugestao_status CHECK (status IN ('pending','approved','rejected')),
+    CONSTRAINT chk_sugestao_conf   CHECK (confidence IN ('HIGH','MEDIUM','LOW'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_sugestao_coach_atleta  ON tb_sugestao_coach(atleta_id);
+CREATE INDEX IF NOT EXISTS idx_sugestao_coach_tenant_status ON tb_sugestao_coach(tenant_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_sugestao_pending ON tb_sugestao_coach(atleta_id, tipo)
+    WHERE status = 'pending';
+```
+
+**Decisões de mapeamento:**
+
+| Campo | Origem |
+|---|---|
+| `confidence` | `Severidade` do sinal: `CRITICA`→`HIGH`, `ALTA`→`MEDIUM`, `MEDIA`→`LOW` |
+| `summary` | `suggestedAction` do `CoachAttentionItemOutputDto` correspondente |
+| `reasoning` | `RecommendationExplanation` do `explanation` do item (nullable se ausente) |
+| `expires_at` | `created_at + INTERVAL '7 days'` (definido no job, não no banco) |
+
+**Nota:** `NUMERIC confidence` original descartado — o sistema usa `ExplanationConfidence` como
+enum (HIGH/MEDIUM/LOW); converter para numérico adicionaria complexidade sem ganho em v1.
+
+---
+
+## Decisão 5 — `@RequireTenant` no controller
+
+`@RequireTenant` é `@Target(ElementType.METHOD)` — nunca em nível de classe.
+
+| Endpoint | `@RequireTenant` | Motivo |
+|---|---|---|
+| `GET /` e `GET /?status=` | **Não** | Sem resource-id; usa `TenantContext` na query |
+| `GET /{id}` | `@RequireTenant(resourceParamIndex = 0)` | Valida que `{id}` pertence ao tenant |
+| `POST /{id}/aprovar` | `@RequireTenant(resourceParamIndex = 0)` | Idem |
+| `POST /{id}/rejeitar` | `@RequireTenant(resourceParamIndex = 0)` | Idem |
+
+Padrão idêntico ao `CoachAttentionQueueController` (referência para o implementador).
+
+### `TenantValidationRepository`
+
+Após a criação de `SugestaoCoachRepository`, ele deve ser registrado no `TenantValidationRepository`
+para que `@RequireTenant` resolva IDs de sugestão. Sem isso, `POST /{id}/aprovar` retorna 403 para
+IDs válidos.
+
+---
+
+## Decisão 6 — Frontend: layout 2-painéis
+
+`CoachInboxPage.tsx` substitui `CoachAttentionQueuePage` na rota `/coach/inbox`.
+
+Layout:
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CoachInboxPage                                             │
+│ ┌─────────────┐ ┌──────────────────────────────────────┐  │
+│ │ Lista (30%) │ │ Detalhe + Ações (70%)                │  │
+│ │             │ │                                       │  │
+│ │ [chip tipo] │ │  Nome Atleta                         │  │
+│ │ Nome        │ │  [chip severidade] [chip tipo]       │  │
+│ │ Summary     │ │                                       │  │
+│ │ [selecionado│ │  Summary (negrito)                   │  │
+│ │  highlight] │ │  Reasoning.rationale (itálico)       │  │
+│ │             │ │  Evidências (tags)                   │  │
+│ │ ...         │ │                                       │  │
+│ │             │ │  [Aprovar]  [Rejeitar]               │  │
+│ └─────────────┘ └──────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Estados da página:
+- **Loading:** `CircularProgress` centralizado
+- **Erro:** mensagem + botão "Tentar novamente"
+- **Vazio (sem pending):** empty state com ícone ✓ e mensagem "Nenhuma sugestão pendente"
+- **Selecionado:** painel direito mostra detalhe; botões Aprovar/Rejeitar com loading individual
+- **Nenhum selecionado:** painel direito mostra placeholder "Selecione uma sugestão"
+
+**Hooks e serviço:**
+- `useCoachSugestoes`: `useState` + `useCallback`, lista `?status=pending`, sem outlet context
+- `SugestaoService.ts` (curado): `listar(status?)`, `aprovar(id)`, `rejeitar(id)`
+- `CoachAttentionQueuePage` mantida no código porém sem rota — receberá rota `/coach/queue` em
+  change futura; badge do sidebar permanece com `queue.length` da attention queue (follow-up)
+
+---
+
+## Alternativas descartadas
+
+- **Gerar sugestões on-demand no GET:** leitura cara/não-idempotente.
+- **Reusar attention-queue como inbox:** mistura priorização efêmera com workflow persistente.
+- **Listener de evento:** `CoachAttentionQueueService` é read-only, não publica eventos; tornaria
+  necessário adicionar publicação só para este caso.
+- **Aprovar com efeito imediato de plano:** bloqueia thread do request (timeout `IaServiceImpl`),
+  viola coach-in-the-loop (plano muda sem preview), race condition com 2 coaches do mesmo tenant.
+- **`confidence NUMERIC`:** força conversão do enum `ExplanationConfidence` sem ganho em v1.
