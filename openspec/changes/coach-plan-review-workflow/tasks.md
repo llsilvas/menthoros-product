@@ -108,20 +108,20 @@
 
 ## Seção 4 — Frontend: cliente e hook
 
-- [ ] **4.1** Criar types em `src/types/PlanoReview.ts`:
+- [x] **4.1** Criar types em `src/types/PlanoReview.ts`:
   - `PlanoReviewStatus`: `'AGUARDANDO_REVISAO' | 'APROVADO' | 'REJEITADO'`
   - `PlanoSemanalDto`: campos do plano (semana, sessões, atleta, reviewStatus, reviewComment)
   - `TreinoPlanejadoDto`: dia, tipo, volume, intensidade (para detalhe do plano)
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **4.2** Criar `CoachPlanoReviewService` em `src/api/services/`:
+- [x] **4.2** Criar `CoachPlanoReviewService` em `src/api/services/`:
   - `listarPendentes(): Promise<PlanoSemanalDto[]>`
   - `aprovar(id: string): Promise<PlanoSemanalDto>`
   - `rejeitar(id: string, motivo: string): Promise<PlanoSemanalDto>`
   - Exportar de `src/api/index.ts`
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **4.3** Criar hook `useCoachPlanReview` em `src/hooks/`:
+- [x] **4.3** Criar hook `useCoachPlanReview` em `src/hooks/`:
   - Estado: `pendentes: PlanoSemanalDto[]`, `isFetching`, `isActing`, `fetchError`
   - Ações: `aprovar(id)`, `rejeitar(id, motivo)` — removem o plano da lista após sucesso
   - `useManualTraining` é referência de padrão
