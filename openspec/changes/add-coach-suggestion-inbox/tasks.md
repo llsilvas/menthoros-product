@@ -102,36 +102,36 @@
 
 ## 4. Controller (backend)
 
-- [ ] 4.1 `CoachSugestaoController`:
+- [x] 4.1 `CoachSugestaoController`:
   - `@Tag(name = "coach-suggestion-inbox", description = "Sugestões de IA para revisão do treinador")`
   - `@RequestMapping("/api/v1/coach/sugestoes")`
   - `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")`
   - **Não** usar `@RequireTenant` na classe — apenas nos métodos com `{id}` (ver task 4.3–4.5).
   - verify: compile ✓
 
-- [ ] 4.2 `GET /?status=`:
+- [x] 4.2 `GET /?status=`:
   - Parâmetro `@RequestParam(required=false) StatusSugestao status`.
   - Sem `@RequireTenant` — usa `TenantContext` na camada de service.
   - `@Operation(summary = "Lista sugestões por status")` + `@ApiResponses(200, 400, 403)`.
   - Retorna `ResponseEntity<List<SugestaoCoachOutputDto>>`.
   - verify: `./mvnw clean test` + `@WebMvcTest` ✓
 
-- [ ] 4.3 `GET /{id}`:
+- [x] 4.3 `GET /{id}`:
   - `@RequireTenant(resourceParamIndex = 0)` no método.
   - `@ApiResponses(200, 403, 404)`.
   - verify: `./mvnw clean test` ✓
 
-- [ ] 4.4 `POST /{id}/aprovar`:
+- [x] 4.4 `POST /{id}/aprovar`:
   - `@RequireTenant(resourceParamIndex = 0)` no método.
   - `@ApiResponses(200, 403, 404, 422)` — 422 porque `DomainRuleViolationException` → 422.
   - verify: `./mvnw clean test` ✓
 
-- [ ] 4.5 `POST /{id}/rejeitar`:
+- [x] 4.5 `POST /{id}/rejeitar`:
   - `@RequireTenant(resourceParamIndex = 0)` no método.
   - `@ApiResponses(200, 403, 404, 422)` — 422 porque `DomainRuleViolationException` → 422.
   - verify: `./mvnw clean test` ✓
 
-- [ ] 4.6 `GlobalExceptionHandler`:
+- [x] 4.6 `GlobalExceptionHandler`:
   - **Decisão registrada:** `DomainRuleViolationException` retorna **422 Unprocessable Entity**
     (handler já existe em `develop` com esse status — nenhuma alteração necessária).
   - Confirmar no código que o handler está presente e retorna 422; nenhum handler novo a criar.
@@ -148,13 +148,13 @@
   - `rejeitar`: pending→rejected; re-rejeitar=no-op; rejected→aprovar=ilegal (422).
   - verify: `./mvnw clean test` ✓
 
-- [ ] 5.2 `@WebMvcTest(CoachSugestaoController.class)`:
+- [x] 5.2 `@WebMvcTest(CoachSugestaoController.class)`:
   - `GET /?status=pending` sem JWT → 401; com JWT sem role → 403; com role → 200.
   - `POST /{id}/aprovar` com ID de outro tenant → 403.
   - Transição ilegal → 422.
   - verify: `./mvnw clean test` ✓
 
-- [ ] 5.3 Suite completa verde:
+- [x] 5.3 Suite completa verde:
   - verify: `./mvnw clean test` ✓ (todos os testes existentes + novos)
 
 ---
