@@ -1,9 +1,13 @@
 ## Âncoras de código (backend)
 
-- **`CoachAttentionItemOutputDto`** — `dto/output/CoachAttentionItemOutputDto.java`; campo `explanation` é aditivo.
-- **`SinalAtencao`** — `services/helper/SinalAtencao.java`; ganha `rationale` + `sourceRules`.
-- **`CoachAttentionSignalEvaluator`** — `services/helper/CoachAttentionSignalEvaluator.java`; 6 métodos produzem rationale + sourceRules.
-- **`CoachAttentionQueueServiceImpl.montarItem`** — `services/impl/CoachAttentionQueueServiceImpl.java`; monta `RecommendationExplanation` do sinal principal.
+- **`CoachAttentionItemOutputDto`** — `dto/output/CoachAttentionItemOutputDto.java`; campo `explanation` é aditivo (9º campo).
+  - **Stubs posicionais a atualizar (4 call sites):**
+    - `CoachAttentionQueueControllerTest.java:48` e `:53` (2 stubs no teste do controller)
+    - `CoachDashboardServiceImplTest.java:197` (1 stub no teste de hasAlert)
+    - `CoachAttentionQueueServiceImpl.java:134` (produção — `montarItem`)
+- **`SinalAtencao`** — `services/helper/SinalAtencao.java`; ganha `rationale` + `sourceRules`; **construído apenas em `CoachAttentionSignalEvaluator.java` (6 call sites de produção — nenhum test constrói diretamente)**.
+- **`CoachAttentionSignalEvaluator`** — `services/helper/CoachAttentionSignalEvaluator.java`; 6 call sites de `new SinalAtencao(...)` para atualizar (Blocos 3.1–3.5).
+- **`CoachAttentionQueueServiceImpl.montarItem`** — `services/impl/CoachAttentionQueueServiceImpl.java:134`; monta `RecommendationExplanation` do sinal principal.
 - **Sem migration** (última = V35). Mudança aditiva; sem novo endpoint.
 
 ---
@@ -28,8 +32,8 @@
 - [ ] 2.1 Atualizar `SinalAtencao` record: adicionar `rationale: String` e `sourceRules: List<String>` como campos novos (sem default — o evaluator SEMPRE deve fornecer ambos).
   - verify: todos os construtores de `SinalAtencao` nos testes continuam compilando com os novos campos.
 
-- [ ] 2.2 Atualizar construções de `SinalAtencao` nos testes existentes (`CoachAttentionSignalEvaluatorTest`, `CoachAttentionQueueServiceImplTest`) para passar `rationale` e `sourceRules` — sem mudar a lógica de negócio dos testes.
-  - verify: `./mvnw clean test` verde; sem `UnnecessaryStubbingException`.
+- [ ] 2.2 **Nenhum teste constrói `SinalAtencao` diretamente** — `CoachAttentionSignalEvaluatorTest` usa o evaluator real e `CoachAttentionQueueServiceImplTest` instancia o evaluator como colaborador real. A atualização dos construtores de `SinalAtencao` ocorre inteiramente no Bloco 3 (nos 6 call sites do evaluator). Esta tarefa confirma isso e valida que o Bloco 2.1 compila sem quebrar os testes existentes.
+  - verify: `./mvnw clean test` verde imediatamente após 2.1 (os testes não usam o construtor antigo diretamente).
 
 - **Validação do bloco:** `./mvnw clean test`.
 
@@ -73,8 +77,11 @@
 - [ ] 4.3 Atualizar `CoachAttentionQueueServiceImplTest`: assertar `item.explanation() != null` (não usar isNotNull() como único assert — verificar também `rationale` e `confidence`); validar `confidence = HIGH` e `rationale` não-blank no teste `fadigaCritica`; idem nos demais testes que verificam o item.
   - verify: `./mvnw clean test` verde; 7 testes existentes; `explanation` assertada em cada um.
 
-- [ ] 4.4 Atualizar `CoachAttentionQueueControllerTest`: atualizar construção de `CoachAttentionItemOutputDto` no stub (9º argumento `explanation`); adicionar `jsonPath("$[0].explanation.confidence").value("HIGH")` e `jsonPath("$[0].explanation.rationale").isString()` no teste `fila`. **ATENÇÃO:** os Blocos 2, 3 e 4 devem produzir um build verde em cada commit intermediário — não commitar com `SinalAtencao` de 5 campos antes de atualizar os testes.
-  - verify: `./mvnw clean test` verde; jsonPath de explanation presente.
+- [ ] 4.4 Atualizar os 3 stubs de teste que constroem `CoachAttentionItemOutputDto` com 8 args:
+  - `CoachAttentionQueueControllerTest.java:48` e `:53` — adicionar 9º arg `explanation` com valor real; adicionar `jsonPath("$[0].explanation.confidence").value("HIGH")` e `jsonPath("$[0].explanation.rationale").isString()` no teste `fila`.
+  - `CoachDashboardServiceImplTest.java:197` — adicionar 9º arg `explanation` (pode ser `new RecommendationExplanation("sem plano ativo", List.of(...), ExplanationConfidence.HIGH)` ou qualquer valor válido — o teste verifica apenas `hasAlert`, não `explanation`).
+  - **ATENÇÃO:** 4.1 + 4.2 + 4.4 devem ser commitados atomicamente — o build NUNCA deve ficar vermelho entre tasks desta seção.
+  - verify: `./mvnw clean test` verde; 2 testes do controller + 10 testes do dashboard verdes.
 
 - **Validação do bloco:** `./mvnw clean test`.
 
