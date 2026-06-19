@@ -161,7 +161,7 @@
 
 ## 6. Frontend
 
-- [ ] 6.1 `src/types/SugestaoCoach.ts` (novo):
+- [x] 6.1 `src/types/SugestaoCoach.ts` (novo):
   ```ts
   export type SugestaoTipo = 'plan_adjust' | 'recovery' | 'new_plan';
   export type SugestaoStatus = 'pending' | 'approved' | 'rejected';
@@ -182,7 +182,7 @@
   ```
   - verify: `npm run build` ✓
 
-- [ ] 6.2 `src/api/services/SugestaoService.ts` (novo, curado à mão):
+- [x] 6.2 `src/api/services/SugestaoService.ts` (novo, curado à mão):
   ```ts
   // listar(status?): GET /api/v1/coach/sugestoes?status=<status>
   // aprovar(id):    POST /api/v1/coach/sugestoes/{id}/aprovar
@@ -190,26 +190,26 @@
   ```
   - verify: `npm run build` ✓
 
-- [ ] 6.3 `src/api/index.ts`: `export { SugestaoService }` com comentário de curadoria.
+- [x] 6.3 `src/api/index.ts`: `export { SugestaoService }` com comentário de curadoria.
   - verify: `npm run build` ✓
 
-- [ ] 6.4 `src/hooks/useCoachSugestoes.ts` + `useCoachSugestoes.test.ts`:
+- [x] 6.4 `src/hooks/useCoachSugestoes.ts` + `useCoachSugestoes.test.ts`:
   - `useState` + `useCallback`; retorna `{ sugestoes, loading, error, fetchSugestoes }`.
   - Testes: lista pendente, lista vazia, erro, loading.
   - verify: `npm run test:run` ✓
 
-- [ ] 6.5 `src/features/coach/pages/CoachInboxPage.tsx` (novo):
+- [x] 6.5 `src/features/coach/pages/CoachInboxPage.tsx` (novo):
   - Layout 2-painéis conforme `design.md` Decisão 6.
   - Estados: loading, erro (+ retry), vazio, selecionado (detalhe + botões Aprovar/Rejeitar).
   - Aprovar/rejeitar: loading individual por botão; atualiza lista localmente após sucesso.
   - verify: `npm run build` ✓; sem `any` ✓
 
-- [ ] 6.6 `src/App.tsx`:
+- [x] 6.6 `src/App.tsx`:
   - Rota `/coach/inbox` → `CoachInboxPage` (substitui `CoachAttentionQueuePage`).
   - `CoachAttentionQueuePage` permanece importada mas sem rota (comentário: "sem rota em v1 — aguardando add-coach-queue-route").
   - verify: `npm run build` ✓
 
-- [ ] 6.7 Suite frontend verde:
+- [x] 6.7 Suite frontend verde:
   - verify: `npm run lint && npm run build && npm run test:run` ✓
 
 ---
