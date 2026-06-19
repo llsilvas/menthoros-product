@@ -8,7 +8,7 @@
 
 ## 1. Modelo & Migração (backend)
 
-- [ ] 1.1 Migration `V36__Create_tb_sugestao_coach.sql`:
+- [x] 1.1 Migration `V36__Create_tb_sugestao_coach.sql`:
   - Tabela `tb_sugestao_coach` com todos os campos do `design.md` (Decisão 4).
   - CHECK constraints em `tipo`, `status`, `confidence`.
   - Índices: `idx_sugestao_coach_atleta`, `idx_sugestao_coach_tenant_status`,
@@ -16,24 +16,24 @@
   - `RAISE NOTICE '✅ V36 - tb_sugestao_coach criada com sucesso'` ao fim.
   - verify: `./mvnw flyway:validate` verde ✓
 
-- [ ] 1.2 `entity/SugestaoCoach.java` (`@Entity`, `@Table("tb_sugestao_coach")`):
+- [x] 1.2 `entity/SugestaoCoach.java` (`@Entity`, `@Table("tb_sugestao_coach")`):
   - Campos conforme migration. `@Enumerated(EnumType.STRING)` para `TipoSugestao` e
     `StatusSugestao`. `confidence` como `String` (HIGH/MEDIUM/LOW).
   - `reasoning` como `Map<String, Object>` ou `JsonNode` via `@JdbcTypeCode(SqlTypes.JSON)`.
   - verify: `./mvnw clean compile` ✓
 
-- [ ] 1.3 Enums `TipoSugestao` (`PLAN_ADJUST`, `RECOVERY`, `NEW_PLAN`) e
+- [x] 1.3 Enums `TipoSugestao` (`PLAN_ADJUST`, `RECOVERY`, `NEW_PLAN`) e
   `StatusSugestao` (`PENDING`, `APPROVED`, `REJECTED`) no pacote `enums/`.
   - verify: compile ✓
 
-- [ ] 1.4 `SugestaoCoachRepository` (`JpaRepository<SugestaoCoach, UUID>`):
+- [x] 1.4 `SugestaoCoachRepository` (`JpaRepository<SugestaoCoach, UUID>`):
   - `findByIdAndTenantId(UUID id, UUID tenantId)` — para `detalhe()` e `aprovar()`/`rejeitar()`.
   - `findByTenantIdAndStatus(UUID tenantId, StatusSugestao status)` — para `listar()`.
   - `existsByIdAndTenantId(UUID id, UUID tenantId)` — necessário para `TenantValidationRepository`.
   - `existsByAtletaIdAndTipoAndStatus(UUID atletaId, TipoSugestao tipo, StatusSugestao status)` — idempotência na camada Java.
   - verify: compile ✓
 
-- [ ] 1.5 Adicionar `SugestaoCoachRepository` ao `TenantValidationRepository`:
+- [x] 1.5 Adicionar `SugestaoCoachRepository` ao `TenantValidationRepository`:
   - Campo `private final SugestaoCoachRepository sugestaoCoachRepository` (constructor injection via `@RequiredArgsConstructor`).
   - Adicionar bloco ao método `resourceBelongsToTenant` após o último `if` existente:
     ```java
