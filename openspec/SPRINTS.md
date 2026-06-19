@@ -170,6 +170,42 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ---
 
+## Radar — specs no horizonte (não escalonadas ainda)
+
+Items identificados como importantes para a jornada do coach, mas sem sprint definido. Revisitar antes de cada ciclo de planejamento.
+
+| Change | Status | Por que está no radar | Ação sugerida |
+|---|:---:|---|---|
+| `coach-plan-review-workflow` | Proposed (2026-06-19) | **Desbloqueador de confiança e adoção.** Sem revisão/aprovação pelo coach antes do atleta ver, nenhum treinador profissional adota. Principal gap da jornada. | Priorizar como sprint 9d; implementar antes de `add-post-workout-debrief`. |
+| `athlete-profile-drilldown` | Proposed (2026-06-19) | **Prontuário do atleta.** O coach não tem onde mergulhar antes de decidir — PMC, aderência, plano vigente, sinais, sugestões em uma tela. Complementa `coach-plan-review-workflow`. | Priorizar como sprint 9d, em paralelo ou logo após o review workflow. |
+| `manual-training-entry-lightweight` | **Não proposto** | **Desbloqueador de dados para o MVP.** `first-party-ingestion-architecture` (Sprint 22, L) é pesado demais para desbloquear a cadeia de IA. Um log manual simples (distância + tempo + RPE) é XS e viabiliza debrief, métricas e fila de atenção com dado real meses antes. | Criar proposal XS; entregar antes de `first-party-ingestion-architecture` como substituto mínimo. |
+| `add-post-workout-debrief` | Roadmap Sprint 24 — **muito tarde** | **Hook diário do coach.** A tela "o que aconteceu ontem na equipe" é o que o coach abre toda manhã. Hoje está atrás de ingestion (22) + metrics (23) — cego até o fim do ciclo. | Avaliar dependência real: se `manual-training-entry-lightweight` entrar antes, o debrief pode ser antecipado para sprint ~10. |
+| `add-daily-readiness-checkin` | Pós-MVP (29 tasks) — **spec completo** | **Diferencial competitivo.** 3 perguntas ao atleta → o sistema sabe como ele acordou → melhora a fila de atenção antes do TSB reagir. Spec maduro, implementação bem definida. | Promover para MVP track após `manual-training-entry-lightweight`; antes do Bloco de Segurança. |
+| `complete-authorization-controllers` | Bloco de Segurança — 29 tasks | Brechas de autorização abertas nos controllers. Obrigatório antes do beta. | Não escalonar como feature — intercalar como tarefa de hardening em qualquer sprint que toque controllers. |
+
+### Por que esses 3 são os prioritários
+
+```
+manual-training-entry-lightweight (XS)   →   desbloqueador de dado real
+        │
+        ├──▶  add-post-workout-debrief    →   hook diário (o que aconteceu ontem)
+        │
+        └──▶  add-daily-readiness-checkin →   sinal antecipado (readiness antes do TSB)
+
+coach-plan-review-workflow (M)            →   desbloqueador de confiança do coach
+        │
+        └──▶  athlete-profile-drilldown  →   prontuário (contexto antes de decidir)
+```
+
+Entregando `manual-training-entry-lightweight` + `coach-plan-review-workflow` + `athlete-profile-drilldown`, o coach consegue:
+1. Ver o que o atleta fez (dado)
+2. Aprovar o plano antes de chegar ao atleta (controle)
+3. Mergulhar no perfil antes de tomar qualquer decisão (contexto)
+
+Esses três juntos são o "momento de valor" que faz um coach escolher o Menthoros em vez de Excel + WhatsApp.
+
+---
+
 ## Nota de capacidade
 
 Com 1 dev, o caminho completo até a fronteira do MVP (Bloco 0 + 1 + 2) é da ordem de **~20 sprints / ~40 semanas**, sem contar o Bloco de Segurança. Trade-off explícito da escolha IA-first: a base fica robusta, mas o treinador só vê a jornada madura no fim.
