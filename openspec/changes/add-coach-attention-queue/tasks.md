@@ -21,15 +21,15 @@
 
 ## 2. Derivação de sinais (helpers puros, testáveis)
 
-- [ ] 2.1 Fadiga/forma: TSB (mesma fonte do dashboard) → `FaixaTsb.nivelAlerta` → severity (CRITICO→CRITICA, ALTO→ALTA, ATENCAO→MEDIA); evidência com valor de TSB + faixa.
+- [x] 2.1 Fadiga/forma: TSB (mesma fonte do dashboard) → `FaixaTsb.nivelAlerta` → severity (CRITICO→CRITICA, ALTO→ALTA, ATENCAO→MEDIA); evidência com valor de TSB + faixa.
   - verify: teste cobre CRITICO/ALTO/ATENCAO + TSB null (sem item).
-- [ ] 2.2 Sobrecarga/progressão: `alertaSobrecarga`/`alertaNecessitaDescanso`→ALTA; `alertaRampAlto`/`alertaDiasConsecutivos`→MEDIA; evidência da flag/contagem.
+- [x] 2.2 Sobrecarga/progressão: `alertaSobrecarga`/`alertaNecessitaDescanso`→ALTA; `alertaRampAlto`/`alertaDiasConsecutivos`→MEDIA; evidência da flag/contagem.
   - verify: teste por flag (ativa/inativa) e severity correspondente.
-- [ ] 2.3 Aderência: `PERDIDO`/`PARCIAL` na janela de 14d (≥3→ALTA, 1-2→MEDIA); inatividade `lastActivity` (≥14d→ALTA, 7-13d→MEDIA, null→sem-sinal aqui).
+- [x] 2.3 Aderência: `PERDIDO`/`PARCIAL` na janela de 14d (≥3→ALTA, 1-2→MEDIA); inatividade `lastActivity` (≥14d→ALTA, 7-13d→MEDIA, null→sem-sinal aqui).
   - verify: BVA nos cortes 1/2/3 perdidos e 6/7/13/14 dias.
-- [ ] 2.4 Zonas vencidas: `Atleta.precisaAtualizarTestes()`→MEDIA. Sem plano ativo (`PlanoMetaDados` nulo)→`SEM_PLANO` (ALTA).
+- [x] 2.4 Zonas vencidas: `Atleta.precisaAtualizarTestes()`→MEDIA. Sem plano ativo (`PlanoMetaDados` nulo)→`SEM_PLANO` (ALTA).
   - verify: teste com testes vencidos vs em dia; teste com/sem plano.
-- [ ] 2.5 Testes unitários por helper: cada faixa/limiar (BVA -10/-20 via FaixaTsb, 7/14d, PERDIDO 1-2 vs ≥3), null/empty, e o ramo sem-plano.
+- [x] 2.5 Testes unitários por helper: cada faixa/limiar (BVA -10/-20 via FaixaTsb, 7/14d, PERDIDO 1-2 vs ≥3), null/empty, e o ramo sem-plano.
   - verify: `./mvnw clean test` verde; branches de cada helper cobertos.
 - **Validação do bloco:** `./mvnw clean test`.
 
