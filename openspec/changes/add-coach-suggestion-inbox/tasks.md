@@ -50,7 +50,7 @@
 
 ## 2. Geração de sugestões (backend)
 
-- [ ] 2.1 `SugestaoCoachGeneratorJob` (`@Component` + `@Scheduled(cron = "0 0 6 * * *")`):
+- [x] 2.1 `SugestaoCoachGeneratorJob` (`@Component` + `@Scheduled(cron = "0 0 6 * * *")`):
   - Itera `assessoriaRepository.findByAtivoTrue().stream().map(Assessoria::getId).toList()` —
     método existente em `develop`, sem adicionar query nova.
   - Para cada `tenantId`: `try { TenantContext.setTenantId(tenantId); gerarPorTenant(); } finally { TenantContext.clear(); }`.
@@ -63,7 +63,7 @@
   - Loga: sinais processados, sugestões criadas, sugestões ignoradas (já existia pending).
   - verify: `./mvnw clean test` ✓ (teste unitário — mockear `CoachAttentionQueueService`)
 
-- [ ] 2.2 Teste `SugestaoCoachGeneratorJobTest`:
+- [x] 2.2 Teste `SugestaoCoachGeneratorJobTest`:
   - Idempotência: mesmo sinal 2× → 1 `pending` (captura `DataIntegrityViolationException`).
   - Sinal com `severity=MEDIA` → não gera sugestão.
   - TenantContext limpo no `finally` (verificar `TenantContext.getTenantId()` após execução).
