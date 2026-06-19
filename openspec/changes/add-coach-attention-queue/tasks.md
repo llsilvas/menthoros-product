@@ -57,14 +57,14 @@
 
 ## 5. Integração com o calendário do coach
 
-- [ ] 5.1 `CoachDashboardServiceImpl` preenche `CoachCalendarioDto…hasAlert` a partir da fila (atleta com item ⇒ `hasAlert=true` no dia correspondente).
+- [x] 5.1 `CoachDashboardServiceImpl` preenche `CoachCalendarioDto…hasAlert` a partir da fila (atleta com item ⇒ `hasAlert=true` no dia correspondente).
   - verify: substitui o `false` fixo de `CoachDashboardServiceImpl:180`; atleta com item ⇒ `hasAlert=true`.
-- [ ] 5.2 Atualizar/!regredir os testes existentes do `CoachDashboard` (hasAlert deixa de ser fixo `false`).
+- [x] 5.2 Atualizar/!regredir os testes existentes do `CoachDashboard` (hasAlert deixa de ser fixo `false`).
   - verify: testes do dashboard verdes; cenário com/sem alerta.
 - **Validação do bloco:** `./mvnw clean test`.
 
 ## 6. Validação final
 
-- [ ] 6.1 `./mvnw clean test` verde (suíte completa).
-- [ ] 6.2 Confirmar: sem migration nova, sem mutação de estado, contratos existentes intactos (só `hasAlert`).
-- [ ] 6.3 Atualizar este `tasks.md` (implementado vs adiado).
+- [x] 6.1 `./mvnw clean test` verde (suíte completa).
+- [x] 6.2 Confirmar: sem migration nova, sem mutação de estado, contratos existentes intactos (só `hasAlert`).
+- [x] 6.3 Atualizar este `tasks.md` (implementado vs adiado).
