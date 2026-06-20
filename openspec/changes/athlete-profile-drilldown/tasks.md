@@ -45,17 +45,17 @@
 
 ## Seção 1 — Backend: DTOs e método de aderência
 
-- [ ] **1.1** Criar `AderenciasSemanalDto` em `dto/output/`:
+- [x] **1.1** Criar `AderenciasSemanalDto` em `dto/output/`:
   - `record AderenciasSemanalDto(LocalDate semanaInicio, int totalPlanejado, int totalRealizado, int percentual)`
   - `@Schema` em classe e em todos os campos
   - **verify:** `./mvnw clean compile`
 
-- [ ] **1.2** Adicionar método `getAderenciaSemanal(UUID atletaId, int semanas)` à interface `AtletaProgressService`:
+- [x] **1.2** Adicionar método `getAderenciaSemanal(UUID atletaId, int semanas)` à interface `AtletaProgressService`:
   - Retorno: `List<AderenciasSemanalDto>` com uma entrada por semana (mais recente primeiro)
   - JavaDoc: Idempotent/Side Effects/Tenant-aware
   - **verify:** `./mvnw clean compile`
 
-- [ ] **1.3** Implementar `getAderenciaSemanal` em `AtletaProgressServiceImpl`:
+- [x] **1.3** Implementar `getAderenciaSemanal` em `AtletaProgressServiceImpl`:
   - Query JPQL em `TreinoPlanejadoRepository` (novo método `findAderenciaSemanal`):
     ```sql
     SELECT FUNCTION('DATE_TRUNC', 'week', tp.dataTreino) as semanaInicio,
@@ -73,7 +73,7 @@
   - **Atenção:** confirmar se `TreinoPlanejado` usa `atleta.id` ou `atletaId` como coluna — ver entidade
   - **verify:** `./mvnw clean test`
 
-- [ ] **1.4** Criar DTO agregador `AtletaPerfilCoachOutputDto` em `dto/output/`:
+- [x] **1.4** Criar DTO agregador `AtletaPerfilCoachOutputDto` em `dto/output/`:
   - Record raiz + sub-records nested: `PlanoVigenteDto`, `TreinoPlanejadoResumoDto`, `SinalRecenteDto`, `SugestaoRecenteDto`
   - `PlanoVigenteDto` inclui `PlanoReviewStatus reviewStatus` (não só `APROVADO`)
   - `TreinoPlanejadoResumoDto.statusExecucao`: usar valores reais de `TreinoExecucaoStatus` (confirmados na task 0.3) — não usar `"PLANEJADO"`
@@ -85,12 +85,12 @@
 
 ## Seção 2 — Backend: serviço e controller
 
-- [ ] **2.1** Criar interface `CoachAthleteProfileService` em `services/`:
+- [x] **2.1** Criar interface `CoachAthleteProfileService` em `services/`:
   - `AtletaPerfilCoachOutputDto buscarPerfil(UUID atletaId, UUID tenantId)`
   - JavaDoc completo (Idempotent/Side Effects/Tenant-aware)
   - **verify:** `./mvnw clean compile`
 
-- [ ] **2.2** Criar `CoachAthleteProfileServiceImpl` em `services/impl/`:
+- [x] **2.2** Criar `CoachAthleteProfileServiceImpl` em `services/impl/`:
   - Injeta: `AtletaRepository`, `AtletaProgressService`, `CoachAttentionQueueService`, `SugestaoCoachService`, `PlanoSemanalRepository`
   - `buscarPerfil(UUID atletaId, UUID tenantId)`:
     1. Validar: `atletaRepository.findByIdAndTenantId(atletaId, tenantId).orElseThrow(DomainNotFoundException)` — **antes de chamar qualquer sub-serviço**
@@ -104,19 +104,19 @@
   - **Logging de duração por sub-serviço**: `long t = System.nanoTime(); ...; log.debug("[perfil] pmc: {}ms", (System.nanoTime()-t)/1_000_000)`
   - **verify:** `./mvnw clean compile`
 
-- [ ] **2.2a** Adicionar `listarPorAtleta(UUID atletaId)` ao `SugestaoCoachService` e `SugestaoCoachServiceImpl`:
+- [x] **2.2a** Adicionar `listarPorAtleta(UUID atletaId)` ao `SugestaoCoachService` e `SugestaoCoachServiceImpl`:
   - Interface: `List<SugestaoCoachOutputDto> listarPorAtleta(UUID atletaId)`
   - Impl: `sugestaoCoachRepository.findByAtletaIdAndTenantId(atletaId, tenantId)` (novo método no repository)
   - Repository: `findByAtletaIdAndTenantId(UUID atletaId, UUID tenantId)` com `JOIN FETCH atleta` e `ORDER BY criadoEm DESC`
   - **verify:** `./mvnw clean test`
 
-- [ ] **2.2b** Adicionar `findMostRecentRelevantPlano` ao `PlanoSemanalRepository`:
+- [x] **2.2b** Adicionar `findMostRecentRelevantPlano` ao `PlanoSemanalRepository`:
   - Método: `Optional<PlanoSemanal> findMostRecentRelevantPlano(UUID atletaId, UUID assessoriaId, LocalDate hoje)`
   - JPQL: `SELECT p FROM PlanoSemanal p WHERE p.atletaId = :atletaId AND p.assessoriaId = :assessoriaId AND p.semanaFim >= :hoje ORDER BY p.semanaInicio DESC LIMIT 1`
   - Retorna o plano mais recente com `semanaFim >= hoje` (qualquer `reviewStatus`)
   - **verify:** `./mvnw clean compile`
 
-- [ ] **2.3** Criar `CoachAthleteProfileController` em `controller/`:
+- [x] **2.3** Criar `CoachAthleteProfileController` em `controller/`:
   - `@Tag(name = "coach-athlete-profile", description = "Perfil agregado do atleta para tomada de decisão do coach")`
   - `GET /api/v1/coach/atletas/{atletaId}/perfil`
     - `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")`
@@ -130,7 +130,7 @@
 
 ## Seção 3 — Backend: testes
 
-- [ ] **3.1** Testes: `AtletaProgressServiceImplTest` — nested class `GetAderenciaSemanal`:
+- [x] **3.1** Testes: `AtletaProgressServiceImplTest` — nested class `GetAderenciaSemanal`:
   - Happy path: 8 semanas com dados → percentuais corretos
   - Semana sem treinos planejados → semana omitida (lista não inclui a semana; sem barras 0% silenciosas)
   - Semana 100% realizada → percentual = 100
@@ -138,7 +138,7 @@
   - `atletaId` cross-tenant → lista vazia (não lança exceção; isolamento garantido pelo filtro de tenant no repositório)
   - **verify:** `./mvnw clean test`
 
-- [ ] **3.2** Testes: `CoachAthleteProfileServiceImplTest`:
+- [x] **3.2** Testes: `CoachAthleteProfileServiceImplTest`:
   - Happy path: todos os sub-serviços retornam dados → DTO montado corretamente
   - `atletaId` não encontrado no tenant → `DomainNotFoundException` **+ `verifyNoInteractions` em todos os sub-serviços** (sub-serviços NÃO são chamados antes da validação passar)
   - Sinais filtrados por `atletaId` (sinais de outros atletas não aparecem no DTO)
@@ -150,7 +150,7 @@
   - Sem sinais → lista vazia (não quebra)
   - **verify:** `./mvnw clean test`
 
-- [ ] **3.3** Testes: `CoachAthleteProfileControllerTest` (`@ExtendWith(MockitoExtension.class)`):
+- [x] **3.3** Testes: `CoachAthleteProfileControllerTest` (`@ExtendWith(MockitoExtension.class)`):
   - GET perfil: 200 com DTO
   - 403 sem role TECNICO/ADMIN
   - 404 atleta não encontrado no tenant
