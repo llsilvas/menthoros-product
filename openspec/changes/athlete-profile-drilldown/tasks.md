@@ -15,22 +15,21 @@
   - Registrar: tipo exato de `PMCDataPoint` para garantir compatibilidade com o backend
   - **verify:** sem falha de build após ajuste
 
-- [ ] **0.2** Verificar FK `treinoPlanejadoId` em `TreinoRealizado`:
-  - Ler entidade `TreinoRealizado.java`
-  - Confirmar existência de campo `treinoPlanejadoId UUID` (ou `@OneToOne TreinoPlanejado treinoPlanejado`)
-  - Se não existir FK: a query de aderência usará match por `atletaId + dataTreino` — documentar no design.md como fallback
-  - Se FK existe mas é `null` para treinos `MANUAL`/Strava: calcular como "não vinculado" = não realizado para aderência
+- [x] **0.2** Verificar FK `treinoPlanejadoId` em `TreinoRealizado`:
+  - ✅ Confirmado: `TreinoRealizado` tem `@OneToOne(fetch=LAZY) TreinoPlanejado treinoPlanejado` + `treinoPlanejadoId UUID` (inserível=false)
+  - Query de aderência: LEFT JOIN de `TreinoPlanejado` com `TreinoRealizado` via `tr.treinoPlanejado = tp` (ou `tr.treinoPlanejadoId = tp.id`)
+  - Treinos sem vínculo (`treinoPlanejadoId = null`) = não realizados para fins de aderência
 
-- [ ] **0.3** Confirmar valores reais do enum `TreinoExecucaoStatus`:
-  - Ler `src/main/java/br/com/menthoros/backend/enums/TreinoExecucaoStatus.java`
-  - Listar todos os valores — **NÃO existe `PLANEJADO`**
-  - Mapear para o DTO: valor para "não realizado" é `PENDENTE`; "realizado" é `CONCLUIDO` ou `REALIZADO`
-  - Atualizar o comentário no `TreinoPlanejadoResumoDto` com os valores confirmados
+- [x] **0.3** Confirmar valores reais do enum `TreinoExecucaoStatus`:
+  - ✅ Confirmado: `REALIZADO`, `PERDIDO`, `PARCIAL`, `LIVRE`, `PENDENTE`, `CONCLUIDO`
+  - **Não existe `PLANEJADO`** — treino não realizado = `PENDENTE`; executado = `REALIZADO` ou `CONCLUIDO`; não feito = `PERDIDO` ou `PARCIAL`
+  - `TreinoPlanejadoResumoDto.statusExecucao: String` deve usar `.name()` do enum (não valor customizado)
 
-- [ ] **0.4** Verificar volume de `SugestaoCoachService.listar(status)`:
-  - Ler `SugestaoCoachServiceImpl.listar` e `SugestaoCoachRepository`
-  - Se a query retorna lista completa sem `LIMIT` e sem paginação: decidir se mantém filtro em memória (OK para < 100 itens) ou adiciona método `listarPorAtleta(UUID atletaId)` ao serviço
-  - Documentar a decisão no design.md (Decisão 3)
+- [x] **0.4** Verificar volume de `SugestaoCoachService.listar(status)`:
+  - ✅ Confirmado: `SugestaoCoachRepository.findByTenantIdAndStatus` sem `LIMIT` — retorna todas as sugestões do tenant por status
+  - **Decisão: Opção B** — adicionar `listarPorAtleta(UUID atletaId, StatusSugestao status)` ao `SugestaoCoachService` (nova query com `WHERE atletaId = :atletaId` no repository)
+  - Razão: sem LIMIT não é seguro filtrar em memória em tenants com muitos atletas e histórico acumulado
+  - `CoachAttentionQueueService.getAttentionQueue()` mantém filtro em memória (cap 20 items — OK)
 
 - [ ] **0.5** Verificar estrutura do `CoachAthletesPage`:
   - Ler `src/features/coach/pages/CoachAthletesPage.tsx`
@@ -57,11 +56,21 @@
   - **verify:** `./mvnw clean compile`
 
 - [ ] **1.3** Implementar `getAderenciaSemanal` em `AtletaProgressServiceImpl`:
-  - **Pré-condição:** tarefa 0.2 concluída (método de join definido)
-  - Query JPQL: contar `TreinoPlanejado` por semana ISO nos últimos `semanas` semanas para o `atletaId`
-  - Usar `tp.treinoRealizado IS NOT NULL` se FK existe; `match por atleta+dataTreino` se não existe
-  - Calcular `percentual = (totalRealizado * 100) / max(totalPlanejado, 1)`
-  - Retornar lista vazia quando nenhuma semana tem `totalPlanejado > 0` (sem dados = sem barras, não 0% em tudo)
+  - Query JPQL em `TreinoPlanejadoRepository` (novo método `findAderenciaSemanal`):
+    ```sql
+    SELECT FUNCTION('DATE_TRUNC', 'week', tp.dataTreino) as semanaInicio,
+           COUNT(tp.id) as totalPlanejado,
+           COUNT(tr.id) as totalRealizado
+    FROM TreinoPlanejado tp
+    LEFT JOIN TreinoRealizado tr ON tr.treinoPlanejado.id = tp.id
+    WHERE tp.atleta.id = :atletaId
+    AND tp.dataTreino >= :dataInicio
+    GROUP BY FUNCTION('DATE_TRUNC', 'week', tp.dataTreino)
+    ORDER BY semanaInicio DESC
+    ```
+  - Calcular `percentual = (totalRealizado * 100) / max(totalPlanejado, 1)` em Java
+  - Retornar lista vazia quando nenhuma semana tem `totalPlanejado > 0`
+  - **Atenção:** confirmar se `TreinoPlanejado` usa `atleta.id` ou `atletaId` como coluna — ver entidade
   - **verify:** `./mvnw clean test`
 
 - [ ] **1.4** Criar DTO agregador `AtletaPerfilCoachOutputDto` em `dto/output/`:
@@ -83,13 +92,28 @@
 
 - [ ] **2.2** Criar `CoachAthleteProfileServiceImpl` em `services/impl/`:
   - Injeta: `AtletaRepository`, `AtletaProgressService`, `CoachAttentionQueueService`, `SugestaoCoachService`, `PlanoSemanalRepository`
-  - `buscarPerfil`: valida tenant (`atletaRepository.findByIdAndTenantId` — lança `DomainNotFoundException` se não encontrado, **sem chamar sub-serviços**)
-  - Chamar sub-serviços após validação: PMC 90d → recordes → aderência 8 semanas → sinais → sugestões → plano
-  - Sinais: filtrar `getAttentionQueue()` por `i.atletaId().equals(atletaId)`, limit 3 por severidade desc
-  - Para cada sinal: procurar `sugestaoId` nas sugestões do atleta com mesmo `tipo` gerado na mesma data (match heurístico, null se não encontrado)
-  - Plano: buscar plano mais recente com `semanaFim >= CURRENT_DATE` via JPQL — retorna `PlanoVigenteDto` com `reviewStatus` real; `null` se não existe plano
-  - **Logging de duração por sub-serviço** (não só para o método inteiro): `log.debug("pmc: {}ms", ...)`, etc.
-  - `AtletaProgressService` não recebe `tenantId` como parâmetro — usa `TenantContext` internamente
+  - `buscarPerfil(UUID atletaId, UUID tenantId)`:
+    1. Validar: `atletaRepository.findByIdAndTenantId(atletaId, tenantId).orElseThrow(DomainNotFoundException)` — **antes de chamar qualquer sub-serviço**
+    2. `AtletaProgressService.getHistoricoPmc(atletaId, hoje.minusDays(90), hoje)` — não passa `tenantId`
+    3. `AtletaProgressService.getRecordes(atletaId)` — não passa `tenantId`
+    4. `AtletaProgressService.getAderenciaSemanal(atletaId, 8)` — novo método
+    5. Sinais: `coachAttentionQueueService.getAttentionQueue()` → filtrar por `atletaId`, top 3 por `severity + priorityScore desc`
+    6. Sugestões: `sugestaoCoachService.listarPorAtleta(atletaId)` → top 3 por `criadoEm desc` (novo método — task 2.2a)
+    7. Para cada sinal: procurar `sugestaoId` nas sugestões do atleta (match por tipo/data, heurístico, null se ausente)
+    8. Plano: `planoSemanalRepository.findMostRecentRelevantPlano(atletaId, tenantId, hoje)` → novo método JPQL
+  - **Logging de duração por sub-serviço**: `long t = System.nanoTime(); ...; log.debug("[perfil] pmc: {}ms", (System.nanoTime()-t)/1_000_000)`
+  - **verify:** `./mvnw clean compile`
+
+- [ ] **2.2a** Adicionar `listarPorAtleta(UUID atletaId)` ao `SugestaoCoachService` e `SugestaoCoachServiceImpl`:
+  - Interface: `List<SugestaoCoachOutputDto> listarPorAtleta(UUID atletaId)`
+  - Impl: `sugestaoCoachRepository.findByAtletaIdAndTenantId(atletaId, tenantId)` (novo método no repository)
+  - Repository: `findByAtletaIdAndTenantId(UUID atletaId, UUID tenantId)` com `JOIN FETCH atleta` e `ORDER BY criadoEm DESC`
+  - **verify:** `./mvnw clean test`
+
+- [ ] **2.2b** Adicionar `findMostRecentRelevantPlano` ao `PlanoSemanalRepository`:
+  - Método: `Optional<PlanoSemanal> findMostRecentRelevantPlano(UUID atletaId, UUID assessoriaId, LocalDate hoje)`
+  - JPQL: `SELECT p FROM PlanoSemanal p WHERE p.atletaId = :atletaId AND p.assessoriaId = :assessoriaId AND p.semanaFim >= :hoje ORDER BY p.semanaInicio DESC LIMIT 1`
+  - Retorna o plano mais recente com `semanaFim >= hoje` (qualquer `reviewStatus`)
   - **verify:** `./mvnw clean compile`
 
 - [ ] **2.3** Criar `CoachAthleteProfileController` em `controller/`:
