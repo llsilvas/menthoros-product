@@ -8,7 +8,7 @@
 
 ## Seção 0 — Verificações pré-implementação (bloqueia implementação se falhar)
 
-- [ ] **0.1** Verificar props de `PMCChart.tsx`:
+- [x] **0.1** Verificar props de `PMCChart.tsx`:
   - Ler `src/features/athlete/components/PMCChart.tsx`
   - Confirmar que aceita `data: PMCDataPoint[]` como prop — **sem** `useEffect` + fetch interno no componente
   - Se tiver fetch interno: criar `PMCChartPure` wrapper antes de iniciar a Seção 5
@@ -31,12 +31,12 @@
   - Razão: sem LIMIT não é seguro filtrar em memória em tenants com muitos atletas e histórico acumulado
   - `CoachAttentionQueueService.getAttentionQueue()` mantém filtro em memória (cap 20 items — OK)
 
-- [ ] **0.5** Verificar estrutura do `CoachAthletesPage`:
+- [x] **0.5** Verificar estrutura do `CoachAthletesPage`:
   - Ler `src/features/coach/pages/CoachAthletesPage.tsx`
   - Identificar componente de lista (DataGrid, Table, CardList) e padrão de interação existente
   - Confirmar que `onRowClick` ou `onClick` é adicionável sem refator maior
 
-- [ ] **0.6** Verificar props de `CoachAthleteAvatar`:
+- [x] **0.6** Verificar props de `CoachAthleteAvatar`:
   - Ler o componente (provavelmente `src/features/coach/components/CoachAthleteAvatar.tsx`)
   - Confirmar que aceita `nome: string` (e/ou `atletaId`) sem dependência de contexto externo
   - Se depende de contexto: usar componente alternativo (Avatar MUI + iniciais inline)
@@ -160,19 +160,19 @@
 
 ## Seção 4 — Frontend: tipos e serviço API
 
-- [ ] **4.1** Criar `src/types/AtletaPerfilCoach.ts`:
+- [x] **4.1** Criar `src/types/AtletaPerfilCoach.ts`:
   - `AtletaPerfilCoachDto` mapeando o `AtletaPerfilCoachOutputDto` do backend
   - Sub-types: `AderenciasSemanalDto`, `PlanoVigenteDto` (com `reviewStatus: PlanoReviewStatus`), `TreinoPlanejadoResumoDto`, `SinalRecenteDto` (com `sugestaoId: string | null`), `SugestaoRecenteDto`
   - `TreinoPlanejadoResumoDto.statusExecucao`: usar valores reais de `TreinoExecucaoStatus` (confirmados na task 0.3)
   - Reusar tipos já existentes onde possível (`RecordeDto` de `AtletaProgress.ts`)
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **4.2** Criar `CoachAthleteProfileService` em `src/api/services/`:
+- [x] **4.2** Criar `CoachAthleteProfileService` em `src/api/services/`:
   - `getProfile(atletaId: string): Promise<AtletaPerfilCoachDto>`
   - Exportar de `src/api/index.ts`
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **4.3** Criar hook `useAthleteProfile(atletaId: string)` em `src/hooks/`:
+- [x] **4.3** Criar hook `useAthleteProfile(atletaId: string)` em `src/hooks/`:
   - Estado: `profile: AtletaPerfilCoachDto | null`, `isLoading: boolean`, `error: Error | null`
   - `useEffect` dispara `fetchProfile()` quando `atletaId` muda
   - Erro de timeout (HTTP 504/408): `error.message` contém "timeout" (não mensagem genérica)
@@ -183,14 +183,14 @@
 
 ## Seção 5 — Frontend: componentes de bloco
 
-- [ ] **5.1** Criar `AdherenceChart` em `src/features/coach/components/`:
+- [x] **5.1** Criar `AdherenceChart` em `src/features/coach/components/`:
   - Props: `semanas: AderenciasSemanalDto[]`
   - **Estado vazio** (`semanas.length === 0`): exibir "Sem dados de aderência — registre treinos para ativar este bloco" (não barras zeradas)
   - Quando há dados: barras horizontais; verde ≥ 80%, amarelo 50–79%, vermelho < 50%
   - Label: semana abreviada (ex.: "02/06") + percentual
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **5.2** Criar `CurrentWeekPlan` em `src/features/coach/components/`:
+- [x] **5.2** Criar `CurrentWeekPlan` em `src/features/coach/components/`:
   - Props: `plano: PlanoVigenteDto | null`, `onGerarPlano: () => void`, `onRevisarPlano: () => void`
   - 3 estados distintos baseados em `plano?.reviewStatus`:
     - `APROVADO`: 7 cards compactos seg→dom: tipo, volume, statusExecucao real (não `"PLANEJADO"`)
@@ -198,14 +198,14 @@
     - `null` (sem plano): "Nenhum plano gerado para esta semana" + botão "Gerar Plano" (`onGerarPlano`)
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **5.3** Criar `RecentSignalsPanel` em `src/features/coach/components/`:
+- [x] **5.3** Criar `RecentSignalsPanel` em `src/features/coach/components/`:
   - Props: `sinais: SinalRecenteDto[]`, `onVerSugestao: (id: string) => void`
   - Lista compacta: `SeverityChip` + `motivo` + tempo relativo (ex.: "há 2 dias")
   - Quando `sinal.sugestaoId != null`: exibir badge "Sugestão gerada" clicável (`onVerSugestao(sinal.sugestaoId)`)
   - Estado vazio: "Nenhum sinal recente"
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **5.4** Criar `RecentSuggestionsPanel` em `src/features/coach/components/`:
+- [x] **5.4** Criar `RecentSuggestionsPanel` em `src/features/coach/components/`:
   - Props: `sugestoes: SugestaoRecenteDto[]`, `onVerSugestao: (id: string) => void`
   - Lista compacta: `SuggestionTypeBadge` + status + tempo relativo + botão "Ver"
   - Estado vazio: "Nenhuma sugestão recente"
@@ -215,7 +215,7 @@
 
 ## Seção 6 — Frontend: página e navegação
 
-- [ ] **6.1** Criar `CoachAthleteProfilePage` em `src/features/coach/pages/`:
+- [x] **6.1** Criar `CoachAthleteProfilePage` em `src/features/coach/pages/`:
   - **Pré-condição:** tarefas 0.1 e 0.6 concluídas (props de PMCChart e Avatar verificadas)
   - Consume `useAthleteProfile(atletaId)` — `atletaId` vem de `useParams()`
   - Loading state (skeleton ou spinner)
@@ -232,17 +232,17 @@
   - Botão "Revisar" navega para `/coach/planos/revisao`
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **6.2** Adicionar rota `/coach/athletes/:atletaId` no `App.tsx`:
+- [x] **6.2** Adicionar rota `/coach/athletes/:atletaId` no `App.tsx`:
   - Lazy import de `CoachAthleteProfilePage`
   - Dentro do `CoachLayout` (filho do Outlet existente)
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **6.3** Adicionar navegação `onRowClick` no roster (`CoachAthletesPage`):
+- [x] **6.3** Adicionar navegação `onRowClick` no roster (`CoachAthletesPage`):
   - `DataGrid` ou lista de atletas ganha `onRowClick={(row) => navigate('/coach/athletes/' + row.atletaId)}`
   - Cursor pointer no hover
   - **verify:** `npm run lint && npm run build`
 
-- [ ] **6.4** Testes: `CoachAthleteProfilePage.test.tsx`:
+- [x] **6.4** Testes: `CoachAthleteProfilePage.test.tsx`:
   - Renderiza cabeçalho com nome do atleta
   - Exibe PMC chart quando `profile.pmc` tem dados
   - Exibe "Sem dados de aderência" quando `profile.aderenciaSemanal` é vazio
