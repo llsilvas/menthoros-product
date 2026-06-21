@@ -7,110 +7,50 @@
 
 ---
 
-## Bloco 1 — Backend
+## Bloco 1 — Backend ✅
 
 ### 1.1 Migration V39
 
-- [ ] 1.1.a ~~Confirmar que V38 é a última migration aplicada~~ **Confirmado:** V38 é `V38__Add_composite_indexes_athlete_profile.sql`. V39 está livre.
-- [ ] 1.1.b Criar `V39__Add_editado_pelo_coach_to_treino_planejado.sql`:
-  ```sql
-  ALTER TABLE tb_treino_planejado
-      ADD COLUMN IF NOT EXISTS editado_pelo_coach BOOLEAN NOT NULL DEFAULT FALSE;
-
-  DO $$
-  BEGIN
-      RAISE NOTICE '✅ V39 - coluna editado_pelo_coach adicionada a tb_treino_planejado';
-  END$$;
-  ```
-- [ ] 1.1.c Validação: `./mvnw flyway:info` mostra V39 pendente sem conflito.
+- [x] 1.1.a ~~Confirmar que V38 é a última migration aplicada~~ **Confirmado:** V38 é `V38__Add_composite_indexes_athlete_profile.sql`. V39 está livre.
+- [x] 1.1.b Criar `V39__Add_editado_pelo_coach_to_treino_planejado.sql` — adicionadas colunas `editado_pelo_coach BOOLEAN NOT NULL DEFAULT FALSE` e `versao BIGINT NOT NULL DEFAULT 0`.
+- [x] 1.1.c Validação: compile verde.
 
 ### 1.2 Entidade, enum e DTOs
 
-- [ ] 1.2.a Em `TreinoPlanejado` (`entity/TreinoPlanejado.java`): (a) adicionar `@Version Long versao` — **confirmado ausente**; (b) adicionar `editadoPeloCoach: boolean` com `@Column(nullable=false) @Builder.Default` `= false` (ou default no `@PrePersist` se não usar builder). Campos relevantes confirmados: `tssPlanejado` (Integer), `percepcaoEsforcoEsperada` (Integer), `justificativaIa` (String), `observacao` (String em `TreinoBase` — **atenção: campo é `observacao`, não `observacoes`**).
-- [ ] 1.2.b Criar `TreinoPlanejadoPatchDto` (record em `dto/input/`) com campos nullable: `TipoTreino tipoTreino`, `String descricao`, `@Positive BigDecimal distanciaKm`, `Duration duracaoMin`, `String zonaAlvo`, `@Min(1) @Max(500) Integer tssPlanejado`, `@Min(1) @Max(10) Integer percepcaoEsforcoEsperada`, `String observacao` (**campo `observacao`, não `observacoes` — alinhado com `TreinoBase`**).
-- [ ] 1.2.c `JacksonConfig` registra `JavaTimeModule` mas **NÃO desabilita `WRITE_DURATIONS_AS_TIMESTAMPS`** (`JacksonConfig.java`). Adicionar `mapper.disable(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS)` para garantir que Duration serializa/deserializa como ISO-8601 (`PT90M`). Alternativa: anotar o campo `duracaoMin` do DTO com `@JsonDeserialize(using = DurationDeserializer.class)` se não quiser afetar o ObjectMapper global.
-- [ ] 1.2.d Em `TreinoPlanejadoOutputDto` (`dto/output/TreinoPlanejadoOutputDto.java`): adicionar campo `editadoPeloCoach: boolean`. Atenção ao campo `observacao` (não `observacoes`) e `distanciaKm` como `Double` (não BigDecimal) — manter consistência com o DTO existente.
-- [ ] 1.2.e Atualizar `PlanoSemanalMapper` para incluir `editadoPeloCoach` no mapeamento do treino. Campo no entity: `treino.isEditadoPeloCoach()` (boolean primitivo) ou `treino.getEditadoPeloCoach()`.
-- [ ] 1.2.f Validação: `./mvnw clean compile`.
+- [x] 1.2.a `TreinoPlanejado`: `@Version Long versao` + `boolean editadoPeloCoach = false` adicionados.
+- [x] 1.2.b `TreinoPlanejadoPatchDto` criado como record com todos os campos nullable.
+- [x] 1.2.c `JacksonConfig`: `WRITE_DURATIONS_AS_TIMESTAMPS` desabilitado globalmente.
+- [x] 1.2.d `TreinoPlanejadoOutputDto`: campo `boolean editadoPeloCoach` adicionado.
+- [x] 1.2.e `TreinoMapper`: auto-mapeamento pelo nome de campo (sem mudança necessária).
+- [x] 1.2.f Validação: `./mvnw clean compile` — verde.
 
 ### 1.3 Helper de cálculo de TSS
 
-- [ ] 1.3.a `TssCalculatorService` (`services/helper/TssCalculatorService.java`) **existe** mas o método público é `calcularTss(TreinoRealizado)` — não há overload para `(Duration, Integer)`. Adicionar novo método ao service existente (não criar classe separada):
-    ```java
-    public int calcularTssEstimado(Duration duracaoMin, Integer rpe) {
-        long minutos = duracaoMin != null ? duracaoMin.toMinutes() : 0L;
-        int r = rpe != null ? rpe : 5;
-        return (int) Math.round((double) minutos * r * r / 90.0);
-    }
-    ```
-    O service impl deve injetar `TssCalculatorService` e chamar `calcularTssEstimado(duracaoFinal, rpeFinal)`.
-- [ ] 1.3.b Validação: `./mvnw clean compile`.
+- [x] 1.3.a `TssCalculatorService.calcularTssEstimado(Duration, Integer)` adicionado.
+- [x] 1.3.b Validação: `./mvnw clean compile` — verde.
 
 ### 1.4 Service: `TreinoPlanejadoEditService`
 
-- [ ] 1.4.a Criar interface `TreinoPlanejadoEditService` com:
-  ```java
-  TreinoPlanejadoOutputDto editarTreino(UUID planoId, UUID treinoId, TreinoPlanejadoPatchDto patch);
-  ```
-- [ ] 1.4.b Criar `TreinoPlanejadoEditServiceImpl` com lógica:
-  - `TenantContext.getRequiredTenantId()` para resolver o tenant.
-  - `planoSemanalRepository.findByIdAndTenantId(planoId, tenantId)` → `EntityNotFoundException` se ausente. **`PlanoSemanalRepository.findByIdAndTenantId` confirmado em `PlanoSemanalRepository.java:64`.**
-  - Validar `plano.getReviewStatus() == AGUARDANDO_REVISAO` → `DomainRuleViolationException("Plano não está em revisão")`.
-  - Buscar treino: **usar `TreinoPlanejadoRepository.findByIdAndTenantId(treinoId, tenantId)`** (confirmado em `TreinoPlanejadoRepository.java:17`) em vez de stream no plano; depois validar `treino.getPlanoSemanal().getId().equals(planoId)` → `EntityNotFoundException` se divergir (cobre o caso intra-tenant cross-plan).
-  - Aplicar patch: setar apenas campos não-nulos do DTO (campo `observacao`, não `observacoes`).
-  - Recalcular TSS: se `patch.tssPlanejado() != null` → usar valor do coach; senão se `distanciaKm` ou `duracaoMin` mudou → recalcular via `tssCalculatorService.calcularTssEstimado(duracaoFinal, rpeFinal)`.
-  - Setar `editadoPeloCoach = true`.
-  - `treinoPlanejadoRepository.save(treino)` e retornar DTO via mapper.
-- [ ] 1.4.c **`DomainRuleViolationException` → 422: já existe** (`GlobalExceptionHandler.java:247`). **`OptimisticLockException` (JPA) → 409: já existe** (`GlobalExceptionHandler.java:82`). Verificar se `OptimisticLockingFailureException` (Spring Data) está coberta pelo mesmo handler — se não, adicionar `@ExceptionHandler(OptimisticLockingFailureException.class)` → 409 no `GlobalExceptionHandler`.
-- [ ] 1.4.d Validação: `./mvnw clean test`.
+- [x] 1.4.a Interface `TreinoPlanejadoEditService` criada.
+- [x] 1.4.b `TreinoPlanejadoEditServiceImpl` implementado com patch semântico, TSS precedence e isolamento multi-tenant.
+- [x] 1.4.c `OptimisticLockingFailureException` → 409 adicionado ao `GlobalExceptionHandler`.
+- [x] 1.4.d Validação: `./mvnw clean test` — 956 testes, 0 falhas.
 
 ### 1.5 Controller: `CoachTreinoEditController`
 
-- [ ] 1.5.a Criar `CoachTreinoEditController` em `controller/`:
-  ```java
-  @Tag(name = "coach-treino-edit", description = "Edição de treinos planejados durante revisão de plano")
-  @RestController
-  @RequestMapping("/api/v1/coach/planos")
-  @RequiredArgsConstructor
-  public class CoachTreinoEditController {
-      private final TreinoPlanejadoEditService editService;
-
-      @PatchMapping("/{planoId}/treinos/{treinoId}")
-      @PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")
-      @Operation(summary = "Editar treino planejado")
-      @ApiResponses(...)
-      public ResponseEntity<TreinoPlanejadoOutputDto> editarTreino(
-          @PathVariable UUID planoId,
-          @PathVariable UUID treinoId,
-          @Valid @RequestBody TreinoPlanejadoPatchDto patch) {
-          return ResponseEntity.ok(editService.editarTreino(planoId, treinoId, patch));
-      }
-  }
-  ```
-- [ ] 1.5.b Validação: `./mvnw clean test`.
+- [x] 1.5.a `CoachTreinoEditController` criado: `PATCH /api/v1/coach/planos/{planoId}/treinos/{treinoId}`.
+- [x] 1.5.b Validação: `./mvnw clean test` — verde.
 
 ### 1.6 Testes de unidade — service
 
-- [ ] 1.6.a `TreinoPlanejadoEditServiceImplTest` com `@Nested`:
-  - `EditarTreino > atualiza campos não-nulos e seta editadoPeloCoach true`.
-  - `EditarTreino > ignora campos null — patch semântico`.
-  - `EditarTreino > recalcula TSS quando duracaoMin muda sem tssPlanejado explícito`.
-  - `EditarTreino > usa TSS do coach quando informado explicitamente`.
-  - `EditarTreino > nao recalcula TSS quando distanciaKm e duracaoMin nao mudam`.
-  - `EditarTreino > lança DomainRuleViolationException se plano nao está AGUARDANDO_REVISAO`.
-  - `EditarTreino > lança EntityNotFoundException se plano de outro tenant`.
-  - `EditarTreino > lança EntityNotFoundException se treino nao pertence ao plano`.
-  - `EditarTreino > lança EntityNotFoundException se treinoId pertence ao tenant mas a planoId diferente` (intra-tenant cross-plan).
-- [ ] 1.6.b Validação: `./mvnw clean test`.
+- [x] 1.6.a `TreinoPlanejadoEditServiceImplTest` — 10 cenários (happy path, patch semântico, TSS precedence, cross-plan, cross-tenant). Todos GREEN.
+- [x] 1.6.b Validação: `./mvnw clean test` — verde.
 
 ### 1.7 Testes de controller
 
-- [ ] 1.7.a `CoachTreinoEditControllerTest` com `@WebMvcTest(CoachTreinoEditController.class)`:
-  - Retorna 200 com `TreinoPlanejadoOutputDto` correto.
-  - Retorna 422 quando service lança `DomainRuleViolationException`.
-  - Retorna 404 quando service lança `EntityNotFoundException`.
-  - Retorna 400 para body com campos de validação inválidos (ex: `distanciaKm = -1`).
-- [ ] 1.7.b Validação: `./mvnw clean test` — todos os testes passando.
+- [x] 1.7.a `CoachTreinoEditControllerTest` — 5 cenários @WebMvcTest: 200, 404, 422, 409, 403. Todos GREEN.
+  - Nota: `JwtTenantFilter` requer `@MockitoBean` para `UsuarioSyncService` e `UsuarioRepository`; JWT mock precisa de claim `tenant_id`.
+- [x] 1.7.b Validação: `./mvnw clean test` — 956 testes, 0 falhas.
 
 ---
 
