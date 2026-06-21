@@ -58,95 +58,45 @@
 
 ### 2.1 Tipos TypeScript
 
-- [ ] 2.1.a Adicionar `editadoPeloCoach?: boolean` a `TreinoPlanejadoDto` em `src/types/PlanoReview.ts`
-  (este é o tipo usado no painel de revisão — confirmar no código).
-- [ ] 2.1.b Adicionar interface `TreinoPlanejadoPatch` ao mesmo arquivo `src/types/PlanoReview.ts`:
-  ```ts
-  export interface TreinoPlanejadoPatch {
-    tipoTreino?: string;
-    descricao?: string;
-    distanciaKm?: number;
-    duracaoMin?: string; // ISO-8601: "PT90M"
-    zonaAlvo?: string;
-    tssPlanejado?: number;
-    percepcaoEsforcoEsperada?: number;
-    observacao?: string; // campo é observacao (não observacoes) — alinhado com backend
-  }
-  ```
-- [ ] 2.1.c Validação: `npm run build`.
+- [x] 2.1.a `editadoPeloCoach?: boolean` + campos extras adicionados a `TreinoPlanejadoDto` em `src/types/PlanoReview.ts`.
+- [x] 2.1.b Interface `TreinoPlanejadoPatch` adicionada ao mesmo arquivo.
+- [x] 2.1.c Validação: `npm run build` — verde.
 
 ### 2.2 API service
 
-- [ ] 2.2.a Em `src/api/services/CoachPlanoReviewService.ts` (file existente — NÃO criar arquivo novo;
-  `src/api` é curado à mão), adicionar método estático:
-  ```ts
-  public static editarTreino(planoId: string, treinoId: string, patch: TreinoPlanejadoPatch): CancelablePromise<TreinoPlanejadoDto>
-  ```
-  Endpoint: `PATCH /api/v1/coach/planos/{planoId}/treinos/{treinoId}`.
-- [ ] 2.2.b Validação: `npm run build`.
+- [x] 2.2.a `CoachPlanoReviewService.editarTreino` adicionado em `src/api/services/CoachPlanoReviewService.ts`.
+- [x] 2.2.b Validação: `npm run build` — verde.
 
 ### 2.3 Hook `useEditTreinoPlanejado`
 
-- [ ] 2.3.a Criar `src/hooks/useEditTreinoPlanejado.ts` com padrão de `useManualTraining.ts`:
-  - Estados: `isSaving: boolean`, `saveError: Error | null`.
-  - `editarTreino(planoId, treinoId, patch): Promise<TreinoPlanejadoDto>` — lança em falha.
-  - Limpa `saveError` ao iniciar; seta em falha.
-- [ ] 2.3.b Testes (`src/hooks/useEditTreinoPlanejado.test.ts`, padrão Vitest + renderHook):
-  - Seta `isSaving = true` durante a chamada e `false` ao terminar.
-  - Retorna `TreinoPlanejadoDto` atualizado em sucesso.
-  - Seta `saveError` e rethrows em falha de API.
-- [ ] 2.3.c Validação: `npm run lint && npm run build`.
+- [x] 2.3.a `src/hooks/useEditTreinoPlanejado.ts` criado.
+- [x] 2.3.b `src/hooks/useEditTreinoPlanejado.test.ts` — 5 testes GREEN.
+- [x] 2.3.c Validação: lint + build — verde.
 
 ### 2.4 Componente `TreinoEditDialog`
 
-- [ ] 2.4.a Criar `src/features/coach/components/TreinoEditDialog.tsx`:
-  - Props: `open: boolean`, `treino: TreinoPlanejadoDto`, `planoId: string`, `isSaving: boolean`,
-    `onClose: () => void`, `onSave: (patch: TreinoPlanejadoPatch) => void`.
-  - Campos: tipo (Select com valores do backend), distância (TextField numérico),
-    duração em minutos inteiros (TextField numérico → converte para `PT{N}M` ao chamar `onSave`),
-    zonaAlvo (TextField), RPE esperado (TextField 1–10), TSS (TextField opcional),
-    observação (TextField multiline).
-  - Pré-preencher com valores atuais do `treino`.
-  - Botões: `Salvar` (desabilitado quando `isSaving`) e `Cancelar`.
-  - Padrão visual: igual ao `RejeicaoModal` existente em `PlanoDetalhePanel.tsx`.
-- [ ] 2.4.b Em `PlanoDetalhePanel.tsx`, dentro de `TreinoTag`, adicionar ponto laranja discreto quando
-  `treino.editadoPeloCoach === true` — elemento com `data-testid="chip-editado-coach"`.
-- [ ] 2.4.c Validação: `npm run lint && npm run build`.
+- [x] 2.4.a `src/features/coach/components/TreinoEditDialog.tsx` criado (6 campos + conversão ISO-8601).
+- [x] 2.4.b Indicador `data-testid="chip-editado-coach"` adicionado a `TreinoTag` em `PlanoDetalhePanel.tsx`.
+- [x] 2.4.c Validação: lint + build — verde; `TreinoEditDialog.test.tsx` — 5 testes GREEN.
 
 ### 2.5 Integração na `PlanoDetalhePanel` + `CoachPlanReviewPage`
 
-- [ ] 2.5.a Em `PlanoDetalhePanel.tsx`:
-  - Adicionar prop `onEditarTreino?: (treinoId: string) => void`.
-  - No bloco de treinos, envolver cada `TreinoTag` em um wrapper com botão lápis (`EditOutlinedIcon`)
-    — visível apenas quando `isAguardando && treino.id`.
-  - Ao clicar, chamar `onEditarTreino(treino.id)`.
-- [ ] 2.5.b Em `CoachPlanReviewPage.tsx`:
-  - Usar `useEditTreinoPlanejado` diretamente na página (não passa pelo outlet context — action local).
-  - Estado local `editingTreinoId: string | null`.
-  - Passar `onEditarTreino={(id) => setEditingTreinoId(id)}` para `PlanoDetalhePanel`.
-  - Renderizar `TreinoEditDialog` quando `editingTreinoId` não-nulo.
-  - Ao salvar no dialog: chamar `editarTreino(selected.id, editingTreinoId, patch)`,
-    fechar dialog e chamar `reviewFetchPendentes()` para re-fetch.
-- [ ] 2.5.c Validação: `npm run lint && npm run build`.
+- [x] 2.5.a `PlanoDetalhePanel.tsx`: prop `onEditarTreino` adicionada + botão `EditOutlinedIcon` por treino.
+- [x] 2.5.b `CoachPlanReviewPage.tsx`: hook `useEditTreinoPlanejado` local + `editingTreino` state + `TreinoEditDialog`.
+- [x] 2.5.c Validação: lint + build — verde.
 
 ### 2.6 Testes de componente
 
-- [ ] 2.6.a Teste do `TreinoEditDialog` (`TreinoEditDialog.test.tsx`):
-  - Pré-preenche campos com valores do treino recebido.
-  - Botão Salvar chama `onSave` com patch correto (duração convertida para ISO-8601).
-  - Botão Cancelar chama `onClose` sem chamar `onSave`.
-- [ ] 2.6.b Teste da integração no `CoachPlanReviewPage` (arquivo existente `CoachPlanReviewPage.test.tsx`):
-  - Adicionar: botão de edição (`EditOutlinedIcon`) presente quando `AGUARDANDO_REVISAO` e treino tem `id`.
-  - Adicionar: botão ausente quando `APROVADO`.
-  - Adicionar: chip `data-testid="chip-editado-coach"` presente quando `editadoPeloCoach = true`.
-- [ ] 2.6.c Validação: `npm run lint && npm run build && npm test`.
+- [x] 2.6.a `TreinoEditDialog.test.tsx` — 5 testes GREEN.
+- [x] 2.6.b `CoachPlanReviewPage.test.tsx` — 3 testes de integração adicionados, todos GREEN (11/11).
+- [x] 2.6.c Validação: lint + build + 130 testes — tudo GREEN.
 
 ---
 
 ## Bloco 3 — QA e entrega
 
 - [x] 3.1 `./mvnw clean test` — 956 testes, 0 falhas, BUILD SUCCESS.
-- [ ] 3.2 `npm run lint && npm run build && npm test` — tudo verde.
+- [x] 3.2 `npm run lint && npm run build && npm test` — 130 testes, 0 falhas, build verde.
 - [ ] 3.3 Teste manual ponta-a-ponta:
   - Gerar plano para atleta → status `AGUARDANDO_REVISAO`.
   - Editar treino (campo distância) → verificar `editadoPeloCoach = true` no banco + chip na UI.
