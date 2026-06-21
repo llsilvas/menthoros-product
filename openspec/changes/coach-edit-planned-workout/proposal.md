@@ -131,4 +131,4 @@ Além disso, os treinos editados manualmente tornam-se dado implícito de prefer
 **Em aberto:**
 - O objetivo semanal do `PlanoSemanal` (`objetivoSemanal`) deve ser atualizado quando treinos são editados? (Sugestão: não — o objetivo é nível plano, a edição é nível treino. Decidir apenas se surgir necessidade após entrega.)
 - Notificação ao atleta indicando que o plano aprovado inclui treinos editados manualmente? (Fora do escopo — atleta só vê o plano aprovado; os detalhes editoriais são internos ao coach.)
-- TSS recalculado silenciosamente vs. TSS pré-preenchido no dialog (coach decide): o product review recomenda mostrar TSS atual como default no campo do dialog em vez de recalcular automaticamente no backend — simplifica a lógica e é mais transparente. Decidir antes de implementar 1.3 e 2.4.
+- ~~TSS recalculado silenciosamente vs. TSS pré-preenchido no dialog~~ **Fechado:** recálculo automático no backend prevalece (CA3/CA4 corretos). `TssEstimator` é necessário na task 1.3. Frontend mantém campo TSS opcional (sem valor default diferente do atual).
