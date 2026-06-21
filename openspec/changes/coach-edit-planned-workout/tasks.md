@@ -127,7 +127,7 @@
 
 ## Bloco 3 — QA e entrega
 
-- [ ] 3.1 `./mvnw clean test` — todos os testes passando.
+- [x] 3.1 `./mvnw clean test` — 956 testes, 0 falhas, BUILD SUCCESS.
 - [ ] 3.2 `npm run lint && npm run build && npm test` — tudo verde.
 - [ ] 3.3 Teste manual ponta-a-ponta:
   - Gerar plano para atleta → status `AGUARDANDO_REVISAO`.
