@@ -105,5 +105,5 @@
   - Tentar editar treino de plano `APROVADO` → resposta 422.
   - Tentar editar treino de plano de outro tenant → 404.
   - Aprovar plano com treino editado → atleta visualiza plano.
-- [ ] 3.4 Revisores: `menthoros-workflow:code-reviewer` + `menthoros-workflow:security-reviewer`.
+- [x] 3.4 QA gate concluído: `frontend-reviewer` + `clean-code-reviewer` em paralelo. Achados CRÍTICO/IMPORTANTE corrigidos (regex ISO-8601, patch vazio, planoId morto, editingTreinoId refactor, saveError removido, mock fix, teste do fluxo principal). Pré-existentes anotados (actionError Snackbar, TIPO_COLORS hex).
 - [ ] 3.5 Abrir PR (`feature/coach-edit-planned-workout`) e aguardar CI verde.
