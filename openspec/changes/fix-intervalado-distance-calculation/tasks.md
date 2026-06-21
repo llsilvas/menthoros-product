@@ -1,96 +1,120 @@
 # Tasks: fix-intervalado-distance-calculation
 
-**Status:** Proposed
+**Status:** In Progress
+**Branch:** `feature/fix-intervalado-distance-calculation`
+**Base commit:** `8ca7e2c`
 **Sprint:** 9g.1 (hotfix — implementar antes de `coach-edit-planned-workout`)
 **Tamanho:** XS · **Trilha:** Fast
 **Repos:** menthoros-backend
 
 ---
 
-## Bloco 1 — Implementação
+## Achados da investigação (pré-implementação)
 
-### 1.1 Investigação prévia (ler antes de escrever código)
+| Item | Confirmado |
+|---|---|
+| `paceLimiar` unidade | `min/km` (BigDecimal, precision=5, scale=2). Comentário: `// min/km no limiar (ex: 4.5 min/km)`. Fórmula `duracaoMin / paceLimiar.doubleValue()` correta. |
+| Orquestrador | `validarENormalizarPlanoGerado` (linhas 346–476) |
+| Ponto de inserção | Antes da linha 377 (`expandirEtapasAgregadas`) — `Atleta atleta` já disponível (carregado linha 350) |
+| Sequência pós-inserção | [0] `corrigirDistanciasEtapasTemporais` → [1] `expandirEtapasAgregadas` → [2] `normalizarTreinoIntervalado` → [3] `reconciliarDistanciaComEtapas` |
+| `arredondar2` | Existe (linha 999): `Math.round(valor * 100.0) / 100.0` — 2 casas decimais suficientes para km. **Não criar `arredondar3`**. |
+| Constantes de pace | Nenhuma no arquivo — adicionar as nossas |
+| `clampDistanciaPorTipo` | Não modifica null (retorna etapa intacta se `distanciaKm == null || d <= 0`) — compatível com o fix |
+| Teste existente | `IaServiceImplFcValidationTest` (12 mocks, `@Nested`, reflexão via `invoke`) — adicionar nova `@Nested` class nele |
 
-- [ ] 1.1.a Confirmar unidade de `Atleta.paceLimiar`:
-  - Ler `Atleta.java` campo `paceLimiar`.
-  - Confirmar que é decimal de minutos por km (ex: 4.5 = 4:30/km), não segundos/km.
-  - Se estiver em segundos por km: ajustar as fórmulas do design (`paceZ2 = limiarSeg/60 × FATOR_Z2`).
-- [ ] 1.1.b Localizar o orquestrador de pós-processamento em `IaServiceImpl`:
-  - Grep por chamadas a `normalizarTreinoIntervalado` e `reconciliarDistanciaComEtapas`.
-  - Identificar o método que os chama em sequência (ex: `validarENormalizarPlanoGerado`).
-  - Anotar nome do método e número de linha — o Passo 0 deve ser inserido ali.
-- [ ] 1.1.c Verificar se `arredondar3` já existe ou se é preciso adaptar `arredondar2`:
-  - Grep `arredondar` em `IaServiceImpl`.
-  - Se só existir `arredondar2` (2 casas): criar `arredondar3` análogo para 3 casas de km.
+---
 
-### 1.2 Constantes
+## Bloco 1 — Implementação em `IaServiceImpl`
 
-- [ ] 1.2.a Adicionar as 4 constantes `private static final double` ao topo de `IaServiceImpl`:
+### 1.1 Constantes
+
+- [x] 1.1.a Adicionar as 4 constantes `private static final double` no bloco de constantes existente em `IaServiceImpl`:
   ```java
-  private static final double PACE_Z2_DEFAULT_MIN_KM = 7.0;
-  private static final double PACE_Z1_DEFAULT_MIN_KM = 8.0;
-  private static final double FATOR_PACE_Z2 = 1.20;
-  private static final double FATOR_PACE_Z1 = 1.35;
+  private static final double PACE_Z2_DEFAULT_MIN_KM = 7.0;  // 7:00/km — Z2 genérico sem limiar cadastrado
+  private static final double PACE_Z1_DEFAULT_MIN_KM = 8.0;  // 8:00/km — Z1 genérico sem limiar cadastrado
+  private static final double FATOR_PACE_Z2 = 1.20;          // Z2 ≈ limiar × 1.20
+  private static final double FATOR_PACE_Z1 = 1.35;          // Z1 ≈ limiar × 1.35
   ```
-- [ ] 1.2.b Validação: `./mvnw clean compile`.
+- [x] 1.1.b `verify:` `./mvnw clean compile` sem erros.
 
-### 1.3 Método `corrigirEtapaTemporal`
+### 1.2 Método `corrigirEtapaTemporal` (privado)
 
-- [ ] 1.3.a Adicionar método privado `corrigirEtapaTemporal(EtapaTreinoLlmDto, double paceZ1, double paceZ2)`:
-  - Se `duracaoMin == null || duracaoMin <= 0`: retornar etapa sem alteração.
-  - Switch em `tipoEtapa.toUpperCase()`:
+- [x] 1.2.a Criar método privado `corrigirEtapaTemporal(EtapaTreinoLlmDto e, double paceZ1, double paceZ2)`:
+  - Guard: se `e.duracaoMin() == null || e.duracaoMin() <= 0` → retornar `e` sem alteração.
+  - Switch em `e.tipoEtapa().toUpperCase()`:
     - `"AQUECIMENTO"`, `"DESAQUECIMENTO"` → `pace = paceZ2`
     - `"RECUPERACAO"` → `pace = paceZ1`
-    - default → retornar etapa sem alteração (INTERVALADO, TIRO, PRINCIPAL não são modificados)
-  - `distancia = arredondar3(duracaoMin / pace)` (arredondar com 3 casas decimais)
-  - Retornar novo `EtapaTreinoLlmDto` com `distanciaKm = distancia` e demais campos inalterados.
-- [ ] 1.3.b Validação: `./mvnw clean compile`.
+    - default → retornar `e` sem alteração (INTERVALADO, TIRO, PRINCIPAL intocados)
+  - `double distancia = arredondar2(e.duracaoMin() / pace)` — usar `arredondar2` existente (2 casas = 10m de precisão, suficiente).
+  - Retornar `new EtapaTreinoLlmDto(e.ordem(), e.tipoEtapa(), e.descricaoEtapa(), e.duracaoMin(), distancia, e.fcAlvoEtapa(), e.repeticoes(), e.ritmoAlvo())`.
+- [x] 1.2.b `verify:` `./mvnw clean compile`.
 
-### 1.4 Método `corrigirDistanciasEtapasTemporais`
+### 1.3 Método `corrigirDistanciasEtapasTemporais` (privado)
 
-- [ ] 1.4.a Adicionar método privado `corrigirDistanciasEtapasTemporais(List<EtapaTreinoLlmDto>, BigDecimal paceLimiar)`:
-  - Guard: `if (etapas == null || etapas.isEmpty()) return etapas;`
-  - Calcular `paceZ2 = paceLimiar != null ? paceLimiar.doubleValue() * FATOR_PACE_Z2 : PACE_Z2_DEFAULT_MIN_KM`
-  - Calcular `paceZ1 = paceLimiar != null ? paceLimiar.doubleValue() * FATOR_PACE_Z1 : PACE_Z1_DEFAULT_MIN_KM`
-  - Retornar `etapas.stream().map(e -> corrigirEtapaTemporal(e, paceZ1, paceZ2)).toList()`
-- [ ] 1.4.b Validação: `./mvnw clean compile`.
+- [x] 1.3.a Criar método privado `corrigirDistanciasEtapasTemporais(List<EtapaTreinoLlmDto> etapas, BigDecimal paceLimiar)`:
+  ```java
+  /**
+   * Deriva distanciaKm para etapas time-based (AQUECIMENTO, DESAQUECIMENTO, RECUPERACAO)
+   * via duracaoMin ÷ paceZona, substituindo o valor incorreto gerado pelo LLM
+   * (que usa o pace de tiro em vez do pace fácil).
+   *
+   * Idempotent: YES · Side Effects: NONE · Tenant-aware: NO
+   */
+  private List<EtapaTreinoLlmDto> corrigirDistanciasEtapasTemporais(
+          List<EtapaTreinoLlmDto> etapas, BigDecimal paceLimiar) {
+      if (etapas == null || etapas.isEmpty()) return etapas;
+      double paceZ2 = paceLimiar != null
+              ? paceLimiar.doubleValue() * FATOR_PACE_Z2
+              : PACE_Z2_DEFAULT_MIN_KM;
+      double paceZ1 = paceLimiar != null
+              ? paceLimiar.doubleValue() * FATOR_PACE_Z1
+              : PACE_Z1_DEFAULT_MIN_KM;
+      return etapas.stream()
+              .map(e -> corrigirEtapaTemporal(e, paceZ1, paceZ2))
+              .toList();
+  }
+  ```
+- [x] 1.3.b `verify:` `./mvnw clean compile`.
 
-### 1.5 Inserção na pipeline de pós-processamento
+### 1.4 Inserção na pipeline de `validarENormalizarPlanoGerado`
 
-- [ ] 1.5.a No método orquestrador identificado em 1.1.b, inserir chamada a `corrigirDistanciasEtapasTemporais` como primeiro passo:
-  - Inserir antes de `expandirEtapasAgregadas()` (ou equivalente).
-  - Usar `atleta.getPaceLimiar()` como argumento — confirmar que `atleta` está disponível no escopo (se não: passar como parâmetro adicional ao método ou obtê-lo do contexto local).
-- [ ] 1.5.b Validação: `./mvnw clean test`.
+- [x] 1.4.a Em `validarENormalizarPlanoGerado`, inserir a chamada ao novo método imediatamente **antes** da linha 377 (`expandirEtapasAgregadas`):
+  — Aplicado nos blocos INTERVALADO/TIRO e FARTLEK.
+- [x] 1.4.b `verify:` `./mvnw clean test` — 939 testes passando, 0 falhas.
 
 ---
 
 ## Bloco 2 — Testes de unidade
 
-### 2.1 `IaServiceImplTest` ou classe dedicada
+### 2.1 Nova `@Nested class CorrigirDistanciasEtapasTemporais` em `IaServiceImplFcValidationTest`
 
-- [ ] 2.1.a `@Nested class CorrigirDistanciasEtapasTemporais`:
-  - `corrigeAquecimentoComPaceLimiar` — AQUECIMENTO 10min, paceLimiar=4.5 → distanciaKm ≈ 1.389 (10 / (4.5×1.20)).
-  - `corrigeDesaquecimentoComPaceLimiar` — DESAQUECIMENTO 10min, paceLimiar=5.0 → distanciaKm ≈ 1.667.
-  - `corrigeRecuperacaoComPaceLimiar` — RECUPERACAO 2min, paceLimiar=4.5 → distanciaKm ≈ 0.247 (2 / (4.5×1.35)).
-  - `usaDefaultsQuandoPaceLimiarNulo` — AQUECIMENTO 10min, paceLimiar=null → distanciaKm ≈ 1.429 (10/7.0).
-  - `naoAlteraIntervalado` — INTERVALADO 400m, distanciaKm=0.4 → distanciaKm permanece 0.4.
-  - `naoAlteraTiro` — TIRO 200m, distanciaKm=0.2 → distanciaKm permanece 0.2.
-  - `retornaListaVaziaQuandoListaVazia` — lista empty → retorna empty sem exceção.
-  - `naoAlteraEtapaSemDuracaoMin` — AQUECIMENTO com `duracaoMin = null` → distanciaKm = null (sem modificação).
-- [ ] 2.1.b `@Nested class IntegracaoDistanciaTreinoIntervalado` (teste end-to-end da pipeline de normalização):
-  - Dado: TreinoPlanejadoLlmDto tipo INTERVALADO com etapas: AQUECIMENTO(10min, 2.5km), 5×INTERVALADO(0.4km), 5×RECUPERACAO(2min, 1.0km), DESAQUECIMENTO(10min, 2.5km), paceLimiar=4.5.
-  - Quando: normalização completa aplicada.
-  - Então: `TreinoPlanejado.distanciaKm ∈ [5.5, 8.0]` (não 10km nem ~12km).
-- [ ] 2.1.c Validação: `./mvnw clean test`.
+> Usar reflexão (padrão do arquivo): `invokeCorrigirEtapaTemporal(...)` e `invokeCorrigirDistanciasEtapasTemporais(...)` via `Method.invoke` para testar métodos privados.
+
+- [x] 2.1.a Criar helper `invokeCorrigirDistanciasEtapasTemporais(List<EtapaTreinoLlmDto>, BigDecimal)` por reflexão (igual ao padrão `invokeParseFcRange` existente).
+- [x] 2.1.b Testes de `corrigirEtapaTemporal` via `corrigirDistanciasEtapasTemporais`:
+  - `corrigeAquecimento` — AQUECIMENTO 10min, paceLimiar=4.5 → `distanciaKm ≈ 10/(4.5×1.20) = 1.85`. Usar `assertThat(result).isCloseTo(1.85, within(0.01))`.
+  - `corrigeDesaquecimento` — DESAQUECIMENTO 10min, paceLimiar=5.0 → `distanciaKm ≈ 10/(5.0×1.20) = 1.67`.
+  - `corrigeRecuperacao` — RECUPERACAO 2min, paceLimiar=4.5 → `distanciaKm ≈ 2/(4.5×1.35) = 0.33`.
+  - `usaDefaultsQuandoPaceLimiarNulo` — AQUECIMENTO 10min, paceLimiar=null → `distanciaKm ≈ 10/7.0 = 1.43`.
+  - `naoAlteraIntervalado` — INTERVALADO 400m (`distanciaKm=0.4`, `duracaoMin=4`) → `distanciaKm` permanece `0.4`.
+  - `naoAlteraTiro` — TIRO (`distanciaKm=0.2`) → `distanciaKm` permanece `0.2`.
+  - `retornaListaVaziaQuandoListaVazia` — `List.of()` → retorna `List.of()`, sem exceção.
+  - `naoAlteraEtapaSemDuracaoMin` — AQUECIMENTO com `duracaoMin=null` → etapa retornada com `distanciaKm` original (null).
+- [x] 2.1.c `@Nested class IntegracaoDistanciaTreinoIntervalado` — teste de integração da pipeline completa (apenas os métodos privados em sequência, sem chamar `validarENormalizarPlanoGerado` que requer mocks de repositório):
+  - Construir `TreinoPlanejadoLlmDto` tipo INTERVALADO com etapas: AQUECIMENTO(10min, 2.5km), 5×INTERVALADO(0.4km cada), 5×RECUPERACAO(2min, 1.0km cada), DESAQUECIMENTO(10min, 2.5km). `distanciaKm` do treino = 10.0.
+  - Aplicar `corrigirDistanciasEtapasTemporais` → verificar que AQUECIMENTO ≠ 2.5 e RECUPERACAO ≠ 1.0.
+  - Aplicar `reconciliarDistanciaComEtapas` sobre o resultado → verificar que `distanciaKm ∈ [5.5, 8.0]` (CA1).
+  - Nota: invocar `reconciliarDistanciaComEtapas` também por reflexão (já privado, padrão do arquivo).
+- [x] 2.1.d `verify:` `./mvnw clean test` — 939 testes passando, 0 falhas.
 
 ---
 
 ## Bloco 3 — QA e entrega
 
-- [ ] 3.1 `./mvnw clean test` — todos os testes passando.
-- [ ] 3.2 Teste manual:
-  - Gerar plano para atleta com `paceLimiar` cadastrado e pelo menos um treino INTERVALADO na semana.
-  - Verificar que a distância do treino intervalado está entre 5.5 e 8.0 km para o exemplo 10min + 5×400m + rec + 10min.
-  - Gerar plano para atleta SEM `paceLimiar` → verificar que defaults são usados (sem NPE, sem divisão por zero).
-  - Gerar treino CONTINUO → verificar que distância não foi alterada pelo fix (CA5).
-- [ ] 3.3 Abrir PR (`feature/fix-intervalado-distance-calculation`) e aguardar CI verde.
+- [x] 3.1 `verify:` `./mvnw clean test` — 939 testes passando, 0 falhas.
+- [ ] 3.2 Commit de entrega (Conventional Commits PT-BR).
+- [ ] 3.3 Teste manual (opcional — validar no ambiente de dev se disponível):
+  - Gerar plano para atleta com `paceLimiar` cadastrado com treino INTERVALADO (ex: aquecimento + tiros + recovery + desaquecimento) → verificar `distanciaKm ∈ [5.5, 8.0]`.
+  - Gerar plano para atleta sem `paceLimiar` → sem NPE, sem divisão por zero.
+  - Gerar treino CONTINUO → `distanciaKm` inalterada (CA5).
+- [ ] 3.4 Abrir PR: `gh pr create --base develop --head feature/fix-intervalado-distance-calculation`.
