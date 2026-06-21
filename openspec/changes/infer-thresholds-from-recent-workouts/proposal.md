@@ -87,7 +87,7 @@ então nenhum banner de inferência é exibido.
 
 ## Não Faz Parte Desta Change
 
-- Persistência do limiar estimado no perfil do atleta ou na entidade `PlanoSemanal` — o campo `limiareisInferidos` existe apenas no response DTO de geração, não no banco.
+- Persistência do limiar estimado na entidade `Atleta` (seria auto-calibração com aprovação do coach) ou em `PlanoSemanal` — os valores estimados vivem em `PlanoMetaDados` e não migram para o perfil oficial do atleta.
 - Recalibração automática de `Atleta.fcLimiar`/`paceLimiar` a partir da inferência (exigiria aprovação explícita do coach — feature separada).
 - Suporte a modalidades além de corrida (ciclismo, natação) — fica para quando o produto expandir.
 - Cálculo de `fcLimiar` a partir de `fcMaxima` estimada (já existe como fallback atual).

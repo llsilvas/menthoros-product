@@ -2,231 +2,267 @@
 
 ## Decisões Técnicas
 
-### 1. Trigger de inferência — condição de staleness
+### 1. Arquitetura geral — onde a inferência roda
 
-A inferência é ativada independentemente para FC e pace, com a mesma condição:
+A inferência de limiares **não roda na geração de plano** — roda quando os metadados do atleta são atualizados, ou seja, após cada treino registrado.
 
-```java
-// Para FC
-boolean fcLimiarDesatualizado =
-    atleta.getFcLimiar() == null ||
-    atleta.getDataUltimoTesteFc() == null ||
-    ChronoUnit.DAYS.between(atleta.getDataUltimoTesteFc(), LocalDate.now()) > 90;
+Razão: `TsbServiceImpl.atualizarMetaDados(UUID atletaId, MetricasDiarias metricas)` (linha 238–267) já é o ponto de atualização de todas as métricas calculadas do atleta — CTL, ATL, TSB, alertas. Adicionar `fcLimiarEstimado` e `paceLimiarEstimado` aqui é consistente com o padrão existente e mantém `PlanoMetaDados` como repositório único de estado calculado por atleta.
 
-// Para pace
-boolean paceLimiarDesatualizado =
-    atleta.getPaceLimiar() == null ||
-    atleta.getDataUltimoTestePace() == null ||
-    ChronoUnit.DAYS.between(atleta.getDataUltimoTestePace(), LocalDate.now()) > 90;
+Benefícios:
+- O `PlanoTreinoPromptBuilder` lê os valores calculados (não computa) → geração de plano mais rápida
+- Os valores são sempre atuais quando o plano é gerado, independente de quantos planos o coach gerar
+- A `CoachPlanReviewPage` pode ler os dados do endpoint de perfil que já existe — sem estado efêmero no frontend
+- A inferência roda uma vez por treino registrado, não uma vez por plano gerado
+
+### 2. Novos campos em `PlanoMetaDados` — migration V40
+
+```sql
+-- V40__Add_threshold_inference_to_plano_metadados.sql
+ALTER TABLE tb_plano_metadados
+    ADD COLUMN IF NOT EXISTS fc_limiar_estimado      INTEGER,
+    ADD COLUMN IF NOT EXISTS pace_limiar_estimado    DECIMAL(5,4),
+    ADD COLUMN IF NOT EXISTS confianca_inferencia_fc VARCHAR(10),
+    ADD COLUMN IF NOT EXISTS confianca_inferencia_pace VARCHAR(10),
+    ADD COLUMN IF NOT EXISTS data_inferencia_limiar  DATE;
 ```
 
-> **Nota:** `LocalDate.now()` é chamado no `PlanoTreinoPromptBuilder` (contexto de serviço HTTP), não dentro do `ThresholdInferenceService`. Isso preserva a testabilidade — os testes do service recebem `LocalDate` via parâmetro.
+Todos nullable — `NULL` significa "nunca inferido" ou "insuficiente amostra". Não há migration reversa: os dados estimados são sempre recalculáveis.
 
-### 2. Algoritmo de inferência
+Campos correspondentes na entidade:
+```java
+@Column(name = "fc_limiar_estimado")
+private Integer fcLimiarEstimado;
+
+@Column(name = "pace_limiar_estimado", precision = 5, scale = 4)
+private BigDecimal paceLimiarEstimado;
+
+@Enumerated(EnumType.STRING)
+@Column(name = "confianca_inferencia_fc", length = 10)
+private ConfiancaInferencia confiancaInferenciaFc;
+
+@Enumerated(EnumType.STRING)
+@Column(name = "confianca_inferencia_pace", length = 10)
+private ConfiancaInferencia confiancaInferenciaPace;
+
+@Column(name = "data_inferencia_limiar")
+private LocalDate dataInferenciaLimiar;
+```
+
+### 3. Algoritmo de inferência
 
 **FC limiar estimado:**
-
 ```
 entrada: List<TreinoRealizado> — últimos 30 dias
 filtro:
   - fcMedia != null E fcMedia > 0
-  - duracaoMin != null E duracaoMin.toMinutes() > 20
+  - duracaoMin.toMinutes() > 20
 cálculo:
-  1. Ordenar fcMedia decrescente (maiores valores primeiro)
-  2. Pegar os top 20% (= max(1, Math.ceil(n * 0.20)) itens)
-  3. Calcular mediana desse subconjunto
-saída: fcLimiarEstimado (Integer, bpm)
+  1. Ordenar fcMedia decrescente
+  2. Top 20%: max(1, ceil(n × 0.20)) elementos
+  3. Mediana do subconjunto (índice n/2 - 1 para n par → conservador)
+saída: Integer (bpm)
 ```
 
-Lógica: o quintil superior de FC nos treinos representa os momentos de esforço mais intenso — próximos ou no limiar anaeróbico. A mediana (não a média) é robusta a leituras espúrias de cardíaco.
-
 **Pace limiar estimado:**
-
 ```
 entrada: List<TreinoRealizado> — últimos 30 dias
 filtro:
   - tipoTreino IN (CONTINUO, LONGO, TEMPO_RUN, FARTLEK)
-  - paceMedia != null E paceMedia.getSeconds() > 0
-  - duracaoMin != null E duracaoMin.toMinutes() > 20
+  - paceMedia.getSeconds() > 0 E duracaoMin.toMinutes() > 20
 cálculo:
-  1. Ordenar paceMedia.getSeconds() crescente (paces mais rápidos primeiro)
-  2. Pegar os top 20% (menor segundos = mais rápido)
-  3. Calcular mediana em segundos e converter para BigDecimal minutos decimais
-saída: paceLimiarEstimado (BigDecimal, decimal de minutos/km, ex: 4.75 = 4:45/km)
+  1. Ordenar paceMedia.getSeconds() crescente (menor = mais rápido)
+  2. Top 20% mais rápidos
+  3. Mediana em segundos → BigDecimal decimal de minutos (segundos / 60, 4 casas)
+saída: BigDecimal (ex: 4.7500 = 4:45/km)
 ```
 
-Lógica: o quintil superior de pace em treinos contínuos sem tiro representa esforços de corrida a ritmo de limiar ou próximo. Excluem-se INTERVALADO e TIRO porque seus paces são supramáximos e inflariam artificialmente o limiar.
-
 **Confiança:**
-
 | Amostras válidas | Nível |
 |---|---|
 | ≥ 10 | ALTA |
 | 5–9 | MEDIA |
 | 3–4 | BAIXA |
-| < 3 | INSUFICIENTE — não injeta Constraint |
+| < 3 | INSUFICIENTE → não persiste (mantém `NULL`) |
 
-### 3. Componente `ThresholdInferenceService`
+### 4. `ThresholdInferenceService` — componente puro
 
 ```java
+// services/helper/ThresholdInferenceService.java
 @Component
 public class ThresholdInferenceService {
 
-    // Janela de análise em dias
-    private static final int JANELA_DIAS = 30;
-
-    // Tamanho mínimo de amostra para inferir
     static final int MIN_AMOSTRAS = 3;
-
-    // Duração mínima de treino para ser incluído na inferência
     static final long MIN_DURACAO_MIN = 20;
-
-    // Percentual do quintil superior
     private static final double FATOR_QUINTIL = 0.20;
 
     /**
-     * Idempotent: YES — leitura pura, sem side effects
-     * Side Effects: NONE
-     * Tenant-aware: YES (lista de treinos já filtrada pelo caller)
+     * Idempotent: YES · Side Effects: NONE · Tenant-aware: YES (lista já filtrada pelo caller)
      */
-    public Optional<ThresholdEstimate> inferirFcLimiar(
-            List<TreinoRealizado> treinos30d, LocalDate hoje) { ... }
+    public Optional<ThresholdEstimate> inferirFcLimiar(List<TreinoRealizado> treinos, LocalDate hoje) { ... }
 
     /**
-     * Idempotent: YES — leitura pura, sem side effects
-     * Side Effects: NONE
-     * Tenant-aware: YES (lista de treinos já filtrada pelo caller)
+     * Idempotent: YES · Side Effects: NONE · Tenant-aware: YES (lista já filtrada pelo caller)
      */
-    public Optional<ThresholdEstimate> inferirPaceLimiar(
-            List<TreinoRealizado> treinos30d, LocalDate hoje) { ... }
+    public Optional<ThresholdEstimate> inferirPaceLimiar(List<TreinoRealizado> treinos, LocalDate hoje) { ... }
 }
-```
 
-**Output record:**
-
-```java
-public record ThresholdEstimate(
-    String tipo,           // "FC_LIMIAR" | "PACE_LIMIAR"
-    Number valor,          // Integer (bpm) para FC; BigDecimal (min decimal) para pace
-    int amostras,          // quantos treinos foram usados
-    ConfiancaInferencia confianca  // enum ALTA | MEDIA | BAIXA
-) {}
-
+public record ThresholdEstimate(Number valor, int amostras, ConfiancaInferencia confianca) {}
 public enum ConfiancaInferencia { ALTA, MEDIA, BAIXA }
 ```
 
-O service recebe a lista de treinos já carregada (pelo `PlanoTreinoPromptBuilder`) para não introduzir uma nova query — os treinos dos últimos 30 dias já são consultados pelo `IaServiceImpl` no contexto de geração de plano.
+O service é stateless e sem repositórios injetados — testabilidade total. O caller (TsbServiceImpl) fornece a lista de treinos.
 
-### 4. Formato do Constraint injetado
+### 5. Integração em `TsbServiceImpl.atualizarMetaDados()`
 
+```java
+// TsbServiceImpl — após aplicarAnalise, antes de save()
+private void atualizarMetaDados(UUID atletaId, MetricasDiarias metricas) {
+    PlanoMetaDados metaDados = planoMetaDadosRepository.findByAtletaId(atletaId)...;
+
+    // (existente) CTL, ATL, TSB, diasConsecutivos, alertas...
+    metaDados.setCtlAtual(metricas.getCtl());
+    // ...
+    metaDados.aplicarAnalise(metricasAlertaService.analisarMetricas(...));
+
+    // (NOVO) inferência de limiares quando desatualizados
+    LocalDate hoje = LocalDate.now();
+    Atleta atleta = metricas.getAtleta();
+    atualizarLimiareInferidos(atletaId, atleta, metaDados, hoje);
+
+    planoMetaDadosRepository.save(metaDados);
+}
+
+private void atualizarLimiareInferidos(UUID atletaId, Atleta atleta,
+                                        PlanoMetaDados metaDados, LocalDate hoje) {
+    boolean fcStale  = atleta.getFcLimiar() == null || atleta.getDataUltimoTesteFc() == null
+                    || ChronoUnit.DAYS.between(atleta.getDataUltimoTesteFc(), hoje) > 90;
+    boolean paceStale = atleta.getPaceLimiar() == null || atleta.getDataUltimoTestePace() == null
+                    || ChronoUnit.DAYS.between(atleta.getDataUltimoTestePace(), hoje) > 90;
+
+    if (!fcStale && !paceStale) return; // nada a fazer
+
+    // Query única para 30 dias — reutiliza o repositório já injetado
+    List<TreinoRealizado> treinos30d = treinoRealizadoRepository
+            .findByAtletaIdAndDataTreinoBetween(atletaId, hoje.minusDays(30), hoje);
+
+    if (fcStale) {
+        thresholdInferenceService.inferirFcLimiar(treinos30d, hoje)
+                .ifPresent(est -> {
+                    metaDados.setFcLimiarEstimado((Integer) est.valor());
+                    metaDados.setConfiancaInferenciaFc(est.confianca());
+                    metaDados.setDataInferenciaLimiar(hoje);
+                });
+    }
+    if (paceStale) {
+        thresholdInferenceService.inferirPaceLimiar(treinos30d, hoje)
+                .ifPresent(est -> {
+                    metaDados.setPaceLimiarEstimado((BigDecimal) est.valor());
+                    metaDados.setConfiancaInferenciaPace(est.confianca());
+                    metaDados.setDataInferenciaLimiar(hoje);
+                });
+    }
+}
 ```
-[LIMIAR_FC_ESTIMADO] FC limiar inferido: 163 bpm
-  Fonte: mediana dos 20% maiores FC em 15 treinos dos últimos 30d | Confiança: ALTA
-  ATENÇÃO: valor estimado por inferência — os valores das zonas de FC derivados deste limiar devem ser tratados como referência aproximada. Recomendar teste formal ao atleta.
 
-[LIMIAR_PACE_ESTIMADO] Pace limiar inferido: 4:45/km (4.75 min/km decimal)
-  Fonte: mediana dos 20% paces mais rápidos em treinos contínuos >20min | Confiança: MEDIA
-  ATENÇÃO: valor estimado por inferência — usar como base para zonas de pace, mas com margem de ±5s/km nas prescrições.
-```
+**Query adicional:** uma `findByAtletaIdAndDataTreinoBetween` por atualização de metadados quando limiares estão stale. Aceitável — `atualizarMetaDados` já faz 2–3 queries; mais uma para 30 dias de treinos é desprezível. O guard `if (!fcStale && !paceStale) return;` garante que atletas com limiares atualizados não pagam o custo.
 
-Quando o limiar oficial está atual (≤ 90 dias), o Constraint não é emitido — as zonas usam os valores reais normalmente.
+### 6. Leitura em `PlanoTreinoPromptBuilder` — sem computação
 
-Quando a confiança é BAIXA (3–4 amostras), o Constraint é emitido com instrução adicional:
-```
-  ⚠️ CONFIANÇA BAIXA (apenas 3 treinos) — ampliar margem de prescrição em ±10s/km ou ±5 bpm.
-```
-
-### 5. Integração em `PlanoTreinoPromptBuilder`
-
-O builder recebe os treinos via `ContextoTreino ctx = treinoHistoricoProvider.prepararContexto(atleta)`, que expõe `ctx.treinosUltimas4Semanas()` (janela de 28 dias). O `ThresholdInferenceService` filtra internamente para os últimos 30 dias via `dataTreino` — a diferença de 2 dias é irrelevante estatisticamente.
+O builder lê os valores pré-calculados de `PlanoMetaDados`. Não instancia `ThresholdInferenceService`:
 
 ```java
 // PlanoTreinoPromptBuilder.buildOptimizedPrompt(...)
-// (já existente) ctx = treinoHistoricoProvider.prepararContexto(atleta)
-
-// (já existente) bloco [1] - dados fisiológicos com valores oficiais
+// (já existente) bloco [1] — dados fisiológicos
 sb.append(dadosFisiologicosFormatter.formatar(atleta));
 
-// (novo) — inferência de limiar quando desatualizado
-LocalDate hoje = LocalDate.now();
-List<TreinoRealizado> treinos = ctx.treinosUltimas4Semanas();
-Optional<ThresholdEstimate> estimativaFc = Optional.empty();
-Optional<ThresholdEstimate> estimativaPace = Optional.empty();
-
-if (fcLimiarDesatualizado(atleta, hoje)) {
-    estimativaFc = thresholdInferenceService.inferirFcLimiar(treinos, hoje);
-    estimativaFc.ifPresent(est -> sb.append(thresholdConstraintFormatter.formatarConstraintFc(est)));
+// (NOVO) se limiar estimado persistido e limiar oficial stale: emitir Constraint
+if (metaDados.getFcLimiarEstimado() != null && fcLimiarDesatualizado(atleta)) {
+    sb.append(thresholdConstraintFormatter.formatarConstraintFc(
+        metaDados.getFcLimiarEstimado(),
+        metaDados.getConfiancaInferenciaFc(),
+        metaDados.getDataInferenciaLimiar()
+    ));
 }
-if (paceLimiarDesatualizado(atleta, hoje)) {
-    estimativaPace = thresholdInferenceService.inferirPaceLimiar(treinos, hoje);
-    estimativaPace.ifPresent(est -> sb.append(thresholdConstraintFormatter.formatarConstraintPace(est)));
-}
-```
-
-As variáveis `estimativaFc` e `estimativaPace` são retornadas ao caller junto com o plano gerado para popular o campo `limiareisInferidos` no response DTO.
-
-### 6. Ausência de side effects no banco
-
-O `ThresholdInferenceService` é stateless. Não injeta repositórios nem persiste dados.
-`Atleta.fcLimiar`, `Atleta.paceLimiar`, `dataUltimoTesteFc`, `dataUltimoTestePace` permanecem intactos.
-
-A única saída é o texto adicionado ao prompt.
-
-### 7. Cálculo da mediana
-
-```java
-private static <T extends Comparable<T>> T mediana(List<T> lista) {
-    // lista deve estar ordenada antes de chamar
-    int n = lista.size();
-    if (n % 2 == 1) return lista.get(n / 2);
-    // para par, pega o inferior (conservador — subestima levemente)
-    return lista.get(n / 2 - 1);
+if (metaDados.getPaceLimiarEstimado() != null && paceLimiarDesatualizado(atleta)) {
+    sb.append(thresholdConstraintFormatter.formatarConstraintPace(
+        metaDados.getPaceLimiarEstimado(),
+        metaDados.getConfiancaInferenciaPace(),
+        metaDados.getDataInferenciaLimiar()
+    ));
 }
 ```
 
-Para FC (Integer) e pace (Long de segundos), a mediana inteira conservadora é adequada — o arredondamento é < 1bpm / < 1s/km.
+O `metaDados` já é carregado pelo `IaServiceImpl` para acessar CTL/ATL/TSB — sem query adicional.
 
-### 8. Campo `limiareisInferidos` no response
+### 7. Formato do Constraint injetado
 
-O response da geração de plano (`PlanoSemanalOutputDto` ou um DTO wrapper dedicado) inclui um campo opcional:
+```
+[LIMIAR_FC_ESTIMADO] FC limiar inferido: 163 bpm (inferido em 2026-06-15)
+  Fonte: mediana dos 20% maiores FC em 15 treinos dos últimos 30d | Confiança: ALTA
+  ATENÇÃO: valor estimado por inferência — zonas derivadas são aproximadas. Recomendar teste formal.
+
+[LIMIAR_PACE_ESTIMADO] Pace limiar inferido: 4:45/km (inferido em 2026-06-15)
+  Fonte: mediana dos 20% paces mais rápidos em treinos contínuos >20min | Confiança: MEDIA
+  ATENÇÃO: valor estimado — usar com margem de ±5s/km nas prescrições.
+```
+
+Confiança BAIXA adiciona:
+```
+  ⚠️ CONFIANÇA BAIXA (apenas 3 treinos) — ampliar margem em ±10s/km ou ±5 bpm.
+```
+
+### 8. Exposição ao frontend via `PlanoMetaDadosOutputDto`
+
+Os campos estimados são adicionados ao `PlanoMetaDadosOutputDto` já existente:
 
 ```java
-// dto/output/LimiarInferidoDto.java
-public record LimiarInferidoDto(
-    String tipo,             // "FC_LIMIAR" | "PACE_LIMIAR"
-    String valorFormatado,   // "163 bpm" | "4:45/km"
-    int amostras,
-    ConfiancaInferencia confianca
+public record PlanoMetaDadosOutputDto(
+    // ... campos existentes (ctlAtual, atlAtual, tsbAtual, etc.)
+    @JsonInclude(JsonInclude.Include.NON_NULL) Integer fcLimiarEstimado,
+    @JsonInclude(JsonInclude.Include.NON_NULL) String paceLimiarEstimadoFormatado, // "4:45/km"
+    @JsonInclude(JsonInclude.Include.NON_NULL) ConfiancaInferencia confiancaInferenciaFc,
+    @JsonInclude(JsonInclude.Include.NON_NULL) ConfiancaInferencia confiancaInferenciaPace,
+    @JsonInclude(JsonInclude.Include.NON_NULL) LocalDate dataInferenciaLimiar
 ) {}
-
-// campo em PlanoSemanalOutputDto (ou no response wrapper da geração):
-@JsonInclude(JsonInclude.Include.NON_NULL)
-List<LimiarInferidoDto> limiareisInferidos;
 ```
 
-**Persistência:** o campo NÃO é armazenado no banco. Ele é montado no service de geração a partir dos `Optional<ThresholdEstimate>` devolvidos pelo builder e incluído apenas no response de `POST /api/v1/planos/atletas/{atletaId}/gerar`. Consultas subsequentes ao plano (GET) não incluem esse campo.
+O `GET /coach/atletas/{id}/perfil` (endpoint `athlete-profile-drilldown`) já retorna `PlanoMetaDadosOutputDto` — o frontend recebe os campos estimados automaticamente sem novo endpoint.
 
-**Leitura no frontend:** a `CoachPlanReviewPage` exibe o banner com base nos dados retornados pela chamada de geração e mantidos no estado local (context ou store) enquanto o coach está na sessão de revisão.
+A `CoachPlanReviewPage` lê esses campos ao carregar o perfil do atleta antes da revisão e exibe o banner quando presentes. Nenhum estado efêmero nem resposta da geração necessários.
 
-### 9. Diagrama de fluxo da geração de plano com inferência
+### 9. Diagrama de fluxo completo
 
 ```
-PlanoTreinoPromptBuilder.buildOptimizedPrompt(ctx)
+TreinoRealizado registrado
   │
-  ├─ [1] Dados fisiológicos (fcLimiar oficial, paceLimiar oficial, zonas calculadas)
+  ▼
+TsbServiceImpl.atualizarTsbDia()
   │
-  ├─ [NOVO] Se fcLimiar desatualizado:
-  │    ThresholdInferenceService.inferirFcLimiar(treinos30d)
-  │    → Optional<ThresholdEstimate>
-  │    → se presente: Constraint [LIMIAR_FC_ESTIMADO] adicionado ao prompt
+  ▼
+TsbServiceImpl.atualizarMetaDados()
+  ├─ CTL / ATL / TSB / alertas (existente)
+  ├─ [NOVO] atualizarLimiareInferidos():
+  │    Se fcLimiar stale → inferirFcLimiar(treinos30d) → metaDados.fcLimiarEstimado
+  │    Se paceLimiar stale → inferirPaceLimiar(treinos30d) → metaDados.paceLimiarEstimado
+  └─ planoMetaDadosRepository.save()
+
+
+Coach gera plano
   │
-  ├─ [NOVO] Se paceLimiar desatualizado:
-  │    ThresholdInferenceService.inferirPaceLimiar(treinos30d)
-  │    → Optional<ThresholdEstimate>
-  │    → se presente: Constraint [LIMIAR_PACE_ESTIMADO] adicionado ao prompt
+  ▼
+PlanoTreinoPromptBuilder.buildOptimizedPrompt()
+  ├─ [1] Dados fisiológicos (limiar oficial, zonas)
+  ├─ [NOVO] Se metaDados.fcLimiarEstimado != null E fcLimiar stale:
+  │    → Constraint [LIMIAR_FC_ESTIMADO] (lê do banco, não computa)
+  ├─ [NOVO] Se metaDados.paceLimiarEstimado != null E paceLimiar stale:
+  │    → Constraint [LIMIAR_PACE_ESTIMADO]
+  └─ [2..N] Restante do prompt (treinos recentes, TSB/CTL, objetivos)
+
+
+CoachPlanReviewPage carrega atleta
   │
-  ├─ [2] Histórico de pace (PaceHistoricoFormatter — já existente)
-  │    Teto de pace por tipo — continua como antes
-  │
-  └─ [3..N] Restante do prompt (treinos recentes, TSB/CTL, objetivos, etc.)
+  ▼
+GET /coach/atletas/{id}/perfil
+  → PlanoMetaDadosOutputDto com fcLimiarEstimado, confiancaInferenciaFc
+  → Banner exibido quando fcLimiarEstimado != null
 ```

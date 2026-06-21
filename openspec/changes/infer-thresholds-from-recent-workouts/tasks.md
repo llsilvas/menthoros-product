@@ -7,198 +7,214 @@
 
 ---
 
-## Bloco 1 — Backend: `ThresholdInferenceService`
+## Bloco 1 — Backend: migration e modelo
 
-### 1.1 Records de output
+### 1.1 Migration V40
 
-- [ ] 1.1.a Criar enum `ConfiancaInferencia` em `enums/`:
+- [ ] 1.1.a Confirmar que V39 é a última migration aplicada após `coach-edit-planned-workout`.
+- [ ] 1.1.b Criar `V40__Add_threshold_inference_to_plano_metadados.sql`:
+  ```sql
+  -- =====================================================================
+  -- V40: Adiciona campos de inferência de limiares à tb_plano_metadados
+  -- =====================================================================
+  ALTER TABLE tb_plano_metadados
+      ADD COLUMN IF NOT EXISTS fc_limiar_estimado       INTEGER,
+      ADD COLUMN IF NOT EXISTS pace_limiar_estimado     DECIMAL(5,4),
+      ADD COLUMN IF NOT EXISTS confianca_inferencia_fc  VARCHAR(10),
+      ADD COLUMN IF NOT EXISTS confianca_inferencia_pace VARCHAR(10),
+      ADD COLUMN IF NOT EXISTS data_inferencia_limiar   DATE;
+
+  DO $$
+  BEGIN
+      RAISE NOTICE '✅ V40 - campos de inferência de limiares adicionados a tb_plano_metadados';
+  END$$;
+  ```
+- [ ] 1.1.c Validação: `./mvnw flyway:info` sem conflito.
+
+### 1.2 Entidade e enum
+
+- [ ] 1.2.a Criar enum `ConfiancaInferencia` em `enums/`:
   ```java
   public enum ConfiancaInferencia { ALTA, MEDIA, BAIXA }
   ```
-- [ ] 1.1.b Criar record `ThresholdEstimate` em `services/helper/`:
+- [ ] 1.2.b Adicionar os 5 novos campos à entidade `PlanoMetaDados` (nullable, sem `@NotNull`):
+  - `fcLimiarEstimado: Integer`
+  - `paceLimiarEstimado: BigDecimal` (precision=5, scale=4)
+  - `confiancaInferenciaFc: ConfiancaInferencia` (@Enumerated STRING)
+  - `confiancaInferenciaPace: ConfiancaInferencia` (@Enumerated STRING)
+  - `dataInferenciaLimiar: LocalDate`
+- [ ] 1.2.c Validação: `./mvnw clean compile`.
+
+---
+
+## Bloco 2 — Backend: `ThresholdInferenceService`
+
+### 2.1 Record de output
+
+- [ ] 2.1.a Criar record `ThresholdEstimate` em `services/helper/`:
   ```java
-  public record ThresholdEstimate(
-      String tipo,
-      Number valor,
-      int amostras,
-      ConfiancaInferencia confianca
-  ) {}
+  public record ThresholdEstimate(Number valor, int amostras, ConfiancaInferencia confianca) {}
   ```
-- [ ] 1.1.c Validação: `./mvnw clean compile`.
-
-### 1.2 `ThresholdInferenceService`
-
-- [ ] 1.2.a Criar `ThresholdInferenceService` em `services/helper/` com constantes:
-  - `JANELA_DIAS = 30`, `MIN_AMOSTRAS = 3` (package-private para testes), `MIN_DURACAO_MIN = 20L`, `FATOR_QUINTIL = 0.20`.
-- [ ] 1.2.b Implementar `inferirFcLimiar(List<TreinoRealizado> treinos30d, LocalDate hoje)`:
-  - Filtrar: `fcMedia != null && fcMedia > 0 && duracaoMin != null && duracaoMin.toMinutes() > MIN_DURACAO_MIN`.
-  - Filtrar por data: `treino.getDataTreino().isAfter(hoje.minusDays(JANELA_DIAS))` (ou critério equivalente disponível na entidade).
-  - Ordenar `fcMedia` decrescente; pegar top `Math.max(1, (int) Math.ceil(n * FATOR_QUINTIL))` elementos.
-  - Calcular mediana (índice conservador para n par: `n/2 - 1`).
-  - Se `filtrados.size() < MIN_AMOSTRAS` → retornar `Optional.empty()`.
-  - Mapear confiança: `≥10 → ALTA`, `5-9 → MEDIA`, `3-4 → BAIXA`.
-  - Retornar `Optional.of(new ThresholdEstimate("FC_LIMIAR", mediana, filtrados.size(), confianca))`.
-- [ ] 1.2.c Implementar `inferirPaceLimiar(List<TreinoRealizado> treinos30d, LocalDate hoje)`:
-  - Filtrar: `tipoTreino IN (CONTINUO, LONGO, TEMPO_RUN, FARTLEK)` E `paceMedia != null && paceMedia.getSeconds() > 0 && duracaoMin.toMinutes() > MIN_DURACAO_MIN`.
-  - Filtrar por data: igual ao FC.
-  - Ordenar `paceMedia.getSeconds()` crescente (menor = mais rápido); pegar top quintil.
-  - Calcular mediana de segundos; converter para `BigDecimal` decimal de minutos: `BigDecimal.valueOf(medianaSegundos).divide(BigDecimal.valueOf(60), 4, HALF_UP)`.
-  - Retornar `Optional.of(new ThresholdEstimate("PACE_LIMIAR", paceLimiarDecimal, filtrados.size(), confianca))`.
-- [ ] 1.2.d Validação: `./mvnw clean compile`.
-
-### 1.3 Testes de unidade — `ThresholdInferenceServiceTest`
-
-- [ ] 1.3.a Criar `ThresholdInferenceServiceTest` em `services/helper/`:
-  ```java
-  @ExtendWith(MockitoExtension.class)
-  class ThresholdInferenceServiceTest {
-      private ThresholdInferenceService service = new ThresholdInferenceService();
-      private LocalDate hoje = LocalDate.of(2026, 6, 21);
-  ```
-- [ ] 1.3.b `@Nested class InferirFcLimiar`:
-  - `retornaVazioQuandoListaVazia`.
-  - `retornaVazioQuandoMenosDeMinAmostras` (2 treinos com fcMedia válida).
-  - `retornaBAIXAParaTresA4Amostras`.
-  - `retornaMEDIAPara5A9Amostras`.
-  - `retornaALTAPara10OuMaisAmostras`.
-  - `calculaMedianaDoQuintilSuperior` (ex: 10 treinos com FC 130,135,140,145,150,155,158,160,163,165 → quintil superior = 2 maiores [163,165] → mediana = 163).
-  - `ignoraTreinosComFcMediaNula`.
-  - `ignoraTreinosComDuracaoMenorQue20Min`.
-  - `ignoraTreinosForaDaJanelaDe30Dias`.
-- [ ] 1.3.c `@Nested class InferirPaceLimiar`:
-  - `retornaVazioQuandoListaVazia`.
-  - `retornaVazioQuandoMenosDeMinAmostras`.
-  - `ignoraTiposNaoContínuos` (INTERVALADO, TIRO → excluídos).
-  - `calculaMedianaDoQuintilMaisRapido` (menor segundos = pace mais rápido).
-  - `converteSegundosParaDecimalMinutos` (ex: 285 segundos = 4.75 min/km decimal).
-  - `retornaVazioQuandoPaceMediaNuloEmTodosFiltrados`.
-- [ ] 1.3.d Validação: `./mvnw clean test`.
-
-## Bloco 2 — Backend: integração no prompt builder
-
-### 2.1 Ponto de integração no `PlanoTreinoPromptBuilder`
-
-> **Achado DoR:** os treinos chegam via `ContextoTreino ctx = treinoHistoricoProvider.prepararContexto(atleta)`. O campo a usar é `ctx.treinosUltimas4Semanas()` (28 dias). O `ThresholdInferenceService` filtra internamente para 30 dias — nenhuma query adicional necessária.
-
-- [ ] 2.1.a Confirmar que `ContextoTreino.treinosUltimas4Semanas()` está acessível no ponto de injeção identificado no design (após o bloco de dados fisiológicos).
 - [ ] 2.1.b Validação: `./mvnw clean compile`.
 
-### 2.2 Métodos auxiliares de staleness no builder
+### 2.2 Implementação do service
 
-- [ ] 2.2.a Adicionar dois métodos privados em `PlanoTreinoPromptBuilder`:
+- [ ] 2.2.a Criar `ThresholdInferenceService` em `services/helper/` com constantes:
   ```java
-  private boolean fcLimiarDesatualizado(Atleta atleta, LocalDate hoje) {
-      return atleta.getFcLimiar() == null
-          || atleta.getDataUltimoTesteFc() == null
-          || ChronoUnit.DAYS.between(atleta.getDataUltimoTesteFc(), hoje) > 90;
-  }
-
-  private boolean paceLimiarDesatualizado(Atleta atleta, LocalDate hoje) {
-      return atleta.getPaceLimiar() == null
-          || atleta.getDataUltimoTestePace() == null
-          || ChronoUnit.DAYS.between(atleta.getDataUltimoTestePace(), hoje) > 90;
-  }
+  static final int MIN_AMOSTRAS = 3;       // package-private para testes
+  static final long MIN_DURACAO_MIN = 20;
+  private static final double FATOR_QUINTIL = 0.20;
   ```
-- [ ] 2.2.b Validação: `./mvnw clean compile`.
+- [ ] 2.2.b Implementar `inferirFcLimiar(List<TreinoRealizado> treinos, LocalDate hoje)`:
+  - Filtrar por `dataTreino.isAfter(hoje.minusDays(30))`, `fcMedia > 0`, `duracaoMin.toMinutes() > MIN_DURACAO_MIN`.
+  - Ordenar `fcMedia` decrescente; pegar `max(1, ceil(n × 0.20))` elementos; mediana conservadora.
+  - Se `filtrados.size() < MIN_AMOSTRAS` → `Optional.empty()`.
+  - Confiança: ≥10 → ALTA, 5–9 → MEDIA, 3–4 → BAIXA.
+  - Retornar `Optional.of(new ThresholdEstimate(mediana, filtrados.size(), confianca))`.
+- [ ] 2.2.c Implementar `inferirPaceLimiar(List<TreinoRealizado> treinos, LocalDate hoje)`:
+  - Filtrar por data (30d), `tipoTreino IN (CONTINUO, LONGO, TEMPO_RUN, FARTLEK)`, `paceMedia.getSeconds() > 0`, `duracaoMin.toMinutes() > MIN_DURACAO_MIN`.
+  - Ordenar `paceMedia.getSeconds()` crescente; top 20%; mediana em segundos.
+  - Converter mediana para `BigDecimal`: `BigDecimal.valueOf(seg).divide(BigDecimal.valueOf(60), 4, HALF_UP)`.
+  - Retornar `Optional.of(new ThresholdEstimate(paceLimiarDecimal, amostras, confianca))`.
+- [ ] 2.2.d Validação: `./mvnw clean compile`.
 
-### 2.3 Formatter de Constraints de limiar estimado
+### 2.3 Testes de unidade — `ThresholdInferenceServiceTest`
 
-- [ ] 2.3.a Criar `ThresholdConstraintFormatter` em `services/prompt/` com dois métodos:
-  - `formatarConstraintFc(ThresholdEstimate est): String` — gera o bloco de texto do Constraint `[LIMIAR_FC_ESTIMADO]`.
-  - `formatarConstraintPace(ThresholdEstimate est): String` — gera o bloco do Constraint `[LIMIAR_PACE_ESTIMADO]`.
-  - Incluir nível de confiança e aviso proporcional:
-    - ALTA/MEDIA: aviso padrão de recomendação de teste formal.
-    - BAIXA: aviso adicional com margem de prescrição.
-- [ ] 2.3.b Validação: `./mvnw clean compile`.
-
-### 2.4 Injeção no `buildOptimizedPrompt`
-
-- [ ] 2.4.a Injetar `ThresholdInferenceService` e `ThresholdConstraintFormatter` no `PlanoTreinoPromptBuilder` via `@RequiredArgsConstructor`.
-- [ ] 2.4.b No método `buildOptimizedPrompt`, logo após o bloco de dados fisiológicos, adicionar os blocos de inferência usando `ctx.treinosUltimas4Semanas()` como entrada (o service filtra para 30 dias internamente via `dataTreino`).
-- [ ] 2.4.c O builder deve retornar as estimativas ao caller (via objeto de resultado ou parâmetro de saída), para que o service de geração possa incluir `limiareisInferidos` no response DTO. Opção mais limpa: `buildOptimizedPrompt` retorna um record `PromptBuildResult(String prompt, List<ThresholdEstimate> estimativas)`.
-- [ ] 2.4.d Validação: `./mvnw clean compile`.
-
-### 2.5.1 DTO de output: `LimiarInferidoDto` e campo no response de geração
-
-- [ ] 2.5.1.a Criar `LimiarInferidoDto` (record em `dto/output/`):
-  ```java
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public record LimiarInferidoDto(
-      String tipo,
-      String valorFormatado,
-      int amostras,
-      ConfiancaInferencia confianca
-  ) {}
-  ```
-- [ ] 2.5.1.b Adicionar campo `@JsonInclude(NON_NULL) List<LimiarInferidoDto> limiareisInferidos` ao DTO de response da geração de plano.
-- [ ] 2.5.1.c No service de geração (`IaServiceImpl` ou equivalente): após obter `PromptBuildResult`, converter as estimativas para `List<LimiarInferidoDto>` e popular no response.
-- [ ] 2.5.1.d Validação: `./mvnw clean compile`.
-
-### 2.5 Testes de integração no `PlanoTreinoPromptBuilder`
-
-> **Nota:** `PlanoTreinoPromptBuilder` tem zero cobertura de testes atualmente (discovery feita em 16/jun). Esta tarefa adiciona os primeiros testes para a inferência de limiar como entry point — sem exigir cobertura completa do builder (fora de escopo).
-
-- [ ] 2.5.a Criar `PlanoTreinoPromptBuilderThresholdTest` (classe dedicada, não misturar com futuras classes de teste do builder completo):
-  - Setup: instanciar builder com mocks de todos os formatters e o `ThresholdInferenceService` real (não mockado — é pura lógica).
-  - `deveInjetarConstraintFcQuandoLimiarDesatualizado`:
-    - Atleta com `dataUltimoTesteFc` = 100 dias atrás + 5 treinos com fcMedia válida.
-    - Prompt resultante contém `[LIMIAR_FC_ESTIMADO]`.
-  - `naoDeveInjetarConstraintFcQuandoLimiarAtual`:
-    - Atleta com `dataUltimoTesteFc` = 30 dias atrás.
-    - Prompt resultante NÃO contém `[LIMIAR_FC_ESTIMADO]`.
-  - `naoDeveInjetarConstraintFcComAmostraInsuficiente`:
-    - Atleta com `dataUltimoTesteFc` = 100 dias atrás + apenas 2 treinos com fcMedia.
-    - Prompt resultante NÃO contém `[LIMIAR_FC_ESTIMADO]`.
-  - Equivalentes para pace (`LIMIAR_PACE_ESTIMADO`).
-- [ ] 2.5.b Validação: `./mvnw clean test`.
+- [ ] 2.3.a `@Nested class InferirFcLimiar`:
+  - `retornaVazioQuandoListaVazia`.
+  - `retornaVazioQuandoMenosDeMinAmostras` (2 treinos com fcMedia válida).
+  - `retornaBAIXAParaTresOuQuatroAmostras`.
+  - `retornaMEDIAPara5A9Amostras`.
+  - `retornaALTAPara10OuMaisAmostras`.
+  - `calculaMedianaDoQuintilSuperior` (10 treinos com FC variada → mediana do top 20%).
+  - `ignoraTreinosComFcMediaNula`.
+  - `ignoraTreinosComDuracaoAbaixoDe20Min`.
+  - `ignoraTreinosForaDaJanelaDe30Dias`.
+- [ ] 2.3.b `@Nested class InferirPaceLimiar`:
+  - `retornaVazioQuandoListaVazia`.
+  - `retornaVazioQuandoMenosDeMinAmostras`.
+  - `ignoraTiposNaoContínuos` (INTERVALADO, TIRO excluídos).
+  - `calculaMedianaDoQuintilMaisRapido`.
+  - `converteSegundosParaDecimalMinutos` (285s → 4.7500).
+  - `retornaVazioQuandoPaceMediaNuloEmTodosFiltrados`.
+- [ ] 2.3.c Validação: `./mvnw clean test`.
 
 ---
 
-## Bloco 3 — Frontend: banner de transparência
+## Bloco 3 — Backend: integração em `TsbServiceImpl`
 
-### 3.1 Tipo TypeScript
+### 3.1 Injetar `ThresholdInferenceService` em `TsbServiceImpl`
 
-- [ ] 3.1.a Adicionar ao tipo do response de geração de plano em `src/types/`:
+- [ ] 3.1.a Adicionar `ThresholdInferenceService thresholdInferenceService` ao constructor de `TsbServiceImpl` via `@RequiredArgsConstructor`.
+- [ ] 3.1.b Validação: `./mvnw clean compile`.
+
+### 3.2 Método `atualizarLimiareInferidos`
+
+- [ ] 3.2.a Adicionar método privado `atualizarLimiareInferidos(UUID atletaId, Atleta atleta, PlanoMetaDados metaDados, LocalDate hoje)` em `TsbServiceImpl`:
+  - Guard: se `!fcStale && !paceStale` → retornar imediatamente.
+  - Buscar treinos: `treinoRealizadoRepository.findByAtletaIdAndDataTreinoBetween(atletaId, hoje.minusDays(30), hoje)`.
+  - Se `fcStale`: chamar `inferirFcLimiar()` → `ifPresent` → setar `fcLimiarEstimado`, `confiancaInferenciaFc`, `dataInferenciaLimiar`.
+  - Se `paceStale`: chamar `inferirPaceLimiar()` → `ifPresent` → setar `paceLimiarEstimado`, `confiancaInferenciaPace`, `dataInferenciaLimiar`.
+- [ ] 3.2.b Chamar `atualizarLimiareInferidos(atletaId, atleta, metaDados, hoje)` no final de `atualizarMetaDados()`, imediatamente antes de `planoMetaDadosRepository.save(metaDados)`.
+- [ ] 3.2.c Validação: `./mvnw clean test`.
+
+### 3.3 Testes de integração em `TsbServiceImplTest`
+
+- [ ] 3.3.a `@Nested class AtualizarLimiareInferidos` (dentro do `TsbServiceImplTest` existente ou classe separada):
+  - `infereFcLimiarQuandoDesatualizadoEAmostraSuficiente`.
+  - `naoInfereFcLimiarQuandoAtualizado` (< 90 dias).
+  - `naoInfereFcLimiarComAmostraInsuficiente` (< MIN_AMOSTRAS).
+  - `inferePaceLimiarQuandoDesatualizadoEAmostraSuficiente`.
+  - `naoAlteraFcLimiarNemPaceLimiarOficialDoAtleta` (CA5 — campos do `Atleta` intactos).
+  - `persisteNoMetaDados` (verificar `verify(planoMetaDadosRepository).save(...)` com campos setados).
+- [ ] 3.3.b Validação: `./mvnw clean test`.
+
+---
+
+## Bloco 4 — Backend: prompt builder e DTO
+
+### 4.1 `ThresholdConstraintFormatter`
+
+- [ ] 4.1.a Criar `ThresholdConstraintFormatter` em `services/prompt/` com:
+  - `formatarConstraintFc(Integer fcEstimado, ConfiancaInferencia confianca, LocalDate dataInferencia): String`
+  - `formatarConstraintPace(BigDecimal paceEstimado, ConfiancaInferencia confianca, LocalDate dataInferencia): String`
+  - Confiança BAIXA: adiciona aviso de margem ampliada.
+- [ ] 4.1.b Validação: `./mvnw clean compile`.
+
+### 4.2 Integração em `PlanoTreinoPromptBuilder`
+
+- [ ] 4.2.a Injetar `ThresholdConstraintFormatter` no builder via `@RequiredArgsConstructor`.
+- [ ] 4.2.b Adicionar métodos privados de staleness ao builder:
+  ```java
+  private boolean fcLimiarDesatualizado(Atleta a) { ... }
+  private boolean paceLimiarDesatualizado(Atleta a) { ... }
+  ```
+- [ ] 4.2.c No `buildOptimizedPrompt()`, logo após o bloco `[1]` de dados fisiológicos, adicionar leitura dos campos de `PlanoMetaDados`:
+  - Se `metaDados.getFcLimiarEstimado() != null && fcLimiarDesatualizado(atleta)`: emitir Constraint de FC.
+  - Se `metaDados.getPaceLimiarEstimado() != null && paceLimiarDesatualizado(atleta)`: emitir Constraint de pace.
+- [ ] 4.2.d Confirmar que `metaDados` já está disponível no builder (passado pelo `IaServiceImpl`). Se não estiver: adicionar como parâmetro.
+- [ ] 4.2.e Validação: `./mvnw clean test`.
+
+### 4.3 `PlanoMetaDadosOutputDto`
+
+- [ ] 4.3.a Adicionar ao `PlanoMetaDadosOutputDto` (com `@JsonInclude(NON_NULL)`):
+  - `fcLimiarEstimado: Integer`
+  - `paceLimiarEstimadoFormatado: String` (formatado como "4:45/km")
+  - `confiancaInferenciaFc: ConfiancaInferencia`
+  - `confiancaInferenciaPace: ConfiancaInferencia`
+  - `dataInferenciaLimiar: LocalDate`
+- [ ] 4.3.b Atualizar o mapper de `PlanoMetaDados → PlanoMetaDadosOutputDto` para incluir os novos campos (com conversão `BigDecimal` → String formatada para pace).
+- [ ] 4.3.c Validação: `./mvnw clean test`.
+
+---
+
+## Bloco 5 — Frontend: banner de transparência
+
+### 5.1 Tipo TypeScript
+
+- [ ] 5.1.a Adicionar campos opcionais ao tipo `PlanoMetaDados` (ou ao tipo de profile do atleta) em `src/types/`:
   ```ts
-  export type ConfiancaInferencia = 'ALTA' | 'MEDIA' | 'BAIXA';
-  export interface LimiarInferido {
-    tipo: 'FC_LIMIAR' | 'PACE_LIMIAR';
-    valorFormatado: string;
-    amostras: number;
-    confianca: ConfiancaInferencia;
-  }
+  fcLimiarEstimado?: number;
+  paceLimiarEstimadoFormatado?: string;
+  confiancaInferenciaFc?: 'ALTA' | 'MEDIA' | 'BAIXA';
+  confiancaInferenciaPace?: 'ALTA' | 'MEDIA' | 'BAIXA';
+  dataInferenciaLimiar?: string;
   ```
-  Adicionar campo `limiareisInferidos?: LimiarInferido[]` ao tipo `PlanoSemanal` (ou ao response wrapper de geração).
-- [ ] 3.1.b Validação: `npm run build`.
+- [ ] 5.1.b Validação: `npm run build`.
 
-### 3.2 Banner na `CoachPlanReviewPage`
+### 5.2 Banner na `CoachPlanReviewPage`
 
-- [ ] 3.2.a Criar componente `LimiaresInferidosBanner.tsx` em `src/features/coach/components/`:
-  - Props: `limiares: LimiarInferido[]`
-  - Renderiza um `MUI Alert` com `severity="info"` listando cada limiar: `FC limiar estimado: 163 bpm (15 treinos, ALTA)`, `Pace limiar estimado: 4:45/km (8 treinos, MEDIA)`.
-  - Texto fixo ao final: "Recomende um teste formal de limiar ao atleta para calibração precisa."
-  - Confiança BAIXA: adicionar ícone de aviso e texto adicional "Poucos dados — revise as prescrições de intensidade."
-- [ ] 3.2.b Exibir o banner no topo do painel de revisão quando `plano.limiareisInferidos?.length > 0`.
-  - Os dados de `limiareisInferidos` chegam no response de geração e devem ser mantidos no estado do componente (ou context) durante a sessão de revisão.
-- [ ] 3.2.c Validação: `npm run lint && npm run build`.
+- [ ] 5.2.a Criar `LimiaresInferidosBanner.tsx` em `src/features/coach/components/`:
+  - Props: `fcLimiarEstimado?: number`, `paceLimiarEstimadoFormatado?: string`, `confiancaFc?`, `confiancaPace?`
+  - Renderizar `MUI Alert severity="info"` apenas quando pelo menos um campo está presente.
+  - Listar: `FC limiar estimado: 163 bpm (ALTA)` e/ou `Pace limiar estimado: 4:45/km (MEDIA)`.
+  - Texto fixo: "Limiares estimados por inferência — recomende um teste formal ao atleta."
+  - Confiança BAIXA: adicionar ícone de aviso e texto "Poucos dados — revise as prescrições de intensidade."
+- [ ] 5.2.b Na `CoachPlanReviewPage`, ao carregar o perfil do atleta (via `GET /coach/atletas/{id}/perfil`), passar os campos de inferência para o banner.
+- [ ] 5.2.c Validação: `npm run lint && npm run build`.
 
-### 3.3 Testes de componente
+### 5.3 Testes de componente
 
-- [ ] 3.3.a Teste do `LimiaresInferidosBanner`: renderiza FC e pace quando presentes; inclui texto de aviso quando confiança BAIXA; não renderiza quando `limiares` é vazio ou indefinido.
-- [ ] 3.3.b Validação: `npm run lint && npm run build && npm test`.
+- [ ] 5.3.a `LimiaresInferidosBanner.test.tsx`:
+  - Renderiza FC e pace quando ambos presentes.
+  - Renderiza apenas FC quando só FC presente.
+  - Não renderiza quando ambos ausentes/undefined.
+  - Exibe aviso adicional quando confiança BAIXA.
+- [ ] 5.3.b Validação: `npm run lint && npm run build && npm test`.
 
 ---
 
-## Bloco 4 — QA e entrega
+## Bloco 6 — QA e entrega
 
-- [ ] 4.1 `./mvnw clean test` — todos os testes passando.
-- [ ] 4.2 `npm run lint && npm run build && npm test` — tudo verde.
-- [ ] 4.3 Teste manual ponta-a-ponta:
-  - Atleta com `dataUltimoTesteFc` há mais de 90 dias + ≥ 10 treinos com fcMedia nos últimos 30 dias → gerar plano → confirmar presença de `[LIMIAR_FC_ESTIMADO]` no log (DEBUG) + campo `limiareisInferidos` no response JSON + banner visível na `CoachPlanReviewPage`.
-  - Atleta com teste de limiar recente (< 90 dias) → gerar plano → confirmar ausência de Constraint estimado e ausência do banner na UI.
-  - Atleta com 2 treinos válidos no período → gerar plano → confirmar ausência de Constraint (CA3).
-  - Atleta com `dataUltimoTestePace` nulo (nunca fez teste) + treinos contínuos recentes → confirmar inferência de pace e banner mostrando `PACE_LIMIAR`.
-  - Confiança BAIXA (3–4 amostras): banner exibe aviso adicional de poucos dados.
-  - Verificar no banco que `fcLimiar`, `paceLimiar`, `dataUltimoTesteFc`, `dataUltimoTestePace` permanecem inalterados após geração (CA5).
-- [ ] 4.4 Revisores: `menthoros-workflow:code-reviewer` + `menthoros-workflow:security-reviewer`.
-- [ ] 4.5 Abrir PR (`feature/infer-thresholds-from-recent-workouts`) e aguardar CI verde.
+- [ ] 6.1 `./mvnw clean test` — todos os testes passando.
+- [ ] 6.2 `npm run lint && npm run build && npm test` — tudo verde.
+- [ ] 6.3 Teste manual ponta-a-ponta:
+  - Registrar treino para atleta com `dataUltimoTesteFc` > 90 dias + ≥ 10 treinos com fcMedia nos últimos 30 dias → verificar no banco que `fc_limiar_estimado` foi populado em `tb_plano_metadados`.
+  - Gerar plano para esse atleta → confirmar Constraint `[LIMIAR_FC_ESTIMADO]` no log (DEBUG).
+  - Abrir `CoachPlanReviewPage` → confirmar banner visível com valor e confiança.
+  - Registrar treino para atleta com `dataUltimoTesteFc` < 90 dias → verificar que `fc_limiar_estimado` permanece NULL.
+  - Registrar treino com apenas 2 treinos válidos nos últimos 30 dias → verificar NULL (CA3).
+  - Verificar que `Atleta.fcLimiar` e `Atleta.dataUltimoTesteFc` permanecem inalterados após qualquer treino (CA5).
+  - Confiança BAIXA: verificar aviso adicional no banner.
+- [ ] 6.4 Revisores: `menthoros-workflow:code-reviewer` + `menthoros-workflow:security-reviewer`.
+- [ ] 6.5 Abrir PR (`feature/infer-thresholds-from-recent-workouts`) e aguardar CI verde.
