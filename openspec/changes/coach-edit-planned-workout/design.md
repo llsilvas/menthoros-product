@@ -105,12 +105,27 @@ Implementação (`TreinoPlanejadoEditServiceImpl`):
 
 O tenant check é feito via `findByIdAndTenantId(planoId, tenantId)` — se o plano pertencer a outro tenant, o método retorna `Optional.empty()` e o service lança `EntityNotFoundException`, que o `GlobalExceptionHandler` mapeia para 404. Nunca revelar se o recurso existe em outro tenant.
 
-### 8. Frontend — estado do componente e re-fetch
+### 8. Concorrência — `@Version` em `TreinoPlanejado`
+
+`TreinoPlanejado` deve ter `@Version Long versao` para detectar edições concorrentes (multi-device, duas abas). Sem esse campo, dois `PATCH` simultâneos no mesmo treino sobrescrevem silenciosamente sem conflito detectado.
+
+Handler no `GlobalExceptionHandler`:
+```java
+@ExceptionHandler(OptimisticLockingFailureException.class)
+ResponseEntity<ErrorDto> handleOptimisticLock(OptimisticLockingFailureException ex) {
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(new ErrorDto("Treino foi modificado simultaneamente. Recarregue e tente novamente."));
+}
+```
+
+Verificar se `@Version` já existe em `TreinoPlanejado`; se não, adicionar na task 1.2.a. Verificar se `OptimisticLockingFailureException` já tem handler no `GlobalExceptionHandler` na task 1.4.c.
+
+### 9. Frontend — estado do componente e re-fetch
 
 `CoachPlanReviewPage` mantém o estado do plano selecionado. Após `PATCH` bem-sucedido:
-- Invalidar cache do hook `usePlanoReview` (ou chamar manualmente a função de refetch).
+- Fechar o dialog **antes** de disparar o re-fetch — evita race condition quando o coach edita múltiplos treinos em sequência rápida (dialog fecha → re-fetch → estado local atualizado → próximo dialog abre com dados frescos).
+- Invalidar cache do hook `usePlanoReview` (ou chamar manualmente a função de refetch) após fechar o dialog.
 - O card do treino editado recebe `editadoPeloCoach = true` no DTO e exibe o chip.
-- O `Dialog` fecha automaticamente.
 
 O botão de edição (ícone lápis) é renderizado condicionalmente:
 ```tsx

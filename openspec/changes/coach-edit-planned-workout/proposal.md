@@ -104,10 +104,21 @@ Além disso, os treinos editados manualmente tornam-se dado implícito de prefer
 
 ## Métrica de Sucesso
 
-**Primária:** redução de ≥40% nas rejeições de plano comparado ao baseline pré-edição — coach corrige em vez de rejeitar.
+**Primária (adoção):** `% de planos aprovados com ≥1 treino editado (editadoPeloCoach = true)` > 20%. Indica que a feature é usada sem ser excessiva — se 100%, a IA está falhando sistematicamente; se <5%, o feature não está sendo adotado ou o atrito é alto.
+
+**Secundária (impacto):** redução de ≥40% nas rejeições de plano comparado ao baseline pré-edição — coach corrige em vez de rejeitar.
 **Coleta de baseline:** na semana imediatamente anterior ao deploy, contar `PlanoSemanal` com `reviewStatus = REJEITADO` via query `SELECT count(*) FROM tb_plano_semanal WHERE review_status = 'REJEITADO' AND semana_inicio >= CURRENT_DATE - 7`.
 
-**Secundária:** `% de planos com ≥1 treino editado (editadoPeloCoach = true) entre geração e aprovação` — indica quanto da saída da IA o coach está ajustando. Meta inicial: >20% dos planos aprovados têm pelo menos um treino editado (mostra que o feature é utilizado sem ser excessivo — se 100%, a IA está falhando muito).
+**Trip-wire de UX:** se após 2 semanas em produção a taxa de uso do dialog for <15% dos planos em revisão, investigar atrito antes de investir nas features de Sprint 17 (`rag-coach-methodology-personalization`).
+
+## Riscos e Mitigações
+
+| Risco | Probabilidade | Impacto | Mitigação |
+|---|:---:|:---:|---|
+| Concorrência silenciosa: dois `PATCH` simultâneos no mesmo treino (multi-device / duas abas) sobrescrevem sem aviso | Baixa | Alto | Adicionar `@Version` a `TreinoPlanejado`; handler de `OptimisticLockException` → 409 |
+| TSS recalculado com `rpe=5` default produz carga incorreta para treinos sem RPE informado | Média | Médio | Logar warning + retornar `tssPlanejado=null` (em vez de default silencioso) quando `percepcaoEsforcoEsperada` é nulo e recálculo é disparado |
+| Atrito alto em edições em lote (IA erra 4+ treinos): dialog sequencial pode ser mais custoso que rejeitar e regenerar | Média | Alto | Trip-wire de adoção (ver Métricas); se acionado, avaliar modo de edição inline ou edição em lote como follow-on |
+| `treinoId` intra-tenant cruzado: coach passa `planoId` válido + `treinoId` de outro plano do mesmo tenant | Baixa | Alto | Verificação explícita `treino.planoSemanal.id == planoId` no service + test case dedicado |
 
 ## Open Questions & Assumptions
 
@@ -120,3 +131,4 @@ Além disso, os treinos editados manualmente tornam-se dado implícito de prefer
 **Em aberto:**
 - O objetivo semanal do `PlanoSemanal` (`objetivoSemanal`) deve ser atualizado quando treinos são editados? (Sugestão: não — o objetivo é nível plano, a edição é nível treino. Decidir apenas se surgir necessidade após entrega.)
 - Notificação ao atleta indicando que o plano aprovado inclui treinos editados manualmente? (Fora do escopo — atleta só vê o plano aprovado; os detalhes editoriais são internos ao coach.)
+- TSS recalculado silenciosamente vs. TSS pré-preenchido no dialog (coach decide): o product review recomenda mostrar TSS atual como default no campo do dialog em vez de recalcular automaticamente no backend — simplifica a lógica e é mais transparente. Decidir antes de implementar 1.3 e 2.4.

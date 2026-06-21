@@ -26,7 +26,7 @@
 
 ### 1.2 Entidade, enum e DTOs
 
-- [ ] 1.2.a Adicionar campo `editadoPeloCoach: Boolean` à entidade `TreinoPlanejado` (default `false` no `@PrePersist`).
+- [ ] 1.2.a Adicionar campo `editadoPeloCoach: Boolean` à entidade `TreinoPlanejado` (default `false` no `@PrePersist`). Verificar se `@Version Long versao` já existe na entidade; se não, adicionar para controle de concorrência optimistic locking.
 - [ ] 1.2.b Criar `TreinoPlanejadoPatchDto` (record em `dto/input/`) com campos nullable: `TipoTreino tipoTreino`, `String descricao`, `@Positive BigDecimal distanciaKm`, `Duration duracaoMin`, `String zonaAlvo`, `@Min(1) @Max(500) Integer tssPlanejado`, `@Min(1) @Max(10) Integer percepcaoEsforcoEsperada`, `String observacoes`.
 - [ ] 1.2.c Verificar se `Duration` deserializa de ISO-8601 (`PT90M`) com `jackson-datatype-jsr310` já configurado; se não, adicionar `@JsonDeserialize` no campo do DTO.
 - [ ] 1.2.d Adicionar campo `editadoPeloCoach: Boolean` ao `TreinoPlanejadoOutputDto`.
@@ -62,7 +62,7 @@
   - Recalcular TSS: se `patch.tssPlanejado() != null` → usar valor do coach; senão se `distanciaKm` ou `duracaoMin` mudou → recalcular via `TssEstimator.calcular(duracaoFinal, rpeFinal)`.
   - Setar `editadoPeloCoach = true`.
   - `treinoPlanejadoRepository.save(treino)` e retornar DTO.
-- [ ] 1.4.c Adicionar `@ExceptionHandler` para `DomainRuleViolationException` no `GlobalExceptionHandler` (→ 422) se não existir.
+- [ ] 1.4.c Adicionar `@ExceptionHandler` para `DomainRuleViolationException` no `GlobalExceptionHandler` (→ 422) se não existir. Verificar também se `OptimisticLockingFailureException` tem handler (→ 409); se não, adicionar.
 - [ ] 1.4.d Validação: `./mvnw clean test`.
 
 ### 1.5 Controller: `CoachTreinoEditController`
@@ -101,6 +101,7 @@
   - `EditarTreino > lança DomainRuleViolationException se plano nao está AGUARDANDO_REVISAO`.
   - `EditarTreino > lança EntityNotFoundException se plano de outro tenant`.
   - `EditarTreino > lança EntityNotFoundException se treino nao pertence ao plano`.
+  - `EditarTreino > lança EntityNotFoundException se treinoId pertence ao tenant mas a planoId diferente` (intra-tenant cross-plan).
 - [ ] 1.6.b Validação: `./mvnw clean test`.
 
 ### 1.7 Testes de controller
