@@ -1,6 +1,6 @@
 # Tasks: coach-edit-planned-workout
 
-**Status:** In Progress
+**Status:** Concluído — mergeado em develop em 2026-06-22
 **Sprint:** 9g (intercalar entre sprint 9f e add-llm-tool-use)
 **Tamanho:** S · **Trilha:** Full
 **Repos:** menthoros-backend + menthoros-front
@@ -97,13 +97,10 @@
 
 - [x] 3.1 `./mvnw clean test` — 956 testes, 0 falhas, BUILD SUCCESS.
 - [x] 3.2 `npm run lint && npm run build && npm test` — 130 testes, 0 falhas, build verde.
-- [ ] 3.3 Teste manual ponta-a-ponta:
-  - Gerar plano para atleta → status `AGUARDANDO_REVISAO`.
-  - Editar treino (campo distância) → verificar `editadoPeloCoach = true` no banco + chip na UI.
-  - Editar sem informar TSS → verificar recálculo automático.
-  - Editar informando TSS explícito → verificar que valor do coach prevalece.
-  - Tentar editar treino de plano `APROVADO` → resposta 422.
-  - Tentar editar treino de plano de outro tenant → 404.
-  - Aprovar plano com treino editado → atleta visualiza plano.
+- [x] 3.3 Teste manual ponta-a-ponta: **aprovado pelo usuário** — fluxo completo testado e validado em ambiente local.
 - [x] 3.4 QA gate concluído: `frontend-reviewer` + `clean-code-reviewer` em paralelo. Achados CRÍTICO/IMPORTANTE corrigidos (regex ISO-8601, patch vazio, planoId morto, editingTreinoId refactor, saveError removido, mock fix, teste do fluxo principal). Pré-existentes anotados (actionError Snackbar, TIPO_COLORS hex).
-- [ ] 3.5 Abrir PR (`feature/coach-edit-planned-workout`) e aguardar CI verde.
+- [x] 3.5.extra TreinoCard enriquecido no perfil do atleta (escopo adicional solicitado):
+  - Backend: `TreinoPlanejadoResumoDto` expandido com `id`, `duracaoMin`, `zonaAlvo`, `percepcaoEsforcoEsperada`; treinos retornados também para `AGUARDANDO_REVISAO`.
+  - Frontend: `CurrentWeekPlan` exibe duração, zona alvo e RPE. Botão editar embutido no card (apenas AGUARDANDO_REVISAO). TreinoEditDialog abre inline; ao salvar, perfil do atleta é recarregado.
+  - Testes: 8 novos testes em `CurrentWeekPlan.test.tsx` — todos GREEN. Suite: 140/140.
+- [x] 3.5 PRs abertos e mergeados: `menthoros-backend#9` (mergeado em 2026-06-22). Frontend mergeado na mesma sprint.
