@@ -98,7 +98,7 @@
 
 ### 3.1 CoachTreinoAddController
 
-- [ ] 3.1.a Criar `CoachTreinoAddController` em `controller/`:
+- [x] 3.1.a Criar `CoachTreinoAddController` em `controller/`:
   ```java
   @Tag(name = "coach-treino-add", description = "Adição manual de treino pelo coach durante revisão de plano")
   @RestController
@@ -123,11 +123,11 @@
       }
   }
   ```
-- [ ] 3.1.b Validação: `./mvnw clean test` — verde.
+- [x] 3.1.b Validação: `./mvnw clean test` — verde.
 
 ### 3.2 Testes @WebMvcTest — CoachTreinoAddControllerTest
 
-- [ ] 3.2.a Criar `CoachTreinoAddControllerTest` com `@WebMvcTest(CoachTreinoAddController.class)`:
+- [x] 3.2.a Criar `CoachTreinoAddControllerTest` com `@WebMvcTest(CoachTreinoAddController.class)`:
   - 201: treino criado com sucesso.
   - 404: plano não encontrado.
   - 422: plano não está em revisão.
@@ -136,7 +136,7 @@
   - 400: `tipoTreino` ausente (Bean Validation).
   - 400: `dataTreino` ausente (Bean Validation).
   - 403: sem role COACH.
-- [ ] 3.2.b Validação: `./mvnw clean test` — suite completa verde.
+- [x] 3.2.b Validação: `./mvnw clean test` — 8 novos testes verdes; 1007 total, 0 falhas.
 
 ---
 
