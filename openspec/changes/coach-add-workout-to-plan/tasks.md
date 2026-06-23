@@ -11,31 +11,19 @@
 
 ### 1.1 Migration V41
 
-- [ ] 1.1.a Confirmar que V40 é a última migration aplicada.
-- [ ] 1.1.b Criar `V41__Add_adicionado_pelo_coach_to_treino_planejado.sql`:
-  ```sql
-  -- =====================================================================
-  -- V41: Adiciona rastreabilidade de treino adicionado manualmente pelo coach
-  -- =====================================================================
-  ALTER TABLE tb_treino_planejado
-      ADD COLUMN IF NOT EXISTS adicionado_pelo_coach BOOLEAN NOT NULL DEFAULT FALSE;
-
-  DO $$
-  BEGIN
-      RAISE NOTICE '✅ V41 - adicionado_pelo_coach adicionado a tb_treino_planejado';
-  END$$;
-  ```
-- [ ] 1.1.c Validação: `./mvnw clean compile` — verde.
+- [x] 1.1.a Confirmar que V40 é a última migration aplicada.
+- [x] 1.1.b Criar `V41__Add_adicionado_pelo_coach_to_treino_planejado.sql`.
+- [x] 1.1.c Validação: `./mvnw clean compile` — verde.
 
 ### 1.2 Entidade TreinoPlanejado
 
-- [ ] 1.2.a Adicionar campo `@Column(name = "adicionado_pelo_coach") private boolean adicionadoPeloCoach = false;` à entidade.
-- [ ] 1.2.b Inicialização explícita no `@PrePersist` (consistente com `editadoPeloCoach`).
-- [ ] 1.2.c Validação: `./mvnw clean compile` — verde.
+- [x] 1.2.a Adicionar campo `@Column(name = "adicionado_pelo_coach") private boolean adicionadoPeloCoach = false;` à entidade.
+- [x] 1.2.b Inicialização via default de field declaration (mesmo padrão de `editadoPeloCoach`; `@PrePersist` não precisou de alteração).
+- [x] 1.2.c Validação: `./mvnw clean compile` — verde.
 
 ### 1.3 DTO de input: TreinoPlanejadoAddDto
 
-- [ ] 1.3.a Criar `TreinoPlanejadoAddDto` em `dto/input/` como record:
+- [x] 1.3.a Criar `TreinoPlanejadoAddDto` em `dto/input/` como record:
   ```java
   public record TreinoPlanejadoAddDto(
       @NotBlank String tipoTreino,
@@ -50,38 +38,20 @@
       List<EtapaInputDto> etapas
   ) {}
   ```
-- [ ] 1.3.b Validação: `./mvnw clean compile` — verde.
+- [x] 1.3.b Validação: `./mvnw clean compile` — verde.
 
 ### 1.4 DTO de output: TreinoPlanejadoOutputDto
 
-- [ ] 1.4.a Adicionar campo `boolean adicionadoPeloCoach` ao record `TreinoPlanejadoOutputDto` (é primitivo — default `false` no JSON, sem risco de campo ausente).
-- [ ] 1.4.b `TreinoMapper` usa MapStruct com `@Mapping` — adicionar `@Mapping(target = "adicionadoPeloCoach", source = "adicionadoPeloCoach")` ao método `toOutputDto`. Se o MapStruct já mapeou automaticamente (campo com mesmo nome), confirmar via `./mvnw clean test` sem adição manual.
-- [ ] 1.4.c Verificar se há outros locais que constroem `TreinoPlanejadoOutputDto` diretamente (não via mapper) e atualizar.
-- [ ] 1.4.d Validação: `./mvnw clean test` — verde.
+- [x] 1.4.a Adicionar campo `boolean adicionadoPeloCoach` ao record `TreinoPlanejadoOutputDto`.
+- [x] 1.4.b MapStruct auto-mapeou `adicionadoPeloCoach` sem necessidade de `@Mapping` explícito (mesmo comportamento de `editadoPeloCoach`).
+- [x] 1.4.c Dois testes existentes (`CoachTreinoEditControllerTest`, `TreinoPlanejadoEditServiceImplTest`) construíam o record diretamente e precisaram de `false` na posição 20 — corrigidos.
+- [x] 1.4.d Validação: `./mvnw clean test` — 983 testes, 0 falhas.
 
 ### 1.5 Infraestrutura de suporte (utilitário DiaSemana + query repository)
 
-- [ ] 1.5.a Adicionar método estático em `util/Utils.java` (o inverso do `converterParaDayOfWeek` já existente):
-  ```java
-  public static DiaSemana converterDayOfWeekParaDiaSemana(DayOfWeek dow) {
-      return switch (dow) {
-          case MONDAY    -> DiaSemana.SEGUNDA;
-          case TUESDAY   -> DiaSemana.TERCA;
-          case WEDNESDAY -> DiaSemana.QUARTA;
-          case THURSDAY  -> DiaSemana.QUINTA;
-          case FRIDAY    -> DiaSemana.SEXTA;
-          case SATURDAY  -> DiaSemana.SABADO;
-          case SUNDAY    -> DiaSemana.DOMINGO;
-      };
-  }
-  ```
-  **Atenção:** verificar os valores exatos do enum `DiaSemana` antes de escrever o switch — os nomes acima são estimados com base no mapeamento inverso existente.
-- [ ] 1.5.b Adicionar query com JOIN FETCH em `PlanoSemanalRepository` (necessária para o `@PrePersist` de `TreinoPlanejado` que deriva `atleta` e `tenantId` do plano):
-  ```java
-  @Query("SELECT p FROM PlanoSemanal p JOIN FETCH p.atleta JOIN FETCH p.assessoria WHERE p.id = :id AND p.assessoria.id = :tenantId")
-  Optional<PlanoSemanal> findByIdWithDependenciesAndTenant(@Param("id") UUID id, @Param("tenantId") UUID tenantId);
-  ```
-- [ ] 1.5.c Validação: `./mvnw clean compile` — verde.
+- [x] 1.5.a Adicionado `converterDayOfWeekParaDiaSemana(DayOfWeek)` em `util/Utils.java` — valores confirmados via enum DiaSemana (DOMINGO, SEGUNDA, TERCA, QUARTA, QUINTA, SEXTA, SABADO).
+- [x] 1.5.b Adicionada query `findByIdWithDependenciesAndTenant` com JOIN FETCH de `atleta` e `assessoria` em `PlanoSemanalRepository`.
+- [x] 1.5.c Validação: `./mvnw clean compile` — verde (incluído no teste geral 983/0).
 
 ---
 
