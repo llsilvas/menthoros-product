@@ -144,8 +144,8 @@
 
 ### 4.1 Tipo TypeScript
 
-- [ ] 4.1.a Adicionar `adicionadoPeloCoach?: boolean` a `TreinoPlanejadoDto` em `src/types/PlanoReview.ts`.
-- [ ] 4.1.b Criar interface `TreinoPlanejadoAddPayload` no mesmo arquivo:
+- [x] 4.1.a Adicionar `adicionadoPeloCoach?: boolean` a `TreinoPlanejadoDto` em `src/types/PlanoReview.ts`.
+- [x] 4.1.b Criar interface `TreinoPlanejadoAddPayload` no mesmo arquivo:
   ```typescript
   export interface TreinoPlanejadoAddPayload {
     tipoTreino: string;
@@ -168,56 +168,40 @@
     repeticoes?: number;
   }
   ```
-- [ ] 4.1.c Validação: `npm run build` — verde.
+- [x] 4.1.c Validação: `npm run build` — verde.
 
 ### 4.2 API service
 
-- [ ] 4.2.a Adicionar método `adicionarTreino(planoId: string, payload: TreinoPlanejadoAddPayload): Promise<TreinoPlanejadoDto>` em `src/api/services/CoachPlanoReviewService.ts`.
-- [ ] 4.2.b Validação: `npm run build` — verde.
+- [x] 4.2.a Adicionar método `adicionarTreino(planoId: string, payload: TreinoPlanejadoAddPayload): Promise<TreinoPlanejadoDto>` em `src/api/services/CoachPlanoReviewService.ts`.
+- [x] 4.2.b Validação: `npm run build` — verde.
 
 ### 4.3 Hook useAddTreinoPlanejado
 
-- [ ] 4.3.a Criar `src/hooks/useAddTreinoPlanejado.ts`:
-  - `mutate(planoId, payload)` → chama `CoachPlanoReviewService.adicionarTreino`.
-  - Estados: `isLoading`, `error`.
-  - Em sucesso: `onSuccess(novoTreino)` callback.
-- [ ] 4.3.b Criar `src/hooks/useAddTreinoPlanejado.test.ts` — 4 testes: sucesso, erro 422, erro 404, loading state.
-- [ ] 4.3.c Validação: `npm run build` — verde.
+- [x] 4.3.a Criar `src/hooks/useAddTreinoPlanejado.ts`: isSaving, error, adicionarTreino.
+- [x] 4.3.b Criar `src/hooks/useAddTreinoPlanejado.test.ts` — 4 testes: sucesso, erro 422, erro 404, loading state.
+- [x] 4.3.c Validação: `npm run build` — verde.
 
 ### 4.4 Componente TreinoAddDialog
 
-- [ ] 4.4.a Criar `src/features/coach/components/TreinoAddDialog.tsx`:
-  - Props: `open`, `planoId`, `semanaInicio`, `semanaFim`, `treinosExistentes: TreinoPlanejadoDto[]`, `onClose`, `onSaved(treino)`.
-  - Campos do treino conforme design.md (tipo, data, distância, duração, zona, RPE, TSS, obs).
-  - Datas disponíveis: array de datas entre `semanaInicio..semanaFim`, formatadas como "Seg 01/07" (derivar `DayOfWeek` no frontend via `new Date(dataTreino).toLocaleDateString`).
-  - Aviso de double-day: quando data selecionada já tem treino em `treinosExistentes`, exibir `Alert severity="warning"` com "Já existe N treino(s) nesta data. Double-day é permitido — confirme se é intencional."
-  - Seção de etapas colapsada por default; botão "Adicionar etapas" expande; cada etapa tem botão remover; `tipoEtapa` obrigatório quando a seção está aberta e tem linhas.
-  - Botão "Salvar treino" desabilitado durante request (evitar duplo-clique).
-  - Submissão: `useAddTreinoPlanejado`; spinner enquanto carrega; erro inline em caso de 422.
-- [ ] 4.4.b Criar `src/features/coach/components/TreinoAddDialog.test.tsx` — mínimo 7 testes:
-  - Renderiza campos obrigatórios (tipo e data).
-  - Botão salvar desabilitado sem tipo e data preenchidos.
-  - Seção etapas colapsada por default.
-  - Expande etapas e adiciona linha ao clicar em "Adicionar etapas".
-  - Remove etapa ao clicar em botão remover.
-  - Exibe aviso de double-day quando data selecionada já tem treino.
-  - Chama onSaved após sucesso e fecha dialog.
-- [ ] 4.4.c Validação: `npm run build` + testes — verde.
+- [x] 4.4.a Criar `src/features/coach/components/TreinoAddDialog.tsx`:
+  - Select nativo para tipo e data (testabilidade com JSDOM).
+  - Aviso de double-day com Alert warning.
+  - Seção etapas colapsável; aria-label dinâmico no toggle.
+  - Botão "Salvar treino" desabilitado sem tipo+data ou durante isSaving.
+- [x] 4.4.b Criar `src/features/coach/components/TreinoAddDialog.test.tsx` — 7 testes (todos verdes).
+- [x] 4.4.c Validação: `npm run build` + testes — 159/0; verde.
 
 ### 4.5 Integração na CoachPlanReviewPage
 
-- [ ] 4.5.a Adicionar botão "Adicionar treino" no painel de detalhe do plano, visível apenas quando `reviewStatus === 'AGUARDANDO_REVISAO'`.
-- [ ] 4.5.b Gerenciar estado `addDialogOpen: boolean` e `onSaved` (re-fetch do plano ou append local).
-- [ ] 4.5.c Chip "Adicionado pelo coach" (`data-testid="chip-adicionado-coach"`) no card do treino quando `adicionadoPeloCoach === true`.
-- [ ] 4.5.d Validação: `npm run lint && npm run build` — verde.
+- [x] 4.5.a Botão "Adicionar treino" em PlanoDetalhePanel, visível apenas quando AGUARDANDO_REVISAO e onAdicionarTreino provida.
+- [x] 4.5.b Estado addDialogOpen + handleTreinoAdicionado (re-fetch + toast) na CoachPlanReviewPage.
+- [x] 4.5.c Chip `chip-adicionado-coach` (data-testid) em TreinoTag quando `adicionadoPeloCoach === true`.
+- [x] 4.5.d Validação: `npm run lint && npm run build` — verde.
 
 ### 4.6 Testes de integração — CoachPlanReviewPage
 
-- [ ] 4.6.a Adicionar ao menos 3 testes à suite existente de `CoachPlanReviewPage.test.tsx`:
-  - Botão "Adicionar treino" visível para plano AGUARDANDO_REVISAO.
-  - Botão "Adicionar treino" não visível para plano APROVADO.
-  - Chip "chip-adicionado-coach" presente quando `adicionadoPeloCoach = true`.
-- [ ] 4.6.b Validação: suite completa front — verde.
+- [x] 4.6.a Adicionados 3 testes: botão visível AGUARDANDO, ausente APROVADO, chip-adicionado-coach presente.
+- [x] 4.6.b Validação: 159 testes passando.
 
 ---
 
