@@ -54,10 +54,34 @@
 
 ### 1.4 DTO de output: TreinoPlanejadoOutputDto
 
-- [ ] 1.4.a Adicionar campo `boolean adicionadoPeloCoach` ao record `TreinoPlanejadoOutputDto`.
-- [ ] 1.4.b Atualizar `TreinoMapper.toOutputDto(TreinoPlanejado)` para incluir o novo campo.
-- [ ] 1.4.c Verificar se há outros locais que constroem `TreinoPlanejadoOutputDto` e atualizar.
-- [ ] 1.4.d Validação: `./mvnw clean test` — verde (golden tests podem precisar de regeneração se o DTO aparecer em snapshots).
+- [ ] 1.4.a Adicionar campo `boolean adicionadoPeloCoach` ao record `TreinoPlanejadoOutputDto` (é primitivo — default `false` no JSON, sem risco de campo ausente).
+- [ ] 1.4.b `TreinoMapper` usa MapStruct com `@Mapping` — adicionar `@Mapping(target = "adicionadoPeloCoach", source = "adicionadoPeloCoach")` ao método `toOutputDto`. Se o MapStruct já mapeou automaticamente (campo com mesmo nome), confirmar via `./mvnw clean test` sem adição manual.
+- [ ] 1.4.c Verificar se há outros locais que constroem `TreinoPlanejadoOutputDto` diretamente (não via mapper) e atualizar.
+- [ ] 1.4.d Validação: `./mvnw clean test` — verde.
+
+### 1.5 Infraestrutura de suporte (utilitário DiaSemana + query repository)
+
+- [ ] 1.5.a Adicionar método estático em `util/Utils.java` (o inverso do `converterParaDayOfWeek` já existente):
+  ```java
+  public static DiaSemana converterDayOfWeekParaDiaSemana(DayOfWeek dow) {
+      return switch (dow) {
+          case MONDAY    -> DiaSemana.SEGUNDA;
+          case TUESDAY   -> DiaSemana.TERCA;
+          case WEDNESDAY -> DiaSemana.QUARTA;
+          case THURSDAY  -> DiaSemana.QUINTA;
+          case FRIDAY    -> DiaSemana.SEXTA;
+          case SATURDAY  -> DiaSemana.SABADO;
+          case SUNDAY    -> DiaSemana.DOMINGO;
+      };
+  }
+  ```
+  **Atenção:** verificar os valores exatos do enum `DiaSemana` antes de escrever o switch — os nomes acima são estimados com base no mapeamento inverso existente.
+- [ ] 1.5.b Adicionar query com JOIN FETCH em `PlanoSemanalRepository` (necessária para o `@PrePersist` de `TreinoPlanejado` que deriva `atleta` e `tenantId` do plano):
+  ```java
+  @Query("SELECT p FROM PlanoSemanal p JOIN FETCH p.atleta JOIN FETCH p.assessoria WHERE p.id = :id AND p.assessoria.id = :tenantId")
+  Optional<PlanoSemanal> findByIdWithDependenciesAndTenant(@Param("id") UUID id, @Param("tenantId") UUID tenantId);
+  ```
+- [ ] 1.5.c Validação: `./mvnw clean compile` — verde.
 
 ---
 
@@ -80,7 +104,7 @@
   - Derivar `diaSemana`: reutilizar mapeamento existente de `DayOfWeek → DiaSemana` (extrair de `TreinoServiceImpl` ou `StravaActivityServiceImpl` para método estático).
   - Construir `TreinoPlanejado`: `adicionadoPeloCoach = true`, `statusTreino = PENDENTE`, `fonteDados = MANUAL`, `duracaoMin = dto.duracaoMin() != null ? Duration.ofMinutes(dto.duracaoMin()) : Duration.ZERO`.
   - Calcular TSS quando `dto.duracaoMin() != null && dto.tssPlanejado() == null`: `TssCalculatorService.calcularTssEstimado(Duration.ofMinutes(dto.duracaoMin()), dto.percepcaoEsforcoEsperada())`.
-  - Salvar treino via `@Transactional`; iterar sobre `etapas` (se presentes) atribuindo `ordem = index + 1` e salvar cada `EtapaTreino` (cascade ALL garante persistência junto com o treino).
+  - Persistir etapas (quando `dto.etapas() != null && !dto.etapas().isEmpty()`): para cada `EtapaInputDto` na lista, criar `EtapaTreino`, setar `etapa.setTreinoPlanejado(treino)`, `etapa.setOrdem(index + 1)`, e adicionar em `treino.getEtapas()`. O `CascadeType.ALL` garante persistência junto com o save do treino — **não chamar `etapaRepository.save()` explicitamente**. `TreinoMapper.linkEtapas()` pode servir como referência de como o bidirectional link é feito em outras partes do código.
   - Log estruturado na entrada: `log.info("coach-adicionou-treino: planoId={}, tenantId={}, tipoTreino={}, comEtapas={}", planoId, tenantId, dto.tipoTreino(), etapasCount)`.
   - Retornar `TreinoPlanejadoOutputDto` via mapper.
 - [ ] 2.1.c Validação: `./mvnw clean compile` — verde.
