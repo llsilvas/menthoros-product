@@ -59,13 +59,8 @@
 
 ### 2.1 Interface e implementação
 
-- [ ] 2.1.a Criar interface `TreinoPlanejadoAddService` em `services/`:
-  ```java
-  public interface TreinoPlanejadoAddService {
-      TreinoPlanejadoOutputDto adicionarTreino(UUID planoId, TreinoPlanejadoAddDto dto);
-  }
-  ```
-- [ ] 2.1.b Criar `TreinoPlanejadoAddServiceImpl` em `services/impl/` com:
+- [x] 2.1.a Criar interface `TreinoPlanejadoAddService` em `services/`.
+- [x] 2.1.b Criar `TreinoPlanejadoAddServiceImpl` em `services/impl/` com:
   - Resolução de `tenantId` via `TenantContext.getRequiredTenantId()`.
   - Busca do plano com JOIN FETCH de `atleta` e `assessoria` por `(planoId, tenantId)` → 404 se não encontrado (necessário para o `@PrePersist` derivar `atleta` e `tenantId`).
   - Guard `reviewStatus == AGUARDANDO_REVISAO` → `DomainRuleViolationException` → 422.
@@ -77,11 +72,11 @@
   - Persistir etapas (quando `dto.etapas() != null && !dto.etapas().isEmpty()`): para cada `EtapaInputDto` na lista, criar `EtapaTreino`, setar `etapa.setTreinoPlanejado(treino)`, `etapa.setOrdem(index + 1)`, e adicionar em `treino.getEtapas()`. O `CascadeType.ALL` garante persistência junto com o save do treino — **não chamar `etapaRepository.save()` explicitamente**. `TreinoMapper.linkEtapas()` pode servir como referência de como o bidirectional link é feito em outras partes do código.
   - Log estruturado na entrada: `log.info("coach-adicionou-treino: planoId={}, tenantId={}, tipoTreino={}, comEtapas={}", planoId, tenantId, dto.tipoTreino(), etapasCount)`.
   - Retornar `TreinoPlanejadoOutputDto` via mapper.
-- [ ] 2.1.c Validação: `./mvnw clean compile` — verde.
+- [x] 2.1.c Validação: `./mvnw clean compile` — verde.
 
 ### 2.2 Testes de unidade — TreinoPlanejadoAddServiceImplTest
 
-- [ ] 2.2.a `@Nested class AdicionarTreino` com cenários:
+- [x] 2.2.a `@Nested class AdicionarTreino` com cenários:
   - Happy path simples (sem etapas): novo treino criado com `adicionadoPeloCoach = true`, `statusTreino = PENDENTE`, `fonteDados = MANUAL`.
   - Happy path com etapas: 2 etapas criadas com `ordem = 1` e `ordem = 2`.
   - TSS calculado quando `duracaoMin` informado e `tssPlanejado` ausente (verifica conversão `Integer → Duration`).
@@ -95,7 +90,7 @@
   - Limite de 14 treinos atingido → `DomainRuleViolationException`.
   - Cross-tenant → `DomainNotFoundException`.
   - `diaSemana` derivado corretamente: `dataTreino = quinta-feira → DiaSemana.QUINTA`.
-- [ ] 2.2.b Validação: `./mvnw clean test` — 10+ novos testes verdes; suite completa verde.
+- [x] 2.2.b Validação: `./mvnw clean test` — 16 novos testes verdes; 999 total, 0 falhas.
 
 ---
 
