@@ -81,6 +81,7 @@
   - Construir `TreinoPlanejado`: `adicionadoPeloCoach = true`, `statusTreino = PENDENTE`, `fonteDados = MANUAL`, `duracaoMin = dto.duracaoMin() != null ? Duration.ofMinutes(dto.duracaoMin()) : Duration.ZERO`.
   - Calcular TSS quando `dto.duracaoMin() != null && dto.tssPlanejado() == null`: `TssCalculatorService.calcularTssEstimado(Duration.ofMinutes(dto.duracaoMin()), dto.percepcaoEsforcoEsperada())`.
   - Salvar treino via `@Transactional`; iterar sobre `etapas` (se presentes) atribuindo `ordem = index + 1` e salvar cada `EtapaTreino` (cascade ALL garante persistência junto com o treino).
+  - Log estruturado na entrada: `log.info("coach-adicionou-treino: planoId={}, tenantId={}, tipoTreino={}, comEtapas={}", planoId, tenantId, dto.tipoTreino(), etapasCount)`.
   - Retornar `TreinoPlanejadoOutputDto` via mapper.
 - [ ] 2.1.c Validação: `./mvnw clean compile` — verde.
 
@@ -235,7 +236,7 @@
 
 - [ ] 5.1 `./mvnw clean test` — suite completa backend verde.
 - [ ] 5.2 `npm run lint && npm run build && npm test` — suite completa front verde.
-- [ ] 5.3 Teste manual ponta-a-ponta:
+- [ ] 5.3 Teste manual ponta-a-ponta (requer ambiente local: `docker compose up -d` + backend em `SPRING_PROFILES_ACTIVE=local`):
   - Abrir plano em `AGUARDANDO_REVISAO` → confirmar botão "Adicionar treino" visível.
   - Adicionar treino simples (sem etapas) → confirmar 201 e chip "Adicionado pelo coach" no card.
   - Adicionar treino com 2 etapas → confirmar etapas persistidas na ordem correta.

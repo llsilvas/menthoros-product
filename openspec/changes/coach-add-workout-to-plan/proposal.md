@@ -130,8 +130,10 @@ Sem esta feature, o coach rejeita o plano inteiro e reescreve a instrução para
 ## Métrica de Sucesso
 
 **Primária (adoção):** `% de semanas de revisão em que o coach adiciona ao menos 1 treino via este endpoint` > 10% nas primeiras 4 semanas em produção. Valor <5% indica que o atrito do dialog é alto ou a lacuna não é tão frequente quanto esperado.
+- **Instrumento de coleta:** log estruturado no service — `log.info("coach-adicionou-treino: planoId={}, tenantId={}, tipoTreino={}, comEtapas={}", ...)`. Query semanal: `SELECT COUNT(DISTINCT plano_semanal_id) FROM tb_treino_planejado WHERE adicionado_pelo_coach = true AND criado_em >= CURRENT_DATE - 7`.
 
-**Secundária (impacto):** redução de ≥20% nas rejeições de plano comparado ao baseline das 4 semanas anteriores ao deploy (janela maior para reduzir ruído de semanas com competição ou baixo volume).
+**Secundária (impacto):** redução de ≥20% nas rejeições de plano comparado ao baseline das 4 semanas anteriores ao deploy.
+- **Instrumento de coleta:** `SELECT count(*) FROM tb_plano_semanal WHERE review_status = 'REJEITADO' AND semana_inicio >= CURRENT_DATE - 28`.
 
 ## Riscos e Mitigações
 
@@ -161,4 +163,4 @@ Sem esta feature, o coach rejeita o plano inteiro e reescreve a instrução para
 **Em aberto:**
 - Notificação ao atleta de que o plano foi enriquecido? Fora do escopo — atleta só vê o plano aprovado.
 - Reordenação de etapas dentro do dialog? Adiado — lista simples sem drag-drop para o MVP.
-- Confirmar ausência de migration V41 em outra branch ativa antes de criar a migration.
+- ~~Confirmar ausência de migration V41~~ **Fechado:** V41 livre confirmado em 2026-06-23 — nenhuma branch ativa tem migration V41; última aplicada é V40.
