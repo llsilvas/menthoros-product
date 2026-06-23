@@ -1,6 +1,6 @@
 # Tasks: coach-add-workout-to-plan
 
-**Status:** Proposto
+**Status:** Concluído — mergeado em develop (2026-06-23)
 **Sprint:** 9i (após `infer-thresholds-from-recent-workouts`)
 **Tamanho:** S · **Trilha:** Full
 **Repos:** menthoros-backend + menthoros-front
@@ -209,9 +209,8 @@
 
 - [x] 5.1 `./mvnw clean test` — BUILD SUCCESS.
 - [x] 5.2 `npm run build && npm run test:run` — 159 testes passando.
-- [ ] 5.3 Teste manual ponta-a-ponta (requer ambiente local).
-- [x] 5.4 Revisores: code-reviewer executado; achados corrigidos:
-  - I-3: countByPlanoSemanalId (COUNT query, evita race condition)
-  - M-5: @NotBlank em EtapaInputDto.tipoEtapa
-  - M-6: teste ADMIN adicionado ao controller
+- [ ] 5.3 Teste manual ponta-a-ponta (requer ambiente local). **Adiado — validação automatizada completa executada.**
+- [x] 5.4 Revisores: code-reviewer + security-reviewer + clean-code-reviewer + frontend-reviewer executados; achados corrigidos:
+  - Criticals: C-01-BE (bloco sem subEtapas/reps>20), C-02-BE (auth PATCH), C-03-BE (countQuery evita race), C-04-FE (crypto.randomUUID), C-05-FE (shadow token), C-06-FE (onSaved contract)
+  - Importants: I-01 (@Valid cascade), I-02 (depth guard), I-03 (constante nomeada), I-04 (testes expandirRepeticoes), I-05 (EtapaMapper injection), I-06 (IAE sem param names), I-07 (NaN guards), I-08 (useMemo), I-09 (teste save→refresh), I-10 (teste step serialization)
 - [x] 5.5 PR aberto.
