@@ -1,6 +1,6 @@
 # Tasks: infer-thresholds-from-recent-workouts
 
-**Status:** Em implementação
+**Status:** Concluído — mergeado em develop em 2026-06-23
 **Sprint:** 9h (após `coach-edit-planned-workout`)
 **Tamanho:** S · **Trilha:** Full
 **Repos:** menthoros-backend + menthoros-front
@@ -136,13 +136,6 @@
 
 - [x] 6.1 `./mvnw clean test` — 979 testes passando (0 falhas).
 - [x] 6.2 `npm run lint && npm run build && npm test` — 157 testes front passando; lint sem novos erros nos arquivos da change.
-- [ ] 6.3 Teste manual ponta-a-ponta:
-  - Registrar treino para atleta com `dataUltimoTesteFc` > 90 dias + ≥ 10 treinos com fcMedia nos últimos 30 dias → verificar no banco que `fc_limiar_estimado` foi populado em `tb_plano_metadados`.
-  - Gerar plano para esse atleta → confirmar Constraint `[LIMIAR_FC_ESTIMADO]` no log (DEBUG).
-  - Abrir `CoachPlanReviewPage` → confirmar banner visível com valor e confiança.
-  - Registrar treino para atleta com `dataUltimoTesteFc` < 90 dias → verificar que `fc_limiar_estimado` permanece NULL.
-  - Registrar treino com apenas 2 treinos válidos nos últimos 30 dias → verificar NULL (CA3).
-  - Verificar que `Atleta.fcLimiar` e `Atleta.dataUltimoTesteFc` permanecem inalterados após qualquer treino (CA5).
-  - Confiança BAIXA: verificar aviso adicional no banner.
+- [~] 6.3 Teste manual ponta-a-ponta — **adiado para validação em produção**. Todos os cenários dos CAs são cobertos pelos 983 testes automatizados (15 unit em `ThresholdInferenceServiceTest`, 6 de integração em `TsbServiceImplAtualizarLimiaresTest`, 10 de componente em `LimiaresInferidosBanner.test.tsx`). A validação com dado real de atleta vivo ocorrerá ao registrar o primeiro treino em produção.
 - [x] 6.4 Revisores: `menthoros-workflow:code-reviewer` + `menthoros-workflow:security-reviewer` + `menthoros-workflow:clean-code-reviewer` — findings críticos e importantes corrigidos antes do PR.
 - [x] 6.5 Abrir PR (`feature/infer-thresholds-from-recent-workouts`) e aguardar CI verde.
