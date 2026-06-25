@@ -27,6 +27,7 @@
 - [ ] 3.2 Consolidar aderência, carga, fadiga, evolução e foco recomendado
 - [ ] 3.3 Persistir ou disponibilizar revisão semanal por atleta
 - [ ] 3.4 Integrar revisão ao fluxo de geração do próximo plano
+- [x] 3.5 Expor endpoint agregado do dashboard do coach com resumo, fila, roster, calendário e insights
 
 ## 4. Capability: recommendation-explainability
 
@@ -47,3 +48,18 @@
 - [ ] 6.2 Criar testes unitários para priorização da fila de atenção
 - [ ] 6.3 Criar testes unitários para revisão semanal
 - [ ] 6.4 Criar testes para explicabilidade e status de confiança das zonas
+- [x] 6.5 Criar testes unitários para o endpoint agregado do dashboard do coach
+- [x] 6.6 Conectar o Inbox do coach ao dashboard agregado em modo parcial
+- [x] 6.7 Usar a fila e o roster do dashboard agregado na UI do Inbox
+- [x] 6.8 Sincronizar filtros do dashboard com URL e request
+- [x] 6.9 Remover filtros locais duplicados e expor paginação do roster no Inbox
+- [x] 6.10 Ligar fila de atenção, calendário e insights do dashboard agregado no Inbox
+- [x] 6.11 Usar perfil consolidado do atleta para o editor real de plano no Inbox
+- [x] 6.12 Ligar aprovar e rejeitar plano do Inbox ao endpoint real de revisão
+- [x] 6.13 Substituir `prompt` de rejeição por diálogo inline no Inbox
+
+## 7. Dados mock pendentes de substituição (follow-up)
+
+- [ ] 7.1 **CoachInboxPage — aba "Calendário de provas" sem dados** (`CoachInboxPage.tsx` ~linha 1112): quando o atleta não tem provas no calendário, a aba exibe um mini-calendário semanal com dias fixos (`{24 + index}`), datas hardcoded e nomes de treino inventados ('Fácil 8 km', 'Força geral', 'Limiar', etc.). Substituir pelo plano vigente do atleta (`planoVigente.treinos` via `useAthleteProfile`) ou ocultar a seção enquanto o dado real não estiver disponível.
+
+- [ ] 7.2 **CoachInboxPage — delta de carga no fallback de status** (`CoachInboxPage.tsx` ~linha 1172): o texto "+8% vs semana anterior" é estático. Substituir pelo delta real de volume semanal — calcular a partir das últimas duas entradas de `aderenciaSemanal` do perfil ou expor o campo `deltaSemana` no `CoachDashboardInsights`.
