@@ -71,8 +71,11 @@ O coach precisa desse número para diferenciar um atleta que treinou muito de fo
 
 ## Dependência
 
-Requer `feature/fix-coach-inbox-metrics` mergeada em `develop` antes de iniciar — usa
-`calcularMonotonia` exportada por essa change.
+1. `fix-coach-inbox-metrics` — **mergeada** em `develop`. Usa `calcularMonotonia` exportada por essa change.
+2. `consolidate-coach-inbox-tabs` — **deve vir antes**. Ela (a) reestrutura o drill-down em 3 abas, definindo
+   a aba **Diagnóstico** onde o tile de Strain vai morar, e (b) corrige o guard global/atleta
+   (`if (dashboardInsights)`) — sem essa correção, qualquer métrica nova adicionada à aba renderiza dados do
+   roster inteiro ou vira código morto. Implementar Strain antes obrigaria a reposicioná-lo na consolidação.
 
 ## Métrica de sucesso
 

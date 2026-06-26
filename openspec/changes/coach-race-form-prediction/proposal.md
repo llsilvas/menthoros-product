@@ -103,8 +103,11 @@ Fallback `null` quando `ctl` ou `atl` é nulo, ou `diasAteProva <= 0`.
 
 ## Dependência
 
-Requer `feature/fix-coach-inbox-metrics` mergeada em `develop` antes de iniciar — reutiliza
-`formFromTSB` de `AthleteForm.ts` e a estrutura de `raceCalendar` já consolidada.
+1. `fix-coach-inbox-metrics` — **mergeada** em `develop`. Reutiliza `formFromTSB`/`getTsbFormaTone` de
+   `AthleteForm.ts` e a estrutura de `raceCalendar`.
+2. `consolidate-coach-inbox-tabs` — **deve vir antes**. Ela cria a aba **Provas & sugestões** (sem o mock
+   "Semana atual" e sem o guard global de calendário) onde o card de previsão de forma vai morar. Implementar
+   antes da consolidação colocaria o card no layout antigo de 5 abas e exigiria reposicioná-lo depois.
 
 ## Métrica de sucesso
 
