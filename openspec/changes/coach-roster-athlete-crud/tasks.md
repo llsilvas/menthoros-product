@@ -1,9 +1,20 @@
 # Tasks — coach-roster-athlete-crud
 
 > Repo: `apps/menthoros-front` · Branch: `feature/coach-roster-athlete-crud`
-> Dependência: `coach-roster-operational-actions` mergeada em `develop` (infra de ações por linha).
+> Dependência: `coach-roster-operational-actions` mergeada em `develop` (infra de ações por linha) — **OK**.
 > Frontend-only (Fast track). Sem mudança de API/DB.
 > Validar por seção: `npm run lint && npm run build && npm run test:run`.
+>
+> **Refino contra o código (init):**
+> - Usar **`AtletasService` direto** (`cadastraAtleta`/`atualizarAtleta`/`deletarAtleta`/`buscarAtletaPorId`) +
+>   `fetchRoster` — **não** `useCrud` (ele mantém uma lista própria + faz `fetchAtletas` no mount, redundante com o roster).
+> - `AtletaDialog` props: `{ open, onClose, onSave:(CreateAtleta|UpdateAtleta)=>Promise<void>, atleta? }`.
+> - `UpdateAtleta extends Partial<CreateAtleta>` e `atualizarAtleta(id, body: CreateAtleta)` → no Editar, fazer
+>   **merge** `{ ...atletaParaEditar, ...formData }` (reaproveita o atleta completo já buscado p/ preencher o dialog;
+>   replica o padrão de merge do `useCrud.updateAtleta`, sem 2ª busca).
+> - Estender o estado da infra: `RosterActionType` += `'atleta-new' | 'atleta-edit'`; novo `atletaParaEditar: Atleta | null`.
+> - O botão **"Adicionar"** já existe no toolbar do roster (sem `onClick`) → wire para criar.
+> - Excluir: `ConfirmDialog` (`severity="danger"`) já existe em `src/shared/components/ConfirmDialog.tsx`.
 
 ---
 
