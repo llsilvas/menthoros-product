@@ -53,11 +53,23 @@ Painéis globais (`DashboardInsightsPanel`, `DashboardCalendarPanel`) **não** e
 - [ ] 4.4 Remover handlers mortos: `onMarkDone` ("Marcar como concluído"), `feedback` se ficar sem uso.
   - verify: `activeTab` default coerente; nenhuma aba referencia painel global; build verde.
 
-## Seção 5 — Limpeza do view model / adapter
+## Seção 5 — Limpeza do view model / adapter / órfãos
 
-- [ ] 5.1 Remover o card "Últimos treinos" e avaliar remover `lastWorkouts` de `CoachAthleteRow` + dos dois builders do adapter (se sem outros consumidores). Registrar follow-up P1: preencher com treinos realizados reais (requer dado no agregador backend).
-- [ ] 5.2 Remover campos do view model que ficarem órfãos após a consolidação (ex.: `decision`/`planStatus` se não usados nas 3 abas — confirmar antes).
-  - verify: `npm run build` e `npm run lint` sem referências quebradas.
+> Mapeamento confirmado no código (init): `usePlanDraft` só é usado em `CoachInboxPage`;
+> `DashboardInsightsPanel`/`DashboardCalendarPanel` só são usados nos TabPanels do drill-down;
+> `decision`/`planStatus` são usados em `QueueRow` (lista) — **não remover**; `lastWorkouts` só em
+> adapter + `ReviewTabPanel` + tipo.
+
+- [ ] 5.1 Remover o card "Últimos treinos" e remover `lastWorkouts` de `CoachAthleteRow`, dos dois builders
+  do adapter e do `ReviewTabPanel` (sem outros consumidores). Follow-up P1: preencher com treinos realizados
+  reais (requer dado no agregador backend).
+- [ ] 5.2 **Manter** `decision`/`planStatus` no view model — usados em `QueueRow` (lista de atletas). Apenas
+  parar de consumi-los nas abas removidas (ex.: chip de status no antigo "Próximo treino" migra com o resumo).
+- [ ] 5.3 Deletar o hook órfão `usePlanDraft` (e sua fiação no `CoachInboxPage`) após remover o "Ajuste rápido".
+- [ ] 5.4 Deletar os componentes órfãos `DashboardInsightsPanel` e `DashboardCalendarPanel` após saírem do
+  drill-down — o global segue acessível via `CoachInsightsPage` (`/coach/insights`) e `CoachCalendarPage`
+  (`/coach/calendar`). Confirmar zero uso restante antes de deletar.
+  - verify: `npm run build` e `npm run lint` sem referências quebradas nem imports órfãos.
 
 ## Seção 6 — Testes de comportamento
 
