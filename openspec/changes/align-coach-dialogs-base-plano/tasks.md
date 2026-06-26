@@ -17,7 +17,7 @@
 
 ## Seção 1 — Componente base `CoachDialog`
 
-- [ ] 1.1 Criar `src/features/coach/components/CoachDialog.tsx`:
+- [x] 1.1 Criar `src/features/coach/components/CoachDialog.tsx`:
   - Props: `{ open, onClose, title, maxWidth?, headerAction?, actions?, children }`.
   - `PaperProps.sx`: `bgcolor: elevation.highest`, `border: 1px ${content.cardBorder}`, `borderRadius: '12px'`, `overflow: 'hidden'`.
   - Header: `Box` com `borderBottom: ${content.divider}`; `Typography` `surface[50]`, `fontWeight 700`, `textTransform: uppercase`, `letterSpacing: 0.08em`; `headerAction` à direita (opcional).
@@ -28,10 +28,10 @@
 
 > `src/components/features/planos/planosDialog.tsx`
 
-- [ ] 2.1 Chip de planos (`rgba(255,255,255,0.12)` / `#e8eaed`) → tokens (`${surface[0]}1F` / `surface[200]`).
-- [ ] 2.2 Botões "Recalcular" e "Excluir plano" (cores inline hardcoded) → tokens
+- [x] 2.1 Chip de planos (`rgba(255,255,255,0.12)` / `#e8eaed`) → tokens (`${surface[0]}1F` / `surface[200]`).
+- [x] 2.2 Botões "Recalcular" e "Excluir plano" (cores inline hardcoded) → tokens
   (`surface`/`content` para o neutro; `semantic.danger` para o delete).
-- [ ] 2.3 (Opcional) Migrar a casca do `PlanosDialog` para `CoachDialog` se reduzir código sem regressão;
+- [x] 2.3 (Opcional) Migrar a casca do `PlanosDialog` para `CoachDialog` se reduzir código sem regressão;
   senão, manter a estrutura atual (já usa `elevation`/`content`).
   - verify: nenhum hex/rgba hardcoded no arquivo; ver/gerar/excluir/recalcular intactos.
 
@@ -39,17 +39,17 @@
 
 > `src/components/features/planos/TreinoCard.tsx`
 
-- [ ] 3.1 `getRpeColor()` (hex `#4caf50`…`#f44336`) → escala com `semantic.success`/`warning`/`danger`.
-- [ ] 3.2 Caixa de insight (gradiente + rgba hardcoded) → tokens (`elevation`/`semantic.warning` + `surface`).
+- [x] 3.1 `getRpeColor()` (hex `#4caf50`…`#f44336`) → escala com `semantic.success`/`warning`/`danger`.
+- [x] 3.2 Caixa de insight (gradiente + rgba hardcoded) → tokens (`elevation`/`semantic.warning` + `surface`).
   - verify: card de treino e insight coerentes com o dark-first; sem hex hardcoded.
 
 ## Seção 4 — Validação + QA
 
-- [ ] 4.1 `npm run lint && npm run build && npm run test:run`.
-- [ ] 4.2 `/qa` (frontend-reviewer + clean-code-reviewer haiku + **Codex cross-model**) sem Critical.
-- [ ] 4.3 Marcar itens `[x]`.
+- [x] 4.1 `npm run lint && npm run build && npm run test:run`.
+- [x] 4.2 `/qa` (frontend-reviewer + clean-code-reviewer haiku + **Codex cross-model**) sem Critical.
+- [x] 4.3 Marcar itens `[x]`.
 
 ## Seção 5 — Entrega
 
-- [ ] 5.1 Commits por seção (Conventional Commits PT-BR).
+- [x] 5.1 Commits por seção (Conventional Commits PT-BR).
 - [ ] 5.2 Push + PR contra `develop`.
