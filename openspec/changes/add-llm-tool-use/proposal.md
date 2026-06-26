@@ -6,13 +6,13 @@ A geração de plano no Menthoros hoje é um monólogo: empacotamos todo o conte
 2. Atualizações sobre dados do atleta (ex: recalcular TSS de uma etapa, consultar último teste de campo) precisariam de um novo round-trip com prompt inteiro;
 3. Não conseguimos auditar quais informações o LLM efetivamente usou para gerar cada decisão.
 
-Adotar tool use nativo do Spring AI (FunctionCallbackWrapper / @Tool) transforma o LLM em um "agente" que pode chamar funções expostas do nosso próprio serviço durante a geração. Isso permite prompts mais enxutos, auditoria de chamadas, e habilita a arquitetura de Skills (já especificada em `introduce-domain-skills-architecture`) a evoluir para um loop verdadeiramente agêntico.
+Adotar tool use nativo do Spring AI (anotação `@Tool` + `ToolCallback`/`ToolCallbacks`, registrados via `ChatClient...defaultTools(...)`) transforma o LLM em um "agente" que pode chamar funções expostas do nosso próprio serviço durante a geração. Isso permite prompts mais enxutos, auditoria de chamadas, e habilita a arquitetura de Skills (já especificada em `introduce-domain-skills-architecture`) a evoluir para um loop verdadeiramente agêntico.
 
 ## What Changes
 
 - **Novo módulo `llm.tool`**: infraestrutura para registrar funções expostas ao LLM via Spring AI
 - **Classe abstrata `LlmTool<I, O>`**: contrato mínimo com `getName`, `getDescription`, `getInputSchema`, `execute(I input)`
-- **Registrador `LlmToolRegistry`**: descobre beans `LlmTool` e os publica em `FunctionCallbackWrapper` para o `ChatClient`
+- **Registrador `LlmToolRegistry`**: descobre beans `LlmTool` e os publica como `ToolCallback` para o `ChatClient` (via `ChatClient...defaultTools(...)` no bean `gpt4oPlanoClient`)
 - **Primeiras ferramentas concretas (3 para MVP)**:
   - `GetAtletaMetricasTool`: retorna CTL/ATL/TSB e pace limiar atual do atleta
   - `GetHistoricoTreinosTool`: retorna últimos N treinos realizados com TSS, distância e data
@@ -41,7 +41,7 @@ Adotar tool use nativo do Spring AI (FunctionCallbackWrapper / @Tool) transforma
 - Endpoint administrativo opcional: `GET /api/llm/tool-calls?sessionId=X` para inspeção (uso interno)
 
 **Código:**
-- Dependência `spring-ai-openai-spring-boot-starter` já presente (1.0.0-M6) — precisa validar suporte estável a tool calling nesta versão; se M6 tiver comportamento instável, documentar como riscos em `design.md`
+- Dependência `spring-ai-starter-model-openai` já presente em **1.1.6 (GA)** (ver `apps/menthoros-backend/pom.xml`, `spring-ai.version`) — tool calling é estável nesta linha; usar a API GA (`@Tool`/`ToolCallback`, `ChatClient...defaultTools(...)`), não a antiga `FunctionCallbackWrapper` da série M. O starter `spring-ai-starter-model-anthropic` também está presente (relevante caso a tarefa `PLANO` seja roteada para Claude no futuro)
 - Três ferramentas iniciais implementadas e registradas como `@Component` implementando `LlmTool`
 - `IaService.gerarPlano()` passa a usar `ChatClient` com tools registrados ao invés do `ChatClient` simples
 
@@ -57,10 +57,11 @@ Adotar tool use nativo do Spring AI (FunctionCallbackWrapper / @Tool) transforma
 
 - **Custo de tokens**: tool use aumenta número de round-trips com OpenAI. Mitigar com cache local por `(sessão, tool, input hash)` quando input é idempotente (TTL 5min)
 - **Latência percebida**: geração pode ficar mais lenta por chamadas extras. Mitigar com streaming de resposta e feedback visual no cliente
-- **Estabilidade de Spring AI M6**: se a versão for instável, documentar dependência a upgrade para GA em `design.md` e controlar feature flag
+- ~~**Estabilidade de Spring AI M6**~~: **resolvido** — o projeto já está em `spring-ai 1.1.6` (GA), onde tool calling é estável. Risco rebaixado a obsoleto; sem necessidade de feature flag por instabilidade de versão
+- **Tool calling × structured output `strict`**: o fluxo de plano depende de saída estruturada estrita (`ResponseFormat` JSON-Schema + `.entity(PlanoSemanalLlmDto.class)`). Combinar loop de tools com saída estrita no turno final é mais delicado e específico de provider — validar empiricamente a taxa de "chamou tool quando deveria responder" antes de migrar o caminho crítico
 
 ## Referências
 
-- **Spring AI Reference**: "Function Calling" — https://docs.spring.io/spring-ai/reference/api/tools.html
+- **Spring AI Reference (1.1.x)**: "Tool Calling" (`@Tool`, `ToolCallback`, `ChatClient.defaultTools`) — https://docs.spring.io/spring-ai/reference/api/tools.html
 - **OpenAI Function Calling docs** — https://platform.openai.com/docs/guides/function-calling
 - **OpenSpec change `introduce-domain-skills-architecture`** — consumidor natural desta infraestrutura
