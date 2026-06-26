@@ -13,7 +13,7 @@
 
 ## Seção 1 — Tipo
 
-- [ ] 1.1 Adicionar `strain: number | null` em `quickStats` de `CoachAthleteRow`
+- [x] 1.1 Adicionar `strain: number | null` em `quickStats` de `CoachAthleteRow`
   (`src/features/coach/types/CoachInbox.ts`):
   ```ts
   quickStats: {
@@ -32,7 +32,7 @@
 
 > Arquivo: `src/features/coach/adapters/coachInboxAdapters.ts`
 
-- [ ] 2.1 Adicionar função `calcularStrain` **exportada**:
+- [x] 2.1 Adicionar função `calcularStrain` **exportada**:
   ```ts
   export function calcularStrain(pmcPoints: PmcPontoRaw[]): number | null {
     const ultimos7Tss = pmcPoints.slice(-7).map((p) => p.tss ?? 0).filter((v) => v > 0);
@@ -44,7 +44,7 @@
   ```
   Nota: reutiliza `calcularMonotonia` (já importada no mesmo arquivo).
 
-- [ ] 2.2 Adicionar função `getStrainZone` **exportada** (padrão `getAcwrZone` — retorna `{ tone, label }`):
+- [x] 2.2 Adicionar função `getStrainZone` **exportada** (padrão `getAcwrZone` — retorna `{ tone, label }`):
   ```ts
   export function getStrainZone(strain: number | null): { tone: MetricTone; label: string } {
     if (strain == null) return { tone: 'neutral', label: 'Sem dados' };
@@ -55,12 +55,12 @@
   }
   ```
 
-- [ ] 2.3 Adicionar `strain` em `buildSelectedAthleteFromDashboard`, dentro de `quickStats`:
+- [x] 2.3 Adicionar `strain` em `buildSelectedAthleteFromDashboard`, dentro de `quickStats`:
   ```ts
   strain: calcularStrain(pmcPoints),
   ```
 
-- [ ] 2.4 Adicionar `strain: null` em `buildRosterRowFromSummary` (sem PMC no resumo).
+- [x] 2.4 Adicionar `strain: null` em `buildRosterRowFromSummary` (sem PMC no resumo).
 
 ---
 
@@ -68,7 +68,7 @@
 
 > Arquivo: `src/features/coach/adapters/coachInboxAdapters.test.ts` (já existe após fix-coach-inbox-metrics)
 
-- [ ] 3.1 Adicionar `calcularStrain` e `getStrainZone` ao import; novo `describe` para cada (BVA nos
+- [x] 3.1 Adicionar `calcularStrain` e `getStrainZone` ao import; novo `describe` para cada (BVA nos
   limiares 150/300/600 do `getStrainZone`, incluindo `null`). Exemplo para `calcularStrain`:
   ```ts
   import { calcularMonotonia, calcularLoadDelta, calcularAcwr, calcularStrain } from './coachInboxAdapters';
@@ -109,7 +109,7 @@
 
 > Arquivo: `src/features/coach/components/panels/DiagnosisTabPanel.tsx`
 
-- [ ] 4.1 Importar `getStrainZone` do adapter e adicionar um `DetailMetric` "Strain" no grid de métricas
+- [x] 4.1 Importar `getStrainZone` do adapter e adicionar um `DetailMetric` "Strain" no grid de métricas
   (ao lado de Carga aguda/Monotonia/Forma/Recuperação):
   ```tsx
   const strainZone = getStrainZone(selected.quickStats.strain);
@@ -121,25 +121,25 @@
     tone={strainZone.tone}
   />
   ```
-- [ ] 4.2 Ajustar o grid de métricas para acomodar 5 itens de forma responsiva
+- [x] 4.2 Ajustar o grid de métricas para acomodar 5 itens de forma responsiva
   (manter `repeat(4, ...)` com wrap ou mudar para `repeat(5, ...)` em `md`/`lg` — validar visualmente).
 
 ---
 
 ## Seção 5 — Validação
 
-- [ ] 5.1 Lint + build + testes:
+- [x] 5.1 Lint + build + testes:
   ```bash
   cd apps/menthoros-front
   npm run lint && npm run build && npm run test:run
   ```
-- [ ] 5.2 Atualizar este `tasks.md` com `[x]` nos itens concluídos.
+- [x] 5.2 Atualizar este `tasks.md` com `[x]` nos itens concluídos.
 
 ---
 
 ## Seção 6 — Entrega
 
-- [ ] 6.1 Commits:
+- [x] 6.1 Commits:
   - `feat(coach-inbox): adicionar campo strain no quickStats do CoachAthleteRow`
   - `feat(coach-inbox): calcular training strain (TSS × monotonia) e getStrainZone no adapter`
   - `test(coach-inbox): adicionar testes para calcularStrain e getStrainZone`
