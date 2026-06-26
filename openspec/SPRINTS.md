@@ -2,7 +2,7 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-06-23 (`infer-thresholds-from-recent-workouts` sprint 9h concluído e mergeado — inferência automática de FC/pace limiar + bug fix de zonas BPM entregues; próxima: `add-llm-tool-use` sprint 10–11)
+**Última atualização:** 2026-06-26 (`introduce-coach-assistant-core-features` / `coach-assistant-triage-ui` concluídos e mergeados — endpoint agregado do dashboard, triagem UI do coach (inbox decomposto, aderência e nível no roster), aderenciaPercentual no roster; próxima: `add-llm-tool-use` sprint 10–11)
 **Fonte canônica de especificação:** `changes/<change-id>/` (estrutura flat — este doc NÃO move pastas)
 **Roadmap por ondas/dependências:** `ROADMAP.md`
 **Capacidade assumida:** 1 dev (solo/CTO), sprints de 2 semanas (~1 change média por sprint; changes grandes ocupam 2+).
@@ -186,6 +186,7 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 | `fix-intervalado-distance-calculation` | 10/10 | 2026-06-21 | `changes/archive/2026-06/2026-06-21-fix-intervalado-distance-calculation/` — Hotfix: distâncias erradas em treinos intervalados. `corrigirDistanciasEtapasTemporais` deriva `distanciaKm` via `duracaoMin ÷ paceZona` (Z2/Z1) para AQUECIMENTO/DESAQUECIMENTO/RECUPERACAO antes de `expandirEtapasAgregadas`. PR #8 mergeado. |
 | `coach-edit-planned-workout` | ~22 | 2026-06-22 | `changes/archive/2026-06/2026-06-22-coach-edit-planned-workout/` — Fecha o ciclo de revisão: `PATCH /coach/planos/{id}/treinos/{id}` com `EtapaInputDto`, migration V39 (`editado_pelo_coach`), chip "Editado manualmente" na UI, TSS recalculado ou override manual. Validação concorrente via `@Version` + 409. PR #9 mergeado. |
 | `infer-thresholds-from-recent-workouts` | ~18 | 2026-06-23 | `changes/archive/2026-06/2026-06-23-infer-thresholds-from-recent-workouts/` — Calibração automática de zonas: `ThresholdInferenceService` (quintil superior, MIN_AMOSTRAS=3, janela 30d, confiança ALTA/MEDIA/BAIXA); migration V40; Constraint no prompt; `LimiareisInferidosDto` no perfil coach; `LimiaresInferidosBanner` no frontend. Inclui bug fix de alucinação BPM para atletas sem limiar formal (fornece zonas calculadas em vez de "60-70 bpm"). PR #10 mergeado. |
+| `introduce-coach-assistant-core-features` + `coach-assistant-triage-ui` | 8/8 (sprint 8) | 2026-06-26 | `changes/archive/2026-06/2026-06-26-introduce-coach-assistant-core-features/` — Guarda-chuva: endpoint agregado `GET /api/v1/coach/dashboard` (roster paginado + fila + calendário + insights); `aderenciaPercentual` (4 semanas) no `CoachAtletaResumoDto`; frontend inbox decomposto (3 hooks, 4 adapters, 5 painéis); `nivelExperiencia` e `aderenciaPercentual` exibidos no roster; `React.lazy` (−47 kB). PRs backend #12 + frontend #8 mergeados 2026-06-25. Follow-ups 7.1–7.2 documentados (mocks residuais não bloqueantes). |
 
 ---
 
