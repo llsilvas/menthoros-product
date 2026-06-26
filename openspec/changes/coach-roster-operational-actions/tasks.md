@@ -3,6 +3,15 @@
 > Repo: `apps/menthoros-front` · Branch: `feature/coach-roster-operational-actions`
 > Frontend-only (Fast track). Reusa dialogs/hooks legados as-is. Sem mudança de API/DB.
 > Validar por seção: `npm run lint && npm run build && npm run test:run`.
+>
+> **Refino contra o código (init):**
+> - Usar o padrão **já existente** `type:'actions'` + `getActions` + `GridActionsCellItem` (`showInMenu:true`)
+>   — referência `ProvasDialog.tsx:177-213` — em vez de `Menu` manual. (`AthleteRow.id`=atletaId, `.name`=nome.)
+> - **Projeção:** `GerarProjecaoDialog` já abre o `ProjecaoResultadoDialog` internamente (`GerarProjecaoDialog.tsx:547`)
+>   — o pai só renderiza o primeiro.
+> - **Strava:** `SyncStravaButton` é um componente com `useStravaSync` próprio → item de menu abre um `Dialog`
+>   simples envolvendo o `SyncStravaButton` as-is (`connected={false}`, `onSyncComplete={fetchRoster}`).
+> - `useCoachRoster` expõe `fetchRoster` (confirmado). `onRowClick` já navega para `/coach/athletes/:id` — preservar.
 
 ---
 
