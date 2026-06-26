@@ -13,7 +13,7 @@
 
 ## Seção 1 — Tipo
 
-- [ ] 1.1 Adicionar `racePrediction` em `CoachAthleteRow`
+- [x] 1.1 Adicionar `racePrediction` em `CoachAthleteRow`
   (`src/features/coach/types/CoachInbox.ts`):
   ```ts
   import type { FormVariant } from './AthleteForm';
@@ -32,7 +32,7 @@
 
 > Arquivo: `src/features/coach/adapters/coachInboxAdapters.ts`
 
-- [ ] 2.1 Adicionar função `calcularPrevisaoForma` **exportada**:
+- [x] 2.1 Adicionar função `calcularPrevisaoForma` **exportada**:
   ```ts
   import { formFromTSB } from '../types/AthleteForm';
 
@@ -50,7 +50,7 @@
   ```
   Modelo: decaimento exponencial padrão PMC (τ_CTL=42 dias, τ_ATL=7 dias), carga zero (taper puro).
 
-- [ ] 2.2 Adicionar função pura `calcularDiasAteProva(profile, hoje)` **exportada** (testável, `hoje` injetável):
+- [x] 2.2 Adicionar função pura `calcularDiasAteProva(profile, hoje)` **exportada** (testável, `hoje` injetável):
   ```ts
   export function calcularDiasAteProva(profile: AtletaPerfilCoachDto | null, hoje: Date): number {
     const provas = profile?.provas?.length ? profile.provas : profile?.proximaProva ? [profile.proximaProva] : [];
@@ -62,7 +62,7 @@
   }
   ```
 
-- [ ] 2.3 Montar `racePrediction` em `buildSelectedAthleteFromDashboard` (param `hoje: Date = new Date()` injetável):
+- [x] 2.3 Montar `racePrediction` em `buildSelectedAthleteFromDashboard` (param `hoje: Date = new Date()` injetável):
   ```ts
   const diasAteProva = calcularDiasAteProva(profile, hoje);
   const previsao = calcularPrevisaoForma(latestPmc?.ctl ?? null, latestPmc?.atl ?? null, diasAteProva);
@@ -71,7 +71,7 @@
   ```
   (sem double-call; `hoje` default `new Date()` mantém o call-site do `CoachInboxPage` inalterado)
 
-- [ ] 2.4 Adicionar `racePrediction: null` em `buildRosterRowFromSummary` (resumo não traz provas/PMC).
+- [x] 2.4 Adicionar `racePrediction: null` em `buildRosterRowFromSummary` (resumo não traz provas/PMC).
 
 ---
 
@@ -79,7 +79,7 @@
 
 > Arquivo: `src/features/coach/adapters/coachInboxAdapters.test.ts`
 
-- [ ] 3.1 Adicionar `calcularPrevisaoForma` e `calcularDiasAteProva` ao import; um `describe` para cada
+- [x] 3.1 Adicionar `calcularPrevisaoForma` e `calcularDiasAteProva` ao import; um `describe` para cada
   (`calcularDiasAteProva`: prova futura com `hoje` fixo, prova passada → ≤0, sem prova → -1). Exemplo para `calcularPrevisaoForma`:
   ```ts
   import { ..., calcularPrevisaoForma } from './coachInboxAdapters';
@@ -124,7 +124,7 @@
 
 > Arquivo: `src/features/coach/components/panels/RacesSuggestionsTabPanel.tsx`
 
-- [ ] 4.1 Adicionar card "Previsão de forma" no `SectionCard` "Provas do atleta" (abaixo da lista de provas),
+- [x] 4.1 Adicionar card "Previsão de forma" no `SectionCard` "Provas do atleta" (abaixo da lista de provas),
   exibido só quando `selected.racePrediction != null`. Reusar `formVariantLabel` + `getTsbFormaTone` para
   rótulo e cor da forma prevista. Incluir nota "Estimativa com taper completo (sem carga)".
 
@@ -132,18 +132,18 @@
 
 ## Seção 5 — Validação
 
-- [ ] 5.1 Lint + build + testes:
+- [x] 5.1 Lint + build + testes:
   ```bash
   cd apps/menthoros-front
   npm run lint && npm run build && npm run test:run
   ```
-- [ ] 5.2 Atualizar este `tasks.md` com `[x]` nos itens concluídos.
+- [x] 5.2 Atualizar este `tasks.md` com `[x]` nos itens concluídos.
 
 ---
 
 ## Seção 6 — Entrega
 
-- [ ] 6.1 Commits:
+- [x] 6.1 Commits:
   - `feat(coach-inbox): adicionar campo racePrediction no CoachAthleteRow`
   - `feat(coach-inbox): calcular previsão de forma no dia da prova via modelo PMC exponencial`
   - `test(coach-inbox): adicionar testes para calcularPrevisaoForma e calcularDiasAteProva`
