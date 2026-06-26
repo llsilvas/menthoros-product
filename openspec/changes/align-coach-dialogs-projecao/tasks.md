@@ -3,6 +3,11 @@
 > Repo: `apps/menthoros-front` · Branch: `feature/align-coach-dialogs-projecao`
 > Dependência: `align-coach-dialogs-base-plano` mergeada em `develop` (`CoachDialog`).
 > Frontend-only (Fast track). Tokens `semantic.*` — nunca hex. Validar por seção: `npm run lint && npm run build && npm run test:run`.
+>
+> **Refino contra o código (init):** hardcoded por arquivo — `ProjecaoResultadoDialog` 49, `GerarProjecaoDialog` 18,
+> `ConfidenceBadge` 9 (`CONFIDENCE_STYLES`), `MarcarOficialButton` 2. Os dialogs hoje só importam `primary` →
+> adicionar `surface`/`semantic`/`content` de `theme/tokens` e `elevation` de `shared/design-tokens`. Mapear
+> escalas: bom→`success`, atenção→`warning`, ruim→`danger`, neutro/info→`info`/`surface`. Migrar casca para `CoachDialog`.
 
 ---
 
