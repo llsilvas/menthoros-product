@@ -1,8 +1,13 @@
 # Tasks — coach-training-strain
 
 > Branch: `feature/coach-training-strain` em `apps/menthoros-front`
-> Dependência: `feature/fix-coach-inbox-metrics` mergeada em `develop` antes de criar esta branch.
-> (Usa `calcularMonotonia` exportada por aquela change.)
+> Dependências (ambas mergeadas em `develop`): `fix-coach-inbox-metrics` (usa `calcularMonotonia`) e
+> `consolidate-coach-inbox-tabs` (aba **Diagnóstico** = `DiagnosisTabPanel`, onde o Strain vai morar).
+>
+> **Refino pós-consolidação (init):** o plano original colocava o Strain como `MetricTile` no cabeçalho do
+> `CoachInboxPage`. Após a consolidação, o lugar correto é o **grid de métricas do `DiagnosisTabPanel`**
+> (ao lado de Carga aguda/Monotonia/Forma), e a classificação segue o padrão de zona `getXZone`
+> (`getAcwrZone`/`getTsbFormaTone`) — não ternários inline no componente.
 
 ---
 
@@ -39,12 +44,23 @@
   ```
   Nota: reutiliza `calcularMonotonia` (já importada no mesmo arquivo).
 
-- [ ] 2.2 Adicionar `strain` em `buildSelectedAthleteFromDashboard`, dentro de `quickStats`:
+- [ ] 2.2 Adicionar função `getStrainZone` **exportada** (padrão `getAcwrZone` — retorna `{ tone, label }`):
+  ```ts
+  export function getStrainZone(strain: number | null): { tone: MetricTone; label: string } {
+    if (strain == null) return { tone: 'neutral', label: 'Sem dados' };
+    if (strain >= 600) return { tone: 'danger', label: 'Crítico' };
+    if (strain >= 300) return { tone: 'warning', label: 'Alto' };
+    if (strain >= 150) return { tone: 'success', label: 'Moderado' };
+    return { tone: 'neutral', label: 'Baixo' };
+  }
+  ```
+
+- [ ] 2.3 Adicionar `strain` em `buildSelectedAthleteFromDashboard`, dentro de `quickStats`:
   ```ts
   strain: calcularStrain(pmcPoints),
   ```
 
-- [ ] 2.3 Adicionar `strain: null` em `buildRosterRowFromSummary` (sem PMC no resumo).
+- [ ] 2.4 Adicionar `strain: null` em `buildRosterRowFromSummary` (sem PMC no resumo).
 
 ---
 
@@ -52,7 +68,8 @@
 
 > Arquivo: `src/features/coach/adapters/coachInboxAdapters.test.ts` (já existe após fix-coach-inbox-metrics)
 
-- [ ] 3.1 Adicionar `calcularStrain` ao import e novo `describe`:
+- [ ] 3.1 Adicionar `calcularStrain` e `getStrainZone` ao import; novo `describe` para cada (BVA nos
+  limiares 150/300/600 do `getStrainZone`, incluindo `null`). Exemplo para `calcularStrain`:
   ```ts
   import { calcularMonotonia, calcularLoadDelta, calcularAcwr, calcularStrain } from './coachInboxAdapters';
 
@@ -88,33 +105,24 @@
 
 ---
 
-## Seção 4 — UI
+## Seção 4 — UI (aba Diagnóstico)
 
-> Arquivo: `src/features/coach/pages/CoachInboxPage.tsx`
+> Arquivo: `src/features/coach/components/panels/DiagnosisTabPanel.tsx`
 
-- [ ] 4.1 Adicionar `MetricTile` de Strain após o tile de ACWR (linha ~583):
+- [ ] 4.1 Importar `getStrainZone` do adapter e adicionar um `DetailMetric` "Strain" no grid de métricas
+  (ao lado de Carga aguda/Monotonia/Forma/Recuperação):
   ```tsx
-  // Derivar classificação antes do JSX
-  const strain = selected.quickStats.strain;
-  const strainLabel = strain == null ? '—'
-    : strain < 150  ? 'Baixo'
-    : strain < 300  ? 'Moderado'
-    : strain < 600  ? 'Alto'
-    : 'Crítico';
-  const strainTone = strain == null ? ('neutral' as const)
-    : strain < 150  ? ('neutral' as const)
-    : strain < 300  ? ('success' as const)
-    : strain < 600  ? ('warning' as const)
-    : ('danger' as const);
+  const strainZone = getStrainZone(selected.quickStats.strain);
 
-  <MetricTile
-    compact
+  <DetailMetric
     label="Strain"
-    value={strainLabel}
-    delta={strain != null ? String(strain) : 'Sem dados PMC'}
-    tone={strainTone}
+    value={selected.quickStats.strain != null ? String(selected.quickStats.strain) : '—'}
+    subtitle={strainZone.label}
+    tone={strainZone.tone}
   />
   ```
+- [ ] 4.2 Ajustar o grid de métricas para acomodar 5 itens de forma responsiva
+  (manter `repeat(4, ...)` com wrap ou mudar para `repeat(5, ...)` em `md`/`lg` — validar visualmente).
 
 ---
 
@@ -133,9 +141,9 @@
 
 - [ ] 6.1 Commits:
   - `feat(coach-inbox): adicionar campo strain no quickStats do CoachAthleteRow`
-  - `feat(coach-inbox): calcular training strain (TSS × monotonia) no adapter`
-  - `test(coach-inbox): adicionar testes para calcularStrain`
-  - `feat(coach-inbox): exibir tile de Strain com classificação de risco no CoachInboxPage`
+  - `feat(coach-inbox): calcular training strain (TSS × monotonia) e getStrainZone no adapter`
+  - `test(coach-inbox): adicionar testes para calcularStrain e getStrainZone`
+  - `feat(coach-inbox): exibir métrica de Strain na aba Diagnóstico`
 - [ ] 6.2 Push e PR:
   ```bash
   git push -u origin feature/coach-training-strain
