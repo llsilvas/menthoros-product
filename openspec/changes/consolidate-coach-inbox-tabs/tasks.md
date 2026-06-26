@@ -73,15 +73,28 @@ Painéis globais (`DashboardInsightsPanel`, `DashboardCalendarPanel`) **não** e
 
 ## Seção 6 — Testes de comportamento
 
-- [ ] 6.1 Teste por aba (Vitest + Testing Library): Diagnóstico renderiza métricas do **atleta** (não global); Plano mostra `CurrentWeekPlan`/empty-state; Provas & sugestões lista provas/sugestões do atleta.
-- [ ] 6.2 Teste de regressão: nenhuma string hardcoded de "Semana atual"/"Impacto da alteração" presente; "Marcar como concluído" ausente.
-  - verify: `npm run test:run` verde.
+- [x] 6.1 Teste por aba (Vitest + Testing Library): Diagnóstico renderiza métricas do **atleta** (não global); Plano mostra `CurrentWeekPlan`/empty-state; Provas & sugestões lista provas/sugestões do atleta.
+- [x] 6.2 Teste de regressão: nenhuma string hardcoded de "Semana atual"/"Impacto da alteração" presente; "Marcar como concluído" ausente.
+  - verify: `npm run test:run` verde — 208 testes.
 
 ## Seção 7 — Validação final
 
-- [ ] 7.1 `npm run lint && npm run build && npm run test:run`.
-- [ ] 7.2 `/qa` (frontend-reviewer + clean-code-reviewer) sem achado Critical.
-- [ ] 7.3 Marcar itens `[x]` neste `tasks.md`.
+- [x] 7.1 `npm run lint && npm run build && npm run test:run` — todos verdes (208 testes).
+- [x] 7.2 `/qa` (frontend-reviewer + clean-code-reviewer). Aplicado: extração de `getAcuteLoadTone`/`getMonotonyTone`
+  para o adapter (com testes BVA), `PLAN_STATUS_COLOR` como Record (consistência OCP), JSDoc esclarecendo
+  semântica de `recovery`. Nenhum Critical **introduzido por esta change** permaneceu.
+- [x] 7.3 Marcar itens `[x]` neste `tasks.md`.
+
+### Follow-ups do QA (pré-existentes, fora do escopo de consolidação)
+
+> Estes achados não foram introduzidos por esta change (apenas movi o código entre painéis); corrigi-los muda
+> comportamento de dados e merece change própria.
+
+- [ ] F1 **Semântica de `recovery`**: hoje o tile "Recuperação" exibe a aderência da semana mais recente
+  (redundante com a seção "Adesão"). Substituir por uma métrica de recuperação real (base TSB) ou remover o tile.
+- [ ] F2 **`planStatus` nunca assume `CONCLUIDO`**: o adapter só seta `ATRASADO`/`NO_PRAZO`. Mapear `APROVADO` → `CONCLUIDO`.
+- [ ] F3 **`acuteLoad` fallback** usa `roster.weeklyVolume` quando não há PMC, ocultando "sem dado de ATL".
+- [ ] F4 **`trainingType` hardcoded** `'Corrida'` no adapter — derivar de `profile.objetivo` quando existir.
 
 ## Seção 8 — Entrega
 
