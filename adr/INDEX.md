@@ -24,6 +24,7 @@ This index tracks all Architecture Decision Records (ADRs) for Menthoros, their 
 | [ADR-0007-backend-spring-boot-arquitetura-em-camadas.md](./ADR-0007-backend-spring-boot-arquitetura-em-camadas.md) | Backend em Spring Boot com arquitetura em camadas | Aceito | 2026-05-01 | - | - |
 | [ADR-0008-frontend-react-typescript-contratos-tipados.md](./ADR-0008-frontend-react-typescript-contratos-tipados.md) | Frontend React + TypeScript com contratos tipados | Aceito | 2026-05-01 | - | - |
 | [ADR-0009-gate-de-qualidade-em-pr.md](./ADR-0009-gate-de-qualidade-em-pr.md) | Gate de qualidade em Pull Requests | Aceito | 2026-05-01 | - | - |
+| [ADR-0010-frontend-color-system-premium-v2.md](./ADR-0010-frontend-color-system-premium-v2.md) | Sistema de cor do frontend Premium v2.0 (instrument-grade) | Proposto | 2026-06-27 | - | - |
 
 ## Update Checklist
 
