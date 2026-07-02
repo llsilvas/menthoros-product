@@ -91,4 +91,4 @@ context-switch sem ganho real, já que nenhuma depende da outra tecnicamente.
 
 ---
 
-**Decisão do founder:** pendente
+**Decisão do founder:** aprovado (2026-07-02) — antecipar `add-daily-readiness-checkin` para Sprint 9k (antes de `add-llm-tool-use`); `add-post-workout-debrief` permanece no Sprint 24.
