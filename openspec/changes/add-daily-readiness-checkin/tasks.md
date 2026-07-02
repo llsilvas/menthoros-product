@@ -94,4 +94,21 @@
 - [x] `./mvnw clean test` verde — **1101/1101 testes, 0 falhas, 0 erros** (suíte completa do projeto, não só os novos).
 - [x] Todas as queries de checkin filtram `tenant_id` do `TenantContext` (seção 8).
 - [x] Endpoints sob `/api/v1/`; anotações OpenAPI completas (`@Tag`/`@Operation`/`@ApiResponses`/`@ArraySchema`).
-- [x] Migrations aplicam limpo. **Nota de execução:** V46 originalmente usava `SMALLINT` nas colunas numéricas — mismatch com o padrão `INTEGER` do projeto (Hibernate `Integer` → DDL `INTEGER`), causando `SchemaManagementException` em `@SpringBootTest`. Como a V46 já havia sido aplicada à base de dev compartilhada por uma rodada de testes anterior, seguimos a regra do projeto ("nunca editar migration já aplicada") e criamos **V48** (`ALTER COLUMN ... TYPE INTEGER`) em vez de editar a V46 in-place. Rollback de V48 documentado no cabeçalho do arquivo.
+- [x] Migrations aplicam limpo. **Nota de execução:** V46 originalmente usava `SMALLINT` nas colunas numéricas — mismatch com o padrão `INTEGER` do projeto (Hibernate `Integer` → DDL `INTEGER`), causando `SchemaManagementException` em `@SpringBootTest`. Como a V46 já havia sido aplicada à base de dev compartilhada por uma rodada de testes anterior, seguimos a regra do projeto ("nunca editar migration já aplicada") e criamos **V48** (`ALTER COLUMN ... TYPE INTEGER`) em vez de editar a V46 in-place. Rollback de V48 documentado no cabeçalho do arquivo. **V49** adiciona índice composto `(tenant_id, atleta_id, data)`.
+
+## QA gate (`/qa`) — 3 revisores em paralelo
+
+`code-reviewer` + `security-reviewer` + `clean-code-reviewer` rodados sobre `git diff develop...feature/add-daily-readiness-checkin`.
+
+**Critical (confirmado por 2 revisores independentes) — corrigido:**
+- **IDOR** em `GET /api/v1/checkins/{atletaId}/atual` e `GET /api/v1/checkins/{atletaId}`: `@RequireTenant` só valida que `atletaId` pertence ao tenant, não que pertence ao chamador — qualquer `ATLETA` do tenant podia ler dados de saúde (sono/humor/dores/energia/estresse/observações) de outro atleta. **Fix:** `CheckinProntidaoServiceImpl` ganhou `validarPosseOuAdmin()`; controller extrai a role (padrão já usado em `PlanoTreinoController`) e passa `chamadorEhAdmin` ao service. `ADMIN` mantém acesso irrestrito no tenant; `ATLETA` só acessa o próprio recurso. 5 testes novos (IDOR bloqueado + bypass admin, service e controller).
+
+**Important/Medium — corrigidos:**
+- `ReadinessProperties`: pesos sem validação de soma=1.0 podiam violar o CHECK constraint do banco silenciosamente em produção — adicionado `@AssertTrue` (falha no boot).
+- `tb_checkin_prontidao` sem índice composto liderado por `tenant_id` (padrão obrigatório do projeto) — **V49**.
+- `data` do checkin sem `@PastOrPresent` — permitia reescrever/manipular retroativamente ou antecipar o sinal de readiness usado pelo motor de elegibilidade.
+- `MetricasDiariasRepository.findByAtletaIdAndData` sem filtro de tenant (defesa em profundidade) — novo método `findByAtletaIdAndDataAndTenantId` usado em `propagarParaMetricasDiarias`.
+
+**Minor — não corrigidos, registrados como follow-up não bloqueante:** NPE de unboxing em `ReadinessService` se um caller futuro construir `CheckinProntidao` sem os 5 campos; falta doc 404 no Swagger do POST; sem teste dedicado do mapper; duplicação sistêmica de `resolveAtleta()` entre `*ServiceImpl` (pré-existente, não desta change); consolidação V46+V48 mantida separada (evita risco de mexer no checksum já aplicado na base compartilhada).
+
+**Suíte completa pós-fix:** 1106/1106 testes verdes.
