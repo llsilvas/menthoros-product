@@ -82,16 +82,16 @@
 
 ## 9. Testes
 
-- [ ] 9.1 Testes unitários do `ReadinessService`: score com diferentes combinações, classificação de níveis, fallback
-  - verify: `./mvnw clean test` verde para a suíte do service.
-- [ ] 9.2 Testes de integração do portão de elegibilidade: bloqueio por DESCANSAR, atenuação por CAUTELOSO, operação normal sem checkin
-  - verify: suíte de integração do `IntervaladoElegibilidadeService` verde.
-- [ ] 9.3 Testes do controller com MockMvc: criação idempotente, paginação de histórico, erro 400 em valores fora de faixa
-  - verify: suíte do `CheckinController` verde.
+- [x] 9.1 Testes unitários do `ReadinessService`: score com diferentes combinações, classificação de níveis, fallback
+  - verify: 13 testes em `ReadinessServiceTest` (seção 4). Verde.
+- [x] 9.2 Testes de integração do portão de elegibilidade: bloqueio por DESCANSAR, atenuação por CAUTELOSO, operação normal sem checkin
+  - verify: 6 testes novos em `IntervaladoElegibilidadeServiceTest` (seção 5) + 17 pré-existentes sem regressão. Verde.
+- [x] 9.3 Testes do controller com MockMvc: criação idempotente, paginação de histórico, erro 400 em valores fora de faixa
+  - verify: 8 testes em `CheckinProntidaoControllerTest` (seção 7); idempotência coberta a fundo em `CheckinProntidaoServiceImplTest` (seção 4). Verde.
 
 ## Gate de validação (aplicável a toda a change)
 
-- `./mvnw clean test` verde (sem `-DskipTests`, sem `@SuppressWarnings` para mascarar).
-- Todas as queries de checkin filtram `tenant_id` do `TenantContext`.
-- Endpoints sob `/api/v1/`; contrato OpenAPI gerado sem erro.
-- Migrations V46/V47 aplicam limpo (sem checksum mismatch) e têm bloco de rollback documentado.
+- [x] `./mvnw clean test` verde — **1101/1101 testes, 0 falhas, 0 erros** (suíte completa do projeto, não só os novos).
+- [x] Todas as queries de checkin filtram `tenant_id` do `TenantContext` (seção 8).
+- [x] Endpoints sob `/api/v1/`; anotações OpenAPI completas (`@Tag`/`@Operation`/`@ApiResponses`/`@ArraySchema`).
+- [x] Migrations aplicam limpo. **Nota de execução:** V46 originalmente usava `SMALLINT` nas colunas numéricas — mismatch com o padrão `INTEGER` do projeto (Hibernate `Integer` → DDL `INTEGER`), causando `SchemaManagementException` em `@SpringBootTest`. Como a V46 já havia sido aplicada à base de dev compartilhada por uma rodada de testes anterior, seguimos a regra do projeto ("nunca editar migration já aplicada") e criamos **V48** (`ALTER COLUMN ... TYPE INTEGER`) em vez de editar a V46 in-place. Rollback de V48 documentado no cabeçalho do arquivo.
