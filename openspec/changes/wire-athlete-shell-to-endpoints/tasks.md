@@ -95,3 +95,36 @@
   frontend-only; se exigir mudança de backend, PARAR e sinalizar, pois sairia do escopo S/Fast).
 - **`PlanoStatus` do tipo front** (`PLANEJADO|INICIADO|EM_ANDAMENTO|ATIVO|CONCLUIDO`) não tem
   `reviewStatus` — ok, o filtro de aprovação é server-side; o front só recebe o que pode ver.
+- **Resolvido na implementação:** o contrato do plano é objeto único (`buscarPlanoSemanal` filtra
+  `APROVADO` para ATLETA server-side); o `listarPlanosPorAtleta` do front está mistipado como lista,
+  mas `useAthletePlan` normaliza single/array via `selectAthletePlan` — **continua frontend-only**,
+  sem mudança de backend. O `atletaId` é resolvido via `UsuarioService.getMe()` (o endpoint de plano
+  não é rota `/me`).
+
+## QA gate (`/qa`) — frontend-reviewer + clean-code-reviewer
+
+Rodados em paralelo sobre `git diff develop...feature/wire-athlete-shell-to-endpoints`. Sem Critical.
+Segurança ok (sem IDOR client-side — `atletaId` vem do JWT via `/users/me`; sem segredo/`any`/hex).
+
+**Important — corrigidos (commit 5d9139e):**
+- **Tendência fabricada:** `ReadinessCard` recebia `trend="stable"` fixo (dado inexistente no backend),
+  renderizando "Tendência: Estável" — mesma violação da regra de ouro que já removeu `factors` (D0.3).
+  `trend` virou opcional; bloco oculto quando ausente; Home não passa mais.
+- **Erro do readiness engolido:** `AthleteHomePage` descartava `error` de `useAthleteReadiness` — falha
+  virava "card ausente" indistinguível de empty. Agora exibe aviso inline "Prontidão indisponível" +
+  recarregar. +1 teste.
+
+**Minor — alinhamentos e follow-ups (não bloqueiam):**
+- `buildWeeklyPlan` mapeia `PERDIDO → 'skipped'` (DayCard suporta o estado, mais honesto que 'pending'
+  do texto original da D0.4 — decisão de UI que a própria D0.4 deixa aberta).
+- Nomes reais divergem do `design.md` (`AthleteHomeService`/`src/types/AthleteHome`/hooks em
+  `src/hooks/`) — refinamento contra o código real, já justificado; não vale re-sincronizar o design.
+- **Débito de consolidação (deferido — tocaria o `features/coach`, fora do escopo S/Fast):**
+  (a) helpers de data (`weekDatesFromInicio`/`formatWeekRange`) e (b) `mapTipoTreino`/label de tipo de
+  treino deveriam ser promovidos a `shared/` (hoje `athlete` importa de `coach/adapters`); (c) 3ª
+  variante de parse "HH:MM:SS→min" no código — consolidar em `shared/utils/duration.ts`. Registrados
+  para a próxima vez que esses arquivos forem tocados.
+- `console.log(QuickCheckInData)` na Home é pré-existente (fora de escopo) — remover quando o check-in
+  for ligado ao endpoint da 9k.
+
+**Suíte pós-fix:** lint limpo, build ok, **44 arquivos / 312 testes verdes**.
