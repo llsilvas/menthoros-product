@@ -1,5 +1,18 @@
 # Tasks: wire-athlete-progress-to-endpoints
 
+> **Refinado contra o código real (init 2026-07-03).** Confirmado em
+> `apps/menthoros-backend/.../controller/AtletaProgressController.java`: os 4 métodos de serviço
+> (`getHistoricoPmc`, `getDistribuicaoZonas`, `getRecordes`, `getAderenciaSemanal`) e
+> `resolverAtletaIdAtual()` já existem em `AtletaProgressService` — é só espelhar o padrão de
+> `/me/home`/`/me/readiness` (mesmo controller, linhas 97–125: `@PreAuthorize("hasRole('ATLETA')")`,
+> sem `@RequireTenant`, sem `@PathVariable`). Confirmado em `apps/menthoros-front`: `AthleteShellService`
+> **não existe** (a change irmã criou `AthleteHomeService.ts`, nome diferente) — o serviço novo desta
+> change é `AthleteProgressService.ts`, arquivo próprio, sem conflito. `pmcAdapter.ts`
+> (`features/athlete/adapters/`) já existe e opera sobre `PmcPontoRaw[]` (mesmos campos de
+> `PmcPontoDto`) — reusar `buildPmcDataPoints` direto. `AthleteProgressPage.tsx` confirmado com
+> `MOCK_PMC`/`MOCK_ZONES`/`MOCK_KPI`/`MOCK_PRS` (linhas 42/50/61/75) consumidos por `TabForma`/
+> `TabVolume`/`TabOverview`/`TabProvas`.
+
 ## 0. Backend — 4 endpoints `/me/*` (AtletaProgressController)
 
 - [ ] 0.1 `GET /api/v1/atletas/me/metricas/historico` — `@PreAuthorize("hasRole('ATLETA')")`, resolve
@@ -20,13 +33,14 @@
 - [ ] 1.1 `src/types/AthleteProgress.ts` — `AthletePmc`, `AthleteZones`, `AthleteRecord`,
   `AthleteAderencia`.
   - verify: `npm run build` verde.
-- [ ] 1.2 `AthleteProgressService.ts` (ou estender `AthleteShellService` da change irmã, se já
-  existir): `getPmcHistorico(from?, to?)`, `getZonas(from?, to?)`, `getRecordes()`,
+- [ ] 1.2 `src/api/services/AthleteProgressService.ts` (arquivo novo — `AthleteShellService` não
+  existe, sem conflito): `getPmcHistorico(from?, to?)`, `getZonas(from?, to?)`, `getRecordes()`,
   `getAderencia(semanas?)`, `getTreinosRecentes(dias?)` — cliente curado, **não** rodar `generate:api`.
   - verify: `npm run build` verde; métodos usam `__request(OpenAPI, {...})`.
 - [ ] 1.3 Adapters: `zonesAdapter.ts` (segundos→%; guarda contra `duracaoTotalSegundos=0`),
   `recordsAdapter.ts` (`tempoSegundos`→"HH:MM:SS"), `aderenciaAdapter.ts` (soma N semanas); reusar
-  `pmcAdapter.ts`.
+  `pmcAdapter.ts` (`buildPmcDataPoints`) direto — `PmcPontoDto` tem os mesmos campos de
+  `PmcPontoRaw` que o adapter já consome.
   - verify: `*.test.ts` cobre conversão de zonas (incl. divisão-por-zero) e formatação de recorde.
 - [ ] 1.4 Hooks `useAthletePmc`, `useAthleteZones`, `useAthleteRecordes`, `useAthleteAderencia`,
   `useAthleteTreinosRecentes` — formato `{ data, loading, error, fetchXxx }`, sem React Query.
