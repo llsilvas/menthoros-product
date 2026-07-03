@@ -138,3 +138,21 @@ Segurança ok (sem IDOR client-side — `atletaId` vem do JWT via `/users/me`; s
   for ligado ao endpoint da 9k.
 
 **Suíte pós-fix:** lint limpo, build ok, **44 arquivos / 312 testes verdes**.
+
+## Adendo pós-smoke — redirecionamento pós-login por role
+
+Fora do escopo original (`tasks.md` 1–5), mas entregue na mesma branch/PR por completar a
+experiência do shell do atleta: login de ATLETA agora vai direto para `/athlete/home` (antes
+caía sempre em `/inicio`).
+
+- **Commit `e8b63e9`:** `LoginPage` passa a decidir o destino pós-login pela role do JWT
+  (`ATLETA` → `/athlete/home`; demais → `/inicio`).
+- **Bug reportado pelo founder ("não funcionou") + fix (commit `4ca6f5f`):** o destino usava
+  `roles` de `useUserInfo()`, memoizado uma única vez no mount do `LoginPage` — como o componente
+  já estava montado com `isAuthenticated=false` antes do login, o valor ficava congelado vazio
+  quando o `AuthProvider.login()` virava o contexto para `true` no mesmo mount, mandando o atleta
+  para `/inicio` em vez do shell dele. Corrigido lendo o token direto do `localStorage` a cada
+  render, sem cache obsoleto. Testes reescritos usando o `AuthProvider` real (não mockado) para
+  reproduzir a corrida de fato — confirmado que falhavam no código antigo e passam com o fix.
+- verify: suíte final **46 arquivos / 320 testes verdes**, lint+build ok. PR #27 mergeada em
+  `develop` (squash, commit `ad64e766`).
