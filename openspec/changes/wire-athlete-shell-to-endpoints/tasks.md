@@ -81,9 +81,19 @@
   - verify: `grep -rn` nessas 3 páginas retorna vazio para esses símbolos.
 - [x] 5.2 Suíte completa front verde: **lint limpo, build ok, 44 arquivos / 311 testes** (incl. 32
   novos desta change: adapters, hooks e páginas Home/Plano).
-- [ ] 5.3 **Smoke manual (pendente — requer backend rodando + atleta logado):** login ATLETA de tenant
-  com plano aprovado → Home/Plano batem com o que o coach aprovou no perfil do atleta
-  (`athlete-profile-drilldown`). Não executável no CI/gate automatizado; validar antes do merge.
+- [x] 5.3 **Smoke manual executado** — login ATLETA real (Keycloak + `Atleta` vinculado por e-mail,
+  vínculo automático no primeiro request via `UsuarioSyncServiceImpl`/`JwtTenantFilter`), Home carregou
+  com dado real (`/me/home`, `/me/readiness`). Achados corrigidos durante o smoke:
+  - **403 → guard de role** (commit `8b7abce`): sessão não-ATLETA batia 403 em `/me/*`; `RoleRoute`
+    adicionado na rota `/athlete`, redireciona não-atleta para `/inicio`.
+  - **404 → causa identificada** (ambiente, não código): faltava `Atleta` de domínio com e-mail
+    casando o usuário Keycloak — vínculo é automático assim que o `Atleta` existe (sem mudança de código).
+  - **Cor do card "Próximo" fora do padrão** (commit `c3b9ac1`): usava cor neutra em vez de
+    `workoutTypeColor()` (fonte única de cor por tipo de treino, mesma do `DayCard`/Plano). Nota: essa
+    fonte tem colisão semântica conhecida, endereçada por `refactor-color-system-premium-v2` (L,
+    proposta, não agendada — decisão do founder: deixar como backlog); por usar a função canônica,
+    esta tela herda a paleta nova automaticamente quando aquela change for implementada.
+  - verify: suíte final **45 arquivos / 316 testes**, lint+build ok.
 
 ## Follow-ups / riscos anotados no init
 
