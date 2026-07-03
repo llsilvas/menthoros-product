@@ -15,17 +15,17 @@
 
 ## 0. Backend — 4 endpoints `/me/*` (AtletaProgressController)
 
-- [ ] 0.1 `GET /api/v1/atletas/me/metricas/historico` — `@PreAuthorize("hasRole('ATLETA')")`, resolve
+- [x] 0.1 `GET /api/v1/atletas/me/metricas/historico` — `@PreAuthorize("hasRole('ATLETA')")`, resolve
   `atletaId` via `resolverAtletaIdAtual()`, delega em `getHistoricoPmc`.
   - verify: teste de controller 200 com dado; rota `/me/metricas/historico`; sem `@RequireTenant`
     (self-resolving, mesmo padrão de `/me/home`).
-- [ ] 0.2 `GET /api/v1/atletas/me/metricas/zonas` → `getDistribuicaoZonas`.
+- [x] 0.2 `GET /api/v1/atletas/me/metricas/zonas` → `getDistribuicaoZonas`.
   - verify: teste de controller 200.
-- [ ] 0.3 `GET /api/v1/atletas/me/recordes` → `getRecordes`.
+- [x] 0.3 `GET /api/v1/atletas/me/recordes` → `getRecordes`.
   - verify: teste de controller 200; lista vazia não quebra.
-- [ ] 0.4 `GET /api/v1/atletas/me/aderencia?semanas=N` (default 4) → `getAderenciaSemanal` (D0.1).
+- [x] 0.4 `GET /api/v1/atletas/me/aderencia?semanas=N` (default 4) → `getAderenciaSemanal` (D0.1).
   - verify: teste de controller 200; default `semanas=4` quando omitido.
-- [ ] 0.5 `./mvnw clean test` verde; nenhuma mudança nos endpoints `/{id}/*` (permanecem TECNICO/ADMIN).
+- [x] 0.5 `./mvnw clean test` verde; nenhuma mudança nos endpoints `/{id}/*` (permanecem TECNICO/ADMIN).
   - verify: suíte backend sem regressão.
 
 ## 1. Cliente curado + tipos + hooks (frontend)
