@@ -12,22 +12,22 @@
 
 ## 1. Cliente curado + tipos + hooks (só home/readiness — plano reusa o existente)
 
-- [ ] 1.1 `src/types/AthleteHome.ts` — `AthleteHome` (`proximoTreino?`, `metricasChave?`) e
+- [x] 1.1 `src/types/AthleteHome.ts` — `AthleteHome` (`proximoTreino?`, `metricasChave?`) e
   `AthleteReadiness` (`score?`, `classificacao?`, `nota?`) espelhando `AtletaHomeDto`/`ReadinessDto`.
   **Não** recriar tipo de plano — reusar `src/types/PlanoSemanal.ts` (já tem `volumePlanejadoKm`/
   `volumeRealizadoKm`/`objetivoSemanal`/`treinosPlanejados[]`).
   - verify: `npm run build` (tsc) verde; campos batem com o contrato do `design.md`.
-- [ ] 1.2 `src/api/services/AthleteHomeService.ts` (cliente curado, padrão `CoachDashboardService` —
+- [x] 1.2 `src/api/services/AthleteHomeService.ts` (cliente curado, padrão `CoachDashboardService` —
   **não** rodar `generate:api`): `getHome()` → `GET /api/v1/atletas/me/home`, `getReadiness()` →
   `GET /api/v1/atletas/me/readiness`. **Plano NÃO precisa de método novo** — reusar
   `PlanoSemanalService.listarPlanosPorAtleta(atletaId)` (já existe, retorna `PlanoSemanal[]`).
   - verify: `npm run build` verde; 2 métodos novos usam `__request(OpenAPI, {...})`.
-- [ ] 1.3 Adapters em `src/features/athlete/adapters/`: `homeAdapter.ts` (`AtletaHomeDto` → view model
+- [x] 1.3 Adapters em `src/features/athlete/adapters/`: `homeAdapter.ts` (`AtletaHomeDto` → view model
   da Home) + helper `parseDuracaoMin` ("HH:MM:SS" → minutos) para o `proximoTreino.duracaoMin`.
   Para o plano, reusar/estender o que já houver; `completionStatus` derivado de
   `TreinoPlanejado.statusTreino` (D0.4).
   - verify: `parseDuracaoMin.test.ts` cobre "HH:MM:SS", "00:MM:SS" e malformado (fallback, não `NaN`).
-- [ ] 1.4 Hooks em `src/hooks/` (ou `src/features/athlete/hooks/`): `useAthleteHome`,
+- [x] 1.4 Hooks em `src/hooks/` (ou `src/features/athlete/hooks/`): `useAthleteHome`,
   `useAthleteReadiness`, `useAthletePlan` — padrão `useCoachDashboard` (`useState` data/loading/error
   + `useCallback` fetch), sem React Query. `useAthletePlan` seleciona o plano da **semana corrente**
   da lista retornada por `listarPlanosPorAtleta` (o backend já filtra `APROVADO` para ATLETA
@@ -36,20 +36,20 @@
 
 ## 2. AthleteHomePage
 
-- [ ] 2.1 Trocar `MOCK_TODAY` por `useAthleteHome` + `useAthleteReadiness`; `athleteName` via
+- [x] 2.1 Trocar `MOCK_TODAY` por `useAthleteHome` + `useAthleteReadiness`; `athleteName` via
   `useUserInfo()` (hook JWT já existe, zero fetch).
   - verify: network mostra `/me/home` + `/me/readiness`; grep sem `MOCK_TODAY` no arquivo.
-- [ ] 2.2 Readiness: passar `score` real + `nota` (como `recommendation`) ao `ReadinessCard`; `trend`
+- [x] 2.2 Readiness: passar `score` real + `nota` (como `recommendation`) ao `ReadinessCard`; `trend`
   default `'stable'` (sem série de tendência no DTO). `factors` — o `ReadinessCard` **já ignora**;
   remover o prop `factors` da interface como limpeza (ou passar objeto vazio). D0.3.
   - verify: card renderiza score real; nenhuma barra de recovery/fatigue/sleep; `npm run build` verde.
-- [ ] 2.3 `TodayHeroCard`: mapear `nextWorkout` de `proximoTreino` (título = `descricao`, duração via
+- [x] 2.3 `TodayHeroCard`: mapear `nextWorkout` de `proximoTreino` (título = `descricao`, duração via
   `parseDuracaoMin`); `workoutType` via adapter de enum; `timeOfDay`/`motivationalMessage` removidos
   ou fixados como decoração de UI (sem fonte — D0.3). Métricas do grid ← `metricasChave.{tss,ctl,tsb,atl}`.
   - verify: hero + métricas mostram dado real; sem string fabricada de "motivação/período".
-- [ ] 2.4 Estados loading/error/empty (`proximoTreino`/`metricasChave` nulos → estado vazio informativo).
+- [x] 2.4 Estados loading/error/empty (`proximoTreino`/`metricasChave` nulos → estado vazio informativo).
   - verify: teste de componente força error/empty (mock do hook) → UI mostra estado, não crash.
-- [ ] 2.5 Remover mock. `npm run lint && npm run build && npm run test:run`.
+- [x] 2.5 Remover mock. `npm run lint && npm run build && npm run test:run`.
   - verify: suíte verde; grep sem `MOCK_TODAY`.
 
 ## 3. AthletePlanPage
