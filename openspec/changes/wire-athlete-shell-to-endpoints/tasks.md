@@ -54,34 +54,36 @@
 
 ## 3. AthletePlanPage
 
-- [ ] 3.1 Trocar `buildMockWeek` por `useAthletePlan` (plano `APROVADO` da semana corrente, via
+- [x] 3.1 Trocar `buildMockWeek` por `useAthletePlan` (plano `APROVADO` da semana corrente, via
   `listarPlanosPorAtleta`); montar os 7 dias de `treinosPlanejados[]`; `completionStatus` de
   `statusTreino` (`REALIZADO`→completed, `PENDENTE`/`PERDIDO`→pending — D0.4); `workout.type` via
   adapter de enum `tipoTreino`→`WorkoutType`.
   - verify: network mostra `/api/v1/planos/{atletaId}`; dias com `statusTreino=REALIZADO` marcam concluído.
-- [ ] 3.2 Trocar `MOCK_TSS` por volume: reusar `calcularProgressoVolume(volumeRealizadoKm,
+- [x] 3.2 Trocar `MOCK_TSS` por volume: reusar `calcularProgressoVolume(volumeRealizadoKm,
   volumePlanejadoKm)` (helper já existe em `PlanoSemanal.ts`); label "Volume da semana" (D0.5).
   - verify: barra mostra "X km de Y km" / progresso real, não "TSS 425/480".
-- [ ] 3.3 Estado vazio explícito: lista vazia / sem plano da semana → "seu coach ainda não aprovou o
+- [x] 3.3 Estado vazio explícito: lista vazia / sem plano da semana → "seu coach ainda não aprovou o
   plano desta semana" (CA2). `weekLabel` ← `objetivoSemanal` (não fabricar "fase BUILD").
   - verify: atleta sem plano aprovado → mensagem, não `buildMockWeek`.
-- [ ] 3.4 Remover mock. `npm run lint && npm run build && npm run test:run`.
+- [x] 3.4 Remover mock. `npm run lint && npm run build && npm run test:run`.
   - verify: suíte verde; grep sem `buildMockWeek`/`MOCK_TSS`.
 
 ## 4. AthleteCoachPage — placeholder honesto
 
-- [ ] 4.1 Trocar `mockCoach` + `<CoachChatPanel messages={[]} .../>` por placeholder "Mensagens chegam
+- [x] 4.1 Trocar `mockCoach` + `<CoachChatPanel messages={[]} .../>` por placeholder "Mensagens chegam
   em breve" linkado a `add-athlete-coach-messaging` (Sprint 25). Não simular conversa nem coach fake.
   - verify: grep sem `mockCoach`/`MOCK_MESSAGES`; UI mostra placeholder datado pela change-fonte.
 
 ## 5. Fechamento
 
-- [ ] 5.1 Zero referências a `MOCK_TODAY`/`buildMockWeek`/`MOCK_TSS`/`MOCK_MESSAGES`/`mockCoach` nas
+- [x] 5.1 Zero referências a `MOCK_TODAY`/`buildMockWeek`/`MOCK_TSS`/`MOCK_MESSAGES`/`mockCoach` nas
   telas Home/Plano/Chat.
   - verify: `grep -rn` nessas 3 páginas retorna vazio para esses símbolos.
-- [ ] 5.2 Suíte completa front verde (`npm run lint && npm run build && npm run test:run`).
-- [ ] 5.3 Smoke manual (E2E opcional — toca fluxo do atleta): login ATLETA de tenant com plano
-  aprovado → Home/Plano batem com o que o coach aprovou no perfil do atleta (`athlete-profile-drilldown`).
+- [x] 5.2 Suíte completa front verde: **lint limpo, build ok, 44 arquivos / 311 testes** (incl. 32
+  novos desta change: adapters, hooks e páginas Home/Plano).
+- [ ] 5.3 **Smoke manual (pendente — requer backend rodando + atleta logado):** login ATLETA de tenant
+  com plano aprovado → Home/Plano batem com o que o coach aprovou no perfil do atleta
+  (`athlete-profile-drilldown`). Não executável no CI/gate automatizado; validar antes do merge.
 
 ## Follow-ups / riscos anotados no init
 
