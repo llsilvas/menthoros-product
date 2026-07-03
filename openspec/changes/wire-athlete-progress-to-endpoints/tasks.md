@@ -64,9 +64,9 @@
 
 ## 3. Fechamento
 
-- [ ] 3.1 Zero referências a `MOCK_PMC`/`MOCK_ZONES`/`MOCK_KPI`/`MOCK_PRS` na tela de Progresso.
+- [x] 3.1 Zero referências a `MOCK_PMC`/`MOCK_ZONES`/`MOCK_KPI`/`MOCK_PRS` na tela de Progresso.
   - verify: `grep -r` retorna vazio para esses símbolos.
-- [ ] 3.2 Suíte completa front (`npm run lint && npm run build && npm run test:run`) + backend
+- [x] 3.2 Suíte completa front (`npm run lint && npm run build && npm run test:run`) + backend
   (`./mvnw clean test`) verde.
 - [ ] 3.3 Smoke manual: login ATLETA de tenant com treino manual registrado (9d) → PMC/zonas/recordes/
   aderência batem com o perfil do atleta visto pelo coach (`athlete-profile-drilldown`).
