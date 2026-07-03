@@ -30,36 +30,36 @@
 
 ## 1. Cliente curado + tipos + hooks (frontend)
 
-- [ ] 1.1 `src/types/AthleteProgress.ts` — `AthletePmc`, `AthleteZones`, `AthleteRecord`,
+- [x] 1.1 `src/types/AthleteProgress.ts` — `AthletePmc`, `AthleteZones`, `AthleteRecord`,
   `AthleteAderencia`.
   - verify: `npm run build` verde.
-- [ ] 1.2 `src/api/services/AthleteProgressService.ts` (arquivo novo — `AthleteShellService` não
+- [x] 1.2 `src/api/services/AthleteProgressService.ts` (arquivo novo — `AthleteShellService` não
   existe, sem conflito): `getPmcHistorico(from?, to?)`, `getZonas(from?, to?)`, `getRecordes()`,
   `getAderencia(semanas?)`, `getTreinosRecentes(dias?)` — cliente curado, **não** rodar `generate:api`.
   - verify: `npm run build` verde; métodos usam `__request(OpenAPI, {...})`.
-- [ ] 1.3 Adapters: `zonesAdapter.ts` (segundos→%; guarda contra `duracaoTotalSegundos=0`),
+- [x] 1.3 Adapters: `zonesAdapter.ts` (segundos→%; guarda contra `duracaoTotalSegundos=0`),
   `recordsAdapter.ts` (`tempoSegundos`→"HH:MM:SS"), `aderenciaAdapter.ts` (soma N semanas); reusar
   `pmcAdapter.ts` (`buildPmcDataPoints`) direto — `PmcPontoDto` tem os mesmos campos de
   `PmcPontoRaw` que o adapter já consome.
   - verify: `*.test.ts` cobre conversão de zonas (incl. divisão-por-zero) e formatação de recorde.
-- [ ] 1.4 Hooks `useAthletePmc`, `useAthleteZones`, `useAthleteRecordes`, `useAthleteAderencia`,
+- [x] 1.4 Hooks `useAthletePmc`, `useAthleteZones`, `useAthleteRecordes`, `useAthleteAderencia`,
   `useAthleteTreinosRecentes` — formato `{ data, loading, error, fetchXxx }`, sem React Query.
   - verify: `npm run build` verde.
 
 ## 2. AthleteProgressPage
 
-- [ ] 2.1 Trocar `MOCK_PMC` por `useAthletePmc`.
+- [x] 2.1 Trocar `MOCK_PMC` por `useAthletePmc`.
   - verify: network mostra `/me/metricas/historico`; gráfico PMC com dado real.
-- [ ] 2.2 Trocar `MOCK_ZONES.distribution` por `useAthleteZones` (segundos→% na UI); remover
+- [x] 2.2 Trocar `MOCK_ZONES.distribution` por `useAthleteZones` (segundos→% na UI); remover
   `MOCK_ZONES.insight` (placeholder "em breve" ou ocultar).
   - verify: distribuição soma 100% (± arredondamento); sem insight fabricado.
-- [ ] 2.3 `MOCK_KPI`: CTL/ATL/TSB do último ponto PMC; "Volume total" somando `distanciaKm` de
+- [x] 2.3 `MOCK_KPI`: CTL/ATL/TSB do último ponto PMC; "Volume total" somando `distanciaKm` de
   `useAthleteTreinosRecentes(28)` (D0.2); "Treinos concluídos: N de M" via `useAthleteAderencia(4)`
   (D0.1).
   - verify: KPIs batem com o perfil do atleta visto pelo coach para o mesmo atleta/período.
-- [ ] 2.4 Trocar `MOCK_PRS` por `useAthleteRecordes`; tab Provas: "ainda sem recordes" quando vazio (CA3).
+- [x] 2.4 Trocar `MOCK_PRS` por `useAthleteRecordes`; tab Provas: "ainda sem recordes" quando vazio (CA3).
   - verify: atleta sem PR → mensagem, não `MOCK_PRS`.
-- [ ] 2.5 Estados loading/error/empty (CA4). Remover mocks. `npm run lint && npm run build && npm run test:run`.
+- [x] 2.5 Estados loading/error/empty (CA4). Remover mocks. `npm run lint && npm run build && npm run test:run`.
   - verify: suíte verde; grep sem `MOCK_PMC`/`MOCK_ZONES`/`MOCK_KPI`/`MOCK_PRS`.
 
 ## 3. Fechamento
