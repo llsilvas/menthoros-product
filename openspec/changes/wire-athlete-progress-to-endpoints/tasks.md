@@ -68,5 +68,13 @@
   - verify: `grep -r` retorna vazio para esses símbolos.
 - [x] 3.2 Suíte completa front (`npm run lint && npm run build && npm run test:run`) + backend
   (`./mvnw clean test`) verde.
-- [ ] 3.3 Smoke manual: login ATLETA de tenant com treino manual registrado (9d) → PMC/zonas/recordes/
+- [x] 3.3 Smoke manual: login ATLETA de tenant com treino manual registrado (9d) → PMC/zonas/recordes/
   aderência batem com o perfil do atleta visto pelo coach (`athlete-profile-drilldown`).
+  - **Smoke executado (2026-07-03):** ambiente subido (postgres+redis+keycloak reaproveitando o
+    volume `menthoros_pg_data` + backend na branch atual), login ATLETA real. Os 4 tabs
+    (Visão Geral/Forma/Volume/Provas) carregaram dado real dos 5 endpoints (`/me/metricas/historico`,
+    `/me/metricas/zonas`, `/me/recordes`, `/me/aderencia?semanas=4`, `/me/treinos?dias=28`), todos 200.
+    KPIs (CTL 41 / ATL 34 / TSB +7) batem entre Home e Progresso — mesma pipeline PMC. Zonas somam
+    100% sem insight fabricado; recordes formatados (`HH:MM:SS`) corretamente; sem erro no console.
+    Equivalência coach↔atleta garantida pelo próprio código (`/me/*` delega nos mesmos métodos de
+    serviço dos `/{id}/*`, coberto por `AtletaProgressControllerTest`) — dispensa novo login como coach.
