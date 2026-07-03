@@ -47,17 +47,25 @@ coach). Sem migration, sem mudança de contrato dos `/{id}/*` existentes.
 
 ## Critérios de aceite
 
-- **CA1 — 4 endpoints `/me/*`:** cada um responde 200 para role ATLETA, resolve o atleta pelo JWT,
-  espelha exatamente o dado do `/{id}/*` correspondente; os `/{id}/*` seguem TECNICO/ADMIN sem
-  alteração. Teste de controller por endpoint.
-- **CA2 — Progresso real:** `/athlete/progress` consome os 4 endpoints + `/me/treinos` (volume), zero
-  `MOCK_PMC`/`MOCK_ZONES`/`MOCK_KPI`/`MOCK_PRS`.
-- **CA3 — Sem dado inventado:** PRs vazios → "ainda sem recordes"; insight de zonas sem fonte →
-  removido/placeholder; nenhum número fabricado.
-- **CA4 — Estados explícitos** (loading/error/empty) na tela, mesmo padrão de
-  `wire-coach-shell-to-dashboards`.
-- **CA5 — Sem regressão:** `npm run lint && npm run build && npm run test:run` (front) + `./mvnw clean
-  test` (backend) verdes.
+- **CA1 — 4 endpoints `/me/*`:** GIVEN um usuário autenticado com role ATLETA WHEN ele chama
+  `GET /api/v1/atletas/me/metricas/historico`, `/me/metricas/zonas`, `/me/recordes` ou
+  `/me/aderencia?semanas=N` THEN a API responde 200, resolve o `atletaId` via `resolverAtletaIdAtual()`
+  (JWT, sem receber `atletaId` no path) e retorna exatamente o dado do método de serviço espelhado
+  (`getHistoricoPmc`/`getDistribuicaoZonas`/`getRecordes`/`getAderenciaSemanal`), o mesmo que os
+  endpoints `/{id}/*` (TECNICO/ADMIN) retornam para aquele atleta — sem alteração de contrato ou de
+  role nos `/{id}/*` existentes. Teste de controller por endpoint confirma o 200 + o espelhamento.
+- **CA2 — Progresso real:** GIVEN a tela `/athlete/progress` carregada WHEN os 4 endpoints + `/me/treinos`
+  respondem THEN a UI exibe PMC/zonas/recordes/aderência/volume reais, com zero referências a
+  `MOCK_PMC`/`MOCK_ZONES`/`MOCK_KPI`/`MOCK_PRS` no código entregue.
+- **CA3 — Sem dado inventado:** GIVEN um atleta sem recordes WHEN a tab Provas carrega THEN exibe
+  "ainda sem recordes" (não uma lista vazia silenciosa); GIVEN o `ZonaDistribuicaoDto` sem campo de
+  insight WHEN a tela de zonas renderiza THEN nenhum texto de insight é fabricado (placeholder
+  explícito ou seção removida) — nenhum número ou texto sem fonte no DTO.
+- **CA4 — Estados explícitos:** GIVEN qualquer uma das 4 chamadas em loading/erro/vazio WHEN a tela
+  renderiza THEN mostra o estado correspondente (spinner/aviso com retry/mensagem vazia informativa),
+  nunca uma tela em branco — mesmo padrão de `wire-coach-shell-to-dashboards`.
+- **CA5 — Sem regressão:** GIVEN a suíte de validação WHEN executada THEN `npm run lint && npm run
+  build && npm run test:run` (front) e `./mvnw clean test` (backend) terminam verdes.
 
 ## Métrica de sucesso
 
@@ -68,8 +76,14 @@ Sem métrica de negócio instrumentada (change de wiring de engajamento — acei
 
 ## Impact
 
-- **Depende de:** `add-athlete-progress-endpoints` (métodos de serviço + DTOs), `manual-training-entry-lightweight`
-  (dado real de treino para volume/aderência) — ambas em `develop`.
+- **Depende de:**
+  - `add-athlete-progress-endpoints` (métodos de serviço + DTOs) — merged 2026-06-17
+    (`archive/2026-06/2026-06-17-add-athlete-progress-endpoints`); confirmado em código:
+    `AtletaProgressService.getHistoricoPmc/getDistribuicaoZonas/getRecordes/getAderenciaSemanal` e os
+    DTOs `PmcPontoDto`/`ZonaDistribuicaoDto`/`RecordeDto`/`AderenciasSemanalDto` já existem em `develop`.
+  - `manual-training-entry-lightweight` (dado real de treino para volume/aderência) — merged
+    2026-06-19 (`archive/2026-06/2026-06-19-manual-training-entry-lightweight`); confirmado em código:
+    `GET /me/treinos?dias=N` (`AtletaTreinoController`, máx. 30 dias) retorna `distanciaKm` por treino.
 - **Repos:** `apps/menthoros-backend` (4 endpoints, sem migration) + `apps/menthoros-front` (Progresso).
 - **Relação com a irmã:** independente de `wire-athlete-shell-to-endpoints` (arquivos frontend
   disjuntos — esta toca `AthleteProgressPage`, a outra Home/Plan/Coach). Se ambas criarem
