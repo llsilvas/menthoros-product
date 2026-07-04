@@ -103,12 +103,15 @@ original como não-testável. Resumo:
   `{id, atletaId, coachId, motivo, createdAt}`.
 - **CA-B2:** atleta vê o kudo na Home como card "Seu coach reconheceu sua {{motivo}}!" (últimos 3).
 - **CA-B3:** atleta sem kudos não vê nada (estado vazio honesto, não card vazio).
-- **CA-B4:** coach só pode dar kudos para atleta do próprio tenant — cross-tenant retorna 404
-  (não 403/500), consistente com `CoachAthleteProfileController`.
+- **CA-B4:** coach só pode dar kudos para atleta do próprio tenant — cross-tenant retorna 403
+  via `@RequireTenant`/`AccessDeniedException` (mecanismo já estabelecido no codebase para essa
+  validação, usado por `CoachAthleteProfileController`; corrigido no `design.md` D0.7 — a
+  primeira versão desta spec citava 404 por confiar no texto do Swagger do controller de
+  referência em vez de verificar o comportamento real do `TenantValidationAspect`).
 - **CA-B5:** um coach não pode dar o mesmo motivo ao mesmo atleta mais de uma vez no mesmo dia —
   retry/duplo-clique/duplo-submit retorna 409 (não cria um segundo registro), sem impedir
   motivos diferentes no mesmo dia (achado do adversarial review, `design.md` D0.6).
-- **CA-B6:** suíte backend verde (controller: 201, 404 cross-tenant, 400 motivo inválido, 409
+- **CA-B6:** suíte backend verde (controller: 201, 403 cross-tenant, 400 motivo inválido, 409
   duplicata mesmo motivo/dia) + `npm run lint && npm run build && npm run test:run`.
 
 ### Feature C — Resumo semanal

@@ -173,12 +173,25 @@ THEN nenhum card de kudos é exibido (sem placeholder, sem "0 kudos")
 ```
 GIVEN um TECNICO do tenant A e um atleta do tenant B (mesmo id de atleta não existe no tenant A)
 WHEN POST /api/v1/coach/atletas/{atletaIdDoTenantB}/kudos
-THEN retorna 404 (não 403 nem 500) — consistente com o padrão de outros endpoints coach→atleta
-  (@RequireTenant já usado em CoachAthleteProfileController)
+THEN retorna 403 (AccessDeniedException, via @RequireTenant/TenantValidationAspect — mesmo
+  mecanismo já usado por CoachAthleteProfileController) — ver D0.7
 ```
 
-**CA-B6** — `./mvnw clean test` (controller: 201, 404 cross-tenant, 400 motivo inválido) +
+**CA-B6** — `./mvnw clean test` (controller: 201, 403 cross-tenant, 400 motivo inválido) +
 `npm run lint && npm run build && npm run test:run` verde.
+
+### D0.7 — Correção pós-implementação: cross-tenant é 403, não 404
+
+A submissão anterior deste `design.md` (D0.3) afirmou "cross-tenant retorna 404, consistente com
+`CoachAthleteProfileController`" com base no texto do `@ApiResponse` daquele controller
+("404 — Atleta não encontrado no tenant"). Ao implementar, verifiquei o comportamento real:
+`@RequireTenant` é interceptado por `TenantValidationAspect`, que lança `AccessDeniedException`
+quando `TenantValidationRepository.resourceBelongsToTenant(...)` retorna `false` —
+`GlobalExceptionHandler.handleAccessDenied` mapeia isso para **403**, não 404. O texto do Swagger
+do controller de referência estava desatualizado/impreciso em relação ao código real (o aspecto
+roda **antes** de qualquer lógica de serviço que pudesse lançar 404). Corrigido em todos os
+artefatos desta change para refletir o comportamento real e testado, não o texto da doc de outro
+endpoint.
 
 ### Feature C — Resumo semanal
 

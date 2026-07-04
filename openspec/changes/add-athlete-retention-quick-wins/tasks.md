@@ -11,6 +11,12 @@
 > - `GET /me/kudos/recentes` não retorna `coachNome` — a UI não precisa exibir o nome do coach
 >   (D0.5); contrato é `[{id, motivo, createdAt}]`.
 > - `TreinoRealizadoOutputDto` e o retorno 201 de `POST /me/treinos` confirmados sem gap (D0.2).
+> - Kudos: constraint `UNIQUE(atleta_id, coach_id, motivo, data)` + `DuplicateResourceException`
+>   (409) contra duplo-submit/retry (D0.6, achado do adversarial review Codex).
+> - Kudos cross-tenant retorna **403** (`AccessDeniedException` via `@RequireTenant`), não 404
+>   como a versão anterior desta spec assumia por confiar no texto do Swagger de
+>   `CoachAthleteProfileController` em vez do comportamento real do `TenantValidationAspect` (D0.7,
+>   corrigido durante a implementação).
 
 Ordem de implementação por ROI decrescente (A → B → C), mas ordem de dependências entre
 arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em develop).
@@ -45,7 +51,7 @@ arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em 
 
 ## Feature B — Kudos do coach → atleta (XS, backend+front, ~2-3 dias)
 
-- [ ] B.1 Migration V50 `Create_tb_kudos` (DDL corrigida — ver `design.md` D0.1/D0.6 para a
+- [x] B.1 Migration V50 `Create_tb_kudos` (DDL corrigida — ver `design.md` D0.1/D0.6 para a
   versão completa com comentário de rollback):
   ```sql
   CREATE TABLE IF NOT EXISTS tb_kudos (
@@ -62,11 +68,16 @@ arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em 
   ```
   - verify: `./mvnw clean compile` sobe sem erro de migration; V50 é o próximo número livre
     (confirmado — última aplicada é V49).
-- [ ] B.2 `KudosService` + `KudosController`: `POST /api/v1/coach/atletas/{atletaId}/kudos`
+- [x] B.2 `KudosService`/`KudosServiceImpl` + `CoachKudosController` (implementado como
+  controller dedicado, base `/api/v1/coach/atletas`, em vez de um único `KudosController` — mais
+  consistente com o padrão de controllers por capability já usado no codebase):
+  `POST /api/v1/coach/atletas/{atletaId}/kudos`
   (body: `{ motivo }`, retorna 201 com `{id, atletaId, coachId, motivo, createdAt}`),
   `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")` (mesmo padrão de
-  `CoachAthleteProfileController`), tenant isolation via `@RequireTenant` — cross-tenant deve
-  retornar 404, não 403/500. **Idempotência (achado do adversarial review, D0.6):** antes de
+  `CoachAthleteProfileController`), tenant isolation via `@RequireTenant` — cross-tenant retorna
+  403 (`AccessDeniedException` via `TenantValidationAspect`, confirmado no código real — ver
+  `design.md` D0.7; a doc Swagger do controller de referência citava 404, mas o comportamento
+  real do aspecto é 403). **Idempotência (achado do adversarial review, D0.6):** antes de
   persistir, `KudosService` valida via
   `kudosRepository.existsByAtletaIdAndCoachIdAndMotivoAndData(...)` — se já existe kudo do mesmo
   motivo, do mesmo coach, para o mesmo atleta, no mesmo dia, lança `DuplicateResourceException`
@@ -74,14 +85,19 @@ arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em 
   `UNIQUE` no banco é a defesa de última linha contra race condition entre a pré-validação e o
   insert (dois requests concorrentes) — `DataIntegrityViolationException` nesse caso já é
   capturada genericamente pelo handler existente (409 também).
-  - verify: teste de controller — 201 happy path, 404 cross-tenant, 400 motivo inválido
-    (fora do enum), **409 ao repetir o mesmo motivo/atleta/coach no mesmo dia** (teste de
-    duplo-submit/retry — o caso que o adversarial review apontou como não coberto).
-- [ ] B.3 `GET /api/v1/atletas/me/kudos/recentes` (ATLETA, self-resolving) — últimos 10 kudos
-  para exibir na Home. Retorna `[{id, motivo, createdAt}]` (sem `coachNome` — a UI não precisa,
-  ver D0.5).
-  - verify: teste de controller — retorna vazio quando sem kudos (não erro), ordenado
-    `created_at DESC`.
+  - verify: teste de controller (`@WebMvcTest`) — 201 happy path, 400 motivo ausente/fora do
+    enum, 409 duplicata (mock do service lançando `DuplicateResourceException`). **403
+    cross-tenant não é testável isoladamente neste nível** — `@RequireTenant`/`TenantValidationAspect`
+    não é tecido pelo slice `@WebMvcTest` (mesmo motivo pelo qual
+    `CoachAthleteProfileControllerTest` também não testa esse cenário no controller); a garantia
+    vem da aplicação correta da anotação (revisada) + da infraestrutura já testada do aspecto.
+    Serviço testado via `KudosServiceImplTest` (Mockito puro): cria kudo, rejeita duplicata
+    mesmo dia, permite motivo diferente, atleta não encontrado, cobertura de todo o enum
+    `MotivoKudos`.
+- [x] B.3 `GET /api/v1/atletas/me/kudos/recentes` (ATLETA, self-resolving, controller dedicado
+  `AtletaKudosController`) — até 10 kudos para exibir na Home. Retorna
+  `[{id, motivo, createdAt}]` (sem `coachNome` — a UI não precisa, ver D0.5).
+  - verify: teste de controller — retorna vazio quando sem kudos (não erro), lista com kudos.
 - [ ] B.4 Front: `KudosButton` no `CoachAthleteProfilePage` (perfil do atleta) — botão
   "Reconhecer progresso" abre dialog com seleção de motivo; `POST /api/v1/coach/atletas/{atletaId}/kudos`.
   - verify: clicar + selecionar motivo + confirmar dispara o POST; erro mantém o dialog aberto

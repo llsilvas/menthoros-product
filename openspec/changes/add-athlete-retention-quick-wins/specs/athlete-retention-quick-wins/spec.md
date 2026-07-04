@@ -35,8 +35,8 @@ atleta do próprio tenant, e SHALL exibir ao atleta os kudos recebidos na Home.
 #### Scenario: Coach tenta dar kudos para atleta de outro tenant
 - **WHEN** `POST /api/v1/coach/atletas/{atletaId}/kudos` referencia um atleta que não pertence
   ao tenant do coach autenticado
-- **THEN** o sistema SHALL retornar 404 (não 403 nem 500), consistente com o isolamento de
-  `CoachAthleteProfileController`
+- **THEN** o sistema SHALL retornar 403 (via `@RequireTenant`/`AccessDeniedException`, o mesmo
+  mecanismo de isolamento usado por `CoachAthleteProfileController`)
 
 #### Scenario: Coach repete o mesmo motivo para o mesmo atleta no mesmo dia
 - **WHEN** já existe um kudo do mesmo `motivo`, do mesmo coach, para o mesmo atleta, criado no
