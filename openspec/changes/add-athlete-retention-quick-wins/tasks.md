@@ -19,11 +19,10 @@ arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em 
 
 ## Feature A — Feedback pós-treino (XS, frontend-only, ~2-3 dias)
 
-- [ ] A.1 `useRegistrarTreino` hook (se não existir): chamar `POST /api/v1/atletas/me/treinos`
-  com `TreinoManualInputDto`, retornar o `TreinoRealizadoOutputDto` criado (o 201 já vem com o
-  DTO completo — sem round-trip extra).
-  - verify: hook expõe `{ registrar, loading, error }`; teste cobre sucesso e erro.
-- [ ] A.2 `PostWorkoutFeedbackCard` componente: recebe `TreinoRealizadoOutputDto`, renderiza
+- [x] A.1 Hook já existe: `useManualTraining` (`src/hooks/useManualTraining.ts`) expõe
+  `registrar(input): Promise<TreinoRealizadoDto>` que já retorna o DTO criado (o 201 vem com o
+  DTO completo). Nenhum hook novo necessário — reutilizado como está.
+- [x] A.2 `PostWorkoutFeedbackCard` componente: recebe `TreinoRealizadoOutputDto`, renderiza
   template baseado em `tipoTreino` + `percepcaoEsforco` (ver tabela completa de casos no
   `design.md` D1/CA-A2):
   - `tipoTreino` → emoji + verbo ("🏃 Corrida", "⚡ Intervalado", "🏔️ Longão")
@@ -37,10 +36,10 @@ arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em 
   - `tipoTreino` sem emoji mapeado → usa o label do enum sem emoji, nunca quebra
   - verify: teste de componente cobre os 5 casos da tabela (função pura de template, sem mock de
     rede): completo, RPE alto, RPE baixo, sem distância, tipo desconhecido.
-- [ ] A.3 Integrar na `ManualTrainingFormPage`: após submit bem-sucedido, mostrar feedback card
+- [x] A.3 Integrar na `ManualTrainingFormPage`: após submit bem-sucedido, mostrar feedback card
   em vez de navegação imediata — botão "Voltar para Home" fecha e navega para `/athlete/home`.
   - verify: submeter o form mostra o card com os dados reais do 201; "Voltar para Home" navega.
-- [ ] A.4 `npm run lint && npm run build && npm run test:run` verde.
+- [x] A.4 `npm run lint && npm run build && npm run test:run` verde.
 
 ---
 
