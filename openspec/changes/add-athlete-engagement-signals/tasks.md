@@ -51,5 +51,9 @@
 
 - [x] 4.1 Nenhum valor fabricado nos dois cards quando a fonte está vazia (CA3).
 - [x] 4.2 Suíte completa front + backend verde.
-- [ ] 4.3 Smoke manual: login ATLETA com treino manual registrado (9d) + prova cadastrada pelo
+- [x] 4.3 Smoke manual: login ATLETA com treino manual registrado (9d) + prova cadastrada pelo
   coach → streak e próxima prova corretos e batendo com o que o coach vê no perfil do atleta.
+  - **Smoke executado (2026-07-04):** ambiente subido (postgres+redis+keycloak reaproveitando o
+    volume `menthoros_pg_data` + backend na branch atual), login ATLETA real. Home mostrou "5
+    semanas seguidas treinando" (streak real); tab Provas mostrou "Faltam 8 dias para NB POA"
+    (`diasFaltando` direto do DTO). `GET /me/provas` retornando 200; sem erro no console.
