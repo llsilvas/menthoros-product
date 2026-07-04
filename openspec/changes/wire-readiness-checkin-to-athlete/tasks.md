@@ -50,15 +50,15 @@
 
 ## 2. Frontend — wiring real do submit
 
-- [ ] 2.1 `useRegistrarCheckin` — hook `{ registrar, loading, error }` chamando `POST
+- [x] 2.1 `useRegistrarCheckin` — hook `{ registrar, loading, error }` chamando `POST
   /api/v1/checkins` via `src/api/services/CheckinService.ts` (arquivo novo — confirmado que não
   existe serviço de checkin no frontend ainda; `registrarCheckin`/`buscarAtual` em um só arquivo).
-- [ ] 2.2 `AthleteHomePage.handleCheckInSubmit`: trocar `console.log` por `await
+- [x] 2.2 `AthleteHomePage.handleCheckInSubmit`: trocar `console.log` por `await
   registrar(data)`; em sucesso, `await fetchReadiness()` (refetch aguardado) antes de fechar o
   modal — evita mostrar score desatualizado por race entre fechar e recarregar (R3).
   - verify: submeter o modal grava via network; card de readiness atualiza no mesmo carregamento,
     sem reload de página.
-- [ ] 2.3 Erro no submit: modal permanece aberto, alerta inline com "Tentar novamente" (R5) — nunca
+- [x] 2.3 Erro no submit: modal permanece aberto, alerta inline com "Tentar novamente" (R5) — nunca
   fecha silenciosamente uma submissão que falhou.
 
 ## 3. Frontend — estado "já fez check-in hoje"
