@@ -48,6 +48,23 @@ mapper/DTO de saída do checkin para este uso interno.
 só recebe `score`/`recommendation`, ver `AthleteHomePage.tsx`) — o vocabulário diferente
 (4 valores objetivos vs. 3 valores do check-in) não quebra nada existente.
 
+### D0.5 — `GET /api/v1/checkins/{atletaId}/atual` tem a mesma ambiguidade "mais recente vs. hoje" — e exige `atletaId` no path
+
+Confirmado em `CheckinProntidaoController.buscarAtual` (linha 63-77): recebe `atletaId` no path
+(`@RequireTenant(resourceParamIndex = 0)`) e delega em `checkinProntidaoService.buscarAtual()` —
+**o mesmo método "mais recente" do D0.1**, não "de hoje". Se o frontend usar esse endpoint
+ingenuamente para decidir "já fez check-in hoje" (task 3.1), herda o mesmo bug: um check-in de
+3 dias atrás faria o botão mostrar "Editado hoje" incorretamente.
+
+**Decisões:**
+- **Resolver `atletaId` no frontend** via `UsuarioService.getMe()` (mesmo padrão já usado por
+  `useAthletePlan.ts` — `me.atletaId`), já que este endpoint não é self-resolving (`/me/*`) como
+  os demais consumidos pelo shell do atleta.
+- **Filtrar por hoje no cliente:** `useCheckinAtual` compara `checkinAtual.data === hojeIso`
+  (mesmo formato `yyyy-MM-dd` já usado em `provasAdapter.ts`) antes de considerar "já fez check-in
+  hoje" — um check-in antigo retornado pelo endpoint é tratado como "não fez hoje", não fabrica um
+  falso positivo.
+
 ### D0.4 — Nota quando check-in existe mas não é de hoje
 
 Fora do escopo mudar o comportamento objetivo — quando não há check-in de hoje, mantém o cálculo
