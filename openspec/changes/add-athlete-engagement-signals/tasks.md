@@ -57,3 +57,34 @@
     volume `menthoros_pg_data` + backend na branch atual), login ATLETA real. Home mostrou "5
     semanas seguidas treinando" (streak real); tab Provas mostrou "Faltam 8 dias para NB POA"
     (`diasFaltando` direto do DTO). `GET /me/provas` retornando 200; sem erro no console.
+
+## QA gate (`/qa`) — code-reviewer + security-reviewer (backend) + frontend-reviewer
+
+Rodados em paralelo sobre `git diff develop...feature/add-athlete-engagement-signals`. Sem Critical.
+Backend: sem Important — tenant/autorização corretos (dupla validação: `resolverAtletaIdAtual()` +
+revalidação em `ProvaServiceImpl.resolveAtleta()`), sem PII exposta.
+
+**Corrigidos (commit `27bbcf2`):**
+- **Card de streak (Home) engolia erro do fetch de treinos:** `useManualTraining.fetchError` não era
+  tratado — falha na rede virava "sem streak", indistinguível de streak genuinamente zero. Agora
+  mostra aviso com retry (mesmo padrão do card de prontidão).
+- **Tab Provas conflava loading/erro de `/me/provas` com "sem meta cadastrada":** podia mostrar o
+  CTA de "peça ao coach" antes do fetch resolver, ou quando a chamada falhava (mesma classe de bug
+  já corrigida no KPI "Volume total" da 9.6 — `useManualTraining.isFetching` começa `false`,
+  diferente dos outros hooks). Corrigido: nada durante loading, `RetryAlert` em erro, CTA só quando
+  de fato vazio.
+- **`diasFaltando ?? 0` fabricava "0 dias" quando o campo não vinha no DTO:** campo virou opcional
+  no adapter (`undefined`, não `0`); UI mostra "Sua próxima meta: {nome}" sem contagem quando ausente.
+
+**Minor — registrado, não bloqueia:**
+- Nomes quase-idênticos entre o novo `ProximaProva` (view model do atleta, `/me/provas`) e o
+  `ProvaProxima` já existente (view model do coach, `/api/v1/provas/proximas`, multi-atleta) — ruído
+  cognitivo para grep/autocomplete, sem duplicação de dado real. Considerar renomear um dos dois numa
+  próxima vez que os arquivos forem tocados.
+- Débito pré-existente confirmado pelo security-reviewer (fora do escopo desta change): `GET
+  /atletas/{atletaId}/provas` não tem `@PreAuthorize`/`@RequireTenant` — qualquer ATLETA do tenant
+  pode, em tese, ler provas de outro atleta do mesmo tenant (IDOR intra-tenant; sem vazamento
+  cross-tenant, pois `ProvaServiceImpl` já filtra por tenant). Registrado para follow-up futuro.
+
+**Suíte pós-fix:** frontend lint+build ok, **57 arquivos / 368 testes verdes**; backend **1121 testes
+verdes** (`./mvnw clean test`).
