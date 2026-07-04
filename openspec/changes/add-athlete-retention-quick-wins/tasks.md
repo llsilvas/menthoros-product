@@ -114,22 +114,26 @@ arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em 
 
 ## Feature C — Resumo semanal na Home (XS, frontend-only, ~3-4 dias)
 
-- [ ] C.1 `buildWeeklySummary` adapter: função pura que recebe `treinos` (últimos 7 dias, de
-  `useManualTraining`/`useAthleteHome`), `readiness` (de `useAthleteReadiness`, pode ser `null`),
-  `streak: number` (de `calcularStreakSemanas`, já existe em `streakAdapter.ts`) e monta:
-  - `totalTreinos` (count)
-  - `volumeTotalKm` (soma de `distanciaKm`, ignorando nulos)
-  - `streak` (repassado, sem recalcular)
-  - `formaAtual` (statusForma do readiness; `null` → "—", nunca fabrica um valor)
-  - `proximoTreino` (do `useAthleteHome`)
-  - verify: testada isoladamente (zero mock de rede) com: dados completos, sem treinos na
-    semana (0/0), sem streak (0), readiness ausente (`formaAtual` vira "—", não quebra).
-- [ ] C.2 `WeeklySummaryCard` componente: renderiza "Seu resumo da semana" com os dados;
+- [x] C.1 `buildWeeklySummary` adapter (correção de fonte de dado durante a implementação:
+  `formaAtual` vem de `home.metricasChave.statusForma`, não de `readiness` como a versão original
+  do proposal assumia — `AthleteReadiness` não tem esse campo; `readiness` nem é parâmetro do
+  adapter). Função pura que recebe `treinos` (qualquer janela já buscada — filtra os últimos 7
+  dias internamente via `differenceInCalendarDays`, evitando um segundo fetch), `metricasChave`
+  e `proximoTreino` (de `useAthleteHome`), `streak: number` (de `calcularStreakSemanas`, já
+  existe) e monta `totalTreinos`/`volumeTotalKm`/`streak`/`formaAtual`/`proximoTreino`. Reusa
+  `FAIXA_APRESENTACAO` (já existe em `features/coach/types/AthleteForm.ts`, mapeia o enum
+  `FaixaTsbStatus` do backend para label PT-BR) em vez de duplicar o mapeamento.
+  - verify: testada isoladamente (zero mock de rede) com: dados completos (filtra janela de 7
+    dias corretamente), sem treinos na semana (0/0), distância nula/zero ignorada na soma, forma
+    ausente ou fora do mapa vira "—" (nunca fabrica), próximo treino ausente vira `null`.
+- [x] C.2 `WeeklySummaryCard` componente: renderiza "Seu resumo da semana" com os dados;
   estado vazio honesto quando sem treinos na semana ("Você ainda não registrou treinos esta
   semana — todo treino conta!", nunca "0 treinos, 0 km" fabricado).
   - verify: teste cobre estado com dados e estado vazio (`totalTreinos === 0`).
-- [ ] C.3 Integrar na `AthleteHomePage` abaixo do `TodayHeroCard`, acima do grid de métricas.
-- [ ] C.4 `npm run lint && npm run build && npm run test:run` verde.
+- [x] C.3 Integrado na `AthleteHomePage` acima do grid de métricas (abaixo dos demais cards da
+  Home — hero, readiness, kudos, streak, próxima prova — todos já ocupando o espaço logo abaixo
+  do `TodayHeroCard`).
+- [x] C.4 `npm run lint && npm run build && npm run test:run` verde (69 arquivos / 437 testes).
 
 ---
 
