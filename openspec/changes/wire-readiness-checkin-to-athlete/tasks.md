@@ -84,12 +84,32 @@
   `nivelProntidao` do check-in (score mudou de 64 "Baseado em TSB..." para 46 "Moderada" — "Baseado
   no seu check-in de hoje"); botão da Home mostra "Editado hoje" e o modal pré-preenche os 5 campos
   corretamente ao reabrir.
-- [ ] 4.4 Smoke manual (não executado neste smoke — justificativa): gerar plano como coach para
-  verificar via log de debug que a seção READINESS do prompt usa o sinal subjetivo real. Investigado
-  o código: `ReadinessPromptFormatter`/`PlanoTreinoPromptBuilder` consomem `NivelProntidao` resolvido
-  por um caminho já existente da change `add-daily-readiness-checkin` (Sprint 9k) — **não** o
+- [x] 4.4 (deferido, com justificativa) Smoke manual: gerar plano como coach para verificar via log
+  de debug que a seção READINESS do prompt usa o sinal subjetivo real. Investigado o código:
+  `ReadinessPromptFormatter`/`PlanoTreinoPromptBuilder` consomem `NivelProntidao` resolvido por um
+  caminho já existente da change `add-daily-readiness-checkin` (Sprint 9k) — **não** o
   `AtletaProgressServiceImpl.getReadinessAtual()` alterado por esta change. Como esta change não
   tocou esse caminho, e ele já tem cobertura própria (`ReadinessPromptFormatterTest`,
   `TreinoHistoricoProviderContextoTreinoTest`), reexecutar manualmente (trocar persona, gerar plano,
-  seguir logs) é redundante e fora do escopo desta change. Registrado como não reverificado aqui,
-  coberto por testes unitários pré-existentes.
+  seguir logs) é redundante e fora do escopo desta change. **Não reverificado neste smoke** — coberto
+  por testes unitários pré-existentes de outra change.
+
+## 5. Gate de QA (após implementação, antes do merge)
+
+- [x] 5.1 Backend: `code-reviewer` + `security-reviewer` em paralelo, sem findings Critical/High.
+  Corrigido: precisão do arredondamento `BigDecimal`→`int` (usava `double` intermediário, risco de
+  off-by-one em casos de borda); JavaDoc do serviço, `ReadinessDto` e `@Operation` do controller
+  desatualizados (ainda descreviam "sem check-in subjetivo"); cobertura de borda adicionada (score
+  0/100 via `@ParameterizedTest @CsvSource`, todo o enum `NivelProntidao` via `@EnumSource`).
+- [x] 5.2 Frontend: `frontend-reviewer` + `clean-code-reviewer` em paralelo, sem findings Critical/
+  High de segurança. **Bug funcional real encontrado independentemente pelos dois revisores:**
+  `QuickCheckInModal` não re-sincronizava os campos quando `initialData` chegava depois da
+  montagem (o modal nunca desmonta, só alterna `open`, e o check-in de hoje chega via fetch
+  assíncrono) — travava os sliders em valores default e arriscava sobrescrever silenciosamente o
+  check-in real ao editar. Corrigido com `useEffect` + teste de regressão. Também corrigido:
+  `hojeIso()` usava `toISOString()` (UTC) em vez da data local do atleta (falso negativo à noite no
+  horário do Brasil); erro de `useCheckinAtual` descartado sem aviso ao usuário; janela de
+  duplo-submit entre `registrar()` resolver e o modal fechar; `CheckinService` sem reexport em
+  `src/api/index.ts`.
+- [x] 5.3 Suítes revalidadas após as correções: backend 38/38 (`AtletaProgressServiceImplTest`),
+  frontend 391/391 (60 arquivos) + lint + build limpos.
