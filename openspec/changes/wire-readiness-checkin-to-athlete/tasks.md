@@ -78,8 +78,18 @@
   check-in não é de hoje; nota sempre reflete a fonte real (CA5).
 - [x] 4.2 Suíte completa front (`npm run lint && npm run build && npm run test:run`) + backend
   (`./mvnw clean test`) verde.
-- [ ] 4.3 Smoke manual: registrar check-in completo (5 campos) como ATLETA de um tenant com plano
-  vigente → `GET /me/readiness` reflete `readinessScore`/`nivelProntidao` do check-in; botão da
-  Home mostra "Editado hoje" ao reabrir.
-- [ ] 4.4 Smoke manual: gerar plano como coach para esse atleta → seção READINESS do prompt
-  (verificar via log de debug) usa o sinal subjetivo real, não o fallback objetivo.
+- [x] 4.3 Smoke manual: registrado check-in completo (5 campos) via `QuickCheckInModal` como ATLETA
+  — `POST /api/v1/checkins` persistiu (confirmado via `GET .../atual` retornando 200 com os dados
+  após reload de página/sessão); `GET /me/readiness` passou a refletir `readinessScore`/
+  `nivelProntidao` do check-in (score mudou de 64 "Baseado em TSB..." para 46 "Moderada" — "Baseado
+  no seu check-in de hoje"); botão da Home mostra "Editado hoje" e o modal pré-preenche os 5 campos
+  corretamente ao reabrir.
+- [ ] 4.4 Smoke manual (não executado neste smoke — justificativa): gerar plano como coach para
+  verificar via log de debug que a seção READINESS do prompt usa o sinal subjetivo real. Investigado
+  o código: `ReadinessPromptFormatter`/`PlanoTreinoPromptBuilder` consomem `NivelProntidao` resolvido
+  por um caminho já existente da change `add-daily-readiness-checkin` (Sprint 9k) — **não** o
+  `AtletaProgressServiceImpl.getReadinessAtual()` alterado por esta change. Como esta change não
+  tocou esse caminho, e ele já tem cobertura própria (`ReadinessPromptFormatterTest`,
+  `TreinoHistoricoProviderContextoTreinoTest`), reexecutar manualmente (trocar persona, gerar plano,
+  seguir logs) é redundante e fora do escopo desta change. Registrado como não reverificado aqui,
+  coberto por testes unitários pré-existentes.
