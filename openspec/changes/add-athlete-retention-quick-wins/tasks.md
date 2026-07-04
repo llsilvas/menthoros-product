@@ -46,16 +46,18 @@ arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em 
 
 ## Feature B — Kudos do coach → atleta (XS, backend+front, ~2-3 dias)
 
-- [ ] B.1 Migration V50 `Create_tb_kudos` (DDL corrigida — ver `design.md` D0.1 para a versão
-  completa com comentário de rollback):
+- [ ] B.1 Migration V50 `Create_tb_kudos` (DDL corrigida — ver `design.md` D0.1/D0.6 para a
+  versão completa com comentário de rollback):
   ```sql
   CREATE TABLE IF NOT EXISTS tb_kudos (
       id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
       atleta_id   UUID        NOT NULL REFERENCES tb_atleta(id) ON DELETE CASCADE,
       coach_id    UUID        NOT NULL REFERENCES tb_usuario(id) ON DELETE CASCADE,
       motivo      VARCHAR(20) NOT NULL CHECK (motivo IN ('CONSISTENCIA','MELHORA','ESFORCO','SUPERACAO','VOLTA')),
+      data        DATE        NOT NULL DEFAULT CURRENT_DATE,
       tenant_id   UUID        NOT NULL,
-      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT uk_kudos_atleta_coach_motivo_data UNIQUE (atleta_id, coach_id, motivo, data)
   );
   CREATE INDEX IF NOT EXISTS idx_kudos_tenant_atleta ON tb_kudos(tenant_id, atleta_id, created_at DESC);
   ```
@@ -65,9 +67,17 @@ arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em 
   (body: `{ motivo }`, retorna 201 com `{id, atletaId, coachId, motivo, createdAt}`),
   `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")` (mesmo padrão de
   `CoachAthleteProfileController`), tenant isolation via `@RequireTenant` — cross-tenant deve
-  retornar 404, não 403/500.
+  retornar 404, não 403/500. **Idempotência (achado do adversarial review, D0.6):** antes de
+  persistir, `KudosService` valida via
+  `kudosRepository.existsByAtletaIdAndCoachIdAndMotivoAndData(...)` — se já existe kudo do mesmo
+  motivo, do mesmo coach, para o mesmo atleta, no mesmo dia, lança `DuplicateResourceException`
+  (já mapeada para 409 no `GlobalExceptionHandler` — não criar handler novo). A constraint
+  `UNIQUE` no banco é a defesa de última linha contra race condition entre a pré-validação e o
+  insert (dois requests concorrentes) — `DataIntegrityViolationException` nesse caso já é
+  capturada genericamente pelo handler existente (409 também).
   - verify: teste de controller — 201 happy path, 404 cross-tenant, 400 motivo inválido
-    (fora do enum).
+    (fora do enum), **409 ao repetir o mesmo motivo/atleta/coach no mesmo dia** (teste de
+    duplo-submit/retry — o caso que o adversarial review apontou como não coberto).
 - [ ] B.3 `GET /api/v1/atletas/me/kudos/recentes` (ATLETA, self-resolving) — últimos 10 kudos
   para exibir na Home. Retorna `[{id, motivo, createdAt}]` (sem `coachNome` — a UI não precisa,
   ver D0.5).

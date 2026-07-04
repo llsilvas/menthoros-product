@@ -36,8 +36,10 @@ CREATE TABLE IF NOT EXISTS tb_kudos (
     atleta_id   UUID        NOT NULL REFERENCES tb_atleta(id) ON DELETE CASCADE,
     coach_id    UUID        NOT NULL REFERENCES tb_usuario(id) ON DELETE CASCADE,
     motivo      VARCHAR(20) NOT NULL CHECK (motivo IN ('CONSISTENCIA','MELHORA','ESFORCO','SUPERACAO','VOLTA')),
+    data        DATE        NOT NULL DEFAULT CURRENT_DATE,
     tenant_id   UUID        NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uk_kudos_atleta_coach_motivo_data UNIQUE (atleta_id, coach_id, motivo, data)
 );
 
 CREATE INDEX IF NOT EXISTS idx_kudos_tenant_atleta ON tb_kudos(tenant_id, atleta_id, created_at DESC);
@@ -50,6 +52,34 @@ END$$;
 
 `motivo` como `VARCHAR` + `CHECK` (não uma tabela de lookup) é consistente com `nivel_prontidao` em
 `tb_checkin_prontidao` (V46) — mesmo padrão já estabelecido no codebase para enum-backed columns.
+A coluna `data` + `UNIQUE (atleta_id, coach_id, motivo, data)` resolve o D0.6 abaixo.
+
+### D0.6 — Achado do adversarial review (Codex): kudos não era idempotente (gap High)
+
+Revisão adversarial (`/codex:adversarial-review`) apontou que o contrato original de kudos não
+tinha nenhuma proteção contra duplicata: um duplo-clique, retry de rede após timeout, ou submit
+repetido criaria múltiplos registros idênticos (mesmo atleta/coach/motivo), poluindo os "últimos 3"
+exibidos na Home e corrompendo o sinal futuro do Retention Radar.
+
+**Decisão:** regra de unicidade por dia — um coach não pode dar o **mesmo motivo** ao **mesmo
+atleta** mais de uma vez no **mesmo dia** (constraint `uk_kudos_atleta_coach_motivo_data` acima).
+Diferente de `tb_checkin_prontidao` (que é upsert por data — o atleta "edita" o check-in do dia),
+kudos é um **evento**, não um estado — por isso a violação de unicidade retorna **409 Conflict**
+(não um upsert silencioso), deixando explícito para o coach que já reconheceu esse motivo hoje.
+Motivos diferentes no mesmo dia continuam permitidos (ex.: `CONSISTENCIA` de manhã + `ESFORCO` à
+tarde, após um treino difícil) — a regra bloqueia só o caso de duplicata acidental (clique duplo,
+retry), não a expressividade do recurso.
+
+`KudosService.registrar(...)` deve pré-validar via
+`kudosRepository.existsByAtletaIdAndCoachIdAndMotivoAndData(...)` e lançar
+`DuplicateResourceException` com mensagem clara ("Você já reconheceu a consistência deste atleta
+hoje.") caso já exista — **`DuplicateResourceException` já está mapeada para 409 Conflict** no
+`GlobalExceptionHandler` (`@ExceptionHandler(DuplicateResourceException.class)`, usada em
+`AssessoriaServiceImpl`/`StravaActivityServiceImpl`) — não `DomainRuleViolationException`, que
+mapeia para 422 e é para violação de regra de negócio, não duplicata. A constraint `UNIQUE` no
+banco é a defesa de última linha contra race condition (dois requests concorrentes passando a
+pré-validação); se disparar, `DataIntegrityViolationException` já é capturada genericamente pelo
+handler existente (409 também) — sem necessidade de tratamento extra.
 
 ### D0.2 — `TreinoRealizadoOutputDto` e o endpoint de registro (Feature A) — confirmados sem gap
 

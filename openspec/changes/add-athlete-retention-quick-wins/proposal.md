@@ -105,8 +105,11 @@ original como não-testável. Resumo:
 - **CA-B3:** atleta sem kudos não vê nada (estado vazio honesto, não card vazio).
 - **CA-B4:** coach só pode dar kudos para atleta do próprio tenant — cross-tenant retorna 404
   (não 403/500), consistente com `CoachAthleteProfileController`.
-- **CA-B5:** suíte backend verde (controller: 201, 404 cross-tenant, 400 motivo inválido) +
-  `npm run lint && npm run build && npm run test:run`.
+- **CA-B5:** um coach não pode dar o mesmo motivo ao mesmo atleta mais de uma vez no mesmo dia —
+  retry/duplo-clique/duplo-submit retorna 409 (não cria um segundo registro), sem impedir
+  motivos diferentes no mesmo dia (achado do adversarial review, `design.md` D0.6).
+- **CA-B6:** suíte backend verde (controller: 201, 404 cross-tenant, 400 motivo inválido, 409
+  duplicata mesmo motivo/dia) + `npm run lint && npm run build && npm run test:run`.
 
 ### Feature C — Resumo semanal
 - **CA-C1:** Home exibe "Seu resumo da semana" com treinos, volume, streak, forma atual e
