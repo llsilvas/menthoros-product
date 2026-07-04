@@ -51,10 +51,17 @@ como change própria, pequena, para não bloquear nem inflar a 9.5/9.6 (que são
 
 ## Critérios de aceite
 
-- **CA1 — Streak real:** a Home exibe streak de semanas consistentes calculado sobre
-  `GET /me/treinos`; card some (não mostra "0") quando não há streak ativo.
-- **CA2 — Próxima prova real:** a tab Provas exibe a prova futura mais próxima (nome + dias
-  restantes) via `GET /me/provas`, ou CTA honesto quando não há prova cadastrada.
+Critérios formais em Given/When/Then (vinculantes): `specs/athlete-engagement-signals/spec.md`.
+Resumo:
+
+- **CA1 — Streak real:** GIVEN um ATLETA com ao menos uma semana consistente (≥1 treino) terminando
+  na semana atual ou anterior WHEN abre `/athlete/home` THEN a Home exibe o streak calculado
+  client-side sobre `GET /me/treinos`; GIVEN a semana atual e a anterior sem nenhum treino WHEN a
+  Home renderiza THEN o card fica oculto (não mostra "0 semanas").
+- **CA2 — Próxima prova real:** GIVEN um ATLETA com prova futura cadastrada WHEN abre a tab Provas
+  em `/athlete/progress` THEN exibe a prova futura mais próxima (nome + dias restantes) via
+  `GET /me/provas`; GIVEN nenhuma prova futura WHEN a tab renderiza THEN exibe CTA honesto pedindo
+  ao coach que cadastre a próxima meta, sem fabricar prova ou contagem de dias.
 - **CA3 — Sem dado inventado:** nenhum dos dois cards fabrica valor quando a fonte está vazia.
 - **CA4 — Sem regressão:** `npm run lint && npm run build && npm run test:run` (front) e suíte
   backend verdes; o endpoint novo tem teste de controller.
@@ -63,11 +70,12 @@ como change própria, pequena, para não bloquear nem inflar a 9.5/9.6 (que são
 
 ## Métrica de sucesso
 
-Streak e próxima prova visíveis e corretos ao logar como ATLETA de um tenant com treino manual
-registrado (9d) e prova cadastrada pelo coach. **Métrica de engajamento (a acompanhar pós-deploy,
-sem baseline ainda):** correlação informal entre streak visível e retenção D30/D60 — sinal
-exploratório antes do Retention Radar formal medir isso com rigor (Sprint 26+); não é gate de
-aceite desta change.
+**Gate de aceite (o que valida a entrega):** streak e próxima prova visíveis e corretos em smoke
+manual — login ATLETA de um tenant com treino manual registrado (9d) e prova cadastrada pelo coach.
+
+**Métrica de negócio (exploratória, pós-deploy, NÃO é gate de aceite):** correlação informal entre
+streak visível e retenção D30/D60 — sinal antes do Retention Radar formal medir isso com rigor
+(Sprint 26+); sem baseline ainda, não instrumentada nesta change.
 
 ## Impact
 

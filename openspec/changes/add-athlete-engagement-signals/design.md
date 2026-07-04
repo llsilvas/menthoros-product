@@ -11,8 +11,22 @@ princípio de reconciliação sem fabricar dado das changes irmãs (`wire-athlet
 
 ```
 TreinoRealizadoOutputDto[]  { dataTreino, distanciaKm, tipoTreino, ... } — GET /me/treinos?dias=N (existe, máx 30)
-ProvaOutputDto[]            { nome, data, distanciaKm, ... }             — NOVO GET /me/provas (espelha /{atletaId}/provas)
+ProvaOutputDto[]            — NOVO GET /me/provas (espelha GET /atletas/{atletaId}/provas, mesmo
+                               ProvaOutputDto/ProvaService.listarProvas(atletaId), sem transformação):
+  { id, nomeProva, dataProva, tipoProva, distancia, distanciaKm, provaAlvo, statusProva,
+    tempoObjetivo, paceObjetivo, tsbIdealProva, foiRealizada, tempoRealizado, posicaoGeral,
+    posicaoCategoria, tssProva, percepcaoEsforcoProva, feedbackProva, semanasPreparacao,
+    inicioPreparacao, diasFaltando }
+  — campo relevante para esta change: diasFaltando (int) já vem calculado pelo backend — "próxima
+    prova" usa nomeProva + dataProva (para o filtro `data >= hoje`, D0.3) + diasFaltando direto do
+    DTO, sem recalcular a diferença de dias no frontend.
 ```
+
+**Nota de segurança pré-existente (fora do escopo desta change):** `GET /atletas/{atletaId}/provas`
+(`ProvaController.listarProvas`, método `@GetMapping` sem `@PathVariable` id) **não tem
+`@PreAuthorize`** hoje (só o `@PostMapping` de criação tem `hasAnyRole('TECNICO','ADMIN')`) — débito
+pré-existente, não introduzido nem agravado por esta change (que só adiciona o espelho `/me/*`, sem
+tocar o endpoint `/{atletaId}/*`). Registrado para follow-up futuro, não bloqueia esta change.
 
 ## D0 — Decisões
 
@@ -52,9 +66,12 @@ sem prova futura → CTA. Evita um endpoint "próxima prova" dedicado para uma l
 
 ## D2 — Hooks/serviço (idêntico ao padrão já estabelecido)
 
-- `useAthleteProvas` (novo hook, `{ data, loading, error, refetch }`), método `getProvas()` no
-  serviço curado do atleta (estender `AthleteShellService`/`AthleteProgressService` — o que já
-  existir na branch de implementação; evitar criar um terceiro serviço).
+- **Confirmado em `develop` (pós-merge da 9.6):** `AthleteProgressService.ts`
+  (`apps/menthoros-front/src/api/services/`) já existe e já expõe `getPmcHistorico`/`getZonas`/
+  `getRecordes`/`getAderencia`. `getProvas()` estende **este** serviço (não `AthleteShellService`,
+  que não existe — nome cogitado no design original antes da 9.5/9.6 serem implementadas).
+- `useAthleteProvas` (novo hook, `{ data, loading, error, refetch }`), método `getProvas()` em
+  `AthleteProgressService`.
 - `calcularStreakSemanas(treinos: TreinoRealizadoOutputDto[], hoje?: Date): number` — função pura,
   testável isoladamente sem mock de rede (casos: sem treino, streak ativo, streak quebrado,
   semana atual em andamento).
