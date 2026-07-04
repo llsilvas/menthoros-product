@@ -11,13 +11,13 @@
 
 ## 0. Backend — 1 endpoint `/me/provas`
 
-- [ ] 0.1 `GET /api/v1/atletas/me/provas` em `AtletaProgressController` (mesmo arquivo dos demais
+- [x] 0.1 `GET /api/v1/atletas/me/provas` em `AtletaProgressController` (mesmo arquivo dos demais
   `/me/*`) — `@PreAuthorize("hasRole('ATLETA')")`, resolve `atletaId` via
   `atletaProgressService.resolverAtletaIdAtual()`, injeta `ProvaService` (novo field no controller)
   e delega em `provaService.listarProvas(atletaId)`.
   - verify: teste de controller 200 com dado + lista vazia; 404 quando atleta do token não resolve
     (mesmo padrão de `meRecordesNotFound` etc.).
-- [ ] 0.2 `./mvnw clean test` verde; nenhuma mudança em `GET /atletas/{atletaId}/provas`
+- [x] 0.2 `./mvnw clean test` verde; nenhuma mudança em `GET /atletas/{atletaId}/provas`
   (permanece sem `@PreAuthorize` — débito pré-existente, não tocado nesta change).
 
 ## 1. Cliente + hook + helper (frontend)
