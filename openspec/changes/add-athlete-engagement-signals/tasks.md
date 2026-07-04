@@ -22,30 +22,30 @@
 
 ## 1. Cliente + hook + helper (frontend)
 
-- [ ] 1.1 `getProvas()` em `src/api/services/AthleteProgressService.ts` (arquivo já existe —
+- [x] 1.1 `getProvas()` em `src/api/services/AthleteProgressService.ts` (arquivo já existe —
   adicionar método, não criar serviço novo).
-- [ ] 1.2 `useAthleteProvas` em `src/hooks/` — `{ provas, loading, error, fetchProvas }`, mesmo
+- [x] 1.2 `useAthleteProvas` em `src/hooks/` — `{ provas, loading, error, fetchProvas }`, mesmo
   padrão dos demais hooks `useAthleteXxx`.
-- [ ] 1.3 `calcularStreakSemanas(treinos, hoje?): number` — função pura em
+- [x] 1.3 `calcularStreakSemanas(treinos, hoje?): number` — função pura em
   `src/features/athlete/adapters/` (consistente com `zonesAdapter`/`recordsAdapter`/
   `aderenciaAdapter` da 9.6, não um `utils/` separado). Testes: sem treino (0), streak ativo, streak
   quebrado por lacuna, semana atual em andamento sem treino ainda.
 
 ## 2. AthleteHomePage — card de streak
 
-- [ ] 2.1 Adicionar `useManualTraining(30)` (hook já existente, reusado — não criar hook novo) à
+- [x] 2.1 Adicionar `useManualTraining(30)` (hook já existente, reusado — não criar hook novo) à
   `AthleteHomePage.tsx` + `calcularStreakSemanas`.
-- [ ] 2.2 Renderizar "X semanas seguidas treinando" quando streak ≥ 1; **ocultar** o card quando
+- [x] 2.2 Renderizar "X semanas seguidas treinando" quando streak ≥ 1; **ocultar** o card quando
   streak = 0 (R1/D0.1.4).
-- [ ] 2.3 `npm run lint && npm run build && npm run test:run` verde.
+- [x] 2.3 `npm run lint && npm run build && npm run test:run` verde.
 
 ## 3. AthleteProgressPage — card de próxima prova
 
-- [ ] 3.1 `useAthleteProvas` na tab Provas (`AthleteProgressPage.tsx`, `case 'provas'`), filtrar
+- [x] 3.1 `useAthleteProvas` na tab Provas (`AthleteProgressPage.tsx`, `case 'provas'`), filtrar
   prova futura mais próxima (`dataProva >= hoje`, ordenar asc).
-- [ ] 3.2 Renderizar `nomeProva` + `diasFaltando` (do DTO, sem recalcular) na tab Provas; CTA honesto
+- [x] 3.2 Renderizar `nomeProva` + `diasFaltando` (do DTO, sem recalcular) na tab Provas; CTA honesto
   ("peça ao seu coach para cadastrar sua próxima meta") quando não há prova futura (CA2).
-- [ ] 3.3 `npm run lint && npm run build && npm run test:run` verde.
+- [x] 3.3 `npm run lint && npm run build && npm run test:run` verde.
 
 ## 4. Fechamento
 
