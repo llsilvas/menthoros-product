@@ -98,17 +98,17 @@ arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em 
   `AtletaKudosController`) — até 10 kudos para exibir na Home. Retorna
   `[{id, motivo, createdAt}]` (sem `coachNome` — a UI não precisa, ver D0.5).
   - verify: teste de controller — retorna vazio quando sem kudos (não erro), lista com kudos.
-- [ ] B.4 Front: `KudosButton` no `CoachAthleteProfilePage` (perfil do atleta) — botão
+- [x] B.4 Front: `KudosButton` no `CoachAthleteProfilePage` (perfil do atleta) — botão
   "Reconhecer progresso" abre dialog com seleção de motivo; `POST /api/v1/coach/atletas/{atletaId}/kudos`.
   - verify: clicar + selecionar motivo + confirmar dispara o POST; erro mantém o dialog aberto
     com alerta (nunca fecha silenciosamente numa falha).
-- [ ] B.5 Front: card "Seu coach reconheceu sua {{motivo em texto}}!" na `AthleteHomePage`, usando
+- [x] B.5 Front: card "Seu coach reconheceu sua {{motivo em texto}}!" na `AthleteHomePage`, usando
   `useKudosRecentes` hook. Mapear motivo→texto (CONSISTENCIA→"consistência", MELHORA→"melhora",
   ESFORCO→"esforço", SUPERACAO→"superação", VOLTA→"volta por cima"). Limitar aos 3 mais recentes;
   sem kudos → nenhum card (estado vazio honesto, não card vazio).
   - verify: teste cobre 0 kudos (nada renderizado), 1–3 kudos (todos), >3 kudos (só os 3 mais
     recentes).
-- [ ] B.6 `./mvnw clean test` + `npm run lint && npm run build && npm run test:run` verde.
+- [x] B.6 `./mvnw clean test` + `npm run lint && npm run build && npm run test:run` verde.
 
 ---
 
