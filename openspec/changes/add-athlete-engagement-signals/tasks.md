@@ -49,7 +49,7 @@
 
 ## 4. Fechamento
 
-- [ ] 4.1 Nenhum valor fabricado nos dois cards quando a fonte está vazia (CA3).
-- [ ] 4.2 Suíte completa front + backend verde.
+- [x] 4.1 Nenhum valor fabricado nos dois cards quando a fonte está vazia (CA3).
+- [x] 4.2 Suíte completa front + backend verde.
 - [ ] 4.3 Smoke manual: login ATLETA com treino manual registrado (9d) + prova cadastrada pelo
   coach → streak e próxima prova corretos e batendo com o que o coach vê no perfil do atleta.
