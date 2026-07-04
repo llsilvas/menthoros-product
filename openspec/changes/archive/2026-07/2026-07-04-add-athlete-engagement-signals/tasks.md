@@ -88,3 +88,14 @@ revalidação em `ProvaServiceImpl.resolveAtleta()`), sem PII exposta.
 
 **Suíte pós-fix:** frontend lint+build ok, **57 arquivos / 368 testes verdes**; backend **1121 testes
 verdes** (`./mvnw clean test`).
+
+## Adendo pós-PR — card de próxima prova também na Home
+
+Fora do escopo original (o design previa a próxima prova só na tab Provas do Progresso), mas
+entregue na mesma branch/PR a pedido do founder: o card "Faltam N dias para {prova}" (ou CTA honesto
+quando não há prova futura) agora também aparece na `AthleteHomePage`, reaproveitando
+`useAthleteProvas`/`buildProximaProva` já criados. Loading/erro tratados desde o início (mesmo
+padrão do fix de QA aplicado à tab Provas — nada durante loading, aviso com retry em erro, CTA só
+quando de fato vazio). Commit `ee35f09`. +3 testes (12 no total em `AthleteHomePage.test.tsx`).
+
+**Suíte final:** frontend **57 arquivos / 372 testes verdes**, lint+build ok.
