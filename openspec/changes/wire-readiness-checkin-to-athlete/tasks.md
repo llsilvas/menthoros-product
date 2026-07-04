@@ -39,13 +39,13 @@
 
 ## 1. Frontend — QuickCheckInModal completo
 
-- [ ] 1.1 Expandir `QuickCheckInModal` para os 5 campos do contrato:
+- [x] 1.1 Expandir `QuickCheckInModal` para os 5 campos do contrato:
   `qualidadeSono` (1–10, novo), `humor` (1–10 — hoje é `mood` 1–5, **expandir a escala**),
   `doresMusculares` (0–10, novo), `nivelEnergia` (1–10 — já existe como `energyLevel`, só renomear),
   `estresse` (0–10, novo). Observações (já existe).
   - verify: `npm run build` (tsc) verde; todos os 5 sliders renderizam com os limites corretos do
     contrato (dores/estresse começam em 0, não 1); teste de componente cobre os 5 campos.
-- [ ] 1.2 Mapear os campos do form 1:1 para `CheckinProntidaoInputDto` no submit (evita confundir
+- [x] 1.2 Mapear os campos do form 1:1 para `CheckinProntidaoInputDto` no submit (evita confundir
   `mood`/`humor`, `energyLevel`/`nivelEnergia`).
 
 ## 2. Frontend — wiring real do submit
