@@ -33,14 +33,17 @@ de humor e energia. Falta expandir para os 5 campos do contrato (`qualidadeSono`
 
 ### Backend (`AtletaProgressServiceImpl.getReadinessAtual`)
 
-- Consultar `CheckinProntidaoRepository` (via `CheckinProntidaoService.buscarAtual`) para o dia
-  atual antes de calcular o score apenas objetivo.
-- Se existir check-in do dia: usar `readinessScore`/`nivelProntidao` já calculados e persistidos
-  pelo `CheckinProntidaoServiceImpl` (não recalcular — fonte única de verdade).
+- Consultar `CheckinProntidaoRepository.findByAtletaIdAndData(atletaId, hoje, tenantId)`
+  diretamente (não `CheckinProntidaoService.buscarAtual()`, que retorna o **mais recente**, não
+  necessariamente o de hoje — ver D0.1/D0.2 do `design.md` para o detalhamento e o motivo de
+  injetar o repository em vez do service, que criaria dependência circular de bean).
+- Se existir check-in de hoje: usar `readinessScore`/`nivelProntidao` já calculados e persistidos
+  pelo `CheckinProntidaoServiceImpl` (não recalcular — fonte única de verdade; ver D0.3 para a
+  reconciliação de escala/vocabulário com o `ReadinessDto`).
 - Se não existir: manter o comportamento atual (score objetivo, TSB/CTL/ATL/RPE), com a nota
   ajustada para refletir que o check-in existe mas não foi preenchido hoje (não mais "a change
   não entrega o sinal").
-- Sem migration — reuso total da camada de serviço já existente (`CheckinProntidaoService`).
+- Sem migration — reuso total da camada de dados já existente (`CheckinProntidaoRepository`).
 
 ### Frontend (`apps/menthoros-front`, `features/athlete`)
 
@@ -56,6 +59,8 @@ de humor e energia. Falta expandir para os 5 campos do contrato (`qualidadeSono`
   zero (o backend já é idempotente por data, mas a UX deve refletir isso).
 
 ## Critérios de aceite
+
+Critérios formais em Given/When/Then (vinculantes): `design.md`. Resumo:
 
 - **CA1 — Check-in completo:** `QuickCheckInModal` coleta os 5 campos do contrato do backend,
   não apenas humor/energia.
