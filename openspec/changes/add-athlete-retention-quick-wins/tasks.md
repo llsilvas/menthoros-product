@@ -139,7 +139,29 @@ arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em 
 
 ## Fechamento
 
-- [ ] Smoke A: logar ATLETA, registrar treino manual → feedback card aparece com dados reais.
-- [ ] Smoke B: logar COACH, dar kudo no perfil do atleta → atleta vê card na Home.
-- [ ] Smoke C: logar ATLETA com treinos na semana → resumo semanal correto na Home.
-- [ ] Suíte completa front + backend verde.
+- [x] Smoke A: logado como ATLETA, registrado treino manual (Intervalado, 45min, 6km) →
+  `PostWorkoutFeedbackCard` apareceu com dados reais ("⚡ Intervalado", "45 min", "6.0 km",
+  "Bom treino! Mantenha a consistência.") após corrigido um bug real encontrado ao vivo (ver
+  abaixo). "Voltar para Home" navegou corretamente.
+- [x] Smoke B: logado como COACH, clicado "Reconhecer progresso" no perfil do atleta, motivo
+  "Consistência" → `POST /coach/atletas/{id}/kudos` retornou 201. Relogado como ATLETA → card
+  na Home mostrou "Seu coach reconheceu sua consistência!" corretamente. Bug de concordância de
+  gênero encontrado e corrigido (ver abaixo).
+- [x] Smoke C: logado como ATLETA com treinos na semana → "Seu resumo da semana" mostrou
+  "5 treinos", "28.3 km", "5 semanas", "Forma ideal", "Próximo: Longo" — todos com dado real.
+- [x] Suíte completa front + backend verde (438 testes frontend / 1148 testes backend).
+
+### Bugs encontrados e corrigidos durante o smoke ao vivo
+
+1. **`parseDuracaoMin` não tratava o formato "MM:SS"** (adapter compartilhado,
+   `features/athlete/adapters/parseDuracaoMin.ts`) — o backend retorna `duracaoMin` como
+   `"45:00"` (sem hora) para treinos manuais com duração < 1h, mas o parser só aceitava
+   exatamente 3 partes (`HH:MM:SS`), retornando `null` e fazendo o `PostWorkoutFeedbackCard`
+   omitir silenciosamente a duração. Corrigido para aceitar 2 ou 3 partes; teste de regressão
+   adicionado (`parseDuracaoMin('45:00') === 45`). Afeta também `buildWeeklyPlan.ts` (mesmo
+   adapter), sem quebrar nenhum teste existente.
+2. **Concordância de gênero errada no card de kudos** (`KudosCard.tsx`) — o template fixo "Seu
+   coach reconheceu **sua** {motivo}!" está incorreto para `ESFORCO` ("esforço" é masculino →
+   "**seu** esforço", não "sua esforço"). Corrigido movendo o possessivo para dentro do mapa de
+   texto por motivo (`ESFORCO: 'seu esforço'`, demais mantêm `'sua ...'`), eliminando a
+   concordância genérica incorreta.
