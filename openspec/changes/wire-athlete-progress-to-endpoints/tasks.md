@@ -78,3 +78,40 @@
     100% sem insight fabricado; recordes formatados (`HH:MM:SS`) corretamente; sem erro no console.
     Equivalência coach↔atleta garantida pelo próprio código (`/me/*` delega nos mesmos métodos de
     serviço dos `/{id}/*`, coberto por `AtletaProgressControllerTest`) — dispensa novo login como coach.
+
+## QA gate (`/qa`) — code-reviewer + security-reviewer (backend) + frontend-reviewer + clean-code-reviewer
+
+Rodados em paralelo sobre `git diff develop...feature/wire-athlete-progress-to-endpoints`. Sem Critical.
+Segurança ok (sem IDOR — `atletaId` só via JWT/`resolverAtletaIdAtual()`, sem `@PathVariable`;
+`validarAtletaNoTenant()` revalida tenant em cada método de serviço; DTOs sem PII).
+
+**Corrigidos:**
+- **`semanas` sem limite superior (`AtletaProgressController.java`, commit `d6ea34f`):** `@Min(1)`
+  sem `@Max` permitia valor arbitrário; `getAderenciaSemanal` varreria todo o histórico de
+  `TreinoPlanejado` sem paginação — custo de leitura evitável / DoS trivial e barato. Adicionado
+  `MAX_SEMANAS_ADERENCIA = 104` (2 anos) + `@ApiResponse 400` no Swagger + testes de borda
+  (`semanas=0` e `=105` → 400, BVA).
+- **Duplicação de endpoint/hook/tipo (`AthleteProgressPage.tsx`, commit `4ee0236`):** `GET
+  /me/treinos` já tinha cliente curado (`ManualTrainingService.listarRecentes`) e hook
+  (`useManualTraining`) próprios — `AthleteProgressService.getTreinosRecentes`/
+  `useAthleteTreinosRecentes`/`AthleteTreinoRecente` duplicavam sem necessidade. Removidos; o KPI
+  "Volume total" agora reusa `useManualTraining(28)`.
+- **Bug real — "Volume total" podia fabricar "0 km" (mesmo commit):** `useManualTraining.isFetching`
+  começa em `false` (diferente dos outros hooks desta página, que começam `loading=true`) — sem
+  guard, o primeiro render mostrava "0" em vez de "—" antes do fetch resolver, violando a regra de
+  nunca fabricar dado (CA3). Corrigido com um flag local `treinosFetched` setado só após o
+  `fetchRecentes()` resolver; teste dedicado adicionado.
+
+**Minor — registrados, não bloqueiam:**
+- `ZONAS_PERIOD_LABEL` fixo ("Últimos 90 dias") assume o default do backend — se mudar, diverge
+  silenciosamente do dado real. `ultimoPmc` assume ordenação ascendente do array PMC sem validar.
+  `buildKpis`/`formatSinal`/cálculo de `volumeKm` ficaram inline na página em vez de em um adapter
+  próprio (diferente de `zonesAdapter`/`recordsAdapter`/`aderenciaAdapter`) — não testado em
+  isolamento (só via teste de componente); extrair para `kpisAdapter.ts` reduziria o risco de bugs
+  como o de "Volume total" recorrerem. Falta cobertura de `422` (intervalo `from > to`) em
+  `/me/metricas/historico`/`zonas` — gap pré-existente aos `/{id}/*`, não introduzido por esta change.
+- Nomeação: a aba "Volume" (zonas de FC) e o KPI "Volume total" (km) usam o mesmo termo para métricas
+  diferentes — sem risco funcional, só clareza.
+
+**Suíte pós-fix:** frontend lint+build ok, **54 arquivos / 346 testes verdes**; backend
+**1118 testes verdes** (`./mvnw clean test`).
