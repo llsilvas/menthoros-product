@@ -74,9 +74,9 @@
 
 ## 4. Fechamento
 
-- [ ] 4.1 Nenhum valor fabricado: `classificacao`/`score` do check-in nunca aparecem quando o
+- [x] 4.1 Nenhum valor fabricado: `classificacao`/`score` do check-in nunca aparecem quando o
   check-in não é de hoje; nota sempre reflete a fonte real (CA5).
-- [ ] 4.2 Suíte completa front (`npm run lint && npm run build && npm run test:run`) + backend
+- [x] 4.2 Suíte completa front (`npm run lint && npm run build && npm run test:run`) + backend
   (`./mvnw clean test`) verde.
 - [ ] 4.3 Smoke manual: registrar check-in completo (5 campos) como ATLETA de um tenant com plano
   vigente → `GET /me/readiness` reflete `readinessScore`/`nivelProntidao` do check-in; botão da
