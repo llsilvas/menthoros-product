@@ -63,12 +63,12 @@
 
 ## 3. Frontend — estado "já fez check-in hoje"
 
-- [ ] 3.1 `useCheckinAtual` — resolve `atletaId` via `UsuarioService.getMe()` (D0.5), chama
+- [x] 3.1 `useCheckinAtual` — resolve `atletaId` via `UsuarioService.getMe()` (D0.5), chama
   `GET /api/v1/checkins/{atletaId}/atual`, e filtra client-side `data === hoje` (não confia
   ingenuamente no "mais recente" do endpoint — mesma ambiguidade do D0.1).
   - verify: teste cobre check-in de hoje (retorna dado), check-in de outro dia (trata como "sem
     check-in hoje"), 204/sem check-in algum.
-- [ ] 3.2 Botão da Home mostra "Editado hoje" quando `useCheckinAtual` confirma check-in de hoje;
+- [x] 3.2 Botão da Home mostra "Editado hoje" quando `useCheckinAtual` confirma check-in de hoje;
   modal pré-preenche com os valores desse check-in ao reabrir (D1.3 — edição, não recomeça do
   zero, já que o backend é upsert por data).
 
