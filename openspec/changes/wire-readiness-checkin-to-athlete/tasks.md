@@ -21,7 +21,7 @@
 
 ## 0. Backend — GET /me/readiness consome check-in de hoje
 
-- [ ] 0.1 `AtletaProgressServiceImpl`: injetar `CheckinProntidaoRepository` (novo field
+- [x] 0.1 `AtletaProgressServiceImpl`: injetar `CheckinProntidaoRepository` (novo field
   `@RequiredArgsConstructor`); em `getReadinessAtual(atletaId)`, chamar
   `checkinProntidaoRepository.findByAtletaIdAndData(atletaId, LocalDate.now(clock), tenantId)`
   antes de calcular o score objetivo. Se existir: `score = round(checkin.getReadinessScore() *
@@ -30,11 +30,11 @@
   - verify: teste unitário — com check-in de hoje, retorna score/classificação dele; com check-in
     de outro dia (não hoje), mantém fallback objetivo (não usa o check-in antigo); sem nenhum
     check-in, mantém fallback objetivo.
-- [ ] 0.2 Ajustar a nota do path objetivo (sem check-in de hoje) para: "Baseado em TSB de
+- [x] 0.2 Ajustar a nota do path objetivo (sem check-in de hoje) para: "Baseado em TSB de
   prontidão e carga — faça seu check-in de hoje para um sinal mais preciso." (D0.4 — não nega
   mais a existência da feature).
   - verify: nota muda conforme presença/ausência do check-in de hoje (3 cenários do teste 0.1).
-- [ ] 0.3 `./mvnw clean test` verde; nenhuma mudança de contrato do `ReadinessDto` (apenas
+- [x] 0.3 `./mvnw clean test` verde; nenhuma mudança de contrato do `ReadinessDto` (apenas
   preenchimento condicional); confirmar que a suíte sobe sem erro de dependência circular de bean.
 
 ## 1. Frontend — QuickCheckInModal completo
