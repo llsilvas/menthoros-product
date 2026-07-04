@@ -26,18 +26,28 @@ e resumo semanal.
 
 ## Requirement B: Kudos do coach
 
-- **WHEN** um `TECNICO` acessa o perfil de um atleta (`/coach/athletes/:id`)
+- **WHEN** um `TECNICO` ou `ADMIN` acessa o perfil de um atleta (`/coach/athletes/:id`)
 - **THEN** o sistema exibe um botão "Reconhecer progresso" que, ao ser clicado, permite
   selecionar um motivo (`CONSISTENCIA`, `MELHORA`, `ESFORCO`, `SUPERACAO`, `VOLTA`) e submete
-  `POST /api/v1/coach/atletas/{atletaId}/kudos`.
+  `POST /api/v1/coach/atletas/{atletaId}/kudos`, retornando 201 com
+  `{id, atletaId, coachId, motivo, createdAt}`.
 
 - **WHEN** um `ATLETA` abre a Home e tem kudos recebidos
-- **THEN** o sistema exibe um card "Seu coach reconheceu sua {{motivo}}!" com os últimos 3 kudos.
+- **THEN** o front chama `GET /api/v1/atletas/me/kudos/recentes` (retorna até 10,
+  `[{id, motivo, createdAt}]`, ordenados por `createdAt` decrescente) e exibe um card
+  "Seu coach reconheceu sua {{motivo}}!" com os 3 mais recentes.
 
 #### Scenario: Sem kudos
 
-- **WHEN** o atleta nunca recebeu kudos
+- **WHEN** o atleta nunca recebeu kudos (`GET /me/kudos/recentes` retorna lista vazia)
 - **THEN** nenhum card de kudos é exibido (estado vazio honesto).
+
+#### Scenario: Coach tenta dar kudos para atleta de outro tenant
+
+- **WHEN** `POST /api/v1/coach/atletas/{atletaId}/kudos` referencia um atleta que não pertence
+  ao tenant do coach autenticado
+- **THEN** retorna 404 (não 403 nem 500) — mesmo padrão de isolamento de
+  `CoachAthleteProfileController`.
 
 ---
 
