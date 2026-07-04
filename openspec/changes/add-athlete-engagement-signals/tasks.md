@@ -1,39 +1,50 @@
 # Tasks: add-athlete-engagement-signals
 
+> **Refinado contra o código real (init 2026-07-04).** Confirmado: `ProvaOutputDto` já traz
+> `diasFaltando` (int) calculado pelo backend — "próxima prova" usa `nomeProva`/`dataProva` (filtro
+> `data >= hoje`) + `diasFaltando` direto do DTO, sem recalcular a diferença de dias no frontend.
+> `GET /atletas/{atletaId}/provas` hoje não tem `@PreAuthorize` (débito pré-existente, fora de
+> escopo). Frontend: `AthleteProgressService.ts` já existe (`apps/menthoros-front/src/api/services/`,
+> mergeado na 9.6) — `getProvas()` estende esse arquivo, não cria um novo. `AthleteHomePage.tsx`
+> ainda não busca `/me/treinos` — task 2.1 adiciona `useManualTraining(30)` (hook já existente,
+> reaproveitado na 9.6) à Home.
+
 ## 0. Backend — 1 endpoint `/me/provas`
 
-- [ ] 0.1 `GET /api/v1/atletas/me/provas` — `@PreAuthorize("hasRole('ATLETA')")`, resolve
-  `atletaId` via `AtletaProgressService.resolverAtletaIdAtual()`, delega em
-  `ProvaService.listarProvas(atletaId)`. Decidir no init: método adicional em
-  `AtletaProgressController` (mantém `/me/*` num só lugar) — preferir esta opção sobre adicionar em
-  `ProvaController` (evita path ambíguo com `/{atletaId}/provas`).
-  - verify: teste de controller 200 com dado; lista vazia não quebra.
+- [ ] 0.1 `GET /api/v1/atletas/me/provas` em `AtletaProgressController` (mesmo arquivo dos demais
+  `/me/*`) — `@PreAuthorize("hasRole('ATLETA')")`, resolve `atletaId` via
+  `atletaProgressService.resolverAtletaIdAtual()`, injeta `ProvaService` (novo field no controller)
+  e delega em `provaService.listarProvas(atletaId)`.
+  - verify: teste de controller 200 com dado + lista vazia; 404 quando atleta do token não resolve
+    (mesmo padrão de `meRecordesNotFound` etc.).
 - [ ] 0.2 `./mvnw clean test` verde; nenhuma mudança em `GET /atletas/{atletaId}/provas`
-  (permanece TECNICO/ADMIN).
+  (permanece sem `@PreAuthorize` — débito pré-existente, não tocado nesta change).
 
 ## 1. Cliente + hook + helper (frontend)
 
-- [ ] 1.1 `getProvas()` no serviço curado do atleta (estender o que já existir de
-  `wire-athlete-shell-to-endpoints`/`wire-athlete-progress-to-endpoints` — confirmar no init qual
-  service já está em `develop`).
-- [ ] 1.2 `useAthleteProvas` — `{ data, loading, error, refetch }`, mesmo padrão dos demais hooks.
+- [ ] 1.1 `getProvas()` em `src/api/services/AthleteProgressService.ts` (arquivo já existe —
+  adicionar método, não criar serviço novo).
+- [ ] 1.2 `useAthleteProvas` em `src/hooks/` — `{ provas, loading, error, fetchProvas }`, mesmo
+  padrão dos demais hooks `useAthleteXxx`.
 - [ ] 1.3 `calcularStreakSemanas(treinos, hoje?): number` — função pura em
-  `src/features/athlete/utils/` (ou local equivalente). Testes: sem treino (0), streak ativo,
-  streak quebrado por lacuna, semana atual em andamento sem treino ainda.
+  `src/features/athlete/adapters/` (consistente com `zonesAdapter`/`recordsAdapter`/
+  `aderenciaAdapter` da 9.6, não um `utils/` separado). Testes: sem treino (0), streak ativo, streak
+  quebrado por lacuna, semana atual em andamento sem treino ainda.
 
 ## 2. AthleteHomePage — card de streak
 
-- [ ] 2.1 Buscar `GET /me/treinos?dias=30` (hook dedicado ou reuso do que a Home já busca) +
-  `calcularStreakSemanas`.
+- [ ] 2.1 Adicionar `useManualTraining(30)` (hook já existente, reusado — não criar hook novo) à
+  `AthleteHomePage.tsx` + `calcularStreakSemanas`.
 - [ ] 2.2 Renderizar "X semanas seguidas treinando" quando streak ≥ 1; **ocultar** o card quando
   streak = 0 (R1/D0.1.4).
 - [ ] 2.3 `npm run lint && npm run build && npm run test:run` verde.
 
 ## 3. AthleteProgressPage — card de próxima prova
 
-- [ ] 3.1 `useAthleteProvas`, filtrar prova futura mais próxima (`data >= hoje`, ordenar asc).
-- [ ] 3.2 Renderizar nome + dias restantes na tab Provas; CTA honesto ("peça ao seu coach para
-  cadastrar sua próxima meta") quando não há prova futura (CA2).
+- [ ] 3.1 `useAthleteProvas` na tab Provas (`AthleteProgressPage.tsx`, `case 'provas'`), filtrar
+  prova futura mais próxima (`dataProva >= hoje`, ordenar asc).
+- [ ] 3.2 Renderizar `nomeProva` + `diasFaltando` (do DTO, sem recalcular) na tab Provas; CTA honesto
+  ("peça ao seu coach para cadastrar sua próxima meta") quando não há prova futura (CA2).
 - [ ] 3.3 `npm run lint && npm run build && npm run test:run` verde.
 
 ## 4. Fechamento
