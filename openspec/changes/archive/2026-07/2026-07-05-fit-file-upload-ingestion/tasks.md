@@ -119,3 +119,35 @@
   do usuário preservada (não desloga em 422, só em 401 inesperado).
 - [x] 2.4 Suíte completa: backend `./mvnw clean test` — 1163 testes, 0 falhas. Frontend
   `npm run lint && npm run build && npm run test:run` — 73 arquivos, 462 testes, 0 falhas.
+
+## 3. QA gate (4 rodadas — backend PR #24, frontend PR #32)
+
+Nenhum achado Critical em nenhuma rodada. Achados Important corrigidos:
+
+- [x] Dedup quebrava quando `Session.startTime` ausente (fabricava `Instant.now()`) —
+  `FitParseServiceImpl` agora lança `FitParseException`.
+- [x] Corrida de concorrência publicava evento/recalculava TSB mesmo quando o registro já
+  existia — `TreinoDedupHelper.saveIdempotent` retorna `SaveResult(treino, inserted)` explícito
+  em vez de comparação de referência.
+- [x] Flag `novo` do `FitImportResultado` estava hardcoded como `true`, ignorando
+  `resultado.inserted()` — quebrava o contrato 200/201 no caminho de corrida.
+- [x] `saveIdempotent` duplicado entre `StravaActivityServiceImpl`/`FitUploadServiceImpl` —
+  extraído para `TreinoDedupHelper` compartilhado (`services/helper`).
+- [x] Import gravava `FonteDados.MANUAL`/`criadoPor="ATLETA"` — corrigido para
+  `FonteDados.GARMIN`/`"GARMIN"`.
+- [x] Sem limite de tamanho de multipart — `spring.servlet.multipart.max-file-size/max-request-size`
+  (10MB) + handler 413 para `MaxUploadSizeExceededException`.
+- [x] Sem limite de laps — cap de 1000 em `FitParseServiceImpl`, protege contra flood mesmo
+  dentro do limite de 10MB.
+- [x] Arquivo `.fit` multiessão (triathlon) misturava laps de sessões diferentes silenciosamente
+  — agora rejeitado com `FitParseException`.
+- [x] `Decode().read()` só capturava `FitRuntimeException` — ampliado para `RuntimeException`
+  (preservando `FitParseException` sem reenvelopar).
+- [x] Parse do binário rodava dentro do `@Transactional`, segurando conexão de banco durante
+  decodificação — extraído `FitTreinoPersister` (`services/helper`, `@Transactional`
+  declarativo); `FitUploadServiceImpl` virou orquestrador de 2 passos.
+- [x] Comentário de licença do SDK da Garmin no `pom.xml` corrigido (não é Apache 2.0).
+- [x] Frontend: mensagem de erro genérica descartava as mensagens curadas 403/422 do backend —
+  corrigido para usar `err.message`.
+
+Suíte final: backend 1170 testes, frontend 463 testes, 0 falhas em ambos.
