@@ -34,7 +34,8 @@ a fonte (parser .fit → DTO → pipeline existente).
 
 ### Backend (`apps/menthoros-backend`)
 
-- Dependência Maven: `com.garmin:fit-sdk` (versão estável mais recente, open-source).
+- Dependência Maven: `com.garmin:fit` (versão `21.205.0`, confirmada no Maven Central em
+  julho/2026 — ver `design.md` D0.5; a coordenada `fit-sdk` da submissão original está errada).
 - `FitParseService`: serviço que recebe `InputStream` do .fit, percorre os records do arquivo e
   extrai:
   - Session record → dados agregados (distância total, duração, FC média/máx, TSS estimado,
@@ -67,23 +68,28 @@ a fonte (parser .fit → DTO → pipeline existente).
 - Integração contínua com Garmin Connect (automatizar download de .fit).
 - Análise pós-import (métricas detalhadas, drift, decoupling — Sprint 23 `add-workout-metrics-analyzer`).
 - App mobile com Health Connect nativo (onda mobile futura).
+- Classificação de propósito de treino (`INTERVALADO`/`TIRO`/etc.) a partir da estrutura dos laps
+  do `.fit` — todo import recebe `tipoTreino = CONTINUO` nesta versão (ver `design.md` D0.6).
 
 ## Critérios de aceite
 
 - **CA1 — Upload bem-sucedido:** arquivo .fit válido é enviado → 201 + `TreinoRealizadoOutputDto`
   com distância, duração, FC média/máx, laps (quando disponíveis) preenchidos.
 - **CA2 — Dedup:** re-upload do mesmo .fit (mesmo `externalId` + `atletaId`) retorna 200 com o
-  treino já existente, não duplica.
+  treino já existente, não duplica (controller verifica existência antes de persistir — ver
+  `design.md` D0.8; `saveIdempotent` sozinho não diferencia 200 de 201).
 - **CA3 — Arquivo inválido:** .fit corrompido ou não-FIT → 422 com mensagem de erro descritiva.
 - **CA4 — Tenant isolation:** upload só persiste no tenant do atleta autenticado.
-- **CA5 — Dados parciais:** .fit sem GPS (ex: esteira) → persiste com os dados disponíveis (FC,
-  duração), não falha.
+- **CA5 — Dados parciais:** .fit sem GPS (ex: esteira) ou de esporte não-corrida (ex: ciclismo,
+  natação) → persiste com os dados disponíveis; esporte não-corrida usa `tipoTreino = CONTINUO`
+  + esporte real anotado em `descricao` (nunca fabrica um propósito de treino — ver `design.md`
+  D0.6), não falha.
 - **CA6 — Frontend:** drag-and-drop funcional, preview dos dados extraídos, fallback para registro
   manual visível.
 - **CA7 — Sem regressão:** `./mvnw clean test` + `npm run lint && npm run build && npm run test:run`
   verdes.
 
-## Métrica de sucesso
+## Métrica de sucesso (hipótese pós-launch, não é gate de aceite)
 
 **Métrica de adoção (pós-deploy, sem baseline):** % de atletas que usam upload de .fit vs. registro
 manual após 30 dias do lançamento. **Métrica de qualidade:** % de uploads que resultam em FC
