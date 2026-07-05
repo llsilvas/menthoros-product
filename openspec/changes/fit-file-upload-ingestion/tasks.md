@@ -70,26 +70,34 @@
 
 ## 1. Frontend — upload + preview
 
-- [ ] 1.1 `FileUploadZone` componente: drag-and-drop + `input[type=file][accept=.fit,.FIT]` com
+- [x] 1.1 `FileUploadZone` componente: drag-and-drop + `input[type=file][accept=.fit,.FIT]` com
   estilo dark-first (linha tracejada, ícone de upload, cor muda no hover/drag-over).
   - verify: renderiza; drag-over muda estilo visual; clique abre seletor de arquivos.
-- [ ] 1.2 `FitUploadService` (cliente curado): `importFit(file: File)` →
-  `POST /atletas/me/treinos/importar-fit` (path corrigido — ver nota no topo) como
-  multipart/form-data. Hook `useFitUpload` → `{ upload, uploading, error, result }`.
-  - verify: `npm run build` verde; chamada de rede é multipart.
-- [ ] 1.3 `FitUploadResultCard` componente: preview dos dados extraídos (distância, duração, FC,
-  nº de laps) após upload bem-sucedido. Botão "Importar outro" + link para Home.
-  - verify: renderiza dados corretos do response; sem crash com dados parciais.
-- [ ] 1.4 Integrar em `ManualTrainingFormPage.tsx` (path confirmado —
-  `src/features/athlete/pages/ManualTrainingFormPage.tsx`, já tocada pela 9.9 que adicionou o
-  `PostWorkoutFeedbackCard`): `FileUploadZone` como nova seção **acima** do
-  `ManualTrainingForm` existente, sem substituí-lo. Após upload bem-sucedido, mostrar
-  `FitUploadResultCard` no lugar da zona de upload (mesmo padrão já usado pelo
-  `PostWorkoutFeedbackCard` — substitui a seção, não a página inteira); o formulário manual
-  abaixo continua sempre visível e funcional como fallback, independente do estado do upload.
-  - verify: upload bem-sucedido mostra o preview; formulário manual continua registrável no
-    mesmo carregamento de página, sem bloqueio mútuo entre os dois caminhos.
-- [ ] 1.5 `npm run lint && npm run build && npm run test:run` verde.
+  Coberto por `FileUploadZone.test.tsx` (5 testes: render, seleção via input, extensão inválida
+  ignorada, drop válido, disabled bloqueia).
+- [x] 1.2 `FitUploadService` (cliente curado): `importar(arquivo: File)` →
+  `POST /api/v1/atletas/me/treinos/importar-fit` como multipart/form-data (via `formData` do
+  `request.ts`, sem setar `mediaType` — o axios calcula o boundary automaticamente). Hook
+  `useFitUpload` → `{ upload, uploading, error, result, reset }`.
+  - verify: `npm run build` verde; `useFitUpload.test.ts` (3 testes: sucesso, erro propagado,
+    reset).
+- [x] 1.3 `FitUploadResultCard` componente: preview dos dados extraídos (duração, distância, FC
+  média, nº de laps) via novo adapter `fitUploadResultAdapter.ts` (`buildFitUploadPreview`,
+  mesmo padrão de `postWorkoutFeedbackAdapter` — nunca fabrica campo ausente). Botão
+  "Importar outro" + link para Home. Estendidos campos opcionais `fcMedia` e
+  `etapasRealizadas` em `TreinoRealizadoDto` (types/TreinoManual.ts) para suportar o preview.
+  - verify: `FitUploadResultCard.test.tsx` (4 testes) + `fitUploadResultAdapter.test.ts`
+    (6 testes) — renderiza dados corretos; omite linhas com dados parciais, sem crash.
+- [x] 1.4 Integrado em `ManualTrainingFormPage.tsx`: `FileUploadZone` como nova seção **acima**
+  do `ManualTrainingForm` existente, sem substituí-lo. Após upload bem-sucedido, mostra
+  `FitUploadResultCard` no lugar da zona de upload (mesmo padrão do `PostWorkoutFeedbackCard`);
+  o formulário manual abaixo continua sempre visível e funcional, independente do estado do
+  upload (estado local `treinoImportado`, próprio da página — mesmo padrão de
+  `treinoRegistrado` já usado para o fluxo manual).
+  - verify: 4 novos testes em `ManualTrainingFormPage.test.tsx` (zona de upload visível junto
+    com o form manual; upload bem-sucedido mostra preview sem esconder o form; "Importar outro"
+    volta à zona de upload; erro de upload não afeta o form manual).
+- [x] 1.5 `npm run lint && npm run build && npm run test:run` verde — 73 arquivos, 462 testes.
 
 ## 2. Fechamento
 
