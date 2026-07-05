@@ -101,7 +101,21 @@
 
 ## 2. Fechamento
 
-- [ ] 2.1 Smoke: enviar .fit real de um Garmin → treino aparece na Home e no Progresso com FC/laps.
-- [ ] 2.2 Smoke: re-enviar mesmo .fit → 200 com o mesmo treino (não duplica).
-- [ ] 2.3 Smoke: enviar arquivo não-FIT (.txt, .jpg) → 422 com mensagem de erro.
-- [ ] 2.4 Suíte completa front + backend verde.
+- [x] 2.1 Smoke: enviar .fit real (gerado via o mesmo `FileEncoder` do SDK usado nos testes —
+  ambiente local sem um dispositivo Garmin físico à mão; round-trip já validado por
+  `FitParseServiceImplTest`) → treino aparece na Home (Volume 42.3→47.3 km, Treinos 7→8) e no
+  Progresso (126 km, 7 de 8 treinos concluídos), com FC média e laps corretos no card de
+  resultado ("30 min · 5.0 km · FC média 152 bpm · 2 laps"). Verificado via browser real
+  (login manual do usuário, atleta autenticado) contra o backend local após restart (o processo
+  já em execução no IntelliJ antecedia a dependência `com.garmin:fit` e o novo controller —
+  precisou reiniciar para o classpath pegar ambos).
+- [x] 2.2 Smoke: re-enviar o mesmo .fit → confirmado 201 na 1ª vez, 200 na 2ª (rede), Home/
+  Progresso inalterados (mesmo volume/CTL/ATL/TSB) — sem duplicar.
+- [x] 2.3 Smoke: enviar arquivo com extensão `.fit` mas conteúdo corrompido (não é possível
+  testar `.txt`/`.jpg` via UI real — o próprio `FileUploadZone` já filtra por extensão no
+  client, então nunca chega à rede; isso é o comportamento correto e já coberto por
+  `FileUploadZone.test.tsx`) → 422 confirmado na rede, toast "Erro ao importar arquivo .fit.
+  Verifique se é um arquivo válido." exibido, formulário manual abaixo não afetado, sessão
+  do usuário preservada (não desloga em 422, só em 401 inesperado).
+- [x] 2.4 Suíte completa: backend `./mvnw clean test` — 1163 testes, 0 falhas. Frontend
+  `npm run lint && npm run build && npm run test:run` — 73 arquivos, 462 testes, 0 falhas.
