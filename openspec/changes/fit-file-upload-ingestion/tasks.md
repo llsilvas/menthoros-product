@@ -15,13 +15,23 @@
 > - Classe correta é `TssCalculatorService` (não `TssCalculator`) (D0.3).
 > - `saveIdempotent` sozinho não diferencia 200 de 201 — o controller deve checar existência
 >   antes de persistir (D0.8).
+>
+> **Correções feitas durante a implementação da Task 0** (não escaladas para o design, só
+> registradas aqui):
+> - Path do endpoint mudado de `/api/v1/treinos/importar-fit` para
+>   `/api/v1/atletas/me/treinos/importar-fit` — segue o padrão self-resolving `/me/` já usado por
+>   `AtletaTreinoController`/`AtletaProgressController`/`AtletaKudosController` (atletaId resolvido
+>   do JWT via `AtletaProgressService.resolverAtletaIdAtual()`, sem `@RequireTenant`).
+> - `mapToTreinoRealizado`/`saveIdempotent` de `StravaActivityServiceImpl` são `private` —
+>   NÃO reutilizados diretamente. `FitUploadServiceImpl` implementa o mesmo padrão
+>   independentemente (não é uma dependência cross-service).
 
 ## 0. Backend — dependência e parse
 
-- [ ] 0.1 Adicionar dependência `com.garmin:fit` (groupId `com.garmin`, artifactId `fit`, versão
+- [x] 0.1 Adicionar dependência `com.garmin:fit` (groupId `com.garmin`, artifactId `fit`, versão
   `21.205.0` — confirmado no Maven Central, ver `design.md` D0.5) no `pom.xml`.
   - verify: `./mvnw dependency:resolve` baixa o artefato sem erro.
-- [ ] 0.2 `FitParseService`: recebe `InputStream` (ou `byte[]`) do .fit, percorre as mensagens:
+- [x] 0.2 `FitParseService`: recebe `InputStream` (ou `byte[]`) do .fit, percorre as mensagens:
   - `FileIdMesg` → tipo de arquivo, fabricante, produto, serial
   - `SessionMesg` → timestamp de início, timestamp de fim, distância total, duração, FC média,
     FC máxima, TSS (se presente), esporte
@@ -35,30 +45,37 @@
   - verify: `.fit` extraído de um Garmin real → todos os campos preenchidos; `.fit` de esteira →
     GPS nulo mas resto ok; `.fit` corrompido → `FitParseException` descritiva; `.fit` de esporte
     não-corrida (ciclismo) → `tipoTreino = CONTINUO` + esporte em `descricao` (D0.6), não falha.
-- [ ] 0.3 `FitUploadController`: `POST /api/v1/treinos/importar-fit`, `@RequestParam("file") MultipartFile`,
-  `@PreAuthorize("hasRole('ATLETA')")`, retorna `TreinoRealizadoOutputDto`. Verifica existência via
-  `treinoRealizadoRepository.findByExternalIdAndAtletaId(...)` antes de persistir para decidir
-  200 (já existe) vs 201 (novo) — ver `design.md` D0.8.
+- [x] 0.3 `FitUploadController`: `POST /api/v1/atletas/me/treinos/importar-fit` (path corrigido —
+  padrão self-resolving `/me/`, ver nota acima), `@RequestPart("arquivo") MultipartFile`,
+  `@PreAuthorize("hasAnyRole('ATLETA','ADMIN')")`, retorna `TreinoRealizadoOutputDto`. Verifica
+  existência via `treinoRealizadoRepository.findByExternalIdAndAtletaId(...)` antes de persistir
+  para decidir 200 (já existe) vs 201 (novo) — ver `design.md` D0.8.
   - verify: endpoint responde 201 com dados reais (novo); 200 no re-upload do mesmo `.fit`
-    (dedup); 422 para arquivo inválido; 401 sem token.
-- [ ] 0.4 Mapeamento `FitSessionData → TreinoRealizado`:
+    (dedup); 422 para arquivo inválido; 401 sem token. (Coberto por
+    `FitUploadServiceImplTest` + `FitParseServiceImplTest`; smoke HTTP fica para a Task 2.)
+- [x] 0.4 Mapeamento `FitSessionData → TreinoRealizado`:
   - Reusar `TreinoRealizado` entity já existente (`fcMax`, `paceMedia`/`duracaoMin` como
     `Duration`, `tssCalculado`, `externalId`, `descricao` — nomes confirmados contra a entity
     real, D0.7).
   - Preencher `externalId` (D0.2), `fonteDados = MANUAL` (D0.1).
   - Preencher `etapasRealizadas[]` a partir dos laps (reusa `EtapaRealizada` entity já existente).
-  - Reusar `mapToTreinoRealizado`/`saveIdempotent` de `StravaActivityServiceImpl` (confirmados
-    existentes e reutilizáveis, D0.2).
+  - `mapToTreinoRealizado`/`saveIdempotent` de `StravaActivityServiceImpl` são `private` — não
+    reutilizados; `FitUploadServiceImpl` implementa o mesmo padrão de forma independente (ver
+    nota acima).
   - verify: treino persiste com FC e laps; `externalId` único por atleta; re-upload não duplica.
-- [ ] 0.5 `./mvnw clean test` verde; nenhuma regressão nos imports existentes (Strava, manual).
+    Coberto por `FitUploadServiceImplTest` (7 testes: novo, re-upload, esporte não-corrida,
+    fallback de TSS, dados parciais sem fabricar valores, atleta não encontrado, concorrência).
+- [x] 0.5 `./mvnw clean test` verde; nenhuma regressão nos imports existentes (Strava, manual).
+  - verify: `1163 tests, 0 failures, 0 errors` (suíte completa).
 
 ## 1. Frontend — upload + preview
 
 - [ ] 1.1 `FileUploadZone` componente: drag-and-drop + `input[type=file][accept=.fit,.FIT]` com
   estilo dark-first (linha tracejada, ícone de upload, cor muda no hover/drag-over).
   - verify: renderiza; drag-over muda estilo visual; clique abre seletor de arquivos.
-- [ ] 1.2 `FitUploadService` (cliente curado): `importFit(file: File)` → `POST /treinos/importar-fit`
-  como multipart/form-data. Hook `useFitUpload` → `{ upload, uploading, error, result }`.
+- [ ] 1.2 `FitUploadService` (cliente curado): `importFit(file: File)` →
+  `POST /atletas/me/treinos/importar-fit` (path corrigido — ver nota no topo) como
+  multipart/form-data. Hook `useFitUpload` → `{ upload, uploading, error, result }`.
   - verify: `npm run build` verde; chamada de rede é multipart.
 - [ ] 1.3 `FitUploadResultCard` componente: preview dos dados extraídos (distância, duração, FC,
   nº de laps) após upload bem-sucedido. Botão "Importar outro" + link para Home.
