@@ -165,3 +165,57 @@ arquivos sugere fazer C por último (depende dos hooks da 9.5, já mergeados em 
    "**seu** esforço", não "sua esforço"). Corrigido movendo o possessivo para dentro do mapa de
    texto por motivo (`ESFORCO: 'seu esforço'`, demais mantêm `'sua ...'`), eliminando a
    concordância genérica incorreta.
+
+## Gate de QA (`/qa`, após o fechamento)
+
+Backend: `code-reviewer` + `security-reviewer` + `clean-code-reviewer` em paralelo, mais
+`./mvnw clean test`. Frontend: `frontend-reviewer` + `clean-code-reviewer` em paralelo, mais
+`npm run lint && npm run build && npm run test:run`. Cross-model: `/codex:review` em ambos os
+repos (fora da cota Claude). **Nenhum finding Critical** em nenhuma das 6 análises.
+
+### Achados corrigidos
+
+- **[Important, backend]** `Kudos.motivo` sem `length = 20` — divergia da migration
+  (`VARCHAR(20)`), risco de `SchemaManagementException` com `ddl-auto=validate`. Corrigido.
+- **[Minor, backend]** 3 gaps de cobertura de branch: coach não encontrado
+  (`KudosServiceImplTest`), 404 em ambos os controllers (`CoachKudosControllerTest`,
+  `AtletaKudosControllerTest`). Testes adicionados. Uma tentativa de testar "403 por role
+  inválida" no `CoachKudosControllerTest` revelou que `@WebMvcTest(addFilters=false)` não tece
+  `@PreAuthorize` neste slice — a request passou com 201 mesmo com `ROLE_ATLETA`. Removido o
+  teste (daria falso positivo) e registrado como débito de teste: a aplicação correta da
+  anotação foi verificada por leitura de código, mas o caminho negativo não é regression-tested
+  neste nível (mesma limitação já presente em `CheckinProntidaoControllerTest` e outros
+  controllers do módulo — não é uma regressão desta change).
+- **[P2, Codex frontend]** `KudosDialog` não resetava o `motivo` selecionado ao reabrir (o
+  dialog não desmonta, só alterna `open`) — mesma classe de bug já corrigida no
+  `QuickCheckInModal` (9.8). Corrigido com `useEffect` + teste de regressão.
+- **[Important, frontend]** `WeeklySummaryCard` podia mostrar "você ainda não registrou treinos
+  esta semana" (estado vazio fabricado) enquanto `useManualTraining` ainda buscava os treinos —
+  faltava o gate de `isFetching`/`fetchError` que os demais cards da Home já têm (kudos,
+  próxima prova). Corrigido + teste de regressão.
+- **[Important, convergência entre 2 revisores independentes]** `FAIXA_APRESENTACAO` morava em
+  `features/coach/types/AthleteForm.ts` mas passou a ser consumida por
+  `buildWeeklySummary.ts` (shell do atleta) — acoplamento lateral entre shells. Movido para
+  `types/FaixaTsb.ts` (local neutro, ao lado de `FaixaTsbStatus`); `AthleteForm.ts` mantém
+  re-export para não quebrar os consumidores existentes do coach shell. Corrigido também o cast
+  `as FaixaTsbStatus` no adapter — `AthleteMetricasChave.statusForma` agora tipado
+  corretamente em vez de `string` solto.
+- **[Important, frontend]** Erro de kudos exibido ao coach usava `.message` direto do
+  `ApiError`, mas `request.ts` inclui o corpo bruto da resposta na mensagem para status não
+  mapeados em `KudosService.errors` (500, rede) — risco de vazar detalhe interno. Corrigido com
+  fallback genérico para status fora de `{400,403,404,409}`.
+
+### Achados registrados como débito (não corrigidos agora — fora de escopo desta change XS)
+
+- **[Important, adiável]** `AthleteHomePage.tsx` acumulou 7 hooks de fetch independentes ao
+  longo das mudanças 9.5–9.9 e repete o padrão de alerta de erro 5 vezes. Refactor sugerido
+  pelo `clean-code-reviewer`: extrair `AsyncSectionAlert` (elimina a duplicação) + um hook de
+  orquestração `useAthleteHomeData()`. Vale fazer na próxima mudança que tocar esse arquivo, não
+  bloqueia este pilot.
+- **[Low, backend]** Sem rate limiting em `POST /coach/atletas/{atletaId}/kudos` — consistente
+  com o resto da superfície de escrita autenticada do backend (só o `/waitlist` público tem
+  rate limit hoje); não é uma regressão desta change.
+
+### Suítes revalidadas após as correções
+
+Backend: 1151/1151. Frontend: 440/440 (69 arquivos), lint + build limpos.
