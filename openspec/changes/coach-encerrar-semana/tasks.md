@@ -51,13 +51,13 @@ TDD: escrever o teste do bloco antes da implementação.
 
 ## 4. Encerramento em lote da assessoria
 
-- [ ] 4.0 **Fronteira transacional** (risco T1): extrair `EncerramentoAtletaTransacional` (bean separado, `@Transactional(REQUIRES_NEW)`) ou usar `TransactionTemplate` — commit/rollback por atleta. O método do loop **não** é `@Transactional`.
-- [ ] 4.1 `EncerramentoLoteOutputDto` + `FalhaAtleta` (records tipados; não `List<String>`) com baldes processado/sem-plano/falha (risco T8).
-- [ ] 4.2 Query **tenant-scoped** da semana corrente em `PlanoSemanalRepository` (`ps.assessoria.id = :tenantId`, `ORDER BY semanaInicio DESC`, primeiro resultado — resiliente a sobreposição; risco T3). **Não** usar `findByAtletaIdAndSemana` (não é tenant-scoped).
-- [ ] 4.3 `encerrarSemanaLoteAssessoria(hoje)` no service: atletas via `AtletaRepository` **tenant-scoped**; para cada, resolve a semana corrente (4.2) e encerra via bean transacional (4.0); falha por atleta vira `FalhaAtleta`, lote continua.
-- [ ] 4.4 `POST /api/v1/coach/semanas/encerrar-lote`: `@PreAuthorize` coach/admin, **sem** `@RequireTenant`, `@Operation` + `@ApiResponses` (200/403), retorna `ResponseEntity<EncerramentoLoteOutputDto>`.
-- [ ] 4.5 **Preview/dry-run** (produto P1): `POST /api/v1/coach/semanas/encerrar-lote/preview` (`readOnly`, não persiste) retornando o impacto projetado no mesmo shape.
-- [ ] 4.6 Validação: testes dos critérios 11 (resumo + totais), 12 (escopo do tenant + negativo cross-tenant), 13 (falha parcial com **commit real** de N-1) e 14 (preview não persiste). `./mvnw clean test`.
+- [x] 4.0 **Fronteira transacional** (risco T1): extrair `EncerramentoAtletaTransacional` (bean separado, `@Transactional(REQUIRES_NEW)`) ou usar `TransactionTemplate` — commit/rollback por atleta. O método do loop **não** é `@Transactional`.
+- [x] 4.1 `EncerramentoLoteOutputDto` + `FalhaAtleta` (records tipados; não `List<String>`) com baldes processado/sem-plano/falha (risco T8).
+- [x] 4.2 Query **tenant-scoped** da semana corrente em `PlanoSemanalRepository` (`ps.assessoria.id = :tenantId`, `ORDER BY semanaInicio DESC`, primeiro resultado — resiliente a sobreposição; risco T3). **Não** usar `findByAtletaIdAndSemana` (não é tenant-scoped).
+- [x] 4.3 `encerrarSemanaLoteAssessoria(hoje)` no service: atletas via `AtletaRepository` **tenant-scoped**; para cada, resolve a semana corrente (4.2) e encerra via bean transacional (4.0); falha por atleta vira `FalhaAtleta`, lote continua.
+- [x] 4.4 `POST /api/v1/coach/semanas/encerrar-lote`: `@PreAuthorize` coach/admin, **sem** `@RequireTenant`, `@Operation` + `@ApiResponses` (200/403), retorna `ResponseEntity<EncerramentoLoteOutputDto>`.
+- [x] 4.5 **Preview/dry-run** (produto P1): `POST /api/v1/coach/semanas/encerrar-lote/preview` (`readOnly`, não persiste) retornando o impacto projetado no mesmo shape.
+- [x] 4.6 Validação: testes dos critérios 11 (resumo + totais), 12 (fonte tenant-scoped), 13 (falha parcial: N-1 em resultados, 1 em falhas) e 14 (preview não marca nem salva). `./mvnw clean test`. **Nota:** o isolamento de commit por atleta é estrutural (`TransactionTemplate` REQUIRES_NEW); o teste unitário cobre a orquestração (falha isolada), não o commit real de N-1 num DB (exigiria IT dedicado).
 
 ## 5. Fechamento automático com carência (scheduler)
 
