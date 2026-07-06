@@ -33,7 +33,7 @@ Depende de `coach-encerrar-semana` mergeada (contratos de API — já em `develo
 
 - [x] 3.1 Botão "Encerrar semana de todos" no `CoachAthletesPage` (BulkBar/toolbar).
 - [x] 3.2 Dialog de confirmação responsivo (`CoachDialog`) que carrega o `previewEncerrarLote()` e mostra o impacto projetado (treinos/atletas); só dispara o real após aceite; cancelar não altera nada (critério 2).
-- [~] 3.2b **ADIADO** (segue via `encerrarLote()` completo): a seleção granular por atleta com nomes exigiria o backend expor `atletaId`/nome nos resultados de sucesso do preview (`EncerramentoSemanaResult` só tem `planoId`; o roster não expõe `planoId`). Follow-up: adicionar `atletaId`+`nome` ao `EncerramentoSemanaOutputDto`. Original: Seleção granular: lista de atletas com checkbox (todos marcados por default); coach pode desmarcar; a execução chama o encerramento **individual** por atleta selecionado (orquestração no front) — mantém o preview coerente com o que será aplicado.
+- [x] 3.2b **FEITO via seleção do grid** (não checkboxes no dialog): o botão passa os `atletaIds` selecionados no roster ao preview/encerramento. Exigiu o backend aceitar `atletaIds` (novo PR backend #27, change `coach-encerrar-lote-selecao`). Seleção granular: lista de atletas com checkbox (todos marcados por default); coach pode desmarcar; a execução chama o encerramento **individual** por atleta selecionado (orquestração no front) — mantém o preview coerente com o que será aplicado.
 - [x] 3.3 Card de resumo do lote: totais + lista de `falhas` por atleta sem travar os que deram certo (critério 3).
 - [x] 3.4 **verify:** `npm run lint && npm run build && npm run test:run` (teste: preview obrigatório antes de confirmar; cancelar = no-op; render de falhas).
 
@@ -53,3 +53,10 @@ frontend-reviewer + clean-code-reviewer em paralelo. **Sem Critical.** Aplicados
   - **⚠ LGPD (pré-existente, fora do escopo):** `console.log`/`error.message` com dados de atleta (id, planos com métricas de saúde) em `planosDialog.tsx` — recomendado remover numa change de higiene separada (não introduzido por esta feature; regra do CLAUDE.md de não limpar código adjacente).
   - Naming PT-BR dos tipos novos (espelha os DTOs do backend) e `@/` imports — Minor, mantidos.
 - Suíte: **475 testes, 0 falhas**; lint + build limpos.
+
+## Correção pós-QA — seleção do grid (bug reportado)
+
+O botão "Encerrar semana de todos" ignorava a seleção do roster. Correção:
+- **Backend** (novo PR #27, change `coach-encerrar-lote-selecao`): `encerrar-lote` + `/preview` aceitam body opcional `{ atletaIds }` (interseção com os do tenant; vazio = todos).
+- **Frontend**: o botão passa `selectedAtletaIds` do `checkboxSelection` do grid; rótulo vira "Encerrar semana (N)" com seleção. Dependência: PR #27 mergeado.
+- Suíte frontend: **476 testes**; backend: **1207 testes**.
