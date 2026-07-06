@@ -213,7 +213,7 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
 
 ### 2.1 Tipos TypeScript
 
-- [ ] 2.1.a Criar `src/types/BatchPlanJob.ts`:
+- [x] 2.1.a Criar `src/types/BatchPlanJob.ts`:
   ```ts
   export type BatchJobStatus = 'PENDENTE' | 'EM_PROGRESSO' | 'CONCLUIDO' | 'CONCLUIDO_COM_ERROS';
   export interface BatchPlanJobStatus {
@@ -226,7 +226,7 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
     errosDetalhes: { atletaId: string; motivo: string }[];
   }
   ```
-- [ ] 2.1.b Validação: `npm run build`.
+- [x] 2.1.b Validação: `npm run build`.
 
 ### 2.2 API service
 
