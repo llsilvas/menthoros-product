@@ -14,7 +14,7 @@ TDD: escrever o teste do bloco antes da implementação.
 
 ## 2. Fechamento do plano + evento
 
-- [ ] 2.1 Após finalizar os pendentes, garantir `atualizarStatusDoPlano()` levando a `CONCLUIDO` quando todos finalizados; compor `EncerramentoSemanaResultado` (nº finalizados, ids perdidos, `prontoParaProximaSemana`).
+- [ ] 2.1 **Verificar** que `TreinoService.atualizarStatusDoPlano()` existe e é idempotente (mapa do domínio: `TreinoServiceImpl:193-215`) e **reusá-lo** (não reimplementar). Após finalizar os pendentes, garantir que leva a `CONCLUIDO` quando todos finalizados; compor `EncerramentoSemanaResultado` (nº finalizados, ids perdidos, `prontoParaProximaSemana`).
 - [ ] 2.1b **Plano sem elegíveis / vazio** (risco T6): quando o plano já passou e não há `PENDENTE <= hoje` a finalizar, fechar `CONCLUIDO` explicitamente (evitar reprocesso perpétuo); no on-demand no meio da semana (`semanaFim > hoje`), não fechar e devolver `aviso`. Cobre critérios 15 e 17.
 - [ ] 2.2 Definir `SemanaEncerradaEvent` (record, com `origem: OrigemEncerramento` = `ON_DEMAND`/`AUTOMATICO`) e publicá-lo; o contrato SHALL ser consumido em `@TransactionalEventListener(AFTER_COMMIT)` (risco T5). Cada gatilho informa sua `origem` (on-demand/lote → `ON_DEMAND`; scheduler → `AUTOMATICO`). **Sem listener que gere plano** nesta change.
 - [ ] 2.3 Validação: teste dos critérios 3 (plano → `CONCLUIDO`), 15 (aviso meio-de-semana), 17 (plano vazio fecha) e verificação da publicação do evento após commit. `./mvnw clean test`.
@@ -24,13 +24,13 @@ TDD: escrever o teste do bloco antes da implementação.
 - [ ] 2b.1 Migration `V<next>__add_origem_encerramento_plano_semanal.sql`: `ALTER TABLE tb_plano_semanal ADD COLUMN origem_encerramento VARCHAR(15)` (nullable, sem default).
 - [ ] 2b.2 Mapeamento `@Enumerated(STRING)` em `PlanoSemanal` + setter no service: on-demand/lote → `ON_DEMAND`; scheduler → `AUTOMATICO`. Setar **antes** do `save`, dentro da mesma TX.
 - [ ] 2b.3 Expor `origemEncerramento` nos DTOs que já trazem `PlanoSemanal` (roster, perfil) — sem endpoint dedicado.
-- [ ] 2b.4 Validação: teste que verifica coluna populada com a origem correta após encerramento on-demand e automático. `./mvnw clean test`.
+- [ ] 2b.4 Validação: teste que verifica coluna populada com a origem correta após encerramento on-demand e automático (critérios 19–20), planos pré-existentes com `null` (critério 21), e a query de métrica `GROUP BY origem_encerramento` retornando as contagens segmentadas (critério 23). `./mvnw clean test`.
 
 ## 2c. Carência parametrizável via property
 
 - [ ] 2c.1 Property `menthoros.encerramento-semana.carencia-dias` (default `3`); injetar via `@Value` no scheduler.
 - [ ] 2c.2 Passar `hoje.minusDays(carenciaDias)` ao `findElegiveisFallback` (query já recebe `:limiteCarencia`).
-- [ ] 2c.3 Validação: teste com carência customizada (ex: 5 dias) — plano com `semanaFim` há 4 dias NÃO é encerrado; com 3 dias SIM. `./mvnw clean test`.
+- [ ] 2c.3 Validação (critério 22): teste com carência customizada (5 dias) — plano com `semanaFim` há 4 dias NÃO é encerrado; há 5+ dias SIM; default da property é 3. `./mvnw clean test`.
 
 ## 3. Endpoint on-demand do treinador
 

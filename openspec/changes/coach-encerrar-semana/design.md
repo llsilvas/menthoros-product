@@ -194,7 +194,7 @@ Endpoint em lote (assessoria):
   ```
 
 Endpoint de **preview / dry-run** (confiança no lote — sem persistir nada):
-- `POST /api/v1/coach/semanas/encerrar-lote/preview` (e opcionalmente `.../planos/{planoId}/encerrar-semana/preview`)
+- `POST /api/v1/coach/semanas/encerrar-lote/preview` — **exclusivo do lote** (não há preview individual; ver Non-Goals no proposal)
 - Executa a mesma seleção e **calcula** o impacto (quantos treinos por atleta seriam marcados `PERDIDO`, quais
   planos fechariam) **sem** gravar. `@Transactional(readOnly = true)`.
 - 200 → mesmo shape do `EncerramentoLoteOutputDto`, porém rotulado como projeção. Permite ao front mostrar

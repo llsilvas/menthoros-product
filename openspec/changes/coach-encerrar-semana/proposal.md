@@ -73,6 +73,9 @@ gerada — mantendo o treinador no controle (coach-in-the-loop).
 - **Não** recalcula TSB/CTL/ATL — um treino `PERDIDO` não tem TSS; a série fisiológica usa apenas
   `TreinoRealizado` e permanece correta.
 - **Não** altera `PARCIAL`/`LIVRE`/`REALIZADO` — só finaliza `PENDENTE` passado.
+- **Preview é exclusivo do lote.** Não há preview do encerramento **individual** — o coach vê o resultado
+  imediatamente na resposta da ação e ela é reversível (registro retroativo). O preview existe para a
+  salvaguarda de confiança do **lote** (mutar dezenas de atletas de uma vez).
 - **Frontend**: esta change é **backend-only** por decisão de decomposição. Os botões (individual + lote),
   a **tela de confirmação do preview** e a exibição do resumo vivem na change separada
   **`coach-encerrar-semana-ui`** (fast-follow bloqueante do valor). Esta change entrega os endpoints
@@ -178,6 +181,31 @@ salvo indicação de camada).
     **GIVEN** um treino que passa de `PENDENTE` a `REALIZADO` (registro do atleta) entre a seleção e a marcação
     **WHEN** o encerramento tenta finalizá-lo
     **THEN** esse treino é **ignorado** (não marcado, sem lançar) e os demais treinos do atleta são finalizados normalmente.
+
+19. **On-demand persiste `origem_encerramento = ON_DEMAND`** *(task 2b)*
+    **GIVEN** um plano encerrado pela ação do treinador (individual ou lote)
+    **WHEN** o encerramento conclui
+    **THEN** a coluna `origem_encerramento` do `PlanoSemanal` fica `ON_DEMAND`.
+
+20. **Automático persiste `origem_encerramento = AUTOMATICO`** *(task 2b)*
+    **GIVEN** um plano encerrado pelo scheduler
+    **WHEN** o fechamento automático conclui
+    **THEN** a coluna `origem_encerramento` fica `AUTOMATICO`.
+
+21. **Planos pré-existentes têm origem nula** *(task 2b — migration nullable)*
+    **GIVEN** planos já `CONCLUIDO` antes desta change (migration aplicada)
+    **WHEN** a coluna é adicionada
+    **THEN** `origem_encerramento` é `null` (sem backfill), e as consultas de métrica tratam `null` como categoria distinta.
+
+22. **Carência do fallback é parametrizável** *(task 2c)*
+    **GIVEN** `menthoros.encerramento-semana.carencia-dias = 5` e um plano cujo `semanaFim` foi há 4 dias com `PENDENTE` passados
+    **WHEN** o job diário roda
+    **THEN** o plano **não** é encerrado (4 < 5); com `semanaFim` há 5+ dias, é encerrado. O default da property é `3`.
+
+23. **A métrica-farol de adoção é calculável** *(task 2b)*
+    **GIVEN** planos encerrados com origens `ON_DEMAND` e `AUTOMATICO` (e pré-existentes `null`)
+    **WHEN** a query `SELECT origem_encerramento, COUNT(*) FROM tb_plano_semanal GROUP BY origem_encerramento` roda
+    **THEN** retorna as contagens segmentadas sem erro, permitindo calcular a proporção on-demand (≥ 60%).
 
 ## Métrica de sucesso
 
