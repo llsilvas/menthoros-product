@@ -24,10 +24,10 @@ TDD: escrever o teste do bloco antes da implementação.
 
 ## 2. Fechamento do plano + evento
 
-- [ ] 2.1 **Verificar** que `TreinoService.atualizarStatusDoPlano()` existe e é idempotente (mapa do domínio: `TreinoServiceImpl:193-215`) e **reusá-lo** (não reimplementar). Após finalizar os pendentes, garantir que leva a `CONCLUIDO` quando todos finalizados; compor `EncerramentoSemanaResultado` (nº finalizados, ids perdidos, `prontoParaProximaSemana`).
-- [ ] 2.1b **Plano sem elegíveis / vazio** (risco T6): quando o plano já passou e não há `PENDENTE <= hoje` a finalizar, fechar `CONCLUIDO` explicitamente (evitar reprocesso perpétuo); no on-demand no meio da semana (`semanaFim > hoje`), não fechar e devolver `aviso`. Cobre critérios 15 e 17.
-- [ ] 2.2 Definir `SemanaEncerradaEvent` (record, com `origem: OrigemEncerramento` = `ON_DEMAND`/`AUTOMATICO`) e publicá-lo; o contrato SHALL ser consumido em `@TransactionalEventListener(AFTER_COMMIT)` (risco T5). Cada gatilho informa sua `origem` (on-demand/lote → `ON_DEMAND`; scheduler → `AUTOMATICO`). **Sem listener que gere plano** nesta change.
-- [ ] 2.3 Validação: teste dos critérios 3 (plano → `CONCLUIDO`), 15 (aviso meio-de-semana), 17 (plano vazio fecha) e verificação da publicação do evento após commit. `./mvnw clean test`.
+- [x] 2.1 **Verificar** que `TreinoService.atualizarStatusDoPlano()` existe e é idempotente (mapa do domínio: `TreinoServiceImpl:193-215`) e **reusá-lo** (não reimplementar). Após finalizar os pendentes, garantir que leva a `CONCLUIDO` quando todos finalizados; compor `EncerramentoSemanaResultado` (nº finalizados, ids perdidos, `prontoParaProximaSemana`).
+- [x] 2.1b **Plano sem elegíveis / vazio** (risco T6): quando o plano já passou e não há `PENDENTE <= hoje` a finalizar, fechar `CONCLUIDO` explicitamente (evitar reprocesso perpétuo); no on-demand no meio da semana (`semanaFim > hoje`), não fechar e devolver `aviso`. Cobre critérios 15 e 17.
+- [x] 2.2 Definir `SemanaEncerradaEvent` (record, com `origem: OrigemEncerramento` = `ON_DEMAND`/`AUTOMATICO`) e publicá-lo; o contrato SHALL ser consumido em `@TransactionalEventListener(AFTER_COMMIT)` (risco T5). Cada gatilho informa sua `origem` (on-demand/lote → `ON_DEMAND`; scheduler → `AUTOMATICO`). **Sem listener que gere plano** nesta change.
+- [x] 2.3 Validação: teste dos critérios 3 (plano → `CONCLUIDO`), 15 (aviso meio-de-semana), 17 (plano vazio fecha) e verificação da publicação do evento (payload + origem). `./mvnw clean test`. **Nota:** critério 26 (AFTER_COMMIT) coberto por contrato — publicação dentro da TX + JavaDoc no `SemanaEncerradaEvent` exigindo `@TransactionalEventListener(AFTER_COMMIT)`; sem consumidor nesta change, seguindo a convenção do `TreinoRegistradoEvent`.
 
 ## 2b. Persistência da origem de encerramento (métrica-farol)
 
