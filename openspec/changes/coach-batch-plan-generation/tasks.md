@@ -230,12 +230,12 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
 
 ### 2.2 API service
 
-- [ ] 2.2.a Em `src/api/services/` criar `BatchPlanService.ts` com:
+- [x] 2.2.a Em `src/api/services/` criar `BatchPlanService.ts` com:
   ```ts
   gerarEmLote(atletaIds: string[], modo?: 'PROXIMA_SEMANA' | 'SEMANA_ATUAL'): Promise<{ jobId: string; totalAtletas: number }>
   consultarStatus(jobId: string): Promise<BatchPlanJobStatus>
   ```
-- [ ] 2.2.b Validação: `npm run build`.
+- [x] 2.2.b Validação: `npm run build`.
 
 ### 2.3 Hook `useBatchPlanGeneration`
 
