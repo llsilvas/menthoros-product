@@ -227,6 +227,16 @@ salvo indicação de camada).
     **WHEN** a requisição é processada
     **THEN** a resposta é 404 (via `@RequireTenant`), sem encerrar nada.
 
+28. **`SemanaEncerradaEvent` é publicado com os campos obrigatórios** *(task 2.2)*
+    **GIVEN** um plano encerrado (on-demand ou automático)
+    **WHEN** o encerramento conclui
+    **THEN** um `SemanaEncerradaEvent` é publicado contendo `planoId`, `atletaId`, `tenantId`, número de treinos marcados `PERDIDO` e `origem` (`ON_DEMAND` ou `AUTOMATICO`).
+
+29. **Carência default é 3 dias quando a property não está definida** *(task 2c)*
+    **GIVEN** `menthoros.encerramento-semana.carencia-dias` não configurada (default 3) e um plano não `CONCLUIDO` cujo `semanaFim` foi há 3 dias
+    **WHEN** o job diário roda
+    **THEN** o plano é encerrado.
+
 ## Métrica de sucesso
 
 Ligada à rotina do treinador:
