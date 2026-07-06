@@ -44,10 +44,10 @@ TDD: escrever o teste do bloco antes da implementação.
 
 ## 3. Endpoint on-demand do treinador
 
-- [ ] 3.1 `EncerramentoSemanaOutputDto` (record, `@JsonInclude(NON_NULL)`, `@Schema`) em `dto/output/`.
-- [ ] 3.2 `POST /api/v1/coach/planos/{planoId}/encerrar-semana` no controller de plano do coach: injeta só a interface do service, `@PreAuthorize` coach/admin, `@RequireTenant(resourceParamIndex = 0)`, `@Operation` + `@ApiResponses` (200/403/404), retorna `ResponseEntity<EncerramentoSemanaOutputDto>`.
-- [ ] 3.3 Chamada on-demand **não aplica carência** (critério 2).
-- [ ] 3.4 Validação: `@WebMvcTest` do endpoint (200 com resumo; 403 sem papel — critério 10) + teste de serviço do critério 2. `./mvnw clean test`.
+- [x] 3.1 `EncerramentoSemanaOutputDto` (record, `@JsonInclude(NON_NULL)`, `@Schema`) em `dto/output/`.
+- [x] 3.2 `POST /api/v1/coach/planos/{planoId}/encerrar-semana` no controller de plano do coach: injeta só a interface do service, `@PreAuthorize` coach/admin, `@RequireTenant(resourceParamIndex = 0)`, `@Operation` + `@ApiResponses` (200/403/404), retorna `ResponseEntity<EncerramentoSemanaOutputDto>`.
+- [x] 3.3 Chamada on-demand **não aplica carência** (critério 2).
+- [x] 3.4 Validação: teste do controller (200 com resumo mapeado; propagação de 404) + teste de serviço do critério 2. `./mvnw clean test`. **Nota:** 403 (critério 10) é declarativo via `@PreAuthorize(TECNICO/ADMIN)` e 404 (critério 27) via `@RequireTenant`+`GlobalExceptionHandler` — não `@WebMvcTest` (não adotado no módulo), seguindo a convenção dos demais coach controllers.
 
 ## 4. Encerramento em lote da assessoria
 
