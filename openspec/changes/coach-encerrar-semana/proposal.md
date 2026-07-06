@@ -207,6 +207,26 @@ salvo indicação de camada).
     **WHEN** a query `SELECT origem_encerramento, COUNT(*) FROM tb_plano_semanal GROUP BY origem_encerramento` roda
     **THEN** retorna as contagens segmentadas sem erro, permitindo calcular a proporção on-demand (≥ 60%).
 
+24. **Atleta sem semana corrente é ignorado, não é falha** *(task 4.x — lote)*
+    **GIVEN** um lote onde um atleta do tenant não tem plano na semana corrente
+    **WHEN** o lote roda
+    **THEN** esse atleta é contabilizado como "sem plano" (`atletasSemPlano`), **não** como falha, e não afeta a contagem de processados.
+
+25. **Encerrar não gera o próximo plano (coach-in-the-loop)** *(task 2.2)*
+    **GIVEN** um plano encerrado (on-demand ou automático)
+    **WHEN** o encerramento conclui e publica `SemanaEncerradaEvent`
+    **THEN** nenhum plano da próxima semana é gerado como efeito — a geração segue disparada pelo treinador.
+
+26. **Evento só é entregue após o commit da transação** *(task 2.2 — AFTER_COMMIT)*
+    **GIVEN** um encerramento de atleta que sofre rollback (falha/optimistic lock) após publicar o evento
+    **WHEN** a transação é revertida
+    **THEN** os consumidores do `SemanaEncerradaEvent` **não** são acionados (entrega em `@TransactionalEventListener(AFTER_COMMIT)`).
+
+27. **Plano de outro tenant não é encontrado (endpoint on-demand)** *(task 3.x)*
+    **GIVEN** um treinador do tenant A chamando o endpoint individual com um `planoId` do tenant B
+    **WHEN** a requisição é processada
+    **THEN** a resposta é 404 (via `@RequireTenant`), sem encerrar nada.
+
 ## Métrica de sucesso
 
 Ligada à rotina do treinador:
