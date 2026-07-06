@@ -266,17 +266,17 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
 
 ### 2.5 Dialog de confirmação e progresso
 
-- [ ] 2.5.a Criar `BatchPlanDialog.tsx` com dois estados:
+- [x] 2.5.a Criar `BatchPlanDialog.tsx` com dois estados:
   - **Confirmação:** lista de atletas selecionados, modo de geração, aviso "Planos entrarão em Aguardando Revisão", botões Confirmar/Cancelar.
   - **Progresso:** `LinearProgress` com `value = (gerados + erros) / totalAtletas * 100`, contador "X de N gerados", spinner enquanto em andamento.
   - **Resultado:** ao concluir, exibe `X planos gerados` (verde) e `Y erros` (laranja) com lista colapsável de erros.
-- [ ] 2.5.b Integrar `useBatchPlanGeneration` no dialog.
-- [ ] 2.5.c Após conclusão: chamar `reset()`, limpar `selecionados` no roster, invalidar cache de planos pendentes (para atualizar badge no nav).
-- [ ] 2.5.d Validação: `npm run lint && npm run build`.
+- [x] 2.5.b Integrar `useBatchPlanGeneration` no dialog.
+- [x] 2.5.c Após conclusão: chamar `reset()`, limpar `selecionados` no roster, invalidar cache de planos pendentes (para atualizar badge no nav).
+- [x] 2.5.d Validação: `npm run lint && npm run build`.
 
 ### 2.6 Testes de componente
 
-- [ ] 2.6.a Teste do `BatchPlanDialog`: exibe confirmação antes do disparo; exibe progresso após confirmar; exibe resultado ao concluir.
+- [x] 2.6.a Teste do `BatchPlanDialog`: exibe confirmação antes do disparo; exibe progresso após confirmar; exibe resultado ao concluir.
 - [ ] 2.6.b Teste da integração no `CoachAthletesPage`: toolbar aparece ao selecionar; desaparece ao cancelar seleção.
 - [ ] 2.6.c Validação: `npm run lint && npm run build && npm test`.
 
