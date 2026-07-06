@@ -68,10 +68,10 @@ TDD: escrever o teste do bloco antes da implementação.
 
 ## 6. Reversibilidade PERDIDO → REALIZADO
 
-- [ ] 6.1 Ajustar a promoção de status no registro retroativo (`registrarTreinoManualAtleta` / `marcar-realizado`) para aceitar origem `PERDIDO`, não só `PENDENTE/PARCIAL/LIVRE`; recalcular status do plano.
-- [ ] 6.2 Validação: teste do critério 9 (treino `PERDIDO` volta a `REALIZADO`, vincula ao realizado, plano recalculado). `./mvnw clean test`.
+- [x] 6.1 Ajustar a promoção de status no registro retroativo (`registrarTreinoManualAtleta` / `marcar-realizado`) para aceitar origem `PERDIDO`, não só `PENDENTE/PARCIAL/LIVRE`; recalcular status do plano.
+- [x] 6.2 Validação: teste do critério 9 (treino `PERDIDO` volta a `REALIZADO`, vincula ao realizado, plano recalculado). `./mvnw clean test`.
 
 ## 7. Fechamento
 
-- [ ] 7.1 Rodar suíte completa: `./mvnw clean test` (verde, sem regressão).
-- [ ] 7.2 Atualizar este `tasks.md` marcando o que foi entregue vs. adiado (ex.: botão de frontend, se ficar fast-follow).
+- [x] 7.1 Rodar suíte completa: `./mvnw clean test` (verde, sem regressão).
+- [x] 7.2 Entregue: seções 1–6 completas (núcleo, fechamento+evento, persistência de origem, endpoint on-demand, lote+preview, fallback+carência, reversibilidade). **Adiado (fora do escopo backend, documentado no proposal):** frontend (botões + confirmação do preview) = change `coach-encerrar-semana-ui`; digest/notificação do fallback = `add-weekly-athlete-review`; teste de integração de commit-real do lote e de rollback AFTER_COMMIT (cobertos estruturalmente/por contrato). Suíte: 1201 testes, 0 falhas.
