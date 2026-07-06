@@ -1,0 +1,54 @@
+# Tasks — coach-encerrar-semana
+
+Trilha Full · backend (`apps/menthoros-backend`). Validação por bloco: `./mvnw clean test`.
+TDD: escrever o teste do bloco antes da implementação.
+
+## 1. Núcleo de domínio: regra de encerramento
+
+- [ ] 1.0 **Fonte de `hoje` (fuso)**: introduzir `Clock` injetável em `America/Sao_Paulo` (ou usar `CURRENT_DATE` nas queries) e derivar `hoje` de um único ponto — nunca `LocalDate.now()` sem zona (risco T2). Cobrir com o critério 16.
+- [ ] 1.1 Query `findPendentesAteHojeDoPlano(planoId, hoje)` em `TreinoPlanejadoRepository` (status `PENDENTE` e `dataTreino <= hoje`).
+- [ ] 1.2 `EncerramentoSemanaService` (interface) + `EncerramentoSemanaServiceImpl` com `encerrarSemana(planoId)` e helper `finalizarPendentes(plano, hoje)`, delegando a marcação unitária a `TreinoService.marcarTreinoPerdido()` (reuso — não reimplementar a regra).
+- [ ] 1.2b **Resiliência a corrida** (risco T4): no núcleo, **pular** (não lançar) treino que já não está `PENDENTE` no momento do update; contabilizar como "ignorado".
+- [ ] 1.3 Documentar cada método público (Idempotent/Side Effects/Tenant-aware) conforme o CLAUDE.md do backend.
+- [ ] 1.4 Validação: teste unitário cobrindo critérios 1, 2, 4, 5, 16 e 18 (finaliza `<= hoje` incl. domingo; fuso; não toca REALIZADO/PARCIAL/futuro; idempotência; ignora corrida). `./mvnw clean test`.
+
+## 2. Fechamento do plano + evento
+
+- [ ] 2.1 Após finalizar os pendentes, garantir `atualizarStatusDoPlano()` levando a `CONCLUIDO` quando todos finalizados; compor `EncerramentoSemanaResultado` (nº finalizados, ids perdidos, `prontoParaProximaSemana`).
+- [ ] 2.1b **Plano sem elegíveis / vazio** (risco T6): quando o plano já passou e não há `PENDENTE <= hoje` a finalizar, fechar `CONCLUIDO` explicitamente (evitar reprocesso perpétuo); no on-demand no meio da semana (`semanaFim > hoje`), não fechar e devolver `aviso`. Cobre critérios 15 e 17.
+- [ ] 2.2 Definir `SemanaEncerradaEvent` (record, com `origem: OrigemEncerramento` = `ON_DEMAND`/`AUTOMATICO`) e publicá-lo; o contrato SHALL ser consumido em `@TransactionalEventListener(AFTER_COMMIT)` (risco T5). Cada gatilho informa sua `origem` (on-demand/lote → `ON_DEMAND`; scheduler → `AUTOMATICO`). **Sem listener que gere plano** nesta change.
+- [ ] 2.3 Validação: teste dos critérios 3 (plano → `CONCLUIDO`), 15 (aviso meio-de-semana), 17 (plano vazio fecha) e verificação da publicação do evento após commit. `./mvnw clean test`.
+
+## 3. Endpoint on-demand do treinador
+
+- [ ] 3.1 `EncerramentoSemanaOutputDto` (record, `@JsonInclude(NON_NULL)`, `@Schema`) em `dto/output/`.
+- [ ] 3.2 `POST /api/v1/coach/planos/{planoId}/encerrar-semana` no controller de plano do coach: injeta só a interface do service, `@PreAuthorize` coach/admin, `@RequireTenant(resourceParamIndex = 0)`, `@Operation` + `@ApiResponses` (200/403/404), retorna `ResponseEntity<EncerramentoSemanaOutputDto>`.
+- [ ] 3.3 Chamada on-demand **não aplica carência** (critério 2).
+- [ ] 3.4 Validação: `@WebMvcTest` do endpoint (200 com resumo; 403 sem papel — critério 10) + teste de serviço do critério 2. `./mvnw clean test`.
+
+## 4. Encerramento em lote da assessoria
+
+- [ ] 4.0 **Fronteira transacional** (risco T1): extrair `EncerramentoAtletaTransacional` (bean separado, `@Transactional(REQUIRES_NEW)`) ou usar `TransactionTemplate` — commit/rollback por atleta. O método do loop **não** é `@Transactional`.
+- [ ] 4.1 `EncerramentoLoteOutputDto` + `FalhaAtleta` (records tipados; não `List<String>`) com baldes processado/sem-plano/falha (risco T8).
+- [ ] 4.2 Query **tenant-scoped** da semana corrente em `PlanoSemanalRepository` (`ps.assessoria.id = :tenantId`, `ORDER BY semanaInicio DESC`, primeiro resultado — resiliente a sobreposição; risco T3). **Não** usar `findByAtletaIdAndSemana` (não é tenant-scoped).
+- [ ] 4.3 `encerrarSemanaLoteAssessoria(hoje)` no service: atletas via `AtletaRepository` **tenant-scoped**; para cada, resolve a semana corrente (4.2) e encerra via bean transacional (4.0); falha por atleta vira `FalhaAtleta`, lote continua.
+- [ ] 4.4 `POST /api/v1/coach/semanas/encerrar-lote`: `@PreAuthorize` coach/admin, **sem** `@RequireTenant`, `@Operation` + `@ApiResponses` (200/403), retorna `ResponseEntity<EncerramentoLoteOutputDto>`.
+- [ ] 4.5 **Preview/dry-run** (produto P1): `POST /api/v1/coach/semanas/encerrar-lote/preview` (`readOnly`, não persiste) retornando o impacto projetado no mesmo shape.
+- [ ] 4.6 Validação: testes dos critérios 11 (resumo + totais), 12 (escopo do tenant + negativo cross-tenant), 13 (falha parcial com **commit real** de N-1) e 14 (preview não persiste). `./mvnw clean test`.
+
+## 5. Fechamento automático com carência (scheduler)
+
+- [ ] 5.1 Query `findElegiveisFallback(tenantId, limiteCarencia)` em `PlanoSemanalRepository` via `@Query` com `ps.assessoria.id = :tenantId` e `ps.status <> CONCLUIDO` e `ps.semanaFim <= :limiteCarencia` (`= hoje - 3d`) — **não** método derivado por `tenantId` (risco T3).
+- [ ] 5.2 `encerrarPlanosElegiveis(tenantId, hoje)` no service: seleciona planos fora da carência e aplica o encerramento por atleta (bean transacional 4.0). Fonte única de tenant (parâmetro explícito, sem `TenantContext` redundante; risco T7).
+- [ ] 5.3 `EncerramentoSemanaScheduler` com `@Scheduled(cron = "${menthoros.encerramento-semana.cron:0 30 3 * * *}", zone = "America/Sao_Paulo")`, flag `menthoros.encerramento-semana.enabled` (default true); tenants via `AssessoriaRepository.findByAtivoTrue()`, `TenantContext.set` no `try` / `clear` no `finally` por iteração; falha por tenant isolada; pool dedicado (não compartilhar a thread única com a sync do Strava — risco T7).
+- [ ] 5.4 Validação: testes dos critérios 6 (carência bloqueia), 7 (fecha após carência) e 8 (isolamento multi-tenant, **incluindo** iteração que lança antes do `clear()` e a seguinte roda com o tenant certo). `./mvnw clean test`.
+
+## 6. Reversibilidade PERDIDO → REALIZADO
+
+- [ ] 6.1 Ajustar a promoção de status no registro retroativo (`registrarTreinoManualAtleta` / `marcar-realizado`) para aceitar origem `PERDIDO`, não só `PENDENTE/PARCIAL/LIVRE`; recalcular status do plano.
+- [ ] 6.2 Validação: teste do critério 9 (treino `PERDIDO` volta a `REALIZADO`, vincula ao realizado, plano recalculado). `./mvnw clean test`.
+
+## 7. Fechamento
+
+- [ ] 7.1 Rodar suíte completa: `./mvnw clean test` (verde, sem regressão).
+- [ ] 7.2 Atualizar este `tasks.md` marcando o que foi entregue vs. adiado (ex.: botão de frontend, se ficar fast-follow).
