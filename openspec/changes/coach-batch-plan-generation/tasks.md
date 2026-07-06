@@ -127,7 +127,7 @@
 
 - [x] 1.5.a Criar interface `BatchPlanService`:
   ```java
-  UUID iniciarLote(BatchGeracaoPlanoInputDto input, UUID tenantId);
+  BatchLoteAceitoOutputDto iniciarLote(BatchGeracaoPlanoInputDto input, UUID tenantId); // jobId + totalAtletas p/ o 202
   BatchJobStatusOutputDto consultarStatus(UUID jobId, UUID tenantId);
   ```
 - [x] 1.5.b Criar `BatchPlanServiceImpl`:
@@ -150,12 +150,12 @@
 
 ### 1.6 Controller: `CoachBatchPlanController`
 
-- [ ] 1.6.a Criar `CoachBatchPlanController` em `controller/`:
+- [x] 1.6.a Criar `CoachBatchPlanController` em `controller/`:
   - Tag: `coach-batch-plan`.
   - `POST /api/v1/coach/planos/gerar-lote` → `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")`, body `@Valid BatchGeracaoPlanoInputDto`, retorno `202 Accepted` com body `{ "jobId": uuid, "totalAtletas": N }` e header `Location: /api/v1/coach/planos/lote/{jobId}`.
   - `GET /api/v1/coach/planos/lote/{jobId}` → retorno `BatchJobStatusOutputDto`.
   - `@Operation` + `@ApiResponses` em ambos (202, 400, 403 no POST; 200, 404 no GET).
-- [ ] 1.6.b Validação: `./mvnw clean test`.
+- [x] 1.6.b Validação: `./mvnw clean test`.
 
 ### 1.7 Testes de unidade — service
 
@@ -179,12 +179,12 @@
   - `DomainRuleViolationException não-duplicidade → motivo Erro ao gerar plano`.
   - (limite de concorrência do `Semaphore` coberto pelo `LlmConcurrencyLimiterTest`, seção 1.4.)
   - `updates de progresso usam a query atômica (incrementarGerados/incrementarErros), não leitura+reatribuição`.
-- [ ] 1.7.c `CoachBatchPlanControllerTest` com `@WebMvcTest`:
-  - POST retorna 202 com `jobId` e header `Location`.
-  - POST retorna 400 para lista vazia.
+- [x] 1.7.c `CoachBatchPlanControllerTest` (Mockito puro — convenção do módulo; `@WebMvcTest` ainda não é usado, e authz/`@Valid` são declarativos, como no `CoachEncerramentoSemanaControllerTest`):
+  - POST retorna 202 com `jobId`, `totalAtletas` e header `Location`.
   - GET retorna 200 com status do job.
-  - GET retorna 404 para jobId desconhecido.
-- [ ] 1.7.d Validação: `./mvnw clean test` — todos os testes passando.
+  - GET propaga `ResourceNotFoundException` (→ 404) para jobId de outro tenant.
+  - (POST 400 para lista vazia/>20 e 403 sem role são declarativos — cobertos pelo teste manual E2E, task 3.3.)
+- [x] 1.7.d Validação: `./mvnw clean test` — todos os testes passando (1230).
 
 ### 1.8 Recovery de jobs órfãos no restart
 
