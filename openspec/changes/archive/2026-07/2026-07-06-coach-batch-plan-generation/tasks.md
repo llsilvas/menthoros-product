@@ -1,6 +1,6 @@
 # Tasks: coach-batch-plan-generation
 
-**Status:** Proposed
+**Status:** Concluída (mergeada em develop 2026-07-06; PRs backend#28, front#34) — E2E manual (3.3) e baseline (3.4) deferidos para staging/pré-deploy
 **Sprint:** Sprint 12 (desbloqueada — dependência de `add-llm-tool-use` removida, SPRINTS.md 2026-07-06)
 **Tamanho:** M · Trilha: Full
 **Repos:** menthoros-backend + menthoros-front
@@ -298,4 +298,4 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
   - Lote de 20 atletas: confirmar (via log/métrica) que no máximo `app.batch-plan.llm-concorrencia` chamadas ao LLM ficam em voo simultaneamente.
 - [ ] 3.4 **Baseline da métrica de sucesso (deferido para pré-deploy — requer DB com dados de produção/dev):** executar a query de baseline sobre os planos gerados individualmente nas 2 semanas anteriores — delta `MIN(criado_em)` → `MAX(criado_em)` agrupado por coach + `semana_inicio`, filtrando grupos com ≥2 planos. Registrar o resultado (média dos deltas) como documento de referência para a comparação pós-lançamento (`tb_batch_plan_job.criado_em → concluido_em`). Confirmar amostra mínima (≥3 grupos com ≥2 planos); se insuficiente, estender a janela. Sem este baseline registrado, a métrica primária (≥60% de redução) não é verificável — não considerar a change entregue sem ele.
 - [x] 3.5 QA executado: `code-reviewer` + `security-reviewer` + `clean-code-reviewer` (backend), `frontend-reviewer` + `clean-code-reviewer` (frontend) e camada cross-model **Codex** (`/codex:review`). Veredito inicial NO-GO (1 Critical + Importants). **Todos os Critical/Important corrigidos** (commits `4286ab3` backend, `ae7f5de` front); suítes verdes (backend 1234, front 487). Decisão de produto: REJEITADO passa a ser regenerável. **Deferidos (documentados):** índice composto `(tenant_id, criado_em)` na V52 (revertido — evita quebra de checksum do Flyway; aplicar em migration futura se desejado); nomenclatura PT-BR do front (consistente com `useEncerrarSemana`/`EncerrarLoteDialog` do módulo); mover `useBatchPlanGeneration` para `features/coach/hooks` (migração feature-shell); dedup do builder de status nos testes; aliases `@/` no front.
-- [ ] 3.6 Abrir PR (`feature/coach-batch-plan-generation`) e aguardar CI verde.
+- [x] 3.6 PRs abertos e **mergeados** em `develop`: backend `llsilvas/menthoros-backend#28`, frontend `llsilvas/menthoros-front#34` (2026-07-06). 3.3 (E2E manual) e 3.4 (baseline da métrica) permanecem deferidos para staging/pré-deploy.
