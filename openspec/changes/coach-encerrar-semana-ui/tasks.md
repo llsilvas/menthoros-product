@@ -42,3 +42,14 @@ Depende de `coach-encerrar-semana` mergeada (contratos de API — já em `develo
 - [x] 4.1 Reloads ligados: individual → `fetchPlanosPorAtleta`; lote → `fetchRoster`. Nota: `origem` vem no resultado mas não é exibida (ação do coach é sempre ON_DEMAND); distinguir AUTOMATICO em leituras posteriores é o follow-up documentado no design (exige persistir/expor `origem` nas telas de leitura).
 - [x] 4.2 Garantir dialogs responsivos (telas menores/maiores) e nenhum fluxo existente quebrado (critério 5).
 - [x] 4.3 **verify final:** `npm run lint && npm run build && npm run test:run` + smoke manual.
+
+## QA gate (/qa)
+
+frontend-reviewer + clean-code-reviewer em paralelo. **Sem Critical.** Aplicados (commit `b529de8`):
+- **Convergente (ambos)** — botão "Encerrar semana" aparecia em planos `CONCLUIDO` → guarda `status !== 'CONCLUIDO'`.
+- **frontend** — `novoStatus` tipado como união (`string | {value,label}`) refletindo o `@JsonFormat(OBJECT)`; nome do atleta nas falhas do lote via `resolveNomeAtleta` (roster) em vez do UUID.
+- **clean-code** — `useCallback` nos handlers; guarda de unmount no preview; cobertura dos caminhos de erro (preview/encerrar), `encerrarLote` no hook, branch `finalizados===0`.
+- **Não aplicado / follow-up documentado:**
+  - **⚠ LGPD (pré-existente, fora do escopo):** `console.log`/`error.message` com dados de atleta (id, planos com métricas de saúde) em `planosDialog.tsx` — recomendado remover numa change de higiene separada (não introduzido por esta feature; regra do CLAUDE.md de não limpar código adjacente).
+  - Naming PT-BR dos tipos novos (espelha os DTOs do backend) e `@/` imports — Minor, mantidos.
+- Suíte: **475 testes, 0 falhas**; lint + build limpos.
