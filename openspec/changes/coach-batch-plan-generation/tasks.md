@@ -1,19 +1,19 @@
 # Tasks: coach-batch-plan-generation
 
 **Status:** Proposed
-**Sprint:** Após `add-llm-tool-use` (Sprints 10–11) — verificar prioridade no planning
-**Tamanho:** M · **Trilha:** Full
+**Sprint:** Sprint 12 (desbloqueada — dependência de `add-llm-tool-use` removida, SPRINTS.md 2026-07-06)
+**Tamanho:** M · Trilha: Full
 **Repos:** menthoros-backend + menthoros-front
-**Dependências:** `add-llm-tool-use` ✅, `coach-edit-planned-workout` ✅
+**Dependências:** `add-coach-shell-dashboards` (concluída), `coach-edit-planned-workout` (concluída)
 
 ---
 
 ## Bloco 1 — Backend: Infraestrutura do job assíncrono
 
-### 1.1 Migration (próxima após V39)
+### 1.1 Migration (V52)
 
-- [ ] 1.1.a Verificar a última migration aplicada antes de criar (ex: `ls db/migration/ | sort -V | tail -3`).
-- [ ] 1.1.b Criar `VXX__Create_tb_batch_plan_job.sql`:
+- [ ] 1.1.a Confirmar que V51 (`V51__add_origem_encerramento_plano_semanal.sql`) continua sendo a última migration aplicada (`ls db/migration/ | sort -V | tail -3`) — se outra change avançou a numeração, ajustar para a próxima disponível.
+- [ ] 1.1.b Criar `V52__Create_tb_batch_plan_job.sql`:
   ```sql
   CREATE TABLE IF NOT EXISTS tb_batch_plan_job (
       id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -30,7 +30,7 @@
       )
   );
   CREATE INDEX IF NOT EXISTS idx_batch_plan_job_tenant ON tb_batch_plan_job(tenant_id);
-  DO $$ BEGIN RAISE NOTICE '✅ VXX - tb_batch_plan_job criada'; END$$;
+  DO $$ BEGIN RAISE NOTICE '✅ V52 - tb_batch_plan_job criada'; END$$;
   ```
 - [ ] 1.1.c Validação: `./mvnw flyway:info` sem conflito.
 
@@ -38,7 +38,18 @@
 
 - [ ] 1.2.a Criar enum `BatchJobStatus` (PENDENTE, EM_PROGRESSO, CONCLUIDO, CONCLUIDO_COM_ERROS).
 - [ ] 1.2.b Criar entidade `BatchPlanJob` com campos: `id`, `tenantId`, `status`, `totalAtletas`, `gerados`, `erros`, `criadoEm`, `concluidoEm`, `resultado` (String/JSON).
-- [ ] 1.2.c Criar `BatchPlanJobRepository` com `findByIdAndTenantId(UUID id, UUID tenantId)`.
+- [ ] 1.2.c Criar `BatchPlanJobRepository` com:
+  - `findByIdAndTenantId(UUID id, UUID tenantId)` — para o GET de status.
+  - **Updates atômicos, sem leitura + reatribuição em memória** (evita race condition entre virtual threads concorrentes escrevendo no mesmo job):
+    ```java
+    @Modifying
+    @Query("UPDATE BatchPlanJob b SET b.gerados = b.gerados + 1 WHERE b.id = :id")
+    void incrementarGerados(@Param("id") UUID id);
+
+    @Modifying
+    @Query("UPDATE BatchPlanJob b SET b.erros = b.erros + 1 WHERE b.id = :id")
+    void incrementarErros(@Param("id") UUID id);
+    ```
 - [ ] 1.2.d Validação: `./mvnw clean compile`.
 
 ### 1.3 DTOs
@@ -55,14 +66,42 @@
 - [ ] 1.3.c Criar records aninhados `BatchGeradoItemDto(UUID atletaId, UUID planoId, String atletaNome)` e `BatchErroItemDto(UUID atletaId, String motivo)`.
 - [ ] 1.3.d Validação: `./mvnw clean compile`.
 
-### 1.4 `AsyncConfig` — pool dedicado
+### 1.4 `BatchPlanAsyncConfig` — executor de virtual threads
 
-- [ ] 1.4.a Criar `AsyncConfig.java` em `config/` com bean `batchPlanExecutor`:
-  - `corePoolSize = 2`, `maxPoolSize = 3`, `queueCapacity = 10`.
-  - `threadNamePrefix = "batch-plan-"`.
-  - `RejectedExecutionHandler = CallerRunsPolicy`.
-- [ ] 1.4.b Adicionar `@EnableAsync` em `AsyncConfig` ou na classe de configuração principal.
-- [ ] 1.4.c Validação: `./mvnw clean compile`.
+- [ ] 1.4.a Criar `BatchPlanAsyncConfig.java` em `config/` (nome segue a convenção existente do projeto — uma config por feature, como `StravaWebhookAsyncConfig` e `WorkoutAnalysisAsyncConfig` — não um `AsyncConfig` genérico):
+  ```java
+  @Configuration
+  @EnableAsync
+  public class BatchPlanAsyncConfig {
+      @Bean("batchPlanExecutor")
+      public Executor batchPlanExecutor() {
+          return new TaskExecutorAdapter(Executors.newVirtualThreadPerTaskExecutor());
+      }
+  }
+  ```
+  Sem pool dimensionado (core/max/queue) — cada atleta roda em sua própria virtual thread, tarefa I/O-bound (chamada ao LLM).
+- [ ] 1.4.b Criar `LlmConcurrencyLimiter` (`@Component`) com `Semaphore` para limitar chamadas *reais* ao LLM (independente do nº de virtual threads):
+  ```java
+  @Component
+  public class LlmConcurrencyLimiter {
+      private final Semaphore semaphore;
+
+      public LlmConcurrencyLimiter(@Value("${menthoros.batch-plan.llm-concorrencia:4}") int permits) {
+          this.semaphore = new Semaphore(permits);
+      }
+
+      public <T> T executar(Supplier<T> chamadaLlm) throws InterruptedException {
+          semaphore.acquire();
+          try {
+              return chamadaLlm.get();
+          } finally {
+              semaphore.release();
+          }
+      }
+  }
+  ```
+- [ ] 1.4.c Adicionar `menthoros.batch-plan.llm-concorrencia: 4` em `application.yml`.
+- [ ] 1.4.d Validação: `./mvnw clean compile`.
 
 ### 1.5 Service: `BatchPlanService`
 
@@ -72,15 +111,18 @@
   BatchJobStatusOutputDto consultarStatus(UUID jobId, UUID tenantId);
   ```
 - [ ] 1.5.b Criar `BatchPlanServiceImpl`:
-  - `iniciarLote`: criar `BatchPlanJob` (status PENDENTE), persistir, chamar método `@Async` interno, retornar `job.getId()`.
-  - `@Async("batchPlanExecutor") void processarLote(UUID jobId, List<UUID> atletaIds, ModoGeracaoPlano modo, UUID tenantId)`:
+  - `iniciarLote`: criar `BatchPlanJob` (status PENDENTE), persistir, chamar método `@Async` **em um bean separado** (nunca self-invocation na mesma classe — chamada interna `this.processarLote(...)` não passa pelo proxy Spring e o `@Async` seria ignorado silenciosamente, rodando síncrono na thread HTTP e quebrando o CA1 sem erro visível). Extrair `processarLote` para um componente dedicado (ex.: `BatchPlanProcessor`) injetado no service, ou usar auto-injeção via `@Lazy` do próprio proxy — preferir o componente separado, mais explícito.
+  - `BatchPlanProcessor.processarLote(UUID jobId, List<UUID> atletaIds, ModoGeracaoPlano modo, UUID tenantId)`, anotado `@Async("batchPlanExecutor")`:
     - Atualizar job para EM_PROGRESSO.
-    - Para cada `atletaId`:
+    - Submeter **todas as N tasks de uma vez** (uma virtual thread por atleta, sem chunking sequencial nem barreira `allOf().join()` por grupo) — o progresso deve refletir a ordem real de resposta do LLM, não saltos de bloco.
+    - Cada task individual:
+      - `TenantContext.setTenantId(tenantId)` no início; `TenantContext.clear()` no `finally` (ThreadLocal puro não sobrevive ao handoff assíncrono — virtual thread também não herda; setar manualmente é obrigatório, mesmo padrão do `EncerramentoSemanaScheduler`).
       - Validar que atleta pertence ao tenant: `atletaRepository.existsByIdAndTenantId(atletaId, tenantId)` → se não, registrar erro `"Atleta não encontrado"`.
       - Verificar plano duplicado: `planoSemanalRepository.existsByAtletaIdAndSemanaInicioAndReviewStatusNot(atletaId, semanaAlvo, REJEITADO)` → se sim, erro `"Plano já existe para esta semana"`.
-      - Chamar `planoService.gerarPlanoTreino(atletaId, modo)` em try/catch → erro `"Erro ao gerar plano — tente novamente"`.
-      - Atualizar `job.gerados++` ou `job.erros++` e persistir a cada iteração.
-    - Ao final: setar `status = CONCLUIDO | CONCLUIDO_COM_ERROS`, setar `concluidoEm`, persistir `resultado` como JSON.
+      - Chamar `planoService.gerarPlanoTreino(atletaId, modo)` **através do `LlmConcurrencyLimiter.executar(...)`** (limita concorrência real ao provedor, não ao pool de threads).
+      - Erros transitórios do provedor (429/5xx) recebem retry curto (2 tentativas, backoff 2s → 4s) *antes* de cair no catch definitivo — não confundir com o retry estrutural já existente em `PlanoResilienceService` (esse cobre validação, não infra).
+      - Sucesso ou erro definitivo → `batchPlanJobRepository.incrementarGerados(jobId)` ou `incrementarErros(jobId)` (update atômico, sem leitura+reatribuição em memória).
+    - Ao final (todas as tasks concluídas): setar `status = CONCLUIDO | CONCLUIDO_COM_ERROS`, setar `concluidoEm`, persistir `resultado` como JSON.
   - `consultarStatus`: `batchPlanJobRepository.findByIdAndTenantId(jobId, tenantId)` → 404 se ausente; retornar DTO com estado atual.
 - [ ] 1.5.c Validação: `./mvnw clean test`.
 
@@ -99,19 +141,25 @@
   - `IniciarLote > cria job e retorna jobId`.
   - `IniciarLote > rejeita lista vazia`.
   - `IniciarLote > rejeita lista com mais de 20 atletas`.
-  - `ProcessarLote > gera planos para todos os atletas válidos`.
-  - `ProcessarLote > registra erro individual sem abortar o lote`.
-  - `ProcessarLote > atleta de outro tenant → motivo Atleta não encontrado`.
-  - `ProcessarLote > atleta com plano existente → motivo Plano já existe`.
-  - `ProcessarLote > status CONCLUIDO_COM_ERROS quando há pelo menos um erro`.
+  - `IniciarLote > delega processamento ao bean assíncrono (não self-invocation)` — verificar via mock/spy que o método `@Async` é chamado através do proxy, não diretamente.
   - `ConsultarStatus > retorna estado atual do job`.
   - `ConsultarStatus > lança EntityNotFoundException para jobId de outro tenant`.
-- [ ] 1.7.b `CoachBatchPlanControllerTest` com `@WebMvcTest`:
+- [ ] 1.7.b `BatchPlanProcessorTest`:
+  - `gera planos para todos os atletas válidos`.
+  - `registra erro individual sem abortar o lote`.
+  - `atleta de outro tenant → motivo Atleta não encontrado`.
+  - `atleta com plano existente → motivo Plano já existe`.
+  - `status CONCLUIDO_COM_ERROS quando há pelo menos um erro`.
+  - `TenantContext é setado antes de cada chamada e limpo no finally, mesmo em erro`.
+  - `respeita o limite de concorrência do Semaphore` (ex.: mock do `LlmConcurrencyLimiter` verificando nº máximo de permits em uso simultâneo).
+  - `retry curto ativa apenas para exceção de rate-limit/infra do provedor (429/5xx), não para falha de validação estrutural`.
+  - `updates de progresso usam a query atômica (incrementarGerados/incrementarErros), não leitura+reatribuição`.
+- [ ] 1.7.c `CoachBatchPlanControllerTest` com `@WebMvcTest`:
   - POST retorna 202 com `jobId` e header `Location`.
   - POST retorna 400 para lista vazia.
   - GET retorna 200 com status do job.
   - GET retorna 404 para jobId desconhecido.
-- [ ] 1.7.c Validação: `./mvnw clean test` — todos os testes passando.
+- [ ] 1.7.d Validação: `./mvnw clean test` — todos os testes passando.
 
 ---
 
@@ -148,7 +196,7 @@
 - [ ] 2.3.a Criar `src/hooks/useBatchPlanGeneration.ts` com:
   - Estado: `jobId: string | null`, `status: BatchPlanJobStatus | null`, `loading: boolean`, `error: string | null`.
   - Função `gerarLote(atletaIds, modo)`: dispara POST, seta `jobId`, inicia polling.
-  - Polling: `setInterval` de 3s enquanto status não é terminal; para ao concluir.
+  - Polling: `setInterval` de 3s enquanto status não é terminal; para ao concluir. O contador (`gerados`/`erros`) deve subir de forma contínua a cada poll, refletindo o progresso real do backend (atualização por atleta individual, não em blocos).
   - Timeout de segurança: 5min → para polling, seta `error = "Timeout"`.
   - Função `reset()` para limpar o estado.
 - [ ] 2.3.b Testes unitários (`useBatchPlanGeneration.test.ts`):
@@ -194,11 +242,12 @@
 - [ ] 3.2 `npm run lint && npm run build && npm test` — tudo verde.
 - [ ] 3.3 Teste manual ponta-a-ponta:
   - Selecionar 3 atletas no roster → Gerar planos → verificar 202 e `jobId`.
-  - Polling até conclusão → verificar 3 planos em `AGUARDANDO_REVISAO`.
+  - Polling até conclusão → verificar progresso subindo continuamente (não em saltos) → 3 planos em `AGUARDANDO_REVISAO`.
   - Incluir ID de atleta de outro tenant → verificar erro individual sem abortar os demais.
   - Incluir atleta com plano existente → verificar motivo "Plano já existe para esta semana".
   - Enviar lista com 21 IDs → verificar 400.
   - Chamar GET com `jobId` de outro tenant → verificar 404.
-  - Confirmar que endpoint `GET /coach/attention-queue` responde normalmente durante geração em lote (pool dedicado não bloqueia).
+  - Confirmar que endpoint `GET /coach/attention-queue` responde normalmente durante geração em lote (virtual threads não bloqueiam o pool HTTP).
+  - Lote de 20 atletas: confirmar (via log/métrica) que no máximo `menthoros.batch-plan.llm-concorrencia` chamadas ao LLM ficam em voo simultaneamente.
 - [ ] 3.4 Revisores: `menthoros-workflow:code-reviewer` + `menthoros-workflow:security-reviewer`.
 - [ ] 3.5 Abrir PR (`feature/coach-batch-plan-generation`) e aguardar CI verde.
