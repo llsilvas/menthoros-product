@@ -190,22 +190,22 @@
 
 Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do processamento (fire-and-forget em virtual threads). Os planos já gerados persistem (transação curta por atleta), mas o job precisa ser fechado — senão o polling do front só desiste no timeout de 5 min.
 
-- [ ] 1.8.a Adicionar ao `BatchPlanJobRepository`:
+- [x] 1.8.a Adicionar ao `BatchPlanJobRepository`:
   ```java
   @Query("SELECT b FROM BatchPlanJob b WHERE b.status IN ('PENDENTE','EM_PROGRESSO') AND b.criadoEm < :limite")
   List<BatchPlanJob> findJobsOrfaos(@Param("limite") OffsetDateTime limite);
   ```
-- [ ] 1.8.b Criar `BatchPlanRecoveryService` (`@Component`) com um listener de `ApplicationReadyEvent` (ou `@Scheduled` leve) que:
+- [x] 1.8.b Criar `BatchPlanRecoveryService` (`@Component`) com um listener de `ApplicationReadyEvent` (ou `@Scheduled` leve) que:
   - Busca jobs órfãos com `criadoEm` anterior a um limiar (`app.batch-plan.recovery-limite-min:30` — nenhum lote real dura tanto).
   - Fecha cada um como `CONCLUIDO_COM_ERROS`, setando `concluidoEm`. **Fechamento por contagem, em nível de job — não por atleta** (o schema não persiste `atletaIds` nem detalhe parcial durante o `EM_PROGRESSO`; só os contadores `gerados`/`erros`, que já refletem o processado até a queda). Calcular `naoProcessados = totalAtletas - gerados - erros` (um número) e gravar em `resultado` uma nota de job: `{ "observacao": "Lote interrompido por reinício da aplicação. N atleta(s) podem não ter sido processados — reenvie o lote." }`, preservando os `gerados`/`erros` já contabilizados.
   - **Não** reprocessa automaticamente (evita duplicar planos já gerados antes da queda) — o coach reenvia o lote; atletas já com plano caem no fast-path/índice único, tornando o reenvio seguro.
   - Idempotente: só atua sobre jobs em estado não-terminal — rodar duas vezes não altera um job já `CONCLUIDO`/`CONCLUIDO_COM_ERROS`.
-- [ ] 1.8.c `BatchPlanRecoveryServiceTest`:
+- [x] 1.8.c `BatchPlanRecoveryServiceTest`:
   - `fecha job preso em EM_PROGRESSO anterior ao limiar como CONCLUIDO_COM_ERROS, com concluidoEm preenchido`.
   - `grava observacao de job no resultado com a contagem de nao processados (sem detalhar por atleta)`.
   - `ignora job recente dentro do limiar`.
   - `ignora job já em estado terminal (idempotência — nenhuma escrita)`.
-- [ ] 1.8.d Validação: `./mvnw clean test`.
+- [x] 1.8.d Validação: `./mvnw clean test`.
 
 ---
 
