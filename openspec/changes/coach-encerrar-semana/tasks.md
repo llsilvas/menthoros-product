@@ -3,6 +3,16 @@
 Trilha Full · backend (`apps/menthoros-backend`). Validação por bloco: `./mvnw clean test`.
 TDD: escrever o teste do bloco antes da implementação.
 
+### Âncoras de código (verificado contra o repo em `feature/coach-encerrar-semana`, base `c87da09`)
+
+- **Próxima migration Flyway: `V51`** (última = `V50__Create_tb_kudos.sql`). Task 2b.1 → `V51__add_origem_encerramento_plano_semanal.sql`.
+- **Reuso de domínio**: `TreinoServiceImpl.marcarTreinoPerdido()` (`:369-392`) e `atualizarStatusDoPlano()` (`:193-215`) — existentes; orquestrar, não reimplementar.
+- **Fonte de atletas do tenant (lote)**: `AtletaRepository.findAllAtletas(tenantId)` ou `findAllByTenantIdOrderByNome(tenantId)` (ambas `WHERE atl.assessoria.id = :tenantId`).
+- **Fonte de tenants (scheduler)**: `AssessoriaRepository.findByAtivoTrue()` — **confirmado que existe** (`:51-52`).
+- **Padrão de scheduler multi-tenant**: `StravaActivitySyncScheduler` (`set`/`clear` do `TenantContext` por iteração).
+- **Endpoints coach**: controller dedicado novo (ex.: `CoachEncerramentoSemanaController`) — não há `CoachPlanoController` genérico; controllers vizinhos: `CoachPlanoReviewController`, `PlanoTreinoController`.
+- **Entidade**: `PlanoSemanal` expõe tenant via `assessoria` (não `tenantId`); `PlanoStatus.CONCLUIDO` e `TreinoExecucaoStatus.{PENDENTE,PERDIDO}` existentes.
+
 ## 1. Núcleo de domínio: regra de encerramento
 
 - [ ] 1.0 **Fonte de `hoje` (fuso)**: introduzir `Clock` injetável em `America/Sao_Paulo` (ou usar `CURRENT_DATE` nas queries) e derivar `hoje` de um único ponto — nunca `LocalDate.now()` sem zona (risco T2). Cobrir com o critério 16.
@@ -21,7 +31,7 @@ TDD: escrever o teste do bloco antes da implementação.
 
 ## 2b. Persistência da origem de encerramento (métrica-farol)
 
-- [ ] 2b.1 Migration `V<next>__add_origem_encerramento_plano_semanal.sql`: `ALTER TABLE tb_plano_semanal ADD COLUMN origem_encerramento VARCHAR(15)` (nullable, sem default).
+- [ ] 2b.1 Migration `V51__add_origem_encerramento_plano_semanal.sql`: `ALTER TABLE tb_plano_semanal ADD COLUMN origem_encerramento VARCHAR(15)` (nullable, sem default).
 - [ ] 2b.2 Mapeamento `@Enumerated(STRING)` em `PlanoSemanal` + setter no service: on-demand/lote → `ON_DEMAND`; scheduler → `AUTOMATICO`. Setar **antes** do `save`, dentro da mesma TX.
 - [ ] 2b.3 Expor `origemEncerramento` nos DTOs que já trazem `PlanoSemanal` (roster, perfil) — sem endpoint dedicado.
 - [ ] 2b.4 Validação: teste que verifica coluna populada com a origem correta após encerramento on-demand e automático (critérios 19–20), planos pré-existentes com `null` (critério 21), e a query de métrica `GROUP BY origem_encerramento` retornando as contagens segmentadas (critério 23). `./mvnw clean test`.
