@@ -239,18 +239,18 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
 
 ### 2.3 Hook `useBatchPlanGeneration`
 
-- [ ] 2.3.a Criar `src/hooks/useBatchPlanGeneration.ts` com:
+- [x] 2.3.a Criar `src/hooks/useBatchPlanGeneration.ts` com:
   - Estado: `jobId: string | null`, `status: BatchPlanJobStatus | null`, `loading: boolean`, `error: string | null`.
   - Função `gerarLote(atletaIds, modo)`: dispara POST, seta `jobId`, inicia polling.
   - Polling: `setInterval` de 3s enquanto status não é terminal; para ao concluir. O contador (`gerados`/`erros`) deve subir de forma contínua a cada poll, refletindo o progresso real do backend (atualização por atleta individual, não em blocos).
   - Timeout de segurança **adaptativo ao tamanho do lote** (não 5min fixos — o pior caso saudável de 20 atletas é ~13min): `timeoutMs = Math.max(5, Math.ceil(totalAtletas / 4) * 3) * 60_000`. Ao estourar sem estado terminal, para o polling e seta um aviso ("A geração está demorando mais que o esperado — verifique novamente em instantes"), **sem descartar o `jobId`** (permite reconsulta). O polling também para imediatamente quando o backend reporta estado terminal, sem esperar o timeout — a fonte de verdade de "travado" é o backend (recovery, design §9).
   - Função `reset()` para limpar o estado.
-- [ ] 2.3.b Testes unitários (`useBatchPlanGeneration.test.ts`):
+- [x] 2.3.b Testes unitários (`useBatchPlanGeneration.test.ts`):
   - Inicia polling após disparar lote.
   - Para polling quando status CONCLUIDO.
   - Seta error em falha de rede.
   - Reseta estado com `reset()`.
-- [ ] 2.3.c Validação: `npm run lint && npm run build`.
+- [x] 2.3.c Validação: `npm run lint && npm run build`.
 
 ### 2.4 Seleção no roster e toolbar
 
