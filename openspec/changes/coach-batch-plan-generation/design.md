@@ -102,7 +102,7 @@ Sem limitador, 20 virtual threads disparariam até 20 chamadas simultâneas ao p
 public class LlmConcurrencyLimiter {
     private final Semaphore semaphore;
 
-    public LlmConcurrencyLimiter(@Value("${menthoros.batch-plan.llm-concorrencia:4}") int permits) {
+    public LlmConcurrencyLimiter(@Value("${app.batch-plan.llm-concorrencia:4}") int permits) {
         this.semaphore = new Semaphore(permits);
     }
 
@@ -117,7 +117,7 @@ public class LlmConcurrencyLimiter {
 }
 ```
 
-`menthoros.batch-plan.llm-concorrencia` configurável em `application.yml`, default 4 — quantas chamadas ao LLM em voo por vez, independente de quantas virtual threads existem no lote.
+`app.batch-plan.llm-concorrencia` configurável em `application.yml`, default 4 — quantas chamadas ao LLM em voo por vez, independente de quantas virtual threads existem no lote.
 
 **Premissa em aberto:** o `Semaphore` é por instância da JVM, não um limite global distribuído. Se o backend escalar horizontalmente no futuro, o teto real de concorrência ao LLM vira `4 × nº de instâncias`. Para a escala atual (single instance) isso é aceitável; revisitar se/quando houver múltiplas instâncias em produção.
 

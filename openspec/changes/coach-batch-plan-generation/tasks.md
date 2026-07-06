@@ -86,7 +86,7 @@
 
 ### 1.4 `BatchPlanAsyncConfig` — executor de virtual threads
 
-- [ ] 1.4.a Criar `BatchPlanAsyncConfig.java` em `config/external/` (onde vivem as async configs existentes — `config/external/StravaWebhookAsyncConfig.java:10` e `config/external/WorkoutAnalysisAsyncConfig.java:14`; nome segue a convenção — uma config por feature, não um `AsyncConfig` genérico). Nota: `WorkoutAnalysisAsyncConfig` não repete `@EnableAsync` (basta uma vez no contexto) — como `StravaWebhookAsyncConfig` já declara `@EnableAsync`, confirmar se é necessário repetir em `BatchPlanAsyncConfig` ou se o contexto já o tem ativo:
+- [x] 1.4.a Criar `BatchPlanAsyncConfig.java` em `config/external/` (onde vivem as async configs existentes — `config/external/StravaWebhookAsyncConfig.java:10` e `config/external/WorkoutAnalysisAsyncConfig.java:14`; nome segue a convenção — uma config por feature, não um `AsyncConfig` genérico). Nota: `WorkoutAnalysisAsyncConfig` não repete `@EnableAsync` (basta uma vez no contexto) — como `StravaWebhookAsyncConfig` já declara `@EnableAsync`, confirmar se é necessário repetir em `BatchPlanAsyncConfig` ou se o contexto já o tem ativo:
   ```java
   @Configuration
   @EnableAsync
@@ -98,13 +98,13 @@
   }
   ```
   Sem pool dimensionado (core/max/queue) — cada atleta roda em sua própria virtual thread, tarefa I/O-bound (chamada ao LLM).
-- [ ] 1.4.b Criar `LlmConcurrencyLimiter` (`@Component`) com `Semaphore` para limitar chamadas *reais* ao LLM (independente do nº de virtual threads):
+- [x] 1.4.b Criar `LlmConcurrencyLimiter` (`@Component`) com `Semaphore` para limitar chamadas *reais* ao LLM (independente do nº de virtual threads):
   ```java
   @Component
   public class LlmConcurrencyLimiter {
       private final Semaphore semaphore;
 
-      public LlmConcurrencyLimiter(@Value("${menthoros.batch-plan.llm-concorrencia:4}") int permits) {
+      public LlmConcurrencyLimiter(@Value("${app.batch-plan.llm-concorrencia:4}") int permits) {
           this.semaphore = new Semaphore(permits);
       }
 
@@ -118,8 +118,8 @@
       }
   }
   ```
-- [ ] 1.4.c Adicionar `menthoros.batch-plan.llm-concorrencia: 4` em `application.yml`.
-- [ ] 1.4.d Validação: `./mvnw clean compile`.
+- [x] 1.4.c Adicionar `app.batch-plan.llm-concorrencia: 4` em `application.yml`.
+- [x] 1.4.d Validação: `./mvnw clean compile`.
 
 ### 1.5 Service: `BatchPlanService`
 
@@ -193,7 +193,7 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
   List<BatchPlanJob> findJobsOrfaos(@Param("limite") OffsetDateTime limite);
   ```
 - [ ] 1.8.b Criar `BatchPlanRecoveryService` (`@Component`) com um listener de `ApplicationReadyEvent` (ou `@Scheduled` leve) que:
-  - Busca jobs órfãos com `criadoEm` anterior a um limiar (`menthoros.batch-plan.recovery-limite-min:30` — nenhum lote real dura tanto).
+  - Busca jobs órfãos com `criadoEm` anterior a um limiar (`app.batch-plan.recovery-limite-min:30` — nenhum lote real dura tanto).
   - Fecha cada um como `CONCLUIDO_COM_ERROS`, setando `concluidoEm`. **Fechamento por contagem, em nível de job — não por atleta** (o schema não persiste `atletaIds` nem detalhe parcial durante o `EM_PROGRESSO`; só os contadores `gerados`/`erros`, que já refletem o processado até a queda). Calcular `naoProcessados = totalAtletas - gerados - erros` (um número) e gravar em `resultado` uma nota de job: `{ "observacao": "Lote interrompido por reinício da aplicação. N atleta(s) podem não ter sido processados — reenvie o lote." }`, preservando os `gerados`/`erros` já contabilizados.
   - **Não** reprocessa automaticamente (evita duplicar planos já gerados antes da queda) — o coach reenvia o lote; atletas já com plano caem no fast-path/índice único, tornando o reenvio seguro.
   - Idempotente: só atua sobre jobs em estado não-terminal — rodar duas vezes não altera um job já `CONCLUIDO`/`CONCLUIDO_COM_ERROS`.
@@ -292,7 +292,7 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
   - Enviar lista com IDs repetidos (`[A, A, B]`) → verificar `totalAtletas = 2` (dedup) e nenhum erro artificial de "Plano já existe".
   - Chamar GET com `jobId` de outro tenant → verificar 404.
   - Confirmar que endpoint `GET /coach/attention-queue` responde normalmente durante geração em lote (virtual threads não bloqueiam o pool HTTP).
-  - Lote de 20 atletas: confirmar (via log/métrica) que no máximo `menthoros.batch-plan.llm-concorrencia` chamadas ao LLM ficam em voo simultaneamente.
+  - Lote de 20 atletas: confirmar (via log/métrica) que no máximo `app.batch-plan.llm-concorrencia` chamadas ao LLM ficam em voo simultaneamente.
 - [ ] 3.4 **Baseline da métrica de sucesso (antes do deploy):** executar a query de baseline sobre os planos gerados individualmente nas 2 semanas anteriores — delta `MIN(criado_em)` → `MAX(criado_em)` agrupado por coach + `semana_inicio`, filtrando grupos com ≥2 planos. Registrar o resultado (média dos deltas) como documento de referência para a comparação pós-lançamento (`tb_batch_plan_job.criado_em → concluido_em`). Confirmar amostra mínima (≥3 grupos com ≥2 planos); se insuficiente, estender a janela. Sem este baseline registrado, a métrica primária (≥60% de redução) não é verificável — não considerar a change entregue sem ele.
 - [ ] 3.5 Revisores: `menthoros-workflow:code-reviewer` + `menthoros-workflow:security-reviewer`.
 - [ ] 3.6 Abrir PR (`feature/coach-batch-plan-generation`) e aguardar CI verde.

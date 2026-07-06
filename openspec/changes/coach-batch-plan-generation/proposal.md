@@ -24,7 +24,7 @@ Esta change entrega geração assíncrona em lote: o coach seleciona N atletas n
 - IDs duplicados no corpo são **deduplicados** antes de criar o job (`distinct`) — `totalAtletas` reflete a contagem distinta; sem erro artificial de "Plano já existe" por repetição.
 - Resposta imediata: `202 Accepted` com `Location: /api/v1/coach/planos/lote/{jobId}` e body `{ "jobId": uuid, "totalAtletas": N }`.
 - Processamento em background via `@Async` com executor de **virtual threads** (`BatchPlanAsyncConfig`, bean `batchPlanExecutor` = `Executors.newVirtualThreadPerTaskExecutor()`) — cada atleta roda em sua própria virtual thread, submetidas todas de uma vez (sem chunking sequencial), e não compartilha platform threads com o pool HTTP do Tomcat.
-- Concorrência real de chamadas ao LLM (não o nº de virtual threads) é limitada por um `LlmConcurrencyLimiter` (`Semaphore`, tamanho configurável via `menthoros.batch-plan.llm-concorrencia`, default 4) — evita rajada de 20 chamadas simultâneas ao provedor e risco de 429.
+- Concorrência real de chamadas ao LLM (não o nº de virtual threads) é limitada por um `LlmConcurrencyLimiter` (`Semaphore`, tamanho configurável via `app.batch-plan.llm-concorrencia`, default 4) — evita rajada de 20 chamadas simultâneas ao provedor e risco de 429.
 - Cada atleta chama `PlanoService.gerarPlanoTreino()` internamente; exceções individuais são capturadas e registradas como erros (não propagam). Erros transitórios de infra (429/5xx do provedor) recebem retry curto (2x, backoff 2s/4s) específico do fluxo em lote, antes de serem registrados como erro definitivo.
 
 **Entidade de job (nova tabela):**
@@ -112,7 +112,7 @@ Esta change entrega geração assíncrona em lote: o coach seleciona N atletas n
 
 **Configuração de infra:**
 - `BatchPlanAsyncConfig` com executor de virtual threads (`Executors.newVirtualThreadPerTaskExecutor()`) — sem pool dimensionado, sem fila; cada atleta processado em sua própria virtual thread.
-- `LlmConcurrencyLimiter` (`Semaphore`, configurável via `menthoros.batch-plan.llm-concorrencia`, default 4) — controla quantas chamadas reais ao LLM ficam em voo, independente do nº de virtual threads.
+- `LlmConcurrencyLimiter` (`Semaphore`, configurável via `app.batch-plan.llm-concorrencia`, default 4) — controla quantas chamadas reais ao LLM ficam em voo, independente do nº de virtual threads.
 - Retry curto (2x, backoff 2s/4s) para 429/5xx do provedor, específico do fluxo em lote.
 
 ## Critérios de Aceite
@@ -158,7 +158,7 @@ Esta change entrega geração assíncrona em lote: o coach seleciona N atletas n
 - Then: resposta do outro endpoint em tempo normal (< 200ms) — virtual threads não bloqueiam o pool HTTP do Tomcat (platform threads)
 
 **CA9 — Concorrência ao LLM respeita o limite configurado:**
-- Given: lote de 20 atletas, `menthoros.batch-plan.llm-concorrencia = 4`
+- Given: lote de 20 atletas, `app.batch-plan.llm-concorrencia = 4`
 - When: job em processamento
 - Then: no máximo 4 chamadas ao LLM em voo simultaneamente (verificável via métrica/log de aquisição do semáforo)
 
@@ -193,7 +193,7 @@ Esta change entrega geração assíncrona em lote: o coach seleciona N atletas n
 - Retenção dos jobs: quanto tempo manter `tb_batch_plan_job` para consulta? (Sugestão: 7 dias, com job de limpeza cron.) Decidir no momento de implementar.
 - Cancelamento de job em andamento: o coach pode interromper um lote em progresso? (Fora do escopo do v1 — jobs completam ou falham individualmente. Implementar se houver demanda após entrega.)
 - Notificação push/email quando o lote conclui: o polling é suficiente enquanto o coach está na tela; para conclusão em background (coach fechou o browser), falta notificação. (Fora do escopo — entra com infraestrutura de notificações que ainda não existe.)
-- Valor default de `menthoros.batch-plan.llm-concorrencia` (4): ajustar conforme observação real de rate-limit do provedor em produção.
+- Valor default de `app.batch-plan.llm-concorrencia` (4): ajustar conforme observação real de rate-limit do provedor em produção.
 
 ## Riscos, Mitigações e Rollback
 
