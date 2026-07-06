@@ -84,3 +84,12 @@ TDD: escrever o teste do bloco antes da implementação.
 - **Important** — evento publicado em replay idempotente → condicional (`fechouAgora || !perdidos`); `FalhaAtleta` exposto no DTO → `EncerramentoFalhaAtletaOutputDto` com `@Schema`; métodos core `private`; `@ApiResponse` 409.
 - **Minor** — helpers de DRY (`novaTransacaoRequiresNew`, `iterarAtletasComPlanoCorrente`), log de sobreposição de semanas, comentários de `@RequireTenant`/pool, cobertura de branches (never-publishEvent, falha no fallback), `@Nested` no scheduler.
 - **Sem Critical remanescente.** Suíte: 1201 testes, 0 falhas.
+
+## QA gate — rodada cross-model (Codex + Claude)
+
+2ª passagem com a camada Codex (conta OpenAI, fora do budget Claude) + re-review Claude sobre o diff pós-fix. **Sem Critical.** Fixes aplicados no commit `1b743cc`:
+- **Tripla convergência (Codex+security+code-rev)** — `marcarTreinosPerdidos` sem guard: agora filtra PENDENTE (nunca sobrescreve REALIZADO) + guarda de tenant (`AccessDeniedException`) + 4 testes unitários.
+- **Dupla convergência (Codex+code-rev)** — N+1 no lote: `findSemanasCorrentes` (1 query com JOIN FETCH) substitui o `findSemanaCorrente` por-atleta.
+- **Codex** — carência negativa: fail-fast no scheduler. **Security L-1** — `OptimisticLockException` 409 com mensagem genérica. **Code-rev M1** — null-checks nos `from()`.
+- **Follow-ups documentados (não-blocker):** lock distribuído multi-instância (mesmo padrão pré-existente do `StravaActivitySyncScheduler`), garantia AFTER_COMMIT via ArchUnit quando surgir consumidor, force-close com PARCIAL/LIVRE (decisão de design intencional).
+- Suíte: **1206 testes, 0 falhas.**
