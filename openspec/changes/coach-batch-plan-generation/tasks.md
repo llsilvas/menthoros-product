@@ -284,9 +284,9 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
 
 ## Bloco 3 — QA e entrega
 
-- [ ] 3.1 `./mvnw clean test` — todos os testes passando.
-- [ ] 3.2 `npm run lint && npm run build && npm test` — tudo verde.
-- [ ] 3.3 Teste manual ponta-a-ponta:
+- [x] 3.1 `./mvnw clean test` — todos os testes passando (1234, 0 falhas).
+- [x] 3.2 `npm run lint && npm run build && npm run test:run` — tudo verde (484 testes, 78 arquivos).
+- [ ] 3.3 Teste manual ponta-a-ponta **(deferido para staging — requer backend + frontend + DB rodando com dados reais; não executável no ambiente de dev atual)**:
   - Selecionar 3 atletas no roster → Gerar planos → verificar 202 e `jobId`.
   - Polling até conclusão → verificar progresso subindo continuamente (não em saltos) → 3 planos em `AGUARDANDO_REVISAO`.
   - Incluir ID de atleta de outro tenant → verificar erro individual sem abortar os demais.
@@ -296,6 +296,6 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
   - Chamar GET com `jobId` de outro tenant → verificar 404.
   - Confirmar que endpoint `GET /coach/attention-queue` responde normalmente durante geração em lote (virtual threads não bloqueiam o pool HTTP).
   - Lote de 20 atletas: confirmar (via log/métrica) que no máximo `app.batch-plan.llm-concorrencia` chamadas ao LLM ficam em voo simultaneamente.
-- [ ] 3.4 **Baseline da métrica de sucesso (antes do deploy):** executar a query de baseline sobre os planos gerados individualmente nas 2 semanas anteriores — delta `MIN(criado_em)` → `MAX(criado_em)` agrupado por coach + `semana_inicio`, filtrando grupos com ≥2 planos. Registrar o resultado (média dos deltas) como documento de referência para a comparação pós-lançamento (`tb_batch_plan_job.criado_em → concluido_em`). Confirmar amostra mínima (≥3 grupos com ≥2 planos); se insuficiente, estender a janela. Sem este baseline registrado, a métrica primária (≥60% de redução) não é verificável — não considerar a change entregue sem ele.
+- [ ] 3.4 **Baseline da métrica de sucesso (deferido para pré-deploy — requer DB com dados de produção/dev):** executar a query de baseline sobre os planos gerados individualmente nas 2 semanas anteriores — delta `MIN(criado_em)` → `MAX(criado_em)` agrupado por coach + `semana_inicio`, filtrando grupos com ≥2 planos. Registrar o resultado (média dos deltas) como documento de referência para a comparação pós-lançamento (`tb_batch_plan_job.criado_em → concluido_em`). Confirmar amostra mínima (≥3 grupos com ≥2 planos); se insuficiente, estender a janela. Sem este baseline registrado, a métrica primária (≥60% de redução) não é verificável — não considerar a change entregue sem ele.
 - [ ] 3.5 Revisores: `menthoros-workflow:code-reviewer` + `menthoros-workflow:security-reviewer`.
 - [ ] 3.6 Abrir PR (`feature/coach-batch-plan-generation`) e aguardar CI verde.
