@@ -2,14 +2,7 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-07-06 (**Sprint 11 `coach-encerrar-semana-ui` (frontend) mergeada e arquivada** —
-UI de encerrar a semana (individual + lote com preview + seleção do grid); PR front #33 (merge `c1dfb73`),
-476 testes, QA sem Critical. Exigiu o follow-up de backend `coach-encerrar-lote-selecao` (PR #27, merge
-`1ac468f`) para `encerrar-lote` aceitar `{ atletaIds }`. Com isso a Sprint 11 (`coach-encerrar-semana` +
-UI) está **fechada**. Antes: 2026-07-06 (**Sprint 11 `coach-encerrar-semana` (backend) mergeada e arquivada** —
-PR backend #26 (merge `95f3c99`), 1206 testes, QA gate Claude + cross-model Codex sem Critical; arquivada em
-`archive/2026-07/2026-07-06-coach-encerrar-semana`. Fica pendente o fast-follow de frontend
-`coach-encerrar-semana-ui` (botões + confirmação do preview). Antes: 2026-07-05 (**Sprint 11 `coach-encerrar-semana` (+ `coach-encerrar-semana-ui`) inseridas** —
+**Última atualização:** 2026-07-06 (**Repriorização por ROI** — `add-llm-tool-use` rebaixada para bloco de engenharia (Sprint 16+); `coach-batch-plan-generation` desbloqueada (dependência artificial de tool-use removida); `notify-athlete-week-closed` promovida para Sprint 12; `system-user-prompt-split` inserida Sprint 12 (~50-70% redução custo LLM); `add-athlete-tsb-chart-on-selection` + `add-aerobic-decoupling` inseridas Sprint 13; `progressao-treinos` + segurança beta agrupadas Sprint 14; `llm-code-switching` Sprint 15; `coach-encerrar-semana` + `coach-encerrar-semana-ui` marcadas ✅.
 change "encerrar a semana" via `/change`: treinador finaliza treinos não realizados (`PERDIDO`) e fecha o
 `PlanoSemanal`, destravando a geração da próxima. Dividida em backend (M · Full, backend-only) + frontend
 (S · Fast, fast-follow bloqueante) por decisão do founder. Posicionada na Sprint 11, paralela/antes de
@@ -57,10 +50,10 @@ Antes: 2026-07-03 (**Sprint 10 `fit-file-upload-ingestion` inserida** — upload
 
 ## Princípio de ordenação desta versão
 
-1. **Identidade mínima destrava tudo.** Endpoints de "quem sou eu" + onboarding de tenant são baratos e bloqueiam frontend e testes.
-2. **Base de IA antes das features de IA.** Contratos de skills, confiabilidade de parsing e tool calling vêm antes de empilhar capabilities sobre LLM.
-3. **RAG antes do que o consome.** O inbox de sugestões e a prescrição lesão-aware ficam muito melhores com citações e fundamentação — entram depois da infra RAG.
-4. **Feature visível a cada ~2 sprints de infra.** A base de IA é invisível ao treinador; intercalar entregas demonstráveis mantém feedback e moral.
+1. **Feature visível primeiro.** Coach e atleta devem perceber valor a cada sprint. Infraestrutura de IA pura (tool-use, RAG, skills migration) é agrupada e adiada — nunca bloqueia feature visível.
+2. **Qualidade de IA intercalada.** Changes que melhoram a qualidade percebida do plano (progressão, code-switching, custo) entram intercaladas com features visíveis.
+3. **Segurança antes do beta.** Gates de autorização e onboarding fecham antes de expor a usuários reais.
+4. **Engenharia agrupada no fim.** Refactors (IaService, skills migration) e infraestrutura (tool-use, RAG) rodam em bloco coeso, sem fragmentar sprints de produto.
 
 ---
 
@@ -75,30 +68,40 @@ Sprint 1 encerrada: ambas as changes mergeadas em `develop` e arquivadas (ver "C
 
 ---
 
-## Bloco 1 — Base de IA (núcleo da repriorização)
+## Bloco 1 — Features visíveis + qualidade de IA (repriorizado por ROI — 2026-07-06)
+
+### Princípio de ordenação (v2)
+
+**ROI direto primeiro.** A repriorização de 2026-07-06 inverte a ordem anterior (infra IA → features) para **features visíveis → qualidade IA → segurança beta → engenharia agrupada**. O coach e o atleta devem perceber valor a cada sprint; a infraestrutura de IA (`add-llm-tool-use`, RAG, skills migration, decomposição do IaService) é agrupada num bloco de engenharia posterior, executada em sequência coesa sem interromper entregas de produto.
+
+Justificativa da mudança: análise CPO (2026-07-06) demonstrou que `add-llm-tool-use` (35→27 tasks, Sprint 10-11 original) é infraestrutura sem valor direto para o coach, com risco empírico não validado (tools + structured output `strict`), e dependência artificial bloqueando `coach-batch-plan-generation` (a feature mais pedida em escala). A separação system/user prompt (~4h) entrega ~50-70% de redução de custo de input sem tool calling.
 
 ### 🤖 Guarda-chuva: Modernização do motor de IA
 
-Thread única que moderniza a geração de plano — **skills determinísticas como fonte do prompt** (não mais um monólito de formatters), com rede de testes e estratégia EN/PT, reduzindo alucinação. Marcada com 🤖 na tabela abaixo. Ordem e dependências:
+Thread que moderniza a geração de plano — skills determinísticas, rede de testes, estratégia EN/PT. Marcada com 🤖. Fases entregues e pendentes:
 
 ```
-skills-core ✅ ─▶ eval-harness ✅ ─▶ introduce-plan-constraints ─▶ migrate-plan-prompt-to-skills ─▶ llm-code-switching
-   (fundação)       (rede)            (seam Constraint + bloco [1]      (troca a FONTE das Constraint   (EN/PT do que sobrar)
-                                       no topo + PlanQualityChecker)     de formatter → skill)
-                         │                    anti-alucinação cedo
-                         └▶ debito-tecnico ✅ ─▶ add-llm-tool-use ─▶ RAG family
-                            (confiabilidade)      (dado sob demanda)   (fundamentação)
+ENTREGUE:
+  skills-core ✅ ─▶ eval-harness ✅ ─▶ introduce-plan-constraints ✅ ─▶ harden-plan-generation-resilience ✅
+     (fundação)       (rede)            (seam Constraint + checker)       (reparo + retry)
+                         │
+                         └▶ debito-tecnico ✅
+                            (confiabilidade)
 
-  harden-plan-generation-resilience  ── irmã independente (reparo + 1 retry do 503; valida estrutura de etapas)
+PRÓXIMO (intercalado com features visíveis):
+  progressao-treinos ─▶ llm-code-switching
+  (envelope confiável)   (EN/PT, ~20% ganho reasoning)
+
+BLOCO DE ENGENHARIA (agrupado, Sprint 16+):
+  refactor-iaservice-decomposition ─▶ add-llm-tool-use (spike+infra) ─▶ migrate-plan-prompt-to-skills
+                                                   │
+                                                   └▶ RAG family (engine → injury → coach-method)
 ```
 
-- **eval-harness** é a rede; **introduce-plan-constraints** fatia o anti-alucinação pra frente (bloco mandatório no topo + checker, usando os valores que os formatters já calculam — **sem** migrar lógica); **migrate-prompt** é o strangler que troca a *fonte* das `Constraint` (formatter→skill) por baixo do seam estável — **deferido** (Sprint 18–20), pois virou refactor de manutenibilidade depois que o anti-alucinação saiu na frente; **code-switching** vem após o migrate.
-- A `Constraint` declarativa (key+descrição+params) é o **seam**: declarada uma vez, usada no prompt [1] **e** no `PlanQualityChecker`; quem produz (formatter→skill) troca sem mexer em renderer/checker.
-- **harden-plan-generation-resilience** é irmã independente (validade estrutural de etapas ≠ constraint de coaching); não depende do seam nem do strangler — sequencia livre.
-- **debito-tecnico** ✅ e **add-llm-tool-use** são camadas complementares; **RAG** fundamenta a prescrição.
-- `refactor-iaservice-decomposition` (Pós-MVP) é a irmã estrutural — mesma classe `IaServiceImpl`; coordenar janela com migrate/harden.
-
-As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `explainability`, `suggestion-inbox`) ficam **intercaladas** na tabela para preservar time-to-value — não fazem parte do guarda-chuva. Cadência (pós-auditoria): **5** `progress-endpoints` (dado da shell) → **6** shell (visível) → **9** attention/explainability (visível) → **16+** inbox (visível), que **fecha a jornada coach-in-the-loop**. O trecho **11–15** (`tool-use` + `rag-tool-calling`) é a maratona de infra **estrutural** (o inbox depende do RAG). Os sprints **16–22** são aprofundamento de IA pós-jornada: `rag-injury`/`rag-coach`, o `migrate` (strangler de manutenibilidade, deferido) e `code-switching`.
+- **progressao-treinos** e **llm-code-switching** são qualidade de IA perceptível pelo coach (planos melhores) — intercalados com features visíveis.
+- **add-llm-tool-use** rebaixada para bloco de engenharia: fundação para RAG, sem valor direto para o coach. Inicia com spike de validação empírica (~3 dias) antes de investir na infraestrutura completa.
+- **coach-batch-plan-generation** não depende mais de `add-llm-tool-use` (dependência artificial removida — batch funciona com o prompt atual).
+- `refactor-iaservice-decomposition`, `migrate-plan-prompt-to-skills` e a família RAG são executados em sequência coesa no bloco de engenharia.
 
 | Sprint | Change | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|---|---|
@@ -131,14 +134,21 @@ As features visíveis do treinador (`shell-dashboards`, `attention-queue`, `expl
 | 10 | ~~`fit-file-upload-ingestion`~~ ✅ *(S, backend+front)* | ~15/~15 | **Upload de .fit (dado rico de wearable).** Pesquisa de mercado (2026-07-03) confirmou que Garmin Health API exige aprovação individual inacessível, Health Connect/HealthKit não recebem dados ricos do Garmin, e Strava API tem restrição legal para ML. Upload de .fit funciona com Garmin/Suunto/Coros/Polar/Wahoo, sem burocracia e sem restrição de uso dos dados. Backend: SDK oficial Garmin (`com.garmin:fit`) + `FitParseService` + `FitTreinoPersister` (dedup idempotente via `TreinoDedupHelper`, compartilhado com o Strava). Frontend: drag-and-drop (`FileUploadZone`) na `ManualTrainingFormPage`, acima do formulário manual. **QA gate (4 rodadas)** sem Critical — corrigidos ao longo das rodadas: dedup quebrava sem `Session.startTime` (fabricava `now()`); corrida de concorrência duplicava evento/TSB; flag `novo` hardcoded quebrando o contrato 200/201; flood de laps sem limite (cap de 1000); arquivo multiessão (triathlon) corrompia dados silenciosamente; `FonteDados.MANUAL` mascarava proveniência (corrigido para `GARMIN`); parse rodava dentro da transação (extraído `FitTreinoPersister` transacional); frontend descartava mensagens de erro curadas do backend. PRs backend #24 + front #32 mergeados 2026-07-05; arquivada em `archive/2026-07/2026-07-05-fit-file-upload-ingestion`. Sprint 23 (`first-party-ingestion-architecture`) permanece como upgrade com compute-on-import automático. | `manual-training-entry-lightweight` ✅ |
 | 11 | ~~`coach-encerrar-semana`~~ ✅ *(M · Full, backend-only)* | ~18/~18 | **Encerrar a semana.** Treinador finaliza treinos `PENDENTE` passados como `PERDIDO` e fecha o `PlanoSemanal` (`CONCLUIDO`), destravando a geração da próxima. 3 gatilhos: on-demand por atleta, lote da assessoria (+ preview/dry-run), fallback automático (carência parametrizável, default 3d). Dia corrente só vira perdido no fim da semana (`hoje == semanaFim`). Não gera o próximo plano (coach-in-the-loop); emite `SemanaEncerradaEvent` (`origem` ON_DEMAND/AUTOMATICO). Produz o `CONCLUIDO` consumido pela 12b. **QA gate** (Claude + cross-model Codex) sem Critical — corrigidos N+1 na marcação e no lote, filtro de tenant nas queries, sanitização de erro no lote, evento só em mudança real, guard de status/tenant em `marcarTreinosPerdidos`. PR backend #26 mergeado 2026-07-06 (merge `95f3c99`); arquivada em `archive/2026-07/2026-07-06-coach-encerrar-semana`. Suíte: 1206 testes. Frontend segue em `coach-encerrar-semana-ui`. | — |
 | 11 | ~~`coach-encerrar-semana-ui`~~ ✅ *(S · Fast, frontend-only)* | ~8/~8 | **Botões + confirmação do encerramento.** Ação "Encerrar semana" no card de plano (resumo verde/amarelo + CTA gerar próxima) e "Encerrar semana (N)" em lote com **preview obrigatório** e resumo com falhas. Respeita a **seleção do grid** do roster (`atletaIds`) — exigiu o follow-up de backend `coach-encerrar-lote-selecao` (PR backend #27, merge `1ac468f`), que fez `encerrar-lote`/`preview` aceitarem `{ atletaIds }`. Habilita a métrica-farol de adoção on-demand vs automático. **QA gate** (frontend + clean-code) sem Critical. PR front #33 mergeado 2026-07-06 (merge `c1dfb73`); arquivada em `archive/2026-07/2026-07-06-coach-encerrar-semana-ui`. Suíte front 476 / back 1207. Follow-up ⚠: `console.log`/PII pré-existente no `planosDialog` (higiene separada). | `coach-encerrar-semana` ✅ |
-| 10–11 | 🤖 `add-llm-tool-use` | 35 | Tool calling: LLM pede dado sob demanda, decisões auditáveis, fim do prompt monolítico. | skills-core, débito-técnico |
-| 12b | `coach-batch-plan-generation` *(M, visível, backend+front)* | ~32 | **Geração em escala.** Coach seleciona N atletas no roster e gera planos para todos de uma vez. `POST /coach/planos/gerar-lote` → `202 Accepted + jobId`; processamento `@Async` com pool dedicado; `GET /coach/planos/lote/{jobId}` para polling de progresso; nova tabela `tb_batch_plan_job`; barra de progresso no frontend; alertas por erros individuais sem abortar o lote. Sequenciado após `add-llm-tool-use` (11–12, geração mais rápida com tool calling). | `add-llm-tool-use`, `coach-edit-planned-workout` ✅ |
-| 13–15 | 🤖 `rag-tool-calling-prescription-engine` | 64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado em metodologia. Destrava a família `rag-*`. | llm-tool-use |
-| 16+ | `add-coach-suggestion-inbox` *(upgrade RAG)* | — | Enriquecer as sugestões do 9c com citações RAG — fundamentação de metodologia no `reasoning`. O workflow já existe; só muda a fonte dos dados. | RAG, 9c |
-| 17 | 🤖 `rag-injury-aware-prescription` | 24 | Prescrição lesão-aware: protocolos de retorno, sessões contraindicadas, escalonamento de bandeira-vermelha. | RAG, explainability, attention-queue |
-| 18 | 🤖 `rag-coach-methodology-personalization` | 29 | Aprende com planos aprovados/editados — personaliza para a "voz do coach". | RAG, explainability |
-| 19–21 | 🤖 `migrate-plan-prompt-to-skills` | L | **Strangler de manutenibilidade (deferido).** Troca a FONTE das `Constraint` e seções de formatter→skill por baixo do seam estável; `PromptBuilder` vira montador fino. Anti-alucinação já entregue em `introduce-plan-constraints` → menor urgência; janela contínua no `IaServiceImpl` coordenada com `refactor-iaservice-decomposition`. | introduce-plan-constraints |
-| 22 | 🤖 `llm-code-switching` | 21 | Otimização PT/EN (assertividade + custo). Reduzida pela migração — skills já emitem estrutura EN / valores PT. | migrate-plan-prompt, llm-tool-use |
+| 12 | `system-user-prompt-split` *(micro, ~4h, sem spec formal)* | ~2 | **Redução de custo LLM ~50-70%.** Separa o template estático `plano-treino-otimizado-claude.txt` (~5.900 tokens) para system prompt — caching automático em OpenAI e Anthropic (já configurado `AnthropicCacheStrategy.SYSTEM_ONLY` nos beans Claude). Sem mudança funcional. | — |
+| 13 | `add-athlete-tsb-chart-on-selection` *(S, frontend-only)* | ~8 | **PMC chart no drill-down do coach.** Coach lê a forma do atleta sem sair do contexto de triagem. Reusa dados existentes de `useAthleteProfile`. | — |
+| 13 | `add-aerobic-decoupling` *(M, backend+front)* | ~12 | **Métrica diferenciadora.** Calcula e exibe Pa:HR (aerobic decoupling) automaticamente para treinos steady-state. Coach hoje faz na mão em planilha. | — |
+| 14 | 🤖 `progressao-treinos` *(M, backend)* | ~14 | **Envelope de progressão confiável.** Substitui o contador de semanas ingênuo por engine multi-janela (7/21/42d) com aderência, RPE e carga. O LLM recebe limites calculados → menos edição pelo coach. | — |
+| 14 | `complete-authorization-controllers` *(XS, backend)* | ~5 | **Gate de segurança para beta.** Adiciona `@PreAuthorize` nos 5 controllers que faltam. | — |
+| 14 | `keycloak-user-onboarding-auth` *(S, backend)* | ~8 | **Provisioning automatizado para beta.** Onboarding backend-driven sem operação manual no Keycloak. | — |
+| 15 | 🤖 `llm-code-switching` *(S, backend)* | ~21 | **EN/PT: ~20% ganho de reasoning + custo menor.** Instruções em EN, conteúdo em PT. Não depende de `migrate-plan-prompt-to-skills` — skills existentes já emitem estrutura EN / valores PT. | — |
+| 16+ | 🔧 **BLOCO DE ENGENHARIA** | | Agrupamento coeso de refactors + infraestrutura IA. Coach só percebe valor na saída da RAG. | |
+| 16 | 🔧 `refactor-iaservice-decomposition` *(M)* | ~26 | Decompõe `IaServiceImpl` (1500 linhas) em colaboradores testáveis. Limpa a casa antes de tool-use e skills migration. | `debito-tecnico` ✅ |
+| 17 | 🤖 `add-llm-tool-use` *(M, spike primeiro)* | ~27 | **Spike de 3 dias** para validar tools + structured output `strict`; se gate passar (~15% falha, ~2x latência), implementar infraestrutura completa. Fundação para RAG. | `debito-tecnico` ✅ |
+| 18–19 | 🤖 `migrate-plan-prompt-to-skills` *(L/XL)* | L | Strangler: troca a fonte das `Constraint` de formatter → skill. `PromptBuilder` vira montador fino. | `introduce-plan-constraints` ✅, eval-harness ✅ |
+| 20–22 | 🤖 `rag-tool-calling-prescription-engine` *(L)* | ~64 | Infra RAG (`PgVectorStore`) + motor de prescrição fundamentado. Destrava família `rag-*`. Infraestrutura de tool-use construída just-in-time se spike não tiver sido promovido antes. | `add-llm-tool-use` |
+| 23 | 🤖 `rag-injury-aware-prescription` *(M)* | ~24 | Prescrição lesão-aware: protocolos, contraindicações, escalonamento. | RAG |
+| 24 | 🤖 `rag-coach-methodology-personalization` *(M)* | ~29 | Aprende com planos aprovados/editados — personaliza para a "voz do coach". | RAG |
+| 25+ | `add-coach-suggestion-inbox` *(upgrade RAG)* | — | Enriquecer sugestões do 9c com citações RAG. Workflow já existe; só muda a fonte dos dados. | RAG, 9c ✅ |
 
 ---
 
@@ -259,7 +269,7 @@ Items identificados como importantes para a jornada do coach, mas sem sprint def
 | ~~`coach-plan-review-workflow`~~ | ✅ **Escalonado Sprint 9e** | Desbloqueador de confiança — aprovado e inserido no roadmap. | — |
 | ~~`athlete-profile-drilldown`~~ | ✅ **Escalonado Sprint 9f** | Prontuário do atleta — aprovado e inserido no roadmap. | — |
 | ~~`manual-training-entry-lightweight`~~ | ✅ **Escalonado Sprint 9d** | Desbloqueador de dado real — proposto e inserido no roadmap. | — |
-| `notify-athlete-week-closed` | Candidato — XS/S, frontend-only | Treinos marcados `PERDIDO` pelo fallback automático (03h30) surpreendem o atleta sem contexto → risco de desengajamento (causa #1 do discovery de retenção: "baixa percepção de progresso"). Banner contextual na Home do atleta quando houver treinos `PERDIDO` nas últimas 24h: _"Sua semana foi encerrada. Fez algum deles? Registre retroativamente."_ Reusa `WeeklySummaryCard` + `GET /me/treinos`. Sem notificação push. | Sequenciar logo após `coach-encerrar-semana-ui` (fast-follow). Avaliar se cabe como task extra na própria UI ou como micro-change. |
+| ~~`notify-athlete-week-closed`~~ | ✅ **Promovido Sprint 12** | Promovido na repriorização de 2026-07-06 (fast-follow de `coach-encerrar-semana`). | — |
 | `add-post-workout-debrief` | Roadmap Sprint 25 — **avaliar antecipação** | Com dado real disponível a partir do 9d (log manual), a dependência com `first-party-ingestion` (23) cai. Uma versão simplificada do debrief pode ser viabilizada antes do Sprint 23. | Revisar tasks.md: separar o que depende de métricas FIT do que funciona com log manual. Antecipável para Sprint ~10–11 se as tasks básicas forem independentes. |
 | ~~`add-daily-readiness-checkin`~~ | ✅ **Escalonado Sprint 9k** | Sinal preditivo — aprovado (2026-07-02, decision memo) e inserido no roadmap antes de `add-llm-tool-use`. | — |
 | `complete-authorization-controllers` | Bloco de Segurança — 29 tasks | Brechas de autorização abertas nos controllers. Obrigatório antes do beta. | Intercalar como hardening em sprints que toquem controllers — não tratar como feature isolada. |
