@@ -38,9 +38,9 @@ TDD: escrever o teste do bloco antes da implementação.
 
 ## 2c. Carência parametrizável via property
 
-- [ ] 2c.1 Property `menthoros.encerramento-semana.carencia-dias` (default `3`); injetar via `@Value` no scheduler.
-- [ ] 2c.2 Passar `hoje.minusDays(carenciaDias)` ao `findElegiveisFallback` (query já recebe `:limiteCarencia`).
-- [ ] 2c.3 Validação (critério 22): teste com carência customizada (5 dias) — plano com `semanaFim` há 4 dias NÃO é encerrado; há 5+ dias SIM; default da property é 3. `./mvnw clean test`.
+- [x] 2c.1 Property `menthoros.encerramento-semana.carencia-dias` (default `3`); injetar via `@Value` no scheduler.
+- [x] 2c.2 Passar `hoje.minusDays(carenciaDias)` ao `findElegiveisFallback` (query já recebe `:limiteCarencia`).
+- [x] 2c.3 Validação (critério 22): teste com carência customizada (5 dias) — plano com `semanaFim` há 4 dias NÃO é encerrado; há 5+ dias SIM; default da property é 3. `./mvnw clean test`.
 
 ## 3. Endpoint on-demand do treinador
 
@@ -61,10 +61,10 @@ TDD: escrever o teste do bloco antes da implementação.
 
 ## 5. Fechamento automático com carência (scheduler)
 
-- [ ] 5.1 Query `findElegiveisFallback(tenantId, limiteCarencia)` em `PlanoSemanalRepository` via `@Query` com `ps.assessoria.id = :tenantId` e `ps.status <> CONCLUIDO` e `ps.semanaFim <= :limiteCarencia` (`= hoje - 3d`) — **não** método derivado por `tenantId` (risco T3).
-- [ ] 5.2 `encerrarPlanosElegiveis(tenantId, hoje)` no service: seleciona planos fora da carência e aplica o encerramento por atleta (bean transacional 4.0). Fonte única de tenant (parâmetro explícito, sem `TenantContext` redundante; risco T7).
-- [ ] 5.3 `EncerramentoSemanaScheduler` com `@Scheduled(cron = "${menthoros.encerramento-semana.cron:0 30 3 * * *}", zone = "America/Sao_Paulo")`, flag `menthoros.encerramento-semana.enabled` (default true); tenants via `AssessoriaRepository.findByAtivoTrue()`, `TenantContext.set` no `try` / `clear` no `finally` por iteração; falha por tenant isolada; pool dedicado (não compartilhar a thread única com a sync do Strava — risco T7).
-- [ ] 5.4 Validação: testes dos critérios 6 (carência bloqueia), 7 (fecha após carência) e 8 (isolamento multi-tenant, **incluindo** iteração que lança antes do `clear()` e a seguinte roda com o tenant certo). `./mvnw clean test`.
+- [x] 5.1 Query `findElegiveisFallback(tenantId, limiteCarencia)` em `PlanoSemanalRepository` via `@Query` com `ps.assessoria.id = :tenantId` e `ps.status <> CONCLUIDO` e `ps.semanaFim <= :limiteCarencia` (`= hoje - 3d`) — **não** método derivado por `tenantId` (risco T3).
+- [x] 5.2 `encerrarPlanosElegiveis(tenantId, hoje)` no service: seleciona planos fora da carência e aplica o encerramento por atleta (bean transacional 4.0). Fonte única de tenant (parâmetro explícito, sem `TenantContext` redundante; risco T7).
+- [x] 5.3 `EncerramentoSemanaScheduler` com `@Scheduled(cron = "${menthoros.encerramento-semana.cron:0 30 3 * * *}", zone = "America/Sao_Paulo")`, flag `menthoros.encerramento-semana.enabled` (default true); tenants via `AssessoriaRepository.findByAtivoTrue()`, `TenantContext.set` no `try` / `clear` no `finally` por iteração; falha por tenant isolada; pool dedicado (não compartilhar a thread única com a sync do Strava — risco T7).
+- [x] 5.4 Validação: testes dos critérios 6 (carência bloqueia), 7 (fecha após carência) e 8 (isolamento multi-tenant, **incluindo** iteração que lança antes do `clear()` e a seguinte roda com o tenant certo). `./mvnw clean test`.
 
 ## 6. Reversibilidade PERDIDO → REALIZADO
 
