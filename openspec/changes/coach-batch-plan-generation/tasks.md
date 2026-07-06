@@ -50,9 +50,9 @@
 
 ### 1.2 Enum, entidade e repositório do job
 
-- [ ] 1.2.a Criar enum `BatchJobStatus` (PENDENTE, EM_PROGRESSO, CONCLUIDO, CONCLUIDO_COM_ERROS).
-- [ ] 1.2.b Criar entidade `BatchPlanJob` com campos: `id`, `tenantId`, `status`, `totalAtletas`, `gerados`, `erros`, `criadoEm`, `concluidoEm`, `resultado` (String/JSON).
-- [ ] 1.2.c Criar `BatchPlanJobRepository` com:
+- [x] 1.2.a Criar enum `BatchJobStatus` (PENDENTE, EM_PROGRESSO, CONCLUIDO, CONCLUIDO_COM_ERROS).
+- [x] 1.2.b Criar entidade `BatchPlanJob` com campos: `id`, `tenantId`, `status`, `totalAtletas`, `gerados`, `erros`, `criadoEm`, `concluidoEm`, `resultado` (String/JSON).
+- [x] 1.2.c Criar `BatchPlanJobRepository` com:
   - `findByIdAndTenantId(UUID id, UUID tenantId)` — para o GET de status.
   - **Updates atômicos, sem leitura + reatribuição em memória** (evita race condition entre virtual threads concorrentes escrevendo no mesmo job):
     ```java
@@ -64,8 +64,8 @@
     @Query("UPDATE BatchPlanJob b SET b.erros = b.erros + 1 WHERE b.id = :id")
     void incrementarErros(@Param("id") UUID id);
     ```
-- [ ] 1.2.d Validação: `./mvnw clean compile`.
-- [ ] 1.2.e Métodos de repositório para o fast-path do processador (verificados contra o código real — **não existem hoje**):
+- [x] 1.2.d Validação: `./mvnw clean compile`.
+- [x] 1.2.e Métodos de repositório para o fast-path do processador (verificados contra o código real — **não existem hoje**):
   - `PlanoSemanalRepository`: adicionar `boolean existsByAtletaIdAndSemanaInicioAndReviewStatusNot(UUID atletaId, LocalDate semanaInicio, PlanoReviewStatus status)` (derived query; `reviewStatus` é `@Enumerated(EnumType.STRING)` → comparação por nome, casa com o índice parcial `WHERE review_status <> 'REJEITADO'`). O repo já tem `findByAtletaIdAndSemanaInicio(...)` (`:35`) mas não a variante `exists...Not`.
   - Validação de tenant do atleta: **reutilizar** `AtletaRepository.findByIdAndTenantId(atletaId, tenantId)` (`:74`, retorna `Optional<Atleta>`) com `.isEmpty()` — **não existe** `existsByIdAndTenantId`; o tenant é resolvido via `atleta.assessoria.id` no `@Query` existente.
   - `verify:` `./mvnw clean compile` — os derived queries resolvem sem erro de mapeamento.
