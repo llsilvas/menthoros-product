@@ -72,7 +72,7 @@
 
 ### 1.3 DTOs
 
-- [ ] 1.3.a Criar `BatchGeracaoPlanoInputDto` (record em `dto/input/`):
+- [x] 1.3.a Criar `BatchGeracaoPlanoInputDto` (record em `dto/input/`):
   ```java
   public record BatchGeracaoPlanoInputDto(
       @NotEmpty @Size(min = 1, max = 20) List<UUID> atletaIds,
@@ -80,9 +80,9 @@
   ) {}
   ```
   Valor default de `modo` via `@JsonProperty` ou construtor compacto com default `PROXIMA_SEMANA`.
-- [ ] 1.3.b Criar `BatchJobStatusOutputDto` (record em `dto/output/`) com: `UUID jobId`, `BatchJobStatus status`, `int totalAtletas`, `int gerados`, `int erros`, `List<BatchGeradoItemDto> geradosDetalhes`, `List<BatchErroItemDto> errosDetalhes`.
-- [ ] 1.3.c Criar records aninhados `BatchGeradoItemDto(UUID atletaId, UUID planoId, String atletaNome)` e `BatchErroItemDto(UUID atletaId, String motivo)`.
-- [ ] 1.3.d Validação: `./mvnw clean compile`.
+- [x] 1.3.b Criar `BatchJobStatusOutputDto` (record em `dto/output/`) com: `UUID jobId`, `BatchJobStatus status`, `int totalAtletas`, `int gerados`, `int erros`, `List<BatchGeradoItemDto> geradosDetalhes`, `List<BatchErroItemDto> errosDetalhes`.
+- [x] 1.3.c Criar records aninhados `BatchGeradoItemDto(UUID atletaId, UUID planoId, String atletaNome)` e `BatchErroItemDto(UUID atletaId, String motivo)`.
+- [x] 1.3.d Validação: `./mvnw clean compile`.
 
 ### 1.4 `BatchPlanAsyncConfig` — executor de virtual threads
 
