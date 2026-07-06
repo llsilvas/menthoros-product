@@ -31,10 +31,10 @@ TDD: escrever o teste do bloco antes da implementação.
 
 ## 2b. Persistência da origem de encerramento (métrica-farol)
 
-- [ ] 2b.1 Migration `V51__add_origem_encerramento_plano_semanal.sql`: `ALTER TABLE tb_plano_semanal ADD COLUMN origem_encerramento VARCHAR(15)` (nullable, sem default).
-- [ ] 2b.2 Mapeamento `@Enumerated(STRING)` em `PlanoSemanal` + setter no service: on-demand/lote → `ON_DEMAND`; scheduler → `AUTOMATICO`. Setar **antes** do `save`, dentro da mesma TX.
-- [ ] 2b.3 Expor `origemEncerramento` nos DTOs que já trazem `PlanoSemanal` (roster, perfil) — sem endpoint dedicado.
-- [ ] 2b.4 Validação: teste que verifica coluna populada com a origem correta após encerramento on-demand e automático (critérios 19–20), planos pré-existentes com `null` (critério 21), e a query de métrica `GROUP BY origem_encerramento` retornando as contagens segmentadas (critério 23). `./mvnw clean test`.
+- [x] 2b.1 Migration `V51__add_origem_encerramento_plano_semanal.sql`: `ALTER TABLE tb_plano_semanal ADD COLUMN origem_encerramento VARCHAR(15)` (nullable, sem default).
+- [x] 2b.2 Mapeamento `@Enumerated(STRING)` em `PlanoSemanal` + setter no service: on-demand/lote → `ON_DEMAND`; scheduler → `AUTOMATICO`. Setar **antes** do `save`, dentro da mesma TX.
+- [x] 2b.3 Expor `origemEncerramento` nos DTOs que já trazem `PlanoSemanal` (roster, perfil) — sem endpoint dedicado.
+- [x] 2b.4 Validação: teste que verifica coluna populada com a origem correta após encerramento on-demand e automático (critérios 19–20), planos pré-existentes com `null` (critério 21), e a query de métrica `GROUP BY origem_encerramento` retornando as contagens segmentadas (critério 23). `./mvnw clean test`.
 
 ## 2c. Carência parametrizável via property
 
