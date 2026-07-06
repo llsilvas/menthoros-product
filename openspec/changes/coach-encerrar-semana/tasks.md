@@ -75,3 +75,12 @@ TDD: escrever o teste do bloco antes da implementação.
 
 - [x] 7.1 Rodar suíte completa: `./mvnw clean test` (verde, sem regressão).
 - [x] 7.2 Entregue: seções 1–6 completas (núcleo, fechamento+evento, persistência de origem, endpoint on-demand, lote+preview, fallback+carência, reversibilidade). **Adiado (fora do escopo backend, documentado no proposal):** frontend (botões + confirmação do preview) = change `coach-encerrar-semana-ui`; digest/notificação do fallback = `add-weekly-athlete-review`; teste de integração de commit-real do lote e de rollback AFTER_COMMIT (cobertos estruturalmente/por contrato). Suíte: 1201 testes, 0 falhas.
+
+## QA gate (/qa)
+
+3 reviewers em paralelo (code-reviewer, security-reviewer, clean-code-reviewer). Achados aplicados no commit `e19ca60`:
+- **Critical** — C1: N+1 no encerramento (marcarTreinoPerdido por treino) → `TreinoService.marcarTreinosPerdidos` (lote + 1 recálculo). C2: `findPendentesAteHojeDoPlano` sem filtro de tenant → adicionado `tp.tenantId`.
+- **High** — H-1: `FalhaAtleta.motivo` vazava `e.getMessage()` raw (schema do banco) → sanitizado (só erros de domínio propagam).
+- **Important** — evento publicado em replay idempotente → condicional (`fechouAgora || !perdidos`); `FalhaAtleta` exposto no DTO → `EncerramentoFalhaAtletaOutputDto` com `@Schema`; métodos core `private`; `@ApiResponse` 409.
+- **Minor** — helpers de DRY (`novaTransacaoRequiresNew`, `iterarAtletasComPlanoCorrente`), log de sobreposição de semanas, comentários de `@RequireTenant`/pool, cobertura de branches (never-publishEvent, falha no fallback), `@Nested` no scheduler.
+- **Sem Critical remanescente.** Suíte: 1201 testes, 0 falhas.
