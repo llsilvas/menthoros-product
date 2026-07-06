@@ -254,15 +254,15 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
 
 ### 2.4 Seleção no roster e toolbar
 
-- [ ] 2.4.a No `CoachAthletesPage`:
+- [x] 2.4.a No `CoachAthletesPage`:
   - Adicionar coluna de checkbox por linha de atleta.
   - Estado `selecionados: string[]`.
   - Checkbox "selecionar todos" no header da coluna (indeterminate quando parcial).
-- [ ] 2.4.b Toolbar flutuante (MUI `Toolbar` no rodapé ou topo fixo) aparece quando `selecionados.length > 0`:
+- [x] 2.4.b Toolbar flutuante (MUI `Toolbar` no rodapé ou topo fixo) aparece quando `selecionados.length > 0`:
   - Texto: "N atleta(s) selecionado(s)".
   - Botão "Gerar planos".
   - Botão "Cancelar seleção".
-- [ ] 2.4.c Validação: `npm run lint && npm run build`.
+- [x] 2.4.c Validação: `npm run lint && npm run build`.
 
 ### 2.5 Dialog de confirmação e progresso
 
@@ -277,8 +277,8 @@ Um job fica preso em `PENDENTE`/`EM_PROGRESSO` se a aplicação cair no meio do 
 ### 2.6 Testes de componente
 
 - [x] 2.6.a Teste do `BatchPlanDialog`: exibe confirmação antes do disparo; exibe progresso após confirmar; exibe resultado ao concluir.
-- [ ] 2.6.b Teste da integração no `CoachAthletesPage`: toolbar aparece ao selecionar; desaparece ao cancelar seleção.
-- [ ] 2.6.c Validação: `npm run lint && npm run build && npm test`.
+- [x] 2.6.b Teste da integração no `CoachAthletesPage`: toolbar aparece ao selecionar; desaparece ao cancelar seleção.
+- [x] 2.6.c Validação: `npm run lint && npm run build && npm test`.
 
 ---
 
