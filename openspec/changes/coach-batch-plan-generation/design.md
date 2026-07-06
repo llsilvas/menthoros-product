@@ -2,6 +2,12 @@
 
 ## Decisões Técnicas
 
+> **Nota pós-QA:** o disparo do processamento `@Async` acontece **somente após o commit**
+> da transação de `iniciarLote` (via `TransactionSynchronization.afterCommit`). Se disparado
+> dentro da transação, a virtual thread poderia rodar antes do commit do `INSERT` do job e os
+> `UPDATE`s de status/contadores afetariam 0 linhas (Critical do Codex). Correções adicionais do
+> QA no fast-path de duplicidade estão na §8.
+
 ### 1. Padrão `202 Accepted + polling` — justificativa e estrutura
 
 Geração de plano chama LLM (~5s/atleta). 20 atletas = ~100s, além do timeout de proxy (Nginx/ALB: 60–75s) e do risco de exaurir o pool HTTP do Tomcat (20 threads × 100s = todos bloqueados).
@@ -193,11 +199,11 @@ Além disso, o timeout é apenas uma rede de segurança do cliente — a fonte d
 
 Antes de chamar `planoService.gerarPlanoTreino(atletaId, modo)`, o service assíncrono verifica se já existe um plano para o atleta na semana alvo. Se existir, registra o atleta como erro com `"Plano já existe para esta semana"` sem chamar o LLM.
 
-**Alinhamento com o `gerarPlanoTreino` real (decisão de implementação):** o `gerarPlanoTreino` já tem uma checagem de duplicidade interna via `findByAtletaIdAndSemanaInicio` (qualquer status, inclusive `REJEITADO`) — mas ela roda *depois* da chamada ao LLM, desperdiçando-a. O fast-path replica a mesma semântica **antes** do LLM:
-- semana alvo: `planoService.calcularSemanaInicioAlvo(atletaId, modo)` — método público exposto que delega ao `calcularSemanaInicio` privado (history-dependent para `PROXIMA_SEMANA`; por isso não pode ser replicado fora do serviço).
-- checagem: `planoSemanalRepository.findByAtletaIdAndSemanaInicio(atletaId, semanaAlvo).isPresent()`.
+**Regra encapsulada + REJEITADO regenerável (decisão pós-QA):** a checagem de duplicidade vive num único ponto — `planoService.existePlanoParaSemana(atletaId, modo)` — que compõe o cálculo da semana (history-dependent para `PROXIMA_SEMANA`) com a query tenant-scoped `existePlanoAtivoNaSemana` (exclui `REJEITADO`, casando com o índice parcial). O mesmo método é a fonte de verdade tanto no fast-path do lote (antes do LLM) quanto na checagem interna do `gerarPlanoTreino`.
 
-Nota: usa `findByAtletaIdAndSemanaInicio` (qualquer status), **não** um `exists...ReviewStatusNot(REJEITADO)` — para bater com o `gerarPlanoTreino` (que bloqueia qualquer plano existente na semana). O índice único parcial excluir `REJEITADO` é compatível: o caso `REJEITADO`-existe já é bloqueado a montante pelo fast-path/gerarPlanoTreino, então o índice nunca precisa distingui-lo.
+- Um plano `REJEITADO` **não** bloqueia a regeneração (nem no lote nem no endpoint unitário) — alinhado à intenção do índice único parcial. Decisão de produto tomada na revisão de QA (3 revisores + Codex convergiram na inconsistência anterior).
+- `gerarPlanoTreino` lança `PlanoJaExistenteException` (subtipo de `DomainRuleViolationException`) quando já existe plano ativo — o processador distingue duplicidade de outras violações por **tipo**, não por texto de mensagem.
+- O processador não injeta mais `PlanoSemanalRepository` (a regra é do domínio de plano); chama só `existePlanoParaSemana`.
 
 **Corrida entre lotes concorrentes (TOCTOU) — guarda autoritativa no banco.** O `exists`-check acima é *best-effort*: cobre o caso comum (sequencial), mas dois lotes concorrentes com o mesmo atleta podem passar no `exists` ao mesmo tempo e gerar dois planos `AGUARDANDO_REVISAO`. A guarda real é um **índice único parcial** em `tb_plano_semanal`:
 
