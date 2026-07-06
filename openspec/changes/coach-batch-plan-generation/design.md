@@ -31,7 +31,7 @@ Vantagens: thread HTTP retorna em < 500ms; virtual threads não bloqueiam o pool
 CREATE TABLE IF NOT EXISTS tb_batch_plan_job (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id       UUID NOT NULL,
-    status          VARCHAR(20) NOT NULL DEFAULT 'PENDENTE',
+    status          VARCHAR(30) NOT NULL DEFAULT 'PENDENTE',
     total_atletas   INT NOT NULL,
     gerados         INT NOT NULL DEFAULT 0,
     erros           INT NOT NULL DEFAULT 0,
@@ -51,6 +51,8 @@ CREATE INDEX IF NOT EXISTS idx_batch_plan_job_tenant ON tb_batch_plan_job(tenant
   "erros":   [{ "atletaId": "uuid", "motivo": "..." }, ...]
 }
 ```
+
+**Detalhes só no estado terminal.** Durante `PENDENTE`/`EM_PROGRESSO` o `resultado` ainda é `null` — o progresso é acompanhado apenas pelos contadores `gerados`/`erros`/`total_atletas` (update atômico por atleta). As listas `geradosDetalhes`/`errosDetalhes` no DTO do GET são **vazias** (`[]`) até o job atingir `CONCLUIDO`/`CONCLUIDO_COM_ERROS`, quando `resultado` é gravado de uma vez. O contrato do endpoint deve documentar isso explicitamente (não são detalhes incrementais). O front, portanto, renderiza a lista de erros só na conclusão; a barra de progresso usa os contadores.
 
 Retenção: job é deletado após 7 dias por job de limpeza (cron, fora do escopo desta change — adicionar como follow-up).
 
@@ -136,6 +138,8 @@ Para qualquer `atletaId` que falhe, o `motivo` no campo `erros` segue estas regr
 
 Nunca propagar a mensagem interna da exceção para o campo `motivo` — risco de expor detalhes internos (stack trace, URL do LLM, modelo utilizado).
 
+**Normalização de `atletaIds` duplicados no request.** Se o mesmo `atletaId` vier repetido no corpo (ex.: `[A, A, B]`), duas tasks competiriam pelo mesmo plano — uma geraria e a outra viraria `"Plano já existe"` (via índice único), inflando `total_atletas` e produzindo um erro artificial. Para evitar isso, `iniciarLote` **deduplica a lista** (`atletaIds.stream().distinct().toList()`) antes de criar o job — `total_atletas` reflete a contagem distinta. A deduplicação é silenciosa (não é erro de input): a seleção no front já é baseada em `Set`, então duplicata só ocorre em uso direto da API. O limite `@Size(max = 20)` é validado sobre a lista recebida (antes da dedup) — 21 IDs, mesmo com repetição, ainda retornam 400 (o limite protege o payload, não a cardinalidade efetiva).
+
 ### 6. Atualização incremental do job — update atômico por atleta
 
 O service assíncrono atualiza o job no banco a cada plano concluído (sucesso ou erro), individualmente, assim que aquele atleta termina — não em blocos, não só no final. É isso que dá ao frontend o efeito de "vai atualizando conforme o LLM vai respondendo" no polling.
@@ -156,6 +160,12 @@ void incrementarErros(@Param("id") UUID id);
 
 Cada virtual thread chama `incrementarGerados`/`incrementarErros` (dentro de `@Transactional` próprio, curto) assim que o atleta individual termina — sem N+1 real (é o comportamento esperado, não um problema: 1 UPDATE atômico por atleta, sem leitura prévia, sem race).
 
+**Propagação de tenant em dois níveis (método externo + subtasks).** O `TenantContext` (ThreadLocal) não sobrevive ao handoff assíncrono, então precisa ser setado manualmente em **dois** pontos, não só nas subtasks:
+1. **No método `@Async` externo** (`processarLote`): ele roda em uma virtual thread própria do `batchPlanExecutor` (não na thread HTTP) e executa queries tenant-aware fora das subtasks — transição do job para `EM_PROGRESSO`, gravação de `resultado`, fechamento do status. Setar `TenantContext.setTenantId(tenantId)` no início do método e `clear()` no `finally` que envolve todo o processamento.
+2. **Em cada subtask por atleta**: cada atleta roda em *outra* virtual thread (submetida ao executor), que também não herda o ThreadLocal — set/clear próprios, como já descrito na task 1.5.b.
+
+Como o `tenantId` não vem mais do `TenantContext` no momento do disparo (a thread HTTP já retornou o 202), ele é **capturado no controller/service síncrono e passado explicitamente** como parâmetro (`processarLote(..., UUID tenantId)`) — nunca resolvido de dentro do fluxo assíncrono.
+
 ### 7. Frontend — polling strategy
 
 Intervalo de polling: 3s enquanto `status = PENDENTE | EM_PROGRESSO`. Parar polling quando `status = CONCLUIDO | CONCLUIDO_COM_ERROS`.
@@ -169,10 +179,45 @@ useEffect(() => {
 }, [jobId, status]);
 ```
 
-Timeout de segurança: se após 5 minutos o job não terminou (edge case de travamento), mostrar mensagem de erro ao usuário e parar polling.
+**Timeout de segurança — adaptativo ao tamanho do lote, não fixo.** Um teto fixo de 5 min está errado: o pior caso documentado (§4 — ~160s/atleta, concorrência 4) para 20 atletas é `⌈20/4⌉ × 160s ≈ 13min20s` de processamento *saudável*. Um timeout de 5 min abortaria o polling de jobs que estão progredindo normalmente. O timeout deve derivar do pior caso previsto:
+
+```ts
+// margem sobre o pior caso: ceil(N/concorrencia) * ~160s, com folga
+const timeoutMs = Math.max(5, Math.ceil(totalAtletas / 4) * 3) * 60_000; // ~3 min por "onda" de 4, mínimo 5 min
+```
+
+Além disso, o timeout é apenas uma rede de segurança do cliente — a fonte de verdade sobre "job travado" é o backend (o recovery de jobs órfãos, §9, fecha no servidor). O polling também deve parar imediatamente se o backend já reportou estado terminal, sem esperar o timeout. Ao estourar o timeout sem estado terminal, mostrar aviso ("A geração está demorando mais que o esperado — verifique novamente em instantes") e parar o polling, sem descartar o `jobId` (o coach pode reconsultar).
 
 ### 8. Validação de plano duplicado
 
 Antes de chamar `planoService.gerarPlanoTreino(atletaId, modo)`, o service assíncrono verifica se já existe um plano para o atleta na semana alvo com `PlanoReviewStatus` diferente de `REJEITADO`. Se existir, registra o atleta como erro com `"Plano já existe para esta semana"` sem chamar o LLM.
 
 Lógica: `planoSemanalRepository.existsByAtletaIdAndSemanaInicioAndReviewStatusNot(atletaId, semanaAlvo, REJEITADO)`.
+
+**Corrida entre lotes concorrentes (TOCTOU) — guarda autoritativa no banco.** O `exists`-check acima é *best-effort*: cobre o caso comum (sequencial), mas dois lotes concorrentes com o mesmo atleta podem passar no `exists` ao mesmo tempo e gerar dois planos `AGUARDANDO_REVISAO`. A guarda real é um **índice único parcial** em `tb_plano_semanal`:
+
+```sql
+-- na migration V52, após verificar que não há duplicatas pré-existentes (ver task 1.1.a):
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plano_semanal_atleta_semana_ativo
+    ON tb_plano_semanal (atleta_id, semana_inicio)
+    WHERE review_status <> 'REJEITADO';
+```
+
+Com o índice, a persistência do segundo plano concorrente lança `DataIntegrityViolationException` — o fluxo do lote captura essa exceção **por atleta** e a converte em erro `"Plano já existe para esta semana"` (mesma mensagem do `exists`-check), sem abortar os demais. O `exists`-check permanece como fast-path (evita a chamada ao LLM no caso comum); o índice fecha a janela de corrida.
+
+> ⚠️ **Pré-condição da migration:** antes de criar o índice único, a task 1.1 deve verificar que não existem duplicatas ativas no dado atual (`SELECT atleta_id, semana_inicio, COUNT(*) ... GROUP BY 1,2 HAVING COUNT(*) FILTER (WHERE review_status <> 'REJEITADO') > 1`). Se houver, o índice falha e é preciso limpar antes — decidir no momento de implementar.
+
+### 9. Resiliência a restart — recovery de jobs órfãos
+
+O job é persistido, mas o processamento é fire-and-forget em virtual threads: se a aplicação cair no meio, o registro fica preso em `EM_PROGRESSO` para sempre e o polling do frontend só desiste após o timeout de 5 min. Os planos já gerados **persistem** (cada atleta commita em sua própria transação curta), então não há perda de dado — mas o job precisa ser fechado.
+
+**Recovery no startup** (`ApplicationReadyEvent` listener, ou um `@Scheduled` leve): busca jobs em `PENDENTE`/`EM_PROGRESSO` cujo `criado_em` seja anterior a um limiar (ex.: > 30 min — nenhum lote real dura tanto) e os finaliza como `CONCLUIDO_COM_ERROS`.
+
+**Fechamento em nível de job (por contagem, não por atleta).** O schema não persiste a lista original de `atletaIds` submetidos nem o detalhe parcial por atleta durante o `EM_PROGRESSO` — só os contadores `gerados`/`erros` (que já refletem o que foi processado até a queda, via update atômico). Portanto o recovery **não tem como nomear quais atletas individuais faltaram** e não tenta: ele apenas fecha o job com um `resultado` de nível de job:
+- calcula `nao_processados = total_atletas - gerados - erros` (um número, não uma lista);
+- grava em `resultado` uma nota de job: `{ "observacao": "Lote interrompido por reinício da aplicação. N atleta(s) podem não ter sido processados — reenvie o lote para os atletas sem plano nesta semana." }`, preservando os `gerados`/`erros` já contabilizados;
+- seta `concluido_em`.
+
+Não reprocessa automaticamente (evita duplicar planos já gerados antes da queda); o coach reenvia o lote — os atletas que já receberam plano caem no fast-path/índice único (`"Plano já existe para esta semana"`), então o reenvio é seguro e idempotente do ponto de vista de dados. O próprio recovery é idempotente: só atua sobre jobs em estado não-terminal, então rodar duas vezes não altera um job já `CONCLUIDO`/`CONCLUIDO_COM_ERROS`.
+
+> Nomear os atletas faltantes exigiria persistir `atleta_ids` + detalhe parcial incremental (nova coluna + escrita por atleta) — fora do escopo do v1; a UX de "reenviar o lote" cobre o caso sem esse custo.

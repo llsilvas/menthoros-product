@@ -20,7 +20,8 @@ Esta change entrega geração assíncrona em lote: o coach seleciona N atletas n
 
 **Endpoint de disparo (assíncrono):**
 - `POST /api/v1/coach/planos/gerar-lote` com body `{ "atletaIds": [uuid, ...], "modo": "PROXIMA_SEMANA" | "SEMANA_ATUAL" }`.
-- Limite: `@Size(max = 20)` na lista de IDs. Body inválido → 400.
+- Limite: `@Size(max = 20)` na lista de IDs (validado sobre a lista recebida). Body inválido → 400.
+- IDs duplicados no corpo são **deduplicados** antes de criar o job (`distinct`) — `totalAtletas` reflete a contagem distinta; sem erro artificial de "Plano já existe" por repetição.
 - Resposta imediata: `202 Accepted` com `Location: /api/v1/coach/planos/lote/{jobId}` e body `{ "jobId": uuid, "totalAtletas": N }`.
 - Processamento em background via `@Async` com executor de **virtual threads** (`BatchPlanAsyncConfig`, bean `batchPlanExecutor` = `Executors.newVirtualThreadPerTaskExecutor()`) — cada atleta roda em sua própria virtual thread, submetidas todas de uma vez (sem chunking sequencial), e não compartilha platform threads com o pool HTTP do Tomcat.
 - Concorrência real de chamadas ao LLM (não o nº de virtual threads) é limitada por um `LlmConcurrencyLimiter` (`Semaphore`, tamanho configurável via `menthoros.batch-plan.llm-concorrencia`, default 4) — evita rajada de 20 chamadas simultâneas ao provedor e risco de 429.
@@ -45,12 +46,13 @@ Esta change entrega geração assíncrona em lote: o coach seleciona N atletas n
   }
   ```
 - 404 se `jobId` não existe ou pertence a outro tenant.
-- Quando `status = CONCLUIDO` ou `CONCLUIDO_COM_ERROS`, o campo `resultado` está completo.
+- Durante `PENDENTE`/`EM_PROGRESSO`, o progresso é dado **apenas pelos contadores** (`gerados`/`erros`/`totalAtletas`); `geradosDetalhes`/`errosDetalhes` vêm **vazios (`[]`)** — não há detalhe incremental por atleta.
+- Quando `status = CONCLUIDO` ou `CONCLUIDO_COM_ERROS`, o campo `resultado` está completo e `geradosDetalhes`/`errosDetalhes` são preenchidos de uma vez.
 
 **Segurança no lote:**
 - Validação de tenant por atleta: se `atletaId` não pertencer ao tenant atual, registrar como erro com motivo `"Atleta não encontrado"` (idêntico ao inexistente — sem revelar que pertence a outro tenant).
-- Atleta já com plano `AGUARDANDO_REVISAO` ou `APROVADO` na semana alvo: registrar como erro com motivo `"Plano já existe para esta semana"` — não sobrescrever.
-- `TenantContext` (ThreadLocal puro, não sobrevive a handoff assíncrono) deve ser setado explicitamente no início de cada task individual e limpo no `finally` — mesmo padrão já usado em `EncerramentoSemanaScheduler`.
+- Atleta já com plano `AGUARDANDO_REVISAO` ou `APROVADO` na semana alvo: registrar como erro com motivo `"Plano já existe para esta semana"` — não sobrescrever. A checagem tem duas camadas: um `exists`-check *fast-path* (evita a chamada ao LLM no caso comum) e um **índice único parcial** `uk_plano_semanal_atleta_semana_ativo` em `tb_plano_semanal (atleta_id, semana_inicio) WHERE review_status <> 'REJEITADO'` como guarda autoritativa contra a corrida TOCTOU entre lotes concorrentes com o mesmo atleta (a violação vira o mesmo erro `"Plano já existe para esta semana"`).
+- `TenantContext` (ThreadLocal puro, não sobrevive a handoff assíncrono) deve ser setado explicitamente e limpo no `finally` em **dois níveis** — no método `@Async` externo (envolvendo transição de status e gravação de `resultado`) e em cada task individual por atleta — mesmo padrão já usado em `EncerramentoSemanaScheduler`.
 
 **Role:**
 - Endpoint de disparo e de status: `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")`.
@@ -58,7 +60,7 @@ Esta change entrega geração assíncrona em lote: o coach seleciona N atletas n
 ### Frontend
 
 **Seleção no roster:**
-- No `CoachDashboardPage` (roster de atletas), coluna de checkbox por linha + checkbox "selecionar todos" no header.
+- No `CoachAthletesPage` (roster de atletas), coluna de checkbox por linha + checkbox "selecionar todos" no header.
 - Estado `selecionados: string[]`.
 - Toolbar flutuante (MUI `Toolbar`) aparece quando `selecionados.length > 0` com botão "Gerar planos (N)".
 
@@ -105,7 +107,8 @@ Esta change entrega geração assíncrona em lote: o coach seleciona N atletas n
 - Tenant do job é o `tenantId` do usuário autenticado no momento do POST.
 - `GET /lote/{jobId}` valida que o job pertence ao tenant atual.
 - IDs de atletas de outros tenants recebem `motivo = "Atleta não encontrado"` (sem oracle de enumeração).
-- `TenantContext` setado manualmente por task individual (virtual thread não herda ThreadLocal da thread que a submete).
+- `tenantId` capturado na thread HTTP síncrona (no disparo) e passado explicitamente ao fluxo assíncrono — nunca resolvido de dentro do async (a thread HTTP já retornou o 202).
+- `TenantContext` setado manualmente em **dois níveis**: no método `@Async` externo (que transiciona status e grava `resultado` via queries tenant-aware) e em cada task por atleta — virtual threads não herdam o ThreadLocal da thread que as submete; set no início e `clear()` no `finally` em ambos.
 
 **Configuração de infra:**
 - `BatchPlanAsyncConfig` com executor de virtual threads (`Executors.newVirtualThreadPerTaskExecutor()`) — sem pool dimensionado, sem fila; cada atleta processado em sua própria virtual thread.
@@ -159,10 +162,20 @@ Esta change entrega geração assíncrona em lote: o coach seleciona N atletas n
 - When: job em processamento
 - Then: no máximo 4 chamadas ao LLM em voo simultaneamente (verificável via métrica/log de aquisição do semáforo)
 
+**CA10 — Recovery fecha job órfão após restart:**
+- Given: job em `EM_PROGRESSO` com `criado_em` anterior ao limiar de recovery (> 30 min)
+- When: a aplicação reinicia
+- Then: o job é finalizado como `CONCLUIDO_COM_ERROS` com `concluido_em` preenchido e uma `observacao` de job no `resultado` (contagem de não processados, sem detalhe por atleta); jobs já em estado terminal permanecem inalterados (idempotência)
+
+**CA11 — IDs de atletas duplicados no request são normalizados:**
+- Given: corpo com `atletaIds = [A, A, B]` (A repetido)
+- When: `POST /coach/planos/gerar-lote`
+- Then: job criado com `totalAtletas = 2` (lista distinta); nenhum erro artificial de "Plano já existe" gerado pela repetição
+
 ## Métrica de Sucesso
 
 **Primária:** tempo médio entre início da sessão de geração e aprovação do último plano da semana, comparado ao baseline de geração individual. Meta: redução de ≥60% no tempo total.
-**Coleta de baseline:** semana anterior ao deploy, medir delta entre `MIN(criado_em)` e `MAX(atualizadoEm)` dos planos aprovados por sessão de coach.
+**Coleta de baseline (mensurável a partir dos dados já existentes):** nas 2 semanas anteriores ao deploy, agrupar os planos gerados individualmente por coach + semana-alvo (`semana_inicio`) e calcular, por grupo, o delta entre `MIN(criado_em)` (primeiro plano gerado na sessão) e `MAX(criado_em)` (último) — a média desses deltas é o baseline "tempo de geração serial da semana". Após o deploy, o mesmo delta é medido a partir de `tb_batch_plan_job` (`criado_em` → `concluido_em`). Query de baseline documentada na task de QA; se não houver ao menos 3 grupos com ≥2 planos no período, estender a janela até obter amostra mínima.
 
 **Secundária:** taxa de adoção do batch — % de semanas em que o coach gerou ≥2 planos e usou o batch (vs. geração individual sequencial). Meta: ≥60% das semanas com ≥2 planos gerados passam a usar o batch.
 
@@ -181,3 +194,21 @@ Esta change entrega geração assíncrona em lote: o coach seleciona N atletas n
 - Cancelamento de job em andamento: o coach pode interromper um lote em progresso? (Fora do escopo do v1 — jobs completam ou falham individualmente. Implementar se houver demanda após entrega.)
 - Notificação push/email quando o lote conclui: o polling é suficiente enquanto o coach está na tela; para conclusão em background (coach fechou o browser), falta notificação. (Fora do escopo — entra com infraestrutura de notificações que ainda não existe.)
 - Valor default de `menthoros.batch-plan.llm-concorrencia` (4): ajustar conforme observação real de rate-limit do provedor em produção.
+
+## Riscos, Mitigações e Rollback
+
+**Riscos e mitigações:**
+
+| Risco | Mitigação |
+|-------|-----------|
+| Rajada de 20 chamadas simultâneas ao LLM → 429/custo | `LlmConcurrencyLimiter` (`Semaphore`, default 4) limita concorrência real; retry curto (2x, 2s/4s) para 429/5xx transitório. |
+| Corrida entre lotes concorrentes gera plano duplicado para o mesmo atleta (TOCTOU no `exists`-check) | Índice único parcial `uk_plano_semanal_atleta_semana_ativo` como guarda autoritativa; `DataIntegrityViolationException` vira erro individual `"Plano já existe para esta semana"`. |
+| Aplicação cai no meio → job preso em `EM_PROGRESSO` para sempre | Recovery no startup (`ApplicationReadyEvent`) fecha jobs órfãos (> 30 min) como `CONCLUIDO_COM_ERROS`, por contagem (nível de job, não por atleta — o schema não persiste `atletaIds` nem detalhe parcial); planos já gerados persistem (transação curta por atleta). O coach reenvia o lote (seguro: atletas já com plano caem no índice único). |
+| Virtual threads saturam o pool HTTP do Tomcat | Executor dedicado de virtual threads (`batchPlanExecutor`), isolado das platform threads do Tomcat (CA8). |
+| Race condition ao incrementar `gerados`/`erros` no mesmo job | UPDATE atômico no banco (`@Modifying`), sem leitura+reatribuição em memória. |
+| `Semaphore` é por JVM — escala horizontal multiplica o teto real | Aceitável na escala atual (single instance); revisitar com limitador distribuído se houver múltiplas instâncias. |
+
+**Plano de rollback:**
+- A feature é aditiva: nova tabela `tb_batch_plan_job`, novos endpoints, novo índice único. A geração individual existente (`POST /planos/atletas/{atletaId}/gerar`) permanece intacta e é o caminho de fallback imediato — desabilitar a UI de lote no front já reverte o comportamento visível ao coach sem tocar no backend.
+- **Migration V52:** `CREATE TABLE`/`CREATE INDEX` são reversíveis por uma migration de compensação (`DROP INDEX uk_plano_semanal_atleta_semana_ativo; DROP TABLE tb_batch_plan_job;`) caso o índice único cause atrito inesperado com outro fluxo de criação de plano. **Pré-condição:** o pré-check de duplicatas (task 1.1.a) deve rodar antes do deploy — se houver duplicatas ativas pré-existentes, a migration falha no `CREATE UNIQUE INDEX` e o deploy é abortado (fail-safe, sem estado parcial).
+- Sem migração de dados destrutiva: nenhum dado existente é alterado ou removido; rollback não implica perda.
