@@ -15,12 +15,12 @@ TDD: escrever o teste do bloco antes da implementação.
 
 ## 1. Núcleo de domínio: regra de encerramento
 
-- [ ] 1.0 **Fonte de `hoje` (fuso)**: introduzir `Clock` injetável em `America/Sao_Paulo` (ou usar `CURRENT_DATE` nas queries) e derivar `hoje` de um único ponto — nunca `LocalDate.now()` sem zona (risco T2). Cobrir com o critério 16.
-- [ ] 1.1 Query `findPendentesAteHojeDoPlano(planoId, hoje)` em `TreinoPlanejadoRepository` (status `PENDENTE` e `dataTreino <= hoje`).
-- [ ] 1.2 `EncerramentoSemanaService` (interface) + `EncerramentoSemanaServiceImpl` com `encerrarSemana(planoId)` e helper `finalizarPendentes(plano, hoje)`, delegando a marcação unitária a `TreinoService.marcarTreinoPerdido()` (reuso — não reimplementar a regra).
-- [ ] 1.2b **Resiliência a corrida** (risco T4): no núcleo, **pular** (não lançar) treino que já não está `PENDENTE` no momento do update; contabilizar como "ignorado".
-- [ ] 1.3 Documentar cada método público (Idempotent/Side Effects/Tenant-aware) conforme o CLAUDE.md do backend.
-- [ ] 1.4 Validação: teste unitário cobrindo critérios 1, 2, 4, 5, 16 e 18 (finaliza `<= hoje` incl. domingo; fuso; não toca REALIZADO/PARCIAL/futuro; idempotência; ignora corrida). `./mvnw clean test`.
+- [x] 1.0 **Fonte de `hoje` (fuso)**: introduzir `Clock` injetável em `America/Sao_Paulo` (ou usar `CURRENT_DATE` nas queries) e derivar `hoje` de um único ponto — nunca `LocalDate.now()` sem zona (risco T2). Cobrir com o critério 16.
+- [x] 1.1 Query `findPendentesAteHojeDoPlano(planoId, hoje)` em `TreinoPlanejadoRepository` (status `PENDENTE` e `dataTreino <= hoje`).
+- [x] 1.2 `EncerramentoSemanaService` (interface) + `EncerramentoSemanaServiceImpl` com `encerrarSemana(planoId)` e helper `finalizarPendentes(plano, hoje)`, delegando a marcação unitária a `TreinoService.marcarTreinoPerdido()` (reuso — não reimplementar a regra).
+- [x] 1.2b **Resiliência a corrida** (risco T4): no núcleo, **pular** (não lançar) treino que já não está `PENDENTE` no momento do update; contabilizar como "ignorado".
+- [x] 1.3 Documentar cada método público (Idempotent/Side Effects/Tenant-aware) conforme o CLAUDE.md do backend.
+- [x] 1.4 Validação: teste unitário cobrindo critérios 1, 2, 4, 5, 16 e 18 (finaliza `<= hoje` incl. domingo; fuso; não toca REALIZADO/PARCIAL/futuro; idempotência; ignora corrida). `./mvnw clean test`.
 
 ## 2. Fechamento do plano + evento
 
