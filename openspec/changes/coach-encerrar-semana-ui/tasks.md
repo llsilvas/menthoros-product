@@ -13,12 +13,15 @@ Depende de `coach-encerrar-semana` mergeada (contratos de API).
 
 - [ ] 2.1 Botão de ação no contexto do plano/semana do atleta; chama o endpoint individual e exibe o resumo (perdidos, status, `aviso`).
 - [ ] 2.2 Tratar o `aviso` (meio de semana) como informação, não erro (critério 4).
+- [ ] 2.2b **Estado visual distinto parcial/completo**: quando `prontoParaProximaSemana = true` → resumo verde + CTA; quando `false` → resumo amarelo/warning com `aviso` em destaque e contagem de treinos futuros pendentes.
+- [ ] 2.2c **CTA "Gerar plano da próxima semana"**: quando `prontoParaProximaSemana = true`, exibir botão/link que navega para o fluxo de geração já existente (`PlanosDialog`). Zero backend.
 - [ ] 2.3 Validação: `npm run lint && npm run build` + smoke manual.
 
 ## 3. Lote da assessoria com confirmação (preview)
 
 - [ ] 3.1 Botão "Encerrar semana de todos" no painel do treinador.
 - [ ] 3.2 Dialog de confirmação **responsivo** que carrega o preview e mostra o impacto projetado (treinos/atletas); só dispara o encerramento real após aceite; cancelar não faz nada (critério 2).
+- [ ] 3.2b **Seleção granular de atletas no preview**: listar atletas com checkbox (todos marcados por default). Coach pode desmarcar atletas antes de confirmar. A execução chama encerramento individual para cada atleta selecionado (orquestração no front, zero mudança de backend).
 - [ ] 3.3 Card de resumo do lote: totais + lista de falhas por atleta sem travar os que deram certo (critério 3).
 - [ ] 3.4 Validação: `npm run lint && npm run build`.
 

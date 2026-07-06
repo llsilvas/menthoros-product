@@ -200,6 +200,42 @@ Endpoint de **preview / dry-run** (confiança no lote — sem persistir nada):
 - 200 → mesmo shape do `EncerramentoLoteOutputDto`, porém rotulado como projeção. Permite ao front mostrar
   "vou marcar 23 treinos como perdidos para 8 atletas — confirmar?" antes do disparo real.
 
+### Migration (`origem_encerramento`)
+
+```sql
+-- V<next>__add_origem_encerramento_plano_semanal.sql
+ALTER TABLE tb_plano_semanal
+  ADD COLUMN origem_encerramento VARCHAR(15);
+-- Nullable, sem default — planos encerrados antes desta change ficam NULL (não fabricar dado).
+-- Populada pelo service no momento do encerramento (ON_DEMAND ou AUTOMATICO).
+```
+
+Mapeamento JPA em `PlanoSemanal`:
+```java
+@Column(name = "origem_encerramento", length = 15)
+@Enumerated(EnumType.STRING)
+private OrigemEncerramento origemEncerramento;  // nullable — planos pré-existentes
+```
+
+O service seta `plano.setOrigemEncerramento(origem)` **antes** de `save` — dentro da mesma TX do
+encerramento. Sem endpoint de leitura dedicado: as queries que já trazem `PlanoSemanal` (roster,
+perfil, fila de atenção) passam a expor o campo naturalmente via DTO.
+
+### Carência parametrizável
+
+```yaml
+# application.yml
+menthoros:
+  encerramento-semana:
+    enabled: true
+    cron: "0 30 3 * * *"
+    carencia-dias: 3        # default; override por assessoria é follow-up
+```
+
+O `EncerramentoSemanaScheduler` lê `@Value("${menthoros.encerramento-semana.carencia-dias:3}")` e
+passa `hoje.minusDays(carenciaDias)` ao `findElegiveisFallback`. A query **não** embute o literal `3`
+— recebe `:limiteCarencia` como parâmetro (já está assim no design original).
+
 Evento:
 ```java
 public record SemanaEncerradaEvent(

@@ -130,3 +130,36 @@ admin e SHALL validar que o plano pertence ao tenant corrente.
 #### Scenario: Plano de outro tenant não é encontrado
 - **WHEN** um treinador chama o endpoint com um `planoId` que pertence a outro tenant
 - **THEN** a resposta é 404 (via validação de tenant), sem encerrar nada
+
+### Requirement: Persistência da origem de encerramento para métrica de adoção
+O sistema SHALL persistir a origem do encerramento (`ON_DEMAND` ou `AUTOMATICO`) no
+`PlanoSemanal` no momento do encerramento, habilitando a consulta da métrica-farol de
+adoção (proporção de encerramentos on-demand ≥ 60%).
+
+#### Scenario: Encerramento on-demand persiste origem ON_DEMAND
+- **WHEN** o treinador encerra uma semana via ação individual ou lote
+- **THEN** o `PlanoSemanal.origemEncerramento` é persistido como `ON_DEMAND`
+
+#### Scenario: Encerramento automático persiste origem AUTOMATICO
+- **WHEN** o scheduler encerra uma semana após a carência
+- **THEN** o `PlanoSemanal.origemEncerramento` é persistido como `AUTOMATICO`
+
+#### Scenario: Planos pré-existentes têm origem nula
+- **GIVEN** um plano encerrado antes da migration
+- **WHEN** consultado
+- **THEN** `origemEncerramento` é `null` (não fabricar dado retroativamente)
+
+### Requirement: Carência do fallback parametrizável via property
+O scheduler de encerramento automático SHALL usar o valor da property
+`menthoros.encerramento-semana.carencia-dias` (default `3`) como número de dias de
+carência, em vez de um literal hardcoded.
+
+#### Scenario: Carência customizada respeita o valor configurado
+- **GIVEN** `menthoros.encerramento-semana.carencia-dias=5`
+- **WHEN** o job diário roda e existe um plano não `CONCLUIDO` cujo `semanaFim` foi há 4 dias
+- **THEN** o plano não é encerrado (carência de 5 dias ainda não decorreu)
+
+#### Scenario: Carência default é 3 dias quando a property não está definida
+- **GIVEN** nenhum override de `menthoros.encerramento-semana.carencia-dias`
+- **WHEN** o job diário roda e existe um plano cujo `semanaFim` foi há 3 dias
+- **THEN** o plano é encerrado (default 3 dias)

@@ -21,9 +21,22 @@ Depende de `coach-encerrar-semana` (contratos de API prontos). Deve entrar logo 
   totais + falhas).
 - **Preview obrigatório antes do lote** — nunca disparar o lote sem passar pela confirmação. É a salvaguarda
   de confiança que sustenta a adoção.
+- **Seleção granular no preview do lote**: o dialog de confirmação lista os atletas com checkbox
+  (todos marcados por default). O coach pode **desmarcar atletas** que sabe que vão registrar
+  retroativo (viagem, lesão, etc.) antes de confirmar. A execução chama o encerramento
+  **individual** para cada atleta selecionado — zero mudança de backend, só orquestração no front.
+  Mais rápido que encerrar N-2 individualmente; mais seguro que o tudo-ou-nada.
 - **Estado pós-ação**: refletir semanas encerradas e treinos `PERDIDO` nas telas já existentes (fila de
   atenção / dashboard) sem regressão; distinguir visualmente encerramento `AUTOMATICO` de `ON_DEMAND`
   quando a origem estiver disponível.
+- **Estado visual distinto parcial vs completo**: quando `prontoParaProximaSemana = true` (plano
+  fechou), o resumo aparece em **verde** com CTA positivo. Quando `false` (meio da semana, treinos
+  futuros pendentes), aparece em **amarelo/warning** com o `aviso` em destaque — não apenas como
+  ausência de CTA, mas como estado visual próprio ("N treinos futuros ainda pendentes").
+- **CTA "Gerar plano da próxima semana"**: quando `prontoParaProximaSemana = true`, o resumo
+  exibe um botão/link que navega para o fluxo de geração de plano já existente (`PlanosDialog`).
+  Elimina a etapa mental "fechei — e agora?" e conecta o encerramento ao próximo passo natural.
+  Zero backend.
 - Regenerar o cliente TypeScript da API (openapi) a partir do contrato atualizado do backend.
 
 ### Non-Goals

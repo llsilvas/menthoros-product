@@ -43,10 +43,15 @@ gerada — mantendo o treinador no controle (coach-in-the-loop).
   antes de disparar. Salvaguarda de confiança essencial para a adoção do lote — a reversibilidade
   por atleta é rede de segurança, não "desfazer".
 - **Fechamento automático com carência (fallback)**: um scheduler diário fecha os planos
-  semanais que o treinador **não** fechou manualmente, apenas depois de **3 dias** do fim
+  semanais que o treinador **não** fechou manualmente, apenas depois de N dias do fim
   da semana (`semanaFim`), evitando marcar como perdido um treino que o atleta ainda pode
   registrar retroativamente. Multi-tenant: itera por tenant/atleta, populando o
   `TenantContext` a cada iteração (padrão do `StravaActivitySyncScheduler`).
+  **Carência parametrizável**: o valor default é **3 dias**, configurável via property
+  `menthoros.encerramento-semana.carencia-dias` (global). Não hardcoded em query — evita
+  migration + recompilação para ajustar um número operacional. Assessorias com cadências
+  distintas (ultra-endurance = 5d, HIIT = 1d) podem ser atendidas via override futuro
+  por tenant (coluna em `tb_assessoria`), sem refactor da query.
 - **Reversibilidade preservada**: registrar um treino retroativo (`registrarTreinoManualAtleta`
   / `marcar-realizado`) sobre um planejado que ficou `PERDIDO` volta o status para `REALIZADO`
   e recalcula o status do plano. Esta change garante que essa transição `PERDIDO → REALIZADO`
@@ -55,6 +60,12 @@ gerada — mantendo o treinador no controle (coach-in-the-loop).
   `ON_DEMAND`/`AUTOMATICO`) e deixa o plano `CONCLUIDO` — a **geração do próximo plano continua disparada
   pelo treinador**, nunca automaticamente. A IA propõe, o treinador aprova. O `origem` deixa o coach
   distinguir "eu fechei" de "o sistema fechou na madrugada".
+- **Persistência da origem de encerramento**: coluna `origem_encerramento` (`VARCHAR(15)`, nullable,
+  default null) adicionada ao `PlanoSemanal` (migration). Populada com `ON_DEMAND` ou `AUTOMATICO`
+  no momento do encerramento. Habilita a **métrica-farol de adoção** (proporção on-demand ≥ 60%):
+  sem essa coluna a métrica é inviável de calcular exceto por logs efêmeros. Consultável via query
+  simples (`SELECT origem_encerramento, COUNT(*) ... GROUP BY 1`), dispensando infraestrutura de
+  analytics no MVP.
 
 ### Não faz parte do escopo (Non-Goals)
 
