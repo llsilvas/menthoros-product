@@ -121,13 +121,14 @@ public class LlmConcurrencyLimiter {
 
 **Premissa em aberto:** o `Semaphore` é por instância da JVM, não um limite global distribuído. Se o backend escalar horizontalmente no futuro, o teto real de concorrência ao LLM vira `4 × nº de instâncias`. Para a escala atual (single instance) isso é aceitável; revisitar se/quando houver múltiplas instâncias em produção.
 
-### 4.2 Retry curto para erro transitório de infra (rate-limit/503) no modo lote
+### 4.2 Erro transitório de infra (rate-limit/503) — decisão: sem retry no batch
 
-`PlanoResilienceService` já faz retry (1x) apenas para falha *estrutural* de validação — falhas de infra/rede propagam direto (correto no fluxo unitário síncrono, onde 503/429 é raro). Em lote, a concorrência introduzida pelo próprio batch aumenta a chance de 429 do provedor. Sem tratamento, isso viraria falso "erro" pro coach mesmo quando o atleta poderia ter tido plano gerado com sucesso.
+**Decisão de implementação (revisada contra o código real):** o retry curto de 429/5xx **não** é adicionado no fluxo de lote. Dois motivos apurados no código:
 
-Adicionar, só no fluxo de lote, um retry curto e específico para exceções de rate-limit/infra do provedor (não para falha de validação estrutural, que já é tratada a montante):
-- 2 tentativas, backoff 2s → 4s.
-- Só cobre `HttpClientErrorException.TooManyRequests` (429) e erros 5xx do provedor — qualquer outra exceção (parsing, validação de domínio) segue para o tratamento de erro padrão do item (sem retry adicional, evita mascarar bug real).
+1. **Não chega sinal transitório ao batch.** `gerarPlanoTreino` encapsula qualquer erro do provedor em `LLMException` genérica (`catch (Exception e) → throw new LLMException(...)`), sem distinguir transitório de permanente. O batch não tem como saber se foi 429/5xx sem inspecionar a cadeia de causas — frágil.
+2. **O Spring AI já faz retry de transitórios.** A camada `IaService` chama o LLM via Spring AI, cujo `RetryTemplate` padrão já reexecuta erros transitórios (429/5xx) antes de a exceção surgir. Um retry adicional no batch seria redundante.
+
+Consequência: qualquer `LLMException` é tratada como erro **definitivo** por atleta (`"Erro ao gerar plano — tente novamente"`); o coach reenvia os que faltaram. O `LlmConcurrencyLimiter` (§4.1) já reduz a pressão de rate-limit ao limitar a concorrência real ao provedor.
 
 ### 5. Tratamento de erros individuais — sem oracle de enumeração
 
@@ -190,9 +191,13 @@ Além disso, o timeout é apenas uma rede de segurança do cliente — a fonte d
 
 ### 8. Validação de plano duplicado
 
-Antes de chamar `planoService.gerarPlanoTreino(atletaId, modo)`, o service assíncrono verifica se já existe um plano para o atleta na semana alvo com `PlanoReviewStatus` diferente de `REJEITADO`. Se existir, registra o atleta como erro com `"Plano já existe para esta semana"` sem chamar o LLM.
+Antes de chamar `planoService.gerarPlanoTreino(atletaId, modo)`, o service assíncrono verifica se já existe um plano para o atleta na semana alvo. Se existir, registra o atleta como erro com `"Plano já existe para esta semana"` sem chamar o LLM.
 
-Lógica: `planoSemanalRepository.existsByAtletaIdAndSemanaInicioAndReviewStatusNot(atletaId, semanaAlvo, REJEITADO)`.
+**Alinhamento com o `gerarPlanoTreino` real (decisão de implementação):** o `gerarPlanoTreino` já tem uma checagem de duplicidade interna via `findByAtletaIdAndSemanaInicio` (qualquer status, inclusive `REJEITADO`) — mas ela roda *depois* da chamada ao LLM, desperdiçando-a. O fast-path replica a mesma semântica **antes** do LLM:
+- semana alvo: `planoService.calcularSemanaInicioAlvo(atletaId, modo)` — método público exposto que delega ao `calcularSemanaInicio` privado (history-dependent para `PROXIMA_SEMANA`; por isso não pode ser replicado fora do serviço).
+- checagem: `planoSemanalRepository.findByAtletaIdAndSemanaInicio(atletaId, semanaAlvo).isPresent()`.
+
+Nota: usa `findByAtletaIdAndSemanaInicio` (qualquer status), **não** um `exists...ReviewStatusNot(REJEITADO)` — para bater com o `gerarPlanoTreino` (que bloqueia qualquer plano existente na semana). O índice único parcial excluir `REJEITADO` é compatível: o caso `REJEITADO`-existe já é bloqueado a montante pelo fast-path/gerarPlanoTreino, então o índice nunca precisa distingui-lo.
 
 **Corrida entre lotes concorrentes (TOCTOU) — guarda autoritativa no banco.** O `exists`-check acima é *best-effort*: cobre o caso comum (sequencial), mas dois lotes concorrentes com o mesmo atleta podem passar no `exists` ao mesmo tempo e gerar dois planos `AGUARDANDO_REVISAO`. A guarda real é um **índice único parcial** em `tb_plano_semanal`:
 

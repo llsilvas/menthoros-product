@@ -65,10 +65,12 @@
     void incrementarErros(@Param("id") UUID id);
     ```
 - [x] 1.2.d Validação: `./mvnw clean compile`.
-- [x] 1.2.e Métodos de repositório para o fast-path do processador (verificados contra o código real — **não existem hoje**):
-  - `PlanoSemanalRepository`: adicionar `boolean existsByAtletaIdAndSemanaInicioAndReviewStatusNot(UUID atletaId, LocalDate semanaInicio, PlanoReviewStatus status)` (derived query; `reviewStatus` é `@Enumerated(EnumType.STRING)` → comparação por nome, casa com o índice parcial `WHERE review_status <> 'REJEITADO'`). O repo já tem `findByAtletaIdAndSemanaInicio(...)` (`:35`) mas não a variante `exists...Not`.
-  - Validação de tenant do atleta: **reutilizar** `AtletaRepository.findByIdAndTenantId(atletaId, tenantId)` (`:74`, retorna `Optional<Atleta>`) com `.isEmpty()` — **não existe** `existsByIdAndTenantId`; o tenant é resolvido via `atleta.assessoria.id` no `@Query` existente.
-  - `verify:` `./mvnw clean compile` — os derived queries resolvem sem erro de mapeamento.
+- [x] 1.2.e Suporte ao fast-path (decisão: alinhar ao `gerarPlanoTreino`, ver design §8):
+  - `PlanoService.calcularSemanaInicioAlvo(UUID, ModoGeracaoPlano)`: método público novo que delega ao `calcularSemanaInicio` privado (`PlanoServiceImpl:222`) com `LocalDate.now()` — expõe a semana alvo (history-dependent p/ `PROXIMA_SEMANA`) para o pré-check.
+  - Duplicidade: **reutilizar** `PlanoSemanalRepository.findByAtletaIdAndSemanaInicio(...)` (`:35`, qualquer status) — não foi criado `exists...ReviewStatusNot` (desalinhado com o `gerarPlanoTreino`).
+  - Validação de tenant do atleta: **reutilizar** `AtletaRepository.findByIdAndTenantId(atletaId, tenantId)` (`:74`, `Optional<Atleta>`) com `.isEmpty()`.
+  - `BatchPlanJobRepository`: `atualizarStatus(id, status)` (`@Modifying`) para a transição EM_PROGRESSO.
+  - `verify:` `./mvnw clean compile`.
 
 ### 1.3 DTOs
 
@@ -123,12 +125,12 @@
 
 ### 1.5 Service: `BatchPlanService`
 
-- [ ] 1.5.a Criar interface `BatchPlanService`:
+- [x] 1.5.a Criar interface `BatchPlanService`:
   ```java
   UUID iniciarLote(BatchGeracaoPlanoInputDto input, UUID tenantId);
   BatchJobStatusOutputDto consultarStatus(UUID jobId, UUID tenantId);
   ```
-- [ ] 1.5.b Criar `BatchPlanServiceImpl`:
+- [x] 1.5.b Criar `BatchPlanServiceImpl`:
   - `iniciarLote`: **deduplicar `atletaIds`** (`input.atletaIds().stream().distinct().toList()`) antes de qualquer coisa — evita tasks concorrentes para o mesmo atleta e `total_atletas` inflado (dedup silenciosa, não é erro de input; a validação `@Size(max=20)` já rodou sobre a lista original no controller). Capturar o `tenantId` do `TenantContext` **aqui, na thread HTTP síncrona** (não dentro do fluxo async). Criar `BatchPlanJob` (status PENDENTE, `totalAtletas` = tamanho da lista distinta), persistir, chamar método `@Async` **em um bean separado** (nunca self-invocation na mesma classe — chamada interna `this.processarLote(...)` não passa pelo proxy Spring e o `@Async` seria ignorado silenciosamente, rodando síncrono na thread HTTP e quebrando o CA1 sem erro visível). Extrair `processarLote` para um componente dedicado (ex.: `BatchPlanProcessor`) injetado no service, ou usar auto-injeção via `@Lazy` do próprio proxy — preferir o componente separado, mais explícito.
   - `BatchPlanProcessor.processarLote(UUID jobId, List<UUID> atletaIds, ModoGeracaoPlano modo, UUID tenantId)`, anotado `@Async("batchPlanExecutor")`:
     - **`TenantContext.setTenantId(tenantId)` no início do método externo, `clear()` no `finally` que envolve todo o processamento** — o método async roda em virtual thread própria (não na HTTP), não herda o ThreadLocal, e executa queries tenant-aware fora das subtasks (transição para EM_PROGRESSO, gravação de `resultado`, fechamento). Isto é adicional ao set/clear por subtask (abaixo): são dois níveis de propagação.
@@ -137,14 +139,14 @@
     - Cada task individual:
       - `TenantContext.setTenantId(tenantId)` no início; `TenantContext.clear()` no `finally` (ThreadLocal puro não sobrevive ao handoff assíncrono — virtual thread também não herda; setar manualmente é obrigatório, mesmo padrão do `EncerramentoSemanaScheduler`).
       - Validar que atleta pertence ao tenant: `atletaRepository.findByIdAndTenantId(atletaId, tenantId).isEmpty()` (método existente `:74`; **não** há `existsByIdAndTenantId`) → se vazio, registrar erro `"Atleta não encontrado"`.
-      - Verificar plano duplicado (fast-path, best-effort): `planoSemanalRepository.existsByAtletaIdAndSemanaInicioAndReviewStatusNot(atletaId, semanaAlvo, REJEITADO)` → se sim, erro `"Plano já existe para esta semana"` sem chamar o LLM. O `exists`-check cobre o caso sequencial mas tem janela TOCTOU entre lotes concorrentes — a guarda autoritativa é o índice único parcial (1.1.b).
+      - Verificar plano duplicado (fast-path, alinhado ao `gerarPlanoTreino` — ver design §8): `semanaAlvo = planoService.calcularSemanaInicioAlvo(atletaId, modo)`; se `planoSemanalRepository.findByAtletaIdAndSemanaInicio(atletaId, semanaAlvo).isPresent()` → erro `"Plano já existe para esta semana"` sem chamar o LLM. Guarda autoritativa da corrida concorrente: índice único parcial (1.1.b).
       - Chamar `planoService.gerarPlanoTreino(atletaId, modo)` **através do `LlmConcurrencyLimiter.executar(...)`** (limita concorrência real ao provedor, não ao pool de threads).
-      - Capturar `DataIntegrityViolationException` na persistência do plano (violação do índice único `uk_plano_semanal_atleta_semana_ativo` por lote concorrente) e convertê-la em erro individual `"Plano já existe para esta semana"` — mesma mensagem do fast-path, sem abortar as demais tasks do lote.
-      - Erros transitórios do provedor (429/5xx) recebem retry curto (2 tentativas, backoff 2s → 4s) *antes* de cair no catch definitivo — não confundir com o retry estrutural já existente em `PlanoResilienceService` (esse cobre validação, não infra).
+      - Capturar `DataIntegrityViolationException` (violação do índice único por lote concorrente) e `DomainRuleViolationException` cuja mensagem indique plano já existente → erro individual `"Plano já existe para esta semana"`, sem abortar as demais tasks. Demais `DomainRuleViolationException` (ex.: "sem dias disponíveis") e `LLMException` → `"Erro ao gerar plano — tente novamente"`.
+      - **Sem retry de 429/5xx no batch** (decisão, design §4.2): `gerarPlanoTreino` encapsula tudo em `LLMException` sem sinal transitório, e o Spring AI já reexecuta transitórios internamente. `LLMException` é erro definitivo do item.
       - Sucesso ou erro definitivo → `batchPlanJobRepository.incrementarGerados(jobId)` ou `incrementarErros(jobId)` (update atômico, sem leitura+reatribuição em memória).
     - Ao final (todas as tasks concluídas): setar `status = CONCLUIDO | CONCLUIDO_COM_ERROS`, setar `concluidoEm`, persistir `resultado` como JSON.
   - `consultarStatus`: `batchPlanJobRepository.findByIdAndTenantId(jobId, tenantId)` → lançar `ResourceNotFoundException` se ausente (mapeada para **404** no `GlobalExceptionHandler:74`; **não** usar `DomainNotFoundException`, que não tem handler explícito e cairia em 500); retornar DTO com estado atual.
-- [ ] 1.5.c Validação: `./mvnw clean test`.
+- [x] 1.5.c Validação: `./mvnw clean test`.
 
 ### 1.6 Controller: `CoachBatchPlanController`
 
@@ -157,7 +159,7 @@
 
 ### 1.7 Testes de unidade — service
 
-- [ ] 1.7.a `BatchPlanServiceImplTest` com `@Nested`:
+- [x] 1.7.a `BatchPlanServiceImplTest` com `@Nested`:
   - `IniciarLote > cria job e retorna jobId`.
   - `IniciarLote > rejeita lista vazia`.
   - `IniciarLote > rejeita lista com mais de 20 atletas`.
@@ -165,7 +167,7 @@
   - `IniciarLote > delega processamento ao bean assíncrono (não self-invocation)` — verificar via mock/spy que o método `@Async` é chamado através do proxy, não diretamente.
   - `ConsultarStatus > retorna estado atual do job`.
   - `ConsultarStatus > lança ResourceNotFoundException para jobId de outro tenant` (→ 404).
-- [ ] 1.7.b `BatchPlanProcessorTest`:
+- [x] 1.7.b `BatchPlanProcessorTest`:
   - `gera planos para todos os atletas válidos`.
   - `registra erro individual sem abortar o lote`.
   - `atleta de outro tenant → motivo Atleta não encontrado`.
@@ -173,8 +175,9 @@
   - `status CONCLUIDO_COM_ERROS quando há pelo menos um erro`.
   - `TenantContext é setado antes de cada chamada e limpo no finally, mesmo em erro`.
   - `TenantContext é setado no método externo processarLote (envolvendo transição de status e gravação de resultado) e limpo no finally` — validar o nível externo de propagação, além do por-subtask.
-  - `respeita o limite de concorrência do Semaphore` (ex.: mock do `LlmConcurrencyLimiter` verificando nº máximo de permits em uso simultâneo).
-  - `retry curto ativa apenas para exceção de rate-limit/infra do provedor (429/5xx), não para falha de validação estrutural`.
+  - `DataIntegrityViolationException (corrida de lotes) → motivo Plano já existe`.
+  - `DomainRuleViolationException não-duplicidade → motivo Erro ao gerar plano`.
+  - (limite de concorrência do `Semaphore` coberto pelo `LlmConcurrencyLimiterTest`, seção 1.4.)
   - `updates de progresso usam a query atômica (incrementarGerados/incrementarErros), não leitura+reatribuição`.
 - [ ] 1.7.c `CoachBatchPlanControllerTest` com `@WebMvcTest`:
   - POST retorna 202 com `jobId` e header `Location`.
