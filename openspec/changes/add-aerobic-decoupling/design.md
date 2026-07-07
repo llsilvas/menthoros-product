@@ -5,22 +5,23 @@
 Decoupling aeróbico (Pa:HR) = deterioração do fator de eficiência `velocidade/FC` entre a 1ª e a 2ª metade de um esforço aeróbico contínuo. O dado de entrada já existe no domínio; falta o cálculo + a exposição. Esta change adota a **Opção 1** (derivar dos segmentos persistidos), sem tocar a ingestão.
 
 Referências (estado atual):
-- Entidade: `entity/TreinoRealizado.java` (agregados do treino) + `entity/EtapaRealizada.java:48-76` (segmentos: `ordem`, `duracao`, `distanciaKm`, `fcMedia`, `fcMax`, `paceMedia`, `velocidadeMedia`, `potenciaMedia`, `tipoEtapa`).
-- DTO de saída: `dto/output/TreinoRealizadoOutputDto.java` (`@JsonInclude(NON_NULL)`, lista `etapasRealizadas`), montado por `mapper/TreinoMapper.toOutputDto`. Retornado por `TreinoRealizadoController` em `marcar-realizado`, `lancar-treino`, `PUT /realizados/{id}`, `enriquecer-strava`.
+- Entidade: `entity/TreinoRealizado.java` (agregados; `getEtapasRealizadas()` = `List<EtapaRealizada>` `@OneToMany LAZY @OrderBy("ordem")`; **`tipoTreino` herdado de `TreinoBase.java:35`, `@Column(nullable=false)`**) + `entity/EtapaRealizada.java:39-89` (segmentos: `ordem` Integer, `tipoEtapa` String, `duracao` Duration, `distanciaKm`/`velocidadeMedia` BigDecimal, `fcMedia`/`fcMax`/`potenciaMedia` Integer, `paceMedia` Duration).
+- DTO de saída: `dto/output/TreinoRealizadoOutputDto.java` (**record**, `@JsonInclude(NON_NULL)` na classe, ~35 campos incl. `etapasRealizadas`), montado por **MapStruct** `mapper/TreinoMapper.java:169` (ponto único). Retornado por `TreinoRealizadoController` (`marcar-realizado`, `lancar-treino`, `PUT /realizados/{id}`, `enriquecer-strava`) e ~8 outros endpoints (`AtletaTreinoController`, `ManualReconciliationController`, `FitUploadController`) — todos via o mesmo mapper.
 - Numerador análogo já existente (agregado): `skills/race/PaceRegressionCalculator.java:74-76` (`pace / (avgHr/lthr)`).
 - Front: `types/TreinoRealizado.ts` (interface `TreinoRealizado` com `etapasRealizadas`); dialogs `TreinoRealizadoDialog.tsx` / `DetalheTreinoDialog.tsx`; tokens `semantic.*` (`theme/tokens.ts`).
 
 ## Decisão 1 — Cálculo (helper backend, derivado)
 
-Novo `services/helper/DecouplingCalculatorService` com assinatura sobre os segmentos **e o tipo do treino (nullable)**:
+Novo `services/helper/DecouplingCalculatorService` com assinatura sobre os segmentos **e o tipo do treino**:
 
 ```
-Double calcular(List<EtapaRealizada> etapas, @Nullable TipoTreino tipoTreino):
+Double calcular(List<EtapaRealizada> etapas, TipoTreino tipoTreino):
 ```
 
-> **Origem do `TipoTreino` (apurado no código):** `TreinoRealizado` **não** tem campo `tipoTreino` — o tipo vem de `treinoPlanejado.getTipoTreino()`, e `treinoPlanejado` é `@ManyToOne(LAZY)` **nullable** (treino manual ou importado do Strava sem plano vinculado → sem tipo). Portanto:
-> - O `TipoTreino` é **opcional** no contrato. O **belt-and-suspenders (predicado 5) só dispara quando o tipo é conhecido**; quando `null`, o gate recai **apenas no CV (predicado 4)** — que é justamente o critério robusto e independente de classificação (o belt-and-suspenders é redundância, não a defesa primária). Isso evita esconder o decoupling de toda rodagem manual/Strava (a maioria dos realizados).
-> - **Cuidado LAZY:** o mapper/service deve acessar `treinoPlanejado.getTipoTreino()` **dentro da transação** (ou com o plano já carregado) para não cair em `LazyInitializationException`; se indisponível, passar `null` (degrada para CV-only, seguro). Confirmar no 1.x.
+> **Origem do `TipoTreino` (confirmado no código, 2026-07-07):** `TreinoRealizado` **herda `tipoTreino` de `TreinoBase`** (`entity/TreinoBase.java:35` — `@Column(name = "tipo_treino", nullable = false)`). Ou seja, **todo realizado tem `tipoTreino` direto, não-nulo, coluna simples (sem LAZY, sem dependência do `treinoPlanejado`)**. Consequências:
+> - Acesso trivial: `treino.getTipoTreino()` no mapper — **sem risco de `LazyInitializationException`** (é coluna, não associação) e sem depender do `treinoPlanejado` (que existe, `@OneToOne LAZY` nullable, mas é irrelevante aqui).
+> - O **belt-and-suspenders (predicado 5) está sempre disponível** (o tipo nunca é `null` num realizado persistido). Ainda assim, o **CV (predicado 4) permanece a defesa primária** — robusto e independente da classificação; o predicado 5 é a rede de segurança para um contínuo mal-segmentado (ex.: HIIT lançado como CONTINUO).
+> - O helper mantém um **guarda defensivo** (`if tipoTreino == null` → pula só o predicado 5, cai no CV) por robustez, mas esse caminho não ocorre no fluxo real — não é a justificativa do contrato.
 
 Corpo do cálculo:
 ```
@@ -54,7 +55,7 @@ Retorna `null` se **qualquer** predicado falhar (todos testáveis):
    - `CV(fcMedia por segmento) ≤ 0.10` **E** `CV(velocidadeMedia por segmento) ≤ 0.15`, onde `CV = desvioPadrão / média`.
    - **Robustez à segmentação arbitrária:** o CV é calculado **apenas sobre segmentos ≥ `MIN_SEG_DURACAO` (60s)** — laps muito curtos (botão de lap / ruído GPS) são excluídos do CV para não inflá-lo/deflá-lo artificialmente. Se, após esse filtro, restarem `< 2` segmentos para o CV, o esforço é considerado não avaliável → `null`. *(Alternativa considerada: CV ponderado por duração; o filtro por duração mínima é mais simples e igualmente defensável para o v1.)*
    - Intervalado/fartlek têm picos e vales → CV alto → reprovado. Thresholds calibráveis.
-5. **Belt-and-suspenders (só quando o tipo é conhecido)** — se `tipoTreino != null` **e** ∈ {INTERVALADO, FARTLEK, TIRO}, retorna `null` **mesmo que o CV passe** (protege contra treino real mal-segmentado, ex.: 2 laps grosseiros de um HIIT). Quando `tipoTreino == null` (treino manual/Strava sem plano), este predicado é **pulado** — o CV (predicado 4) é a defesa.
+5. **Belt-and-suspenders (tipo sempre presente no realizado)** — se `tipoTreino` ∈ {INTERVALADO, FARTLEK, TIRO}, retorna `null` **mesmo que o CV passe** (protege contra treino real mal-segmentado, ex.: 2 laps grosseiros de um HIIT). `tipoTreino` é `nullable=false` na entidade (`TreinoBase`), então este predicado está sempre ativo; o guarda `tipoTreino == null` existe só por robustez defensiva (cai no CV).
 6. **Sanidade** — qualquer FC/velocidade/duração `= 0`, nula ou implausível → `null`.
 
 **Aquecimento/desaquecimento não rotulados — coberto pelo próprio gate:** quando `tipoEtapa` não identifica warmup/cooldown, um aquecimento progressivo (rampa) ou um cooldown fazem a velocidade/FC variar entre segmentos → **elevam o CV → reprovam no predicado 4 → `null`**. Ou seja, o gate de variabilidade é a rede de segurança: um treino que "parece" contínuo mas tem rampas embutidas cai em "não aplicável", coerente com "na dúvida, null". (Warmup/cooldown *rotulados* são descartados antes, predicado 1.)
@@ -65,7 +66,7 @@ Retorna `null` se **qualquer** predicado falhar (todos testáveis):
 
 ## Decisão 3 — Exposição no contrato
 
-Campo aditivo em `TreinoRealizadoOutputDto`:
+Campo aditivo em `TreinoRealizadoOutputDto` (`dto/output/TreinoRealizadoOutputDto.java` — é um **`record`** com `@JsonInclude(NON_NULL)` **na classe**, ~35 campos; inserir **após `intensidadeReal`**, L84):
 
 ```java
 @Schema(description = "Decoupling aeróbico Pa:HR (% de queda de eficiência da 1ª p/ 2ª metade); "
@@ -74,11 +75,25 @@ Campo aditivo em `TreinoRealizadoOutputDto`:
 Double decouplingPercentual
 ```
 
-Preenchido no `TreinoMapper.toOutputDto` (que já tem a `List<EtapaRealizada>` da entidade) chamando o helper. `@JsonInclude(NON_NULL)` já é default do record → ausente quando `null`. Aparece em todas as respostas que retornam o DTO, sem novo endpoint.
+**Wiring — o mapper é MapStruct** (`mapper/TreinoMapper.java:169` — `@Mapping(...) TreinoRealizadoOutputDto toOutputDto(TreinoRealizado)`), **ponto único** que cobre os ~12 endpoints que retornam o DTO. Como o alvo é um **`record` imutável**, `@AfterMapping`/`@MappingTarget` **não se aplica**; o campo derivado entra via **`expression` + `uses`**:
+
+```java
+@Mapper(componentModel = "spring", uses = DecouplingCalculatorService.class /* + os já existentes */)
+public interface TreinoMapper {
+  @Mapping(target = "sugestaoReclassificacao", ignore = true)
+  @Mapping(target = "decouplingPercentual",
+           expression = "java(decouplingCalculatorService.calcular("
+                      + "treinoRealizado.getEtapasRealizadas(), treinoRealizado.getTipoTreino()))")
+  TreinoRealizadoOutputDto toOutputDto(TreinoRealizado treinoRealizado);
+}
+```
+
+- `getEtapasRealizadas()` é `@OneToMany LAZY`, **mas o mapper já mapeia `etapasRealizadas` (campo do DTO)** → a coleção já é acessada na mesma sessão em todos os call sites atuais; **não há novo risco de `LazyInitializationException`**. `getTipoTreino()` é coluna simples (sem LAZY).
+- `@JsonInclude(NON_NULL)` na classe → campo ausente no JSON quando `null`. Aparece em todas as respostas que retornam o DTO, sem novo endpoint.
 
 ## Decisão 4 — Front: indicador no detalhe do treino realizado
 
-- **Tipo:** add `decouplingPercentual?: number` ao `TreinoRealizado` (`types/TreinoRealizado.ts`) + cliente curado (`src/api`).
+- **Tipo:** add `decouplingPercentual?: number` ao tipo do front que carrega o detalhe do realizado. **Atenção (apurado 2026-07-07):** o front **não tem** `TreinoRealizadoOutputDto` curado — o detalhe do realizado chega via tipos com forma de `TreinoPlanejado` (o `DetalheTreinoDialog` lê `TreinoService.obterTreino`, e as métricas do realizado são achatadas nesse tipo). O campo deve pousar no tipo efetivamente consumido pela superfície escolhida no 0.3, não num DTO que o front não usa.
 - **Componente:** um `DecouplingBadge` (pequeno, reutilizável) — recebe `value: number | null | undefined`:
   - `null` **ou `undefined`** (a API omite o campo quando não aplicável, via `NON_NULL` → o front recebe `undefined`; ambos tratados de forma idêntica) → chip "Decoupling: n/d" + tooltip "disponível só em treinos contínuos".
   - número → `{value}%` colorido por faixa **+ a linha de interpretação** (número passivo é fácil de ignorar; a leitura em palavras aumenta a chance de o coach agir). Copy **descritiva, não causal** (Opção 1 não separa fadiga de terreno/vento):
@@ -88,7 +103,7 @@ Preenchido no `TreinoMapper.toOutputDto` (que já tem a `List<EtapaRealizada>` d
   - tooltip: "Queda do fator de eficiência (velocidade/FC) da 1ª para a 2ª metade. Menor é melhor. **Estimativa** em treino contínuo — pode refletir terreno/vento/calor, não só fadiga."
 - **Funções centralizadas** (sem faixa/leitura hardcoded no JSX): `decouplingTone(value)` (faixa → token) e `decouplingLeitura(value)` (faixa → frase). Uma única fonte de verdade das faixas nas duas.
 - **Sinal de adoção (opcional, deferível):** logar/emitir uma métrica leve quando o badge renderiza com valor não-nulo — fecha o buraco de "cobertura ≠ adoção" sem custo de produto. Deixar atrás de um util simples; não bloqueia a v1.
-- **Local:** detalhe do treino **realizado** — confirmar superfície no 0.x (candidatos: `TreinoRealizadoDialog`, card de treino realizado).
+- **Local:** detalhe do treino **realizado** — **superfície a confirmar no 0.3** (decisão aberta). Candidato mais natural: `DetalheTreinoDialog.tsx` (já exibe o realizado + timeline de etapas, tem faixa de chips de métricas). Mas ele consome um tipo `TreinoPlanejado` via `obterTreino` — é preciso confirmar que **esse endpoint/tipo carrega o campo derivado** (senão, escolher uma superfície que consuma de fato uma resposta que inclua `decouplingPercentual`, ou estender o payload do detalhe). Sub-tarefa do 0.3.
 
 ## Contrato com a API (consumo)
 
