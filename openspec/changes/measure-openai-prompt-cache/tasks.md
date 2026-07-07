@@ -15,9 +15,9 @@
 
 ## 2. Capturar na geração de plano
 
-- [ ] 2.1 Em `IaServiceImpl.geraPlanoSemanalAvancado` (linha ~321): dentro do lambda `gerar` do `gerarComResiliencia` (que é `Function<String, PlanoSemanalLlmDto>`), trocar `.call().entity(PlanoSemanalLlmDto.class)` por `.call().responseEntity(PlanoSemanalLlmDto.class)` — que dá **entity + ChatResponse**. Passar `re.getResponse()` ao `LlmUsageLogger` (efeito colateral) e retornar `re.getEntity()`. Assinatura do `gerarComResiliencia` **inalterada** (o lambda continua retornando o entity).
-- [ ] 2.2 A instrumentação é best-effort: envolver a extração/log em try/catch que só loga um warning — **nunca** propaga (CA3). A geração do plano tem prioridade sobre a métrica.
-- [ ] 2.3 Validação: `./mvnw clean test`.
+- [x] 2.1 Em `IaServiceImpl.geraPlanoSemanalAvancado` (linha ~321): dentro do lambda `gerar` do `gerarComResiliencia` (que é `Function<String, PlanoSemanalLlmDto>`), trocar `.call().entity(PlanoSemanalLlmDto.class)` por `.call().responseEntity(PlanoSemanalLlmDto.class)` — que dá **entity + ChatResponse**. Passar `re.getResponse()` ao `LlmUsageLogger` (efeito colateral) e retornar `re.getEntity()`. Assinatura do `gerarComResiliencia` **inalterada** (o lambda continua retornando o entity).
+- [x] 2.2 A instrumentação é best-effort: envolver a extração/log em try/catch que só loga um warning — **nunca** propaga (CA3). A geração do plano tem prioridade sobre a métrica.
+- [x] 2.3 Validação: `./mvnw clean test`.
 
 ## 3. QA e entrega
 
