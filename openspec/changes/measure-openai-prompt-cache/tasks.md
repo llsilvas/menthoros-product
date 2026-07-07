@@ -9,13 +9,13 @@
 
 ## 1. Extrair o usage do ChatResponse
 
-- [ ] 1.1 No `init`, confirmar a API do Spring AI em uso para ler o usage nativo da OpenAI: `ChatResponse.getMetadata().getUsage()` e o acesso a `cached_tokens` (via `getNativeUsage()` / `OpenAiApi.Usage.PromptTokensDetails.cachedTokens`). Ajustar os nomes conforme a versão.
+- [ ] 1.1 **API confirmada (Spring AI 1.1.6):** `ChatResponse.getMetadata().getUsage()` → `Usage` (`getPromptTokens`, `getCompletionTokens`, `getTotalTokens`). Os `cached_tokens` vêm do `usage.getNativeUsage()` (objeto nativo da OpenAI — `OpenAiApi.Usage`, via `promptTokensDetails().cachedTokens()`), acessado com `instanceof`/try-catch (provider-specific, best-effort).
 - [ ] 1.2 Criar um helper puro `LlmUsageLogger` (ou método em helper existente) que recebe o `ChatResponse` (ou o `Usage`) e loga INFO estruturado: `promptTokens`, `cachedTokens`, `completionTokens`, `cacheHitRatio = cached/prompt` (guarda contra divisão por zero e campo ausente → 0/"n/d").
   - `verify:` teste unitário com um `Usage` mockado (com e sem cached_tokens) → não lança, calcula a razão.
 
 ## 2. Capturar na geração de plano
 
-- [ ] 2.1 Em `IaServiceImpl.geraPlanoSemanalAvancado`: trocar `.call().entity(PlanoSemanalLlmDto.class)` por capturar o `ChatResponse` (`.call().chatResponse()` ou `.responseEntity(PlanoSemanalLlmDto.class)`), extrair o entity **e** passar o metadata ao `LlmUsageLogger`. Não alterar o retorno nem o `PlanoResilienceService`.
+- [ ] 2.1 Em `IaServiceImpl.geraPlanoSemanalAvancado` (linha ~321): dentro do lambda `gerar` do `gerarComResiliencia` (que é `Function<String, PlanoSemanalLlmDto>`), trocar `.call().entity(PlanoSemanalLlmDto.class)` por `.call().responseEntity(PlanoSemanalLlmDto.class)` — que dá **entity + ChatResponse**. Passar `re.getResponse()` ao `LlmUsageLogger` (efeito colateral) e retornar `re.getEntity()`. Assinatura do `gerarComResiliencia` **inalterada** (o lambda continua retornando o entity).
 - [ ] 2.2 A instrumentação é best-effort: envolver a extração/log em try/catch que só loga um warning — **nunca** propaga (CA3). A geração do plano tem prioridade sobre a métrica.
 - [ ] 2.3 Validação: `./mvnw clean test`.
 
