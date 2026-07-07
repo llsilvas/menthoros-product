@@ -21,10 +21,10 @@
 
 ## 2. Backend — expor no DTO + wiring + testes
 
-- [ ] 2.1 Add `Double decouplingPercentual` a `dto/output/TreinoRealizadoOutputDto.java` (record; `@JsonInclude(NON_NULL)` **já está na classe**) — inserir **após `intensidadeReal` (L84)**, com `@Schema`.
-- [ ] 2.2 Wiring **MapStruct** (`mapper/TreinoMapper.java:169`, ponto único p/ ~12 endpoints): registrar `DecouplingCalculatorService` em `@Mapper(uses = {...})` e add `@Mapping(target = "decouplingPercentual", expression = "java(decouplingCalculatorService.calcular(treinoRealizado.getEtapasRealizadas(), treinoRealizado.getTipoTreino()))")`. Alvo é **record imutável** → nada de `@AfterMapping`. `getEtapasRealizadas()` já é mapeado (mesma sessão, sem novo risco LAZY); `getTipoTreino()` é coluna. **Derivado, não persistido** (AC3). **verify:** `./mvnw -q -Dtest=TreinoMapperTest test` verde + geração MapStruct compila.
-- [ ] 2.3 Ajustar `TreinoMapperTest`/fixtures p/ o campo novo: presente quando aplicável, **ausente** quando `null` (via `NON_NULL`). Cobrir os endpoints que retornam o DTO (`marcar-realizado`, `lancar-treino`, `PUT /realizados/{id}`, `enriquecer-strava`).
-- [ ] 2.4 **verify:** `./mvnw clean test` → BUILD SUCCESS, 0 falhas.
+- [x] 2.1 Add `Double decouplingPercentual` a `dto/output/TreinoRealizadoOutputDto.java` (record; `@JsonInclude(NON_NULL)` **já está na classe**) — inserido **após `intensidadeReal`**, com `@Schema`.
+- [x] 2.2 Wiring **MapStruct** (`mapper/TreinoMapper.java`, ponto único p/ ~12 endpoints): `@Mapper(uses = DecouplingCalculatorService.class)` + `@Mapping(target = "decouplingPercentual", source = ".", qualifiedByName = "decouplingDeTreino")`. **Nota (apurado na implementação):** `uses` + `expression` **não** injeta o helper como campo acessível na expression → usar método `@Named("decouplingDeTreino") calcular(TreinoRealizado)` (overload fino sobre o cálculo puro) resolvido por `qualifiedByName`; o MapStruct injeta o helper via construtor. Alvo é **record imutável** → `@AfterMapping` não se aplica. Sem novo risco LAZY (`etapasRealizadas` já mapeado; `tipoTreino` é coluna). **Derivado, não persistido** (AC3).
+- [x] 2.3 Fixtures posicionais dos testes ajustadas p/ o campo novo (6 arquivos) + `TreinoMapperDecouplingTest` (wiring: contínuo→`7.3`, intervalado→`null`).
+- [x] 2.4 **verify:** `./mvnw clean test` → BUILD SUCCESS, **1259 testes, 0 falhas**.
 
 ## 3. Contrato — portar para o cliente curado do front
 
