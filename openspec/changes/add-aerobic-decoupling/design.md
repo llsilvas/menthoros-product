@@ -103,18 +103,19 @@ public interface TreinoMapper {
   - tooltip: "Queda do fator de eficiência (velocidade/FC) da 1ª para a 2ª metade. Menor é melhor. **Estimativa** em treino contínuo — pode refletir terreno/vento/calor, não só fadiga."
 - **Funções centralizadas** (sem faixa/leitura hardcoded no JSX): `decouplingTone(value)` (faixa → token) e `decouplingLeitura(value)` (faixa → frase). Uma única fonte de verdade das faixas nas duas.
 - **Sinal de adoção (opcional, deferível):** logar/emitir uma métrica leve quando o badge renderiza com valor não-nulo — fecha o buraco de "cobertura ≠ adoção" sem custo de produto. Deixar atrás de um util simples; não bloqueia a v1.
-- **Local:** detalhe do treino **realizado** — **superfície a confirmar no 0.3** (decisão aberta). Candidato mais natural: `DetalheTreinoDialog.tsx` (já exibe o realizado + timeline de etapas, tem faixa de chips de métricas). Mas ele consome um tipo `TreinoPlanejado` via `obterTreino` — é preciso confirmar que **esse endpoint/tipo carrega o campo derivado** (senão, escolher uma superfície que consuma de fato uma resposta que inclua `decouplingPercentual`, ou estender o payload do detalhe). Sub-tarefa do 0.3.
+- **Local (DECIDIDO 0.3):** persona primária = **coach** → `DetalheTreinoDialog.tsx` (tela de detalhe do coach, aberta pelo botão "Detalhes" do `TreinoCard`; já tem `treinoRealizadoId` e o fluxo de enrich-Strava). Como nenhum tipo do detalhe carrega os campos calculados do realizado, o dialog busca o realizado por `treinoRealizadoId` via o **novo `GET /treinos/realizados/{id}`** e renderiza o badge. Atleta-side (`RecentTrainingsList`) descartado (off-persona).
 
 ## Contrato com a API (consumo)
 
-| Endpoint (já existente) | Método | Muda? |
+| Endpoint | Método | Muda? |
 |---|---|---|
 | `/api/v1/treinos/{id}/marcar-realizado` | POST | resposta ganha `decouplingPercentual` |
 | `/api/v1/treinos/{atletaId}/lancar-treino` | POST | idem |
 | `/api/v1/treinos/realizados/{id}` | PUT | idem |
 | `/api/v1/treinos/realizados/{id}/enriquecer-strava` | POST | idem |
+| `/api/v1/treinos/realizados/{id}` | **GET (novo, 0.3)** | detalhe de 1 realizado → `TreinoRealizadoOutputDto` (coach; a superfície do front consome este) |
 
-Nenhum endpoint novo. Multi-tenancy inalterada (os endpoints já validam tenant).
+**Um endpoint novo** (`GET /realizados/{id}`), decisão 0.3 — o coach precisa buscar 1 realizado por id para ver o detalhe. Nasce com `@PreAuthorize('TECNICO','ADMIN')` + `@RequireTenant` (fecha, no endpoint novo, a lacuna de autorização observada no /qa nos endpoints antigos). Multi-tenancy: `findByIdAndTenantId`.
 
 ## Sequenciamento cross-repo
 
