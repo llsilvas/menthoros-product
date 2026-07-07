@@ -14,15 +14,15 @@
 
 - [ ] 1.1 TDD: `DecouplingCalculatorServiceTest` — o **gate é o alvo prioritário** (cobrir cada predicado + fronteiras, BVA):
   - **Aplicável:** contínuo com decoupling positivo conhecido (valor exato esperado); "melhora" (negativo); segmento que cruza o meio → partição proporcional.
-  - **Gate → `null`:** intervalado por `TipoTreino`; **CV FC fronteira** (0.10 passa / 0.11 reprova); **CV vel fronteira** (0.15 / 0.16); **duração fronteira** (20min passa / 19min reprova); `<2` elegíveis; metade sem FC/velocidade; aquecimento/desaquecimento descartados (não contaminam as metades); FC/vel/duração `= 0`.
-  - **Belt-and-suspenders:** `TipoTreino` intervalado com CV baixo → ainda `null`.
-- [ ] 1.2 Implementar `services/helper/DecouplingCalculatorService.calcular(List<EtapaRealizada>) : Double` — elegibilidade + descarte aquecimento/desaquecimento, gate (constantes nomeadas `CV_FC_MAX=0.10`, `CV_VEL_MAX=0.15`, `DURACAO_MIN_SEG=20min`), partição proporcional por tempo, `EF = velocidade/FC` ponderado por duração, `(EF1−EF2)/EF1×100`, **null na dúvida**, 1 casa. Reusar conversão pace↔velocidade/ponderação de `TssCalculatorService`/util se existir.
+  - **Gate → `null`:** intervalado por `TipoTreino` (belt-and-suspenders); **CV FC fronteira** (0.10 passa / 0.11 reprova); **CV vel fronteira** (0.15 / 0.16); **duração fronteira** (20min passa / 19min reprova); `<2` elegíveis; **laps curtos (<60s) excluídos do CV** e, se sobrar `<2` segmentos ≥60s, → `null`; **aquecimento/desaquecimento não-rotulado (rampa)** eleva o CV → `null`; aquecimento/desaquecimento rotulados descartados antes; metade sem FC/velocidade; FC/vel/duração `= 0`.
+  - **Belt-and-suspenders:** `TipoTreino=INTERVALADO` com CV baixo → ainda `null`; **`tipoTreino=null`** (treino sem plano) com CV baixo e steady → **aplicável** (número), provando que o gate recai no CV quando o tipo é desconhecido.
+- [ ] 1.2 Implementar `services/helper/DecouplingCalculatorService.calcular(List<EtapaRealizada> etapas, TipoTreino tipoTreino) : Double` (o `TipoTreino` é obrigatório para o belt-and-suspenders; passado pelo mapper que já tem o `TreinoRealizado`) — elegibilidade + descarte aquecimento/desaquecimento, gate (constantes nomeadas `CV_FC_MAX=0.10`, `CV_VEL_MAX=0.15`, `DURACAO_MIN_SEG=20min`), partição proporcional por tempo, `EF = velocidade/FC` ponderado por duração, `(EF1−EF2)/EF1×100`, **null na dúvida**, 1 casa. Reusar conversão pace↔velocidade/ponderação de `TssCalculatorService`/util se existir.
 - [ ] 1.3 **verify:** coberto pelo `./mvnw clean test` (2.x).
 
 ## 2. Backend — expor no DTO + wiring + testes
 
 - [ ] 2.1 Add `Double decouplingPercentual` a `dto/output/TreinoRealizadoOutputDto.java` (com `@Schema`; `NON_NULL` já é default do record) — append no fim.
-- [ ] 2.2 Preencher em `mapper/TreinoMapper.toOutputDto` (ou no service que monta o DTO) chamando `DecouplingCalculatorService` sobre `etapasRealizadas` da entidade. **Derivado, não persistido** (AC3).
+- [ ] 2.2 Preencher em `mapper/TreinoMapper.toOutputDto` (ou no service que monta o DTO): `TipoTreino tipo = treino.getTreinoPlanejado() != null ? treino.getTreinoPlanejado().getTipoTreino() : null;` (**`treinoPlanejado` é `@ManyToOne LAZY` nullable** — `TreinoRealizado` não tem `tipoTreino` próprio; acessar dentro da transação p/ evitar `LazyInitializationException`, senão passar `null` = CV-only). Chamar `DecouplingCalculatorService.calcular(treino.getEtapasRealizadas(), tipo)`. **Derivado, não persistido** (AC3).
 - [ ] 2.3 Ajustar `TreinoMapperTest`/fixtures dos endpoints que retornam o DTO (`marcar-realizado`, `lancar-treino`, `PUT /realizados/{id}`, `enriquecer-strava`) para o campo novo.
 - [ ] 2.4 **verify:** `./mvnw clean test` → BUILD SUCCESS, 0 falhas.
 
@@ -37,8 +37,8 @@
 
 > ⚠️ Superfície confirmada no 0.3.
 
-- [ ] 4.1 TDD: teste de `DecouplingBadge` — render por faixa (`<5` verde, `5–10` âmbar, `>10` vermelho via `semantic.*`), **linha de interpretação** correta nas 3 faixas + fronteiras 5/10, estado `null` ("n/d") e tooltip; sem assert de cálculo. Testar `decouplingTone`/`decouplingLeitura` nas fronteiras.
-- [ ] 4.2 Implementar `DecouplingBadge` + `decouplingTone(value)` (faixa → token) + `decouplingLeitura(value)` (faixa → frase: `<5` "boa durabilidade aeróbica" · `5–10` "durabilidade moderada" · `>10` "desacopla sob fadiga"); tooltip explicativo. Faixas numa fonte única (sem hardcode no JSX).
+- [ ] 4.1 TDD: teste de `DecouplingBadge` — render por faixa (`<5` verde incl. negativo, `[5,10]` âmbar incl. 5.0/10.0, `>10` vermelho via `semantic.*`), **linha de interpretação** (descritiva/não-causal) correta nas fronteiras 5.0/10.0/negativo, estado "n/d" para **`null` e `undefined`** + tooltip (marca "estimativa"); sem assert de cálculo. Testar `decouplingTone`/`decouplingLeitura` nas fronteiras.
+- [ ] 4.2 Implementar `DecouplingBadge` (aceita `number | null | undefined`) + `decouplingTone(value)` + `decouplingLeitura(value)` (faixa → frase descritiva: `<5` "eficiência bem sustentada" · `[5,10]` "eficiência caindo na 2ª metade" · `>10` "queda acentuada"); tooltip marcando estimativa (terreno/vento). Faixas numa fonte única (sem hardcode no JSX).
 - [ ] 4.3 Integrar no detalhe do treino realizado (0.3): badge com `%` + interpretação quando `decouplingPercentual != null`; estado "não aplicável" quando `null` (AC4).
 - [ ] 4.4b (opcional, deferível) Sinal de adoção: logar/emitir métrica leve quando o badge renderiza com valor — fecha "cobertura ≠ adoção". Não bloqueia a v1.
 - [ ] 4.4 **verify:** `npm run lint && npm run build && npm run test:run`.
