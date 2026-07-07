@@ -21,7 +21,7 @@
 
 ## 3. QA e entrega
 
-- [ ] 3.1 `./mvnw clean test` — verde (inclui `IaServiceImplFcValidationTest` + golden-master intocados: CA4).
-- [ ] 3.2 QA (Fast track): `code-reviewer` + `clean-code-reviewer`. Atenção: a captura do metadata não pode quebrar o parsing nem o retry.
+- [x] 3.1 `./mvnw clean test` — verde (inclui `IaServiceImplFcValidationTest` + golden-master intocados: CA4).
+- [x] 3.2 QA (Fast track): `code-reviewer` + `clean-code-reviewer`. Atenção: a captura do metadata não pode quebrar o parsing nem o retry.
 - [ ] 3.3 Abrir PR (`feature/measure-openai-prompt-cache`) → `develop`.
 - [ ] 3.4 **Pós-deploy (fora do código):** observar `cached_tokens`/`cache_hit_ratio` em staging/produção por alguns dias de geração real. Registrar a conclusão no SPRINTS e decidir o destino da `system-user-prompt-split` (arquivar se o cache já economiza).
