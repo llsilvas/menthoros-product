@@ -74,7 +74,7 @@ Sprint 1 encerrada: ambas as changes mergeadas em `develop` e arquivadas (ver "C
 
 **ROI direto primeiro.** A repriorização de 2026-07-06 inverte a ordem anterior (infra IA → features) para **features visíveis → qualidade IA → segurança beta → engenharia agrupada**. O coach e o atleta devem perceber valor a cada sprint; a infraestrutura de IA (`add-llm-tool-use`, RAG, skills migration, decomposição do IaService) é agrupada num bloco de engenharia posterior, executada em sequência coesa sem interromper entregas de produto.
 
-Justificativa da mudança: análise CPO (2026-07-06) demonstrou que `add-llm-tool-use` (35→27 tasks, Sprint 10-11 original) é infraestrutura sem valor direto para o coach, com risco empírico não validado (tools + structured output `strict`), e dependência artificial bloqueando `coach-batch-plan-generation` (a feature mais pedida em escala). A separação system/user prompt (~4h) entrega ~50-70% de redução de custo de input sem tool calling.
+Justificativa da mudança: análise CPO (2026-07-06) demonstrou que `add-llm-tool-use` (35→27 tasks, Sprint 10-11 original) é infraestrutura sem valor direto para o coach, com risco empírico não validado (tools + structured output `strict`), e dependência artificial bloqueando `coach-batch-plan-generation` (a feature mais pedida em escala). A separação system/user prompt (~4h) é organizacional/estrutural — custo neutro hoje (GPT-4o já cacheia prefixo automaticamente).
 
 ### 🤖 Guarda-chuva: Modernização do motor de IA
 
