@@ -4,7 +4,11 @@
 
 ## Status
 
-Proposed
+**Deferida (product-lens, 2026-07-07):** ROI ~0 como escopada — GPT-4o já cacheia o prefixo
+automaticamente (custo neutro), sem métrica de sucesso e com risco de regressão do LLM (reordenação
+das regras). **Bloqueada por `measure-openai-prompt-cache`** (Rota A): medir os `cached_tokens` reais
+antes. Se o auto-cache já economiza → esta change é arquivada. Se o objetivo for custo, a alavanca real
+é trocar `PLANO` para Claude Sonnet (change própria), quando o split faria sentido junto.
 
 ## Why
 
