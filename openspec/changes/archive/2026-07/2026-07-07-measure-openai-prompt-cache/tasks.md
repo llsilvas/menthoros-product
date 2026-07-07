@@ -1,6 +1,6 @@
 # Tasks: measure-openai-prompt-cache
 
-**Status:** Proposed
+**Status:** Concluída (mergeada em develop 2026-07-07, PR backend#29). 3.4 (observação pós-deploy do cache_hit_ratio) é acompanhamento operacional pendente, não bloqueia o arquivamento.
 **Tamanho:** XS · Trilha: Fast
 **Repos:** menthoros-backend (apenas)
 **Dependências:** nenhuma. **Desbloqueia a decisão sobre** `system-user-prompt-split` (deferida).
@@ -23,5 +23,5 @@
 
 - [x] 3.1 `./mvnw clean test` — verde (inclui `IaServiceImplFcValidationTest` + golden-master intocados: CA4).
 - [x] 3.2 QA (Fast track): `code-reviewer` + `clean-code-reviewer`. Atenção: a captura do metadata não pode quebrar o parsing nem o retry.
-- [ ] 3.3 Abrir PR (`feature/measure-openai-prompt-cache`) → `develop`.
-- [ ] 3.4 **Pós-deploy (fora do código):** observar `cached_tokens`/`cache_hit_ratio` em staging/produção por alguns dias de geração real. Registrar a conclusão no SPRINTS e decidir o destino da `system-user-prompt-split` (arquivar se o cache já economiza).
+- [x] 3.3 PR `llsilvas/menthoros-backend#29` mergeado em `develop` (2026-07-07, merge `9ce67ba`).
+- [ ] 3.4 **Pós-deploy (fora do código, pendente):** observar `cached_tokens`/`cache_hit_ratio` em staging/produção por alguns dias de geração real. Registrar a conclusão no SPRINTS e decidir o destino da `system-user-prompt-split` (arquivar se o cache já economiza). **Não bloqueia o arquivamento do código** — é acompanhamento operacional.
