@@ -31,7 +31,7 @@
 > Novo incremento backend (o campo já existe no DTO; falta o coach conseguir buscar 1 realizado por id). Nova branch/PR (o #30 já mergeou).
 - [x] 2b.1 TDD: `TreinoRealizadoController` (`@WebMvcTest`) + service — `GET /api/v1/treinos/realizados/{id}` retorna `TreinoRealizadoOutputDto` (200) / 404 (não encontrado no tenant). Cobrir tenant-scope e role.
 - [x] 2b.2 Implementar `GET /api/v1/treinos/realizados/{id}`: `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")`, `@RequireTenant(resourceParamIndex=0)`, `@Operation`/`@ApiResponses`; service `buscarRealizadoPorId(id)` via `findByIdAndTenantId` + `treinoMapper.toOutputDto` (traz `decouplingPercentual`). **verify:** `./mvnw clean test` verde; endpoint corrige a lacuna de autorização observada no /qa (novo endpoint nasce com `@PreAuthorize`).
-- [ ] 2b.3 PR backend 2b → develop; mergear antes do front.
+- [x] 2b.3 PR backend 2b → develop (#31 aberto). Mergear antes do front.
 
 ## 3. Contrato — portar para o cliente curado do front
 
