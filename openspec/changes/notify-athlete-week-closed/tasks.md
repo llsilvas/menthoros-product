@@ -9,14 +9,14 @@
 
 ## 1. Seletor de treinos perdidos (adapter puro)
 
-- [ ] 1.1 Criar `features/athlete/adapters/selectWeekClosedInfo.ts` — função pura que recebe `PlanoSemanal | null` e retorna `{ semanaEncerrada: boolean; treinosPerdidos: number }`:
+- [x] 1.1 Criar `features/athlete/adapters/selectWeekClosedInfo.ts` — função pura que recebe `PlanoSemanal | null` e retorna `{ semanaEncerrada: boolean; treinosPerdidos: number }`:
   - `semanaEncerrada = getSafeValue(plano?.status) === 'CONCLUIDO'` — **`getSafeValue` obrigatório**: `PlanoStatus` é `@JsonFormat(OBJECT)` no backend, chega como `{value,label,...}` em runtime (mesmo padrão de `buildWeeklyPlan.ts:31` para `statusTreino`).
   - `treinosPerdidos = (plano?.treinosPlanejados ?? []).filter(t => getSafeValue(t.statusTreino) === 'PERDIDO').length`.
   - `plano == null` → `{ semanaEncerrada: false, treinosPerdidos: 0 }`.
   - `getSafeValue` de `src/utils/safeValues.ts` (`(value: unknown) => string | number`).
   - `verify:` teste unitário (abaixo) verde.
-- [ ] 1.2 Teste `selectWeekClosedInfo.test.ts` (Vitest puro): plano CONCLUIDO com N PERDIDO → conta N; plano sem PERDIDO → 0; plano não-CONCLUIDO → semanaEncerrada false; `null` → zeros; `statusTreino` como object-enum e como string (ambos normalizados).
-- [ ] 1.3 Validação: `npm run test:run` do arquivo.
+- [x] 1.2 Teste `selectWeekClosedInfo.test.ts` (Vitest puro): plano CONCLUIDO com N PERDIDO → conta N; plano sem PERDIDO → 0; plano não-CONCLUIDO → semanaEncerrada false; `null` → zeros; `statusTreino` como object-enum e como string (ambos normalizados).
+- [x] 1.3 Validação: `npm run test:run` do arquivo.
 
 ## 2. Componente `WeekClosedBanner`
 
