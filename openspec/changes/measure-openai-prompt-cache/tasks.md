@@ -9,8 +9,8 @@
 
 ## 1. Extrair o usage do ChatResponse
 
-- [ ] 1.1 **API confirmada (Spring AI 1.1.6):** `ChatResponse.getMetadata().getUsage()` → `Usage` (`getPromptTokens`, `getCompletionTokens`, `getTotalTokens`). Os `cached_tokens` vêm do `usage.getNativeUsage()` (objeto nativo da OpenAI — `OpenAiApi.Usage`, via `promptTokensDetails().cachedTokens()`), acessado com `instanceof`/try-catch (provider-specific, best-effort).
-- [ ] 1.2 Criar um helper puro `LlmUsageLogger` (ou método em helper existente) que recebe o `ChatResponse` (ou o `Usage`) e loga INFO estruturado: `promptTokens`, `cachedTokens`, `completionTokens`, `cacheHitRatio = cached/prompt` (guarda contra divisão por zero e campo ausente → 0/"n/d").
+- [x] 1.1 **API confirmada (Spring AI 1.1.6):** `ChatResponse.getMetadata().getUsage()` → `Usage` (`getPromptTokens`, `getCompletionTokens`, `getTotalTokens`). Os `cached_tokens` vêm do `usage.getNativeUsage()` (objeto nativo da OpenAI — `OpenAiApi.Usage`, via `promptTokensDetails().cachedTokens()`), acessado com `instanceof`/try-catch (provider-specific, best-effort).
+- [x] 1.2 Criar um helper puro `LlmUsageLogger` (ou método em helper existente) que recebe o `ChatResponse` (ou o `Usage`) e loga INFO estruturado: `promptTokens`, `cachedTokens`, `completionTokens`, `cacheHitRatio = cached/prompt` (guarda contra divisão por zero e campo ausente → 0/"n/d").
   - `verify:` teste unitário com um `Usage` mockado (com e sem cached_tokens) → não lança, calcula a razão.
 
 ## 2. Capturar na geração de plano
