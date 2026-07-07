@@ -1,6 +1,6 @@
 # Tasks: notify-athlete-week-closed
 
-**Status:** Proposed
+**Status:** Concluída (mergeada em develop 2026-07-07, PR front#35)
 **Tamanho:** XS · Trilha: Fast
 **Repos:** menthoros-front (apenas)
 **Dependências:** `coach-encerrar-semana` ✅ (produz o status `PERDIDO` + `CONCLUIDO`), `wire-athlete-shell-to-endpoints` ✅ (`useAthletePlan`)
@@ -40,4 +40,4 @@
 
 - [x] 4.1 `npm run lint && npm run build && npm run test:run` — tudo verde.
 - [x] 4.2 QA (Fast track): `frontend-reviewer` + `clean-code-reviewer` sobre o diff; opcional `/codex:review`.
-- [x] 4.3 Abrir PR (`feature/notify-athlete-week-closed`) → `develop`.
+- [x] 4.3 PR `llsilvas/menthoros-front#35` mergeado em `develop` (2026-07-07, merge `bc76f4c`).
