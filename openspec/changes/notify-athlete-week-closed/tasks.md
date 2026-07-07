@@ -30,11 +30,11 @@
 
 ## 3. Integração na `AthleteHomePage`
 
-- [ ] 3.1 Consumir `useAthletePlan` na `AthleteHomePage` (ainda não usado lá); estado local `bannerDispensado` (default false).
-- [ ] 3.2 Derivar `selectWeekClosedInfo(plano)`; renderizar `<WeekClosedBanner>` acima do conteúdo **apenas** quando `!loading && !error && semanaEncerrada && treinosPerdidos > 0 && !bannerDispensado`. `onDismiss` seta `bannerDispensado = true`.
+- [x] 3.1 Consumir `useAthletePlan` na `AthleteHomePage` (ainda não usado lá); estado local `bannerDispensado` (default false).
+- [x] 3.2 Derivar `selectWeekClosedInfo(plano)`; renderizar `<WeekClosedBanner>` acima do conteúdo **apenas** quando `!loading && !error && semanaEncerrada && treinosPerdidos > 0 && !bannerDispensado`. `onDismiss` seta `bannerDispensado = true`.
   - Garantir que loading/erro/sem-plano **não** renderizam o banner (CA3) — não quebrar a Home.
-- [ ] 3.3 Teste na `AthleteHomePage` (mockando `useAthletePlan`): banner aparece com plano CONCLUIDO + PERDIDO; não aparece sem PERDIDO / sem plano / em erro.
-- [ ] 3.4 Validação: `npm run lint && npm run build && npm run test:run`.
+- [x] 3.3 Teste na `AthleteHomePage` (mockando `useAthletePlan`): banner aparece com plano CONCLUIDO + PERDIDO; não aparece sem PERDIDO / sem plano / em erro.
+- [x] 3.4 Validação: `npm run lint && npm run build && npm run test:run`.
 
 ## 4. QA e entrega
 
