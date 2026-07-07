@@ -20,13 +20,13 @@
 
 ## 2. Componente `WeekClosedBanner`
 
-- [ ] 2.1 Criar `features/athlete/components/WeekClosedBanner.tsx` (presentacional):
+- [x] 2.1 Criar `features/athlete/components/WeekClosedBanner.tsx` (presentacional):
   - Props: `{ treinosPerdidos: number; onDismiss?: () => void }`.
   - MUI `Alert` (severity `info` ou `warning` — sem hex hardcoded, usar tokens/severity), dispensável (`onClose`).
   - Copy PT-BR de retenção (positivo): ex.: "Sua semana foi encerrada — {N} treino(s) ficaram para trás. A próxima semana é uma nova chance."
   - `verify:` teste de componente.
-- [ ] 2.2 Teste `WeekClosedBanner.test.tsx` (Testing Library): renderiza a contagem; aciona `onDismiss` ao fechar.
-- [ ] 2.3 Validação: `npm run lint && npm run build`.
+- [x] 2.2 Teste `WeekClosedBanner.test.tsx` (Testing Library): renderiza a contagem; aciona `onDismiss` ao fechar.
+- [x] 2.3 Validação: `npm run lint && npm run build`.
 
 ## 3. Integração na `AthleteHomePage`
 
