@@ -44,11 +44,11 @@
 
 > ⚠️ Superfície: `DetalheTreinoDialog` (coach), buscando o realizado por `treinoRealizadoId` via `obterRealizado`.
 
-- [ ] 4.1 TDD: teste de `DecouplingBadge` — render por faixa (`<5` verde incl. negativo, `[5,10]` âmbar incl. 5.0/10.0, `>10` vermelho via `semantic.*`), **linha de interpretação** (descritiva/não-causal) correta nas fronteiras 5.0/10.0/negativo, estado "n/d" para **`null` e `undefined`** + tooltip (marca "estimativa"); sem assert de cálculo. Testar `decouplingTone`/`decouplingLeitura` nas fronteiras.
-- [ ] 4.2 Implementar `DecouplingBadge` (aceita `number | null | undefined`) + `decouplingTone(value)` + `decouplingLeitura(value)` (faixa → frase descritiva: `<5` "eficiência bem sustentada" · `[5,10]` "eficiência caindo na 2ª metade" · `>10` "queda acentuada"); tooltip marcando estimativa (terreno/vento). Faixas numa fonte única (sem hardcode no JSX).
-- [ ] 4.3 Integrar no `DetalheTreinoDialog`: quando `treinoRealizadoId` presente, buscar `obterRealizado(treinoRealizadoId)` e renderizar o badge com `%` + interpretação quando `decouplingPercentual != null`; estado "não aplicável" quando `null`; não quebrar a tela se a busca falhar (AC4).
+- [x] 4.1 TDD: teste de `DecouplingBadge` — render por faixa (`<5` verde incl. negativo, `[5,10]` âmbar incl. 5.0/10.0, `>10` vermelho via `semantic.*`), **linha de interpretação** (descritiva/não-causal) correta nas fronteiras 5.0/10.0/negativo, estado "n/d" para **`null` e `undefined`** + tooltip (marca "estimativa"); sem assert de cálculo. Testar `decouplingTone`/`decouplingLeitura` nas fronteiras.
+- [x] 4.2 Implementar `DecouplingBadge` (aceita `number | null | undefined`) + `decouplingTone(value)` + `decouplingLeitura(value)` (faixa → frase descritiva: `<5` "eficiência bem sustentada" · `[5,10]` "eficiência caindo na 2ª metade" · `>10` "queda acentuada"); tooltip marcando estimativa (terreno/vento). Faixas numa fonte única (sem hardcode no JSX).
+- [x] 4.3 Integrar no `DetalheTreinoDialog`: quando `treinoRealizadoId` presente, buscar `obterRealizado(treinoRealizadoId)` e renderizar o badge com `%` + interpretação quando `decouplingPercentual != null`; estado "não aplicável" quando `null`; não quebrar a tela se a busca falhar (AC4).
 - [ ] 4.4b (opcional, deferível) Sinal de adoção: logar/emitir métrica leve quando o badge renderiza com valor — fecha "cobertura ≠ adoção". Não bloqueia a v1.
-- [ ] 4.4 **verify:** `npm run lint && npm run build && npm run test:run`.
+- [x] 4.4 **verify:** `npm run lint && npm run build && npm run test:run`.
 
 ## 5. Verificação de aceite (DoD)
 
