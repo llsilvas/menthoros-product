@@ -36,9 +36,9 @@
 ## 3. Contrato — portar para o cliente curado do front
 
 > ⚠️ **Depende do 2b mergeado.** Superfície = `DetalheTreinoDialog` (coach); tipo = a resposta do novo `GET /treinos/realizados/{id}` (`TreinoRealizadoOutputDto`).
-- [ ] 3.1 `npm run generate:api` para diretório scratch (referência; não sobrescrever a fachada).
-- [ ] 3.2 Portar à mão o novo endpoint + o model `TreinoRealizadoOutputDto` (com `decouplingPercentual?: number`) ao cliente curado (`src/api`): método `TreinoService.obterRealizado(id)` e o tipo de resposta.
-- [ ] 3.3 **verify:** `npm run build`.
+- [x] 3.1 `npm run generate:api` para diretório scratch (referência; não sobrescrever a fachada).
+- [x] 3.2 Portar à mão o novo endpoint + o model `TreinoRealizadoOutputDto` (com `decouplingPercentual?: number`) ao cliente curado (`src/api`): método `TreinoService.obterRealizado(id)` e o tipo de resposta.
+- [x] 3.3 **verify:** `npm run build` → verde.
 
 ## 4. Frontend — DecouplingBadge + integração no coach
 
