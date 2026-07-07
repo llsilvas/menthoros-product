@@ -14,12 +14,19 @@ Numerador "pace normalizado por FC" já existe no backend isolado (`PaceRegressi
 
 - **Backend — calcular o decoupling a partir dos segmentos** (`EtapaRealizada`, ordenados por `ordem`):
   - Novo helper `DecouplingCalculatorService` (ao lado de `TssCalculatorService`/`ZonaTreinoService`): parte os segmentos em 1ª/2ª metade por **tempo acumulado**, calcula o fator de eficiência `EF = velocidade/FC` (duration-weighted) de cada metade e retorna `decoupling% = (EF₁ − EF₂) / EF₁ × 100`. **Null-safe**: retorna `null` quando não computável.
-  - **Gate de aplicabilidade** (decoupling só faz sentido em esforço steady): computa apenas quando o treino é contínuo/aeróbico (ex.: `TipoTreino` de rodagem/longo, ou baixa variância de zona entre segmentos) e há **≥2 segmentos** com FC e pace válidos. Caso contrário → `null` (não aplicável), nunca um número enganoso para intervalado.
+  - **Gate de aplicabilidade — o ponto mais crítico da change** (ver "Princípio de confiança" abaixo). Decoupling só faz sentido em esforço *steady sustentado*; o cálculo retorna `null` se **qualquer** predicado falhar:
+    1. **≥2 segmentos elegíveis** após descartar aquecimento/desaquecimento (`tipoEtapa` ∈ {AQUECIMENTO, DESAQUECIMENTO/VOLTA_CALMA} quando identificável) e segmentos sem `fcMedia > 0` ou sem velocidade válida.
+    2. **Duração sustentada** — soma das durações elegíveis ≥ **20 min** (drift aeróbico é ruído em esforço curto). *[threshold calibrável]*
+    3. **Ambas as metades** (por tempo acumulado) com ≥1 segmento elegível com FC e velocidade.
+    4. **Esforço steady, por variabilidade** (robusto, independe da classificação manual): CV (desvio/média) da `fcMedia` por segmento ≤ **0.10** **e** CV da `velocidadeMedia` por segmento ≤ **0.15**. Intervalado tem CV alto → reprovado. *[thresholds calibráveis]*
+    5. **Belt-and-suspenders:** se `TipoTreino` for explicitamente intervalado/fartlek/tiro → `null` mesmo que o CV passe (proteção contra dado mal-segmentado).
+    - **Princípio de confiança:** na dúvida, `null`. **Falso-negativo** (esconder num treino que talvez fosse elegível) é aceitável; **falso-positivo** (número sobre intervalado) é **inaceitável** — mina a confiança no diagnóstico inteiro.
   - **Campo aditivo** `Double decouplingPercentual` em `TreinoRealizadoOutputDto` (`@JsonInclude(NON_NULL)`), preenchido on-the-fly no `TreinoMapper.toOutputDto` (ou no service). **Derivado, não persistido** — sem coluna, sem migration. Aparece em toda resposta que já retorna o DTO (`marcar-realizado`, `lancar-treino`, `PUT /realizados/{id}`, `enriquecer-strava`).
 - **Contrato** — portar o campo novo ao cliente curado (`src/api`) e ao tipo `TreinoRealizado` em `src/types`.
 - **Frontend — indicador de decoupling no detalhe do treino realizado**:
-  - Badge/mini-indicador com o valor `%` e cor por faixa (verde `<5%` · âmbar `5–10%` · vermelho `>10%`), via tokens `semantic.*`, com tooltip explicando a leitura.
-  - Estado **"não aplicável"** quando `decouplingPercentual` é `null` (intervalado, dados insuficientes) — não exibe número, exibe hint curto.
+  - Badge/mini-indicador com o valor `%` e cor por faixa (verde `<5%` · âmbar `5–10%` · vermelho `>10%`), via tokens `semantic.*`.
+  - **Linha de interpretação junto do número** (não só o `%` cru — número passivo é fácil de ignorar): `<5%` "boa durabilidade aeróbica" · `5–10%` "durabilidade moderada" · `>10%` "desacopla sob fadiga". Mapeada de forma centralizada (`decouplingLeitura(value)`), ao lado do tooltip explicativo.
+  - Estado **"não aplicável"** quando `decouplingPercentual` é `null` (intervalado, dados insuficientes) — não exibe número, exibe hint curto ("disponível só em treinos contínuos").
 
 ## Capabilities
 
@@ -33,20 +40,27 @@ Numerador "pace normalizado por FC" já existe no backend isolado (`PaceRegressi
 
 ## Critérios de aceite
 
-- **AC1 — cálculo correto** · Given um treino contínuo com ≥2 segmentos com `fcMedia` e pace/velocidade válidos, When o DTO é montado, Then `decouplingPercentual == (EF₁ − EF₂)/EF₁ × 100` com `EF = velocidade/FC` ponderado por duração em cada metade, particionado por tempo acumulado.
-- **AC2 — gate de aplicabilidade** · Given um treino **intervalado** (ou <2 segmentos, ou metade sem FC/pace), When o DTO é montado, Then `decouplingPercentual` é `null` (não aplicável) — nunca um valor calculado sobre esforço não-steady.
+> **Prioridade:** AC1 (gate) é o critério de aceite de **maior prioridade** — acima da exatidão do número (AC2). Confiança > cobertura: melhor mudo que errado. Nenhum outro AC é aprovado se o gate deixar passar um número sobre esforço não-steady.
+
+- **AC1 — gate de aplicabilidade (prioridade máxima)** · Given cada um dos casos: (a) treino **intervalado**/fartlek/tiro por `TipoTreino`; (b) CV de FC por segmento > 0.10 **ou** CV de velocidade > 0.15 (esforço não homogêneo); (c) `<2` segmentos elegíveis; (d) duração elegível total `< 20 min`; (e) alguma metade sem FC/velocidade válida; (f) FC/velocidade/duração ausente ou implausível (=0), When o DTO é montado, Then `decouplingPercentual` é `null` — **nunca** um número calculado. E: na presença de qualquer incerteza, o resultado é `null` (falso-negativo é aceitável; falso-positivo não).
+- **AC2 — cálculo correto (quando aplicável)** · Given um treino que **passa o gate** (steady, ≥2 segmentos, ambas as metades com FC e velocidade, ≥20 min, aquecimento/desaquecimento descartados), When o DTO é montado, Then `decouplingPercentual == (EF₁ − EF₂)/EF₁ × 100` com `EF = velocidade/FC` ponderado por duração em cada metade, particionado por **tempo acumulado** (segmento que cruza o meio dividido proporcionalmente), arredondado a 1 casa; valor negativo (coupling/melhora) é permitido.
 - **AC3 — campo aditivo / compatível** · Given clientes existentes, When o campo é adicionado ao `TreinoRealizadoOutputDto`, Then é opcional (`NON_NULL`) e não quebra desserialização; And é **derivado**, sem alteração de schema/migration.
-- **AC4 — exibição no front** · Given um treino com `decouplingPercentual` não-nulo, When o detalhe do treino realizado é exibido, Then mostra o `%` com cor por faixa (`<5` verde · `5–10` âmbar · `>10` vermelho) e tooltip explicativo; When é `null`, Then exibe estado "não aplicável" sem número.
+- **AC4 — exibição no front (número + interpretação)** · Given um treino com `decouplingPercentual` não-nulo, When o detalhe do treino realizado é exibido, Then mostra o `%` com cor por faixa (`<5` verde · `5–10` âmbar · `>10` vermelho), **a linha de interpretação** (`<5` "boa durabilidade aeróbica" · `5–10` "durabilidade moderada" · `>10` "desacopla sob fadiga") e tooltip explicativo; When é `null`, Then exibe estado "não aplicável" sem número.
 - **AC5 — sem streams** · Given o escopo desta change, When o decoupling é computado, Then usa **apenas** `etapasRealizadas` já persistidas — nenhuma chamada nova a `/activities/{id}/streams` nem nova tabela.
 
 ## Métrica de sucesso
 
-**O treinador lê o decoupling sem cálculo manual**: em treinos longos/contínuos sincronizados (com laps), o indicador aparece em ≥X% dos casos (medível pela taxa de `decouplingPercentual != null` sobre treinos contínuos com ≥2 segmentos). Proxy de rotina: substitui a inspeção visual "comparar FC/pace do início vs. fim" por um número pronto, acelerando o diagnóstico de durabilidade aeróbica.
+**Cobertura (disponibilidade, não adoção):** em treinos longos/contínuos sincronizados (com laps), o indicador aparece em ≥X% dos casos — taxa de `decouplingPercentual != null` sobre treinos que passam o gate. Mede que o número *existe* onde deveria.
+
+> ⚠️ **Cobertura ≠ adoção.** Um badge é passivo: existir não é ser usado. Esta change **não** tem métrica direta de valor (o coach agiu sobre o sinal?) — buraco típico de feature de analytics, reconhecido no product-lens. Mitigação leve opcional (ver Open Questions): logar render/hover do badge para, depois, decidir se vale a Opção 2 (streams/tendência). Sem esse sinal, a decisão de aprofundar seria por vibe.
+
+**Contra-métrica (guardrail):** **zero** falsos-positivos — nenhum decoupling exibido sobre treino intervalado (o gate, AC1). Um único número enganoso custa mais confiança do que muitos "não aplicável" custam cobertura.
 
 ## Open Questions & Assumptions
 
-- **(Aberto — domínio, bloqueia 1.x)** Critério exato do **gate de aplicabilidade**: por `TipoTreino` (lista de tipos contínuos) vs. por **baixa variância de zona** entre segmentos (mais robusto, independe da classificação). Recomendação: variância de zona/FC entre segmentos, com fallback por tipo. Definir antes de implementar o cálculo.
-- **(Aberto — domínio)** Particionamento das metades: por **tempo acumulado** (recomendado, padrão da literatura) vs. por distância vs. por contagem de segmentos. Recomendação: tempo acumulado, descartando aquecimento/desaquecimento se identificáveis pela `tipoEtapa`.
+- **(Fechado — gate de aplicabilidade)** Definido como conjunção de predicados testáveis (ver "Gate de aplicabilidade" em What Changes + AC1): CV de FC ≤ 0.10 **e** CV de velocidade ≤ 0.15 entre segmentos (variabilidade, robusto e independente da classificação) + belt-and-suspenders por `TipoTreino` intervalado + ≥2 segmentos elegíveis + ≥20 min + ambas as metades válidas. Thresholds calibráveis; princípio "na dúvida, null".
+- **(Fechado — partição das metades)** Por **tempo acumulado**; o segmento que cruza o ponto médio é **dividido proporcionalmente** por tempo (sem alocação arbitrária); aquecimento/desaquecimento (`tipoEtapa`) descartados antes da partição.
+- **(Aberto — opcional, não bloqueia)** **Sinal de adoção:** logar/emitir métrica leve quando o `DecouplingBadge` renderiza com valor (e, se viável, no hover). Fecha o buraco da métrica de valor sem custo de produto — permite decidir, com dado, se a Opção 2 (streams/tendência) tem demanda. Deferível; não bloqueia a v1.
 - **(Premissa)** `velocidade/FC` como fator de eficiência (corrida sem potência). Onde houver `potenciaMedia` confiável, Pw:HR seria preferível — fora do escopo v1 (corrida é o foco; potência de corrida é esparsa).
 - **(Premissa)** Reusar a partição por segmentos já é suficiente para um sinal útil; a granularidade fina (drift minuto-a-minuto) **não** é objetivo aqui.
 - **(Aberto — UX, bloqueia 4.x)** Superfície exata do indicador no front: confirmar o componente de detalhe do treino **realizado** (`TreinoRealizadoDialog` vs. card de treino realizado vs. um painel no perfil) — a base de código tem `DetalheTreinoDialog` (foco em planejado) e `TreinoRealizadoDialog`. Confirmar no 0.x.
@@ -63,4 +77,5 @@ Numerador "pace normalizado por FC" já existe no backend isolado (`PaceRegressi
 ## Revisões (Full track)
 
 - **Product-review (lente do coach):** sinal de durabilidade aeróbica que o treinador hoje infere a olho; coach-in-the-loop preservado (número determinístico derivado de dado objetivo, não saída de IA). Refinamento aplicado: escopo na **Opção 1** (segmentos persistidos), com streams (Opção 2) fatiados para follow-up — evita acoplar análise útil a uma mudança pesada de ingestão.
-- **Pre-mortem (the-fool):** principal modo de falha — exibir decoupling calculado sobre treino intervalado, minando a confiança no diagnóstico — **endereçado pelo gate de aplicabilidade (AC2)** como critério de aceite. Segundo modo — assumir streams que não existem — eliminado pela restrição AC5 (só segmentos).
+- **Pre-mortem (the-fool):** principal modo de falha — exibir decoupling calculado sobre treino intervalado, minando a confiança no diagnóstico — **endereçado pelo gate de aplicabilidade (AC1)** como critério de aceite de prioridade máxima. Segundo modo — assumir streams que não existem — eliminado pela restrição AC5 (só segmentos).
+- **Product-lens (diagnóstico, 2026-07-07):** GO com 3 apertos, todos incorporados: (1) **gate como AC de prioridade máxima**, preferindo falso-negativo (predicados concretos + testes de fronteira — antes era open question); (2) **linha de interpretação** junto do número (número passivo é ignorável); (3) **sinal de adoção** opcional registrado (buraco "cobertura ≠ adoção"). Contra-métrica adicionada: zero falsos-positivos.

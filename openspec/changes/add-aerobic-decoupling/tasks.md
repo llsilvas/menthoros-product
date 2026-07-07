@@ -4,16 +4,19 @@
 > Escopo Opção 1: só `etapasRealizadas` persistidas — sem novo endpoint, sem migration (AC5).
 > Validação: backend `./mvnw clean test`; frontend `npm run lint && npm run build && npm run test:run`.
 
-## 0. Pré-requisitos (decisões bloqueantes)
+## 0. Pré-requisitos
 
-- [ ] 0.1 Fechar o **gate de aplicabilidade** (variância de zona/FC vs. lista de `TipoTreino`) — Open Question, bloqueia 1.x.
-- [ ] 0.2 Fechar o **particionamento das metades** (tempo acumulado; tratamento do segmento que cruza o meio; descarte de aquecimento/desaquecimento) — bloqueia 1.x.
-- [ ] 0.3 Confirmar a **superfície de UI** do detalhe do treino realizado onde o indicador entra (`TreinoRealizadoDialog` vs. card vs. painel no perfil) — bloqueia 4.x.
+- [x] 0.1 **Gate de aplicabilidade — DECIDIDO** (proposal/design): CV(FC) ≤ 0.10 **e** CV(vel) ≤ 0.15 entre segmentos + belt-and-suspenders por `TipoTreino` intervalado + ≥2 elegíveis + ≥20 min + ambas as metades válidas; princípio "na dúvida, null". Thresholds como constantes nomeadas. *Aplicar em 1.x.*
+- [x] 0.2 **Partição das metades — DECIDIDO:** por tempo acumulado; segmento que cruza o meio dividido **proporcionalmente** por tempo; aquecimento/desaquecimento (`tipoEtapa`) descartados antes. *Aplicar em 1.x.*
+- [ ] 0.3 Confirmar a **superfície de UI** do detalhe do treino realizado onde o indicador entra (`TreinoRealizadoDialog` vs. card vs. painel no perfil) — bloqueia 4.x. *(Único pré-requisito que resta.)*
 
 ## 1. Backend — DecouplingCalculatorService
 
-- [ ] 1.1 TDD: `DecouplingCalculatorServiceTest` — contínuo (decoupling positivo conhecido), "melhora" (negativo), intervalado → `null`, `<2` segmentos → `null`, metade sem FC/velocidade → `null`, partição por tempo no segmento que cruza o meio.
-- [ ] 1.2 Implementar `services/helper/DecouplingCalculatorService.calcular(List<EtapaRealizada>) : Double` — filtro de elegibilidade, gate (0.1), partição por tempo (0.2), `EF = velocidade/FC` ponderado por duração, `(EF1−EF2)/EF1×100`, null-safe, 1 casa. Reusar conversão pace↔velocidade/ponderação se já existir em `TssCalculatorService`/util.
+- [ ] 1.1 TDD: `DecouplingCalculatorServiceTest` — o **gate é o alvo prioritário** (cobrir cada predicado + fronteiras, BVA):
+  - **Aplicável:** contínuo com decoupling positivo conhecido (valor exato esperado); "melhora" (negativo); segmento que cruza o meio → partição proporcional.
+  - **Gate → `null`:** intervalado por `TipoTreino`; **CV FC fronteira** (0.10 passa / 0.11 reprova); **CV vel fronteira** (0.15 / 0.16); **duração fronteira** (20min passa / 19min reprova); `<2` elegíveis; metade sem FC/velocidade; aquecimento/desaquecimento descartados (não contaminam as metades); FC/vel/duração `= 0`.
+  - **Belt-and-suspenders:** `TipoTreino` intervalado com CV baixo → ainda `null`.
+- [ ] 1.2 Implementar `services/helper/DecouplingCalculatorService.calcular(List<EtapaRealizada>) : Double` — elegibilidade + descarte aquecimento/desaquecimento, gate (constantes nomeadas `CV_FC_MAX=0.10`, `CV_VEL_MAX=0.15`, `DURACAO_MIN_SEG=20min`), partição proporcional por tempo, `EF = velocidade/FC` ponderado por duração, `(EF1−EF2)/EF1×100`, **null na dúvida**, 1 casa. Reusar conversão pace↔velocidade/ponderação de `TssCalculatorService`/util se existir.
 - [ ] 1.3 **verify:** coberto pelo `./mvnw clean test` (2.x).
 
 ## 2. Backend — expor no DTO + wiring + testes
@@ -34,9 +37,10 @@
 
 > ⚠️ Superfície confirmada no 0.3.
 
-- [ ] 4.1 TDD: teste de `DecouplingBadge` — render por faixa (`<5` verde, `5–10` âmbar, `>10` vermelho via `semantic.*`), estado `null` ("n/d") e tooltip; sem assert de cálculo.
-- [ ] 4.2 Implementar `DecouplingBadge` + `decouplingTone(value)` (faixa → token); tooltip explicativo ("queda de eficiência pace/FC da 1ª p/ 2ª metade; menor é melhor").
-- [ ] 4.3 Integrar no detalhe do treino realizado (0.3): exibir badge quando `decouplingPercentual != null`; estado "não aplicável" quando `null` (AC4).
+- [ ] 4.1 TDD: teste de `DecouplingBadge` — render por faixa (`<5` verde, `5–10` âmbar, `>10` vermelho via `semantic.*`), **linha de interpretação** correta nas 3 faixas + fronteiras 5/10, estado `null` ("n/d") e tooltip; sem assert de cálculo. Testar `decouplingTone`/`decouplingLeitura` nas fronteiras.
+- [ ] 4.2 Implementar `DecouplingBadge` + `decouplingTone(value)` (faixa → token) + `decouplingLeitura(value)` (faixa → frase: `<5` "boa durabilidade aeróbica" · `5–10` "durabilidade moderada" · `>10` "desacopla sob fadiga"); tooltip explicativo. Faixas numa fonte única (sem hardcode no JSX).
+- [ ] 4.3 Integrar no detalhe do treino realizado (0.3): badge com `%` + interpretação quando `decouplingPercentual != null`; estado "não aplicável" quando `null` (AC4).
+- [ ] 4.4b (opcional, deferível) Sinal de adoção: logar/emitir métrica leve quando o badge renderiza com valor — fecha "cobertura ≠ adoção". Não bloqueia a v1.
 - [ ] 4.4 **verify:** `npm run lint && npm run build && npm run test:run`.
 
 ## 5. Verificação de aceite (DoD)
