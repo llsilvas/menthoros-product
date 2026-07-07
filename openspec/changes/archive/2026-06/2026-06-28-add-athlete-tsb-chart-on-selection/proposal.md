@@ -1,5 +1,7 @@
 **Tamanho:** M · **Trilha:** Full
 
+**Status: Concluída** — versão final (gráfico PMC na aba Diagnóstico, após 2 pivots revertidos: drawer → expansão inline no roster → aba Diagnóstico) integrada ao `develop` em 2026-06-28. Loop OpenSpec fechado em 2026-07-07 (sem PR formal sob a branch — integrada via commits de dashboard; estado do develop verificado consistente com a spec).
+
 > Full por **incerteza de design** (qual superfície expõe o gráfico de tendência ao selecionar um atleta). Escopo **frontend-only**: reusa o perfil agregado coach-scoped já carregado pela dashboard (`useAthleteProfile`) e o componente `PMCChart` existente — **sem** novo hook/serviço, **sem** mudança de contrato de API nem de schema. A exposição de **readiness por atleta ao coach** (que exigiria backend) é deliberadamente **fora de escopo** (ver Open Questions).
 
 ## Why

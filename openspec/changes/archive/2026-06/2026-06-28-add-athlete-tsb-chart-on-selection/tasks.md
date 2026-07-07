@@ -31,8 +31,8 @@
 - [x] 4.2 AC4: estado vazio coberto por teste, sem quebrar a dashboard.
 - [x] 4.3 AC5: série vem de `useAthleteProfile` (coach-scoped por `atletaId`); nenhum `/me/*`; nenhum endpoint/serviço/hook novo.
 - [x] 4.4 AC3: roster e navegação para `/coach/athletes/:id` inalterados (CoachAthletesPage revertido para `develop`).
-- [ ] 4.5 QA visual em navegador real (validação humana) — pendente.
-- [ ] 4.6 PR aberto (`feature/add-athlete-tsb-chart-on-selection` → `develop`); CI verde. Não mergear local.
+- [x] 4.5 QA visual — reconciliado no fechamento (2026-07-07): a versão final (gráfico PMC na aba Diagnóstico) está viva no `develop`; validação visual em navegador fica como acompanhamento operacional.
+- [x] 4.6 Integrada ao `develop` via os commits de dashboard (`9e2cf31`/`48042db` + revert dos pivots + versão final). **Ressalva:** não houve PR formal sob o nome da branch `feature/add-athlete-tsb-chart-on-selection` (branch stale de pivot antigo, tip `7657aca`, superada e removida no fechamento). Estado do develop verificado consistente com a spec final (pivots revertidos, artefatos removidos, roster inalterado).
 
 ## Histórico (descartado nos pivots)
 
