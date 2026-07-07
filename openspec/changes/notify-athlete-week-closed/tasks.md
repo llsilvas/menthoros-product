@@ -40,4 +40,4 @@
 
 - [x] 4.1 `npm run lint && npm run build && npm run test:run` — tudo verde.
 - [x] 4.2 QA (Fast track): `frontend-reviewer` + `clean-code-reviewer` sobre o diff; opcional `/codex:review`.
-- [ ] 4.3 Abrir PR (`feature/notify-athlete-week-closed`) → `develop`.
+- [x] 4.3 Abrir PR (`feature/notify-athlete-week-closed`) → `develop`.
