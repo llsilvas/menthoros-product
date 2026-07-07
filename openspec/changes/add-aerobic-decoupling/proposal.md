@@ -51,7 +51,7 @@ Numerador "pace normalizado por FC" já existe no backend isolado (`PaceRegressi
 
 ## Métrica de sucesso
 
-**Cobertura (disponibilidade, não adoção):** em treinos longos/contínuos sincronizados (com laps), o indicador aparece em ≥X% dos casos — taxa de `decouplingPercentual != null` sobre treinos que passam o gate. Mede que o número *existe* onde deveria.
+**Cobertura (disponibilidade, não adoção):** em treinos contínuos/longos sincronizados com ≥2 laps e duração ≥20 min, o indicador aparece em **≥60%** dos casos — taxa de `decouplingPercentual != null` sobre esse universo. Mede que o número *existe* onde deveria. O alvo de 60% é uma **hipótese inicial** (parte reprovará por CV alto/dados ruidosos legítimos); é **validado/recalibrado contra o baseline real** colhido nas primeiras 4 semanas pós-release — junto da revisão de thresholds (design "heurística v1"). Se a cobertura observada for muito abaixo de 60% em rodagens claramente steady, os thresholds estão apertados demais.
 
 > ⚠️ **Cobertura ≠ adoção.** Um badge é passivo: existir não é ser usado. Esta change **não** tem métrica direta de valor (o coach agiu sobre o sinal?) — buraco típico de feature de analytics, reconhecido no product-lens. Mitigação leve opcional (ver Open Questions): logar render/hover do badge para, depois, decidir se vale a Opção 2 (streams/tendência). Sem esse sinal, a decisão de aprofundar seria por vibe.
 
@@ -74,6 +74,7 @@ Numerador "pace normalizado por FC" já existe no backend isolado (`PaceRegressi
 - **Drift do cliente curado na regen** → portar o campo à mão e revisar diff; não commitar saída crua.
 - **Ordem cross-repo** → backend mergeia primeiro (contrato), depois o front consome.
 - **Faixas de cor arbitrárias** → ancorar `<5 / 5–10 / >10%` na literatura (limiar clássico de 5%), documentado no design; ajustável sem mudar contrato.
+- **Rollback:** change **aditiva, sem migration** a desfazer. Basta reverter o PR de backend e o de front e reimplantar. O campo é derivado (não persistido) e `@JsonInclude(NON_NULL)` — clientes que não recebem `decouplingPercentual` continuam funcionando; a compatibilidade retroativa é garantida pela própria natureza aditiva do contrato.
 
 ## Revisões (Full track)
 
@@ -81,3 +82,4 @@ Numerador "pace normalizado por FC" já existe no backend isolado (`PaceRegressi
 - **Pre-mortem (the-fool):** principal modo de falha — exibir decoupling calculado sobre treino intervalado, minando a confiança no diagnóstico — **endereçado pelo gate de aplicabilidade (AC1)** como critério de aceite de prioridade máxima. Segundo modo — assumir streams que não existem — eliminado pela restrição AC5 (só segmentos).
 - **Product-lens (diagnóstico, 2026-07-07):** GO com 3 apertos, todos incorporados: (1) **gate como AC de prioridade máxima**, preferindo falso-negativo (predicados concretos + testes de fronteira — antes era open question); (2) **linha de interpretação** junto do número (número passivo é ignorável); (3) **sinal de adoção** opcional registrado (buraco "cobertura ≠ adoção"). Contra-métrica adicionada: zero falsos-positivos.
 - **DoR cross-model (Codex, 2026-07-07):** NOT READY inicial → **corrigido**. Critical: o helper precisava do `TipoTreino` (não presente em `EtapaRealizada`) — assinatura passou a `calcular(etapas, TipoTreino)`, com o tipo vindo do `treinoPlanejado` (nullable/LAZY; degrada para CV-only quando ausente). Important: thresholds explicitados como **heurística v1** (constantes nomeadas + critério de revisão); **CV robusto a laps curtos** (filtro ≥60s) + warmup/cooldown não rotulado coberto pelo CV; copy tornada **descritiva/não-causal** ("estimativa", terreno/vento); padronização **velocidade/FC** (fim do "pace/FC" que invertia o sinal). Minor: `null`≡`undefined` no front; fronteiras `[5,10]` fechadas + negativos → verde.
+- **DoR re-check (spec-reviewer, 2026-07-07):** os 6 gaps do Codex confirmados fechados. Dois critérios DoR padrão restantes → **corrigidos**: (A) métrica de cobertura com placeholder `≥X%` passou a alvo concreto **≥60%** (hipótese inicial, recalibrada contra baseline pós-release); (B) sentença de **rollback** adicionada aos riscos (aditiva, sem migration, `NON_NULL` retrocompatível).
