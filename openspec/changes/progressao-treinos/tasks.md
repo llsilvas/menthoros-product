@@ -39,9 +39,9 @@
 
 ## 6. Atualizar PeriodizacaoPromptFormatter
 
-- [ ] 6.1 Adicionar método (ou sobrecarga) que recebe `DecisaoProgressao` e a inclui no bloco de periodização do prompt
-- [ ] 6.2 Incluir no prompt: estado de progressão, ajuste máximo de volume (% formatado), instrução sobre longão e motivo
-- [ ] 6.3 Garantir que quando `DecisaoProgressao` é `null` (fallback), o formatter funciona como antes sem erro
+- [x] 6.1 Adicionar método (ou sobrecarga) que recebe `DecisaoProgressao` e a inclui no bloco de periodização do prompt
+- [x] 6.2 Incluir no prompt: estado de progressão, ajuste máximo de volume (% formatado), instrução sobre longão e motivo
+- [x] 6.3 Garantir que quando `DecisaoProgressao` é `null` (fallback), o formatter funciona como antes sem erro
 
 ## 7. Testes de Integração
 
