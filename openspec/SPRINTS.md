@@ -85,12 +85,14 @@ ENTREGUE:
   skills-core ✅ ─▶ eval-harness ✅ ─▶ introduce-plan-constraints ✅ ─▶ harden-plan-generation-resilience ✅
      (fundação)       (rede)            (seam Constraint + checker)       (reparo + retry)
                          │
-                         └▶ debito-tecnico ✅
-                            (confiabilidade)
+                         ├▶ debito-tecnico ✅
+                         │  (confiabilidade)
+                         └▶ progressao-treinos ✅ ─▶ fix-llm-routing-finops ✅
+                            (envelope confiável)      (FinOps: routing externalizado + métricas de custo)
 
 PRÓXIMO (intercalado com features visíveis):
-  progressao-treinos ─▶ llm-code-switching
-  (envelope confiável)   (EN/PT, ~20% ganho reasoning)
+  llm-code-switching
+  (EN/PT, ~20% ganho reasoning)
 
 BLOCO DE ENGENHARIA (agrupado, Sprint 16+):
   refactor-iaservice-decomposition ─▶ add-llm-tool-use (spike+infra) ─▶ migrate-plan-prompt-to-skills
@@ -98,7 +100,7 @@ BLOCO DE ENGENHARIA (agrupado, Sprint 16+):
                                                    └▶ RAG family (engine → injury → coach-method)
 ```
 
-- **progressao-treinos** e **llm-code-switching** são qualidade de IA perceptível pelo coach (planos melhores) — intercalados com features visíveis.
+- **progressao-treinos** ✅ (entregue 2026-07-08) e **llm-code-switching** são qualidade de IA perceptível pelo coach (planos melhores) — intercalados com features visíveis. A **fix-llm-routing-finops** ✅ (mesma data) instrumentou custo/cache por rota — a decisão de TTL Anthropic espera ≥2 semanas de `cache_hit_rate` em produção.
 - **add-llm-tool-use** rebaixada para bloco de engenharia: fundação para RAG, sem valor direto para o coach. Inicia com spike de validação empírica (~3 dias) antes de investir na infraestrutura completa.
 - **coach-batch-plan-generation** não depende mais de `add-llm-tool-use` (dependência artificial removida — batch funciona com o prompt atual).
 - `refactor-iaservice-decomposition`, `migrate-plan-prompt-to-skills` e a família RAG são executados em sequência coesa no bloco de engenharia.
@@ -189,7 +191,7 @@ Ordenadas por criticidade dentro do bloco: segurança (exposição de dados) ant
 ## Pós-MVP — backlog priorizado por ROI de continuidade
 
 **Aceleradores de qualidade (logo após o MVP):**
-`progressao-treinos` (30) — envelope técnico confiável · `add-zone-confidence-management` (12) — confiança nas zonas.
+`add-zone-confidence-management` (12) — confiança nas zonas. (~~`progressao-treinos`~~ ✅ antecipada e entregue na Sprint 14.)
 
 **Dívida técnica estrutural:**
 `refactor-iaservice-decomposition` (~26) — decompõe `IaServiceImpl` (~1500 linhas: schema + geração + validação) em colaboradores testáveis, sem mudança de comportamento. **Sequenciar logo após `debito-tecnico-camada-ia`** (mesma classe) para não re-inflar; não é bloqueante de feature nem de beta, por isso fica no pós-MVP.
