@@ -65,9 +65,13 @@ A lógica atual de progressão de treinos baseia-se apenas em um contador de sem
 
 ## Métrica de sucesso
 
-Proxy observável após deploy:
-- **Redução de erros de progressão no prompt** (evidência qualitativa): o coach, ao revisar planos gerados após a change, deve encontrar menos instâncias de "plano propõe aumento agressivo para atleta que não treinou" ou "plano conservador para atleta em boa fase" — aferível via feedback no campo de revisão.
-- **Proxy técnico**: em testes de integração, 100% dos planos gerados para perfis extremos (atleta consistente vs. atleta em baixa aderência) devem ter estado de progressão correspondente no prompt.
+**Métrica primária (observável em produção):** taxa de planos aprovados sem edição de volume/longão pelo coach, segmentada por `EstadoProgressao`, medida nas primeiras 4 semanas de uso em produção.
+
+- Baseline implícito: taxa atual de edições de volume na fase de revisão (coletar antes do deploy via analytics de aprovação).
+- Sinal de sucesso: quando `EstadoProgressao = PROGREDIR`, o coach não aumenta o volume (aceitou o plano como proposto); quando `EstadoProgressao = REDUZIR`, o coach não aumenta o volume.
+- Sinal de falha: coach edita sistematicamente em direção oposta ao estado calculado → thresholds precisam de calibração.
+
+**Proxy técnico (Gates):** testes de integração (Task 7) devem cobrir 100% dos planos gerados com estado de progressão correto no prompt para os quatro estados.
 
 ## Open Questions & Assumptions
 
@@ -83,8 +87,10 @@ Proxy observável após deploy:
 
 | # | Pergunta | Impacto |
 |---|----------|---------|
-| OQ4 | Thresholds de `PROGREDIR` vs `PROGREDIR_LEVE`: aderência >= 80% vs >= 70% — calibrados para amadores (3-5 treinos/semana)? | Define as regras de `calcularDecisao`. Usar os valores do `tasks.md` como ponto de partida; coach pode precisar de ajuste após feedback real. |
+| OQ4 | Thresholds de `PROGREDIR` vs `PROGREDIR_LEVE`: aderência >= 80% vs >= 70% — calibrados para amadores (3-5 treinos/semana)? | Define as regras de `calcularDecisao`. Usar os valores do `tasks.md` como ponto de partida conservador; coach pode precisar de ajuste após feedback real. |
 | OQ5 | `ajusteVolumePercentual` deve ser respeitado como limite duro pelo modelo ou como sugestão? | Define o framing do bloco no prompt. Recomendar como limite duro (ex.: "não exceder +6% de volume esta semana"). |
+| OQ6 | Calibração de thresholds — de onde vêm os números e como validar? | Os valores atuais (TSB < -22, aderência >= 80%, RPE > 8.5) são estimativas conservadoras da literatura de treinamento para atletas de performance, **não calibrados empiricamente** para amadores. Risco identificado: aderência 80% pode ser alto demais para amadores típicos (65–75% estrutural por logística). Plano de observação: nas primeiras 4 semanas de produção, monitorar distribuição de `EstadoProgressao` e taxa de edição inversa pelo coach; se > 30% das edições contrariarem o estado calculado, revisar thresholds. |
+| OQ7 | Hierarquia de precedência entre `DecisaoProgressao` e `calcularProgressaoSegura` no prompt quando os dois divergem? | Decidido em D7 do `design.md`: `calcularProgressaoSegura` (teto fisiológico de CTL/rampRate) é o limitador absoluto de segurança; `DecisaoProgressao` opera dentro desse teto como recomendação de direção. O prompt deve deixar explícita a hierarquia. |
 
 ### Premissas assumidas
 

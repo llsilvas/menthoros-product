@@ -69,6 +69,17 @@ O formatter já monta a seção de periodização do prompt. Adicionar um bloco 
 
 A constante `LIMITE_TREINOS_HISTORICO` é substituída pela data de corte `LocalDate.now().minusDays(42)`.
 
+### D7: Hierarquia de precedência no prompt — `calcularProgressaoSegura` teto; `DecisaoProgressao` recomendação
+
+Quando `calcularProgressaoSegura` e `DecisaoProgressao` apontam direções diferentes (ex.: rampRate permite +8% mas estado é `MANTER`), o prompt deve deixar explícita a hierarquia:
+
+1. **`calcularProgressaoSegura`** é o limitador absoluto de segurança fisiológica (teto de CTL/rampRate). Nenhuma instrução de `DecisaoProgressao` pode ultrapassar esse teto.
+2. **`DecisaoProgressao`** opera dentro desse teto como diretriz de direção: se o teto permite +8% mas o estado é `MANTER`, o modelo deve manter (usar +0%), não o máximo permitido pelo teto.
+
+No prompt: apresentar `calcularProgressaoSegura` como "limite físico máximo absoluto" e `DecisaoProgressao` como "recomendação de direção dentro desse limite". O modelo deve respeitar o mais restritivo dos dois sinais.
+
+**Alternativa descartada:** fundir os dois em um único limite calculado. Mantê-los separados preserva a rastreabilidade: uma regressão de qualidade pode ser atribuída ao teto fisiológico ou à regra de progressão, facilitando rollback cirúrgico.
+
 ## Risks / Trade-offs
 
 **[Atleta novo com histórico insuficiente]** → `ProgressaoTreinoService` retorna `MANTER` com motivo explícito ("histórico insuficiente"). O prompt da IA indica isso.
