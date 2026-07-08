@@ -33,9 +33,9 @@
 
 ## 5. Integração no Fluxo de Geração de Plano
 
-- [ ] 5.1 Em `PlanoServiceImpl`, chamar `progressaoTreinoService.calcularHistorico` e `calcularDecisao` antes da chamada à IA
-- [ ] 5.2 Tratar exceção em `calcularDecisao` com try-catch: logar erro e continuar geração sem `DecisaoProgressao` (fallback gracioso)
-- [ ] 5.3 Passar `DecisaoProgressao` para `PeriodizacaoPromptFormatter`: como o formatter é chamado DENTRO de `iaService.geraPlanoSemanalAvancado`, é necessário também atualizar a assinatura de `geraPlanoSemanalAvancado` para aceitar `DecisaoProgressao` como parâmetro adicional; alternativa: adicionar parâmetro em `gerarPlanoSemanal(DadosPlanoDto, ModoGeracaoPlano)` e passar para o IA service
+- [x] 5.1 Em `PlanoServiceImpl`, chamar `progressaoTreinoService.calcularHistorico` e `calcularDecisao` antes da chamada à IA
+- [x] 5.2 Tratar exceção em `calcularDecisao` com try-catch: logar erro e continuar geração sem `DecisaoProgressao` (fallback gracioso)
+- [x] 5.3 Passar `DecisaoProgressao` para `PeriodizacaoPromptFormatter`: como o formatter é chamado DENTRO de `iaService.geraPlanoSemanalAvancado`, é necessário também atualizar a assinatura de `geraPlanoSemanalAvancado` para aceitar `DecisaoProgressao` como parâmetro adicional; alternativa: adicionar parâmetro em `gerarPlanoSemanal(DadosPlanoDto, ModoGeracaoPlano)` e passar para o IA service
 
 ## 6. Atualizar PeriodizacaoPromptFormatter
 
