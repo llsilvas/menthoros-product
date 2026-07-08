@@ -28,8 +28,8 @@
 
 ## 4. Ampliar Histórico no Fluxo de Geração
 
-- [ ] 4.1 Em `PlanoServiceImpl.prepararDadosPlano`, substituir `LIMITE_TREINOS_HISTORICO = 7` por busca de treinos dos últimos 42 dias usando `LocalDate.now().minusDays(42)`
-- [ ] 4.2 Verificar que `DadosPlanoDto.ultimosTreinos()` continua com o mesmo tipo de lista (sem breaking change de contrato)
+- [x] 4.1 Em `PlanoServiceImpl.prepararDadosPlano`, substituir `LIMITE_TREINOS_HISTORICO = 7` por `JANELA_HISTORICO_DIAS = 42` com `findByAtletaIdAndDataTreinoBetween`
+- [x] 4.2 Verificar que `DadosPlanoDto.ultimosTreinos()` continua com o mesmo tipo de lista (sem breaking change de contrato) — tipo preservado, 7 stubs de teste atualizados
 
 ## 5. Integração no Fluxo de Geração de Plano
 
