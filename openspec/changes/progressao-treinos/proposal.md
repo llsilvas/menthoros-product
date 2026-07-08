@@ -27,7 +27,7 @@ A lógica atual de progressão de treinos baseia-se apenas em um contador de sem
 - **`PlanoServiceImpl`**: integra chamada ao `ProgressaoTreinoService` antes da geração; amplia janela de histórico passada ao `DadosPlanoDto`.
 - **`PeriodizacaoPromptFormatter`**: recebe `DecisaoProgressao` e inclui estado, limites de volume/longão e motivo no prompt.
 - **`TreinoRealizadoRepository`**: reutiliza `findByAtletaAndDataTreinoGreaterThanEqualOrderByDataTreinoDesc` já existente.
-- **`DadosPlanoDto`**: adiciona campo `decisaoProgressao` (ou recebe o resumo como parâmetro do formatter).
+- **`DadosPlanoDto`**: sem alteração — `DecisaoProgressao` é passado diretamente ao `PeriodizacaoPromptFormatter` como parâmetro avulso (conforme D5 do design.md), sem adicionar campo ao DTO.
 - **`TsbServiceImpl`**: `recalcularSemanasProgressao` permanece inalterado; `semanasProgressaoContinua` continua como sinal auxiliar.
 - Sem breaking changes de API REST.
 
@@ -62,6 +62,11 @@ A lógica atual de progressão de treinos baseia-se apenas em um contador de sem
 - Given: histórico do atleta contém treinos com `tipoTreino == LONGO`
 - When: `calcularHistorico` é chamado
 - Then: contagem de longões nas janelas de 7/21 dias reflete apenas treinos de tipo `LONGO` realizados; treinos de tipo diferente não contam como longão
+
+**CA7 — Estado `PROGREDIR_LEVE` com atleta em adaptação parcial:**
+- Given: atleta com aderência >= 70% (< 80%) nos últimos 21 dias e TSB entre -15 e -22
+- When: coach solicita geração do plano semanal
+- Then: `ProgressaoTreinoService.calcularDecisao` retorna `EstadoProgressao.PROGREDIR_LEVE` e o prompt enviado à IA contém instrução de progressão moderada com `ajusteVolumePercentual` entre 0 e o threshold de `PROGREDIR`; plano é gerado normalmente sem exceção
 
 ## Métrica de sucesso
 

@@ -7,12 +7,12 @@
 ## 2. ProgressaoTreinoService
 
 - [ ] 2.1 Criar interface `ProgressaoTreinoService` com métodos `calcularHistorico(UUID atletaId)` e `calcularDecisao(ProgressaoHistoricoResumo resumo)`
-- [ ] 2.2 Criar `ProgressaoTreinoServiceImpl` com injeção de `TreinoRealizadoRepository` e `PlanoMetadadosService`
+- [ ] 2.2 Criar `ProgressaoTreinoServiceImpl` com injeção de `TreinoRealizadoRepository`, `TreinoPlanejadoRepository` (fonte de treinos planejados para aderência) e `PlanoMetadadosService` (fonte de TSB/CTL/rampRate via `buscarOuCriarMetadados`)
 - [ ] 2.3 Implementar `calcularHistorico`: buscar treinos dos últimos 42 dias via `findByAtletaAndDataTreinoGreaterThanEqualOrderByDataTreinoDesc`, calcular janelas de 7/21/42 dias
-- [ ] 2.4 Implementar cálculo de aderência 21d: `treinosConcluidos21d / treinosPlanejados21d` (0.0 quando planejados = 0)
-- [ ] 2.5 Implementar identificação de longões: maior treino da semana ou treino com duração >= threshold em `MetricasThresholds`
-- [ ] 2.6 Implementar cálculo de RPE médio dos treinos duros (tipo `INTERVALADO` ou `TEMPO`), com fallback gracioso quando campo ausente
-- [ ] 2.7 Implementar `calcularDecisao`: aplicar regras de `PROGREDIR`, `PROGREDIR_LEVE`, `MANTER`, `REDUZIR` conforme spec; incorporar `calcularProgressaoSegura` como teto fisiológico
+- [ ] 2.4 Implementar cálculo de aderência 21d: `treinosConcluidos21d / treinosPlanejados21d`; `treinosConcluidos21d` vem de `TreinoRealizadoRepository.findByAtletaAndDataTreinoGreaterThanEqualOrderByDataTreinoDesc`; `treinosPlanejados21d` vem de `TreinoPlanejadoRepository` (query por atleta + dataInicio >= now-21d); quando `treinosPlanejados21d = 0` retornar aderência 0.0 (atleta sem plano → fallback MANTER via task 2.8)
+- [ ] 2.5 Implementar identificação de longões: usar `TipoTreino.LONGO` como critério exclusivo (conforme OQ3 resolvida); nenhum threshold numérico adicional
+- [ ] 2.6 Implementar cálculo de RPE médio dos treinos duros (tipos `INTERVALADO`, `TIRO`, `TEMPO_RUN`, `SUBIDA` com fatorImpacto >= 1.25, conforme OQ2 resolvida), com fallback gracioso quando `percepcaoEsforco` for nulo
+- [ ] 2.7 Implementar `calcularDecisao`: aplicar regras de `PROGREDIR`, `PROGREDIR_LEVE`, `MANTER`, `REDUZIR` conforme spec; a precedência do teto fisiológico (`calcularProgressaoSegura`) é enforçada via prompt (D7 do design.md), não via chamada direta — o método é privado em `PeriodizacaoPromptFormatter`; decidir OQ4 (thresholds PROGREDIR vs PROGREDIR_LEVE) antes de implementar
 - [ ] 2.8 Garantir fallback `MANTER` quando `treinosConcluidos21d < 3` ou dados insuficientes
 
 ## 3. Testes Unitários do Serviço
@@ -35,7 +35,7 @@
 
 - [ ] 5.1 Em `PlanoServiceImpl`, chamar `progressaoTreinoService.calcularHistorico` e `calcularDecisao` antes da chamada à IA
 - [ ] 5.2 Tratar exceção em `calcularDecisao` com try-catch: logar erro e continuar geração sem `DecisaoProgressao` (fallback gracioso)
-- [ ] 5.3 Passar `DecisaoProgressao` para `PeriodizacaoPromptFormatter` (ajustar assinatura do método de formatação relevante ou adicionar novo método)
+- [ ] 5.3 Passar `DecisaoProgressao` para `PeriodizacaoPromptFormatter`: como o formatter é chamado DENTRO de `iaService.geraPlanoSemanalAvancado`, é necessário também atualizar a assinatura de `geraPlanoSemanalAvancado` para aceitar `DecisaoProgressao` como parâmetro adicional; alternativa: adicionar parâmetro em `gerarPlanoSemanal(DadosPlanoDto, ModoGeracaoPlano)` e passar para o IA service
 
 ## 6. Atualizar PeriodizacaoPromptFormatter
 
