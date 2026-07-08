@@ -11,7 +11,7 @@ A revisão de arquitetura/FinOps da camada multi-modelo apontou quatro problemas
 
 ## What Changes
 
-- **Novo** `config/external/LlmRoutingProperties` (`@ConfigurationProperties`, prefixo `menthoros.llm.routing`): model ID, temperature e maxTokens por rota (`simple`, `standard`, `complex`, `expert`, `plano`), com bloco correspondente no `application.yml` espelhando os valores atuais.
+- **Novo** `config/external/LlmRoutingProperties` (`@ConfigurationProperties`, prefixo `app.llm.routing` — convenção `app.*` do repo, cf. `StravaProperties`): model ID, temperature e maxTokens por rota (`simple`, `standard`, `complex`, `expert`, `plano`), com bloco correspondente no `application.yml` espelhando os valores atuais.
 - **Refatorar** `MultiModelConfig` para consumir `LlmRoutingProperties` — nenhum model ID ou parâmetro literal permanece no código.
 - **Novo** `src/main/resources/llm-pricing.yml`: fonte única de preços (input, cached input, output, por MTok USD) por model ID.
 - **Novo** `ai/cost/LlmPricingRegistry`: carrega `llm-pricing.yml` no startup, expõe preço por model ID e falha rápido se um modelo roteado não tiver preço cadastrado.
@@ -37,8 +37,8 @@ A revisão de arquitetura/FinOps da camada multi-modelo apontou quatro problemas
 ## Critérios de aceite
 
 1. **Given** o backend inicializado, **When** inspeciono `MultiModelConfig.java`, **Then** não existe nenhum model ID, temperature, maxTokens, preço ou estimativa de custo literal no arquivo (código ou Javadoc).
-2. **Given** um override `menthoros.llm.routing.expert.model=gpt-4.1` em um profile, **When** o contexto sobe, **Then** o bean `gpt4oClient` usa o modelo do override sem recompilação.
-3. **Given** o startup da aplicação, **When** um model ID configurado em `menthoros.llm.routing` não existe em `llm-pricing.yml`, **Then** a aplicação falha rápido com mensagem indicando o modelo sem preço.
+2. **Given** um override `app.llm.routing.expert.model=gpt-4.1` em um profile, **When** o contexto sobe, **Then** o bean `gpt4oClient` usa o modelo do override sem recompilação.
+3. **Given** o startup da aplicação, **When** um model ID configurado em `app.llm.routing` não existe em `llm-pricing.yml`, **Then** a aplicação falha rápido com mensagem indicando o modelo sem preço.
 4. **Given** a rota `expert`, **When** leio a configuração efetiva, **Then** `temperature=0.2`.
 5. **Given** uma chamada LLM concluída via qualquer bean de `MultiModelConfig`, **When** consulto `/actuator/prometheus`, **Then** existem contadores de tokens de input/output (e cache read/write para Anthropic) e custo estimado em USD, com tags `model` e `route`.
 6. **Given** a suíte de testes, **When** executo `./mvnw clean test`, **Then** todos os testes passam, incluindo os novos de binding de properties, registry de preços e advisor.
@@ -51,7 +51,7 @@ A revisão de arquitetura/FinOps da camada multi-modelo apontou quatro problemas
 
 - **Origem dos IDs**: RISK-01, RISK-02 e ADR-FIN-02 referenciam uma revisão de arquitetura/FinOps externa não versionada no workspace. Premissa: os quatro pontos desta change capturam integralmente os achados relevantes dessa revisão.
 - **Premissa — temperatura 0.2 para `expert`**: assume-se que a semântica correta de deep-reasoning é determinismo (0.2, igual à rota `plano`). Validar em QA que a qualidade das análises de lesão não degrada.
-- **Premissa — Spring AI expõe cache tokens**: assume-se que a versão de Spring AI em uso expõe `cache_creation_input_tokens` / `cache_read_input_tokens` no usage nativo das respostas Anthropic. Se não expor, o advisor registra input/output e o `cache_hit_rate` fica pendente de upgrade da lib (registrar como follow-up na task).
+- ~~Premissa — Spring AI expõe cache tokens~~ **RESOLVIDA (init 2026-07-08)**: Spring AI 1.1.6 expõe `cacheCreationInputTokens()` / `cacheReadInputTokens()` em `AnthropicApi.Usage` — verificado via `javap` no jar. O advisor mede cache real desde o início.
 - **Em aberto — decisão de TTL**: será tomada em change futura após ≥2 semanas de coleta de `cache_hit_rate`.
 - **Em aberto — Batch API**: `OpenAiBatchClient` (desconto de 50% para jobs noturnos) fica para change própria (`add-llm-batch-api`, não criada ainda).
 
@@ -59,6 +59,6 @@ A revisão de arquitetura/FinOps da camada multi-modelo apontou quatro problemas
 
 - **Repo afetado:** apenas `apps/menthoros-backend`.
 - **Código Java:** `config/external/MultiModelConfig.java` (refactor), novos `config/external/LlmRoutingProperties`, `ai/cost/LlmPricingRegistry`, `ai/cost/CostTrackingAdvisor`.
-- **Recursos:** `application.yml` (novo bloco `menthoros.llm.routing`), novo `llm-pricing.yml`.
+- **Recursos:** `application.yml` (novo bloco `app.llm.routing`), novo `llm-pricing.yml`.
 - **Docs:** `docs/llm-pricing-guide.md` (nota apontando a fonte canônica).
 - **Sem impacto em:** `ModelRouter` (assinaturas preservadas), controllers, DTOs, banco, contratos de API.
