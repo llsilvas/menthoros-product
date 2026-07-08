@@ -45,9 +45,9 @@
 
 ## 7. Testes de Integração
 
-- [ ] 7.1 Testar que geração de plano para atleta consistente (mock de histórico) inclui estado `PROGREDIR` no prompt
-- [ ] 7.2 Testar que geração de plano para atleta com TSB muito negativo inclui estado `REDUZIR` no prompt
-- [ ] 7.3 Testar que falha no `ProgressaoTreinoService` não impede geração do plano (plano gerado sem bloco de progressão)
+- [x] 7.1 Testar que geração de plano para atleta consistente (mock de histórico) inclui estado `PROGREDIR` no prompt
+- [x] 7.2 Testar que geração de plano para atleta com TSB muito negativo inclui estado `REDUZIR` no prompt
+- [x] 7.3 Testar que falha no `ProgressaoTreinoService` não impede geração do plano (plano gerado sem bloco de progressão)
 - [ ] 7.4 Validar manualmente 5 gerações com históricos sintéticos (um por `EstadoProgressao` + fallback) antes do deploy — confirmar que o plano resultante é coerente com o estado (QA de prompt, não automatizado)
 
 ## 8. Follow-up comprometido (fora do escopo desta change — registrar como débito)
