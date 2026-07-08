@@ -1,8 +1,8 @@
 ## 1. DTOs e Enum de Progressão
 
-- [ ] 1.1 Criar enum `EstadoProgressao` em `enums/` com valores `PROGREDIR`, `PROGREDIR_LEVE`, `MANTER`, `REDUZIR`
-- [ ] 1.2 Criar record `ProgressaoHistoricoResumo` em `dto/` com campos de volume (7d/21d/42d), TSS, aderência, longões, RPE, CTL/ATL/TSB e semanasProgressaoContinua
-- [ ] 1.3 Criar record `DecisaoProgressao` em `dto/` com estado, ajusteVolumePercentual, ajusteLongoMinutos, permitirProgressaoIntensidade e motivo
+- [x] 1.1 Criar enum `EstadoProgressao` em `enums/` com valores `PROGREDIR`, `PROGREDIR_LEVE`, `MANTER`, `REDUZIR`
+- [x] 1.2 Criar record `ProgressaoHistoricoResumo` em `dto/` com campos de volume (7d/21d/42d), TSS, aderência, longões, RPE, CTL/ATL/TSB e semanasProgressaoContinua
+- [x] 1.3 Criar record `DecisaoProgressao` em `dto/` com estado, ajusteVolumePercentual, ajusteLongoMinutos, permitirProgressaoIntensidade e motivo
 
 ## 2. ProgressaoTreinoService
 
