@@ -91,6 +91,8 @@ Rollback: cada etapa é independente. Se a integração com o formatter gerar in
 
 ## Open Questions
 
-- **RPE no `TreinoRealizado`**: o campo `rpeMedio` (ou equivalente) existe na entidade? Verificar antes de implementar o cálculo de RPE dos treinos duros.
-- **Treinos-chave**: como identificar se um treino era "chave" (intervalado, tempo, longão) para medir taxa de conclusão de treinos-chave? Usar `TipoTreino` ou campo de planejamento?
-- **Longão**: critério de identificação — maior treino da semana? treino acima de X km/min? Definir threshold no enum `MetricasThresholds`.
+> As perguntas abaixo foram verificadas diretamente no código antes da implementação.
+
+- **RPE no `TreinoRealizado`**: ~~o campo `rpeMedio` (ou equivalente) existe na entidade?~~ → **Resolvido:** campo é `percepcaoEsforco` (Integer, 1-10) em `TreinoRealizado`. Usar `percepcaoEsforco` no lugar de `rpeMedio` em todas as referências do serviço.
+- **Treinos-chave e longões**: ~~como identificar se um treino era "chave"?~~ → **Resolvido:** usar `TipoTreino`: longão = `LONGO`; treinos duros (para RPE médio) = `INTERVALADO`, `TIRO`, `TEMPO_RUN`, `SUBIDA` (fatorImpacto >= 1.25).
+- **Longão threshold**: ~~maior treino da semana? acima de X km?~~ → **Resolvido:** `TipoTreino.LONGO` já carrega a semântica (duração > 90min, Zona 2). Sem necessidade de threshold numérico adicional.
