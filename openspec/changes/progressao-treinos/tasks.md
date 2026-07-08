@@ -6,25 +6,25 @@
 
 ## 2. ProgressaoTreinoService
 
-- [ ] 2.1 Criar interface `ProgressaoTreinoService` com métodos `calcularHistorico(UUID atletaId)` e `calcularDecisao(ProgressaoHistoricoResumo resumo)`
-- [ ] 2.2 Criar `ProgressaoTreinoServiceImpl` com injeção de `TreinoRealizadoRepository`, `TreinoPlanejadoRepository` (fonte de treinos planejados para aderência) e `PlanoMetadadosService` (fonte de TSB/CTL/rampRate via `buscarOuCriarMetadados`)
-- [ ] 2.3 Implementar `calcularHistorico`: buscar treinos dos últimos 42 dias via `findByAtletaAndDataTreinoGreaterThanEqualOrderByDataTreinoDesc`, calcular janelas de 7/21/42 dias
-- [ ] 2.4 Implementar cálculo de aderência 21d: `treinosConcluidos21d / treinosPlanejados21d`; `treinosConcluidos21d` vem de `TreinoRealizadoRepository.findByAtletaAndDataTreinoGreaterThanEqualOrderByDataTreinoDesc`; `treinosPlanejados21d` vem de `TreinoPlanejadoRepository` (query por atleta + dataInicio >= now-21d); quando `treinosPlanejados21d = 0` retornar aderência 0.0 (atleta sem plano → fallback MANTER via task 2.8)
-- [ ] 2.5 Implementar identificação de longões: usar `TipoTreino.LONGO` como critério exclusivo (conforme OQ3 resolvida); nenhum threshold numérico adicional
-- [ ] 2.6 Implementar cálculo de RPE médio dos treinos duros (tipos `INTERVALADO`, `TIRO`, `TEMPO_RUN`, `SUBIDA` com fatorImpacto >= 1.25, conforme OQ2 resolvida), com fallback gracioso quando `percepcaoEsforco` for nulo
-- [ ] 2.7 Implementar `calcularDecisao`: aplicar regras de `PROGREDIR`, `PROGREDIR_LEVE`, `MANTER`, `REDUZIR` conforme spec; a precedência do teto fisiológico (`calcularProgressaoSegura`) é enforçada via prompt (D7 do design.md), não via chamada direta — o método é privado em `PeriodizacaoPromptFormatter`; decidir OQ4 (thresholds PROGREDIR vs PROGREDIR_LEVE) antes de implementar
-- [ ] 2.8 Garantir fallback `MANTER` quando `treinosConcluidos21d < 3` ou dados insuficientes
+- [x] 2.1 Criar interface `ProgressaoTreinoService` com métodos `calcularHistorico(UUID atletaId)` e `calcularDecisao(ProgressaoHistoricoResumo resumo)`
+- [x] 2.2 Criar `ProgressaoTreinoServiceImpl` com injeção de `TreinoRealizadoRepository`, `TreinoPlanejadoRepository` (fonte de treinos planejados para aderência) e `PlanoMetadadosService` (fonte de TSB/CTL/rampRate via `buscarOuCriarMetadados`)
+- [x] 2.3 Implementar `calcularHistorico`: buscar treinos dos últimos 42 dias via `findByAtletaAndDataTreinoGreaterThanEqualOrderByDataTreinoDesc`, calcular janelas de 7/21/42 dias
+- [x] 2.4 Implementar cálculo de aderência 21d: `treinosConcluidos21d / treinosPlanejados21d`; `treinosConcluidos21d` vem de `TreinoRealizadoRepository.findByAtletaAndDataTreinoBetween`; `treinosPlanejados21d` vem de `TreinoPlanejadoRepository.findComRealizadoByAtletaAndPeriodo`; quando `treinosPlanejados21d = 0` retornar aderência 0.0 (atleta sem plano → fallback MANTER via task 2.8)
+- [x] 2.5 Implementar identificação de longões: usar `TipoTreino.LONGO` como critério exclusivo (conforme OQ3 resolvida); nenhum threshold numérico adicional
+- [x] 2.6 Implementar cálculo de RPE médio dos treinos duros (tipos `INTERVALADO`, `TIRO`, `TEMPO_RUN`, `SUBIDA` com fatorImpacto >= 1.25, conforme OQ2 resolvida), com fallback gracioso quando `percepcaoEsforco` for nulo
+- [x] 2.7 Implementar `calcularDecisao`: thresholds OQ4 confirmados — PROGREDIR: aderência >= 80%, 2+ longões, RPE <= 7.5, TSB > -15; PROGREDIR_LEVE: aderência >= 70%, TSB > -22; MANTER: demais; REDUZIR: TSB < -22 ou aderência < 60% ou RPE > 8.5
+- [x] 2.8 Garantir fallback `MANTER` quando `treinosConcluidos21d < 3` ou dados insuficientes
 
 ## 3. Testes Unitários do Serviço
 
-- [ ] 3.1 Testar `calcularHistorico` com atleta com histórico completo (42 dias de treinos)
-- [ ] 3.2 Testar `calcularHistorico` com atleta sem treinos (novo atleta) — sem exceção, campos zerados
-- [ ] 3.3 Testar `calcularDecisao` → `PROGREDIR` (aderência >= 80%, 2+ longões, RPE <= 7.5, TSB > -15)
-- [ ] 3.4 Testar `calcularDecisao` → `PROGREDIR_LEVE` (aderência >= 70%, TSB entre -15 e -22)
-- [ ] 3.5 Testar `calcularDecisao` → `MANTER` (aderência entre 60-70% ou longão oscilante)
-- [ ] 3.6 Testar `calcularDecisao` → `REDUZIR` (aderência < 60%, TSB < -22, ou RPE > 8.5)
-- [ ] 3.7 Testar fallback `MANTER` com histórico insuficiente (< 3 treinos em 21 dias)
-- [ ] 3.8 Testar que semana boa isolada não vence histórico ruim de 42 dias
+- [x] 3.1 Testar `calcularHistorico` com atleta com histórico completo (42 dias de treinos)
+- [x] 3.2 Testar `calcularHistorico` com atleta sem treinos (novo atleta) — sem exceção, campos zerados
+- [x] 3.3 Testar `calcularDecisao` → `PROGREDIR` (aderência >= 80%, 2+ longões, RPE <= 7.5, TSB > -15)
+- [x] 3.4 Testar `calcularDecisao` → `PROGREDIR_LEVE` (aderência >= 70%, TSB entre -15 e -22)
+- [x] 3.5 Testar `calcularDecisao` → `MANTER` (aderência entre 60-70% ou longão oscilante)
+- [x] 3.6 Testar `calcularDecisao` → `REDUZIR` (aderência < 60%, TSB < -22, ou RPE > 8.5)
+- [x] 3.7 Testar fallback `MANTER` com histórico insuficiente (< 3 treinos em 21 dias)
+- [x] 3.8 Testar que semana boa isolada não vence histórico ruim de 42 dias
 
 ## 4. Ampliar Histórico no Fluxo de Geração
 
