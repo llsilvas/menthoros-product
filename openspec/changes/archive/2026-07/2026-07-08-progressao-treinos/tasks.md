@@ -48,11 +48,15 @@
 - [x] 7.1 Testar que geração de plano para atleta consistente (mock de histórico) inclui estado `PROGREDIR` no prompt
 - [x] 7.2 Testar que geração de plano para atleta com TSB muito negativo inclui estado `REDUZIR` no prompt
 - [x] 7.3 Testar que falha no `ProgressaoTreinoService` não impede geração do plano (plano gerado sem bloco de progressão)
-- [ ] 7.4 Validar manualmente 5 gerações com históricos sintéticos (um por `EstadoProgressao` + fallback) antes do deploy — confirmar que o plano resultante é coerente com o estado (QA de prompt, não automatizado)
+- [ ] 7.4 **ADIADO (pós-merge)** — Validar manualmente 5 gerações com históricos sintéticos (um por `EstadoProgressao` + fallback) antes do deploy — confirmar que o plano resultante é coerente com o estado (QA de prompt, não automatizado). Executar como smoke test de prompt antes do próximo deploy em produção.
 
 ## 8. Follow-up comprometido (fora do escopo desta change — registrar como débito)
 
 Estes itens não são implementados nesta change mas precisam ter sprint-alvo definido para evitar que o valor do `motivo` seja perdido:
+
+> **Status no arquivamento (2026-07-08, PR llsilvas/menthoros-backend#33 mergeado em develop):** seções 1–7 entregues
+> (30/33 itens, suíte com 1267 testes verdes); 7.4 adiado como smoke test pré-deploy; 8.1 e 8.2 permanecem como débito
+> com sprint-alvo (Sprint 15).
 
 - [ ] 8.1 *(Sprint 15 ou pós-`llm-code-switching`)* Surfacing do `motivo` ao coach no `CoachPlanReviewPage`: badge ou painel lateral exibindo `Estado: REDUZIR | TSB: -24 | Motivo: "sobrecarga acumulada"` para que o coach entenda o contexto do plano sem editar no escuro.
 - [ ] 8.2 *(Sprint 15)* Log estruturado da `DecisaoProgressao` em formato recuperável: evento com `atletaId`, `semanaInicio`, `estado`, `ajusteVolumePercentual` e `motivo` — correlacionável futuro com ações do coach (aprovação/edição/rejeição) para calibração de thresholds e `rag-coach-methodology-personalization`.
