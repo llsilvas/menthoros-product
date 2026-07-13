@@ -30,7 +30,8 @@ decoupling escalar, que mantém seus gates globais.
 
 ## D2 — GAP interno (fórmula v1)
 
-Gradiente médio da volta: `g = (subidaMetros − descidaMetros) / (distanciaKm × 1000)` (adimensional).
+Gradiente médio da volta: `g = (elevacaoGanhoMetros − elevacaoPerdaMetros) / (distanciaKm × 1000)`
+(adimensional; nomes reais dos campos em `EtapaRealizada:85-89`).
 
 Fator de custo (aproximação linear de Minetti na faixa habitual de corrida, |g| ≤ 0,10):
 
@@ -47,6 +48,9 @@ paceGap = paceBruto / custoRelativo(g)
   máximo por volta ≤ 5 s/km** na faixa |g| ≤ 3% (o outlier isolado é o que mina a confiança do
   coach, não a média). Os coeficientes (9.0/4.5) são constantes nomeadas ajustáveis sem mudar
   contrato (mesmo espírito dos thresholds do decoupling).
+- **Fixture versionada (achado do DoR gate):** o `.fit` de referência (16 laps) e os valores de
+  GAP do Garmin Connect entram em `src/test/resources/fit/` como fixture de teste, para que a
+  calibração seja reproduzível em CI — não um cálculo manual único que regride em silêncio.
 - **Não-objetivo v1:** trail/montanha (|g| > 10%); modelar custo não-linear completo de Minetti.
 
 ## D3 — Pw:HR no DecouplingCalculatorService
@@ -65,9 +69,10 @@ paceGap = paceBruto / custoRelativo(g)
 
 - `decouplingPotenciaPercentual` em `TreinoRealizadoOutputDto` (ao lado do `decouplingPercentual`
   atual — semânticas documentadas no `@Schema`).
-- Série de EF **somente** no endpoint de detalhe do treino (`GET /api/v1/treinos/{id}` ou
-  equivalente atual) — listagens/paginados não carregam a série. Mapper via MapStruct com
-  `qualifiedByName`, como o decoupling atual.
+- Série de EF **somente** no endpoint de detalhe do treino — path real:
+  `GET /api/v1/treinos/realizados/{id}` (`TreinoRealizadoController:172`) — listagens/paginados
+  não carregam a série. Mapper via MapStruct com `qualifiedByName`, como o decoupling atual
+  (`TreinoMapper:171`).
 
 ## D5 — Composição futura com add-workout-metrics-analyzer
 
