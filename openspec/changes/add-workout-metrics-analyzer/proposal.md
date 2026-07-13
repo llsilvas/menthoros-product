@@ -43,3 +43,4 @@ Regra de arquitetura a honrar: **a camada de cálculo é determinística (zero L
 ## Referências
 - `design.md` (spec técnica original).
 - Changes relacionadas: `debito-tecnico-camada-ia` (parsing/roteamento), `add-coach-suggestion-inbox` (loop PENDING), `add-post-workout-debrief` (consome estas métricas), `add-zone-confidence-management` (zonas).
+- **`fit-lap-derived-metrics` (criada 2026-07-12):** entrega as mesmas famílias de métrica em granularidade de VOLTA (curva de EF, Pw:HR, GAP interno) sobre `tb_etapa_realizada`, sem depender de `first-party-ingestion-architecture`. Quando esta change chegar com amostras por segundo, o cálculo lap-based vira fallback para treinos sem samples — desenhar o `WorkoutMetricsCalculator` compondo com os calculators de lá (cláusula de supersessão documentada no proposal daquela change).
