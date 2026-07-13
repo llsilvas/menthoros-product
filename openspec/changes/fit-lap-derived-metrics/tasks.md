@@ -21,7 +21,7 @@
 
 ## 0. Fixtures de referência
 
-- [ ] 0.1 Versionar a fixture principal: copiar o `.fit` real para
+- [x] 0.1 Versionar a fixture principal: copiar o `.fit` real para
       `src/test/resources/fit/corrida-15km-16laps.fit` e criar
       `src/test/resources/fit/corrida-15km-16laps-garmin.csv` com o export do Garmin Connect
       (volta, distância, ritmo médio, GAP médio, FC, subida, descida, potência, cadência).
@@ -33,6 +33,9 @@
       aqui quais fixtures existem e quais faltam.
       verify: cada fixture versionada tem seu par .fit + valores de referência carregável no teste
       de calibração (3.1).
+      **Estado (2026-07-13):** só a fixture principal existe (`corrida-15km-16laps`, ondulado leve).
+      Faltam: plano, net-up/net-down, sem elevação (esteira), autopause, 2ª fonte — coleta pendente
+      do founder. Consequência: hard gate mantém o GAP desligado nesta change (ver 3.4).
 
 ## 1. Characterization e refactor do decoupling
 
