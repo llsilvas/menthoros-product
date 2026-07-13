@@ -173,3 +173,12 @@ encontrou 3 achados; `clean-code-reviewer` encontrou 1 achado Important recorren
   `EtapaRealizadaOutputDto` para 15.
 
 **Resultado final:** 1379 testes, 0 falhas, 0 erros, BUILD SUCCESS.
+
+## Fechamento
+
+Mergeada em `develop` via PR backend [#38](https://github.com/llsilvas/menthoros-backend/pull/38)
+(commit `e8b9a9e`), 2026-07-13. Todos os itens implementados (blocos 0-5, CA1-CA7 atendidos) — nada
+deferido. Sequência .fit (parte 2/3, implementada fora de ordem após `fit-lap-derived-metrics`)
+está completa: `fit-lap-metrics-parser` ✅ → `fit-lap-derived-metrics` ✅ → `fit-running-dynamics-ingestion` ✅.
+Consumo dos campos novos no drilldown do front fica para change própria, quando priorizada
+(métrica de sucesso monitora % preenchido e uso real antes de expandir).
