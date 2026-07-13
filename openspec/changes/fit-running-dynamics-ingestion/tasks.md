@@ -36,23 +36,36 @@
 
 ## 1. Migration e entidades
 
-- [ ] 1.1 Migration `V53__Add_running_dynamics_etapa_treino.sql` conforme design D1 (inclui bloco
+- [x] 1.1 Migration `V53__Add_running_dynamics_etapa_treino.sql` conforme design D1 (inclui bloco
       `-- Rollback:` e `RAISE NOTICE`, convenção de V51/V52) — conferir a última versão livre em
       `db/migration/` no momento do merge e renumerar se preciso.
-- [ ] 1.2 Campos novos em `EtapaRealizada` e `TreinoRealizado` (tipos do design D3).
-- [ ] 1.3 Subir contexto com Testcontainers (`./mvnw test -Dtest=*RepositoryTest` ou suíte de
+- [x] 1.2 Campos novos em `EtapaRealizada` e `TreinoRealizado` (tipos do design D3) — `gctMedioMs`,
+      `gctEquilibrioPct`, `passadaMediaM`, `oscilacaoVerticalCm`, `proporcaoVerticalPct`,
+      `temperaturaMediaC`, `tempoMovimento` (+ `calorias`, só em `TreinoRealizado`, mesmo padrão de
+      `cadenciaMedia`/`potenciaMedia` — dado realizado, não em `TreinoBase`).
+- [x] 1.3 Subir contexto com Testcontainers (`./mvnw test -Dtest=*RepositoryTest` ou suíte de
       integração) para validar migration em banco limpo (CA1). Validar: `./mvnw clean test`.
+      **Resultado (2026-07-13):** `AtletaRepositoryTest` sobe contexto completo com Testcontainers
+      e aplica a migration limpa; `./mvnw clean test` — 1360 testes, 0 falhas, 0 erros.
 
 ## 2. Parser
 
-- [ ] 2.1 Ampliar `FitLapData`/`FitSessionData` com os campos do design D2/D3, incluindo
+- [x] 2.1 Ampliar `FitLapData`/`FitSessionData` com os campos do design D2/D3, incluindo
       `tempoMovimento: Duration` (nullable).
-- [ ] 2.2 `FitParseServiceImpl`: ler os getters de `LapMesg`/`SessionMesg` com conversão de unidade
+- [x] 2.2 `FitParseServiceImpl`: ler os getters de `LapMesg`/`SessionMesg` com conversão de unidade
       (mm→m, mm→cm) — null-safe. `getTotalTimerTime()` usa o helper nullable próprio
       (`tempoMovimentoDeSegundos`, design D2) — **não** `duracaoDeSegundos()`.
-- [ ] 2.3 Testes de parser cobrindo presença, ausência e valores-limite das conversões (CA3, CA4) —
+- [x] 2.3 Testes de parser cobrindo presença, ausência e valores-limite das conversões (CA3, CA4) —
       inclui teste específico de `tempoMovimentoDeSegundos(null) == null` (vs. `duracaoDeSegundos`).
       Validar: `./mvnw clean test`.
+      **Resultado (2026-07-13):** 2 testes novos em `FitParseServiceImplTest`
+      (`extraiRunningDynamicsCompleto` — round-trip real via `FileEncoder`, confirma as conversões
+      mm→m/mm→cm com valores reais [1050mm→1.05m, 82mm→8.2cm] e `tempoMovimento` distinto de
+      `duracao`; `semRunningDynamicsFicaNullSemFabricarZero` — confirma `tempoMovimento == null`
+      quando `totalTimerTime` ausente, ao contrário de `duracao`, que nunca é null). Ajustados os
+      call sites posicionais pré-existentes de `FitLapData`/`FitSessionData` em
+      `FitTreinoPersisterTest`/`FitUploadServiceImplTest` (manutenção mecânica, sem mudança de
+      comportamento). `./mvnw clean test` — 1362 testes, 0 falhas, 0 erros.
 
 ## 3. Persistência, sanidade e correção de pace/velocidade (CA7)
 
