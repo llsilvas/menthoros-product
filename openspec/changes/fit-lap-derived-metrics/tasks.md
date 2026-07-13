@@ -95,12 +95,12 @@
 
 ## 4. Série de EF por volta
 
-- [ ] 4.1 `LapEfficiencySeriesCalculator` + `LapEfficiencySeries` (origem, totalVoltas,
+- [x] 4.1 `LapEfficiencySeriesCalculator` + `LapEfficiencySeries` (origem, totalVoltas,
       voltasOmitidas com motivo) + `LapEfficiencyPoint` (design D1) — reusar a resolução de
       velocidade compartilhada com o decoupling. TDD: elegibilidade por ponto com motivos de
       omissão, W/kg com/sem `pesoKg`, EF de potência com/sem potência (CA1).
       verify: testes novos verdes; voltas omitidas aparecem em `voltasOmitidas` com o motivo certo.
-- [ ] 4.2 Expor a série no `GET /api/v1/treinos/realizados/{id}` via `TreinoRealizadoOutputDto` +
+- [x] 4.2 Expor a série no `GET /api/v1/treinos/realizados/{id}` via `TreinoRealizadoOutputDto` +
       `TreinoMapper` (`qualifiedByName`; série só no fluxo de detalhe, design D4) + `@Schema` (CA4).
       verify: `./mvnw clean test` verde; teste de mapper confirma série no detalhe e ausência nas
       listagens.
