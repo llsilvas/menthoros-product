@@ -20,19 +20,19 @@
 
 ## 1. Records e parser
 
-- [ ] 1.1 Ampliar `FitLapData` com `subidaMetros` (Integer), `descidaMetros` (Integer),
+- [x] 1.1 Ampliar `FitLapData` com `subidaMetros` (Integer), `descidaMetros` (Integer),
       `potenciaMediaWatts` (Integer), `cadenciaMediaPpm` (Integer) — atualizar call sites
       (`FitParseServiceImpl`, `FitTreinoPersisterTest`, `FitParseServiceImplTest`).
       verify: `./mvnw clean compile` + testes existentes compilam com os novos campos.
-- [ ] 1.2 Ampliar `FitSessionData` com os mesmos 4 campos de sessão (mesmos call sites).
+- [x] 1.2 Ampliar `FitSessionData` com os mesmos 4 campos de sessão (mesmos call sites).
       verify: idem 1.1.
-- [ ] 1.3 `FitParseServiceImpl` — listener de `LapMesg`: ler `getTotalAscent()`, `getTotalDescent()`,
+- [x] 1.3 `FitParseServiceImpl` — listener de `LapMesg`: ler `getTotalAscent()`, `getTotalDescent()`,
       `getAvgPower()`, `getAvgRunningCadence()` + `getAvgFractionalCadence()` → ppm de duas pernas,
       null-safe (getter null → campo null; cadência null → null, sem fabricar 0).
       verify: teste round-trip com lap completo passa (1.5).
-- [ ] 1.4 `FitParseServiceImpl` — listener de `SessionMesg`: mesmos campos agregados.
+- [x] 1.4 `FitParseServiceImpl` — listener de `SessionMesg`: mesmos campos agregados.
       verify: teste round-trip de sessão passa (1.5).
-- [ ] 1.5 Testes `FitParseServiceImplTest` (TDD — escrever antes de 1.3/1.4): lap/sessão com campos
+- [x] 1.5 Testes `FitParseServiceImplTest` (TDD — escrever antes de 1.3/1.4): lap/sessão com campos
       presentes; ausentes (null, CA4); cadência 82 + fracional 0.5 → 165 ppm (CA3).
       verify: `./mvnw clean test` verde.
 
