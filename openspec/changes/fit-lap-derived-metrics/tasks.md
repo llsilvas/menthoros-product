@@ -39,11 +39,11 @@
 
 ## 1. Characterization e refactor do decoupling
 
-- [ ] 1.1 Golden tests do Pa:HR atual: fixar valores exatos de `decouplingPercentual` (incluindo
+- [x] 1.1 Golden tests do Pa:HR atual: fixar valores exatos de `decouplingPercentual` (incluindo
       os cenários de null por gate: CV alto, duração curta, tipo não-contínuo) para 3-4 cenários
       ANTES de tocar no código (proteção do CA4) — usar também a fixture 0.1.
       verify: testes passam contra o código atual, sem nenhuma mudança de produção.
-- [ ] 1.2 Refatorar o miolo do `DecouplingCalculatorService`: extrair a mecânica compartilhada
+- [x] 1.2 Refatorar o miolo do `DecouplingCalculatorService`: extrair a mecânica compartilhada
       (partição temporal em metades + ponderação por duração) parametrizada por intensidade —
       elegibilidade fica FORA do extrator (design D3, pipelines independentes).
       verify: golden tests de 1.1 verdes sem alteração; `./mvnw clean test` verde.
