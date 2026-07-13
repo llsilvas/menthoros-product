@@ -104,11 +104,19 @@
 
 ## 4. Contrato de API
 
-- [ ] 4.1 `EtapaRealizadaOutputDto` + `TreinoRealizadoOutputDto`: campos aditivos com `@Schema`
+- [x] 4.1 `EtapaRealizadaOutputDto` + `TreinoRealizadoOutputDto`: campos aditivos com `@Schema`
       (CA5) — mapeamento direto (fluxo comum, design D3), sem restringir ao detalhe.
-- [ ] 4.2 Atualizar mapper(s) com null-check padrão; testes de mapper confirmando presença nas
+- [x] 4.2 Atualizar mapper(s) com null-check padrão; testes de mapper confirmando presença nas
       listagens E no detalhe (diferente da série de EF/envelope de decoupling).
-- [ ] 4.3 Conferir Swagger gerado (campos aparecem documentados). Validar: `./mvnw clean test`.
+      **Resultado (2026-07-13):** `TreinoMapperRunningDynamicsTest` novo (3 testes) — confirma
+      presença em `toOutputDto` (fluxo comum) e paridade com `toOutputDtoDetalhado` (não é campo
+      restrito ao detalhe, ao contrário da série de EF/envelope de decoupling); confirma null-safety.
+      Ajustados 7 call sites posicionais pré-existentes de `TreinoRealizadoOutputDto` (mesma
+      manutenção mecânica já feita em `fit-lap-derived-metrics`, débito conhecido e documentado).
+- [x] 4.3 Conferir Swagger gerado (campos aparecem documentados). Validar: `./mvnw clean test`.
+      **Resultado (2026-07-13):** `OpenApiConfigTest` (contexto Spring completo + springdoc) verde —
+      confirma que os `@Schema` novos não quebram a geração do OpenAPI. `./mvnw clean test` — 1374
+      testes, 0 falhas, 0 erros.
 
 ## 5. Validação com arquivo real
 
