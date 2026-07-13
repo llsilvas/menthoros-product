@@ -123,8 +123,25 @@
       (Pw:HR/potência) para fluxos de listagem — restrito ao detalhe, igual à série de EF (design D4).
 - [x] 5.2 Suíte completa verde.
       verify: `./mvnw clean test` — 0 falhas.
-      **Resultado (2026-07-13):** `./mvnw clean test` com Docker ativo — 1359 testes, 0 falhas, 0
+      **Resultado (2026-07-13):** `./mvnw clean test` com Docker ativo — 1360 testes, 0 falhas, 0
       erros, BUILD SUCCESS. (1ª tentativa rodou com o Docker daemon local fora do ar: 73 erros,
       todos em `@SpringBootTest`/`@DataJpaTest` pré-existentes que sobem Testcontainers/Postgres —
       confirmado ambiental via `Could not find a valid Docker environment`, não relacionado a este
       diff; refeita após subir o Docker.)
+
+      **2ª rodada de QA gate (code/security/clean-code + `/codex:review` + `/codex:adversarial-review`):**
+      encontrado e corrigido 1 achado Important adicional — o fix do bug de partição do Pw:HR
+      (acima) tinha sido aplicado amplo demais e também alterava a partição do Pa:HR: uma volta com
+      FC/duração válidas mas sem velocidade passava a ocupar espaço na linha do tempo e podia
+      esvaziar uma metade, quebrando `decouplingPercentual` legado (violando CA4). Restrito: só o
+      Pw:HR usa a linha do tempo completa; o Pa:HR volta a usar somente os segmentos elegíveis
+      (comportamento idêntico ao pré-existente em `develop`). Teste de regressão adicionado
+      (`deveIgnorarVoltaSemVelocidadeNaParticaoDoPaHr`), reproduzido falhando sem o fix.
+
+      **Achado registrado, não corrigido (decisão do founder 2026-07-13):** `/codex:adversarial-review`
+      apontou que `LapEfficiencySeriesCalculator` expõe `efPace`/`velocidadeKmh` por volta a partir
+      da mesma velocidade derivada de `totalElapsedTime` que a task 3.1 já documentou como corrompida
+      nas voltas com pausa (4/9/10/12 desta fixture). Decisão: **ship como está** — risco consistente
+      com o Pa:HR/decoupling já em produção (mesma fonte de velocidade), fix real depende do
+      `tempo_movimento` já agendado em `fit-running-dynamics-ingestion` (Sprint 14–15, próxima na
+      fila). Nenhuma ação nesta change.
