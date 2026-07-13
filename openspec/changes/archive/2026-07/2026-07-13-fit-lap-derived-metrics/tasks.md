@@ -145,3 +145,12 @@
       com o Pa:HR/decoupling já em produção (mesma fonte de velocidade), fix real depende do
       `tempo_movimento` já agendado em `fit-running-dynamics-ingestion` (Sprint 14–15, próxima na
       fila). Nenhuma ação nesta change.
+
+## Fechamento
+
+Mergeada em `develop` via PR backend [#37](https://github.com/llsilvas/menthoros-backend/pull/37)
+(commit `4735748`), 2026-07-13. Itens implementados: blocos 0.1, 1, 2, 3 (GAP nasce desligado por
+hard gate), 4, 5. Deferido por design (não bloqueia): 0.2 (matriz de calibração do GAP — depende de
+coleta manual do founder) e 3.4 (decisão de ativação do GAP, condicionada a 0.2). Sequência .fit
+segue com `fit-running-dynamics-ingestion` (Sprint 14–15), que também resolve o achado de
+velocidade-por-pausa registrado acima.
