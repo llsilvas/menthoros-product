@@ -64,17 +64,26 @@
 
 ## 3. GAP interno (nasce DESLIGADO — hard gate D2)
 
-- [ ] 3.1 Implementar `custoRelativo(g)` com constantes nomeadas (9.0 subida / 4.5 descida) +
+- [x] 3.1 Implementar `custoRelativo(g)` com constantes nomeadas (9.0 subida / 4.5 descida) +
       gates de sanidade (|g| > 0,10 ou subida+descida > 30% da distância → null) usando
       `elevacaoGanhoMetros`/`elevacaoPerdaMetros`, atrás de flag interna `GAP_HABILITADO = false`.
       Teste de calibração automatizado roda contra TODAS as fixtures da matriz 0.2 disponíveis e
       registra erro médio + desvio máximo POR FIXTURE — registrar os números aqui.
       verify: teste de calibração roda em CI por fixture; com a flag desligada nenhum `paceGap`
       é exposto.
-- [ ] 3.2 Testes unitários da fórmula: subida → GAP mais rápido que pace bruto; plano → GAP ≈ pace
+      **Resultado (2026-07-13, fixture corrida-15km-16laps, 15 voltas):** erro médio 29,2 s/km,
+      desvio máximo 239 s/km — REPROVADA no critério duplo. Causa dominante: voltas 4/9/10/12 têm
+      PAUSA dentro do lap (`totalElapsedTime` 611s vs ~364s de movimento na volta 10) — o pace
+      bruto derivado de elapsed diverge do pace do Garmin (que usa timer time). Nas voltas sem
+      pausa o erro médio é ~4,8 s/km (máx 8) — a fórmula chega perto, mas o coeficiente 9.0
+      parece agressivo vs o GAP do Garmin em gradiente líquido baixo. Consequências: (a) flag
+      permanece DESLIGADA (hard gate cumprido); (b) achado transversal: `tempo_movimento` da
+      change fit-running-dynamics-ingestion também corrigirá o pace/velocidade derivados em laps
+      com pausa; (c) recalibrar quando a matriz tiver fixtures sem pausa e com timer time.
+- [x] 3.2 Testes unitários da fórmula: subida → GAP mais rápido que pace bruto; plano → GAP ≈ pace
       (tolerância 1 s/km); |g| > 10% → null; sem elevação → null (CA3).
       verify: `./mvnw clean test` verde.
-- [ ] 3.3 Gate de CV GAP-ajustado no Pa:HR, CONDICIONADO à mesma flag do 3.1 (design D3): desligado
+- [x] 3.3 Gate de CV GAP-ajustado no Pa:HR, CONDICIONADO à mesma flag do 3.1 (design D3): desligado
       reproduz o comportamento atual byte a byte (golden intacto); ligado (só em teste), treino
       plano não muda e treino ondulado hoje reprovado passa a calcular.
       verify: `./mvnw clean test` verde; golden Pa:HR intacto com flag desligada.
