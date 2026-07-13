@@ -69,21 +69,38 @@
 
 ## 3. Persistência, sanidade e correção de pace/velocidade (CA7)
 
-- [ ] 3.1 `FitTreinoPersister`: mapear lap→`EtapaRealizada` e sessão→`TreinoRealizado`, com faixas
+- [x] 3.1 `FitTreinoPersister`: mapear lap→`EtapaRealizada` e sessão→`TreinoRealizado`, com faixas
       de sanidade do design D2 (fora da faixa → descarte silencioso, sem log — mesmo padrão de
       `sanitizarElevacao`/`sanitizarPotencia`/`sanitizarCadencia`).
-- [ ] 3.2 Testes: dynamics completas persistidas; dispositivo sem sensor → tudo null sem falha;
+      **Nota:** só GCT (100-500ms), equilíbrio (30-70%) e passada (0,3-3,0m) têm faixa de sanidade
+      própria no design D2 — oscilação vertical, proporção vertical, temperatura, `tempoMovimento`
+      e calorias mapeiam direto (regra transversal "getter null → coluna null", sem faixa adicional
+      não especificada na spec).
+- [x] 3.2 Testes: dynamics completas persistidas; dispositivo sem sensor → tudo null sem falha;
       valor fora da faixa descartado (CA2, CA4). Validar: `./mvnw clean test`.
-- [ ] 3.3 **Correção de pace/velocidade (design D6, CA7):** `duracaoParaVelocidade(lap)` prefere
+      **Resultado (2026-07-13):** 5 testes novos (`persisteRunningDynamicsCompletos`,
+      `semRunningDynamicsPersisteNullSemFalhar`, `gctForaDaFaixaDescartado` [BVA 99/100/500/501],
+      `gctEquilibrioForaDaFaixaDescartado` [BVA 29.9/30.0/70.0/70.1],
+      `passadaForaDaFaixaDescartada` [BVA 0.29/0.30/3.0/3.01]).
+- [x] 3.3 **Correção de pace/velocidade (design D6, CA7):** `duracaoParaVelocidade(lap)` prefere
       `tempoMovimento` sobre `duracao` quando presente e menor; `velocidadeMediaKmh`/`paceMedia`
       passam a usá-la. TDD: `tempoMovimento == null` → comportamento idêntico ao atual (golden);
       `tempoMovimento < duracao` → pace corrigido; `tempoMovimento >= duracao` → mantém `duracao`
       (defensivo).
-- [ ] 3.4 **Teste de regressão contra o achado real:** reconstruir os dados das voltas 4/9/10/12 da
+      **Resultado (2026-07-13):** 3 testes novos (`tempoMovimentoMenorCorrigeVelocidade`,
+      `semTempoMovimentoUsaDuracaoLegado`, `tempoMovimentoMaiorOuIgualMantemDuracao`) cobrindo as
+      3 ramificações. Golden legado (`lapDerivaVelocidadeEPace`, pré-existente) intacto.
+- [x] 3.4 **Teste de regressão contra o achado real:** reconstruir os dados das voltas 4/9/10/12 da
       fixture `corrida-15km-16laps.fit` (mesmas que documentaram o desvio de até 239 s/km em
       `fit-lap-derived-metrics`) com `tempoMovimento` presente e confirmar que o pace corrigido cai
       para a faixa das voltas sem pausa (~4,8-8 s/km) — registrar os números aqui.
       verify: `./mvnw clean test` verde; número registrado bate com o critério de CA7.
+      **Resultado (2026-07-13, `regressaoVoltasComPausaDaFixtureReal`):** volta 10 reconstruída
+      (elapsed=611s, movimento=364s, distância=1,000km, valores reais da fixture). Pace bruto
+      (elapsed, comportamento pré-D6) = 611 s/km; pace corrigido (D6, `tempoMovimento`) = 364 s/km
+      — desvio de 247s eliminado (a mesma ordem de grandeza do desvio de até 239 s/km documentado
+      em `fit-lap-derived-metrics` para essa volta). Fecha o ciclo: CA7 cumprido, achado registrado
+      pela change anterior corrigido. `./mvnw clean test` — 1371 testes, 0 falhas, 0 erros.
 
 ## 4. Contrato de API
 
