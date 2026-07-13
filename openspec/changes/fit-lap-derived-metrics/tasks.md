@@ -4,79 +4,100 @@
 > Repo afetado: `apps/menthoros-backend`. Branch: `feature/fit-lap-derived-metrics`
 > (criada de `develop` em `cff8b0e`, já com `fit-lap-metrics-parser` mergeada — PR #36).
 >
-> **Refinado no init (2026-07-13) contra o código real + achados do DoR gate (READY):**
-> - Campos reais de elevação: `EtapaRealizada.elevacaoGanhoMetros`/`elevacaoPerdaMetros` (design D2 corrigido).
+> **Refinado no init (2026-07-13) contra o código real + DoR gate (READY) + adversarial review
+> Codex (needs-attention → achados incorporados no design):**
+> - Campos reais de elevação: `EtapaRealizada.elevacaoGanhoMetros`/`elevacaoPerdaMetros` (design D2).
 > - Endpoint de detalhe real: `GET /api/v1/treinos/realizados/{id}` (`TreinoRealizadoController:172`);
->   `decouplingPercentual` já flui por `TreinoMapper:171` (`qualifiedByName = "decouplingDeTreino"`) —
->   seguir o mesmo padrão para os campos novos.
+>   seguir o padrão `TreinoMapper:171` (`qualifiedByName`) para os campos novos.
 > - `Atleta.pesoKg` é `BigDecimal(5,2)` — insumo do W/kg.
-> - Fixture de calibração versionada (achado Média do DoR): `.fit` real de 16 laps
->   (`~/Downloads/23558283865_ACTIVITY.fit`, 570 KB) + valores de GAP do Garmin Connect entram em
->   `src/test/resources/fit/` para tornar a calibração reproduzível em CI.
-> - Pre-mortem cross-model Codex: comando indisponível na instalação — pre-mortem do design.md vale.
+> - **HARD GATE do GAP (Codex high #1):** GAP não é exposto nem altera elegibilidade do decoupling
+>   escalar enquanto a matriz de calibração (D2) não passar. Nasce implementado mas desligado.
+> - **Pipelines de elegibilidade separados** Pa:HR × Pw:HR (Codex medium #3) — cobertura de
+>   potência por METADE, `CV_POT_MAX` independente.
+> - **Proveniência em todo escalar derivado** (Codex medium #4) — envelope `DecouplingResultadoDto`
+>   com `origem` + `motivoNull` (D4); campo legado `decouplingPercentual` preservado (CA4).
+> - **Metadados de reconciliação série × escalar** (Codex medium #5) — `totalVoltas` +
+>   `voltasOmitidas` com motivo na série (D1).
 
-## 0. Fixture de referência
+## 0. Fixtures de referência
 
-- [ ] 0.1 Versionar a fixture: copiar o `.fit` real para
+- [ ] 0.1 Versionar a fixture principal: copiar o `.fit` real para
       `src/test/resources/fit/corrida-15km-16laps.fit` e criar
       `src/test/resources/fit/corrida-15km-16laps-garmin.csv` com o export do Garmin Connect
-      (colunas usadas na calibração: volta, distância, ritmo médio, GAP médio, FC, subida, descida,
-      potência, cadência).
+      (volta, distância, ritmo médio, GAP médio, FC, subida, descida, potência, cadência).
       verify: teste de smoke parseia a fixture e encontra 16 laps com elevação/potência/cadência.
+- [ ] 0.2 Montar a MATRIZ de calibração do GAP (design D2): coletar e versionar .fit adicionais —
+      plano, ondulado, net-up/net-down, sem elevação (esteira), autopause/irregular; idealmente
+      ≥ 2 dispositivos — cada um com os valores de GAP do Garmin Connect. **Depende de coleta
+      manual do founder (exports do Garmin Connect); não bloqueia os blocos 1-2 e 4.** Registrar
+      aqui quais fixtures existem e quais faltam.
+      verify: cada fixture versionada tem seu par .fit + valores de referência carregável no teste
+      de calibração (3.1).
 
 ## 1. Characterization e refactor do decoupling
 
-- [ ] 1.1 Golden tests do Pa:HR atual: fixar valores exatos de `decouplingPercentual` para 3-4
-      cenários representativos ANTES de tocar no código (proteção do CA4) — usar também a fixture 0.1.
+- [ ] 1.1 Golden tests do Pa:HR atual: fixar valores exatos de `decouplingPercentual` (incluindo
+      os cenários de null por gate: CV alto, duração curta, tipo não-contínuo) para 3-4 cenários
+      ANTES de tocar no código (proteção do CA4) — usar também a fixture 0.1.
       verify: testes passam contra o código atual, sem nenhuma mudança de produção.
-- [ ] 1.2 Refatorar `DecouplingCalculatorService` para extrator de intensidade (design D3).
+- [ ] 1.2 Refatorar o miolo do `DecouplingCalculatorService`: extrair a mecânica compartilhada
+      (partição temporal em metades + ponderação por duração) parametrizada por intensidade —
+      elegibilidade fica FORA do extrator (design D3, pipelines independentes).
       verify: golden tests de 1.1 verdes sem alteração; `./mvnw clean test` verde.
 
-## 2. Pw:HR
+## 2. Pw:HR (pipeline de elegibilidade próprio)
 
-- [ ] 2.1 Variante por potência: cobertura ponderada por duração (≥80% da duração elegível) e
-      `CV_POT_MAX = 0.15` (constante própria). TDD: cobertura acima/abaixo do threshold (BVA no
-      limite de 80%), CV alto → null, gates herdados (duração, tipo) valem para potência.
-      verify: testes novos verdes; golden Pa:HR intacto.
-- [ ] 2.2 `decouplingPotenciaPercentual` no `TreinoRealizadoOutputDto` + `TreinoMapper`
-      (`qualifiedByName`, mesmo padrão da linha 171) + `@Schema` documentando a semântica dos dois
-      campos (CA2, CA4).
-      verify: `./mvnw clean test` verde; Swagger compila.
+- [ ] 2.1 Implementar o pipeline Pw:HR: cobertura de potência ≥ 80% da duração elegível POR METADE
+      (BVA no limite em cada metade; cobertura global alta mas concentrada numa metade → null);
+      volta sem potência sai do Pw:HR sem afetar o Pa:HR; `CV_POT_MAX = 0.15` própria; retorno
+      inclui o motivo de null (`COBERTURA_POTENCIA_INSUFICIENTE`, `CV_ALTO`, ...).
+      verify: testes novos verdes; golden Pa:HR intacto; teste prova Pa:HR calculado com Pw:HR null
+      e vice-versa.
+- [ ] 2.2 Envelope `DecouplingResultadoDto` (design D4: percentual, motivoNull, potenciaPercentual,
+      motivoNullPotencia, origem=POR_VOLTA) no `TreinoRealizadoOutputDto` via `TreinoMapper`
+      (`qualifiedByName`); campo legado `decouplingPercentual` preservado com o mesmo valor (CA4);
+      `@Schema` em todos os campos e enums.
+      verify: `./mvnw clean test` verde; teste de mapper confirma legado == envelope.percentual.
 
-## 3. GAP interno
+## 3. GAP interno (nasce DESLIGADO — hard gate D2)
 
 - [ ] 3.1 Implementar `custoRelativo(g)` com constantes nomeadas (9.0 subida / 4.5 descida) +
       gates de sanidade (|g| > 0,10 ou subida+descida > 30% da distância → null) usando
-      `elevacaoGanhoMetros`/`elevacaoPerdaMetros`; calibrar contra a coluna "GAP médio" da fixture
-      0.1 num teste automatizado — registrar aqui o erro médio E o desvio máximo por volta.
-      Critério duplo: erro médio ≤ 3 s/km e máximo ≤ 5 s/km na faixa |g| ≤ 3%; se qualquer um
-      falhar, adiar exposição do GAP (não bloqueia a change).
-      verify: teste de calibração roda em CI contra a fixture e imprime/assevera as duas métricas.
-- [ ] 3.2 Testes unitários: subida → GAP mais rápido que pace bruto; plano → GAP ≈ pace (tolerância
-      1 s/km); |g| > 10% → null; sem elevação → null (CA3).
+      `elevacaoGanhoMetros`/`elevacaoPerdaMetros`, atrás de flag interna `GAP_HABILITADO = false`.
+      Teste de calibração automatizado roda contra TODAS as fixtures da matriz 0.2 disponíveis e
+      registra erro médio + desvio máximo POR FIXTURE — registrar os números aqui.
+      verify: teste de calibração roda em CI por fixture; com a flag desligada nenhum `paceGap`
+      é exposto.
+- [ ] 3.2 Testes unitários da fórmula: subida → GAP mais rápido que pace bruto; plano → GAP ≈ pace
+      (tolerância 1 s/km); |g| > 10% → null; sem elevação → null (CA3).
       verify: `./mvnw clean test` verde.
-- [ ] 3.3 Gate de CV GAP-ajustado no decoupling (design D3): quando todas as voltas elegíveis têm
-      GAP, o CV de velocidade usa a velocidade GAP-ajustada. Teste prova que treino plano não muda
-      de resultado (golden intacto) e que treino ondulado hoje reprovado passa a calcular.
-      verify: `./mvnw clean test` verde; golden Pa:HR intacto.
+- [ ] 3.3 Gate de CV GAP-ajustado no Pa:HR, CONDICIONADO à mesma flag do 3.1 (design D3): desligado
+      reproduz o comportamento atual byte a byte (golden intacto); ligado (só em teste), treino
+      plano não muda e treino ondulado hoje reprovado passa a calcular.
+      verify: `./mvnw clean test` verde; golden Pa:HR intacto com flag desligada.
+- [ ] 3.4 **Decisão de ativação (humana):** quando a matriz 0.2 estiver completa e verde no
+      critério duplo (erro médio ≤ 3 s/km E máximo ≤ 5 s/km por fixture elegível), ligar a flag em
+      change/commit próprio com os números registrados. NÃO ligar nesta change se a matriz estiver
+      incompleta — a change é entregável sem GAP.
+      verify: n/a (gate de decisão; fica documentado o estado da matriz no fechamento).
 
 ## 4. Série de EF por volta
 
-- [ ] 4.1 `LapEfficiencySeriesCalculator` + `LapEfficiencySeries`/`LapEfficiencyPoint` (design D1,
-      com `origemCalculo = POR_VOLTA`) — extrair helper comum de resolução de velocidade
-      compartilhado com o decoupling. TDD: elegibilidade por ponto (série parcial com buracos),
-      W/kg com/sem `pesoKg`, EF de potência com/sem potência (CA1).
-      verify: testes novos verdes.
+- [ ] 4.1 `LapEfficiencySeriesCalculator` + `LapEfficiencySeries` (origem, totalVoltas,
+      voltasOmitidas com motivo) + `LapEfficiencyPoint` (design D1) — reusar a resolução de
+      velocidade compartilhada com o decoupling. TDD: elegibilidade por ponto com motivos de
+      omissão, W/kg com/sem `pesoKg`, EF de potência com/sem potência (CA1).
+      verify: testes novos verdes; voltas omitidas aparecem em `voltasOmitidas` com o motivo certo.
 - [ ] 4.2 Expor a série no `GET /api/v1/treinos/realizados/{id}` via `TreinoRealizadoOutputDto` +
-      `TreinoMapper` (`qualifiedByName`; série null em listagens — só o fluxo de detalhe a popula,
-      design D4) + `@Schema` (CA4).
+      `TreinoMapper` (`qualifiedByName`; série só no fluxo de detalhe, design D4) + `@Schema` (CA4).
       verify: `./mvnw clean test` verde; teste de mapper confirma série no detalhe e ausência nas
       listagens.
 
 ## 5. Fechamento
 
-- [ ] 5.1 Validação integrada com a fixture 0.1 (16 voltas): série completa, Pw:HR calculado,
-      decoupling com gate GAP-ajustado, GAP dentro da meta — registrar os números aqui.
-      verify: teste de integração leve (parse fixture → persister → calculators) verde.
+- [ ] 5.1 Validação integrada com a fixture 0.1 (16 voltas): série completa com metadados, envelope
+      de decoupling com Pw:HR calculado e motivos de null corretos, GAP desligado (nenhum paceGap
+      no payload) — registrar os números aqui.
+      verify: teste de integração leve (parse fixture → persister → calculators → mapper) verde.
 - [ ] 5.2 Suíte completa verde.
       verify: `./mvnw clean test` — 0 falhas.
