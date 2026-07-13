@@ -50,13 +50,13 @@
 
 ## 2. Pw:HR (pipeline de elegibilidade próprio)
 
-- [ ] 2.1 Implementar o pipeline Pw:HR: cobertura de potência ≥ 80% da duração elegível POR METADE
+- [x] 2.1 Implementar o pipeline Pw:HR: cobertura de potência ≥ 80% da duração elegível POR METADE
       (BVA no limite em cada metade; cobertura global alta mas concentrada numa metade → null);
       volta sem potência sai do Pw:HR sem afetar o Pa:HR; `CV_POT_MAX = 0.15` própria; retorno
       inclui o motivo de null (`COBERTURA_POTENCIA_INSUFICIENTE`, `CV_ALTO`, ...).
       verify: testes novos verdes; golden Pa:HR intacto; teste prova Pa:HR calculado com Pw:HR null
       e vice-versa.
-- [ ] 2.2 Envelope `DecouplingResultadoDto` (design D4: percentual, motivoNull, potenciaPercentual,
+- [x] 2.2 Envelope `DecouplingResultadoDto` (design D4: percentual, motivoNull, potenciaPercentual,
       motivoNullPotencia, origem=POR_VOLTA) no `TreinoRealizadoOutputDto` via `TreinoMapper`
       (`qualifiedByName`); campo legado `decouplingPercentual` preservado com o mesmo valor (CA4);
       `@Schema` em todos os campos e enums.
