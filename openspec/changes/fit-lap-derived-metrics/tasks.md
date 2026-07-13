@@ -107,9 +107,24 @@
 
 ## 5. Fechamento
 
-- [ ] 5.1 Validação integrada com a fixture 0.1 (16 voltas): série completa com metadados, envelope
+- [x] 5.1 Validação integrada com a fixture 0.1 (16 voltas): série completa com metadados, envelope
       de decoupling com Pw:HR calculado e motivos de null corretos, GAP desligado (nenhum paceGap
       no payload) — registrar os números aqui.
       verify: teste de integração leve (parse fixture → persister → calculators → mapper) verde.
-- [ ] 5.2 Suíte completa verde.
+      **Resultado (2026-07-13, `FitLapDerivedMetricsIntegrationTest`):** Pa:HR (legado e envelope)
+      = 15,6%, Pw:HR = 5,1% (potência presente em 100% das 16 voltas), `motivoNull`/
+      `motivoNullPotencia` nulos, `origem = POR_VOLTA`. Série de EF: 16 voltas totais, todos os
+      pontos com `efPace`/`efPotencia`/`wPorKg` positivos, `paceGap` nulo em todos (hard gate do
+      GAP desligado). QA gate (code/security/clean-code + `/codex:review` + `/codex:adversarial-review`)
+      encontrou e corrigiu 2 achados Important antes do fechamento: bug de partição temporal do
+      Pw:HR (`deterioracaoPercentual` usava a duração dos segmentos elegíveis para achar o "meio"
+      em vez da linha do tempo completa do treino — divergia do corte usado pelo gate de cobertura
+      em cenários de dropout de potência assimétrico) e vazamento do envelope de decoupling
+      (Pw:HR/potência) para fluxos de listagem — restrito ao detalhe, igual à série de EF (design D4).
+- [x] 5.2 Suíte completa verde.
       verify: `./mvnw clean test` — 0 falhas.
+      **Resultado (2026-07-13):** `./mvnw clean test` com Docker ativo — 1359 testes, 0 falhas, 0
+      erros, BUILD SUCCESS. (1ª tentativa rodou com o Docker daemon local fora do ar: 73 erros,
+      todos em `@SpringBootTest`/`@DataJpaTest` pré-existentes que sobem Testcontainers/Postgres —
+      confirmado ambiental via `Could not find a valid Docker environment`, não relacionado a este
+      diff; refeita após subir o Docker.)
