@@ -20,12 +20,19 @@
 
 ## 0. Validação early do SDK
 
-- [ ] 0.1 Compilar uma chamada direta aos 8 getters do design D2 (`LapMesg.getAvgStanceTime()`,
+- [x] 0.1 Compilar uma chamada direta aos 8 getters do design D2 (`LapMesg.getAvgStanceTime()`,
       `getAvgStanceTimeBalance()`, `getAvgStepLength()`, `getAvgVerticalOscillation()`,
       `getAvgVerticalRatio()`, `getAvgTemperature()`, `getTotalTimerTime()`,
       `SessionMesg.getTotalCalories()`) contra `com.garmin:fit:21.205.0` (versão real do `pom.xml`)
       — smoke test isolado, antes de desenhar migration/entidades em cima da tabela D2.
       verify: compila e roda sem erro (mesmo que os valores ainda não sejam usados).
+      **Resultado (2026-07-13):** verificado via `javap -classpath fit-21.205.0.jar` diretamente
+      contra o jar real (mais forte que compile-smoke: inspeciona a assinatura exata). Todos os 8
+      getters existem em `LapMesg` **e** `SessionMesg` com os tipos documentados no design D2:
+      `getAvgStanceTime()→Float`, `getAvgStanceTimeBalance()→Float`, `getAvgStepLength()→Float`,
+      `getAvgVerticalOscillation()→Float`, `getAvgVerticalRatio()→Float`,
+      `getAvgTemperature()→Byte`, `getTotalTimerTime()→Float`, `getTotalCalories()→Integer`.
+      Sem teste dedicado — sem comportamento de produção ainda, é gate de viabilidade puro.
 
 ## 1. Migration e entidades
 
