@@ -35,26 +35,28 @@ BEGIN
 END$$;
 ```
 
-**Rollback:**
-```sql
-ALTER TABLE tb_etapa_realizada
-    DROP COLUMN IF EXISTS gct_medio_ms,
-    DROP COLUMN IF EXISTS gct_equilibrio_pct,
-    DROP COLUMN IF EXISTS passada_media_m,
-    DROP COLUMN IF EXISTS oscilacao_vertical_cm,
-    DROP COLUMN IF EXISTS proporcao_vertical_pct,
-    DROP COLUMN IF EXISTS temperatura_media_c,
-    DROP COLUMN IF EXISTS tempo_movimento;
+Cabeçalho da migration segue o padrão real de V51/V52 (comentário `--`, não bloco SQL executável
+solto — evita que alguém copie/cole o rollback sem querer):
 
-ALTER TABLE tb_treino_realizado
-    DROP COLUMN IF EXISTS gct_medio_ms,
-    DROP COLUMN IF EXISTS gct_equilibrio_pct,
-    DROP COLUMN IF EXISTS passada_media_m,
-    DROP COLUMN IF EXISTS oscilacao_vertical_cm,
-    DROP COLUMN IF EXISTS proporcao_vertical_pct,
-    DROP COLUMN IF EXISTS temperatura_media_c,
-    DROP COLUMN IF EXISTS tempo_movimento,
-    DROP COLUMN IF EXISTS calorias;
+```
+-- =====================================================================
+-- V53: Running dynamics + contexto por etapa e sessão (import .fit)
+--
+-- ... (contexto/motivação)
+--
+-- Rollback:
+--   ALTER TABLE tb_etapa_realizada
+--       DROP COLUMN IF EXISTS gct_medio_ms, DROP COLUMN IF EXISTS gct_equilibrio_pct,
+--       DROP COLUMN IF EXISTS passada_media_m, DROP COLUMN IF EXISTS oscilacao_vertical_cm,
+--       DROP COLUMN IF EXISTS proporcao_vertical_pct, DROP COLUMN IF EXISTS temperatura_media_c,
+--       DROP COLUMN IF EXISTS tempo_movimento;
+--   ALTER TABLE tb_treino_realizado
+--       DROP COLUMN IF EXISTS gct_medio_ms, DROP COLUMN IF EXISTS gct_equilibrio_pct,
+--       DROP COLUMN IF EXISTS passada_media_m, DROP COLUMN IF EXISTS oscilacao_vertical_cm,
+--       DROP COLUMN IF EXISTS proporcao_vertical_pct, DROP COLUMN IF EXISTS temperatura_media_c,
+--       DROP COLUMN IF EXISTS tempo_movimento, DROP COLUMN IF EXISTS calorias;
+-- Feature aditiva — nenhum dado existente é alterado ou removido.
+-- =====================================================================
 ```
 Seguro: todas as colunas são novas e nullable, sem dado derivado de terceiros escrito nelas fora
 desta change (`DROP COLUMN` não afeta nenhuma outra feature).
