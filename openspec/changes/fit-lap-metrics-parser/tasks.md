@@ -53,10 +53,15 @@
 
 ## 3. Validação com arquivo real
 
-- [ ] 3.1 Importar um .fit real de relógio Garmin com power/elevação num ambiente local e conferir
+- [x] 3.1 Importar um .fit real de relógio Garmin com power/elevação num ambiente local e conferir
       os valores contra o CSV do Garmin Connect do mesmo treino (elevação por volta, potência média,
       cadência em ppm) — registrar divergências aqui. Resolve a assumption de que `getAvgPower()`
       traz running power nativo.
       verify: valores por volta batem com o CSV (tolerância de arredondamento).
-- [ ] 3.2 Suíte completa verde.
-      verify: `./mvnw clean test` — 0 falhas.
+      **Resultado (2026-07-12, arquivo `23558283865_ACTIVITY.fit`, 16 laps):** ZERO divergências —
+      sessão (15,00 km · FC 151/170 · subida 65 m · descida 57 m · potência 362 W · cadência 165 ppm)
+      e todos os 16 laps idênticos ao CSV do Garmin Connect, incluindo o fracional de cadência
+      (lap 1 = 161 ppm, lap 7 = 166 ppm). Assumption confirmada: `getAvgPower()` traz o running
+      power nativo do relógio.
+- [x] 3.2 Suíte completa verde.
+      verify: `./mvnw clean test` — 0 falhas. **Resultado: 1315 testes, 0 falhas.**
