@@ -38,15 +38,15 @@
 
 ## 2. Persistência
 
-- [ ] 2.1 `FitTreinoPersister.montarTreino()`: mapear os 4 campos do lap para `EtapaRealizada`
+- [x] 2.1 `FitTreinoPersister.montarTreino()`: mapear os 4 campos do lap para `EtapaRealizada`
       (`elevacaoGanhoMetros`, `elevacaoPerdaMetros`, `potenciaMedia`, `cadenciaMedia`), com
       sanitização de cadência 60–200 ppm (constante nomeada; fora da faixa → null) — regra
       espelhada do Strava (CA5).
       verify: testes de 2.3 verdes.
-- [ ] 2.2 Mapear os agregados de sessão para `TreinoRealizado` (`elevacaoGanhoMetros`,
+- [x] 2.2 Mapear os agregados de sessão para `TreinoRealizado` (`elevacaoGanhoMetros`,
       `elevacaoPerdaMetros`, `cadenciaMedia`, `potenciaMedia`), mesma sanitização de cadência.
       verify: testes de 2.3 verdes.
-- [ ] 2.3 Testes `FitTreinoPersisterTest` (TDD — escrever antes de 2.1/2.2): lap/sessão com métricas
+- [x] 2.3 Testes `FitTreinoPersisterTest` (TDD — escrever antes de 2.1/2.2): lap/sessão com métricas
       → persistidas (CA1, CA2); sem métricas → null sem falha (CA4); cadência fora da faixa
       (59/201, BVA 60/200) → null.
       verify: `./mvnw clean test` verde.
