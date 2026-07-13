@@ -146,3 +146,30 @@
       Pace corrigido pelo D6: 6:03/km (vs. 10:11/km sem a correção).
 - [x] 5.2 Suíte completa verde: `./mvnw clean test`.
       **Resultado (2026-07-13):** 1377 testes, 0 falhas, 0 erros, BUILD SUCCESS.
+
+## QA gate (2026-07-13)
+
+`code-reviewer`, `/codex:review`, `/codex:adversarial-review` (GO): sem achados. `security-reviewer`
+encontrou 3 achados; `clean-code-reviewer` encontrou 1 achado Important recorrente — todos endereçados:
+
+- **Important (corrigido):** `FitParseServiceImpl.montarResultado(...)` rodava fora do
+  `try/catch` do decode — um `.fit` craftado com NaN/Infinity em running dynamics faria
+  `BigDecimal.valueOf()` lançar `NumberFormatException` não tratada (500 genérico em vez do 422
+  esperado). Corrigido movendo a chamada para dentro do `try`. Não foi possível construir um teste
+  de round-trip reproduzindo o cenário via `FileEncoder`/`Decode` reais — o próprio SDK sanitiza
+  `NaN`/`Infinity` no encode/decode (getters retornam `null`); fix mantido como defesa em
+  profundidade, verificado isoladamente (`BigDecimal.valueOf(NaN/Infinity)` lança
+  `NumberFormatException`, confirmado empiricamente).
+- **Medium (corrigido):** oscilação e proporção vertical sem faixa de sanidade podiam estourar
+  `NUMERIC(4,1)` (máx 999,9) com um valor adversarial e derrubar a transação inteira do import.
+  Adicionados `sanitizarOscilacao`/`sanitizarProporcao` (0-50, descarte silencioso).
+- **Descartado (verificado como incorreto):** achado de overflow de `INTERVAL` em `tempoMovimento`
+  via `Long.MAX_VALUE` — confirmado que `Math.round(float)` retorna `int`, saturando em
+  `Integer.MAX_VALUE` (~24,8 dias), muito abaixo do limite do `INTERVAL` do Postgres.
+- **Important (corrigido, refactor):** `TreinoRealizadoOutputDto` havia crescido para 41 campos
+  posicionais — 2ª vez que esse débito é sinalizado (já apontado em `fit-lap-derived-metrics`).
+  Extraído `RunningDynamicsOutputDto` (mesmo padrão de `DecouplingResultadoDto`/
+  `LapEfficiencySeriesDto`) agrupando os 8 campos — `TreinoRealizadoOutputDto` cai para 34 campos,
+  `EtapaRealizadaOutputDto` para 15.
+
+**Resultado final:** 1379 testes, 0 falhas, 0 erros, BUILD SUCCESS.

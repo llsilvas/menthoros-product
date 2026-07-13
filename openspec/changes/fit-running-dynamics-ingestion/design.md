@@ -104,9 +104,14 @@ helper (`tempoMovimentoDeSegundos`) que retorna `null` em vez de `Duration.ZERO`
   `@Schema(description, example)`, `NON_NULL` já é o padrão do record. **Fluxo comum, não
   detalhe-only:** diferente da série de EF/envelope de decoupling (`fit-lap-derived-metrics`, que
   ficaram restritos a `toOutputDtoDetalhado` por serem estruturas computadas pesadas), estes são
-  escalares simples do mesmo tipo de `elevacaoGanhoMetros`/`potenciaMedia` — que já são campos
-  diretos em `EtapaRealizadaOutputDto`/`TreinoRealizadoOutputDto`, populados em todas as rotas.
-  Mapeamento direto (sem `qualifiedByName`), sem tocar `toOutputDto`/`toOutputDtoDetalhado`.
+  escalares simples do mesmo tipo de `elevacaoGanhoMetros`/`potenciaMedia`, populados em todas as
+  rotas (fluxo comum). **Atualizado no QA gate (2026-07-13):** em vez de 8 campos posicionais
+  soltos em cada DTO (achado do clean-code-reviewer — `TreinoRealizadoOutputDto` já tinha crescido
+  demais em `fit-lap-derived-metrics`), os campos são agrupados num sub-record
+  `RunningDynamicsOutputDto` (mesmo padrão de `DecouplingResultadoDto`/`LapEfficiencySeriesDto`),
+  mapeado via `@Named` (`runningDynamicsDeTreino`/`runningDynamicsDeEtapa`, métodos default sem
+  lógica de negócio). Continua fluxo comum — só a forma do campo mudou, não a política de
+  visibilidade; `EtapaRealizadaOutputDto` tem `calorias` sempre `null` (só existe a nível de sessão).
 
 ## D4 — Decisão: sem camada de análise nesta change
 
