@@ -138,8 +138,9 @@ Duas camadas (ajustado após product review de 2026-07-12):
 - **Assumido:** o front consumirá os campos em change própria; esta change só garante dado e contrato.
   O coach precisa de referência de faixa "normal" (GCT, equilíbrio) na UI para o dado ser acionável —
   requisito a registrar na change do front, não aqui.
-- **Assumido:** `getAvgStanceTimeBalance()` retorna o % do pé esquerdo (convenção Garmin) — validar
-  com .fit real na task de validação (CA3, ver acima).
+- **Resolvido (2026-07-13, task 5.1):** `getAvgStanceTimeBalance()` retorna o % do pé **esquerdo**
+  (convenção Garmin) — confirmado contra CSV real do Garmin Connect (`activity_23558283865.csv`),
+  zero divergência na sessão e em todas as voltas checadas.
 - **Resolvido (refino 2026-07-13):** `tempo_movimento` **não** substitui `duracaoMin`/`duracao`
   como duração canônica do treino/lap — isso alinharia a semântica do FIT (`duracao` = elapsed) com
   a do Strava (`duracaoMin` = `moving_time`, elapsed vive à parte em `elapsedTimeSeg`), mas é uma

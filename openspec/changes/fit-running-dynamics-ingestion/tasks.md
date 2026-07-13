@@ -120,8 +120,29 @@
 
 ## 5. Validação com arquivo real
 
-- [ ] 5.1 Importar .fit real com running dynamics e comparar campo a campo com o CSV do Garmin
+- [x] 5.1 Importar .fit real com running dynamics e comparar campo a campo com o CSV do Garmin
       Connect (GCT, equilíbrio — **incluindo o lado E/D**, passada, oscilação, proporção,
       temperatura, tempo em movimento, calorias) — registrar divergências aqui e resolver a
       assumption do equilíbrio (pé esquerdo, CA3).
-- [ ] 5.2 Suíte completa verde: `./mvnw clean test`.
+      **Resultado (2026-07-13):** fixtures reais fornecidas pelo founder —
+      `23558283865_ACTIVITY.fit` (idêntico byte-a-byte a `corrida-15km-16laps.fit`, já usada em
+      todo o dev desta e de changes anteriores) + `activity_23558283865.csv` (mesma atividade,
+      reexportada do Garmin Connect com as colunas de running dynamics que o CSV original não
+      tinha). Teste `FitRunningDynamicsIntegrationTest` (3 testes: sessão, volta 1 sem pausa,
+      volta 10 com pausa) valida campo a campo contra o CSV — **zero divergência** em todos os
+      campos checados (GCT, equilíbrio, passada, oscilação, proporção, temperatura, calorias).
+      **Assumption resolvida:** `getAvgStanceTimeBalance()` retorna o % do pé **ESQUERDO**
+      ("E" no CSV) — confirmado (sessão: 51,1 bate exato; volta 1: 51,3; volta 10: 51,0).
+      **Achado transversal (não previsto no design, relevante para changes futuras):** a coluna
+      "Tempo" do CSV do Garmin Connect corresponde a `tempoMovimento` (`totalTimerTime`), não à
+      duração elapsed bruta — confirmado por correspondência sub-segundo em toda sessão e voltas
+      testadas. A coluna separada "Tempo em movimento" do Garmin é uma métrica de movimento por
+      velocidade (mais estrita, ~7s menor na sessão) que não corresponde a nenhum campo único do
+      FIT consumido nesta change — não afeta CA7 (que usa `totalTimerTime`, já validado), mas é
+      relevante se uma change futura quiser aproximar ainda mais o "tempo em movimento" do Garmin.
+      **Confirmado com dado real** (voltas 4/9/10/12, mesmas da fixture original): volta 10 tem
+      `duracao`=611,069s (elapsed) vs `tempoMovimento`=363,746s (timer) — bate quase exatamente
+      com os números aproximados (~611s/~364s) que `fit-lap-derived-metrics` havia documentado.
+      Pace corrigido pelo D6: 6:03/km (vs. 10:11/km sem a correção).
+- [x] 5.2 Suíte completa verde: `./mvnw clean test`.
+      **Resultado (2026-07-13):** 1377 testes, 0 falhas, 0 erros, BUILD SUCCESS.
