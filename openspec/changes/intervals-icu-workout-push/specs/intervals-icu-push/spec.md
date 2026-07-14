@@ -97,6 +97,14 @@ aprovação por causa do push.
 - **And** a FC vira `hr {units: bpm, start: 140, end: 150}` (sem offset)
 - **And** o alvo não parseável produz step sem alvo, sem exceção e sem log de erro
 
+#### Scenario: Prefixo de calibração no nome do treino
+- **Given** um atleta em fase de calibração (TrainingPhase=CALIBRATION, confiança < 45)
+  com plano aprovado
+- **When** o push gera o evento no intervals.icu
+- **Then** o `name` do evento contém o prefixo “[Calibração]” antes do nome do treino
+- **And** atletas fora de calibração (ou sem baseline implantado) não recebem prefixo
+- **And** o prefixo é visível no relógio do atleta
+
 ## Requirement: Estados de sincronização e recuperação
 
 Falhas de push DEVEM ser classificadas nos estados existentes de `StatusSincronizacao`, visíveis

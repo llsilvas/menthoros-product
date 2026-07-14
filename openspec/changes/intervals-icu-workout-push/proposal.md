@@ -87,10 +87,35 @@ pronta para uma credencial por atleta; campos completos de sincronização em `T
   atualiza em vez de duplicar). Estados via `StatusSincronizacao` existente + helpers de retry
   do `TreinoPlanejado`; retry de erros temporários por scheduler (padrão
   `DailyActivitySyncScheduler`).
+- **`IntervalsIcuPushAsyncConfig` (novo):** pool dedicado `intervalsIcuPushExecutor`
+  (core=2, max=4, queue=100) para o listener assíncrono — isola o push do pool de análise
+  de treino (LLM, até 30s). Padrão idêntico ao `WorkoutAnalysisAsyncConfig` existente.
+  O `responseTimeout` do WebClient (10s) garante que a thread nunca fica pendurada por
+  mais de 10s.
+
 - **`IntervalsIcuWebClientConfig` (novo):** WebClient dedicado com `responseTimeout` obrigatório
   (aprendizado registrado no CLAUDE.md; o client Strava não tem). Tratamento de erro mapeado
   para `StatusSincronizacao`: 401/403 → `ERRO_AUTENTICACAO` (marca conexão com erro), 422 →
   `ERRO_VALIDACAO`, 429 → `ERRO_LIMITE_RATE` (retry), 5xx/timeout → `ERRO_TEMPORARIO` (retry).
+- **Prefixo `[Calibração]` no nome do treino (pronto para onboarding futuro):**
+  `StructuredWorkout` expõe campo opcional `namePrefix` (String, default null). O
+  listener define o prefixo com base no `TrainingPhase` do plano — quando
+  `athlete-onboarding-baseline` (Sprint 19-22) implantar a fase de calibração, o nome
+  do treino no relógio exibirá “[Calibração] Treino X”, explicando ao atleta por
+  que o plano está conservador. Sem baseline = sem prefixo (comportamento atual). O
+  conversor é agnóstico — só aplica o prefixo se presente. Zero acoplamento com
+  onboarding.
+
+- **Modelo canônico `StructuredWorkout` + `WorkoutChannel` (novo, interface):**
+  `IntervalsIcuWorkoutConverter` produz `StructuredWorkout` (record canônico agnóstico de
+  destino — externalId, name, sport, scheduledDate, steps). `WorkoutChannel` é a interface de
+  transporte (`push(StructuredWorkout)`) implementada por `IntervalsIcuAdapter`, que gera o
+  `workout_doc` JSON. O seam isola o formato de destino — futuros canais (Garmin Training API,
+  exportação .FIT direta, etc.) plugam como novos adapters sem tocar no conversor. Torna
+  explícito no código o que o campo `exportadoPara` de `TreinoPlanejado` já modela
+  conceitualmente como multi-plataforma. Zero adapters especulativos — só o `IntervalsIcuAdapter`
+  é implementado agora; os demais nascem quando o canal existir.
+
 - **Migration Flyway:** nenhuma coluna nova — só o valor novo do enum `FonteDados` (coluna é
   STRING). Zero mudança de schema.
 

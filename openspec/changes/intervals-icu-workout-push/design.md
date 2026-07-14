@@ -130,6 +130,41 @@ Parser de alvos: espelhar os patterns canônicos já parseados no backend (`pars
 `IaServiceImpl`, validação de pace) — não criar dialeto divergente. Trim/normalização antes do
 match; vazio é caminho normal.
 
+## D2.5 — Modelo canônico e abstração de canal
+
+O conversor do D2 é puro de domínio mas atualmente acoplado ao formato JSON do
+intervals.icu. Extrair um contrato intermediário:
+
+- **`StructuredWorkout`** (record canônico): `externalId` (String), `name` (String),
+  `sport` (enum), `scheduledDate` (LocalDate), `steps` (List<WorkoutStep>).
+  `WorkoutStep` contém text, duration, distance, pace, hr, reps — a representação
+  universal de uma etapa prescritiva, sem conhecimento de formato de destino.
+- **`WorkoutChannel`** (interface): `push(StructuredWorkout) -> PushResult`. Contrato
+  único que todo canal de entrega implementa.
+- **`IntervalsIcuAdapter` implementa `WorkoutChannel`**: recebe `StructuredWorkout`,
+  gera o `workout_doc` JSON conforme D2 e faz o POST/PUT na API. É o único adapter
+  concreto nesta change.
+- **`IntervalsIcuWorkoutConverter` produz `StructuredWorkout`** em vez de
+  `workout_doc` JSON diretamente. A lógica de des-expansão, parsing de alvos e
+  normalização não muda — só o tipo de retorno.
+- O listener (D3) injeta `WorkoutChannel` e chama `channel.push(workout)` — sem
+  conhecer intervals.icu, HTTP, ou JSON.
+
+Regra de ouro: zero adapters especulativos. `IntervalsIcuAdapter` é o único concreto.
+`GarminTrainingApiAdapter`, `FitWorkoutExporter`, etc. só nascem quando o canal
+existir. Mas a interface `WorkoutChannel` já está lá — o próximo canal pluga sem
+tocar no conversor nem no listener, exatamente o que `exportadoPara` promete.
+
+**Prefixo de calibração (campo opcional, zero acoplamento):**
+
+`StructuredWorkout` expõe `namePrefix` (String, default null). O listener define
+o prefixo com base no `TrainingPhase` do plano (campo que já existe ou será populado
+por `deterministic-planner-engine`). Regra: se `phase == CALIBRATION` e score de
+confiança < 45, `namePrefix = "[Calibração]"`. O adapter pré-concatena ao
+`name` do evento. Sem baseline implantado, `namePrefix` é sempre null —
+comportamento idêntico ao atual. O conversor não conhece calibração, onboarding ou
+score — só aplica o prefixo se presente no record.
+
 ## D3 — Disparo, idempotência e retry
 
 **Gatilho:** `PlanoReviewServiceImpl.aprovarPlano` publica `PlanoAprovadoEvent(planoId,
@@ -137,6 +172,15 @@ atletaId, tenantId)` (record em `events/`, 1 linha no service — único toque e
 existente). Consumo: `IntervalsIcuPushListener` com `@TransactionalEventListener(phase =
 AFTER_COMMIT)` + `@Async` (convenção documentada em `SemanaEncerradaEvent`; referência
 `WorkoutAnalysisListener`) — a resposta do coach não espera rede externa.
+
+**Pool de executor dedicado (P1 — segurança de produção):**
+
+O listener usa `@Async("intervalsIcuPushExecutor")` — pool dedicado (core=2, max=4,
+queue=100), mesmo padrão de `WorkoutAnalysisAsyncConfig`. Push é rápido (~200ms HTTP)
+mas não pode competir com chamadas LLM do pool `workoutAnalysisExecutor` (até 30s).
+Timeout: o `responseTimeout` 5s/10s do WebClient (D4) cobre o `@Async` — a thread
+nunca fica pendurada por mais de 10s. Configuração: classe `IntervalsIcuPushAsyncConfig`,
+30 linhas, template idêntico ao `WorkoutAnalysisAsyncConfig`.
 
 **Fluxo por treino exportável do plano:**
 

@@ -66,7 +66,31 @@
       sem etapas → step único (conversão `Duration` própria), precedência pace > FC conforme
       task 0.2. Validação: `./mvnw clean test`.
 
+- [ ] 2.3 Extrair `StructuredWorkout` (record) + `WorkoutChannel` (interface
+      `push(StructuredWorkout) -> PushResult`) + refatorar `IntervalsIcuWorkoutConverter`
+      para retornar `StructuredWorkout` em vez de JSON + criar `IntervalsIcuAdapter`
+      implementando `WorkoutChannel` com a lógica de geração do `workout_doc` que
+      antes estava no conversor. Zero mudança de comportamento — só extração do seam.
+      Testes do conversor passam a asserir `StructuredWorkout`; testes do adapter cobrem
+      os mesmos cenários de serialização JSON que o conversor cobria antes (CA3, CA4).
+      Validação: `./mvnw clean test`.
+
+- [ ] 2.4 Adicionar campo opcional `namePrefix` (String, default null) em
+      `StructuredWorkout`; `IntervalsIcuAdapter` pré-concatena ao `name` do
+      evento quando presente. Listener define com base em `TrainingPhase` (quando
+      disponível). Teste unitário: com prefixo → nome prefixado; sem prefixo → nome
+      original. Sem baseline = comportamento inalterado (prefixo sempre null). Validação:
+      `./mvnw clean test`.
+
 ## 3. Backend — push na aprovação + retry (D3)
+
+- [ ] 3.0 `IntervalsIcuPushAsyncConfig` (config de pool dedicado): bean
+      `intervalsIcuPushExecutor` (core=2, max=4, queue=100, prefixo
+      `INTERVALS-ICU-PUSH-`), template idêntico ao `WorkoutAnalysisAsyncConfig`.
+      Isola o push do pool de análise de treino (LLM, até 30s). Timeout do `@Async`
+      coberto pelo `responseTimeout` 10s do WebClient (D4) — verificar com teste de
+      integração que simula 10s de latência e confirma que a thread libera. Validação:
+      `./mvnw clean test`.
 
 - [ ] 3.1 `PlanoAprovadoEvent` (record em `events/`, javadoc com a convenção AFTER_COMMIT) +
       publicação em `PlanoReviewServiceImpl.aprovarPlano`. Teste: evento publicado na aprovação,
