@@ -131,70 +131,6 @@
       atualizados. Validação: `npm run lint && npm run build`.
 
 
-## 6.5 — Gaps de teste e cenários de borda (CPO + arquitetura)
-
-Cenários que as seções 0–7 já cobrem parcialmente, mas precisam de teste
-explícito para não escaparem no QA gate.
-
-### P1 — Segurança de produção (deve ter)
-
-- [ ] 6.5.1 **Listener usa `findById` fresco, não entidade managed da transação pai.**
-      O `@Transactional(REQUIRES_NEW)` do listener carrega `TreinoPlanejado` do banco
-      (via `repository.findById`), nunca recebe a instância gerenciada da transação
-      de aprovação. Se o listener reusar a entidade managed, o `@Version` não protege
-      contra concorrência — dois workers veem a mesma versão. Teste: mock do repositório
-      retorna versão diferente da entidade passada; listener falha com
-      `OptimisticLockingFailureException`. Validação: `./mvnw clean test`.
-
-- [ ] 6.5.2 **Scheduler NUNCA toca treino `PENDENTE` de aprovação recém-publicada.**
-      A task 3.3 cobre “nunca `SINCRONIZANDO`” mas não cobre `PENDENTE`. Treino
-      recém-aprovado fica `PENDENTE` até o listener iniciar (janela de milissegundos).
-      Se o scheduler rodar nessa janela e tocar o treino, duplica o processamento.
-      Teste: scheduler query filtra `PENDENTE`; assert que nenhum treino selecionado
-      está em `PENDENTE`. Validação: `./mvnw clean test`.
-
-- [ ] 6.5.3 **WireMock com 10s de latência confirma que thread libera.**
-      A task 3.0 menciona “verificar com teste de integração” mas não detalha.
-      WireMock com `withFixedDelay(10000)` no endpoint de eventos; listener dispara
-      push; assert que a thread do `intervalsIcuPushExecutor` libera em ≤ 11s e o
-      treino fica `ERRO_TEMPORARIO`. Teste próprio (não embedado nos testes do
-      client). Validação: `./mvnw clean test`.
-
-- [ ] 6.5.4 **Log em DEBUG do WebClient não expõe header Authorization.**
-      A task 1.3 cobre “key não aparece em log capturado nem stacktrace”.
-      Estender: configurar `logging.level...IntervalsIcuClient=DEBUG` no teste,
-      capturar logs, assert que o header `Authorization: Basic ...` não aparece.
-      WebClient pode logar headers em DEBUG automaticamente. Validação:
-      `./mvnw clean test`.
-
-### P2 — Cenários de borda (bom ter)
-
-- [ ] 6.5.5 **PUT 404 (evento apagado pelo atleta) → recria via POST.**
-      A task 3.2 cobre “re-aprovação → PUT sem duplicar” mas não cobre o
-      cenário de PUT 404. WireMock retorna 404 no PUT do externalId armazenado;
-      listener faz POST novo; assert que externalId foi atualizado com o novo id
-      retornado. Validação: `./mvnw clean test`.
-
-- [ ] 6.5.6 **Normalização de dados degenerados no conversor.**
-      A task 2.2 cobre “treino sem etapas” mas não lista explicitamente:
-      duracaoMin=0 ou negativo → step aberto; etapa com todos os campos nulos
-      → ignorada; descricaoEtapa vazia → text omitido; distanciaKm=0 → não
-      emitir distance. Teste parametrizado com todos os casos.
-      Validação: `./mvnw clean test`.
-
-- [ ] 6.5.7 **Aprovação retorna 200 mesmo com push falhando.**
-      Estruturalmente garantido por `AFTER_COMMIT + @Async`, mas sem teste
-      explícito. WireMock retorna 500 no POST de eventos; aprovação retorna
-      200; treino fica `ERRO_TEMPORARIO`. Se alguém mover o listener para
-      síncrono, esse teste quebra — é o guard rail. Validação:
-      `./mvnw clean test`.
-
-- [ ] 6.5.8 **Mapeamento de cada `StatusSincronizacao` → texto curado no chip.**
-      A task 4.1 expõe `statusSincronizacao` no DTO mas não testa o mapeamento
-      de cada estado para o texto do chip do coach (Enviado/Pendente/Erro/Não
-      conectado). Teste parametrizado: cada status → texto e tooltip esperados.
-      Validação: `./mvnw clean test` + `npm run test`.
-
 ## 7. Validação ponta a ponta e DoD
 
 - [ ] 7.1 Walking skeleton real: conectar a key do founder via UI → aprovar um plano de teste →
@@ -204,3 +140,67 @@ explícito para não escaparem no QA gate.
       tenant isolation nos fluxos assíncronos) + test-master.
 - [ ] 7.3 `./mvnw clean test` e `npm run lint && npm run build` verdes nos dois repos (CA8);
       atualizar este `tasks.md`; PRs `feature/intervals-icu-workout-push` → develop.
+## 8. Gaps de teste e cenários de borda (CPO + arquitetura)
+
+Cenários que as seções 0–7 já cobrem parcialmente, mas precisam de teste
+explícito para não escaparem no QA gate.
+
+### P1 — Segurança de produção (deve ter)
+
+- [ ] 8.1 **Listener usa `findById` fresco, não entidade managed da transação pai.**
+      O `@Transactional(REQUIRES_NEW)` do listener carrega `TreinoPlanejado` do banco
+      (via `repository.findById`), nunca recebe a instância gerenciada da transação
+      de aprovação. Se o listener reusar a entidade managed, o `@Version` não protege
+      contra concorrência — dois workers veem a mesma versão. Teste: mock do repositório
+      retorna versão diferente da entidade passada; listener falha com
+      `OptimisticLockingFailureException`. Validação: `./mvnw clean test`.
+
+- [ ] 8.2 **Scheduler NUNCA toca treino `PENDENTE` de aprovação recém-publicada.**
+      A task 3.3 cobre “nunca `SINCRONIZANDO`” mas não cobre `PENDENTE`. Treino
+      recém-aprovado fica `PENDENTE` até o listener iniciar (janela de milissegundos).
+      Se o scheduler rodar nessa janela e tocar o treino, duplica o processamento.
+      Teste: scheduler query filtra `PENDENTE`; assert que nenhum treino selecionado
+      está em `PENDENTE`. Validação: `./mvnw clean test`.
+
+- [ ] 8.3 **WireMock com 10s de latência confirma que thread libera.**
+      A task 3.0 menciona “verificar com teste de integração” mas não detalha.
+      WireMock com `withFixedDelay(10000)` no endpoint de eventos; listener dispara
+      push; assert que a thread do `intervalsIcuPushExecutor` libera em ≤ 11s e o
+      treino fica `ERRO_TEMPORARIO`. Teste próprio (não embedado nos testes do
+      client). Validação: `./mvnw clean test`.
+
+- [ ] 8.4 **Log em DEBUG do WebClient não expõe header Authorization.**
+      A task 1.3 cobre “key não aparece em log capturado nem stacktrace”.
+      Estender: configurar `logging.level...IntervalsIcuClient=DEBUG` no teste,
+      capturar logs, assert que o header `Authorization: Basic ...` não aparece.
+      WebClient pode logar headers em DEBUG automaticamente. Validação:
+      `./mvnw clean test`.
+
+### P2 — Cenários de borda (bom ter)
+
+- [ ] 8.5 **PUT 404 (evento apagado pelo atleta) → recria via POST.**
+      A task 3.2 cobre “re-aprovação → PUT sem duplicar” mas não cobre o
+      cenário de PUT 404. WireMock retorna 404 no PUT do externalId armazenado;
+      listener faz POST novo; assert que externalId foi atualizado com o novo id
+      retornado. Validação: `./mvnw clean test`.
+
+- [ ] 8.6 **Normalização de dados degenerados no conversor.**
+      A task 2.2 cobre “treino sem etapas” mas não lista explicitamente:
+      duracaoMin=0 ou negativo → step aberto; etapa com todos os campos nulos
+      → ignorada; descricaoEtapa vazia → text omitido; distanciaKm=0 → não
+      emitir distance. Teste parametrizado com todos os casos.
+      Validação: `./mvnw clean test`.
+
+- [ ] 8.7 **Aprovação retorna 200 mesmo com push falhando.**
+      Estruturalmente garantido por `AFTER_COMMIT + @Async`, mas sem teste
+      explícito. WireMock retorna 500 no POST de eventos; aprovação retorna
+      200; treino fica `ERRO_TEMPORARIO`. Se alguém mover o listener para
+      síncrono, esse teste quebra — é o guard rail. Validação:
+      `./mvnw clean test`.
+
+- [ ] 8.8 **Mapeamento de cada `StatusSincronizacao` → texto curado no chip.**
+      A task 4.1 expõe `statusSincronizacao` no DTO mas não testa o mapeamento
+      de cada estado para o texto do chip do coach (Enviado/Pendente/Erro/Não
+      conectado). Teste parametrizado: cada status → texto e tooltip esperados.
+      Validação: `./mvnw clean test` + `npm run test`.
+
