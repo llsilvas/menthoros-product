@@ -5,6 +5,15 @@ parse dos alvos textuais)
 
 ## Status
 
+**ENCERRADA NO GATE 0.1 (2026-07-14) — adiada em favor da Garmin Training API.** A validação
+do canal de entrega (CA0/design D0) reprovou: Garmin Connect web só importa *atividade*
+(406 para workout .fit), o app do celular roteia o arquivo para import de *percurso*, e o
+único canal existente é USB `GARMIN/NEWFILES` (que ainda exige cliente MTP no macOS) —
+inviável para o fluxo do atleta e insuficiente para o ganho do coach. Zero código de produção
+escrito. Decisão do founder: iniciar a application da **Garmin Training API** (parceria) e
+levar o domínio já especificado (des-expansão N×, parser de alvos, autorização `/me`,
+superfície front) para a change futura de push sync. Detalhes registrados na task 0.1.
+
 Proposed (2026-07-14). Decisões de escopo validadas com o founder na criação:
 granularidade = **por treino + ZIP da semana**; alvos = **parse best-effort com fallback**;
 acesso = **atleta e coach, apenas plano com review aprovado**.

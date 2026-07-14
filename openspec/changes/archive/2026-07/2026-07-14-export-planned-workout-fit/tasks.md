@@ -16,10 +16,29 @@
 
 ## 0. Gates de viabilidade (design D0/D6 — na ordem, cada um bloqueia o seguinte)
 
-- [ ] 0.1 **Canal de entrega:** com um .fit de workout de amostra (à mão, sem encoder de
+- [x] 0.1 **Canal de entrega:** com um .fit de workout de amostra (à mão, sem encoder de
       produção), validar como ele chega ao relógio — Garmin Connect web/app aceita import de
       workout? Só USB `GARMIN/NEWFILES`? Registrar aqui o resultado e aplicar a matriz de
       decisão do D0 (seguir / re-escopar com o founder / matar). **Gate absoluto.**
+      **RESULTADO (2026-07-14, validado pelo founder com .fit de amostra gerado à mão,
+      integridade round-trip OK):**
+      - Garmin Connect **web**: "Importar Dados" é exclusivo de *atividade* — rejeita workout
+        .fit com `406 Not Acceptable` (`POST /gc-api/upload-service/upload/.fit`); a própria
+        doc da Garmin descreve o fluxo como "arquivo de atividade". Não há import de workout
+        na seção Treinos. **Descartado.**
+      - Garmin Connect **app (celular)**: abrir/compartilhar o .fit aciona o import de
+        *percurso* (course); não existe handler de workout. **Descartado.**
+      - **USB `GARMIN/NEWFILES`**: único canal manual documentado; no macOS exige cliente MTP
+        (relógios novos não montam como mass storage — Finder não vê o device). Não testado
+        fim a fim; irrelevante para o fluxo do atleta (exigir cabo + cliente MTP mata a adoção).
+      **Veredito D0: não existe canal sem cabo → cenário "re-escopar com o founder / matar".**
+      **DECISÃO DO FOUNDER (2026-07-14): adiar a change e iniciar a application da Garmin
+      Training API (push automático — único caminho que entrega o valor original). Change
+      encerrada no gate 0.1: blocos 0.2-6 NÃO implementados, zero código de produção escrito
+      (custo evitado — o gate funcionou como desenhado). O domínio especificado sobrevive para
+      a change futura de sync via Training API: des-expansão de blocos N× (D2), parser de
+      alvos (D3), autorização padrão /me (D4), superfície frontend (D5). A camada de arquivo
+      .fit (D1) não se reaproveita — a Training API recebe workout como JSON próprio.**
 - [ ] 0.2 **Inventário de alvos:** conferir no banco de dev os valores reais de `fcAlvoEtapa`,
       `ritmoAlvo` (etapas) e `zonaAlvo` (treino), incluindo treinos com
       `editadoPeloCoach`/`adicionadoPeloCoach` (texto fora do schema do planner). Ajustar a
