@@ -1,188 +1,93 @@
 # Tasks: Complete Authorization on Remaining Controllers
 
-## Task 1: MetricasController — Add @PreAuthorize
+> **Refinado em 2026-07-14 contra o código real** (`/implement init`, branch
+> `feature/complete-authorization-controllers`, base `e8b9a9e`). A spec original é de maio e
+> envelheceu em pontos materiais — correções aplicadas abaixo:
+>
+> 1. **`anyRequest().authenticated()` já vale** (`CoreSecurityConfig`): anônimo já recebe 401
+>    em tudo que não é público. O entregável real é **autorização por papel (403)** + guarda de
+>    tenant, não o 401.
+> 2. **Convenção de papel do projeto:** `hasRole('ATLETA')`/`hasAnyRole('TECNICO', 'ADMIN')` —
+>    sem prefixo `ROLE_` (o plano original usava `hasRole('ROLE_ATLETA')`, que nunca casaria).
+> 3. **Papéis corrigidos pela evidência de consumo:** os widgets de adesão
+>    (`GraficoAdesaoWidget`/`TaxaAdesaoWidget`/`ResumoSemanalWidget`), o `ProvasProximasWidget`
+>    e o `SyncStravaButton` vivem nas telas do **coach** — `hasRole('ROLE_ATLETA')` quebraria
+>    o produto. Padrão correto: `hasAnyRole('TECNICO', 'ADMIN')` (o dominante no repo, 45
+>    ocorrências).
+> 4. **`/callback` e `/webhook` já são públicos por config** (`stravaPaths` → `permitAll`) —
+>    tasks viram verificação/documentação, não mudança.
+> 5. **Não existe `*AuthTest` de referência** (a spec citava um inexistente). O padrão real com
+>    segurança ativa é `CoachTreinoControllerTest` (`@WebMvcTest` SEM `addFilters = false` +
+>    `@WithMockUser`/`springSecurity()`).
+> 6. **Inventário atual (32 controllers):** além dos 4 alvo, têm zero `@PreAuthorize`:
+>    `StatusController` e `WaitlistController` (públicos por design, em `publicPaths`) e
+>    `UsuarioController` (`GET /users/me` — coberto por `authenticated()`; anotação de
+>    consistência incluída na task 5).
+> 7. Nenhum dos 4 controllers alvo tem `@RequireTenant` nem `resolverAtletaIdAtual` — os que
+>    recebem `atletaId` ganham a guarda de tenant (padrão do repo).
 
-**File:** `apps/menthoros-backend/src/main/java/br/com/menthoros/backend/controller/MetricasController.java`
+## 1. MetricasController — papel + tenant
 
-**Changes:**
-1. Add `import org.springframework.security.access.prepost.PreAuthorize;`
-2. Add `@PreAuthorize("hasRole('ROLE_ATLETA')")` to both GET methods:
-   - getAdesaoSemanal()
-   - getAdesaoDiaria()
+- [ ] 1.1 `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")` + `@RequireTenant` (padrão dos
+      endpoints coach que recebem `atletaId`) em `getAdesaoSemanal` e `getAdesaoDiaria`.
+      Consumidor: widgets da home do coach. Documentar 403 no Swagger.
+      TDD: teste com segurança ativa (padrão `CoachTreinoControllerTest`) — sem papel → 403;
+      TECNICO → 200; ATLETA → 403.
+      verify: `./mvnw test -Dtest=MetricasControllerTest` verde e widgets do coach seguem
+      funcionando (papel TECNICO no token de dev).
 
-**Acceptance Criteria:**
-- [ ] Build passes: `./mvnw clean compile`
-- [ ] Endpoint returns 401 without auth header
-- [ ] Endpoint returns 200 with valid JWT token
+## 2. ProvasProximasController — papel
 
----
+- [ ] 2.1 `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")` em `getProvasProximas` (consumidor:
+      `ProvasProximasWidget` da home do coach; retorna provas do tenant inteiro — jamais
+      ATLETA). Import de `@PreAuthorize` já existe e está sem uso.
+      TDD: sem papel → 403; TECNICO → 200; ATLETA → 403.
+      verify: `./mvnw test -Dtest=ProvasProximasControllerTest`.
 
-## Task 2: ProvasProximasController — Add @PreAuthorize (Already Imported)
+## 3. StravaActivityController — papel + tenant
 
-**File:** `apps/menthoros-backend/src/main/java/br/com/menthoros/backend/controller/ProvasProximasController.java`
+- [ ] 3.1 `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")` + `@RequireTenant` em
+      `sync(atletaId)` e `getSyncStatus(atletaId)` (consumidor: `SyncStravaButton` nas telas
+      do coach — hoje qualquer autenticado dispara sync de qualquer atleta do tenant).
+      TDD: sem papel → 403; TECNICO → 200 (service mockado); ATLETA → 403; cross-tenant → 403
+      via aspect.
+      verify: `./mvnw test -Dtest=StravaActivityControllerTest` (classe já existe — estender).
 
-**Changes:**
-1. Note: @PreAuthorize is already imported (line 13) but NOT used
-2. Add `@PreAuthorize("hasRole('ROLE_ATLETA')")` to getProvasProximas()
+## 4. StravaAuthController — papel seletivo (callback público)
 
-**Acceptance Criteria:**
-- [ ] Build passes
-- [ ] Endpoint returns 401 without auth
-- [ ] Endpoint returns 200 with JWT token
-- [ ] Cross-tenant isolation works (tenant A cannot see tenant B's races)
+- [ ] 4.1 `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")` em `getAuthorizationUrl(atletaId)`
+      (e `startAuth`, se existir no código atual — conferir assinatura real; consumidor é o
+      coach via `SyncStravaButton.handleConnect`). **`callback()` fica SEM anotação** — já é
+      público por `stravaPaths` e recebe redirect do Strava (obs. histórica: precisa continuar
+      público).
+      TDD: url → sem papel 403 / TECNICO 200; callback → **sem token 302** (teste com filtros
+      ativos prova que o `permitAll` da config segue valendo).
+      verify: `./mvnw test` no pacote do controller.
 
----
+## 5. Consistência e verificação dos públicos
 
-## Task 3: StravaActivityController — Add @PreAuthorize + @RequireTenant
+- [ ] 5.1 `UsuarioController.getMe`: `@PreAuthorize("isAuthenticated()")` (consistência com os
+      outros `/me`; comportamento inalterado — já exigia token pela config).
+      `StravaWebhookController` e `WaitlistController`/`StatusController`: sem mudança de
+      código; adicionar teste (ou asserção em teste existente) provando que GET/POST do
+      webhook respondem sem JWT (segurança = verify token) e documentação Swagger sem 401.
+      verify: `./mvnw test -Dtest=UsuarioControllerTest,StravaWebhookControllerTest`.
 
-**File:** `apps/menthoros-backend/src/main/java/br/com/menthoros/backend/controller/StravaActivityController.java`
+## 6. Gate final
 
-**Changes:**
-1. Note: @PreAuthorize already imported (line 14)
-2. Import `@RequireTenant` annotation
-3. Add both decorators to:
-   - sync(UUID atletaId):
-     ```java
-     @PreAuthorize("hasRole('ROLE_ATLETA')")
-     @RequireTenant(resourceParamIndex = 0)
-     public ResponseEntity<StravaSyncResponseDto> sync(@PathVariable UUID atletaId)
-     ```
-   - getSyncStatus(UUID atletaId):
-     ```java
-     @PreAuthorize("hasRole('ROLE_ATLETA')")
-     @RequireTenant(resourceParamIndex = 0)
-     public ResponseEntity<StravaSyncStatusDto> getSyncStatus(@PathVariable UUID atletaId)
-     ```
-
-**Acceptance Criteria:**
-- [ ] Build passes
-- [ ] Both endpoints return 401 without auth
-- [ ] Both endpoints return 200 with JWT
-- [ ] Cross-tenant access returns 403 (AccessDeniedException)
-- [ ] TenantValidationAspect logs security violation
-
----
-
-## Task 4: StravaAuthController — Add @PreAuthorize (Selective)
-
-**File:** `apps/menthoros-backend/src/main/java/br/com/menthoros/backend/controller/StravaAuthController.java`
-
-**Changes:**
-1. Note: @PreAuthorize already imported (line 16)
-2. Add to startAuth(UUID atletaId):
-   ```java
-   @PreAuthorize("hasRole('ROLE_ATLETA')")
-   public ResponseEntity<Void> startAuth(...)
-   ```
-3. Add to getAuthorizationUrl(UUID atletaId):
-   ```java
-   @PreAuthorize("hasRole('ROLE_ATLETA')")
-   public ResponseEntity<Map<String, String>> getAuthorizationUrl(...)
-   ```
-4. **DO NOT ADD** to callback() — must remain public for Strava OAuth flow
-
-**Acceptance Criteria:**
-- [ ] Build passes
-- [ ] startAuth returns 401 without auth
-- [ ] getAuthorizationUrl returns 401 without auth
-- [ ] callback() returns 302 (redirect) **without requiring auth** ← CRITICAL
-- [ ] Callback still validates OAuth code and state parameters
-- [ ] Swagger docs show 401 for auth endpoints but not callback
+- [ ] 6.1 Suíte completa `./mvnw clean test` verde; smoke manual dos fluxos do coach
+      (dashboard home carrega widgets; sync Strava dispara) com token TECNICO em dev.
+      Atualizar este tasks.md e commitar por seção lógica na branch.
+      verify: suíte verde + smoke registrado aqui.
 
 ---
 
-## Task 5: StravaWebhookController — No Changes (Remains Public)
+## Notas de escopo (mantidas da spec original + refinamento)
 
-**File:** `apps/menthoros-backend/src/main/java/br/com/menthoros/backend/controller/StravaWebhookController.java`
-
-**Changes:**
-- ✅ None required. Webhook endpoints must remain public.
-- Validation is handled by verify token (line 45: `!verifyToken.equals(...)`)
-
-**Acceptance Criteria:**
-- [ ] Swagger docs clearly indicate both GET and POST are public (no 401 response code)
-- [ ] Webhook validation test confirms token-based security works
-
----
-
-## Task 6: Authorization Tests for Each Controller
-
-**File:** `apps/menthoros-backend/src/test/java/br/com/menthoros/backend/controller/`
-
-Create 4 new test classes (already exists for AtletaController as reference):
-
-### Task 6a: MetricasControllerAuthTest
-```bash
-touch src/test/java/br/com/menthoros/backend/controller/MetricasControllerAuthTest.java
-```
-
-Test:
-- GET /adesao-semanal without auth → 401
-- GET /adesao-semanal with auth → 200
-- GET /adesao-diaria without auth → 401
-- GET /adesao-diaria with auth → 200
-
-### Task 6b: ProvasProximasControllerAuthTest
-Test:
-- GET /proximas without auth → 401
-- GET /proximas with auth → 200
-- Cross-tenant isolation (if applicable)
-
-### Task 6c: StravaActivityControllerAuthTest
-Test:
-- POST /sync/{id} without auth → 401
-- POST /sync/{id} with auth → 200 (or 404/409 depending on state)
-- GET /sync-status/{id} without auth → 401
-- GET /sync-status/{id} with auth → 200
-- Cross-tenant access → 403
-
-### Task 6d: StravaAuthControllerAuthTest
-Test:
-- GET /auth without auth → 401
-- GET /auth with auth → 302 (redirect to Strava)
-- GET /auth/url/{id} without auth → 401
-- GET /auth/url/{id} with auth → 200
-- **GET /callback WITHOUT auth → 302 (must work without JWT)**
-
-**Acceptance Criteria:**
-- [ ] All 4 test classes pass
-- [ ] Coverage > 90% for each controller
-- [ ] No @Ignore or skipped tests
-
----
-
-## Task 7: Validation & Documentation
-
-**Build & Test:**
-```bash
-cd apps/menthoros-backend
-./mvnw clean test
-./mvnw test -Dtest=*AuthTest
-```
-
-**Swagger Verification:**
-- [ ] Navigate to http://localhost:8080/swagger-ui.html
-- [ ] Verify all endpoints show 401 responses (except webhooks)
-- [ ] Verify security scheme is set to OAuth2/Bearer JWT
-
-**Git & Commit:**
-- [ ] All changes staged
-- [ ] Commit message references this change-id
-- [ ] No merge conflicts
-
----
-
-## Estimated Effort
-- Task 1-5 (implementation): **30 minutes**
-- Task 6 (tests): **60 minutes**
-- Task 7 (validation): **15 minutes**
-- **Total: ~2 hours**
-
-## Priority
-🔴 **CRITICAL** — Security gap affecting 5 controllers
-
-## Owner
-Claude Code (Architecture Designer skill)
-
-## Status
-⏳ In Progress (Tasks 1-7 to be executed sequentially)
+- Non-goals inalterados: sem novos papéis, sem rate limiting, sem mudança de DTO/contrato.
+- O IDOR intra-tenant de `PlanoTreinoController.buscarPlanoSemanal` (débito registrado em
+  changes anteriores) NÃO é escopo desta change — aqui só os 5 controllers da spec + a
+  anotação de consistência do `UsuarioController`.
+- Decisão de papel registrada: endpoints com `atletaId` de consumo coach-only ficam
+  TECNICO/ADMIN. Se um dia o shell do atleta precisar de adesão/sync self-service, a rota
+  correta é um endpoint `/me` novo (padrão `resolverAtletaIdAtual`), não afrouxar estes.
