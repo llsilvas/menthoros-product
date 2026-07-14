@@ -182,6 +182,14 @@ Os campos "PARA FUTURO" de exportação em `TreinoPlanejado` (`exportadoPara`,
 - **Aberto: compatibilidade não-Garmin.** Se atletas com Coros/Suunto reportarem falha de import,
   avaliar ajustes de encode (ex.: nomes ASCII, versão de protocolo) em follow-up.
 
+## Rollback
+
+Change 100% aditiva: zero migration, nenhuma escrita de estado (download não toca
+`exportadoPara`/`statusSincronizacao`), endpoints e botões novos condicionados a plano aprovado.
+Rollback = reverter o PR em cada repo (backend e frontend, independentes); nenhum dado a migrar
+de volta, nenhum estado órfão. O único efeito residual é o header CORS
+`exposedHeaders("Content-Disposition")`, inócuo sem os endpoints.
+
 ## Riscos e mitigações
 
 - **Não existe canal de import de workout sem cabo** (Alto impacto, Média probabilidade —
