@@ -88,6 +88,38 @@
       (widgets de adesão/provas na home; sync Strava no roster) — requer ambiente local
       de pé (Keycloak + Postgres).
 
+- [x] 6.2 **QA gate executado (2026-07-14)** — code-reviewer + security-reviewer +
+      clean-code-reviewer em paralelo. Resultado e ações:
+      - **Critical (security, CORRIGIDO em 37757c1):** `getProvasProximas` era global
+        (`Tenant-aware: NO`) — vazava provas/atletas de todas as assessorias para
+        qualquer TECNICO/ADMIN. Query agora filtra por `assessoria.id` + `TenantContext`
+        (o CA original da spec já exigia esse isolamento).
+      - **Importants de clean code (CORRIGIDOS em 3887f34):** helpers JWT duplicados 5×
+        → `testsupport/JwtTestSupport`; ordem de anotações no `UsuarioController`;
+        javadoc do `AuthWebMvcTestConfig`.
+      - Suíte final: **1414 testes, 0 falhas**.
+
+## Débitos registrados no QA (fora do escopo — NÃO herdar, tratar em change própria)
+
+- **OAuth Strava — `state` sem assinatura (High):** `state = atletaId` puro; callback
+  público resolve o atleta via `findByIdBasic` sem tenant. Permite account-linking/CSRF:
+  atacante completa o fluxo OAuth com a própria conta Strava e `state` de atleta alheio
+  (inclusive cross-tenant), poluindo a integração da vítima. Mitigação: `state` como
+  nonce assinado/expirável vinculado à sessão que iniciou o fluxo.
+- **Webhook Strava — POST sem validação (High):** o verify token só protege o GET
+  (handshake). O POST de eventos aceita payload de qualquer origem; blast radius limitado
+  (só age se `ownerId` casar com integração ativa), mas permite forjar delete/create
+  (treino → CANCELADO) e queimar rate limit. Mitigação mínima: validar `subscription_id`.
+- **`Map<String, Object>` como retorno** em `StravaAuthController.getAuthorizationUrl`/
+  `status` (viola padrão DTO do CLAUDE.md; pré-existente).
+- **`MetricasAdesaoService` recebe `String atletaId`** — round-trip UUID→String→UUID com
+  o controller; alinhar assinatura para `UUID`.
+- **`startAuth` usa `@RequestParam atletaId`** em vez de path variable (convenção REST).
+- **Premissa estrutural:** `hasAnyRole` sozinho não isola tenant (roles são globais do
+  realm) — novo endpoint com resource-id DEVE combinar `@PreAuthorize` + `@RequireTenant`
+  ou filtro por `TenantContext` no service; e `TenantValidationRepository` só cobre 6
+  tipos de recurso (tipo não coberto → fail-closed com 403 sem log claro).
+
 ---
 
 ## Notas de escopo (mantidas da spec original + refinamento)
