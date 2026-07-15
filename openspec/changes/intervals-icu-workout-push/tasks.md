@@ -12,6 +12,13 @@
 > validada); retry scheduler não atualiza ultimaSincronizacao da conexão; dependência de teste
 > nova autorizada: org.wiremock:wiremock-standalone 3.10.0 (escopo test, exigida pela task 1.3);
 > TipoTreino.DESCANSO adicionado ao enum (valor aditivo que a regra de exportabilidade assumia).
+>
+> **Achados do walking skeleton (2026-07-15):** (a) deleção de plano deixava eventos órfãos —
+> CORRIGIDO (Task extra: `PlanoDeletadoEvent` + listener de limpeza best-effort, commit 2c3b3f4);
+> (b) **debounce do uploader Garmin do intervals.icu**: push em rajada de N eventos pode deixar
+> os últimos fora do upload ao Garmin (2º evento criado ~600ms após o 1º não re-disparou o
+> upload; nudge via PUT no-op re-disparou e entregou) — mitigação candidata: re-PUT no último
+> evento do lote; DECISÃO PENDENTE do founder (fix nesta change vs follow-up).
 
 > Trilha Full. Sequência de risco decrescente (design D6): gate de canal → conexão → conversor →
 > push → front → superfícies de status. Backend valida com `./mvnw clean test`; frontend com

@@ -136,8 +136,11 @@ pronta para uma credencial por atleta; campos completos de sincronização em `T
 - **Garmin Training API** (parceria direta) — segue no roadmap como canal nativo de longo prazo;
   os campos `exportadoPara`/`metadadosSincronizacao` acomodam múltiplas plataformas.
 - Sincronização contínua fora do ciclo de aprovação: a reconciliação (push + deleção de
-  órfãos) acontece **somente** no ato de aprovação/re-aprovação — edições sem re-aprovar não
-  propagam (coerente com coach-in-the-loop: o que vai ao relógio é o que foi aprovado).
+  órfãos) acontece no ato de aprovação/re-aprovação — edições sem re-aprovar não propagam
+  (coerente com coach-in-the-loop: o que vai ao relógio é o que foi aprovado).
+  **Exceção incluída na implementação (achado do walking skeleton, 2026-07-15): deleção do
+  plano** publica `PlanoDeletadoEvent` e remove best-effort todos os eventos `menthoros-*` da
+  janela da semana — plano deletado não deixa prescrição fantasma no relógio.
 - Download `.fit` manual (a change anterior morreu com o canal; não ressuscitar).
 - Criptografia at-rest de credenciais — os tokens Strava já são TEXT puro; padronizar
   criptografia é débito transversal registrado, não escopo desta change.
