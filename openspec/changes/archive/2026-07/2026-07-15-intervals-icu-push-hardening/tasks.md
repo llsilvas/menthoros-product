@@ -57,9 +57,11 @@
 
 ## 4. Gate final
 
-- [ ] 4.1 (PARCIAL — falta só o smoke, dependente do ambiente/founder)
+- [x] 4.1 (smoke de rajada DEFERIDO para pós-deploy — validação da premissa do nudge contra a
+      API real fica como verificação operacional; roteiro abaixo)
       FEITO: `./mvnw clean test` 1589 verde (CA4); QA Fast (code-reviewer) aprovado sem
-      Critical — CA1-CA4 verificados na matriz do review; invariante do nudge documentada.
-      PENDENTE: smoke com plano de 2+ treinos: aprovar e
+      Critical — CA1-CA4 verificados na matriz do review; invariante do nudge documentada;
+      PR backend #41 mergeado 2026-07-15.
+      DEFERIDO: smoke com plano de 2+ treinos: aprovar e
       confirmar `icu_garmin_last_upload` POSTERIOR à criação do último evento (valida a
       premissa do nudge de ponta a ponta); atualizar este tasks.md; QA `/review` + PR.
