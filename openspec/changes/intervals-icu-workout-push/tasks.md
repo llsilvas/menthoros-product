@@ -156,8 +156,14 @@
 - [ ] 7.1 Walking skeleton real: conectar a key do founder via UI → aprovar um plano de teste →
       treinos aparecem no intervals.icu e no relógio; re-aprovar após editar → evento atualizado
       sem duplicar. Registrar evidências.
-- [ ] 7.2 QA gate (`/qa`): code-reviewer + security-reviewer (foco: não-exposição da key,
-      tenant isolation nos fluxos assíncronos) + test-master.
+- [x] 7.2 QA gate (`/qa`) executado 2026-07-15: 4 reviewers Claude + Codex cross-model + suítes.
+      Zero Critical remanescente; security aprovado (key nunca exposta, tenant isolation ok).
+      Fixes aplicados no gate: estado stale de treino que vira não-exportável (achado Codex —
+      reset de sincronização + limpeza de externalId), regra de nome com distância formalizada
+      ("12 Km - LONGO"; fallback "TIPO dd/MM"), limpezas de clean-code (acumulador, prefixo
+      external_id centralizado, validação de tenant compartilhada), rel noreferrer no front.
+      **Convergência Claude+Codex** elevou a prioridade do follow-up de TX única do batch
+      (fix estrutural: REQUIRES_NEW por treino no Processor). Suítes: backend 1571 / front 559.
 - [ ] 7.3 `./mvnw clean test` e `npm run lint && npm run build` verdes nos dois repos (CA8);
       atualizar este `tasks.md`; PRs `feature/intervals-icu-workout-push` → develop.
 ## 8. Gaps de teste e cenários de borda (CPO + arquitetura)

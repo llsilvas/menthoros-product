@@ -66,7 +66,7 @@ Payload do evento (`POST /api/v1/athlete/{externalAthleteId}/events`):
   "category": "WORKOUT",
   "start_date_local": "<dataTreino>T00:00:00",
   "type": "Run",
-  "name": "<TipoTreino> <dd/MM>",
+  "name": "<distanciaKm> Km - <TipoTreino>" (decisão do founder no walking skeleton: distância é mais útil no pulso que a data, que o calendário já mostra; sem distância → fallback "<TipoTreino> <dd/MM>"),
   "external_id": "menthoros-<treinoPlanejadoId>",
   "workout_doc": {
     "description": "<descricao humana do treino>",
