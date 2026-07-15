@@ -4,6 +4,18 @@
 > Referências: `IntervalsIcuPushProcessor`, `IntervalsIcuPushListener`,
 > `IntervalsIcuRetrySchedulerImpl`, `IntervalsIcuAdapter`/`WorkoutChannel` — todos entregues
 > pela change-mãe (archive/2026-07/2026-07-15-intervals-icu-workout-push).
+>
+> **Refinado contra o código real em 2026-07-15 (`/implement init`, branch
+> `feature/intervals-icu-push-hardening`, base `1dfbf01` = merge do PR #40):**
+> - `Processor.processar(TreinoPlanejado, IntegracaoExterna)` (linha 86) roda HOJE na TX do
+>   chamador (sem @Transactional próprio); o reload fresco está no listener (linha 136) —
+>   a task 1.1 muda a assinatura para `processar(UUID treinoId, IntegracaoExterna conexao)`.
+> - Listener: `@Transactional(REQUIRES_NEW)` no método do lote (linha 73) — vira orquestração
+>   sem TX de escrita; o acumulador `ResultadoLote` (linha 176) ganha a contagem de criados
+>   para a task 2.1.
+> - Scheduler: `@Transactional` no método do lote (linha 61) — mesma mudança.
+> - `PushResult` NÃO tem flag de criação — task 2.1 adiciona `criadoNovo` (boolean) preenchido
+>   pelo adapter no caminho POST (os dois caminhos de PUT ficam false).
 
 ## 1. TX por treino (CA1)
 
