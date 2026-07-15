@@ -1,5 +1,18 @@
 # Tasks: intervals-icu-workout-push
 
+> **Status da implementação (2026-07-15):** seções 1-6 e 8 IMPLEMENTADAS nas branches
+> `feature/intervals-icu-workout-push` (backend fae8d49..5a5e8a0, 18 commits, suíte 1559;
+> front 0d7651d..a9cb2aa, 5 commits, suíte 552), via plano SDD com review por task + review
+> final de branch cross-model. O review final pegou e corrigiu 1 Critical de costura (set de
+> reconciliação de órfãos usava o id numérico do evento — teria deletado os eventos recém-
+> criados a cada aprovação). Pendências: 0.2/0.3 (gates manuais — pace+FC no relógio; formatos
+> reais no banco de dev), 7.1 (walking skeleton com a conta do founder), 7.2/7.3 (QA formal +
+> PRs). **Follow-ups registrados para change futura:** TX única no batch do listener/scheduler
+> (fix estrutural = REQUIRES_NEW por treino no Processor; auto-cura via guarda de listagem já
+> validada); retry scheduler não atualiza ultimaSincronizacao da conexão; dependência de teste
+> nova autorizada: org.wiremock:wiremock-standalone 3.10.0 (escopo test, exigida pela task 1.3);
+> TipoTreino.DESCANSO adicionado ao enum (valor aditivo que a regra de exportabilidade assumia).
+
 > Trilha Full. Sequência de risco decrescente (design D6): gate de canal → conexão → conversor →
 > push → front → superfícies de status. Backend valida com `./mvnw clean test`; frontend com
 > `npm run lint && npm run build`.
@@ -39,34 +52,34 @@
 
 ## 1. Backend — conexão intervals.icu (D1)
 
-- [ ] 1.1 `FonteDados.INTERVALS_ICU` + testes de round-trip do enum. Validação: `./mvnw clean test`.
-- [ ] 1.2 `IntervalsIcuWebClientConfig` (bean dedicado, `responseTimeout` 5s/10s) +
+- [x] 1.1 `FonteDados.INTERVALS_ICU` + testes de round-trip do enum. Validação: `./mvnw clean test`.
+- [x] 1.2 `IntervalsIcuWebClientConfig` (bean dedicado, `responseTimeout` 5s/10s) +
       `IntervalsIcuProperties` (`app.intervals-icu.base-url`). Teste de config.
-- [ ] 1.3 `IntervalsIcuClient` (interface + impl): `validarApiKey(key)` → `GET /api/v1/athlete/0`
+- [x] 1.3 `IntervalsIcuClient` (interface + impl): `validarApiKey(key)` → `GET /api/v1/athlete/0`
       (Basic `API_KEY:<key>`), criar/atualizar/deletar/listar eventos (mecanismo de idempotência
       do D3), mapeamento de erros do D4. Testes com WireMock **usando as fixtures capturadas na
       task 0.1** (200/401/404-no-PUT/422/429/5xx/timeout) — mocks nunca inventam contrato;
       teste garante que a key não aparece em log capturado nem em stacktrace de exceção (CA5).
-- [ ] 1.4 `IntervalsIcuConnectionService`: conectar (valida antes de persistir, grava
+- [x] 1.4 `IntervalsIcuConnectionService`: conectar (valida antes de persistir, grava
       `externalAthleteId`), status, desconectar (soft, padrão Strava). Testes unitários incluindo
       key inválida → nada persistido (CA1).
-- [ ] 1.5 `IntervalsIcuConnectionController` padrão `/me` (POST/GET/DELETE
+- [x] 1.5 `IntervalsIcuConnectionController` padrão `/me` (POST/GET/DELETE
       `/api/v1/integracoes/me/intervals-icu`), `@PreAuthorize` ATLETA/ADMIN,
       `resolverAtletaIdAtual`. Testes de controller: status nunca contém a key; ATLETA de outro
       tenant/atleta não acessa (CA6). Validação: `./mvnw clean test`.
 
 ## 2. Backend — conversor workout_doc (D2)
 
-- [ ] 2.1 `IntervalsIcuTargetParser` (classe pura): pace canônico/tolerante → `secs/km`
+- [x] 2.1 `IntervalsIcuTargetParser` (classe pura): pace canônico/tolerante → `secs/km`
       (faixa/valor), FC `bpm` absoluta, `%hr`, `zonaAlvo` → `hr_zone`; não parseável → vazio.
       Teste unitário por formato da tabela D2 (parametrizado), incluindo nunca-lança.
-- [ ] 2.2 `IntervalsIcuWorkoutConverter` (classe pura): mapeamento de etapas (duração ×60,
+- [x] 2.2 `IntervalsIcuWorkoutConverter` (classe pura): mapeamento de etapas (duração ×60,
       distância m, ordem, text), des-expansão por `blocoId` com verificação de janelas idênticas
       → `reps` N (teste 4×→4×, nunca N²), fallback expandido para bloco inconsistente, treino
       sem etapas → step único (conversão `Duration` própria), precedência pace > FC conforme
       task 0.2. Validação: `./mvnw clean test`.
 
-- [ ] 2.3 Extrair `StructuredWorkout` (record) + `WorkoutChannel` (interface
+- [x] 2.3 Extrair `StructuredWorkout` (record) + `WorkoutChannel` (interface
       `push(StructuredWorkout) -> PushResult`) + refatorar `IntervalsIcuWorkoutConverter`
       para retornar `StructuredWorkout` em vez de JSON + criar `IntervalsIcuAdapter`
       implementando `WorkoutChannel` com a lógica de geração do `workout_doc` que
@@ -75,7 +88,7 @@
       os mesmos cenários de serialização JSON que o conversor cobria antes (CA3, CA4).
       Validação: `./mvnw clean test`.
 
-- [ ] 2.4 Adicionar campo opcional `namePrefix` (String, default null) em
+- [x] 2.4 Adicionar campo opcional `namePrefix` (String, default null) em
       `StructuredWorkout`; `IntervalsIcuAdapter` pré-concatena ao `name` do
       evento quando presente. Listener define com base em `TrainingPhase` (quando
       disponível). Teste unitário: com prefixo → nome prefixado; sem prefixo → nome
@@ -84,7 +97,7 @@
 
 ## 3. Backend — push na aprovação + retry (D3)
 
-- [ ] 3.0 `IntervalsIcuPushAsyncConfig` (config de pool dedicado): bean
+- [x] 3.0 `IntervalsIcuPushAsyncConfig` (config de pool dedicado): bean
       `intervalsIcuPushExecutor` (core=2, max=4, queue=100, prefixo
       `INTERVALS-ICU-PUSH-`), template idêntico ao `WorkoutAnalysisAsyncConfig`.
       Isola o push do pool de análise de treino (LLM, até 30s). Timeout do `@Async`
@@ -92,10 +105,10 @@
       integração que simula 10s de latência e confirma que a thread libera. Validação:
       `./mvnw clean test`.
 
-- [ ] 3.1 `PlanoAprovadoEvent` (record em `events/`, javadoc com a convenção AFTER_COMMIT) +
+- [x] 3.1 `PlanoAprovadoEvent` (record em `events/`, javadoc com a convenção AFTER_COMMIT) +
       publicação em `PlanoReviewServiceImpl.aprovarPlano`. Teste: evento publicado na aprovação,
       não publicado em transição inválida.
-- [ ] 3.2 `IntervalsIcuPushListener` (`@TransactionalEventListener(AFTER_COMMIT)` + `@Async`):
+- [x] 3.2 `IntervalsIcuPushListener` (`@TransactionalEventListener(AFTER_COMMIT)` + `@Async`):
       fluxo do D3 por treino exportável (regra operacional do D2; atleta não conectado encerra
       sem erro), claim atômico via transição condicional + `@Version`
       (`OptimisticLockingFailure` → desistir silencioso), idempotência via `externalId`
@@ -103,7 +116,7 @@
       Testes: aprovação → N eventos criados; re-aprovação → PUT sem duplicar (CA2); treino
       removido/recriado → órfão deletado; re-aprovações concorrentes → um worker só por treino;
       erro por treino não aborta os demais; teste negativo cross-tenant explícito (CA6).
-- [ ] 3.3 Scheduler de retry (padrão `DailyActivitySyncScheduler`): varre APENAS
+- [x] 3.3 Scheduler de retry (padrão `DailyActivitySyncScheduler`): varre APENAS
       `AGUARDANDO_RETRY`/`ERRO_TEMPORARIO`/`ERRO_LIMITE_RATE` (nunca `SINCRONIZANDO` —
       precedência do D3) com `podeRetentarSincronizacao()` e `atingiuLimiteTentativas()`;
       esgotou → `ERRO_PERMANENTE`; log estruturado sem key. Testes de seleção, precedência e
@@ -111,22 +124,22 @@
 
 ## 4. Backend — status para o coach (D5, contrato)
 
-- [ ] 4.1 Expor `statusSincronizacao` + `atletaConectadoIntervalsIcu` (derivado) no DTO de resumo
+- [x] 4.1 Expor `statusSincronizacao` + `atletaConectadoIntervalsIcu` (derivado) no DTO de resumo
       do plano usado por `CurrentWeekPlan` (via endpoint existente do perfil coach). Teste de
       serialização e de N+1 (fetch junto do plano). Validação: `./mvnw clean test`.
 
 ## 5. Frontend — conexão do atleta (D5)
 
-- [ ] 5.1 Adapter + `useIntervalsIcuConnection` (status/conectar/desconectar) sobre os endpoints
+- [x] 5.1 Adapter + `useIntervalsIcuConnection` (status/conectar/desconectar) sobre os endpoints
       `/me`. Sem lógica em componente.
-- [ ] 5.2 Card "Conexões — intervals.icu" na `AthleteProfilePage` (substitui o placeholder):
+- [x] 5.2 Card "Conexões — intervals.icu" na `AthleteProfilePage` (substitui o placeholder):
       input da key + instruções com link, estados conectado/desconectado/erro (mensagem curada
       do backend visível — CA7), Desconectar com confirmação. Validação:
       `npm run lint && npm run build`.
 
 ## 6. Frontend — chip de status no plano do coach (D5)
 
-- [ ] 6.1 Chip de status por treino no `TreinoCard` (`CurrentWeekPlan`): Enviado/Pendente/Erro
+- [x] 6.1 Chip de status por treino no `TreinoCard` (`CurrentWeekPlan`): Enviado/Pendente/Erro
       (tooltip com mensagem)/Atleta não conectado; renderiza só em plano aprovado; tipos do DTO
       atualizados. Validação: `npm run lint && npm run build`.
 
@@ -147,7 +160,7 @@ explícito para não escaparem no QA gate.
 
 ### P1 — Segurança de produção (deve ter)
 
-- [ ] 8.1 **Listener usa `findById` fresco, não entidade managed da transação pai.**
+- [x] 8.1 **Listener usa `findById` fresco, não entidade managed da transação pai.**
       O `@Transactional(REQUIRES_NEW)` do listener carrega `TreinoPlanejado` do banco
       (via `repository.findById`), nunca recebe a instância gerenciada da transação
       de aprovação. Se o listener reusar a entidade managed, o `@Version` não protege
@@ -155,21 +168,21 @@ explícito para não escaparem no QA gate.
       retorna versão diferente da entidade passada; listener falha com
       `OptimisticLockingFailureException`. Validação: `./mvnw clean test`.
 
-- [ ] 8.2 **Scheduler NUNCA toca treino `PENDENTE` de aprovação recém-publicada.**
+- [x] 8.2 **Scheduler NUNCA toca treino `PENDENTE` de aprovação recém-publicada.**
       A task 3.3 cobre “nunca `SINCRONIZANDO`” mas não cobre `PENDENTE`. Treino
       recém-aprovado fica `PENDENTE` até o listener iniciar (janela de milissegundos).
       Se o scheduler rodar nessa janela e tocar o treino, duplica o processamento.
       Teste: scheduler query filtra `PENDENTE`; assert que nenhum treino selecionado
       está em `PENDENTE`. Validação: `./mvnw clean test`.
 
-- [ ] 8.3 **WireMock com 10s de latência confirma que thread libera.**
+- [x] 8.3 **WireMock com 10s de latência confirma que thread libera.**
       A task 3.0 menciona “verificar com teste de integração” mas não detalha.
       WireMock com `withFixedDelay(10000)` no endpoint de eventos; listener dispara
       push; assert que a thread do `intervalsIcuPushExecutor` libera em ≤ 11s e o
       treino fica `ERRO_TEMPORARIO`. Teste próprio (não embedado nos testes do
       client). Validação: `./mvnw clean test`.
 
-- [ ] 8.4 **Log em DEBUG do WebClient não expõe header Authorization.**
+- [x] 8.4 **Log em DEBUG do WebClient não expõe header Authorization.**
       A task 1.3 cobre “key não aparece em log capturado nem stacktrace”.
       Estender: configurar `logging.level...IntervalsIcuClient=DEBUG` no teste,
       capturar logs, assert que o header `Authorization: Basic ...` não aparece.
@@ -178,27 +191,27 @@ explícito para não escaparem no QA gate.
 
 ### P2 — Cenários de borda (bom ter)
 
-- [ ] 8.5 **PUT 404 (evento apagado pelo atleta) → recria via POST.**
+- [x] 8.5 **PUT 404 (evento apagado pelo atleta) → recria via POST.**
       A task 3.2 cobre “re-aprovação → PUT sem duplicar” mas não cobre o
       cenário de PUT 404. WireMock retorna 404 no PUT do externalId armazenado;
       listener faz POST novo; assert que externalId foi atualizado com o novo id
       retornado. Validação: `./mvnw clean test`.
 
-- [ ] 8.6 **Normalização de dados degenerados no conversor.**
+- [x] 8.6 **Normalização de dados degenerados no conversor.**
       A task 2.2 cobre “treino sem etapas” mas não lista explicitamente:
       duracaoMin=0 ou negativo → step aberto; etapa com todos os campos nulos
       → ignorada; descricaoEtapa vazia → text omitido; distanciaKm=0 → não
       emitir distance. Teste parametrizado com todos os casos.
       Validação: `./mvnw clean test`.
 
-- [ ] 8.7 **Aprovação retorna 200 mesmo com push falhando.**
+- [x] 8.7 **Aprovação retorna 200 mesmo com push falhando.**
       Estruturalmente garantido por `AFTER_COMMIT + @Async`, mas sem teste
       explícito. WireMock retorna 500 no POST de eventos; aprovação retorna
       200; treino fica `ERRO_TEMPORARIO`. Se alguém mover o listener para
       síncrono, esse teste quebra — é o guard rail. Validação:
       `./mvnw clean test`.
 
-- [ ] 8.8 **Mapeamento de cada `StatusSincronizacao` → texto curado no chip.**
+- [x] 8.8 **Mapeamento de cada `StatusSincronizacao` → texto curado no chip.**
       A task 4.1 expõe `statusSincronizacao` no DTO mas não testa o mapeamento
       de cada estado para o texto do chip do coach (Enviado/Pendente/Erro/Não
       conectado). Teste parametrizado: cada status → texto e tooltip esperados.
