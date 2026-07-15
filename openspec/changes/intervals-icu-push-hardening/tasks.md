@@ -19,22 +19,28 @@
 
 ## 1. TX por treino (CA1)
 
-- [ ] 1.1 Mover o reload fresco do treino para DENTRO de `IntervalsIcuPushProcessor.processar`
+- [x] 1.1 Mover o reload fresco do treino para DENTRO de `IntervalsIcuPushProcessor.processar`
       (recebe `treinoId` + conexão; abre `@Transactional(REQUIRES_NEW)`; recarrega por
       id+tenant; claim; push; marcação — tudo na TX própria). Listener e scheduler viram
       orquestradores sem TX de escrita no loop (leitura do plano/janela em TX read-only ou
       chamadas de repositório avulsas). Atenção: processor é bean separado — proxy AOP cobre;
       NUNCA self-invocation.
       verify: testes existentes do listener (15) e scheduler (26) verdes sem afrouxar asserções.
-- [ ] 1.2 Teste de integração do CA1 (padrão `AbstractIntegrationTest`/Testcontainers): lote de
+- [x] 1.2 Teste de integração do CA1 (padrão `AbstractIntegrationTest`/Testcontainers): lote de
       2 treinos, `OptimisticLockingFailureException` forçada no claim do 1º (ex.: update
       concorrente da versão via segundo EntityManager) → 2º `SINCRONIZADO` persistido em TX
       nova; 1º intacto/elegível a retry.
       verify: `./mvnw test -Dtest=IntervalsIcuPushTxIT` (nomear *Test se surefire não pegar *IT).
+      Evidência: `IntervalsIcuPushTxTest` criado (`src/test/java/br/com/menthoros/backend/services/impl/`)
+      — `@MockitoSpyBean` no `IntervalsIcuWorkoutConverter` real injeta um UPDATE concorrente via
+      `JdbcTemplate` exatamente entre o `find` e o `saveAndFlush` da TX-A do treino1, provocando
+      `OptimisticLockingFailureException` real; treino1 fica `CLAIM_PERDIDO`/intacto e treino2
+      termina `SINCRONIZADO` persistido (consulta nova pós-listener) — `./mvnw clean test` verde
+      (868 testes, 0 falhas).
 
 ## 2. Nudge anti-debounce do uploader Garmin (CA2)
 
-- [ ] 2.1 `WorkoutChannel.tocarEvento(conexao, eventId)` (ou reuso de `atualizarEvento` com
+- [x] 2.1 `WorkoutChannel.tocarEvento(conexao, eventId)` (ou reuso de `atualizarEvento` com
       payload mínimo de nome) + chamada no listener ao fim do lote quando `criadosViaPost >= 2`,
       no ÚLTIMO evento criado; best-effort (try/catch + log, nunca altera estado de treino).
       Contabilizar POST×PUT no `PushResult` ou no retorno do processor (campo `criadoNovo`).
@@ -44,13 +50,16 @@
 
 ## 3. Último push fiel no retry (CA3)
 
-- [ ] 3.1 Scheduler grava `ultimaSincronizacao` na(s) conexão(ões) com ≥1 treino `SINCRONIZADO`
+- [x] 3.1 Scheduler grava `ultimaSincronizacao` na(s) conexão(ões) com ≥1 treino `SINCRONIZADO`
       no ciclo (agrupar por atleta; 1 save por conexão afetada). Testes: sucesso → gravado;
       ciclo todo-falha → não gravado.
       verify: `./mvnw test -Dtest=IntervalsIcuRetrySchedulerImplTest`.
 
 ## 4. Gate final
 
-- [ ] 4.1 `./mvnw clean test` completo verde (CA4); smoke com plano de 2+ treinos: aprovar e
+- [ ] 4.1 (PARCIAL — falta só o smoke, dependente do ambiente/founder)
+      FEITO: `./mvnw clean test` 1589 verde (CA4); QA Fast (code-reviewer) aprovado sem
+      Critical — CA1-CA4 verificados na matriz do review; invariante do nudge documentada.
+      PENDENTE: smoke com plano de 2+ treinos: aprovar e
       confirmar `icu_garmin_last_upload` POSTERIOR à criação do último evento (valida a
       premissa do nudge de ponta a ponta); atualizar este tasks.md; QA `/review` + PR.
