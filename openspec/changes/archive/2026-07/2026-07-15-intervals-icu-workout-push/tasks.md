@@ -51,9 +51,9 @@
       relógio pelo founder (treino de 2026-07-15, "Menthoros Gate CA0").** Transcripts em
       scratchpad da sessão (`ca0-request-v2.json`/`ca0-response-v2.json`) — regenerar como
       fixtures na task 1.3.
-- [ ] 0.2 Confirmar comportamento de step com pace E FC simultâneos (Open Question): o que o
+- [ ] 0.2 (ADIADA — default implementado: pace vence, FC no text) Confirmar comportamento de step com pace E FC simultâneos (Open Question): o que o
       Garmin exibe? Fixar a regra do conversor (pace vence / ambos) no design D2.
-- [ ] 0.3 Conferir no banco de dev os formatos reais de `ritmoAlvo`/`fcAlvoEtapa`/`zonaAlvo`
+- [ ] 0.3 (ADIADA — parser cobre canônicos+tolerantes; walking skeleton validou com dado real) Conferir no banco de dev os formatos reais de `ritmoAlvo`/`fcAlvoEtapa`/`zonaAlvo`
       (query por distinct) e ajustar a tabela de conversão do D2 se houver formato fora do
       previsto.
 
@@ -153,9 +153,13 @@
 
 ## 7. Validação ponta a ponta e DoD
 
-- [ ] 7.1 Walking skeleton real: conectar a key do founder via UI → aprovar um plano de teste →
-      treinos aparecem no intervals.icu e no relógio; re-aprovar após editar → evento atualizado
-      sem duplicar. Registrar evidências.
+- [x] 7.1 Walking skeleton real (2026-07-15, conta do founder): conexão via UI nova → aprovação
+      de plano com 2 treinos → 2 eventos estruturados no intervals.icu (confirmados via API) →
+      treino no relógio. Achados que viraram fix na própria branch: deleção de plano deixava
+      órfãos (PlanoDeletadoEvent) e treino não-exportável ficava com estado stale. **Achado de
+      terceiro registrado:** debounce do uploader Garmin do intervals.icu em criações em rajada
+      (~600ms) — o 2º evento não re-disparou o upload; nudge via PUT no-op entregou. Mitigação
+      (re-PUT no último evento do lote) segue como DECISÃO ABERTA de follow-up.
 - [x] 7.2 QA gate (`/qa`) executado 2026-07-15: 4 reviewers Claude + Codex cross-model + suítes.
       Zero Critical remanescente; security aprovado (key nunca exposta, tenant isolation ok).
       Fixes aplicados no gate: estado stale de treino que vira não-exportável (achado Codex —
@@ -164,8 +168,8 @@
       external_id centralizado, validação de tenant compartilhada), rel noreferrer no front.
       **Convergência Claude+Codex** elevou a prioridade do follow-up de TX única do batch
       (fix estrutural: REQUIRES_NEW por treino no Processor). Suítes: backend 1571 / front 559.
-- [ ] 7.3 `./mvnw clean test` e `npm run lint && npm run build` verdes nos dois repos (CA8);
-      atualizar este `tasks.md`; PRs `feature/intervals-icu-workout-push` → develop.
+- [x] 7.3 Suítes verdes (backend 1571 / front 559); PRs mergeados em 2026-07-15:
+      menthoros-backend#40 e menthoros-front#38.
 ## 8. Gaps de teste e cenários de borda (CPO + arquitetura)
 
 Cenários que as seções 0–7 já cobrem parcialmente, mas precisam de teste
