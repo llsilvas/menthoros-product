@@ -91,10 +91,14 @@ TDD: teste antes da implementação em cada bloco.
       computada. Cobrir também 422/429/5xx conforme a matriz de erros completa (design.md D3.1) —
       **429 é reservado exclusivamente para rate-limit do intervals.icu** (teste dedicado, nunca
       mapeado para 409); os DOIS cenários de origem do 409 dentro deste bloco (credencial
-      intervals.icu revogada — 401/403, passo 3; conexão intervals.icu ausente — passo 1, CA4) são
+      intervals.icu revogada — 401/403, passo 3; conexão intervals.icu ausente — passo 2, CA4) são
       verificações SEPARADAS, com exceções de domínio e mensagens distintas — não reaproveitar o
-      mesmo teste para os dois. O terceiro cenário de 409 (precondição de pausa Strava, passo 0) é
-      coberto na task 4.4/6.8, por ser um passo anterior a todos os demais do fluxo.
+      mesmo teste para os dois. O terceiro cenário de 409 (precondição de pausa Strava, passo 1) é
+      coberto na task 4.4/6.8, por ser um passo anterior a quase todos os demais do fluxo — roda
+      logo após a guarda de idempotência (passo 0, coberta acima em "idempotência sem chamada
+      externa quando já existe (CA2)"), que tem prioridade sobre ele (ordem corrigida na 3ª rodada
+      de pre-mortem: re-import de activity já existente retorna 200 sem checar a flag Strava — ver
+      design.md D3/D3.1).
 - [ ] 4.2 Guard de segurança (D5.1): antes de prosseguir, verificar que não existe outra conexão
       ativa do mesmo tenant com a mesma `externalAthleteId`; se existir, 409 sem chamada externa.
       Teste dedicado cobrindo esse cenário.
@@ -102,16 +106,22 @@ TDD: teste antes da implementação em cada bloco.
       em vez de id simples) antes de repassar ao client. `activityId` chega como query param (não
       path variable) — ver Bloco 5.
 - [ ] 4.4 **Precondição bloqueante de Strava ativo (D5.2 — substitui o aviso não-bloqueante,
-      correção do 2º pre-mortem):** passo 0 do serviço (design.md D3), executado ANTES de qualquer
-      outro passo do fluxo (inclusive antes de `conexaoAtiva`): ler
+      correção do 2º pre-mortem; ordem ajustada na 3ª rodada de pre-mortem):** passo 1 do serviço
+      (design.md D3), executado logo após a guarda de idempotência (passo 0 — ver task 4.1, cenário
+      "idempotência sem chamada externa quando já existe") e ANTES de qualquer outro passo
+      subsequente do fluxo (inclusive antes de `conexaoAtiva`, passo 2): ler
       `IntegracaoExternaRepository.findActiveByAtletaIdAndPlataformaAndTenantId(atletaId, STRAVA,
       tenantId)`; se existir integração ativa com `autoSyncPausado=false`, lançar exceção de
       domínio dedicada (409, mensagem curada "pause a sincronização Strava deste atleta antes de
       importar do intervals.icu") — sem qualquer chamada externa, sem leitura da conexão
-      intervals.icu, sem dedup check, sem persistência. Sem Strava conectado, ou já pausado, o
-      passo é no-op e o fluxo segue normal a partir do passo 1. TDD: teste cobrindo os três casos
-      (sem Strava → prossegue; Strava ativo sem pausa → 409 e nenhuma interação com
-      repositório/client de intervals.icu; Strava pausado → prossegue).
+      intervals.icu, sem persistência. Este passo só é alcançado quando a activity ainda NÃO existe
+      (dedup do passo 0 não encontrou); se já existe, o fluxo retorna 200 direto no passo 0 sem
+      chegar aqui (CA2 tem prioridade — re-import não deve ser bloqueado por precondição). Sem
+      Strava conectado, ou já pausado, o passo 1 é no-op e o fluxo segue normal a partir do passo 2.
+      TDD: teste cobrindo os quatro casos (activity já importada + Strava ativo sem pausa → 200,
+      sem checar a flag — ordem explícita do achado MÉDIO da 3ª rodada de pre-mortem; sem Strava →
+      prossegue; Strava ativo sem pausa → 409 e nenhuma interação com repositório/client de
+      intervals.icu; Strava pausado → prossegue).
 - [ ] 4.5 Implementar interface + impl com JavaDoc de idempotência/side effects/tenant-aware;
       HTTP fora da TX, persistência+reconciliação em colaborador transacional, reload da conexão
       dentro da TX antes do insert.
@@ -125,7 +135,8 @@ TDD: teste antes da implementação em cada bloco.
       /api/v1/intervals-icu/atletas/{atletaId}/activities/import?activityId={id}` (query param,
       não path variable — D5), `@PreAuthorize` TECNICO/ADMIN,
       `@RequireTenant(resourceParamIndex = 0)`, Swagger completo (tag ASCII kebab-case,
-      200/403/404/409/422). Teste de autorização no padrão dos `*ControllerAuthTest` da change
+      200/403/404/409/422/429 — 429 é o rate-limit do intervals.icu, já especificado em D3.1).
+      Teste de autorização no padrão dos `*ControllerAuthTest` da change
       `complete-authorization-controllers` (roles aceitas, ATLETA negado, anônimo negado). Teste
       dedicado de normalização de `activityId` (URL completa colada → extrai segmento final; `/`,
       `?`, `%` soltos → 400).
@@ -171,13 +182,33 @@ TDD: teste antes da implementação em cada bloco.
       retorna o atleta elegível, mas a query de revalidação — chamada logo antes do insert —
       já reflete `autoSyncPausado=true`) → atleta pulado, nenhuma atividade persistida para ele
       naquele ciclo, sem exceção lançada.
-- [ ] 6.8 **Teste do 409 de precondição no import (design.md D3 passo 0, D5.2):** cenário
+- [ ] 6.8 **Teste do 409 de precondição no import (design.md D3 passo 1, D5.2):** cenário
       bloqueado — atleta com Strava ativo e `autoSyncPausado=false`, import de intervals.icu
       retorna 409 com a mensagem curada, nada persistido (nenhum `TreinoRealizado`, nenhuma
       chamada ao client intervals.icu). Cenário liberado — atleta sem conexão Strava, OU com
-      `autoSyncPausado=true`, import prossegue normalmente (200). Complementa o TDD da task 4.4;
-      aqui o foco é a integração ponta a ponta via controller/service reais (não só mock).
-- [ ] 6.9 Validação: `./mvnw clean test`.
+      `autoSyncPausado=true`, import prossegue normalmente (200). Cenário de re-import — activity
+      já importada anteriormente + Strava ativo sem pausa (que bloquearia um import novo): a
+      resposta é 200 com o treino existente, SEM 409 (dedup do passo 0 tem prioridade sobre a
+      precondição do passo 1 — achado MÉDIO da 3ª rodada de pre-mortem, CA2). Complementa o TDD da
+      task 4.4; aqui o foco é a integração ponta a ponta via controller/service reais (não só mock).
+- [ ] 6.9 **Guard no webhook Strava (CRÍTICO, achado da 3ª rodada de pre-mortem — a flag precisa
+      cobrir os DOIS caminhos automáticos do Strava, não só o scheduler):** o webhook do Strava
+      (`StravaWebhookServiceImpl.handleEventAsync` → `processCreateEvent`/`processUpdateEvent` →
+      `requireIntegration(ownerId)`, `StravaWebhookServiceImpl.java:69-95`) não passa pelo
+      scheduler nem por `findAllWithStravaConnected` — sem guard próprio, um atleta pausado ainda
+      teria atividades inseridas em tempo real via webhook, reabrindo a colisão cross-fonte que a
+      flag deveria eliminar. Adicionar o guard em `requireIntegration` (ou logo após sua chamada em
+      `processCreateEvent`/`processUpdateEvent`): se `integracao.isAutoSyncPausado()` for `true`,
+      pular o processamento SILENCIOSAMENTE — sem lançar exceção (o endpoint HTTP do webhook precisa
+      responder 200 ao Strava independentemente, por contrato do webhook; lançar faria o Strava
+      reenviar o evento indefinidamente). `processDeleteEvent`
+      (`StravaWebhookServiceImpl.java:82-87`) NÃO precisa do guard — deletar um treino que talvez
+      nem exista pela pausa é inofensivo/idempotente. TDD: teste de `StravaWebhookServiceImpl` com
+      `autoSyncPausado=true` → `processCreateEvent`/`processUpdateEvent` NÃO chamam
+      `syncSingleActivityById`, nenhuma exceção é lançada (webhook endpoint continua respondendo
+      200 ao Strava, contrato preservado); com `autoSyncPausado=false` ou sem integração pausada,
+      comportamento atual é preservado (chama `syncSingleActivityById` normalmente).
+- [ ] 6.10 Validação: `./mvnw clean test`.
 
 ## Bloco 7 — Gate de validação real (D6)
 

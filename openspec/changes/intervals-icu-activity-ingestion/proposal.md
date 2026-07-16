@@ -54,13 +54,17 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
 4. **Flag de pausa de sincronização Strava por atleta (substitui matching cross-fonte):** novo
    campo `autoSyncPausado` em `IntegracaoExterna`, endpoints coach-only
    `PATCH /api/v1/strava/pausar-sync/{atletaId}` e `PATCH /api/v1/strava/retomar-sync/{atletaId}`,
-   e guarda no `DailyActivitySyncSchedulerImpl` (via `AtletaRepository.findAllWithStravaConnected`)
-   pulando atletas com Strava pausado. Decisão do founder: em vez de detectar/bloquear colisão
-   cross-fonte automaticamente por heurística de tempo+distância+duração (complexidade alta, falsos
-   positivos/negativos), o coach pausa manualmente a sincronização automática do Strava do atleta
-   ao habilitá-lo para intervals.icu — eliminando a colisão na origem. Ver design.md D5.2 e
-   "Riscos e mitigações" abaixo para o risco residual (coach esquece de pausar) e a precondição
-   bloqueante (409) que fecha o gap do primeiro import.
+   e guarda nos DOIS caminhos automáticos de ingestão do Strava: (a) `DailyActivitySyncSchedulerImpl`
+   (via `AtletaRepository.findAllWithStravaConnected`, mais late-check antes de cada persistência)
+   e (b) `StravaWebhookServiceImpl.requireIntegration` (evento em tempo real do Strava — skip
+   silencioso, sem exceção, para preservar o contrato HTTP 200 do webhook). Decisão do founder: em
+   vez de detectar/bloquear colisão cross-fonte automaticamente por heurística de
+   tempo+distância+duração (complexidade alta, falsos positivos/negativos), o coach pausa
+   manualmente a sincronização automática do Strava do atleta ao habilitá-lo para intervals.icu —
+   eliminando a colisão na origem. A flag só cumpre essa promessa cobrindo AMBOS os caminhos
+   automáticos (scheduler e webhook) — cobrir só o scheduler deixaria o webhook como brecha aberta.
+   Ver design.md D5.2 e "Riscos e mitigações" abaixo para o risco residual (coach esquece de pausar)
+   e a precondição bloqueante (409) que fecha o gap do primeiro import.
 5. **Endpoint de import:** `POST /api/v1/intervals-icu/atletas/{atletaId}/activities/import?activityId={id}`
    — `TECNICO`/`ADMIN`, `@RequireTenant(resourceParamIndex = 0)`, retorna o
    `TreinoRealizadoOutputDto` do treino ingerido (200 no insert novo, 200 idempotente se já
@@ -122,17 +126,30 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
   uma vez; se a activity tem RPE (`icu_rpe`), ele é mapeado para `percepcaoEsforco`.
 - **CA9 — Sem regressão:** `./mvnw clean test` verde; suítes do push intervals.icu, Strava sync e
   reconciliação intactas.
-- **CA10 — Pausa de sincronização Strava:** Given atleta com `autoSyncPausado=true` na integração
-  Strava, When o scheduler diário (`DailyActivitySyncSchedulerImpl`) roda, Then o atleta é pulado
-  (não aparece em `AtletaRepository.findAllWithStravaConnected`, nenhuma tentativa de sync é feita
-  para ele).
+- **CA10 — Pausa de sincronização Strava cobre os DOIS caminhos automáticos:** Given atleta com
+  `autoSyncPausado=true` na integração Strava, When o scheduler diário
+  (`DailyActivitySyncSchedulerImpl`) roda, Then o atleta é pulado (não aparece em
+  `AtletaRepository.findAllWithStravaConnected`, nenhuma tentativa de sync é feita para ele). Given
+  o mesmo atleta com `autoSyncPausado=true`, When um evento webhook do Strava (create/update) chega
+  para ele em tempo real (`StravaWebhookServiceImpl.handleEventAsync`), Then nenhum
+  `TreinoRealizado` é criado/atualizado por esse caminho e o webhook responde 200 normalmente (sem
+  exceção — contrato do webhook preservado). Cobrir só o scheduler não é suficiente: o webhook é um
+  caminho automático independente para a mesma colisão cross-fonte que a flag existe para eliminar.
 - **CA11 — Precondição de pausa do Strava (bloqueante):** Given atleta com Strava conectado
   (`ativo=true`) e **sem** `autoSyncPausado=true`, When o coach chama o import, Then **409** com
   mensagem curada ("pause a sincronização Strava deste atleta antes de importar do intervals.icu")
   e **nada é persistido**. Given atleta com Strava pausado ou sem conexão Strava, Then o import
   prossegue normalmente (200). Given o coach pausa a flag enquanto o scheduler do Strava já está
   processando o lote do ciclo corrente, Then o late-check antes de cada persistência pula aquele
-  atleta no ciclo em andamento (sem erro).
+  atleta no ciclo em andamento (sem erro). **Ordem com CA2 (idempotência):** esta precondição só é
+  avaliada quando a activity ainda NÃO foi importada antes — Given uma activity já importada
+  anteriormente e o atleta com Strava ativo e não pausado, When o coach reenvia o import da mesma
+  activity, Then a resposta é 200 com o treino existente, **sem** checar esta precondição (dedup por
+  `externalId` tem prioridade — ver design.md D3/D3.1).
+- **CA12 — Credencial intervals.icu revogada:** Given atleta com a API key do intervals.icu
+  revogada ou expirada (o provedor responde 401/403), When o coach tenta importar uma atividade
+  desse atleta, Then a resposta é **409** com mensagem indicando necessidade de reconexão ao
+  intervals.icu — distinto de "atividade não encontrada" (CA5), que usa 404.
 
 ## Métrica de sucesso
 
@@ -199,14 +216,26 @@ mitigação de design:
   (`(tenant, fonteDados, externalId)`). Achado do 2º pre-mortem cross-model: a versão anterior
   (aviso não-bloqueante) deixava o **primeiro import duplicar de qualquer forma** quando o atleta
   já tinha Strava conectado e o coach esquecia de pausar — o aviso era pós-facto, não preventivo.
-  **Corrigido: o import passa a exigir a precondição.** `POST /me/importar` retorna **409** com
-  mensagem curada ("pause a sincronização Strava deste atleta antes de importar do intervals.icu")
-  quando o atleta tem conexão Strava ativa **E** `autoSyncPausado=false`; sem conexão Strava (ou já
-  pausada), o import prossegue normal. CA/cenário novo cobrindo os dois eixos: bloqueado (Strava
-  ativo, sem pausa) e liberado (sem Strava, ou pausado). `409` aqui é reservado para essa
-  precondição — `429` de rate-limit do intervals.icu é propagado como `429` (sem sobrecarregar o
-  mesmo código, consistente com `StravaRateLimitException`→429 já existente no
+  **Corrigido: o import passa a exigir a precondição.**
+  `POST /api/v1/intervals-icu/atletas/{atletaId}/activities/import?activityId={id}` retorna **409**
+  com mensagem curada ("pause a sincronização Strava deste atleta antes de importar do
+  intervals.icu") quando o atleta tem conexão Strava ativa **E** `autoSyncPausado=false`; sem
+  conexão Strava (ou já pausada), o import prossegue normal — e, quando a activity já foi importada
+  antes, o dedup do CA2 tem prioridade sobre esta precondição (ver CA11). CA/cenário novo cobrindo
+  os dois eixos: bloqueado (Strava ativo, sem pausa) e liberado (sem Strava, ou pausado). `409` aqui
+  é reservado para essa precondição — `429` de rate-limit do intervals.icu é propagado como `429`
+  (sem sobrecarregar o mesmo código, consistente com `StravaRateLimitException`→429 já existente no
   `GlobalExceptionHandler`).
+  **Achado CRÍTICO da 3ª rodada de pre-mortem, corrigido nesta revisão:** a precondição bloqueante
+  só protege o import manual; ela não fecha a colisão se a flag `autoSyncPausado` guardar apenas o
+  scheduler diário. Existe um SEGUNDO caminho automático de ingestão do Strava, em tempo real, que
+  não passa pelo scheduler — o webhook (`StravaWebhookServiceImpl.handleEventAsync` →
+  `processCreateEvent`/`processUpdateEvent` → `requireIntegration`,
+  `StravaWebhookServiceImpl.java:69-95`). Sem guard também ali, um coach que pausa o atleta acha que
+  eliminou a colisão, mas um webhook em tempo real ainda insere a mesma atividade. **Corrigido: o
+  guard da flag cobre os DOIS caminhos** — scheduler (listagem + late-check, já existente) e webhook
+  (skip silencioso em `requireIntegration`, sem lançar exceção, para preservar o 200 HTTP exigido
+  pelo contrato do webhook do Strava — ver CA10 e design.md D5.2).
   **Residual aceito e documentado** (não há forma barata de eliminar sem lock distribuído): TOCTOU
   de duas camadas — (1) entre o coach pausar e o scheduler diário do Strava, cuja seleção inicial
   (`findAllWithStravaConnected`) já rodou; mitigado por revalidar `autoSyncPausado` imediatamente

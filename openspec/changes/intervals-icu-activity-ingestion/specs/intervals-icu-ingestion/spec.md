@@ -72,6 +72,15 @@ criam duplicatas nem repetem side effects.
 - **When** ambos tentam persistir
 - **Then** exatamente um registro existe ao final (constraint única) e ambos respondem 200
 
+#### Scenario: Idempotência tem prioridade sobre a precondição de pausa Strava
+- **Given** uma atividade já importada anteriormente do intervals.icu para um atleta
+- **And** esse mesmo atleta tem integração Strava ativa e `autoSyncPausado=false` (o que bloquearia
+  um import NOVO com 409 — ver Requirement "Precondição de pausa do Strava antes do import")
+- **When** o coach chama o endpoint de import novamente com o mesmo `activityId`
+- **Then** a resposta é 200 com o treino existente
+- **And** a precondição de pausa Strava NÃO é avaliada — a checagem de dedup (idempotência) roda
+  antes e retorna imediatamente, porque não há nada novo a persistir
+
 ## Requirement: Pós-ingestão no padrão das demais fontes
 
 No insert novo, o sistema DEVE calcular TSS quando houver insumos, atualizar o TSB do dia do
@@ -149,8 +158,9 @@ vazar corpo de resposta; a atividade buscada DEVE pertencer ao atleta da conexã
 #### Scenario: Credencial revogada não é confundida com atividade inexistente
 - **Given** uma conexão cuja API key foi revogada no intervals.icu (o provedor responde 401/403)
 - **When** o coach chama o endpoint de import
-- **Then** o erro indica falha de autenticação/necessidade de reconexão, distinto de "atividade
-  não encontrada"
+- **Then** a resposta é 409
+- **And** o erro indica falha de autenticação/necessidade de reconexão, distinto de "atividade
+  não encontrada" (404, ver cenário "Atividade inexistente ou de outro atleta")
 
 #### Scenario: `externalAthleteId` duplicado entre atletas do mesmo tenant é bloqueado
 - **Given** duas conexões `IntegracaoExterna` ativas do mesmo tenant apontando para a mesma
@@ -164,6 +174,9 @@ O coach (TECNICO/ADMIN) DEVE poder pausar e retomar a sincronização automátic
 atleta específico do seu tenant. Esta flag substitui a detecção automática de duplicidade
 cross-fonte (Strava × intervals.icu): ao habilitar um atleta para o import manual de intervals.icu,
 o coach pausa o Strava daquele atleta, eliminando a colisão na origem em vez de detectá-la depois.
+A pausa DEVE cobrir os DOIS caminhos automáticos de ingestão do Strava — o scheduler diário e o
+webhook em tempo real — para que a garantia "Strava pausado para este atleta" seja verdadeira; cobrir
+apenas um dos dois caminhos reabre a colisão cross-fonte que a flag existe para eliminar.
 
 #### Scenario: Coach pausa a sincronização Strava do atleta
 - **Given** um atleta do tenant com integração Strava ativa
@@ -175,6 +188,14 @@ o coach pausa o Strava daquele atleta, eliminando a colisão na origem em vez de
 - **When** o scheduler diário (`DailyActivitySyncSchedulerImpl`) roda seu ciclo
 - **Then** o atleta não aparece na lista de atletas processados e nenhuma tentativa de sync é
   feita para ele
+
+#### Scenario: Webhook do Strava pula atleta com Strava pausado
+- **Given** um atleta com `autoSyncPausado=true` na integração Strava
+- **When** um webhook do Strava (create ou update) chega para aquele atleta
+  (`StravaWebhookServiceImpl.handleEventAsync` → `processCreateEvent`/`processUpdateEvent`)
+- **Then** nenhum `TreinoRealizado` é criado ou atualizado por esse caminho
+- **And** o webhook responde 200 normalmente, sem lançar exceção (contrato do webhook do Strava
+  preservado — uma exceção faria o Strava reenviar o evento indefinidamente)
 
 #### Scenario: Coach retoma a sincronização Strava do atleta
 - **Given** um atleta com `autoSyncPausado=true`
