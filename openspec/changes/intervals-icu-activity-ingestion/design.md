@@ -294,6 +294,10 @@ incorporados no design acima (referenciados inline por número); resumo:
 
 Product review (2026-07-15): veredito **Go com refinamentos** (nenhum bloqueador). Achados e
 disposição:
+- **Invariante Strava/intervals.icu:** ao ativar intervals.icu, o sync Strava do atleta deve ser
+  automaticamente desabilitado. Sem essa regra, um atleta com ambas as integrações tem a mesma
+  atividade do Garmin ingerida em duplicata (fontes diferentes não deduplicam entre si). Débito
+  registrado como pré-requisito; implementação em change própria.
 - Métrica de sucesso mede construção, não adoção → aceito como métrica de lançamento; adoção real
   (imports/semana por assessoria) fica para acompanhamento pós-merge, fora do escopo desta change.
 - Import manual gera fricção vs sync automático do Strava → aceito conscientemente como MVP; a

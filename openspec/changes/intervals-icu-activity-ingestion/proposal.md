@@ -56,6 +56,14 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
 - Streams/samples por segundo (apenas o summary da atividade; laps/etapas ficam para evolução).
 - Criptografia at-rest da credencial e circuit breaker (débitos já registrados em
   `add-external-call-resilience`).
+- **Desabilitação automática do sync Strava ao ativar intervals.icu:** atletas com ambas as
+  integrações ativas têm a mesma atividade do Garmin visível em duas fontes. Como o dedup é por
+  `(tenant, fonteDados, externalId)`, fontes diferentes (`STRAVA` vs `INTERVALS_ICU`) não
+  deduplicam entre si, gerando duplicata de `TreinoRealizado`. A regra de negócio é: **ao ativar
+  intervals.icu, o sync Strava do atleta deve ser automaticamente desabilitado** (intervals.icu
+  ativo → Strava off). Esta change não implementa o desligamento automático — fica como
+  pré-requisito para adoção com ambas as integrações ativas e será tratada em change própria (ver
+  risco em "Riscos e mitigações").
 
 ## Critérios de aceite
 
@@ -133,6 +141,14 @@ mitigação de design:
 - **Vazamento cross-atleta via `externalAthleteId` duplicado** (Alto, sem migration nesta change):
   guard em código (D5.1) bloqueia conexão duplicada ativa por `(tenant, plataforma,
   external_athlete_id)`; constraint de banco registrada como débito para change futura.
+- **Duplicata de `TreinoRealizado` com Strava + intervals.icu simultâneos** (Alto): um atleta com
+  ambas as integrações ativas tem a mesma atividade do Garmin visível nas duas fontes. Como o dedup
+  é por `(tenant, fonteDados, externalId)`, fontes diferentes (`STRAVA` vs `INTERVALS_ICU`) não
+  deduplicam entre si — o coach pode importar manualmente uma atividade que o sync do Strava já
+  ingeriu (ou ingerirá no próximo ciclo). A mitigação definitiva é o **desligamento automático do
+  sync Strava ao ativar intervals.icu** (invariante: intervals.icu ativo → Strava off para aquele
+  atleta). Esta change documenta o risco e registra o débito; o desligamento automático é
+  pré-requisito para adoção com ambas as integrações ativas e será tratado em change própria.
 - **Multi-tenancy** (Alto, mitigado): `@RequireTenant` no endpoint + `conexaoAtiva` tenant-scoped +
   `Atleta` carregado explicitamente por `findByIdAndTenantId` (não o UUID cru) + conferência do
   `athlete_id` da activity contra a conexão + guard do D5.1.
