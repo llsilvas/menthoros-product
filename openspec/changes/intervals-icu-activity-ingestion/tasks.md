@@ -12,12 +12,12 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
 
 ## Bloco 1 — Client: `buscarAtividade` + `IcuActivityDto` (D1)
 
-- [ ] 1.1 Criar `IcuActivityDto` (record, `@JsonIgnoreProperties(ignoreUnknown = true)`) com os
+- [x] 1.1 Criar `IcuActivityDto` (record, `@JsonIgnoreProperties(ignoreUnknown = true)`) com os
       campos do D1; teste de desserialização com fixture JSON representativa (campos presentes,
       ausentes e extras).
       Verify: `IcuActivityDtoTest` (ou teste de desserialização no pacote `dto/intervalsicu`) verde
       cobrindo os três casos (todos campos, campos ausentes → null, campos extras ignorados).
-- [ ] 1.2 Adicionar `buscarAtividade(String apiKey, String activityId)` à interface
+- [x] 1.2 Adicionar `buscarAtividade(String apiKey, String activityId)` à interface
       `IntervalsIcuClient` e implementar em `IntervalsIcuClientImpl` (GET `/api/v1/activity/{id}`,
       Basic Auth por chamada, `traduz` para erros; key/body nunca logados). Testes no padrão dos
       métodos existentes do client (sucesso, 404, 403, falha de transporte). De passagem (achado
@@ -27,7 +27,7 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       Verify: `IntervalsIcuClientImplTest` cobre `buscarAtividade` (sucesso, 404, 403, falha de
       transporte) usando o mesmo mock/WireMock dos métodos existentes; `grep -n "NOT_FOUND"
       IntervalsIcuClient.java` não retorna mais nada.
-- [ ] 1.3 Validação: `./mvnw clean test`.
+- [x] 1.3 Validação: `./mvnw clean test`.
 
 ## Bloco 2 — Mapper `IcuActivityDto` → `TreinoRealizado` (D2)
 
