@@ -90,10 +90,12 @@ mapear para exceção de domínio dedicada indicando reconexão necessária (409
 key no intervals.icu recebe silenciosamente "atividade não encontrada" para sempre, sem sinal de
 que precisa reconectar.
 
-**Nota (2ª revisão pós-pre-mortem):** este 409 de "reconexão intervals.icu necessária" é uma
-exceção de domínio DIFERENTE da nova exceção de precondição de pausa Strava (D5.2/D3 passo 1) — as
-duas mapeiam para o mesmo código HTTP 409, mas são tipos distintos, cada uma com mensagem curada
-própria. Não há ambiguidade para o cliente: o `message` do corpo de erro sempre distingue a causa.
+**Nota (2ª revisão pós-pre-mortem; corrigida no Bloco 4 — ambas usam a MESMA classe agora):** este
+409 de "reconexão intervals.icu necessária" e o 409 de precondição de pausa Strava (D5.2/D3 passo
+1) são a mesma exceção de domínio (`DomainConflictException`, achado do Bloco 4 — não existia
+exceção genérica de 409 no repo), instanciada com mensagens curadas distintas para cada causa. Não
+há ambiguidade para o cliente: o `message` do corpo de erro sempre distingue a causa, mesmo com o
+mesmo tipo Java por trás.
 
 ## D2 — Mapper `IcuActivityDto` → `TreinoRealizado`
 
@@ -178,19 +180,27 @@ Fluxo (renumerado na 3ª rodada de pre-mortem — a idempotência vira o primeir
    importar do intervals.icu") sem qualquer persistência, sem consultar a conexão intervals.icu e
    sem chamar o client. Sem Strava conectado, ou já pausado, este passo é um no-op e o fluxo segue
    normalmente. Ver D5.2 para detalhamento completo.
-2. `conexaoAtiva(atletaId, tenantId)` — ausente → `DomainRuleViolationException` (409, CA4).
-   Também resolve e valida o `Atleta` via `findByIdAndTenantId` explícito (pre-mortem #15 — não
-   confiar apenas no `@RequireTenant` de controller, que valida um UUID genérico contra vários
-   repositórios; o service usa a entidade carregada, não o UUID cru, para o resto do fluxo).
+2. `conexaoAtiva(atletaId, tenantId)` — ausente → `DomainConflictException` (409, CA4).
+   **Achado de implementação do Bloco 4 (correção crítica): `DomainRuleViolationException` mapeia
+   para HTTP 422 no `GlobalExceptionHandler`, não 409** — usá-la para qualquer um dos casos de
+   409 deste fluxo produziria silenciosamente o status errado em produção. Não existia nenhuma
+   exceção de domínio genérica mapeada para 409 no repo; criada `DomainConflictException`
+   (`exception/`, handler novo em `GlobalExceptionHandler`, `status 409`) — reservada para
+   precondição/estado de conexão em conflito, distinta de `DomainRuleViolationException` (422,
+   dado inválido) e `DomainNotFoundException` (404, recurso ausente). Também resolve e valida o
+   `Atleta` via `findByIdAndTenantId` explícito (pre-mortem #15 — não confiar apenas no
+   `@RequireTenant` de controller, que valida um UUID genérico contra vários repositórios; o
+   service usa a entidade carregada, não o UUID cru, para o resto do fluxo).
 3. `client.buscarAtividade(apiKey, activityId)` — captura `IntervalsIcuApiException` e inspeciona
-   `exception.getStatus()` (D1): `status.value() ∈ {401, 403}` → `DomainRuleViolationException`
-   dedicada (409, mensagem indicando reconexão necessária — não confundir com "não existe"; a
+   `exception.getStatus()` (D1): `status.value() ∈ {401, 403}` → `DomainConflictException`
+   (409, mensagem indicando reconexão necessária — não confundir com "não existe"; a
    conexão é marcada com `lastSyncError` para visibilidade); `status.value() == 404` →
    `DomainNotFoundException` (404, CA5); `status.value() == 422` → `DomainRuleViolationException`
-   (422, modalidade/dado rejeitado pelo próprio provedor); `status.value() == 429` ou `5xx`/status
-   nulo (falha de transporte) → `DomainRuleViolationException` transitória (mensagem "tente
-   novamente mais tarde"; **sem retry automático nesta change** — ação manual do coach). Ver matriz
-   completa abaixo.
+   (422, modalidade/dado rejeitado pelo próprio provedor — este SIM é o caso correto para
+   `DomainRuleViolationException`); `status.value() == 429` ou `5xx`/status nulo (falha de
+   transporte) → `IntervalsIcuRateLimitException` (429, nova, mesmo padrão de
+   `StravaRateLimitException`; mensagem "tente novamente mais tarde"; **sem retry automático nesta
+   change** — ação manual do coach). Ver matriz completa abaixo.
 4. **Defesa em profundidade:** `dto.athleteId()` ≠ `conexao.externalAthleteId` → 404 (não vazar
    existência).
 5. Filtro de modalidade (D2) → 422 (CA6).
@@ -227,25 +237,35 @@ transacional de colaborador (ou self-injection do proxy — preferir colaborador
 
 Espelho do D4 da change-mãe (`intervals-icu-workout-push`), adaptado ao fluxo de leitura:
 
+**Achado de implementação do Bloco 4 (correção crítica — não descoberta pelas 5 rodadas de DoR
+textual):** `DomainRuleViolationException` já existia no repo mapeada para HTTP **422**, não 409
+(`GlobalExceptionHandler`). Não havia nenhuma exceção de domínio genérica mapeada para 409 —
+usar `DomainRuleViolationException` para os casos de 409 abaixo (como as rodadas de DoR
+assumiram) teria produzido silenciosamente o status errado em produção. Duas exceções novas
+criadas: `DomainConflictException` (409, para todo conflito de estado/precondição) e
+`IntervalsIcuRateLimitException` (429, espelha `StravaRateLimitException`, exclusiva para
+rate-limit/instabilidade do provedor).
+
 | Status intervals.icu | Causa | Exceção de domínio | HTTP Menthoros | Ação |
 |---|---|---|---|---|
-| 401/403 | API key inválida ou revogada | `DomainRuleViolationException` dedicada | 409 | Mensagem curada indicando reconexão; conexão marcada com `lastSyncError` |
+| 401/403 | API key inválida ou revogada | `DomainConflictException` | 409 | Mensagem curada indicando reconexão; conexão marcada com `lastSyncError` |
 | 404 | Activity não encontrada / não pertence ao atleta | `DomainNotFoundException` | 404 | Nada persistido |
 | 422 | Modalidade não suportada (filtro D2) ou rejeição do provedor | `DomainRuleViolationException` | 422 | Nada persistido |
-| 429 | Rate limit do intervals.icu | `DomainRuleViolationException` transitória | 429 | Mensagem "tente novamente mais tarde"; **sem retry automático** — ação manual do coach |
-| 5xx / timeout / falha de transporte (`status` nulo) | Instabilidade do provedor ou rede | `DomainRuleViolationException` transitória | mesmo tratamento de 429 | Idem 429 — sem retry automático nesta change |
+| 429 | Rate limit do intervals.icu | `IntervalsIcuRateLimitException` | 429 | Mensagem "tente novamente mais tarde"; **sem retry automático** — ação manual do coach |
+| 5xx / timeout / falha de transporte (`status` nulo) | Instabilidade do provedor ou rede | `IntervalsIcuRateLimitException` | mesmo tratamento de 429 | Idem 429 — sem retry automático nesta change |
 
 Nenhum destes casos aciona retry automático (débito já registrado em `add-external-call-resilience`
 para a família de integrações externas como um todo).
 
 **409 é reservado exclusivamente para precondições de conexão/estado — nunca para rate-limit.**
-Quatro causas distintas de 409 nesta change, cada uma com exceção de domínio e mensagem própria
-(sem ambiguidade para o cliente): (1) ausência de conexão intervals.icu ativa (D3 passo 2, CA4);
-(2) credencial intervals.icu revogada — 401/403 do provedor (D3 passo 3, acima, CA12); (3)
-precondição de pausa Strava não satisfeita (D3 passo 1, D5.2); (4) `externalAthleteId` duplicado no
-tenant (D5.1).
-`429` do intervals.icu é sempre propagado como `429` — nunca reaproveita o 409, consistente com
-`StravaRateLimitException` já existente no `GlobalExceptionHandler`.
+Quatro causas distintas de 409 nesta change, todas via `DomainConflictException` mas com mensagem
+própria cada (sem ambiguidade para o cliente): (1) ausência de conexão intervals.icu ativa (D3
+passo 2, CA4); (2) credencial intervals.icu revogada — 401/403 do provedor (D3 passo 3, acima,
+CA12); (3) precondição de pausa Strava não satisfeita (D3 passo 1, D5.2); (4) `externalAthleteId`
+duplicado no tenant (D5.1).
+`429` do intervals.icu é sempre propagado como `429` via `IntervalsIcuRateLimitException` — nunca
+reaproveita o 409, consistente com `StravaRateLimitException` já existente no
+`GlobalExceptionHandler`.
 
 ## D4 — Reconciliação inline (extração do scheduler)
 
@@ -413,9 +433,12 @@ já especificado no fluxo de erros de D3.1, só faltava no Swagger).
   Strava ativa (`plataforma=STRAVA`, `ativo=true`) E `autoSyncPausado=false` — ver D5.2 para a
   precondição completa e a exceção de domínio dedicada. `TreinoRealizadoOutputDto` não ganha campo
   novo nesta revisão do design (a versão anterior, com `avisoSyncStravaAtivo`, foi removida).
-- Erros novos já mapeados no `GlobalExceptionHandler` (`DomainNotFoundException`,
-  `DomainRuleViolationException`, `IntervalsIcuApiException`) — verificar se
-  `IntervalsIcuApiException` tem handler; se não, adicionar no mesmo commit do controller.
+- Erros mapeados no `GlobalExceptionHandler`: `DomainNotFoundException` (404) e
+  `DomainRuleViolationException` (422) já existiam; `DomainConflictException` (409) e
+  `IntervalsIcuRateLimitException` (429) são novos desta change (achado do Bloco 4 — não havia
+  exceção de domínio genérica mapeada para 409 no repo, ver D3.1). `IntervalsIcuApiException` NÃO
+  precisa de handler próprio — o serviço sempre a captura e traduz para uma das quatro exceções de
+  domínio acima antes de propagar (D3 passo 3); ela nunca alcança o controller.
 
 ## D5.1 — Segurança: `externalAthleteId` duplicado no tenant (pre-mortem #14, Alta)
 
@@ -427,8 +450,9 @@ com sucesso e gravaria a atividade REAL de A como se fosse de B, vazando dado en
 
 Mitigação (guard em código, sem alterar constraint de banco): em `conexaoAtiva`/no momento do
 import, validar que não existe OUTRA conexão ativa do mesmo tenant com a mesma
-`externalAthleteId` antes de prosseguir; se existir, abortar com 409 e logar como alerta de
-segurança (não é erro do usuário comum, é sinal de cadastro incorreto). Registrar como débito a
+`externalAthleteId` antes de prosseguir; se existir, abortar com `DomainConflictException` (409) e
+logar como alerta de segurança (não é erro do usuário comum, é sinal de cadastro incorreto).
+Registrar como débito a
 constraint `(tenant_id, plataforma, external_athlete_id)` para uma migration futura — esta change
 já traz uma migration aditiva (V54, D5.2), mas uma UNIQUE constraint sobre dado existente exige
 validar/limpar duplicatas pré-existentes primeiro (maior raio de impacto que uma coluna nova); o
@@ -666,8 +690,8 @@ sem exceção) quando pausado nesse ponto — não apenas a partir do próximo c
 subsequente do fluxo, inclusive antes de `conexaoAtiva`, passo 2) verifica, via
 `IntegracaoExternaRepository.findActiveByAtletaIdAndPlataformaAndTenantId(atletaId, STRAVA,
 tenantId)`, se existe integração Strava ativa (`ativo=true`) com `autoSyncPausado=false`. Se sim,
-lança uma exceção de domínio dedicada nova (distinta das demais exceções 409 do fluxo — ver D3.1)
-mapeada para HTTP 409 com mensagem curada: *"pause a sincronização Strava deste atleta antes de
+lança `DomainConflictException` (409, mesma classe das demais causas de 409 do fluxo — ver D3.1 —
+com mensagem curada própria): *"pause a sincronização Strava deste atleta antes de
 importar do intervals.icu"*. Nenhuma persistência ocorre — nem leitura da conexão intervals.icu, nem
 chamada ao client. **Este passo só é alcançado se o passo 0 (dedup) não encontrou a activity já
 importada** — re-import de activity existente retorna 200 direto no passo 0, sem chegar aqui (CA2,

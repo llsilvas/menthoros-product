@@ -140,6 +140,16 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
 
 ## Bloco 4 — Serviço de ingestão (D3)
 
+**Achado de implementação (correção crítica antes de escrever qualquer teste deste bloco):**
+`DomainRuleViolationException` mapeia para HTTP **422** no `GlobalExceptionHandler` já existente,
+NÃO 409 — as rodadas de DoR assumiram errado. Duas exceções novas, já criadas e com handler
+adicionado (`exception/DomainConflictException.java`, `exception/IntervalsIcuRateLimitException.java`,
+`GlobalExceptionHandler`): `DomainConflictException` (409, todo conflito de estado/precondição:
+CA4, CA12, precondição Strava, D5.1) e `IntervalsIcuRateLimitException` (429, espelha
+`StravaRateLimitException`, exclusiva para rate-limit/instabilidade do provedor). Usar
+`DomainRuleViolationException` (422) SÓ para modalidade não suportada (CA6). Ver design.md D3.1
+para a matriz corrigida completa.
+
 - [ ] 4.1 Testes do `IntervalsIcuActivityIngestionServiceImpl` primeiro (Mockito, `@Nested` por
       método, tenant via `TenantContext` em `@BeforeEach/@AfterEach`): happy path (CA1, CA8),
       idempotência sem chamada externa quando já existe (CA2), sem conexão → 409 (CA4),
@@ -207,10 +217,13 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
 
 ## Bloco 5 — Endpoint (D5)
 
-- [ ] 5.1 Verificar handler de `IntervalsIcuApiException` no `GlobalExceptionHandler`; adicionar
-      se ausente (mesmo commit do controller), distinguindo o novo caso de auth inválida.
-      Verify: teste do `GlobalExceptionHandler` (ou teste de integração do controller) confirma que
-      `IntervalsIcuApiException` com status 401/403 mapeia para o 409 curado, distinto de 404.
+- [x] 5.1 **Já feito no Bloco 4** (achado de implementação, correção crítica): `DomainConflictException`
+      (409) e `IntervalsIcuRateLimitException` (429) criadas com handler em `GlobalExceptionHandler`;
+      `IntervalsIcuApiException` em si NUNCA alcança o controller — o serviço sempre a traduz para
+      uma das quatro exceções de domínio antes de propagar (D3 passo 3). Nenhum handler dedicado
+      para `IntervalsIcuApiException` é necessário.
+      Verify: `IntervalsIcuActivityIngestionServiceImplTest` (Bloco 4) confirma que 401/403 do
+      client vira `DomainConflictException` (409), distinta de `DomainNotFoundException` (404).
 - [ ] 5.2 `IntervalsIcuActivityController` — `POST
       /api/v1/intervals-icu/atletas/{atletaId}/activities/import?activityId={id}` (query param,
       não path variable — D5), `@PreAuthorize` TECNICO/ADMIN,
