@@ -497,5 +497,15 @@ para a matriz corrigida completa.
       `StravaActivitySyncScheduler` (impossível — `tenant_id` é `NOT NULL` no schema, V12);
       manipulação manual de JSON em `StravaWebhookServiceImpl:118` (código pré-existente, fora do
       diff desta change). `./mvnw clean test`: 1714 testes, 0 falhas.
-      Verify: commit `9618da9` (fix) + suíte verde.
-- [ ] 8.2 `/pr intervals-icu-activity-ingestion` → merge via CI → `/done`.
+      **Achado adicional (fora do escopo do QA gate original, pego no fluxo do `/pr`):** edição
+      local não commitada adicionou `treino.setVelocidadeMedia(dto.averageSpeed())` sem converter
+      unidade — `average_speed` do intervals.icu vem em m/s (mesma convenção do Strava),
+      `velocidadeMedia` é km/h; sem o fator `×3.6` o valor gravado ficava ~3.6x menor que o real.
+      Corrigido com TDD (commit `96263f2`), isolado em `toKmh()` no próprio mapper (mesmo padrão de
+      `sanitizeCadenciaIntervalsIcu` — não acopla com `StravaActivityServiceImpl.toKmh`).
+      Verify: commits `9618da9` (QA gate) e `96263f2` (unidade velocidadeMedia) + suíte verde
+      (1714 testes).
+- [x] 8.2 PR aberto: https://github.com/llsilvas/menthoros-backend/pull/42
+      (`feature/intervals-icu-activity-ingestion` → `develop`). Merge pendente de CI verde +
+      aprovação — `/done intervals-icu-activity-ingestion` roda após o merge (arquivamento +
+      atualização do SPRINTS.md).
