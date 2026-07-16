@@ -229,7 +229,7 @@ para a matriz corrigida completa.
       para `IntervalsIcuApiException` é necessário.
       Verify: `IntervalsIcuActivityIngestionServiceImplTest` (Bloco 4) confirma que 401/403 do
       client vira `DomainConflictException` (409), distinta de `DomainNotFoundException` (404).
-- [ ] 5.2 `IntervalsIcuActivityController` — `POST
+- [x] 5.2 `IntervalsIcuActivityController` — `POST
       /api/v1/intervals-icu/atletas/{atletaId}/activities/import?activityId={id}` (query param,
       não path variable — D5), `@PreAuthorize` TECNICO/ADMIN,
       `@RequireTenant(resourceParamIndex = 0)`, Swagger completo (tag ASCII kebab-case,
@@ -240,7 +240,12 @@ para a matriz corrigida completa.
       `?`, `%` soltos → 400).
       Verify: `IntervalsIcuActivityControllerAuthTest` cobre TECNICO/ADMIN aceitos, ATLETA e
       anônimo negados; Swagger gera os 6 status codes; `@Tag` name é ASCII kebab-case.
-- [ ] 5.3 Validação: `./mvnw clean test`.
+      **Nota de implementação:** a validação/rejeição de formato de `activityId` (`/`, `?`, `%`
+      soltos) já vive inteiramente em `IntervalsIcuActivityIngestionServiceImpl.normalizarActivityId`
+      (Bloco 4) e lança `IllegalArgumentException`, que o `GlobalExceptionHandler` já mapeia para 400
+      (handler pré-existente, nenhum novo necessário) — o controller só repassa `activityId` intacto
+      via `@RequestParam`, sem lógica própria de parsing.
+- [x] 5.3 Validação: `./mvnw clean test` — 1709 testes, 0 falhas.
 
 ## Bloco 6 — Flag de pausa de sincronização Strava por atleta (D5.2 — substitui matching cross-fonte)
 
