@@ -38,8 +38,15 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       (Run/TrailRun/VirtualRun/Treadmill aceitos; Ride rejeitado); teste de virada de dia para
       `start_date_local` (activity 23:30-00:30 não muda de dia por fuso do servidor — parsing
       igual ao `StravaActivityServiceImpl`).
+      **Achado de implementação (verificado em `TreinoBase.java:45`): `duracaoMin` é coluna
+      `NOT NULL` — `movingTime` ausente mapeia para `Duration.ZERO` (sentinela, mesma convenção do
+      Strava sync), NUNCA `null` literal. `distanciaKm` (`TreinoBase.java:48-49`) É nullable —
+      `distance` ausente mapeia para `null` literal, sem sentinela. Design.md D2/D4 corrigido para
+      refletir isso (a guarda de matching do Bloco 3.3 usa `Duration.ZERO.equals(...)` para duração,
+      `== null` para distância).**
       Verify: `IntervalsIcuActivityMapperTest` (`@Nested` por cenário) verde cobrindo pace/fallback,
-      conversão de unidades, null input, filtro de modalidade (aceito × rejeitado) e virada de dia.
+      conversão de unidades, `movingTime` ausente → `Duration.ZERO` (não null), `distance` ausente →
+      `null` literal, null input, filtro de modalidade (aceito × rejeitado) e virada de dia.
 - [ ] 2.2 Cadência: NÃO reaproveitar a fórmula do FIT/Strava por analogia. Escrever
       `sanitizeCadenciaIntervalsIcu` isolada e marcar explicitamente como pendente de confirmação
       contra payload real (revisitar no Bloco 7.1 antes de fechar a change).
@@ -84,16 +91,20 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       teste existente afrouxada.
       Verify: suíte existente de `DailyActivitySyncSchedulerImplTest` continua 100% verde sem
       nenhuma asserção relaxada; o teste de caracterização do 3.1 ainda passa sem alteração.
-- [ ] 3.3 **Guarda absoluta de campos nulos — AMBOS os lados (correção, não débito — decisão do
-      founder; achado do 2º pre-mortem estende a guarda ao lado `planejado`):** dentro do
-      `ReconciliationDecisionExecutor`, implementar o veto: se `realizado.getDuracaoMin() == null`
-      OU `realizado.getDistanciaKm() == null` OU `planejado.getDuracaoMin() == null` OU
-      `planejado.getDistanciaKm() == null`, o resultado é forçado a `AMBIGUO` independentemente do
-      score calculado — NUNCA `VINCULADO_AUTOMATICO` nesse caso. `MatchingScoreCalculatorImpl` não
-      é alterado (fica isolado no executor, que é novo nesta change). TDD: teste PARAMETRIZADO
-      cobrindo os dois lados — (1) `realizado` sem duração, sem distância, e sem as duas; (2)
-      `planejado` sem duração, sem distância, e sem as duas — todos os casos devem resultar em
-      `AMBIGUO` mesmo com temporalScore=1.0 e demais scores artificialmente altos.
+- [ ] 3.3 **Guarda absoluta de campos ausentes — AMBOS os lados (correção, não débito — decisão do
+      founder; achado do 2º pre-mortem estende a guarda ao lado `planejado`; achado do Bloco 2
+      corrige a condição de duração de `== null` para `Duration.ZERO.equals(...)`, já que
+      `duracaoMin` é coluna `NOT NULL` — `TreinoBase.java:45`, `null` literal é impossível em
+      entidade persistida; `distanciaKm` continua `== null` — essa coluna É nullable):** dentro do
+      `ReconciliationDecisionExecutor`, implementar o veto: se
+      `Duration.ZERO.equals(realizado.getDuracaoMin())` OU `realizado.getDistanciaKm() == null` OU
+      `Duration.ZERO.equals(planejado.getDuracaoMin())` OU `planejado.getDistanciaKm() == null`, o
+      resultado é forçado a `AMBIGUO` independentemente do score calculado — NUNCA
+      `VINCULADO_AUTOMATICO` nesse caso. `MatchingScoreCalculatorImpl` não é alterado (fica isolado
+      no executor, que é novo nesta change). TDD: teste PARAMETRIZADO cobrindo os dois lados — (1)
+      `realizado` com duração `Duration.ZERO`, com distância `null`, e com as duas; (2) `planejado`
+      com duração `Duration.ZERO`, com distância `null`, e com as duas — todos os casos devem
+      resultar em `AMBIGUO` mesmo com temporalScore=1.0 e demais scores artificialmente altos.
       Verify: teste parametrizado com os 6 casos (3 `realizado` + 3 `planejado`) força `AMBIGUO`
       em todos, mesmo com score artificialmente alto nas outras dimensões.
 - [ ] 3.4 Testes unitários do executor cobrindo os quatro desfechos (VINCULADO_AUTOMATICO,

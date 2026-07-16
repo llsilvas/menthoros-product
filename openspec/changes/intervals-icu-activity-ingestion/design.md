@@ -94,7 +94,11 @@ sem IO), com null-check de entrada (`IllegalArgumentException`) por padrão do r
   `criadoPor = "INTERVALS_ICU"`, `statusSincronizacao = PENDENTE`, `sincronizadoEm = now`.
 - `dataTreino`/hora ← `start_date_local` (a API entrega horário local do atleta; sem conversão de
   zona — mesma semântica usada no push).
-- `distanciaKm = distance / 1000`; `duracaoMin = movingTime / 60`; `elapsedTimeSeg` direto.
+- `distanciaKm = distance / 1000` quando `distance` presente, senão `null` (coluna nullable — ver
+  nota de schema em D4); `duracaoMin = Duration.ofSeconds(movingTime)` quando `movingTime` presente,
+  senão `Duration.ZERO` (coluna `duracao_min` é `NOT NULL` — `TreinoBase.java:45` — literal `null`
+  não é representável; `Duration.ZERO` é a sentinela de "ausente", mesma convenção já usada pelo
+  Strava sync); `elapsedTimeSeg` direto (nullable, sem sentinela).
 - **Pace (pre-mortem #11):** derivar PRIMARIAMENTE de `moving_time / distance` — mesmo método do
   `StravaActivityServiceImpl` (linhas ~513-519) — e usar `average_speed` apenas como fallback
   quando `moving_time`/`distance` estiverem ausentes. Não inverter a prioridade: o Strava já prova
@@ -319,17 +323,33 @@ tanto para o import inline quanto para o scheduler batch (ambos passam pelo mesm
 existente do Strava/`.fit`, fora de escopo desta change) — a correção fica isolada no ponto de
 decisão do executor, que é novo nesta change e não existe hoje como componente próprio.
 
+**Correção de implementação (achado do Bloco 2, verificado em código na hora de implementar o
+mapper):** `TreinoBase.duracaoMin` é `@Column(name = "duracao_min", nullable = false)`
+(`TreinoBase.java:45`) — literal `null` é IMPOSSÍVEL em uma entidade persistida, ao contrário do que
+o texto acima assumia. `distanciaKm` (`TreinoBase.java:48-49`) não tem `nullable = false` — esse
+lado permanece um `null` literal legítimo. O mapper (D2) usa `Duration.ZERO` como sentinela de
+"duração ausente" quando `moving_time` não vem no payload (mesma convenção já usada pelo Strava sync
+— `StravaActivityServiceImpl.mergeActivityIntoTreino`, `defaultInt(activity.movingTime())` — não é
+uma invenção desta change). A guarda no `ReconciliationDecisionExecutor`, portanto, testa
+`Duration.ZERO.equals(realizado.getDuracaoMin())` para o lado duração (não `== null`) e
+`realizado.getDistanciaKm() == null` para o lado distância (esse sim, `null` literal). O
+**significado de negócio é idêntico** — "essa medida não veio no payload, não confiar nela para
+match automático" — só a representação técnica muda para respeitar a constraint de schema
+existente, que esta change não teria motivo para alterar (afeta `TreinoPlanejado` também, via a
+mesma `@MappedSuperclass`).
+
 **Estensão do veto ao lado `planejado` (2ª revisão, achado do 2º pre-mortem):** a guarda acima, na
-1ª rodada, só cobria duração/distância nulas do `realizado` (a activity importada). O mesmo problema
-existe do lado `planejado` (o `TreinoPlanejado` candidato ao match): se ele não tiver duração nem
-distância cadastrada, `calculateDurationScore`/`calculateDistanceScore` também retornam
-`BigDecimal.ONE` (score perfeito) — o código confirmado nas linhas 56-59/84-86 já trata `null` de
+1ª rodada, só cobria duração/distância "ausentes" do `realizado` (a activity importada). O mesmo
+problema existe do lado `planejado` (o `TreinoPlanejado` candidato ao match): se ele não tiver
+duração nem distância cadastrada, `calculateDurationScore`/`calculateDistanceScore` também retornam
+`BigDecimal.ONE` (score perfeito) — o código confirmado nas linhas 56-59/84-86 já trata isso de
 QUALQUER um dos dois lados dessa forma, não só do `realizado`. A guarda categórica fica, portanto,
-estendida: `VINCULADO_AUTOMATICO` é proibido quando `realizado.getDuracaoMin() == null` OU
-`realizado.getDistanciaKm() == null` OU `planejado.getDuracaoMin() == null` OU
-`planejado.getDistanciaKm() == null` — qualquer uma das quatro condições força `AMBIGUO`. Mesmo
-ponto de decisão (o `ReconciliationDecisionExecutor`), mesmo caráter de veto absoluto (não
-penalização de score).
+estendida: `VINCULADO_AUTOMATICO` é proibido quando `Duration.ZERO.equals(realizado.getDuracaoMin())`
+OU `realizado.getDistanciaKm() == null` OU `Duration.ZERO.equals(planejado.getDuracaoMin())` OU
+`planejado.getDistanciaKm() == null` — qualquer uma das quatro condições força `AMBIGUO`. O lado
+`planejado` usa a mesma sentinela `Duration.ZERO` pelo mesmo motivo de schema (`TreinoPlanejado`
+compartilha `TreinoBase`). Mesmo ponto de decisão (o `ReconciliationDecisionExecutor`), mesmo caráter
+de veto absoluto (não penalização de score).
 
 Trade-off: refatorar o scheduler tem custo/risco de regressão, mas a alternativa (duplicar a
 lógica de seleção+persistência da decisão) cria a segunda e terceira cópia de uma regra crítica de

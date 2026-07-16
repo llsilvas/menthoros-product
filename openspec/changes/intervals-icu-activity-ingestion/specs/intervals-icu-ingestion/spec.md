@@ -111,23 +111,28 @@ do scheduler — a decisão de import inline e de batch deve ser idêntica para 
 - **Then** o treino sai com `reconciliationStatus=NAO_PLANEJADO` e aparece na fila de pendentes
   da reconciliação manual
 
-#### Scenario: Campos nulos do realizado não geram vínculo automático
-- **Given** uma activity do intervals.icu (o lado `realizado`) com `duracaoMin` OU `distanciaKm`
-  ausentes (summary incompleto — ex. esteira sem GPS)
+#### Scenario: Campos ausentes do realizado não geram vínculo automático
+- **Given** uma activity do intervals.icu (o lado `realizado`) sem `moving_time` OU sem `distance`
+  no payload (summary incompleto — ex. esteira sem GPS) — mapeados para `duracaoMin=Duration.ZERO`
+  (sentinela; a coluna `duracao_min` é `NOT NULL`, `null` literal não é representável) e/ou
+  `distanciaKm=null` (essa coluna é nullable)
 - **And** um `TreinoPlanejado` na janela D-1..D+1 com data muito próxima (que sozinha bateria o
   threshold de score)
 - **When** o import conclui
 - **Then** o treino sai com `reconciliationStatus=AMBIGUO` — NUNCA `VINCULADO_AUTOMATICO` quando
-  duração ou distância do realizado estão ausentes, independentemente do score calculado
+  `duracaoMin` do realizado é `Duration.ZERO` OU `distanciaKm` do realizado é `null`,
+  independentemente do score calculado
 
-#### Scenario: Campos nulos do planejado não geram vínculo automático
-- **Given** uma activity do intervals.icu com `duracaoMin` e `distanciaKm` presentes (o lado
-  `realizado` está completo)
+#### Scenario: Campos ausentes do planejado não geram vínculo automático
+- **Given** uma activity do intervals.icu com `moving_time` e `distance` presentes (o lado
+  `realizado` está completo — `duracaoMin` ≠ `Duration.ZERO` e `distanciaKm` ≠ `null`)
 - **And** um `TreinoPlanejado` candidato na janela D-1..D+1 (o lado `planejado`) com `duracaoMin`
-  OU `distanciaKm` ausentes, e data muito próxima (que sozinha bateria o threshold de score)
+  igual a `Duration.ZERO` OU `distanciaKm` igual a `null`, e data muito próxima (que sozinha bateria
+  o threshold de score)
 - **When** o import conclui
 - **Then** o treino sai com `reconciliationStatus=AMBIGUO` — NUNCA `VINCULADO_AUTOMATICO` quando
-  duração ou distância do planejado estão ausentes, independentemente do score calculado
+  duração (`Duration.ZERO`) ou distância (`null`) do planejado estão ausentes, independentemente do
+  score calculado
 
 #### Scenario: Match primário via evento pareado pelo push (quando aplicável)
 - **Given** um `TreinoPlanejado` que foi empurrado ao intervals.icu pela change-mãe
