@@ -150,7 +150,7 @@ CA4, CA12, precondição Strava, D5.1) e `IntervalsIcuRateLimitException` (429, 
 `DomainRuleViolationException` (422) SÓ para modalidade não suportada (CA6). Ver design.md D3.1
 para a matriz corrigida completa.
 
-- [ ] 4.1 Testes do `IntervalsIcuActivityIngestionServiceImpl` primeiro (Mockito, `@Nested` por
+- [x] 4.1 Testes do `IntervalsIcuActivityIngestionServiceImpl` primeiro (Mockito, `@Nested` por
       método, tenant via `TenantContext` em `@BeforeEach/@AfterEach`): happy path (CA1, CA8),
       idempotência sem chamada externa quando já existe (CA2), sem conexão → 409 (CA4),
       `Atleta` resolvido via `findByIdAndTenantId` explícito (não o UUID cru do path), NOT_FOUND
@@ -173,17 +173,17 @@ para a matriz corrigida completa.
       design.md D3/D3.1).
       Verify: `IntervalsIcuActivityIngestionServiceImplTest` verde cobrindo todos os cenários
       listados; matriz de erros do D3.1 (401/403/404/422/429/5xx) com um teste dedicado por linha.
-- [ ] 4.2 Guard de segurança (D5.1): antes de prosseguir, verificar que não existe outra conexão
+- [x] 4.2 Guard de segurança (D5.1): antes de prosseguir, verificar que não existe outra conexão
       ativa do mesmo tenant com a mesma `externalAthleteId`; se existir, 409 sem chamada externa.
       Teste dedicado cobrindo esse cenário.
       Verify: teste dedicado confirma 409 e `verifyNoInteractions` no client intervals.icu quando
       há `externalAthleteId` duplicado no tenant.
-- [ ] 4.3 Validação de `activityId` (D5): normalizar/rejeitar valores com `/`, `?`, `%` (URL colada
+- [x] 4.3 Validação de `activityId` (D5): normalizar/rejeitar valores com `/`, `?`, `%` (URL colada
       em vez de id simples) antes de repassar ao client. `activityId` chega como query param (não
       path variable) — ver Bloco 5.
       Verify: teste dedicado cobre URL completa colada → extrai segmento final; valores soltos com
       `/`, `?`, `%` que não sejam URL reconhecível → rejeitados antes de chamar o client.
-- [ ] 4.4 **Precondição bloqueante de Strava ativo (D5.2 — agora safety net residual: com a pausa
+- [x] 4.4 **Precondição bloqueante de Strava ativo (D5.2 — agora safety net residual: com a pausa
       passando a ser automática nos dois pontos de conexão — tasks 6.10/6.11 — este passo deixa de
       proteger contra "o coach esqueceu de pausar" e passa a proteger o cenário residual de
       `retomar-sync` deliberado com intervals.icu ainda ativo; lógica técnica inalterada, correção
@@ -207,13 +207,18 @@ para a matriz corrigida completa.
       dispara a precondição mesmo com Strava ativo e não pausado). Depende do campo
       `autoSyncPausado` existir (Bloco 6.1/6.2) — se ainda não implementado, usar um mock/stub do
       repositório retornando o valor esperado.
-- [ ] 4.5 Implementar interface + impl com JavaDoc de idempotência/side effects/tenant-aware;
-      HTTP fora da TX, persistência+reconciliação em colaborador transacional, reload da conexão
-      dentro da TX antes do insert.
+- [x] 4.5 Implementado: `IntervalsIcuActivityIngestionServiceImpl` (orquestrador não-transacional,
+      `services/impl/`) + `IntervalsIcuActivityPersister` (colaborador transacional,
+      `services/helper/`, passos 6-9 — reload da conexão dentro da TX, dedup, TSS/TSB,
+      `CandidateSelector`/`ReconciliationDecisionExecutor`, evento após reconciliação). Repositório
+      ganhou `TreinoRealizadoRepository.findByTenantIdAndFonteDadosAndExternalId` (chave real da
+      constraint `uk_treino_realizado_tenant_fonte_external`) e
+      `IntegracaoExternaRepository.findOtherActiveByExternalAthleteIdAndPlataformaAndTenantId`
+      (guard D5.1). JavaDoc de idempotência/side effects/tenant-aware presente nos dois.
       Verify: todos os testes de 4.1-4.4 verdes contra a implementação real (não mais mocks do
-      próprio serviço); JavaDoc com as três linhas obrigatórias (Idempotent/Side Effects/Tenant-aware)
-      presente no método público.
-- [ ] 4.6 Validação: `./mvnw clean test`.
+      próprio serviço); `IntervalsIcuActivityPersisterTest` cobre o colaborador isoladamente
+      (TOCTOU, corrida de dedup, ordem reconciliação-antes-do-evento via `InOrder`).
+- [x] 4.6 Validação: `./mvnw clean test`.
 
 ## Bloco 5 — Endpoint (D5)
 
