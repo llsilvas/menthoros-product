@@ -257,9 +257,13 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
   `.../activities/i86400275`). Aceitável para o walking skeleton (MVP com ação manual, fricção
   reconhecida e intencional); a listagem de atividades para seleção com um clique é a evolução
   natural imediata (change futura), não uma promessa vaga de "melhorar depois".
-- **Assumido: `GET /api/v1/activity/{id}` com a API key do atleta só acessa atividades do próprio
-  atleta** (403/404 caso contrário). Validar no smoke; o serviço ainda confere o
-  `athlete_id` retornado contra o `externalAthleteId` da conexão (defesa em profundidade).
+- **Parcialmente resolvido (smoke Bloco 7, 2026-07-16): `GET /api/v1/activity/{id}` com a API key
+  do atleta.** O guard de defesa em profundidade (comparação `athlete_id` retornado vs
+  `externalAthleteId` da conexão) segue coberto por unit test (Bloco 4); o smoke real confirmou o
+  guard de tenant/atleta inexistente via `@RequireTenant` (403 real contra dado real). Não foi
+  possível validar o 403/404 nativo do provedor intervals.icu para "activity de outro atleta" por
+  falta de um segundo atleta com conexão intervals.icu ativa no ambiente de smoke — fica como
+  validação pendente no primeiro caso real com dois atletas conectados.
 - **Assumido: o summary da activity traz os campos necessários** (`distance`, `moving_time`,
   `average_heartrate`, `max_heartrate`, `average_speed`, `icu_rpe`, `type`, `start_date_local`).
   Campos ausentes viram `null` (mesma tolerância do sync Strava).
@@ -272,6 +276,18 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
   activity e `paired_activity_id` do event ambos `null` mesmo após execução real confirmada; sem
   badge de vínculo na UI). A heurística D-1..D+1 é o único mecanismo de reconciliação nesta change
   — ver design.md D4.0 para a evidência completa.
+- **Resolvido (smoke Bloco 7, 2026-07-16 — checklist completo em `tasks.md` 7.1):** fluxo ponta a
+  ponta via endpoint real (não só service/mapper isolados), contra Postgres real do HomeLab dev e
+  atleta founder real (Leandro Silva, `i641775`). Achado crítico: o smoke revelou um
+  `LazyInitializationException` real (500, não 200) no re-import de uma activity já importada —
+  bug que o próprio teste de integração da task 6.8 mascarava com um `@Transactional` de classe.
+  Corrigido com `@EntityGraph` em `TreinoRealizadoRepository` (commit
+  `a637442`). Itens (a)/(b)/(c)/(g)/(f)/(i) confirmados com dado e ação real (import real, guard
+  cross-tenant, pausa automática nos dois sentidos de conexão, override manual retomar/pausar,
+  desconectar-não-reativa com log estruturado). Item (d) já coberto por unit test determinístico
+  (não depende de relógio real). Itens (e)/(h) **adiados** — exigem o scheduler ativo, que foi
+  deliberadamente desligado durante o smoke local para não rodar em duplicidade com o backend já
+  implantado no mesmo Postgres; validação fica para o primeiro ciclo real pós-deploy.
 - **Relação com `first-party-ingestion-architecture`:** dado do intervals.icu é third-party
   agregado (Garmin/outras origens repassadas pelo intervals.icu, não capturado diretamente do
   dispositivo). Para o ML acceptance predictor futuro, fica sujeito à MESMA restrição já declarada

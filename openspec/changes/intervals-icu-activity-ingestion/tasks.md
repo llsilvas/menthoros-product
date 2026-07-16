@@ -421,44 +421,63 @@ para a matriz corrigida completa.
 
 ## Bloco 7 — Gate de validação real (D6)
 
-- [ ] 7.1 Smoke com atleta real conectado — checklist obrigatório:
-      (a) **[já confirmado no gate 3.0, 2026-07-16, activity `i166338796` — ver tasks 1.1/2.2]**
-      formato real do activity id (`i<dígitos>`), campo do atleta é `icu_athlete_id` (não
-      `athlete_id`), `average_cadence` é perna única (dobra para total), `start_date_local` sem
-      offset (`2026-07-16T08:12:19`). Falta confirmar nesta rodada de smoke (com o
-      `IntervalsIcuActivityIngestionService` real do Bloco 4): fluxo ponta a ponta via endpoint,
-      não apenas o DTO/mapper isolados;
-      (b) import de corrida verdadeira: métricas corretas, reconciliação com o planejado do dia,
-      TSB atualizado, idempotência do re-import;
-      (c) cross-tenant/cross-atleta: tentativa de acesso com key de outro atleta retorna
-      403/404 do provedor e/ou é bloqueada pelo guard 4.2;
-      (d) virada de dia: activity próxima da meia-noite local não muda de dia;
-      (e) paridade: scheduler no próximo ciclo de 2h continua reconciliando outros pendentes
-      igual ao comportamento pré-refactor;
-      (f) pausa automática (D5.2, camada primária, 6.10/6.11): com o atleta founder já com Strava
-      ativo, conectar o intervals.icu e confirmar via query direta que `auto_sync_pausado` virou
-      `true` sem chamar nenhum endpoint manual; repetir no sentido inverso (intervals.icu já ativo
-      → (re)conectar Strava) e confirmar que a linha nasce `auto_sync_pausado=true` desde o
-      primeiro save;
-      (g) guarda de pausa Strava — override manual (D5.2, camada secundária, CA10): com o atleta do
-      item (f) ainda pausado, confirmar que some de `IntegracaoExternaRepository
-      .findAllActiveByPlataforma(STRAVA)` (listagem real do `StravaActivitySyncScheduler` — achado
-      do Bloco 6, não `findAllWithStravaConnected`) e que um import de intervals.icu prossegue
-      normalmente (200); usar `retomar-sync` para reabrir deliberadamente e confirmar que um novo
-      import é bloqueado com 409 e mensagem curada, sem persistência; usar `pausar-sync` de novo e
-      confirmar o inverso;
-      (h) late-check do `StravaActivitySyncScheduler` (6.7): validar em ambiente de teste/staging
-      que pausar um atleta no meio de um ciclo o exclui daquele mesmo ciclo (não só do próximo);
-      (i) desconectar não reativa (D5.2, 6.12): com o atleta do item (f) ainda pausado
-      automaticamente, desconectar o intervals.icu e confirmar via query direta que
-      `auto_sync_pausado` permanece `true` (não reverte) e que o log estruturado foi emitido;
-      confirmar que o atleta só volta a aparecer para o scheduler após `retomar-sync` manual.
-      Verify: cada item (a)-(i) marcado com o resultado observado (não só "OK"/"feito") no relatório
-      da task 7.2 — evidência suficiente para outra pessoa confirmar sem repetir o smoke.
-- [ ] 7.2 Atualizar proposal.md (Open Questions resolvidas, inclusive o resultado do gate 3.0) e
-      este tasks.md com o resultado de cada item do checklist 7.1.
-      Verify: `proposal.md` "Open Questions & Assumptions" sem itens "Aberto" que o smoke já
-      resolveu; `git diff` mostra as respostas registradas, não apenas checkboxes marcados.
+- [x] 7.1 Smoke com atleta real conectado (2026-07-16, backend local na branch feature contra o
+      Postgres real do HomeLab dev, atleta founder Leandro Silva / `i641775`, coach ADMIN + login
+      ATLETA real `carmaniacs1@hotmail.com`). Resultado observado por item:
+      (a) **CONFIRMADO** — fluxo ponta a ponta via endpoint real (`POST
+      /api/v1/intervals-icu/atletas/{id}/activities/import`), não só DTO/mapper isolados. Formato
+      do id, `icu_athlete_id`, cadência perna única e `start_date_local` sem offset já vinham do
+      gate 3.0;
+      (b) **CONFIRMADO, com achado crítico.** Import real da activity `i166338796` (8.00km,
+      51:48, pace 06:28/km, FC 152/164, elevação 70m, cadência 162) retornou 200 com métricas
+      corretas e reconciliação automática (`score=1.00`) contra o planejado do dia. O **re-import
+      (idempotência) inicialmente deu 500**, não 200:
+      `LazyInitializationException` em `TreinoRealizado.etapasRealizadas` — o passo 0 (dedup) busca
+      o treino já existente fora de transação e mapeia direto para DTO; com `open-in-view: false`
+      (perfil `dev`) não há OSIV cobrindo a janela. Corrigido com `@EntityGraph` em
+      `TreinoRealizadoRepository.findByTenantIdAndFonteDadosAndExternalId` (commit `a637442`);
+      re-testado após o fix — 200, mesmo `treinoId`, sem duplicata. O teste de integração da task
+      6.8 mascarava esse exato bug com um `@Transactional` de classe — removido do teste (mesmo
+      commit) para continuar detectando essa classe de regressão;
+      (c) **PARCIALMENTE CONFIRMADO.** Guard de tenant/atleta inexistente via `@RequireTenant`
+      confirmado com dado real (403). O 403/404 nativo do provedor para "activity de outro atleta"
+      (defesa D3 passo 4) segue coberto só por unit test — não havia um segundo atleta com conexão
+      intervals.icu ativa no ambiente para reproduzir com dado real;
+      (d) **CONFIRMADO via unit test determinístico** (`IntervalsIcuActivityMapperTest`, casos
+      23:45 e 00:15 local) — parsing não depende de relógio real (sem `ZoneId.systemDefault()` no
+      caminho), smoke ao vivo não agrega evidência adicional;
+      (e) **ADIADO** — exige o `StravaActivitySyncScheduler` ativo; desligado deliberadamente
+      (`@EnableScheduling` comentado, revertido após o smoke, working tree limpo) para não rodar em
+      duplicidade com o backend já implantado no mesmo Postgres do HomeLab. Fica para o primeiro
+      ciclo real pós-deploy;
+      (f) **CONFIRMADO no sentido intervals.icu→Strava.** Com Strava ativo e despausado,
+      desconectar+reconectar intervals.icu (API key real) fez `auto_sync_pausado` virar `true`
+      automaticamente — SEM chamar `pausar-sync` manual. Log real: `"Strava pausado automaticamente
+      (intervals.icu conectado): atletaId=..."`. Sentido inverso (Strava reconectar com
+      intervals.icu já ativo) **NÃO testado** nesta rodada — exigiria completar o fluxo OAuth2 real
+      do Strava (redirect+code exchange), fora do alcance de um smoke via curl; hook 6.11 segue
+      coberto só por unit test para esse sentido;
+      (g) **CONFIRMADO por completo.** Atleta pausado sumiu de `findAllActiveByPlataforma(STRAVA)`
+      (reproduzido com a query real contra o Postgres, só Carla Oliveira — não pausada — retornou);
+      import prosseguiu (200) com Strava pausado; `retomar-sync` reabriu e um import novo (id
+      inédito, nunca chega a chamar o intervals.icu) bateu 409 com a mensagem curada; `pausar-sync`
+      restaurou o bloqueio;
+      (h) **ADIADO** — mesmo motivo de (e), exige o scheduler ativo;
+      (i) **CONFIRMADO por completo.** Desconectar o intervals.icu (atleta já pausado
+      automaticamente pelo item f) manteve `auto_sync_pausado=true` no banco — não reverteu. Log
+      estruturado real: `"Strava permanece autoSyncPausado=true após desconectar intervals.icu
+      (decisão: nunca auto-retomar) — requer retomar-sync manual para reativar: atletaId=..."`.
+      Atleta seguiu fora da listagem do scheduler mesmo desconectado.
+      Ambiente restaurado ao final: intervals.icu reconectado, Strava com `auto_sync_pausado=true`
+      (estado correto — melhora o estado original inconsistente encontrado antes do smoke).
+      Verify: cada item marcado acima com o resultado observado, incluindo o achado do bug real e o
+      commit do fix — evidência suficiente para outra pessoa confirmar sem repetir o smoke.
+- [x] 7.2 `proposal.md` atualizado (seção "Open Questions & Assumptions") com o resultado do
+      checklist 7.1: guard cross-atleta parcialmente resolvido (real via `@RequireTenant`, provedor
+      via unit test), e um novo bullet "Resolvido (smoke Bloco 7)" sintetizando os itens
+      confirmados e o bug real encontrado/corrigido. Este `tasks.md` atualizado com o relatório
+      completo acima.
+      Verify: `git diff` mostra as respostas registradas, não apenas checkboxes marcados.
 
 ## QA / entrega
 
