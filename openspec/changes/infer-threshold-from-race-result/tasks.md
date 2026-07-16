@@ -1,6 +1,19 @@
 # Tasks — infer-threshold-from-race-result
 
-## Bloco 1 — Query de prova válida mais recente
+## Bloco 0 — Migration: coluna de proveniência (D6)
+
+- [ ] 0.1 Migration `V56__add_fonte_limiar_pace_plano_metadados.sql` (confira `ls
+      src/main/resources/db/migration/ | sort -V | tail -3` antes de criar — V56 é o próximo
+      número livre no momento do DoR desta change, 2026-07-16): `ALTER TABLE tb_plano_metadados
+      ADD COLUMN fonte_limiar_pace VARCHAR(20)` (nullable, sem backfill — `null` = nunca calculado
+      por esta lógica, comportamento pré-existente à change). Sem down-migration (aditiva pura).
+      Novo enum `FonteLimiarInferencia` (`PROVA_REGISTRADA`, `MEDIA_TREINOS`) em `enums/`.
+      `PlanoMetaDados.fonteLimiarPace` novo campo (`@Enumerated(EnumType.STRING)`, `@Column(name =
+      "fonte_limiar_pace", length = 20)` — mesmo padrão de `confiancaInferenciaPace`,
+      `PlanoMetaDados.java:151-153`).
+      Verify: `./mvnw clean test` — migration aplica limpo no Testcontainers, suíte verde.
+
+## Bloco 1 — Query de provas realizadas recentes (D2b — sem filtro de distância em SQL)
 
 - [ ] 1.1 `ProvaRepository`: novo método via `@Query` explícito (NÃO derived-name — `Prova` não
       tem propriedade `tenantId`, só `assessoria`; mesmo padrão de `findByIdAndTenantId`):
@@ -9,50 +22,71 @@
           SELECT p FROM Prova p
           WHERE p.atleta.id = :atletaId AND p.assessoria.id = :tenantId
             AND p.foiRealizada = true AND p.tempoRealizado IS NOT NULL
-            AND p.distanciaKm BETWEEN :distanciaMinKm AND :distanciaMaxKm
             AND p.dataProva >= :dataMinima
           ORDER BY p.dataProva DESC
           """)
-      List<Prova> findProvasValidasRecentes(atletaId, tenantId, distanciaMinKm, distanciaMaxKm, dataMinima);
+      List<Prova> findProvasRealizadasRecentes(atletaId, tenantId, dataMinima);
       ```
-      (retorna lista ordenada; o caller pega o primeiro elemento — evita depender de
-      `Pageable`/`Top1` do Spring Data para um `@Query` explícito.) Constantes de chamada:
-      `distanciaMinKm=5`, `distanciaMaxKm=21.1` (cobre a distância oficial de meia-maratona,
-      21,097km — achado do pre-mortem: `21` sem tolerância excluiria toda meia real).
+      **Sem filtro de distância em SQL** (2º achado do pre-mortem, D2b do design.md):
+      `Prova.distanciaKm` só é preenchido para distância customizada — uma prova cadastrada pelo
+      caminho normal (enum `DistanciaProva`) tem `distanciaKm = null`, e um filtro `BETWEEN` só
+      nesse campo ignoraria silenciosamente toda prova cadastrada do jeito padrão. A resolução de
+      distância (e o filtro 5000-21097m) acontece em código (Bloco 2).
       TDD: teste de repositório (`@DataJpaTest` + Testcontainers, padrão do módulo) cobrindo:
-      prova válida retornada; prova de 21,097km (meia oficial) incluída (não excluída pelo corte);
-      prova fora da faixa de distância excluída; prova fora da janela de dias excluída; prova sem
-      `foiRealizada` excluída; cross-tenant (prova de outro tenant nunca retornada); múltiplas
-      provas válidas → lista ordenada por data desc (mais recente primeiro).
+      prova válida retornada (independente de `distanciaKm` ser nulo ou não); prova fora da janela
+      de dias excluída; prova sem `foiRealizada` excluída; prova sem `tempoRealizado` excluída;
+      cross-tenant (prova de outro tenant nunca retornada); múltiplas provas válidas → lista
+      ordenada por `dataProva DESC` (mais recente primeiro).
       Verify: `./mvnw clean test` — teste novo passa, suíte completa verde.
 
-## Bloco 2 — Fórmula prova→limiar (D2)
+## Bloco 2 — Resolução de distância + fórmula prova→limiar (D2, D2b)
 
-- [ ] 2.1 Novo método em `ThresholdInferenceService`: `inferirPaceLimiarDeProva(Prova
+- [ ] 2.1 Novo método privado/pacote em `ThresholdInferenceService`:
+      `resolverDistanciaMetros(Prova prova)` — duplica isoladamente
+      `RaceProjectionServiceImpl.resolveDistanceM` (linhas 202-212): prioriza `prova
+      .getDistanciaKm()` (custom, convertido para metros) quando presente, senão resolve o enum
+      `prova.getDistancia()` via `switch` (`KM_5→5000, KM_10→10000, KM_21→21097, KM_42→42195`).
+      Comentário citando D2b do design.md e o motivo de duplicar em vez de extrair/importar de
+      `RaceProjectionServiceImpl` (método `private` lá, fora do escopo tocar esse arquivo).
+      TDD: teste unitário cobrindo os 4 valores do enum + o caminho `distanciaKm` customizado
+      (quando ambos presentes, `distanciaKm` vence — mesma prioridade do código original).
+      Verify: `./mvnw clean test`.
+- [ ] 2.2 Novo método em `ThresholdInferenceService`: `inferirPaceLimiarDeProva(Prova
       provaValida)` — **NÃO chama `RiegelCalculator.calculate()`** (exige `RegressionResult` do
       pipeline de projeção, não é função pura reaproveitável aqui — achado do pre-mortem, ver
       design.md D2). Implementa a fórmula de Riegel isolada, com constante própria
       `EXPONENTE_RIEGEL = 1.06` (mesmo valor de `RiegelCalculator.DEFAULT_EXPONENT`, duplicado
-      deliberadamente — comentário citando D2 do design.md e o motivo de não reusar): normaliza
-      `provaValida` para pace-equivalente de 10K (`t_10k = t_prova * (10000 /
-      distancia_prova_m) ^ 1.06`), depois soma `OFFSET_LIMIAR_SEC_KM = 8`.
+      deliberadamente — comentário citando D2 do design.md e o motivo de não reusar): usa
+      `resolverDistanciaMetros` (2.1) para obter a distância, normaliza para pace-equivalente de
+      10K (`t_10k = t_prova * (10000 / distancia_prova_m) ^ 1.06`), depois soma
+      `OFFSET_LIMIAR_SEC_KM = 8`.
       TDD: teste unitário cobrindo: prova de exatamente 10K (sem normalização, offset direto);
-      prova de 5K (normalização + offset); prova de 21,1K (normalização + offset); resultado
+      prova de 5000m (normalização + offset); prova de 21097m (normalização + offset); resultado
       determinístico e sem dependência de mocks (função pura).
       Verify: `./mvnw clean test`.
+- [ ] 2.3 Filtro de validade (5000-21097m) aplicado sobre a lista de `findProvasRealizadasRecentes`
+      (Bloco 1) usando `resolverDistanciaMetros` (2.1) — retorna a primeira prova válida da lista
+      já ordenada por data, ou vazio se nenhuma.
+      TDD: teste cobrindo: prova de 3K (fora da faixa) ignorada; prova de 21097m via enum
+      `KM_21` (`distanciaKm=null`) considerada válida (achado do pre-mortem que quebrava esse
+      caso); prova de 10K com `distanciaKm` customizado considerada válida; lista vazia retorna
+      vazio sem erro.
+      Verify: `./mvnw clean test`.
 
-## Bloco 3 — Integração com `atualizarLimiareInferidos` (D3, precedência)
+## Bloco 3 — Integração com `atualizarLimiareInferidos` (D3, precedência + persistência D6)
 
 - [ ] 3.1 `TsbServiceImpl.atualizarLimiareInferidos`: antes de chamar `inferirPaceLimiar`
-      (quintil), consulta `ProvaRepository.findProvasValidasRecentes(...)` (pega o primeiro da
-      lista, já ordenada por `dataProva DESC`); se presente, usa `inferirPaceLimiarDeProva` para
-      `paceLimiarEstimado` e **pula** o quintil só para pace (mantém `inferirFcLimiar` por quintil
-      normalmente, D1 — `fcLimiar` não muda nesta change). Se ausente, comportamento atual
-      inalterado para os dois.
-      TDD: teste cobrindo os critérios de aceite 1-5 do proposal.md — prova válida recente tem
-      precedência sobre quintil; sem prova válida, fallback idêntico ao atual para pace E FC (sem
-      regressão); prova fora da janela de 90 dias é ignorada; prova fora da faixa 5K-21.1K é
-      ignorada; prova de meia-maratona oficial (21,097km) é considerada válida.
+      (quintil), consulta `ProvaRepository.findProvasRealizadasRecentes(...)` + filtro de
+      validade (Bloco 2.3); se uma prova válida existe, usa `inferirPaceLimiarDeProva` para
+      `paceLimiarEstimado` e seta `fonteLimiarPace = PROVA_REGISTRADA`, **pulando** o quintil só
+      para pace (mantém `inferirFcLimiar` por quintil normalmente, D1 — `fcLimiar` não muda nesta
+      change). Se ausente, comportamento atual inalterado para `paceLimiarEstimado`/`fcLimiar`, e
+      `fonteLimiarPace = MEDIA_TREINOS`.
+      TDD: teste cobrindo os critérios de aceite 1-6 do proposal.md — prova válida recente tem
+      precedência sobre quintil e persiste `PROVA_REGISTRADA`; sem prova válida, fallback idêntico
+      ao atual para pace E FC (sem regressão) e persiste `MEDIA_TREINOS`; prova fora da janela de
+      90 dias é ignorada; prova fora da faixa 5000-21097m é ignorada; prova de meia-maratona via
+      enum (`distanciaKm=null`) é considerada válida; prova de 10K customizada também é válida.
       Verify: `./mvnw clean test` — suíte completa verde, incluindo os testes pré-existentes de
       `TsbServiceImplTest`/`atualizarLimiareInferidos` (não podem regredir).
 - [ ] 3.2 Log de sinalização de outlier (D5 do design.md — métrica revisada, substitui o log
@@ -63,13 +97,17 @@
       Verify: teste cobrindo os dois ramos (delta grande → WARN; delta pequeno → INFO) +
       `./mvnw clean test`.
 
-## Bloco 4 — Visibilidade da fonte para o coach (D4)
+## Bloco 4 — Visibilidade da fonte para o coach (D4, D6 — lê o campo persistido, não recomputa)
 
 - [ ] 4.1 `AtletaPerfilCoachOutputDto`: novo campo `fonteLimiarEstimado` (enum
-      `PROVA_REGISTRADA` | `MEDIA_TREINOS`) — `@Schema` com descrição, `@JsonInclude(NON_NULL)`
-      (padrão já usado no restante do DTO). Mapper correspondente preenche com base em qual
-      caminho gerou o `paceLimiarEstimado` atual (Bloco 3).
-      TDD: teste do mapper/service cobrindo os dois valores do enum.
+      `FonteLimiarInferencia` — `PROVA_REGISTRADA` | `MEDIA_TREINOS`) — `@Schema` com descrição,
+      `@JsonInclude(NON_NULL)` (padrão já usado no restante do DTO). Mapper lê **diretamente** de
+      `PlanoMetaDados.fonteLimiarPace` (Bloco 0/3) — **sem recomputar** qual seria a fonte no
+      momento da leitura (2º achado do pre-mortem: recomputar poderia divergir do que de fato
+      gerou o valor salvo, ex. a prova saiu da janela de 90 dias entre o sync e a leitura).
+      TDD: teste do mapper/service cobrindo os dois valores do enum lidos direto do campo
+      persistido, e o caso `null` (atleta nunca teve o campo calculado — pré-existente à change,
+      `@JsonInclude(NON_NULL)` omite o campo da resposta).
       Verify: `./mvnw clean test`.
 
 ## Bloco 5 — Validação final
