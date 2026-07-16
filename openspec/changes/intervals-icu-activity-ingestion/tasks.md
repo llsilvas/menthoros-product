@@ -322,7 +322,7 @@ para a matriz corrigida completa.
       Verify: `StravaActivitySyncSchedulerTest.shouldSkipAthletePausedBetweenListingAndSync` —
       confirma que o atleta pausado ENTRE a listagem e o sync é pulado no MESMO ciclo (`verify(...,
       never()).syncActivities(...)`), sem exceção.
-- [ ] 6.8 **Teste do 409 de precondição no import (design.md D3 passo 1, D5.2 — safety net
+- [x] 6.8 **Teste do 409 de precondição no import (design.md D3 passo 1, D5.2 — safety net
       residual agora que a pausa é automática nos dois pontos de conexão, ver 6.10/6.11):**
       cenário
       bloqueado — atleta com Strava ativo e `autoSyncPausado=false`, import de intervals.icu
@@ -335,6 +335,16 @@ para a matriz corrigida completa.
       task 4.4; aqui o foco é a integração ponta a ponta via controller/service reais (não só mock).
       Verify: teste de integração (controller+service reais, client mockado) cobre os três
       cenários (bloqueado/liberado/re-import) ponta a ponta.
+      **Nota de implementação:** `IntervalsIcuActivityImportIntegrationTest` (Testcontainers,
+      `extends AbstractIntegrationTest`) chama o bean real de `IntervalsIcuActivityController`
+      (preserva `@PreAuthorize`/`@RequireTenant` reais) com `IntervalsIcuClient` mockado — único
+      ponto mockado, persistência/dedup/TSS/TSB/reconciliação passam pelo banco real. Autenticação
+      e tenant são estabelecidos diretamente (`TestingAuthenticationToken` + `TenantContext`), sem
+      atravessar a cadeia HTTP/JWT — já coberta com o service mockado em
+      `IntervalsIcuActivityControllerAuthTest` (Bloco 5). Classe anotada `@Transactional` (rollback
+      automático do framework de teste) para manter a sessão Hibernate aberta durante a chamada —
+      sem requisição HTTP real não há filtro Open-Session-In-View cobrindo o mapeamento de saída
+      (`TreinoMapper.toOutputDto`, que acessa a coleção lazy `etapasRealizadas`).
 - [x] 6.9 **Guard no webhook Strava (CRÍTICO, achado da 3ª rodada de pre-mortem — a flag precisa
       cobrir os DOIS caminhos automáticos do Strava, não só o scheduler):** o webhook do Strava
       (`StravaWebhookServiceImpl.handleEventAsync` → `processCreateEvent`/`processUpdateEvent` →
