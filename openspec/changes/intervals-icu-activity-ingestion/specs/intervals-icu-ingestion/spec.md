@@ -70,20 +70,29 @@ treino e publicar `TreinoRegistradoEvent` exatamente uma vez.
 
 ## Requirement: Reconciliação imediata com o planejado
 
-O treino importado DEVE sair da requisição com decisão de reconciliação gravada (mesmos
-thresholds e auditoria do fluxo batch), sem depender do scheduler nem da sua janela D-1..D+1.
+O treino importado DEVE sair da requisição com decisão de reconciliação gravada (mesma janela de
+candidatos D-1..D+1, mesmos thresholds e auditoria do fluxo batch), sem depender do agendamento
+do scheduler — a decisão de import inline e de batch deve ser idêntica para o mesmo caso.
 
-#### Scenario: Planejado compatível na data
-- **Given** um `TreinoPlanejado` do atleta na mesma data com alta compatibilidade (score ≥ 0.80)
+#### Scenario: Planejado compatível na janela
+- **Given** um `TreinoPlanejado` do atleta na janela D-1..D+1 da data da atividade com alta
+  compatibilidade (score ≥ 0.80)
 - **When** o import conclui
 - **Then** o treino sai com `reconciliationStatus=VINCULADO_AUTOMATICO`, vínculo ao planejado,
   planejado marcado como realizado e auditoria `TreinoReconciliacao(RECONCILIACAO_AUTOMATICA)`
 
 #### Scenario: Sem planejado compatível
-- **Given** nenhum `TreinoPlanejado` do atleta na data da atividade
+- **Given** nenhum `TreinoPlanejado` do atleta na janela D-1..D+1 da atividade
 - **When** o import conclui
 - **Then** o treino sai com `reconciliationStatus=NAO_PLANEJADO` e aparece na fila de pendentes
   da reconciliação manual
+
+#### Scenario: Scheduler mantém paridade após a extração
+- **Given** o `CandidateSelector` e o `ReconciliationDecisionExecutor` extraídos e reutilizados
+  pelo import inline e pelo scheduler
+- **When** o scheduler roda seu ciclo normal sobre outros treinos pendentes
+- **Then** as decisões produzidas são idênticas às que o import inline produziria para um caso
+  equivalente, e as suítes de teste do scheduler permanecem verdes
 
 ## Requirement: Segurança da credencial e do canal
 
@@ -94,3 +103,15 @@ vazar corpo de resposta; a atividade buscada DEVE pertencer ao atleta da conexã
 - **Given** uma resposta do intervals.icu cujo `athlete_id` difere do `externalAthleteId` da conexão
 - **When** o serviço valida a atividade
 - **Then** o import falha com 404 e nada é persistido
+
+#### Scenario: Credencial revogada não é confundida com atividade inexistente
+- **Given** uma conexão cuja API key foi revogada no intervals.icu (o provedor responde 401/403)
+- **When** o coach chama o endpoint de import
+- **Then** o erro indica falha de autenticação/necessidade de reconexão, distinto de "atividade
+  não encontrada"
+
+#### Scenario: `externalAthleteId` duplicado entre atletas do mesmo tenant é bloqueado
+- **Given** duas conexões `IntegracaoExterna` ativas do mesmo tenant apontando para a mesma
+  `externalAthleteId` do intervals.icu
+- **When** um import é tentado para qualquer um dos dois atletas
+- **Then** a requisição falha com 409 antes de qualquer chamada externa

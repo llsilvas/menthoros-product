@@ -66,10 +66,13 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
 - **CA2 — Idempotência:** When o mesmo import é chamado duas vezes, Then a segunda chamada não cria
   registro novo (dedup por `(tenant, fonte, externalId)`), retorna 200 com o treino existente e não
   republica `TreinoRegistradoEvent` nem recalcula TSB.
-- **CA3 — Reconciliação imediata:** Given um `TreinoPlanejado` compatível na mesma data, When o
-  import conclui, Then o treino importado sai com `reconciliationStatus` decidido
+- **CA3 — Reconciliação imediata:** Given um `TreinoPlanejado` compatível na **mesma janela D-1..D+1
+  usada hoje pelo scheduler/revisão manual** (não "mesma data" — ver design.md D4), When o import
+  conclui, Then o treino importado sai com `reconciliationStatus` decidido
   (`VINCULADO_AUTOMATICO` com score ≥ 0.80, ou `AMBIGUO`/`NAO_PLANEJADO` conforme thresholds do
-  `MatchingDecisionEngine`) e auditoria `TreinoReconciliacao` gravada — sem depender do scheduler.
+  `MatchingDecisionEngine`) e auditoria `TreinoReconciliacao` gravada — sem depender do scheduler,
+  e com a MESMA decisão que o scheduler produziria para o caso equivalente (seleção de candidatos
+  compartilhada, não duplicada).
 - **CA4 — Sem conexão:** Given atleta sem conexão intervals.icu ativa, Then 409 com mensagem clara
   e nada persistido.
 - **CA5 — Activity inexistente/inacessível:** Given activity id inexistente ou de outro atleta
@@ -95,8 +98,9 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
 ## Open Questions & Assumptions
 
 - **Assumido: o coach obtém o activity id manualmente** (URL do intervals.icu, ex.
-  `.../activities/i86400275`). Aceitável para o walking skeleton; a listagem de atividades para
-  seleção é a evolução natural (change futura).
+  `.../activities/i86400275`). Aceitável para o walking skeleton (MVP com ação manual, fricção
+  reconhecida e intencional); a listagem de atividades para seleção com um clique é a evolução
+  natural imediata (change futura), não uma promessa vaga de "melhorar depois".
 - **Assumido: `GET /api/v1/activity/{id}` com a API key do atleta só acessa atividades do próprio
   atleta** (403/404 caso contrário). Validar no smoke; o serviço ainda confere o
   `athlete_id` retornado contra o `externalAthleteId` da conexão (defesa em profundidade).
@@ -111,15 +115,32 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
 
 ## Riscos e mitigações
 
-- **Extração do passo de persistência da decisão de matching** (Médio): refatorar
-  `persistMatchingDecision` do scheduler para colaborador compartilhado pode regredir o fluxo
-  batch → cobertura existente do scheduler deve permanecer verde sem afrouxar asserções (CA9).
-- **Mapeamento de unidades** (Médio): intervals.icu usa m/s e segundos; erro de conversão gera
-  pace/TSS errados → testes de mapper com valores de referência reais (fixture de activity).
+Revisado com pre-mortem cross-model (Codex) e product review — 15 + 5 achados incorporados;
+detalhamento completo em `design.md` (seção "Pre-mortem"). Síntese dos riscos que sobrevivem à
+mitigação de design:
+
+- **Extração do scheduler é mais ampla que persistência da decisão** (Alto): a seleção de
+  candidatos (janela D-1..D+1) também precisa ser compartilhada, não só a persistência — do
+  contrário import inline e scheduler decidem diferente para o mesmo treino. Mitigado: D4 extrai
+  `CandidateSelector` + `ReconciliationDecisionExecutor` juntos, com teste de caracterização do
+  comportamento atual ANTES do refactor (Bloco 3 do tasks.md).
+- **Premissas não confirmadas da API do intervals.icu** (Alto): formato de `athlete_id`, unidade
+  de `average_cadence`, presença de `average_speed` vs `moving_time`/`distance`, semântica exata
+  de `start_date_local`. Mitigado: gate de smoke real (D6) trava essas premissas em dado real
+  antes de considerar a change concluída — se divergirem, D2/D3 são ajustados no mesmo bloco.
+- **Credencial revogada é confundida com "atividade não existe"** (Médio): distinção 401/403 vs
+  404 explícita no client e no service (D1, D3).
+- **Vazamento cross-atleta via `externalAthleteId` duplicado** (Alto, sem migration nesta change):
+  guard em código (D5.1) bloqueia conexão duplicada ativa por `(tenant, plataforma,
+  external_athlete_id)`; constraint de banco registrada como débito para change futura.
 - **Multi-tenancy** (Alto, mitigado): `@RequireTenant` no endpoint + `conexaoAtiva` tenant-scoped +
-  conferência do `athlete_id` da activity contra a conexão.
+  `Atleta` carregado explicitamente por `findByIdAndTenantId` (não o UUID cru) + conferência do
+  `athlete_id` da activity contra a conexão + guard do D5.1.
 - **Credencial em log** (Alto, mitigado): seguir o padrão do client atual — API key nunca logada,
   body de erro nunca logado.
+- **Fricção do fluxo manual vs sync automático do Strava** (Baixo, aceito conscientemente):
+  MVP coach-in-the-loop; listagem com um clique é a evolução imediata, já registrada em "Fora de
+  escopo".
 
 ## Rollback
 
