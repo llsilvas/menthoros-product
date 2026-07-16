@@ -21,8 +21,18 @@ adicional)
   coach podia esquecer) e passa a ser efeito colateral automático de conectar qualquer uma das duas
   integrações, nos dois sentidos (ver design.md D5.2); os endpoints `pausar-sync`/`retomar-sync`
   viram override explícito do coach, não o mecanismo primário.
-- Pente-fino pós-correção (2026-07-16) em andamento nesta revisão. Re-DoR formal (spec-reviewer +
-  pre-mortem Codex) ainda pendente antes de `/implement init`.
+- DoR rodada 4 (2026-07-16, spec-reviewer Claude + pre-mortem Codex, em paralelo): NOT READY —
+  achado convergente e independente nos dois: nenhum dos quatro arquivos definia o que acontece com
+  `autoSyncPausado` quando o intervals.icu é desconectado enquanto o Strava permanece pausado. Codex
+  acrescentou que um único campo booleano não distingue pausa automática de pausa manual, bloqueando
+  qualquer regra segura de auto-retomada sem um campo de proveniência. Decisão do founder: NUNCA
+  auto-retomar (`desconectar` não toca na flag; risco residual aceito e documentado — ver design.md
+  D5.2 e "Riscos e mitigações"). Corrigidos na mesma rodada: métrica de sucesso desatualizada
+  (contador de 409 ainda descrevia "atletas não pausados", framing da era manual-primária), wording
+  `nullable/default` vs `NOT NULL DEFAULT` no Rollback, e cobertura de teste ausente para reconexão
+  do Strava com flag herdada (tasks.md 6.11).
+- Re-DoR (rodada 5) pendente antes de `/implement init` — confirmar que a correção acima fecha o
+  gap sem introduzir um novo.
 
 Abre o sentido **pull** da integração intervals.icu entregue em `intervals-icu-workout-push`
 (arquivada em `archive/2026-07/2026-07-15-intervals-icu-workout-push/`), que cobriu apenas o
@@ -170,7 +180,14 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
   independentemente de como ela foi setada (automaticamente na conexão, ou manualmente via
   override) — o atleta pulado é pulado igual nos dois casos, e cobrir só o scheduler não seria
   suficiente: o webhook é um caminho automático independente para a mesma colisão cross-fonte que a
-  flag existe para eliminar.
+  flag existe para eliminar. **Os dois hooks são monotônicos** — só setam `true`, nunca resetam para
+  `false`: Given uma integração Strava já existente com `autoSyncPausado=true` (herdada) e o
+  intervals.icu já desconectado, When o coach reconecta o Strava via OAuth, Then `autoSyncPausado`
+  permanece `true` (não é resetado). **Desconectar o intervals.icu NÃO reverte a pausa** (decisão do
+  founder — nunca auto-retomar, achado do 5º pre-mortem): Given atleta com Strava pausado, When o
+  coach desconecta o intervals.icu, Then `autoSyncPausado` permanece `true`, inalterado, e o atleta
+  só volta a sincronizar Strava após `retomar-sync` manual — risco residual aceito e documentado em
+  "Riscos e mitigações".
 - **CA11 — Precondição de pausa do Strava (bloqueante, agora safety net residual — com a pausa
   automática de CA10 cobrindo o caso comum, este 409 protege o cenário residual de `retomar-sync`
   deliberado com intervals.icu ainda ativo; ver "Riscos e mitigações"):** Given atleta com Strava
@@ -197,9 +214,11 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
   importar), sem tocar em Strava ou arquivo `.fit`.
 - **Confiabilidade:** 0 duplicatas criadas por re-import nos testes e no smoke; 100% dos imports
   com planejado compatível na data saem com decisão de reconciliação gravada na mesma requisição.
-- **Observabilidade:** contador de imports **bloqueados por 409 de precondição Strava** (sinaliza
-  quantos atletas ainda não foram pausados — o coach vê o bloqueio na hora, não precisa de
-  métrica para descobrir) + log estruturado de cada late-check que pulou um atleta no scheduler
+- **Observabilidade:** contador de imports **bloqueados por 409 de precondição Strava** (com a pausa
+  automática como camada primária, este contador deixa de sinalizar "atletas não pausados" e passa a
+  sinalizar uso do override `retomar-sync` — quantas vezes um coach reabriu o Strava deliberadamente
+  e tentou importar mesmo assim; o coach vê o bloqueio na hora, não precisa de métrica para
+  descobrir) + log estruturado de cada late-check que pulou um atleta no scheduler
   (tenantId/atletaId/ciclo) para auditoria do residual TOCTOU documentado em "Riscos e mitigações".
 
 ## Open Questions & Assumptions
@@ -304,6 +323,19 @@ mitigação de design:
   automático do Strava inserindo entre a checagem de precondição e o insert do import manual
   (janela de milissegundos, ação humana) — aceito, não coberto por lock nesta change. Sem limpeza
   automática de duplicatas já existentes antes desta change (fora de escopo).
+
+  **Residual aceito e documentado (achado convergente do 4º→5º pre-mortem, Claude spec-reviewer e
+  Codex independentemente): desconectar o intervals.icu NÃO reverte a pausa do Strava.**
+  `IntervalsIcuConnectionServiceImpl.desconectar` não tem hook simétrico — decisão do founder de
+  NUNCA auto-retomar (ver design.md D5.2). Motivo: como os hooks automáticos e os endpoints manuais
+  `pausar-sync`/`retomar-sync` escrevem o MESMO campo booleano, o sistema não tem como distinguir
+  "essa pausa era só efeito colateral de uma conexão que acabou de sumir" de "essa pausa é
+  intencional e deve continuar" sem um campo de proveniência (cogitado e descartado — o founder
+  optou pela regra mais simples). Consequência aceita: um atleta cujo intervals.icu é desconectado
+  fica com Strava pausado indefinidamente até o coach chamar `retomar-sync` manualmente — mesma
+  dependência de memória do coach que esta change existe para eliminar, agora do lado da saída.
+  Mitigação mínima: log estruturado no `desconectar` quando o atleta tinha Strava pausado (tasks.md
+  6.12); sem alerta proativo nesta change (frontend fora de escopo).
 - **Multi-tenancy** (Alto, mitigado): `@RequireTenant` no endpoint + `conexaoAtiva` tenant-scoped +
   `Atleta` carregado explicitamente por `findByIdAndTenantId` (não o UUID cru) + conferência do
   `athlete_id` da activity contra a conexão + guard do D5.1.
@@ -316,7 +348,7 @@ mitigação de design:
 ## Rollback
 
 Aditiva: reverter o PR remove endpoints, serviço e método do client. A migration V54 (coluna
-`auto_sync_pausado`, nullable/default `false`) é aditiva e não precisa de down-migration — reverter
+`auto_sync_pausado`, `NOT NULL DEFAULT false`) é aditiva e não precisa de down-migration — reverter
 o PR deixa a coluna órfã (sem código que a leia), sem risco para dados existentes; se necessário,
 uma migration de limpeza pode ser feita em change futura. Treinos já ingeridos permanecem válidos
 (fonte `INTERVALS_ICU` já é um valor legítimo do enum) e podem ser excluídos pelo fluxo normal se

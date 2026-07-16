@@ -230,6 +230,24 @@ dois caminhos reabre a colisão cross-fonte que a flag existe para eliminar.
 - **When** o coach chama `PATCH /api/v1/strava/pausar-sync/{atletaId}`
 - **Then** a resposta é 404
 
+#### Scenario: Desconectar o intervals.icu não reativa o Strava automaticamente
+- **Given** um atleta com Strava `autoSyncPausado=true` (setado automaticamente ao conectar o
+  intervals.icu, ou manualmente via `pausar-sync`)
+- **When** o coach desconecta o intervals.icu desse atleta
+  (`IntervalsIcuConnectionServiceImpl.desconectar`)
+- **Then** a integração Strava permanece `autoSyncPausado=true`, inalterada — nenhuma chamada de
+  save é feita para a linha Strava dentro de `desconectar`
+- **And** o Strava desse atleta continua fora do scheduler e do webhook até o coach chamar
+  `retomar-sync` manualmente (decisão do founder: nunca auto-retomar, ver design.md D5.2)
+
+#### Scenario: Reconectar o Strava preserva uma pausa herdada
+- **Given** uma integração Strava existente com `autoSyncPausado=true` (herdada de uma pausa
+  automática ou manual anterior) e o intervals.icu já desconectado nesse momento
+- **When** o coach reconecta o Strava via OAuth (`StravaOAuthServiceImpl.exchangeCodeForToken`, que
+  reutiliza a linha existente via find-or-create)
+- **Then** `autoSyncPausado` permanece `true` — o hook só SETA `true` quando há intervals.icu ativo,
+  nunca reseta para `false`
+
 ## Requirement: Precondição de pausa do Strava antes do import
 
 O import de intervals.icu DEVE ser bloqueado por precondição — não mais apenas avisado — quando o

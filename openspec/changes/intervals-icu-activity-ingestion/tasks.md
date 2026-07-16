@@ -234,7 +234,26 @@ TDD: teste antes da implementação em cada bloco.
       `integracaoExternaRepository.save(integracao)` (linha 75), buscar a integração INTERVALS_ICU
       ativa do mesmo atleta+tenant; se presente, `integracao.setAutoSyncPausado(true)` no objeto
       Strava antes do save.
-- [ ] 6.12 Validação: `./mvnw clean test`.
+      **Cenários adicionais (achado Codex #4 do 5º pre-mortem — hooks são monotônicos, só setam
+      `true`, nunca resetam `false`):** o método é find-or-create
+      (`findByAtletaIdAndPlataforma(...).orElse(new IntegracaoExterna())`) — uma reconexão reutiliza
+      a linha existente. TDD cobrindo: (a) linha existente com `autoSyncPausado=true` (herdado de
+      pausa automática ou manual anterior) + reconecta Strava via OAuth com intervals.icu **já
+      desconectado** → `autoSyncPausado` permanece `true` (o hook não toca no campo quando a busca
+      por intervals.icu ativo retorna vazia — não reseta para `false`); (b) linha existente com
+      `autoSyncPausado=true` + reconecta Strava com intervals.icu **ainda ativo** → permanece `true`
+      (idempotente, sem erro, sem save duplicado).
+- [ ] 6.12 **`IntervalsIcuConnectionServiceImpl.desconectar` NÃO toca em `autoSyncPausado` (decisão
+      do founder, 5º pre-mortem — "nunca auto-retomar", ver design.md D5.2):** TDD: cenário "atleta
+      com Strava pausado (`autoSyncPausado=true`) desconecta o intervals.icu → a integração Strava
+      permanece `autoSyncPausado=true` inalterada; nenhuma chamada a
+      `integracaoExternaRepository.save` para a linha do Strava dentro de `desconectar`" — teste
+      negativo explícito (`verify(integracaoExternaRepository, never()).save(argThat(...))` ou
+      equivalente para a linha Strava), não apenas ausência de erro. Log estruturado (nível INFO) no
+      momento do `desconectar` quando o atleta tinha Strava pausado, indicando que o Strava
+      permanece pausado e requer `retomar-sync` manual — mitigação mínima de observabilidade (sem
+      alerta proativo, frontend fora de escopo).
+- [ ] 6.13 Validação: `./mvnw clean test`.
 
 ## Bloco 7 — Gate de validação real (D6)
 
@@ -261,7 +280,11 @@ TDD: teste antes da implementação em cada bloco.
       confirmar que um novo import é bloqueado com 409 e mensagem curada, sem persistência; usar
       `pausar-sync` de novo e confirmar o inverso;
       (h) late-check do scheduler (6.7): validar em ambiente de teste/staging que pausar um atleta
-      no meio de um ciclo do scheduler o exclui daquele mesmo ciclo (não só do próximo).
+      no meio de um ciclo do scheduler o exclui daquele mesmo ciclo (não só do próximo);
+      (i) desconectar não reativa (D5.2, 6.12): com o atleta do item (f) ainda pausado
+      automaticamente, desconectar o intervals.icu e confirmar via query direta que
+      `auto_sync_pausado` permanece `true` (não reverte) e que o log estruturado foi emitido;
+      confirmar que o atleta só volta a aparecer para o scheduler após `retomar-sync` manual.
 - [ ] 7.2 Atualizar proposal.md (Open Questions resolvidas, inclusive o resultado do gate 3.0) e
       este tasks.md com o resultado de cada item do checklist 7.1.
 

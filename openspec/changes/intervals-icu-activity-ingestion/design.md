@@ -454,6 +454,36 @@ sobre a mesma flag — não são mais o mecanismo primário; `retomar-sync` é o
 deliberadamente reativar o Strava enquanto intervals.icu segue ativo, aceitando o risco (ver
 "Riscos e mitigações" abaixo).
 
+**Os dois hooks são monotônicos — só SETAM `true`, nunca resetam para `false`** (achado do 4º
+pre-mortem, decisão do founder): nenhum dos dois hooks jamais escreve `autoSyncPausado=false`. Isso
+tem uma consequência direta e intencional em `StravaOAuthServiceImpl.exchangeCodeForToken`, que é
+find-or-create (`findByAtletaIdAndPlataforma(...).orElse(new IntegracaoExterna())`, linha 66) — uma
+reconexão de Strava reutiliza a linha existente. Se essa linha já tem `autoSyncPausado=true` (seja
+de uma pausa automática anterior, seja de uma pausa manual do coach) e o atleta reconecta o Strava
+com intervals.icu **já desconectado** nesse momento, a condição do hook 2 (`integracao intervals.icu
+presente?`) é falsa e o hook simplesmente não toca no campo — o `true` existente sobrevive
+intacto, sem reset acidental para `false`. Este comportamento é o que torna segura a decisão abaixo
+sobre `desconectar`.
+
+**`IntervalsIcuConnectionServiceImpl.desconectar` NÃO toca em `autoSyncPausado` (decisão do founder,
+4º pre-mortem — "nunca auto-retomar"):** desconectar o intervals.icu nunca reverte a pausa do
+Strava automaticamente, mesmo quando a pausa foi setada pelo hook automático (não por
+`pausar-sync` manual). Comportamento **conservador por design**: reativar sync automaticamente sem
+ação humana explícita — mesmo ao desconectar — arrisca reabrir a colisão cross-fonte para um atleta
+cuja pausa, na verdade, o coach queria manter por outro motivo (ex.: pausou manualmente por questão
+alheia ao intervals.icu, ou desconectou o intervals.icu por engano e ainda está decidindo o que
+fazer). Nunca há como o sistema distinguir com segurança "essa pausa não serve mais para nada"
+(era só efeito colateral de uma conexão que acabou de sumir) de "essa pausa continua sendo
+intencional" sem introduzir um campo de proveniência (a alternativa cogitada e descartada — rastrear
+se a pausa foi automática ou manual — foi avaliada e o founder optou pela regra mais simples:
+NUNCA auto-retomar). **Risco residual aceito e documentado:** um atleta cujo intervals.icu foi
+desconectado permanece com Strava pausado indefinidamente até o coach chamar `retomar-sync`
+manualmente — o mesmo tipo de dependência de memória do coach que esta change existe para eliminar,
+mas agora do lado da saída (desconexão) em vez da entrada (conexão). Sem UI nesta change (frontend
+fora de escopo) para sinalizar isso ao coach; mitigação mínima: log estruturado no momento do
+`desconectar` quando o atleta tinha Strava pausado, para que a ausência de sync fique rastreável em
+suporte/observabilidade, mesmo sem alerta proativo.
+
 **Endpoints (`StravaAuthController`, mesmo padrão de `status`/`disconnect`):**
 
 Agora um **override explícito do coach** sobre a flag setada automaticamente pelos hooks acima —
@@ -597,6 +627,15 @@ determinística, sob controle do coach, e a mudança de schema é uma única col
   fecharia metade do caminho de duplicação automática — o webhook do Strava, em tempo real,
   continuaria inserindo atividades independentemente da pausa. Corrigido: guard cobre scheduler
   (listagem + late-check) e webhook (skip silencioso, sem exceção, no `requireIntegration`).
+- **Strava permanece pausado indefinidamente após desconectar o intervals.icu (achado convergente do
+  4º pre-mortem — Claude spec-reviewer e Codex, independentemente, ver seção "5ª rodada" abaixo):**
+  `IntervalsIcuConnectionServiceImpl.desconectar` não tem hook simétrico que reverta a pausa —
+  decisão do founder de NUNCA auto-retomar (ver subseção "Pausa automática nos dois pontos de
+  conexão" acima para a justificativa completa: um único booleano não distingue pausa automática de
+  pausa manual, e auto-retomar sem essa distinção arrisca reabrir sync que o coach queria manter
+  pausado por outro motivo). Aceito como risco residual: o coach precisa saber que
+  `retomar-sync` existe e chamá-lo manualmente após desconectar o intervals.icu; mitigado apenas por
+  log estruturado no momento do `desconectar`, sem alerta proativo (frontend fora de escopo).
 
 ## D6 — Validação real (gate de smoke)
 
@@ -635,6 +674,12 @@ Itens obrigatórios do smoke (expandido pós pre-mortem/product review/decisão 
    import é bloqueado com 409 e mensagem curada, sem persistência; usar
    `PATCH .../pausar-sync/{atletaId}` para pausar de novo e confirmar que o atleta volta a
    desaparecer para o scheduler.
+7. **Desconectar o intervals.icu não reativa o Strava (decisão do founder, 5º pre-mortem):** com o
+   atleta do item 5 ainda `auto_sync_pausado=true` (setado pelo hook automático), desconectar o
+   intervals.icu (`IntervalsIcuConnectionServiceImpl.desconectar`) e confirmar via query direta que
+   `auto_sync_pausado` permanece `true` (não reverte); confirmar que o log estruturado de
+   `desconectar` foi emitido (tasks.md 6.12); confirmar que o atleta só volta a aparecer para o
+   scheduler depois de `retomar-sync` manual.
 
 ## Pre-mortem
 
@@ -751,3 +796,29 @@ assim" — mais o TOCTOU já documentado. Nenhuma mudança na lógica técnica d
 late-check do scheduler, nem no guard do webhook — só na narrativa de por que existem. Arquitetura
 final em defesa em profundidade: pausa automática (primária) + 409 no import (safety net) +
 late-check no scheduler + guard no webhook — cada camada cobre o que a anterior não cobre.
+
+### 5ª rodada — DoR pós-4ª-correção (2026-07-16): ciclo de vida de desconexão do intervals.icu não estava especificado
+
+**Achado convergente (Claude spec-reviewer e Codex pre-mortem, de forma independente, mesma rodada):**
+a 4ª rodada especificou os dois hooks de pausa automática (conectar) mas nenhum dos quatro arquivos
+definia o que acontece com `autoSyncPausado` quando o intervals.icu é desconectado
+(`IntervalsIcuConnectionServiceImpl.desconectar`) enquanto o Strava permanece pausado. Sem essa
+definição, um atleta cujo coach desconecta o intervals.icu (troca de relógio, engano de cadastro,
+etc.) ficaria com o Strava pausado permanentemente, sem sinal algum — a mesma classe de "invariante
+quebrada por um caminho não coberto" das rodadas 3/4, agora no caminho de saída em vez de entrada.
+
+Codex acrescentou uma observação estrutural: como os hooks e os endpoints manuais escrevem o MESMO
+campo booleano, não há como o sistema distinguir "pausa automática, efeito colateral de uma conexão
+que já não existe mais" de "pausa manual deliberada do coach por outro motivo" — o que bloqueia
+qualquer regra de auto-retomada segura sem introduzir um campo de proveniência.
+
+**Decisão do founder: NUNCA auto-retomar** (não introduzir campo de proveniência; `desconectar`
+simplesmente não toca em `autoSyncPausado`) — ver justificativa completa e risco residual aceito na
+subseção "Pausa automática nos dois pontos de conexão" (D5.2) e no bullet correspondente em "Riscos
+e mitigações" acima. Corrigido também, na mesma rodada: métrica de sucesso desatualizada em
+`proposal.md` (o contador de 409 ainda descrevia "atletas não pausados", framing da era manual-
+primária — corrigido para "uso do override `retomar-sync`"); inconsistência textual `nullable/default
+false` vs `NOT NULL DEFAULT false` no Rollback; e cobertura de teste ausente para reconexão do Strava
+quando a linha já existe com `autoSyncPausado=true` herdado (achado Codex #4) — os hooks são
+monotônicos (só setam `true`, nunca resetam para `false`), o que já torna esse caso seguro por
+construção, mas faltava o teste explícito (ver tasks.md 6.11).
