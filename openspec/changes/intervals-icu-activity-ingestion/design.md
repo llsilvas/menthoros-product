@@ -484,6 +484,15 @@ fora de escopo) para sinalizar isso ao coach; mitigação mínima: log estrutura
 `desconectar` quando o atleta tinha Strava pausado, para que a ausência de sync fique rastreável em
 suporte/observabilidade, mesmo sem alerta proativo.
 
+**Nota (fecha a pergunta simétrica antes que uma rodada futura a levante de novo):** desconectar o
+STRAVA em si (`StravaOAuthServiceImpl.disconnect`, seta `ativo=false`) já exclui o atleta dos dois
+caminhos automáticos de ingestão (scheduler e webhook) independentemente de `autoSyncPausado` — os
+dois guards desta change filtram por `ativo=true` antes mesmo de checar a flag
+(`IntegracaoExternaRepository`, métodos `findActiveByAtletaIdAndPlataformaAndTenantId`/
+`findActiveByExternalAthleteIdAndPlataforma`). Nenhum hook novo é necessário para esse sentido; é
+consequência direta de uma invariante que já existe no código, não algo que esta change precisa
+introduzir.
+
 **Endpoints (`StravaAuthController`, mesmo padrão de `status`/`disconnect`):**
 
 Agora um **override explícito do coach** sobre a flag setada automaticamente pelos hooks acima —
