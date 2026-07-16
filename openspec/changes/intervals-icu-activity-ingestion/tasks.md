@@ -105,8 +105,11 @@ TDD: teste antes da implementação em cada bloco.
 - [ ] 4.3 Validação de `activityId` (D5): normalizar/rejeitar valores com `/`, `?`, `%` (URL colada
       em vez de id simples) antes de repassar ao client. `activityId` chega como query param (não
       path variable) — ver Bloco 5.
-- [ ] 4.4 **Precondição bloqueante de Strava ativo (D5.2 — substitui o aviso não-bloqueante,
-      correção do 2º pre-mortem; ordem ajustada na 3ª rodada de pre-mortem):** passo 1 do serviço
+- [ ] 4.4 **Precondição bloqueante de Strava ativo (D5.2 — agora safety net residual: com a pausa
+      passando a ser automática nos dois pontos de conexão — tasks 6.10/6.11 — este passo deixa de
+      proteger contra "o coach esqueceu de pausar" e passa a proteger o cenário residual de
+      `retomar-sync` deliberado com intervals.icu ainda ativo; lógica técnica inalterada, correção
+      do 2º pre-mortem, ordem ajustada na 3ª rodada de pre-mortem):** passo 1 do serviço
       (design.md D3), executado logo após a guarda de idempotência (passo 0 — ver task 4.1, cenário
       "idempotência sem chamada externa quando já existe") e ANTES de qualquer outro passo
       subsequente do fluxo (inclusive antes de `conexaoAtiva`, passo 2): ler
@@ -182,7 +185,9 @@ TDD: teste antes da implementação em cada bloco.
       retorna o atleta elegível, mas a query de revalidação — chamada logo antes do insert —
       já reflete `autoSyncPausado=true`) → atleta pulado, nenhuma atividade persistida para ele
       naquele ciclo, sem exceção lançada.
-- [ ] 6.8 **Teste do 409 de precondição no import (design.md D3 passo 1, D5.2):** cenário
+- [ ] 6.8 **Teste do 409 de precondição no import (design.md D3 passo 1, D5.2 — safety net
+      residual agora que a pausa é automática nos dois pontos de conexão, ver 6.10/6.11):**
+      cenário
       bloqueado — atleta com Strava ativo e `autoSyncPausado=false`, import de intervals.icu
       retorna 409 com a mensagem curada, nada persistido (nenhum `TreinoRealizado`, nenhuma
       chamada ao client intervals.icu). Cenário liberado — atleta sem conexão Strava, OU com
@@ -208,7 +213,28 @@ TDD: teste antes da implementação em cada bloco.
       `syncSingleActivityById`, nenhuma exceção é lançada (webhook endpoint continua respondendo
       200 ao Strava, contrato preservado); com `autoSyncPausado=false` ou sem integração pausada,
       comportamento atual é preservado (chama `syncSingleActivityById` normalmente).
-- [ ] 6.10 Validação: `./mvnw clean test`.
+- [ ] 6.10 **Hook automático em `IntervalsIcuConnectionServiceImpl.conectar` (D5.2 — pausa
+      automática, decisão final do founder que substitui o modelo manual-primário):** TDD primeiro
+      — cenário "atleta com Strava ativo conecta intervals.icu → integração Strava marcada
+      `autoSyncPausado=true`, `save()` verificado (mock/spy do repositório)"; cenário "atleta sem
+      Strava conectado conecta intervals.icu → no-op, sem erro, nenhuma chamada de save adicional
+      para a integração Strava (que não existe)". Implementar: logo após `integracao =
+      integracaoRepository.save(integracao);` (linha 88 do método `conectar`), buscar a integração
+      STRAVA ativa via
+      `integracaoRepository.findActiveByAtletaIdAndPlataformaAndTenantId(atletaId,
+      FonteDados.STRAVA, tenantId)`; se presente e `autoSyncPausado != true`, setar `true` e
+      salvar.
+- [ ] 6.11 **Hook automático em `StravaOAuthServiceImpl.exchangeCodeForToken` (D5.2 — Strava nasce
+      pausado quando intervals.icu já está ativo):** TDD primeiro — cenário "atleta com
+      intervals.icu ativo conecta/reconecta Strava via OAuth → integração Strava nasce com
+      `autoSyncPausado=true` no MESMO save (não dois saves separados — verificar o número de
+      chamadas ao repositório)"; cenário "atleta sem intervals.icu conectado → `autoSyncPausado`
+      fica no default `false` da migration, sem regressão do fluxo OAuth existente (suíte atual do
+      OAuth continua verde)". Implementar: ANTES do único
+      `integracaoExternaRepository.save(integracao)` (linha 75), buscar a integração INTERVALS_ICU
+      ativa do mesmo atleta+tenant; se presente, `integracao.setAutoSyncPausado(true)` no objeto
+      Strava antes do save.
+- [ ] 6.12 Validação: `./mvnw clean test`.
 
 ## Bloco 7 — Gate de validação real (D6)
 
@@ -224,11 +250,17 @@ TDD: teste antes da implementação em cada bloco.
       (d) virada de dia: activity próxima da meia-noite local não muda de dia;
       (e) paridade: scheduler no próximo ciclo de 2h continua reconciliando outros pendentes
       igual ao comportamento pré-refactor;
-      (f) guarda de pausa Strava (D5.2, CA10): pausar o atleta founder, confirmar que some de
-      `findAllWithStravaConnected`, e que um import de intervals.icu para ele prossegue
-      normalmente (200); com o atleta NÃO pausado (Strava ativo), confirmar que o import é
-      bloqueado com 409 e mensagem curada, sem persistência; retomar e confirmar o inverso;
-      (g) late-check do scheduler (6.7): validar em ambiente de teste/staging que pausar um atleta
+      (f) pausa automática (D5.2, camada primária, 6.10/6.11): com o atleta founder já com Strava
+      ativo, conectar o intervals.icu e confirmar via query direta que `auto_sync_pausado` virou
+      `true` sem chamar nenhum endpoint manual; repetir no sentido inverso (intervals.icu já ativo
+      → (re)conectar Strava) e confirmar que a linha nasce `auto_sync_pausado=true` desde o
+      primeiro save;
+      (g) guarda de pausa Strava — override manual (D5.2, camada secundária, CA10): com o atleta do
+      item (f) ainda pausado, confirmar que some de `findAllWithStravaConnected` e que um import de
+      intervals.icu prossegue normalmente (200); usar `retomar-sync` para reabrir deliberadamente e
+      confirmar que um novo import é bloqueado com 409 e mensagem curada, sem persistência; usar
+      `pausar-sync` de novo e confirmar o inverso;
+      (h) late-check do scheduler (6.7): validar em ambiente de teste/staging que pausar um atleta
       no meio de um ciclo do scheduler o exclui daquele mesmo ciclo (não só do próximo).
 - [ ] 7.2 Atualizar proposal.md (Open Questions resolvidas, inclusive o resultado do gate 3.0) e
       este tasks.md com o resultado de cada item do checklist 7.1.

@@ -147,8 +147,15 @@ Fluxo (renumerado na 3ª rodada de pre-mortem — a idempotência vira o primeir
    sem custo de rede) — sem checar a precondição de pausa Strava (passo 1) e sem resolver
    `conexaoAtiva` (passo 2). Um re-import de uma activity já persistida não tem nada novo a
    persistir, logo não há risco de nova duplicata cross-fonte a proteger.
-1. **Precondição bloqueante de pausa Strava (D5.2 — substitui o aviso não-bloqueante da 1ª
-   revisão):** só avaliada quando o passo 0 NÃO encontrou a activity já importada. Verificar via
+1. **Precondição bloqueante de pausa Strava (D5.2 — mantida como safety net residual; a versão
+   original de "aviso não-bloqueante" já foi corrigida na 1ª revisão, e a motivação deste passo é
+   atualizada nesta revisão):** com a pausa passando a ser automática nos dois pontos de conexão
+   (D5.2, subseção "Pausa automática nos dois pontos de conexão"), este passo deixa de ser a defesa
+   contra "o coach esqueceu de pausar" — esse cenário praticamente deixa de existir — e passa a ser
+   o freio residual para o caso em que o coach usa `retomar-sync` deliberadamente enquanto o
+   intervals.icu segue ativo, e tenta importar mesmo assim (mais o TOCTOU já documentado abaixo). A
+   lógica técnica não muda: só avaliada quando o passo 0 NÃO encontrou a activity já importada.
+   Verificar via
    `IntegracaoExternaRepository.findActiveByAtletaIdAndPlataformaAndTenantId(atletaId, STRAVA,
    tenantId)` se existe integração Strava ativa com `autoSyncPausado=false`. Se sim, lançar exceção
    de domínio dedicada (409, mensagem curada "pause a sincronização Strava deste atleta antes de
@@ -394,10 +401,16 @@ cross-fonte por heurística de tempo+distância+duração — a mesma classe de 
 risco alto de falsos positivos (duas corridas parecidas do mesmo atleta em dias próximos) e falsos
 negativos (GPS ausente em uma das fontes). Custo/complexidade desproporcional ao MVP.
 
-**Decisão: eliminar a colisão na origem, não detectá-la depois.** Uma flag por atleta controlada
-pelo coach: ao habilitar o atleta para intervals.icu, o coach pausa a sincronização automática do
-Strava daquele atleta. Sem sync automático do Strava rodando, não há caminho para a mesma corrida
-entrar duas vezes. Determinístico, sob controle do coach, sem heurística.
+**Decisão: eliminar a colisão na origem, não detectá-la depois — e eliminar também o passo manual
+que podia ser esquecido.** Uma flag por atleta, setada AUTOMATICAMENTE como efeito colateral de
+conectar as integrações (não mais um passo manual primário que o coach executa separadamente): ao
+conectar o atleta ao intervals.icu tendo Strava já ativo, ou ao conectar/reconectar o Strava tendo
+intervals.icu já ativo, a sincronização automática do Strava daquele atleta é pausada. Sem sync
+automático do Strava rodando, não há caminho para a mesma corrida entrar duas vezes.
+Determinístico, automático, sem heurística — e sem depender de o coach lembrar de um passo
+separado (ver subseção "Pausa automática nos dois pontos de conexão" abaixo para os hooks exatos).
+Os endpoints `pausar-sync`/`retomar-sync` (abaixo) permanecem como override explícito do coach, não
+como o mecanismo primário.
 
 **Campo novo:** `IntegracaoExterna.autoSyncPausado` (`boolean`, coluna `auto_sync_pausado`,
 `NOT NULL DEFAULT false`, migration V54 — aditiva). Verificado: `IntegracaoExterna.java` hoje não
@@ -407,7 +420,44 @@ tem nenhum campo equivalente (`ativo` é sobre a conexão em si — token válid
 `plataforma=STRAVA` do atleta — pausar intervals.icu não faz sentido (esta change não tem sync
 automático de intervals.icu, só import manual).
 
+### Pausa automática nos dois pontos de conexão (decisão final — substitui o modelo manual-primário)
+
+Decisão do founder (correção da premissa original, 2026-07-16): a versão anterior deste design
+descrevia a pausa como um passo que o coach executa manualmente via `pausar-sync`, ao habilitar o
+atleta para intervals.icu — um passo separado que ele podia esquecer (esse esquecimento foi
+justamente o achado que motivou a precondição bloqueante 409 nas rodadas 2/3 de pre-mortem, ver
+"Pre-mortem" abaixo). **Correção: a pausa passa a ser efeito colateral automático de conectar as
+integrações, nos dois sentidos** — a invariante é "intervals.icu ativo → Strava off", e cobrir só
+um sentido reabriria a mesma classe de brecha que a 3ª rodada de pre-mortem encontrou no webhook
+(guard incompleto = invariante quebrada por um caminho não coberto).
+
+1. **`IntervalsIcuConnectionServiceImpl.conectar`**
+   (`services/impl/IntervalsIcuConnectionServiceImpl.java`, método `conectar`, linha 55-92): logo
+   após `integracao = integracaoRepository.save(integracao);` (linha 88), busca a integração
+   STRAVA ativa do mesmo atleta+tenant via
+   `integracaoRepository.findActiveByAtletaIdAndPlataformaAndTenantId(atletaId, FonteDados.STRAVA,
+   tenantId)` (método já existe, tenant-scoped); se presente e `autoSyncPausado != true`, seta
+   `true` e salva. Se o atleta não tem Strava conectado, no-op (nada a pausar).
+2. **`StravaOAuthServiceImpl.exchangeCodeForToken`**
+   (`services/impl/StravaOAuthServiceImpl.java`, linha 62-76): ANTES do único
+   `integracaoExternaRepository.save(integracao)` (linha 75), busca a integração INTERVALS_ICU
+   ativa do mesmo atleta+tenant (`atleta.getAssessoria().getId()` já disponível como tenantId
+   nesse método); se presente, `integracao.setAutoSyncPausado(true)` no objeto Strava que está
+   prestes a ser salvo (um único save, não dois) — o Strava NASCE pausado quando o atleta já usa
+   intervals.icu. Sem intervals.icu conectado, comportamento inalterado (`autoSyncPausado` fica no
+   default `false` da migration).
+
+Os dois hooks são leituras simples + um `set`/`save` na mesma transação já existente do fluxo de
+conexão — nenhuma transação nova, nenhum I/O externo adicional. Os endpoints
+`pausar-sync`/`retomar-sync` (abaixo) permanecem disponíveis como **override explícito do coach**
+sobre a mesma flag — não são mais o mecanismo primário; `retomar-sync` é o único jeito de o coach
+deliberadamente reativar o Strava enquanto intervals.icu segue ativo, aceitando o risco (ver
+"Riscos e mitigações" abaixo).
+
 **Endpoints (`StravaAuthController`, mesmo padrão de `status`/`disconnect`):**
+
+Agora um **override explícito do coach** sobre a flag setada automaticamente pelos hooks acima —
+não mais o mecanismo primário de pausa.
 
 ```
 PATCH /api/v1/strava/pausar-sync/{atletaId}
@@ -513,11 +563,17 @@ novos thresholds, novos testes de todas as combinações Strava×intervals.icu);
 determinística, sob controle do coach, e a mudança de schema é uma única coluna boolean aditiva.
 
 **Riscos e mitigações (registrado explicitamente, não implícito):**
-- **Se o coach não pausar, o import intervals.icu é BLOQUEADO com 409** (não mais uma limitação
-  aceita de duplicidade silenciosa — corrigido no 2º pre-mortem, 2026-07-16). O coach precisa
-  pausar explicitamente o Strava do atleta antes do primeiro import; a mensagem curada do erro 409
-  guia essa ação. Isso elimina o cenário em que o PRIMEIRO import duplicava de qualquer forma
-  (achado do 2º pre-mortem sobre a versão anterior, de aviso não-bloqueante pós-facto).
+- **A pausa é automática nos dois pontos de conexão (camada primária) — o import BLOQUEADO com 409
+  é o safety net residual, não mais a defesa contra esquecimento** (decisão final, corrige a
+  premissa da flag manual-primária das rodadas anteriores). Com os hooks em
+  `IntervalsIcuConnectionServiceImpl.conectar` e `StravaOAuthServiceImpl.exchangeCodeForToken`
+  (subseção "Pausa automática nos dois pontos de conexão" acima), o cenário "coach esqueceu de
+  pausar" praticamente deixa de existir — a pausa acontece no mesmo instante em que a segunda
+  integração é conectada, nos dois sentidos. O 409 no import sobrevive como freio para o caso
+  residual em que o coach usa `retomar-sync` deliberadamente enquanto o intervals.icu segue ativo
+  (aceitando o risco) e tenta importar mesmo assim; a mensagem curada do erro 409 guia essa ação.
+  Isso elimina também o cenário histórico em que o PRIMEIRO import duplicava de qualquer forma
+  quando a versão de aviso não-bloqueante (1ª revisão) ainda estava em vigor.
 - **A flag cobre os DOIS caminhos automáticos do Strava, não só o scheduler** (achado da 3ª rodada
   de pre-mortem, ver acima): scheduler diário (`findAllWithStravaConnected` + late-check) E webhook
   em tempo real (`StravaWebhookServiceImpl.requireIntegration`, guard novo). Sem o guard no webhook,
@@ -565,12 +621,20 @@ Itens obrigatórios do smoke (expandido pós pre-mortem/product review/decisão 
    decisão que o import inline produziria para um caso equivalente (mesmo `CandidateSelector` +
    `ReconciliationDecisionExecutor` compartilhados — não é um teste novo de comportamento, é a
    confirmação de que a extração não regrediu o batch).
-5. **Guarda de pausa Strava (D5.2, CA10):** pausar o atleta founder via
-   `PATCH .../pausar-sync/{atletaId}` e confirmar que ele desaparece de
-   `findAllWithStravaConnected` no próximo ciclo do scheduler (ou via query direta); confirmar que
-   um import de intervals.icu para esse atleta prossegue normalmente (200); com o atleta NÃO
-   pausado (Strava ativo), confirmar que o import é bloqueado com 409 e mensagem curada, sem
-   persistência; retomar a pausa e confirmar que o atleta volta a aparecer para o scheduler.
+5. **Guarda de pausa Strava (D5.2, CA10) — mecanismo automático (camada primária) primeiro:** com o
+   atleta founder já com Strava ativo, conectar o intervals.icu (`IntervalsIcuConnectionServiceImpl
+   .conectar`) e confirmar via query direta que `auto_sync_pausado` virou `true` sem nenhuma chamada
+   ao endpoint manual; confirmar que o atleta desaparece de `findAllWithStravaConnected` no próximo
+   ciclo do scheduler. Repetir no sentido inverso com outro atleta (ou desconectar/reconectar o
+   Strava do mesmo): com intervals.icu já ativo, (re)conectar o Strava
+   (`StravaOAuthServiceImpl.exchangeCodeForToken`) e confirmar que a linha nasce com
+   `auto_sync_pausado=true` desde o primeiro save, sem janela em que fica `false`.
+6. **Guarda de pausa Strava — override manual (camada secundária):** com o atleta do item 5 ainda
+   pausado, confirmar que um import de intervals.icu prossegue normalmente (200); usar
+   `PATCH .../retomar-sync/{atletaId}` para reabrir o Strava deliberadamente e confirmar que um novo
+   import é bloqueado com 409 e mensagem curada, sem persistência; usar
+   `PATCH .../pausar-sync/{atletaId}` para pausar de novo e confirmar que o atleta volta a
+   desaparecer para o scheduler.
 
 ## Pre-mortem
 
@@ -600,11 +664,14 @@ disposição:
 - **Invariante Strava/intervals.icu:** achado confirmado — sem alguma regra, um atleta com ambas
   as integrações tem a mesma atividade do Garmin ingerida em duplicata (fontes diferentes não
   deduplicam entre si). **Resolvido nesta própria change** (não adiado): em vez de desligamento
-  *automático* do Strava (que tira o controle do coach), a mitigação é a **flag de pausa manual
-  por atleta** (D-flag, abaixo) — o coach pausa o sync Strava daquele atleta ao ativar o
-  intervals.icu. **Correção pós-2º pre-mortem (2026-07-16):** import sem a pausa ativa agora é
-  BLOQUEADO (409), não mais um aviso não-bloqueante — a versão anterior deixava o primeiro import
-  duplicar de qualquer forma quando o coach esquecia de pausar.
+  *automático* do Strava (que tira o controle do coach), a mitigação é a **flag de pausa por
+  atleta** (D5.2, abaixo). **Correção pós-2º pre-mortem (2026-07-16):** import sem a pausa ativa
+  agora é BLOQUEADO (409), não mais um aviso não-bloqueante — a versão anterior deixava o primeiro
+  import duplicar de qualquer forma quando o coach esquecia de pausar. **Correção final (4ª rodada,
+  decisão do founder, 2026-07-16):** a flag em si deixou de ser um passo manual — passa a ser
+  setada automaticamente nos dois pontos de conexão (ver subseção "Pausa automática nos dois pontos
+  de conexão" em D5.2); os endpoints manuais viram override explícito do coach, e o 409 acima passa
+  a ser safety net residual, não mais a defesa primária contra o esquecimento.
 - Métrica de sucesso mede construção, não adoção → aceito como métrica de lançamento; adoção real
   (imports/semana por assessoria) fica para acompanhamento pós-merge, fora do escopo desta change.
 - Import manual gera fricção vs sync automático do Strava → aceito conscientemente como MVP; a
@@ -664,3 +731,23 @@ sem custo de chamada externa); se a activity já existe, retorna 200 imediatamen
 flag Strava. A precondição de pausa Strava só é avaliada quando a activity AINDA NÃO existe — porque
 só nesse caso o import vai efetivamente persistir algo novo, e é exatamente esse "algo novo" que a
 precondição protege. Ver D3 (fluxo renumerado) e D3.1 (matriz de 409 atualizada) abaixo.
+
+### 4ª rodada (decisão do founder, 2026-07-16): pausa manual-primária corrigida para automática nos dois pontos de conexão
+
+**Correção de premissa:** as rodadas 2/3 de pre-mortem tratavam a pausa (`autoSyncPausado=true`)
+como um passo que o coach executa manualmente via `PATCH /api/v1/strava/pausar-sync/{atletaId}` ao
+habilitar o atleta para intervals.icu — e a precondição bloqueante 409 no import existia justamente
+porque esse passo manual podia ser esquecido. **Decisão do founder: a pausa passa a ser efeito
+colateral AUTOMÁTICO de conectar as integrações**, nos dois sentidos
+(`IntervalsIcuConnectionServiceImpl.conectar` e `StravaOAuthServiceImpl.exchangeCodeForToken`, ver
+subseção "Pausa automática nos dois pontos de conexão" em D5.2) — cobrir só um sentido reabriria a
+mesma classe de gap que a 3ª rodada encontrou no webhook (guard incompleto = invariante quebrada
+por um caminho não coberto). Os endpoints manuais `pausar-sync`/`retomar-sync` deixam de ser o
+mecanismo primário e passam a ser **override explícito do coach**. A precondição bloqueante 409 no
+import (D3 passo 1) muda de papel: deixa de ser a defesa contra "o coach esqueceu de pausar" (esse
+cenário praticamente deixa de existir) e vira o **safety net residual** para o cenário "coach usou
+`retomar-sync` deliberadamente enquanto intervals.icu ainda está ativo, e tenta importar mesmo
+assim" — mais o TOCTOU já documentado. Nenhuma mudança na lógica técnica do 409 (D3/D3.1), nem no
+late-check do scheduler, nem no guard do webhook — só na narrativa de por que existem. Arquitetura
+final em defesa em profundidade: pausa automática (primária) + 409 no import (safety net) +
+late-check no scheduler + guard no webhook — cada camada cobre o que a anterior não cobre.

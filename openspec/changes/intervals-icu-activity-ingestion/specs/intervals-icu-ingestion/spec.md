@@ -170,15 +170,37 @@ vazar corpo de resposta; a atividade buscada DEVE pertencer ao atleta da conexã
 
 ## Requirement: Pausa de sincronização Strava por atleta
 
-O coach (TECNICO/ADMIN) DEVE poder pausar e retomar a sincronização automática do Strava de um
-atleta específico do seu tenant. Esta flag substitui a detecção automática de duplicidade
-cross-fonte (Strava × intervals.icu): ao habilitar um atleta para o import manual de intervals.icu,
-o coach pausa o Strava daquele atleta, eliminando a colisão na origem em vez de detectá-la depois.
-A pausa DEVE cobrir os DOIS caminhos automáticos de ingestão do Strava — o scheduler diário e o
-webhook em tempo real — para que a garantia "Strava pausado para este atleta" seja verdadeira; cobrir
-apenas um dos dois caminhos reabre a colisão cross-fonte que a flag existe para eliminar.
+A sincronização automática do Strava de um atleta DEVE ser pausada automaticamente como efeito
+colateral de conectar as duas integrações, nos dois sentidos: ao conectar o atleta ao intervals.icu
+tendo Strava já ativo, e ao conectar/reconectar o Strava tendo intervals.icu já ativo. Esta pausa
+automática substitui a detecção automática de duplicidade cross-fonte (Strava × intervals.icu) —
+eliminando a colisão na origem em vez de detectá-la depois, sem depender de um passo manual que o
+coach possa esquecer. O coach (TECNICO/ADMIN) TAMBÉM DEVE poder pausar e retomar a sincronização
+manualmente via `PATCH /api/v1/strava/pausar-sync/{atletaId}` e `.../retomar-sync/{atletaId}` — um
+**override explícito**, não o mecanismo primário; `retomar-sync` é o único jeito de reativar o
+Strava deliberadamente enquanto intervals.icu segue ativo. A pausa (automática ou manual) DEVE
+cobrir os DOIS caminhos automáticos de ingestão do Strava — o scheduler diário e o webhook em tempo
+real — para que a garantia "Strava pausado para este atleta" seja verdadeira; cobrir apenas um dos
+dois caminhos reabre a colisão cross-fonte que a flag existe para eliminar.
 
-#### Scenario: Coach pausa a sincronização Strava do atleta
+#### Scenario: Conectar intervals.icu com Strava ativo pausa automaticamente
+- **Given** um atleta do tenant com integração Strava ativa (`autoSyncPausado=false` ou indefinido)
+- **When** o coach conecta esse atleta ao intervals.icu (`IntervalsIcuConnectionServiceImpl.conectar`)
+- **Then** a integração Strava do atleta fica `autoSyncPausado=true` automaticamente, sem qualquer
+  chamada aos endpoints manuais `pausar-sync`/`retomar-sync`
+- **And** se o atleta não tiver Strava conectado, conectar o intervals.icu é um no-op em relação à
+  flag (nada a pausar)
+
+#### Scenario: Strava nasce pausado quando intervals.icu já está ativo
+- **Given** um atleta do tenant com integração intervals.icu ativa
+- **When** o coach conecta ou reconecta o Strava desse atleta via OAuth
+  (`StravaOAuthServiceImpl.exchangeCodeForToken`)
+- **Then** a integração Strava já nasce com `autoSyncPausado=true`, no mesmo save que persiste a
+  conexão (sem save adicional)
+- **And** se o atleta não tiver intervals.icu conectado, a integração Strava nasce com o default
+  `autoSyncPausado=false` da migration, sem regressão do fluxo OAuth existente
+
+#### Scenario: Coach pausa a sincronização Strava do atleta (override manual)
 - **Given** um atleta do tenant com integração Strava ativa
 - **When** o coach chama `PATCH /api/v1/strava/pausar-sync/{atletaId}`
 - **Then** a resposta é 200 com `autoSyncPausado=true`
@@ -217,6 +239,12 @@ qualquer forma** quando o coach esquecia de pausar o Strava do atleta antes de h
 intervals.icu — o aviso era pós-facto (aparecia só depois do import já ter persistido), não
 preventivo. Sem conexão Strava, ou já pausada, o import prossegue normalmente, sem qualquer
 matching cross-fonte.
+
+**Nota (correção desta revisão):** a pausa passa a ser automática nos dois pontos de conexão (ver
+Requirement "Pausa de sincronização Strava por atleta") — o cenário "coach esqueceu de pausar"
+descrito acima é histórico (motivou a correção da 2ª rodada) e praticamente deixa de ocorrer; esta
+precondição bloqueante permanece como safety net residual para o caso em que o coach reativa o
+Strava deliberadamente (`retomar-sync`) enquanto o intervals.icu segue ativo.
 
 #### Scenario: Import bloqueado quando Strava está ativo e não pausado
 - **Given** um atleta do tenant com integração Strava ativa e `autoSyncPausado=false` (ou nunca
