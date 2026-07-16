@@ -481,5 +481,21 @@ para a matriz corrigida completa.
 
 ## QA / entrega
 
-- [ ] 8.1 `/qa` (code-reviewer + security-reviewer; trilha Full).
+- [x] 8.1 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer, em paralelo; trilha
+      Full) executado em 2026-07-16 contra o diff `origin/develop...HEAD` (13 commits, 44
+      arquivos). Nenhum achado Critical/High confirmado nos três. Achado convergente (Critical no
+      code-reviewer, Medium no security-reviewer, Minor no clean-code-reviewer — sinal forte por
+      concordância entre reviewers): `IntervalsIcuActivityMapper.buildMetadadosSincronizacao`
+      concatenava `deviceName` (dado de terceiro) em JSON via `StringBuilder` sem escapar; um valor
+      com aspas/barra invertida quebrava o JSON armazenado. Corrigido com Jackson (TDD, novo teste
+      `deviceNameComCaracteresEspeciaisGeraJsonValido`) — commit `9618da9`. Também corrigidos no
+      mesmo commit: índice composto faltante em `tb_integracao_externa` (V55, regra do CLAUDE.md
+      para tabelas tenant-scoped) e import de `TreinoPlanejado` faltante (2 arquivos, referência
+      totalmente qualificada desnecessária). Achados descartados após verificação: índice em
+      `TreinoRealizadoRepository.findByTenantIdAndFonteDadosAndExternalId` (já coberto pelo índice
+      único `uk_treino_realizado_tenant_fonte_external`, V29); `TenantContext.setTenantId(null)` em
+      `StravaActivitySyncScheduler` (impossível — `tenant_id` é `NOT NULL` no schema, V12);
+      manipulação manual de JSON em `StravaWebhookServiceImpl:118` (código pré-existente, fora do
+      diff desta change). `./mvnw clean test`: 1714 testes, 0 falhas.
+      Verify: commit `9618da9` (fix) + suíte verde.
 - [ ] 8.2 `/pr intervals-icu-activity-ingestion` → merge via CI → `/done`.
