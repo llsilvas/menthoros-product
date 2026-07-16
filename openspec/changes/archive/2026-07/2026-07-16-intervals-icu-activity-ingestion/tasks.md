@@ -291,11 +291,11 @@ para a matriz corrigida completa.
       Verify: `IntegracaoExternaRepositoryFindAllActiveByPlataformaTest` e
       `AtletaRepositoryFindAllWithStravaConnectedTest` verdes — atleta pausado ausente de ambas as
       listagens, atleta não-pausado presente em ambas.
-- [ ] 6.4 DTO `StravaSyncPauseStatusDto(boolean autoSyncPausado, Instant atualizadoEm)` em
+- [x] 6.4 DTO `StravaSyncPauseStatusDto(boolean autoSyncPausado, Instant atualizadoEm)` em
       `dto/output/`.
       Verify: record compila com `@Schema`/`@JsonInclude(NON_NULL)` conforme o padrão de DTOs; usado
       pelos endpoints da task 6.6.
-- [ ] 6.5 Testes primeiro do serviço (reaproveitar `StravaOAuthServiceImpl` ou criar método
+- [x] 6.5 Testes primeiro do serviço (reaproveitar `StravaOAuthServiceImpl` ou criar método
       dedicado — decisão de implementação): `pausarSync(atletaId, tenantId)` e
       `retomarSync(atletaId, tenantId)`, ambos: buscam a `IntegracaoExterna` STRAVA via
       `findByAtletaIdAndPlataformaAndTenantId` (tenant-scoped); ausente → `DomainNotFoundException`
@@ -303,12 +303,15 @@ para a matriz corrigida completa.
       valor é no-op seguro, sem erro). Implementar até os testes passarem.
       Verify: teste cobre presente/ausente e idempotência (duas chamadas seguidas com o mesmo valor
       não lançam erro nem duplicam side effect observável).
-- [ ] 6.6 Endpoints em `StravaAuthController`: `PATCH /api/v1/strava/pausar-sync/{atletaId}` e
+- [x] 6.6 Endpoints em `StravaAuthController`: `PATCH /api/v1/strava/pausar-sync/{atletaId}` e
       `PATCH /api/v1/strava/retomar-sync/{atletaId}`, `@PreAuthorize` TECNICO/ADMIN,
       `@RequireTenant(resourceParamIndex = 0)`, Swagger completo (200/403/404). Teste de
       autorização no padrão `*ControllerAuthTest` (roles aceitas, ATLETA negado, anônimo negado).
       Verify: `StravaAuthControllerAuthTest` cobre os dois novos endpoints com as mesmas roles do
       padrão existente do controller.
+      **Nota (achado do `/done`, 2026-07-16):** 6.4-6.6 estavam implementados e mergeados
+      (confirmado via `git show origin/develop:...`) mas o checkbox tinha ficado desmarcado por
+      lapso de documentação — corrigido antes do arquivamento, sem reimplementação necessária.
 - [x] 6.7 **Late-check antes de cada sync (design.md D5.2 — TOCTOU, achado do 2º pre-mortem; alvo
       corrigido no achado da task 6.3):** imediatamente antes de `stravaActivityService
       .syncActivities(atletaId)` em `StravaActivitySyncScheduler.runDailyIncrementalSync` (NÃO em
