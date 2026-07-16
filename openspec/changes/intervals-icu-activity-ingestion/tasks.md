@@ -1,13 +1,22 @@
 # Tasks: intervals-icu-activity-ingestion
 
 Backend `apps/menthoros-backend`. Validação padrão de cada bloco: `./mvnw clean test` verde.
-TDD: teste antes da implementação em cada bloco.
+TDD: teste antes da implementação em cada bloco. Cada task tem uma linha `Verify:` — o teste/comando
+que confirma que a task específica funcionou, além da validação de bloco.
+
+Branch: `feature/intervals-icu-activity-ingestion`, base `develop` @ `860b32e` (merge de
+`intervals-icu-push-hardening`). Sequência dos blocos: 1→2 são independentes entre si; 3 depende só
+do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate 3.0; 5 depende de 4
+(endpoint expõe o serviço); 6 é paralelizável com 1-5 até a task 4.4/6.8 (que depende do campo
+`autoSyncPausado` existir — bloco 6.1/6.2 primeiro); 7 depende de tudo; 8 depende de 7.
 
 ## Bloco 1 — Client: `buscarAtividade` + `IcuActivityDto` (D1)
 
 - [ ] 1.1 Criar `IcuActivityDto` (record, `@JsonIgnoreProperties(ignoreUnknown = true)`) com os
       campos do D1; teste de desserialização com fixture JSON representativa (campos presentes,
       ausentes e extras).
+      Verify: `IcuActivityDtoTest` (ou teste de desserialização no pacote `dto/intervalsicu`) verde
+      cobrindo os três casos (todos campos, campos ausentes → null, campos extras ignorados).
 - [ ] 1.2 Adicionar `buscarAtividade(String apiKey, String activityId)` à interface
       `IntervalsIcuClient` e implementar em `IntervalsIcuClientImpl` (GET `/api/v1/activity/{id}`,
       Basic Auth por chamada, `traduz` para erros; key/body nunca logados). Testes no padrão dos
@@ -15,6 +24,9 @@ TDD: teste antes da implementação em cada bloco.
       do DoR): corrigir o javadoc desatualizado de `IntervalsIcuClient.java:22` — cita
       `IntervalsIcuApiException(NOT_FOUND)`, símbolo que não existe (o construtor real é
       `(HttpStatusCode, String)`, sem enum de causa).
+      Verify: `IntervalsIcuClientImplTest` cobre `buscarAtividade` (sucesso, 404, 403, falha de
+      transporte) usando o mesmo mock/WireMock dos métodos existentes; `grep -n "NOT_FOUND"
+      IntervalsIcuClient.java` não retorna mais nada.
 - [ ] 1.3 Validação: `./mvnw clean test`.
 
 ## Bloco 2 — Mapper `IcuActivityDto` → `TreinoRealizado` (D2)
@@ -26,11 +38,17 @@ TDD: teste antes da implementação em cada bloco.
       (Run/TrailRun/VirtualRun/Treadmill aceitos; Ride rejeitado); teste de virada de dia para
       `start_date_local` (activity 23:30-00:30 não muda de dia por fuso do servidor — parsing
       igual ao `StravaActivityServiceImpl`).
+      Verify: `IntervalsIcuActivityMapperTest` (`@Nested` por cenário) verde cobrindo pace/fallback,
+      conversão de unidades, null input, filtro de modalidade (aceito × rejeitado) e virada de dia.
 - [ ] 2.2 Cadência: NÃO reaproveitar a fórmula do FIT/Strava por analogia. Escrever
       `sanitizeCadenciaIntervalsIcu` isolada e marcar explicitamente como pendente de confirmação
       contra payload real (revisitar no Bloco 7.1 antes de fechar a change).
+      Verify: método isolado existe e testado com valores sintéticos; comentário/TODO explícito
+      apontando para o item de smoke do Bloco 7.1 que confirma a unidade real.
 - [ ] 2.3 Implementar o mapper (componente puro, sem IO) até os testes passarem;
       `metadadosSincronizacao` com `{icuTrainingLoad, calories, totalElevationGain, deviceName}`.
+      Verify: todos os testes do 2.1 verdes; `metadadosSincronizacao` serializa como JSON válido
+      com as quatro chaves.
 - [ ] 2.4 Validação: `./mvnw clean test`.
 
 ## Bloco 3 — Gate de pareamento + Extração de `CandidateSelector`/`ReconciliationDecisionExecutor` (D4)
@@ -48,11 +66,15 @@ TDD: teste antes da implementação em cada bloco.
             antes de acionar o `CandidateSelector`.
       - [ ] Se NÃO: heurística D-1..D+1 permanece único mecanismo, sem alteração ao design original
             — seguir 3.1-3.4 normalmente.
+      Verify: campo S/N preenchido acima com evidência (payload colado ou nome do campo
+      encontrado); decisão refletida em D3 passo 9 (design.md) se o resultado for SIM.
 - [ ] 3.1 **Teste de caracterização PRIMEIRO** (antes de tocar no scheduler): fixar o
       comportamento atual de `DailyActivitySyncSchedulerImpl` — em especial que a seleção de
       pendentes filtra por `statusSincronizacao=PENDENTE` (não por `reconciliationStatus`, apesar
       do nome do método `findByAtletaIdAndDataTreinoAndReconciliationStatus`) e a janela D-1..D+1
       exata usada hoje.
+      Verify: teste de caracterização novo passa contra o comportamento ATUAL do scheduler, ANTES
+      de qualquer alteração de código nesta task.
 - [ ] 3.2 Extrair `CandidateSelector` (busca `TreinoPlanejado` na janela D-1..D+1, mesmo filtro de
       compatibilidade do scheduler) e `ReconciliationDecisionExecutor` (decisão via
       `MatchingDecisionEngine` + persistência de status/score/reason/auditoria, com `save()`
@@ -60,6 +82,8 @@ TDD: teste antes da implementação em cada bloco.
       Renomear o método do repositório para refletir o filtro real (`statusSincronizacao`), sem
       mudar a query. Scheduler passa a delegar para os dois colaboradores; nenhuma asserção de
       teste existente afrouxada.
+      Verify: suíte existente de `DailyActivitySyncSchedulerImplTest` continua 100% verde sem
+      nenhuma asserção relaxada; o teste de caracterização do 3.1 ainda passa sem alteração.
 - [ ] 3.3 **Guarda absoluta de campos nulos — AMBOS os lados (correção, não débito — decisão do
       founder; achado do 2º pre-mortem estende a guarda ao lado `planejado`):** dentro do
       `ReconciliationDecisionExecutor`, implementar o veto: se `realizado.getDuracaoMin() == null`
@@ -70,9 +94,13 @@ TDD: teste antes da implementação em cada bloco.
       cobrindo os dois lados — (1) `realizado` sem duração, sem distância, e sem as duas; (2)
       `planejado` sem duração, sem distância, e sem as duas — todos os casos devem resultar em
       `AMBIGUO` mesmo com temporalScore=1.0 e demais scores artificialmente altos.
+      Verify: teste parametrizado com os 6 casos (3 `realizado` + 3 `planejado`) força `AMBIGUO`
+      em todos, mesmo com score artificialmente alto nas outras dimensões.
 - [ ] 3.4 Testes unitários do executor cobrindo os quatro desfechos (VINCULADO_AUTOMATICO,
       AMBIGUO por faixa, AMBIGUO por tie-break, NAO_PLANEJADO) + auditoria gravada + `save()` do
       planejado vinculado + sem candidatos na janela + a guarda de campos nulos do 3.3.
+      Verify: `ReconciliationDecisionExecutorTest` cobre os 4 desfechos + `save()` explícito do
+      planejado vinculado verificado via `verify(...)` + auditoria `TreinoReconciliacao` gravada.
 - [ ] 3.5 Validação: `./mvnw clean test` (suítes do scheduler intactas, teste de caracterização
       do 3.1 ainda passa).
 
@@ -99,12 +127,18 @@ TDD: teste antes da implementação em cada bloco.
       externa quando já existe (CA2)"), que tem prioridade sobre ele (ordem corrigida na 3ª rodada
       de pre-mortem: re-import de activity já existente retorna 200 sem checar a flag Strava — ver
       design.md D3/D3.1).
+      Verify: `IntervalsIcuActivityIngestionServiceImplTest` verde cobrindo todos os cenários
+      listados; matriz de erros do D3.1 (401/403/404/422/429/5xx) com um teste dedicado por linha.
 - [ ] 4.2 Guard de segurança (D5.1): antes de prosseguir, verificar que não existe outra conexão
       ativa do mesmo tenant com a mesma `externalAthleteId`; se existir, 409 sem chamada externa.
       Teste dedicado cobrindo esse cenário.
+      Verify: teste dedicado confirma 409 e `verifyNoInteractions` no client intervals.icu quando
+      há `externalAthleteId` duplicado no tenant.
 - [ ] 4.3 Validação de `activityId` (D5): normalizar/rejeitar valores com `/`, `?`, `%` (URL colada
       em vez de id simples) antes de repassar ao client. `activityId` chega como query param (não
       path variable) — ver Bloco 5.
+      Verify: teste dedicado cobre URL completa colada → extrai segmento final; valores soltos com
+      `/`, `?`, `%` que não sejam URL reconhecível → rejeitados antes de chamar o client.
 - [ ] 4.4 **Precondição bloqueante de Strava ativo (D5.2 — agora safety net residual: com a pausa
       passando a ser automática nos dois pontos de conexão — tasks 6.10/6.11 — este passo deixa de
       proteger contra "o coach esqueceu de pausar" e passa a proteger o cenário residual de
@@ -125,15 +159,24 @@ TDD: teste antes da implementação em cada bloco.
       sem checar a flag — ordem explícita do achado MÉDIO da 3ª rodada de pre-mortem; sem Strava →
       prossegue; Strava ativo sem pausa → 409 e nenhuma interação com repositório/client de
       intervals.icu; Strava pausado → prossegue).
+      Verify: os quatro cenários passam, incluindo a ordem CA2-antes-de-CA11 (re-import não
+      dispara a precondição mesmo com Strava ativo e não pausado). Depende do campo
+      `autoSyncPausado` existir (Bloco 6.1/6.2) — se ainda não implementado, usar um mock/stub do
+      repositório retornando o valor esperado.
 - [ ] 4.5 Implementar interface + impl com JavaDoc de idempotência/side effects/tenant-aware;
       HTTP fora da TX, persistência+reconciliação em colaborador transacional, reload da conexão
       dentro da TX antes do insert.
+      Verify: todos os testes de 4.1-4.4 verdes contra a implementação real (não mais mocks do
+      próprio serviço); JavaDoc com as três linhas obrigatórias (Idempotent/Side Effects/Tenant-aware)
+      presente no método público.
 - [ ] 4.6 Validação: `./mvnw clean test`.
 
 ## Bloco 5 — Endpoint (D5)
 
 - [ ] 5.1 Verificar handler de `IntervalsIcuApiException` no `GlobalExceptionHandler`; adicionar
       se ausente (mesmo commit do controller), distinguindo o novo caso de auth inválida.
+      Verify: teste do `GlobalExceptionHandler` (ou teste de integração do controller) confirma que
+      `IntervalsIcuApiException` com status 401/403 mapeia para o 409 curado, distinto de 404.
 - [ ] 5.2 `IntervalsIcuActivityController` — `POST
       /api/v1/intervals-icu/atletas/{atletaId}/activities/import?activityId={id}` (query param,
       não path variable — D5), `@PreAuthorize` TECNICO/ADMIN,
@@ -143,6 +186,8 @@ TDD: teste antes da implementação em cada bloco.
       `complete-authorization-controllers` (roles aceitas, ATLETA negado, anônimo negado). Teste
       dedicado de normalização de `activityId` (URL completa colada → extrai segmento final; `/`,
       `?`, `%` soltos → 400).
+      Verify: `IntervalsIcuActivityControllerAuthTest` cobre TECNICO/ADMIN aceitos, ATLETA e
+      anônimo negados; Swagger gera os 6 status codes; `@Tag` name é ASCII kebab-case.
 - [ ] 5.3 Validação: `./mvnw clean test`.
 
 ## Bloco 6 — Flag de pausa de sincronização Strava por atleta (D5.2 — substitui matching cross-fonte)
@@ -157,25 +202,38 @@ TDD: teste antes da implementação em cada bloco.
       `deterministic-planner-engine` já tiver mergeado): `ALTER TABLE tb_integracao_externa ADD
       COLUMN auto_sync_pausado BOOLEAN NOT NULL DEFAULT false;` (padrão de nomeação/estrutura de
       migration do CLAUDE.md do backend). Sem down-migration (aditiva).
+      Verify: `ls src/main/resources/db/migration/ | sort -V | tail -3` reconferido no início desta
+      task (não só no DoR); `./mvnw clean test` sobe o schema via Flyway sem erro no contexto de
+      teste (Testcontainers/H2 conforme o padrão do repo).
 - [ ] 6.2 Campo `autoSyncPausado` em `IntegracaoExterna` (`@Column(name = "auto_sync_pausado",
       nullable = false)`, `boolean`, default `false`). Teste de mapeamento básico se o padrão do
       repo usar `@DataJpaTest` para entidades novas/alteradas (ver Test Layers).
+      Verify: entidade persiste e recarrega com `autoSyncPausado=false` por default em uma linha
+      nova; `@DataJpaTest` (se aplicável) confirma o mapeamento da coluna.
 - [ ] 6.3 Testes primeiro do guard do scheduler: adicionar `and (ie.autoSyncPausado = false or
       ie.autoSyncPausado is null)` à JPQL de `AtletaRepository.findAllWithStravaConnected()`
       (`AtletaRepository.java:112-121`) — teste garantindo que um atleta com `autoSyncPausado=true`
       não aparece no resultado, e que um atleta ativo/não pausado continua aparecendo (CA10).
+      Verify: teste `@DataJpaTest` (ou equivalente) sobe dois atletas (um pausado, um não) e
+      confirma que só o não-pausado aparece em `findAllWithStravaConnected()`.
 - [ ] 6.4 DTO `StravaSyncPauseStatusDto(boolean autoSyncPausado, Instant atualizadoEm)` em
       `dto/output/`.
+      Verify: record compila com `@Schema`/`@JsonInclude(NON_NULL)` conforme o padrão de DTOs; usado
+      pelos endpoints da task 6.6.
 - [ ] 6.5 Testes primeiro do serviço (reaproveitar `StravaOAuthServiceImpl` ou criar método
       dedicado — decisão de implementação): `pausarSync(atletaId, tenantId)` e
       `retomarSync(atletaId, tenantId)`, ambos: buscam a `IntegracaoExterna` STRAVA via
       `findByAtletaIdAndPlataformaAndTenantId` (tenant-scoped); ausente → `DomainNotFoundException`
       (404); presente → seta `autoSyncPausado` e salva; idempotente (chamar duas vezes com o mesmo
       valor é no-op seguro, sem erro). Implementar até os testes passarem.
+      Verify: teste cobre presente/ausente e idempotência (duas chamadas seguidas com o mesmo valor
+      não lançam erro nem duplicam side effect observável).
 - [ ] 6.6 Endpoints em `StravaAuthController`: `PATCH /api/v1/strava/pausar-sync/{atletaId}` e
       `PATCH /api/v1/strava/retomar-sync/{atletaId}`, `@PreAuthorize` TECNICO/ADMIN,
       `@RequireTenant(resourceParamIndex = 0)`, Swagger completo (200/403/404). Teste de
       autorização no padrão `*ControllerAuthTest` (roles aceitas, ATLETA negado, anônimo negado).
+      Verify: `StravaAuthControllerAuthTest` cobre os dois novos endpoints com as mesmas roles do
+      padrão existente do controller.
 - [ ] 6.7 **Late-check no scheduler antes de cada persistência (design.md D5.2 — TOCTOU, achado do
       2º pre-mortem):** imediatamente antes de persistir a atividade Strava de CADA atleta no
       `DailyActivitySyncSchedulerImpl`, revalidar `autoSyncPausado` com uma query fresca (não
@@ -185,6 +243,8 @@ TDD: teste antes da implementação em cada bloco.
       retorna o atleta elegível, mas a query de revalidação — chamada logo antes do insert —
       já reflete `autoSyncPausado=true`) → atleta pulado, nenhuma atividade persistida para ele
       naquele ciclo, sem exceção lançada.
+      Verify: teste dedicado confirma que o atleta pausado ENTRE a listagem e o insert é pulado no
+      MESMO ciclo, sem exceção, com log/métrica emitidos.
 - [ ] 6.8 **Teste do 409 de precondição no import (design.md D3 passo 1, D5.2 — safety net
       residual agora que a pausa é automática nos dois pontos de conexão, ver 6.10/6.11):**
       cenário
@@ -196,6 +256,8 @@ TDD: teste antes da implementação em cada bloco.
       resposta é 200 com o treino existente, SEM 409 (dedup do passo 0 tem prioridade sobre a
       precondição do passo 1 — achado MÉDIO da 3ª rodada de pre-mortem, CA2). Complementa o TDD da
       task 4.4; aqui o foco é a integração ponta a ponta via controller/service reais (não só mock).
+      Verify: teste de integração (controller+service reais, client mockado) cobre os três
+      cenários (bloqueado/liberado/re-import) ponta a ponta.
 - [ ] 6.9 **Guard no webhook Strava (CRÍTICO, achado da 3ª rodada de pre-mortem — a flag precisa
       cobrir os DOIS caminhos automáticos do Strava, não só o scheduler):** o webhook do Strava
       (`StravaWebhookServiceImpl.handleEventAsync` → `processCreateEvent`/`processUpdateEvent` →
@@ -213,6 +275,9 @@ TDD: teste antes da implementação em cada bloco.
       `syncSingleActivityById`, nenhuma exceção é lançada (webhook endpoint continua respondendo
       200 ao Strava, contrato preservado); com `autoSyncPausado=false` ou sem integração pausada,
       comportamento atual é preservado (chama `syncSingleActivityById` normalmente).
+      Verify: `StravaWebhookServiceImplTest` cobre create/update com pausado (sem chamada, sem
+      exceção) e não-pausado (comportamento atual preservado); `processDeleteEvent` sem alteração
+      de comportamento.
 - [ ] 6.10 **Hook automático em `IntervalsIcuConnectionServiceImpl.conectar` (D5.2 — pausa
       automática, decisão final do founder que substitui o modelo manual-primário):** TDD primeiro
       — cenário "atleta com Strava ativo conecta intervals.icu → integração Strava marcada
@@ -227,6 +292,9 @@ TDD: teste antes da implementação em cada bloco.
       construção):** Strava já `autoSyncPausado=true` (pausado manualmente antes) + atleta conecta
       intervals.icu → permanece `true`, sem save duplicado nem erro (idempotente; o `!= true` já
       evita double-set, só faltava o teste explícito).
+      Verify: `IntervalsIcuConnectionServiceImplTest` cobre os três cenários (pausa nova, no-op sem
+      Strava, idempotente com Strava já pausado) com `verify(...)` no número exato de chamadas de
+      save.
 - [ ] 6.11 **Hook automático em `StravaOAuthServiceImpl.exchangeCodeForToken` (D5.2 — Strava nasce
       pausado quando intervals.icu já está ativo):** TDD primeiro — cenário "atleta com
       intervals.icu ativo conecta/reconecta Strava via OAuth → integração Strava nasce com
@@ -246,6 +314,9 @@ TDD: teste antes da implementação em cada bloco.
       por intervals.icu ativo retorna vazia — não reseta para `false`); (b) linha existente com
       `autoSyncPausado=true` + reconecta Strava com intervals.icu **ainda ativo** → permanece `true`
       (idempotente, sem erro, sem save duplicado).
+      Verify: `StravaOAuthServiceImplTest` cobre os quatro cenários (nasce pausado, default false
+      sem regressão, preserva `true` herdado com intervals.icu inativo, preserva `true` herdado com
+      intervals.icu ativo) e confirma UM único `save()` por chamada (não dois).
 - [ ] 6.12 **`IntervalsIcuConnectionServiceImpl.desconectar` NÃO toca em `autoSyncPausado` (decisão
       do founder, 5º pre-mortem — "nunca auto-retomar", ver design.md D5.2):** TDD: cenário "atleta
       com Strava pausado (`autoSyncPausado=true`) desconecta o intervals.icu → a integração Strava
@@ -256,6 +327,9 @@ TDD: teste antes da implementação em cada bloco.
       momento do `desconectar` quando o atleta tinha Strava pausado, indicando que o Strava
       permanece pausado e requer `retomar-sync` manual — mitigação mínima de observabilidade (sem
       alerta proativo, frontend fora de escopo).
+      Verify: teste negativo confirma zero chamadas de save para a linha Strava dentro de
+      `desconectar`; log estruturado emitido (capturado via `@ExtendWith` de log ou similar ao
+      padrão já usado no repo, se houver).
 - [ ] 6.13 Validação: `./mvnw clean test`.
 
 ## Bloco 7 — Gate de validação real (D6)
@@ -288,8 +362,12 @@ TDD: teste antes da implementação em cada bloco.
       automaticamente, desconectar o intervals.icu e confirmar via query direta que
       `auto_sync_pausado` permanece `true` (não reverte) e que o log estruturado foi emitido;
       confirmar que o atleta só volta a aparecer para o scheduler após `retomar-sync` manual.
+      Verify: cada item (a)-(i) marcado com o resultado observado (não só "OK"/"feito") no relatório
+      da task 7.2 — evidência suficiente para outra pessoa confirmar sem repetir o smoke.
 - [ ] 7.2 Atualizar proposal.md (Open Questions resolvidas, inclusive o resultado do gate 3.0) e
       este tasks.md com o resultado de cada item do checklist 7.1.
+      Verify: `proposal.md` "Open Questions & Assumptions" sem itens "Aberto" que o smoke já
+      resolveu; `git diff` mostra as respostas registradas, não apenas checkboxes marcados.
 
 ## QA / entrega
 
