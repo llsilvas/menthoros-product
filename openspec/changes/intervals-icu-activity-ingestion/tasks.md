@@ -203,7 +203,7 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
 
 ## Bloco 6 — Flag de pausa de sincronização Strava por atleta (D5.2 — substitui matching cross-fonte)
 
-- [ ] 6.1 **Antes de criar o arquivo, confira `ls src/main/resources/db/migration/ | sort -V | tail -3`
+- [x] 6.1 **Antes de criar o arquivo, confira `ls src/main/resources/db/migration/ | sort -V | tail -3`
       — V54 é o próximo número livre no momento do DoR (2026-07-16), mas a change ativa
       `deterministic-planner-engine` TAMBÉM reivindica V54
       (`V54__Add_planner_metadata_to_plano_semanal.sql`, proposal.md:46). Regra: quem mergear
@@ -216,11 +216,16 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       Verify: `ls src/main/resources/db/migration/ | sort -V | tail -3` reconferido no início desta
       task (não só no DoR); `./mvnw clean test` sobe o schema via Flyway sem erro no contexto de
       teste (Testcontainers/H2 conforme o padrão do repo).
-- [ ] 6.2 Campo `autoSyncPausado` em `IntegracaoExterna` (`@Column(name = "auto_sync_pausado",
+- [x] 6.2 Campo `autoSyncPausado` em `IntegracaoExterna` (`@Column(name = "auto_sync_pausado",
       nullable = false)`, `boolean`, default `false`). Teste de mapeamento básico se o padrão do
       repo usar `@DataJpaTest` para entidades novas/alteradas (ver Test Layers).
-      Verify: entidade persiste e recarrega com `autoSyncPausado=false` por default em uma linha
-      nova; `@DataJpaTest` (se aplicável) confirma o mapeamento da coluna.
+      **Sem teste dedicado (justificativa):** verificado que `@DataJpaTest` não é usado em nenhum
+      lugar do repo, e não existe teste de repositório/entidade próprio para `IntegracaoExterna` —
+      não há convenção a seguir aqui. Default correto por construção (inicializador Java `= false`
+      + `DEFAULT false` da migration); comportamento real da flag é exercitado pelos testes das
+      tasks 6.3/6.10-6.12.
+      Verify: `./mvnw clean test` aplica a migration V54 sem erro (suíte completa sobe o schema via
+      Flyway); comportamento da flag coberto indiretamente pelas tasks seguintes.
 - [ ] 6.3 Testes primeiro do guard do scheduler: adicionar `and (ie.autoSyncPausado = false or
       ie.autoSyncPausado is null)` à JPQL de `AtletaRepository.findAllWithStravaConnected()`
       (`AtletaRepository.java:112-121`) — teste garantindo que um atleta com `autoSyncPausado=true`
