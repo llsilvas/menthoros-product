@@ -31,7 +31,7 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
 
 ## Bloco 2 — Mapper `IcuActivityDto` → `TreinoRealizado` (D2)
 
-- [ ] 2.1 Testes do `IntervalsIcuActivityMapper` primeiro: pace derivado de
+- [x] 2.1 Testes do `IntervalsIcuActivityMapper` primeiro: pace derivado de
       `moving_time`/`distance` (prioridade) com fallback para `average_speed` só quando os
       primeiros faltarem; m → km, seg → min; campos nulos tolerados; RPE presente e ausente;
       null input → `IllegalArgumentException`; filtro de modalidade
@@ -47,16 +47,16 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       Verify: `IntervalsIcuActivityMapperTest` (`@Nested` por cenário) verde cobrindo pace/fallback,
       conversão de unidades, `movingTime` ausente → `Duration.ZERO` (não null), `distance` ausente →
       `null` literal, null input, filtro de modalidade (aceito × rejeitado) e virada de dia.
-- [ ] 2.2 Cadência: NÃO reaproveitar a fórmula do FIT/Strava por analogia. Escrever
+- [x] 2.2 Cadência: NÃO reaproveitar a fórmula do FIT/Strava por analogia. Escrever
       `sanitizeCadenciaIntervalsIcu` isolada e marcar explicitamente como pendente de confirmação
       contra payload real (revisitar no Bloco 7.1 antes de fechar a change).
       Verify: método isolado existe e testado com valores sintéticos; comentário/TODO explícito
       apontando para o item de smoke do Bloco 7.1 que confirma a unidade real.
-- [ ] 2.3 Implementar o mapper (componente puro, sem IO) até os testes passarem;
+- [x] 2.3 Implementar o mapper (componente puro, sem IO) até os testes passarem;
       `metadadosSincronizacao` com `{icuTrainingLoad, calories, totalElevationGain, deviceName}`.
       Verify: todos os testes do 2.1 verdes; `metadadosSincronizacao` serializa como JSON válido
       com as quatro chaves.
-- [ ] 2.4 Validação: `./mvnw clean test`.
+- [x] 2.4 Validação: `./mvnw clean test`.
 
 ## Bloco 3 — Gate de pareamento + Extração de `CandidateSelector`/`ReconciliationDecisionExecutor` (D4)
 
