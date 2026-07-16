@@ -289,7 +289,7 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       task 4.4; aqui o foco é a integração ponta a ponta via controller/service reais (não só mock).
       Verify: teste de integração (controller+service reais, client mockado) cobre os três
       cenários (bloqueado/liberado/re-import) ponta a ponta.
-- [ ] 6.9 **Guard no webhook Strava (CRÍTICO, achado da 3ª rodada de pre-mortem — a flag precisa
+- [x] 6.9 **Guard no webhook Strava (CRÍTICO, achado da 3ª rodada de pre-mortem — a flag precisa
       cobrir os DOIS caminhos automáticos do Strava, não só o scheduler):** o webhook do Strava
       (`StravaWebhookServiceImpl.handleEventAsync` → `processCreateEvent`/`processUpdateEvent` →
       `requireIntegration(ownerId)`, `StravaWebhookServiceImpl.java:69-95`) não passa pelo
@@ -309,7 +309,7 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       Verify: `StravaWebhookServiceImplTest` cobre create/update com pausado (sem chamada, sem
       exceção) e não-pausado (comportamento atual preservado); `processDeleteEvent` sem alteração
       de comportamento.
-- [ ] 6.10 **Hook automático em `IntervalsIcuConnectionServiceImpl.conectar` (D5.2 — pausa
+- [x] 6.10 **Hook automático em `IntervalsIcuConnectionServiceImpl.conectar` (D5.2 — pausa
       automática, decisão final do founder que substitui o modelo manual-primário):** TDD primeiro
       — cenário "atleta com Strava ativo conecta intervals.icu → integração Strava marcada
       `autoSyncPausado=true`, `save()` verificado (mock/spy do repositório)"; cenário "atleta sem
@@ -326,7 +326,7 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       Verify: `IntervalsIcuConnectionServiceImplTest` cobre os três cenários (pausa nova, no-op sem
       Strava, idempotente com Strava já pausado) com `verify(...)` no número exato de chamadas de
       save.
-- [ ] 6.11 **Hook automático em `StravaOAuthServiceImpl.exchangeCodeForToken` (D5.2 — Strava nasce
+- [x] 6.11 **Hook automático em `StravaOAuthServiceImpl.exchangeCodeForToken` (D5.2 — Strava nasce
       pausado quando intervals.icu já está ativo):** TDD primeiro — cenário "atleta com
       intervals.icu ativo conecta/reconecta Strava via OAuth → integração Strava nasce com
       `autoSyncPausado=true` no MESMO save (não dois saves separados — verificar o número de
@@ -348,7 +348,7 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       Verify: `StravaOAuthServiceImplTest` cobre os quatro cenários (nasce pausado, default false
       sem regressão, preserva `true` herdado com intervals.icu inativo, preserva `true` herdado com
       intervals.icu ativo) e confirma UM único `save()` por chamada (não dois).
-- [ ] 6.12 **`IntervalsIcuConnectionServiceImpl.desconectar` NÃO toca em `autoSyncPausado` (decisão
+- [x] 6.12 **`IntervalsIcuConnectionServiceImpl.desconectar` NÃO toca em `autoSyncPausado` (decisão
       do founder, 5º pre-mortem — "nunca auto-retomar", ver design.md D5.2):** TDD: cenário "atleta
       com Strava pausado (`autoSyncPausado=true`) desconecta o intervals.icu → a integração Strava
       permanece `autoSyncPausado=true` inalterada; nenhuma chamada a
@@ -361,7 +361,7 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       Verify: teste negativo confirma zero chamadas de save para a linha Strava dentro de
       `desconectar`; log estruturado emitido (capturado via `@ExtendWith` de log ou similar ao
       padrão já usado no repo, se houver).
-- [ ] 6.13 Validação: `./mvnw clean test`.
+- [x] 6.13 Validação: `./mvnw clean test`.
 
 ## Bloco 7 — Gate de validação real (D6)
 
