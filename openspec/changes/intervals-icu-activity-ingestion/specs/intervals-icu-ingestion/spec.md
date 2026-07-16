@@ -184,9 +184,12 @@ coach possa esquecer. O coach (TECNICO/ADMIN) TAMBÉM DEVE poder pausar e retoma
 manualmente via `PATCH /api/v1/strava/pausar-sync/{atletaId}` e `.../retomar-sync/{atletaId}` — um
 **override explícito**, não o mecanismo primário; `retomar-sync` é o único jeito de reativar o
 Strava deliberadamente enquanto intervals.icu segue ativo. A pausa (automática ou manual) DEVE
-cobrir os DOIS caminhos automáticos de ingestão do Strava — o scheduler diário e o webhook em tempo
-real — para que a garantia "Strava pausado para este atleta" seja verdadeira; cobrir apenas um dos
-dois caminhos reabre a colisão cross-fonte que a flag existe para eliminar.
+cobrir os DOIS caminhos automáticos de ingestão do Strava — o `StravaActivitySyncScheduler` diário
+(o scheduler que efetivamente busca e insere atividades novas via `syncActivities`; achado de
+implementação do Bloco 6 — não confundir com `DailyActivitySyncSchedulerImpl`, que só reconcilia
+registros já `PENDENTE`, sem inserir nada) e o webhook em tempo real — para que a garantia "Strava
+pausado para este atleta" seja verdadeira; cobrir apenas um dos dois caminhos reabre a colisão
+cross-fonte que a flag existe para eliminar.
 
 #### Scenario: Conectar intervals.icu com Strava ativo pausa automaticamente
 - **Given** um atleta do tenant com integração Strava ativa (`autoSyncPausado=false` ou indefinido)
@@ -210,11 +213,14 @@ dois caminhos reabre a colisão cross-fonte que a flag existe para eliminar.
 - **When** o coach chama `PATCH /api/v1/strava/pausar-sync/{atletaId}`
 - **Then** a resposta é 200 com `autoSyncPausado=true`
 
-#### Scenario: Scheduler pula atleta com Strava pausado
+#### Scenario: Scheduler de ingestão pula atleta com Strava pausado
 - **Given** um atleta com `autoSyncPausado=true` na integração Strava
-- **When** o scheduler diário (`DailyActivitySyncSchedulerImpl`) roda seu ciclo
-- **Then** o atleta não aparece na lista de atletas processados e nenhuma tentativa de sync é
-  feita para ele
+- **When** o `StravaActivitySyncScheduler.runDailyIncrementalSync` roda seu ciclo (o scheduler que
+  efetivamente busca e insere atividades novas — via `IntegracaoExternaRepository
+  .findAllActiveByPlataforma`; achado de implementação do Bloco 6, não
+  `DailyActivitySyncSchedulerImpl`)
+- **Then** o atleta não aparece na lista de integrações processadas e nenhuma chamada a
+  `syncActivities` é feita para ele
 
 #### Scenario: Webhook do Strava pula atleta com Strava pausado
 - **Given** um atleta com `autoSyncPausado=true` na integração Strava
@@ -283,12 +289,12 @@ Strava deliberadamente (`retomar-sync`) enquanto o intervals.icu segue ativo.
 - **Then** o import prossegue normalmente (200), sem qualquer verificação adicional de matching
   cross-fonte
 
-#### Scenario: Late-check do scheduler pula o atleta pausado no meio do lote
-- **Given** o scheduler diário (`DailyActivitySyncSchedulerImpl`) já listou os atletas elegíveis
-  para sync do Strava no início do ciclo corrente (via `findAllWithStravaConnected`)
+#### Scenario: Late-check do scheduler de ingestão pula o atleta pausado no meio do lote
+- **Given** o `StravaActivitySyncScheduler.runDailyIncrementalSync` já listou as integrações
+  elegíveis para sync do Strava no início do ciclo corrente (via `findAllActiveByPlataforma`)
 - **And** o coach pausa a sincronização automática do Strava de um desses atletas ENQUANTO o
   scheduler ainda está processando o lote (antes de chegar a esse atleta especificamente)
-- **When** o scheduler revalida `autoSyncPausado` imediatamente antes de persistir a atividade
-  daquele atleta
-- **Then** o atleta é pulado nesse mesmo ciclo (log + métrica, sem erro) — não apenas a partir do
-  próximo ciclo
+- **When** o scheduler revalida `autoSyncPausado` imediatamente antes de chamar `syncActivities`
+  para aquele atleta
+- **Then** o atleta é pulado nesse mesmo ciclo (log, sem erro) — não apenas a partir do próximo
+  ciclo

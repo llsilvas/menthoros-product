@@ -40,8 +40,26 @@ adicional)
   (task 6.10). Investigou também o caso simétrico (desconectar o Strava em si com intervals.icu
   ativo) — confirmado não ser gap: `ativo=false` já exclui o atleta dos dois guards
   independentemente de `autoSyncPausado` (nota em design.md D5.2).
-- **DoR: READY.** Sem bloqueadores pendentes. Próximo passo: `/implement init
-  intervals-icu-activity-ingestion`.
+- **DoR: READY** (2026-07-16) → `/implement init` executado, branch
+  `feature/intervals-icu-activity-ingestion` criada, implementação em andamento (`/implement run
+  --step`).
+- **Achado CRÍTICO durante a implementação do Bloco 6 (2026-07-16) — sobreviveu a 5 rodadas de DoR
+  textual:** o guard aplicado nas rodadas 1-5 (`AtletaRepository.findAllWithStravaConnected`,
+  consumido por `DailyActivitySyncSchedulerImpl`) protege o scheduler ERRADO. Leitura completa do
+  código (só possível ao implementar, não ao revisar a spec) revelou que
+  `DailyActivitySyncSchedulerImpl` é reconciliação-only — nunca insere um `TreinoRealizado` novo, só
+  decide/grava reconciliação sobre registros Strava JÁ persistidos com `statusSincronizacao=PENDENTE`.
+  O caminho automático REAL de ingestão diária é `StravaActivitySyncScheduler` (nome parecido, pacote
+  diferente, sem sufixo `Impl`) → `IntegracaoExternaRepository.findAllActiveByPlataforma(STRAVA)` →
+  `stravaActivityService.syncActivities(atletaId)`. Guard corrigido: filtro `autoSyncPausado` movido
+  para `findAllActiveByPlataforma` + late-check em `StravaActivitySyncScheduler
+  .runDailyIncrementalSync` antes de cada `syncActivities`. O guard original em
+  `findAllWithStravaConnected` foi mantido como defesa em profundidade adicional (evita reconciliar
+  um registro Strava pré-existente para um atleta cuja fonte de verdade migrou para intervals.icu),
+  mas não é mais descrito como a defesa primária em lugar nenhum da spec. Ver design.md, seção
+  "Pre-mortem", "6ª rodada" para o detalhamento completo (incluindo por que nenhuma das 5 rodadas
+  textuais pegou isso). Nenhuma mudança de contrato de negócio (CA10 continua válido como escrito) —
+  só a implementação que o cumpre mudou de alvo.
 
 Abre o sentido **pull** da integração intervals.icu entregue em `intervals-icu-workout-push`
 (arquivada em `archive/2026-07/2026-07-15-intervals-icu-workout-push/`), que cobriu apenas o
@@ -90,9 +108,12 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
    integração Strava do atleta é marcada `autoSyncPausado=true`; (b)
    `StravaOAuthServiceImpl.exchangeCodeForToken` — ao conectar/reconectar Strava com intervals.icu
    já ativo, a integração Strava NASCE com `autoSyncPausado=true`. Guarda nos DOIS caminhos
-   automáticos de ingestão do Strava: (i) `DailyActivitySyncSchedulerImpl` (via
-   `AtletaRepository.findAllWithStravaConnected`, mais late-check antes de cada persistência) e
-   (ii) `StravaWebhookServiceImpl.requireIntegration` (evento em tempo real do Strava — skip
+   automáticos de ingestão do Strava: (i) `StravaActivitySyncScheduler.runDailyIncrementalSync`
+   (via `IntegracaoExternaRepository.findAllActiveByPlataforma`, mais late-check antes de cada
+   chamada a `syncActivities` — achado de implementação do Bloco 6: o scheduler que efetivamente
+   insere não é `DailyActivitySyncSchedulerImpl`, que é reconciliação-only sobre registros já
+   `PENDENTE`; guard mantido lá também como defesa em profundidade adicional, ver design.md D5.2)
+   e (ii) `StravaWebhookServiceImpl.requireIntegration` (evento em tempo real do Strava — skip
    silencioso, sem exceção, para preservar o contrato HTTP 200 do webhook). Decisão do founder: em
    vez de detectar/bloquear colisão cross-fonte automaticamente por heurística de
    tempo+distância+duração (complexidade alta, falsos positivos/negativos), a pausa acontece
@@ -184,8 +205,8 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
   integração Strava nasce com o default `autoSyncPausado=false` da migration, sem regressão do
   fluxo OAuth existente. Os endpoints `pausar-sync`/`retomar-sync` continuam funcionando como
   **override explícito do coach** sobre a mesma flag — o guard nos dois caminhos automáticos de
-  ingestão do Strava (scheduler via `AtletaRepository.findAllWithStravaConnected` + late-check, e
-  webhook via `StravaWebhookServiceImpl.requireIntegration`) responde à flag `autoSyncPausado`
+  ingestão do Strava (scheduler via `StravaActivitySyncScheduler`/`findAllActiveByPlataforma` +
+  late-check, e webhook via `StravaWebhookServiceImpl.requireIntegration`) responde à flag `autoSyncPausado`
   independentemente de como ela foi setada (automaticamente na conexão, ou manualmente via
   override) — o atleta pulado é pulado igual nos dois casos, e cobrir só o scheduler não seria
   suficiente: o webhook é um caminho automático independente para a mesma colisão cross-fonte que a
@@ -309,9 +330,11 @@ mitigação de design:
      já foi importada antes, o dedup do CA2 tem prioridade sobre esta precondição (ver CA11). `429`
      de rate-limit do intervals.icu é propagado como `429` (sem sobrecarregar o mesmo código 409,
      consistente com `StravaRateLimitException`→429 já existente no `GlobalExceptionHandler`).
-  3. **Late-check no scheduler:** revalida `autoSyncPausado` com query fresca imediatamente antes
-     de cada persistência, cobrindo o TOCTOU entre a listagem inicial do ciclo
-     (`findAllWithStravaConnected`) e o atleta específico sendo processado.
+  3. **Late-check no scheduler real de ingestão (`StravaActivitySyncScheduler`, achado de
+     implementação do Bloco 6 — não é `DailyActivitySyncSchedulerImpl`, que só reconcilia registros
+     já `PENDENTE`, sem inserir nada novo):** revalida `autoSyncPausado` com query fresca
+     imediatamente antes de cada chamada a `syncActivities`, cobrindo o TOCTOU entre a listagem
+     inicial do ciclo (`findAllActiveByPlataforma`) e o atleta específico sendo processado.
   4. **Guard no webhook do Strava (achado CRÍTICO da 3ª rodada de pre-mortem):** existe um SEGUNDO
      caminho automático de ingestão do Strava, em tempo real, que não passa pelo scheduler — o
      webhook (`StravaWebhookServiceImpl.handleEventAsync` →
@@ -327,8 +350,8 @@ mitigação de design:
 
   **Residual aceito e documentado** (não há forma barata de eliminar sem lock distribuído): TOCTOU
   de duas camadas — (1) entre o momento em que `autoSyncPausado` passa a `true` (automaticamente ao
-  conectar, ou via `pausar-sync` manual) e o scheduler diário do Strava, cuja seleção inicial
-  (`findAllWithStravaConnected`) já rodou; mitigado pelo late-check (camada 3 acima); (2) sync
+  conectar, ou via `pausar-sync` manual) e o `StravaActivitySyncScheduler`, cuja seleção inicial
+  (`findAllActiveByPlataforma`) já rodou; mitigado pelo late-check (camada 3 acima); (2) sync
   automático do Strava inserindo entre a checagem de precondição e o insert do import manual
   (janela de milissegundos, ação humana) — aceito, não coberto por lock nesta change. Sem limpeza
   automática de duplicatas já existentes antes desta change (fora de escopo).

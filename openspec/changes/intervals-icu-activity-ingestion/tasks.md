@@ -226,12 +226,25 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       tasks 6.3/6.10-6.12.
       Verify: `./mvnw clean test` aplica a migration V54 sem erro (suíte completa sobe o schema via
       Flyway); comportamento da flag coberto indiretamente pelas tasks seguintes.
-- [ ] 6.3 Testes primeiro do guard do scheduler: adicionar `and (ie.autoSyncPausado = false or
-      ie.autoSyncPausado is null)` à JPQL de `AtletaRepository.findAllWithStravaConnected()`
-      (`AtletaRepository.java:112-121`) — teste garantindo que um atleta com `autoSyncPausado=true`
-      não aparece no resultado, e que um atleta ativo/não pausado continua aparecendo (CA10).
-      Verify: teste `@DataJpaTest` (ou equivalente) sobe dois atletas (um pausado, um não) e
-      confirma que só o não-pausado aparece em `findAllWithStravaConnected()`.
+- [x] 6.3 **Guard no(s) scheduler(s) Strava — achado CRÍTICO durante a implementação (a task
+      original só cobria o scheduler ERRADO, sobreviveu a 5 rodadas de DoR textual; ver
+      design.md "6ª rodada" e proposal.md Status para o detalhamento completo):**
+      `AtletaRepository.findAllWithStravaConnected()` (`AtletaRepository.java:112-121`) é
+      consumido só por `DailyActivitySyncSchedulerImpl`, que é RECONCILIAÇÃO-ONLY — nunca insere um
+      `TreinoRealizado` novo, só decide/grava reconciliação sobre registros Strava JÁ persistidos
+      com `statusSincronizacao=PENDENTE`. O caminho automático REAL de ingestão diária (busca +
+      insere atividades novas) é `StravaActivitySyncScheduler` (`services/`, SEM sufixo `Impl`) →
+      `IntegracaoExternaRepository.findAllActiveByPlataforma(FonteDados.STRAVA)` →
+      `stravaActivityService.syncActivities(atletaId)`. Implementado: (a) guard primário em
+      `findAllActiveByPlataforma` (`and (i.autoSyncPausado = false or i.autoSyncPausado is null)`),
+      testado via `IntegracaoExternaRepositoryFindAllActiveByPlataformaTest` (Testcontainers); (b)
+      guard original em `findAllWithStravaConnected` MANTIDO como defesa em profundidade adicional
+      (evita reconciliar um registro Strava pré-existente para um atleta cuja fonte de verdade
+      migrou para intervals.icu), testado via `AtletaRepositoryFindAllWithStravaConnectedTest`
+      (Testcontainers) — mas não é mais descrito como defesa primária.
+      Verify: `IntegracaoExternaRepositoryFindAllActiveByPlataformaTest` e
+      `AtletaRepositoryFindAllWithStravaConnectedTest` verdes — atleta pausado ausente de ambas as
+      listagens, atleta não-pausado presente em ambas.
 - [ ] 6.4 DTO `StravaSyncPauseStatusDto(boolean autoSyncPausado, Instant atualizadoEm)` em
       `dto/output/`.
       Verify: record compila com `@Schema`/`@JsonInclude(NON_NULL)` conforme o padrão de DTOs; usado
@@ -250,17 +263,19 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       autorização no padrão `*ControllerAuthTest` (roles aceitas, ATLETA negado, anônimo negado).
       Verify: `StravaAuthControllerAuthTest` cobre os dois novos endpoints com as mesmas roles do
       padrão existente do controller.
-- [ ] 6.7 **Late-check no scheduler antes de cada persistência (design.md D5.2 — TOCTOU, achado do
-      2º pre-mortem):** imediatamente antes de persistir a atividade Strava de CADA atleta no
-      `DailyActivitySyncSchedulerImpl`, revalidar `autoSyncPausado` com uma query fresca (não
-      reusar o valor lido em `findAllWithStravaConnected` na listagem inicial); se pausado nesse
-      ponto, pular aquele atleta naquele ciclo (log + métrica, sem lançar erro). TDD: teste
-      dedicado com mock simulando o atleta pausado ENTRE a listagem e o insert (ex.: listagem
-      retorna o atleta elegível, mas a query de revalidação — chamada logo antes do insert —
-      já reflete `autoSyncPausado=true`) → atleta pulado, nenhuma atividade persistida para ele
-      naquele ciclo, sem exceção lançada.
-      Verify: teste dedicado confirma que o atleta pausado ENTRE a listagem e o insert é pulado no
-      MESMO ciclo, sem exceção, com log/métrica emitidos.
+- [x] 6.7 **Late-check antes de cada sync (design.md D5.2 — TOCTOU, achado do 2º pre-mortem; alvo
+      corrigido no achado da task 6.3):** imediatamente antes de `stravaActivityService
+      .syncActivities(atletaId)` em `StravaActivitySyncScheduler.runDailyIncrementalSync` (NÃO em
+      `DailyActivitySyncSchedulerImpl` — ver achado 6.3), revalidar `autoSyncPausado` com
+      `findByAtletaIdAndPlataformaAndTenantId` fresco (não reusar o valor lido em
+      `findAllActiveByPlataforma` na listagem inicial); se pausado nesse ponto, pular aquele atleta
+      naquele ciclo (log INFO, sem lançar erro). TDD: teste dedicado com mock simulando o atleta
+      pausado ENTRE a listagem e o sync (listagem retorna a integração elegível, mas a query de
+      revalidação — chamada logo antes de `syncActivities` — já reflete `autoSyncPausado=true`) →
+      atleta pulado, `syncActivities` nunca chamado para ele naquele ciclo, sem exceção lançada.
+      Verify: `StravaActivitySyncSchedulerTest.shouldSkipAthletePausedBetweenListingAndSync` —
+      confirma que o atleta pausado ENTRE a listagem e o sync é pulado no MESMO ciclo (`verify(...,
+      never()).syncActivities(...)`), sem exceção.
 - [ ] 6.8 **Teste do 409 de precondição no import (design.md D3 passo 1, D5.2 — safety net
       residual agora que a pausa é automática nos dois pontos de conexão, ver 6.10/6.11):**
       cenário
@@ -368,12 +383,14 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       → (re)conectar Strava) e confirmar que a linha nasce `auto_sync_pausado=true` desde o
       primeiro save;
       (g) guarda de pausa Strava — override manual (D5.2, camada secundária, CA10): com o atleta do
-      item (f) ainda pausado, confirmar que some de `findAllWithStravaConnected` e que um import de
-      intervals.icu prossegue normalmente (200); usar `retomar-sync` para reabrir deliberadamente e
-      confirmar que um novo import é bloqueado com 409 e mensagem curada, sem persistência; usar
-      `pausar-sync` de novo e confirmar o inverso;
-      (h) late-check do scheduler (6.7): validar em ambiente de teste/staging que pausar um atleta
-      no meio de um ciclo do scheduler o exclui daquele mesmo ciclo (não só do próximo);
+      item (f) ainda pausado, confirmar que some de `IntegracaoExternaRepository
+      .findAllActiveByPlataforma(STRAVA)` (listagem real do `StravaActivitySyncScheduler` — achado
+      do Bloco 6, não `findAllWithStravaConnected`) e que um import de intervals.icu prossegue
+      normalmente (200); usar `retomar-sync` para reabrir deliberadamente e confirmar que um novo
+      import é bloqueado com 409 e mensagem curada, sem persistência; usar `pausar-sync` de novo e
+      confirmar o inverso;
+      (h) late-check do `StravaActivitySyncScheduler` (6.7): validar em ambiente de teste/staging
+      que pausar um atleta no meio de um ciclo o exclui daquele mesmo ciclo (não só do próximo);
       (i) desconectar não reativa (D5.2, 6.12): com o atleta do item (f) ainda pausado
       automaticamente, desconectar o intervals.icu e confirmar via query direta que
       `auto_sync_pausado` permanece `true` (não reverte) e que o log estruturado foi emitido;
