@@ -42,6 +42,13 @@ um `TreinoRealizado` com `fonteDados=INTERVALS_ICU`.
 - **When** o coach chama o endpoint de import
 - **Then** a resposta é 422 e nada é persistido
 
+#### Scenario: Rate limit do intervals.icu
+- **Given** o intervals.icu responde com rate limit (429) à chamada `GET /api/v1/activity/{id}`
+- **When** o coach chama o endpoint de import
+- **Then** a resposta é 429 puro — nunca 409 — com mensagem indicando para tentar novamente mais
+  tarde
+- **And** nada é persistido; nenhum retry automático é feito nesta change
+
 #### Scenario: Isolamento de tenant
 - **Given** um `atletaId` que pertence a outro tenant
 - **When** o coach chama o endpoint de import
@@ -95,14 +102,23 @@ do scheduler — a decisão de import inline e de batch deve ser idêntica para 
 - **Then** o treino sai com `reconciliationStatus=NAO_PLANEJADO` e aparece na fila de pendentes
   da reconciliação manual
 
-#### Scenario: Campos nulos não geram vínculo automático
-- **Given** uma activity do intervals.icu com `duracaoMin` OU `distanciaKm` ausentes (summary
-  incompleto — ex. esteira sem GPS)
+#### Scenario: Campos nulos do realizado não geram vínculo automático
+- **Given** uma activity do intervals.icu (o lado `realizado`) com `duracaoMin` OU `distanciaKm`
+  ausentes (summary incompleto — ex. esteira sem GPS)
 - **And** um `TreinoPlanejado` na janela D-1..D+1 com data muito próxima (que sozinha bateria o
   threshold de score)
 - **When** o import conclui
 - **Then** o treino sai com `reconciliationStatus=AMBIGUO` — NUNCA `VINCULADO_AUTOMATICO` quando
-  duração ou distância estão ausentes, independentemente do score calculado
+  duração ou distância do realizado estão ausentes, independentemente do score calculado
+
+#### Scenario: Campos nulos do planejado não geram vínculo automático
+- **Given** uma activity do intervals.icu com `duracaoMin` e `distanciaKm` presentes (o lado
+  `realizado` está completo)
+- **And** um `TreinoPlanejado` candidato na janela D-1..D+1 (o lado `planejado`) com `duracaoMin`
+  OU `distanciaKm` ausentes, e data muito próxima (que sozinha bateria o threshold de score)
+- **When** o import conclui
+- **Then** o treino sai com `reconciliationStatus=AMBIGUO` — NUNCA `VINCULADO_AUTOMATICO` quando
+  duração ou distância do planejado estão ausentes, independentemente do score calculado
 
 #### Scenario: Match primário via evento pareado pelo push (quando aplicável)
 - **Given** um `TreinoPlanejado` que foi empurrado ao intervals.icu pela change-mãe
@@ -171,19 +187,36 @@ o coach pausa o Strava daquele atleta, eliminando a colisão na origem em vez de
 - **When** o coach chama `PATCH /api/v1/strava/pausar-sync/{atletaId}`
 - **Then** a resposta é 404
 
-## Requirement: Aviso não-bloqueante de risco de duplicidade cross-fonte
+## Requirement: Precondição de pausa do Strava antes do import
 
-Quando um import de intervals.icu é concluído para um atleta cuja sincronização automática do
-Strava NÃO está pausada, a resposta DEVE sinalizar o risco de duplicidade — sem bloquear o import
-nem executar qualquer matching cross-fonte.
+O import de intervals.icu DEVE ser bloqueado por precondição — não mais apenas avisado — quando o
+atleta tem sincronização automática do Strava ativa e não pausada. Esta é a correção da 2ª rodada
+de pre-mortem: a versão anterior (aviso não-bloqueante) deixava o **primeiro import duplicar de
+qualquer forma** quando o coach esquecia de pausar o Strava do atleta antes de habilitá-lo para
+intervals.icu — o aviso era pós-facto (aparecia só depois do import já ter persistido), não
+preventivo. Sem conexão Strava, ou já pausada, o import prossegue normalmente, sem qualquer
+matching cross-fonte.
 
-#### Scenario: Aviso presente quando Strava está ativo e não pausado
-- **Given** um atleta com integração Strava ativa e `autoSyncPausado=false` (ou nunca definido)
-- **When** um import de intervals.icu é concluído para esse atleta
-- **Then** a resposta inclui `avisoSyncStravaAtivo=true`
-- **And** o import prossegue normalmente — nada é bloqueado ou impedido
+#### Scenario: Import bloqueado quando Strava está ativo e não pausado
+- **Given** um atleta do tenant com integração Strava ativa e `autoSyncPausado=false` (ou nunca
+  definido)
+- **When** o coach tenta importar uma atividade via intervals.icu para esse atleta
+- **Then** a resposta é 409 com mensagem curada ("pause a sincronização Strava deste atleta antes
+  de importar do intervals.icu")
+- **And** nada é persistido — nenhum `TreinoRealizado`, nenhuma chamada ao client intervals.icu
 
-#### Scenario: Aviso ausente quando Strava está pausado ou não conectado
-- **Given** um atleta com `autoSyncPausado=true`, ou sem integração Strava
-- **When** um import de intervals.icu é concluído para esse atleta
-- **Then** a resposta NÃO inclui `avisoSyncStravaAtivo=true` (campo omitido ou `false`)
+#### Scenario: Import prossegue quando Strava está pausado ou não conectado
+- **Given** um atleta com `autoSyncPausado=true`, ou sem integração Strava conectada
+- **When** o coach importa uma atividade via intervals.icu para esse atleta
+- **Then** o import prossegue normalmente (200), sem qualquer verificação adicional de matching
+  cross-fonte
+
+#### Scenario: Late-check do scheduler pula o atleta pausado no meio do lote
+- **Given** o scheduler diário (`DailyActivitySyncSchedulerImpl`) já listou os atletas elegíveis
+  para sync do Strava no início do ciclo corrente (via `findAllWithStravaConnected`)
+- **And** o coach pausa a sincronização automática do Strava de um desses atletas ENQUANTO o
+  scheduler ainda está processando o lote (antes de chegar a esse atleta especificamente)
+- **When** o scheduler revalida `autoSyncPausado` imediatamente antes de persistir a atividade
+  daquele atleta
+- **Then** o atleta é pulado nesse mesmo ciclo (log + métrica, sem erro) — não apenas a partir do
+  próximo ciclo

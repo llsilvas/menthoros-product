@@ -11,7 +11,10 @@ TDD: teste antes da implementação em cada bloco.
 - [ ] 1.2 Adicionar `buscarAtividade(String apiKey, String activityId)` à interface
       `IntervalsIcuClient` e implementar em `IntervalsIcuClientImpl` (GET `/api/v1/activity/{id}`,
       Basic Auth por chamada, `traduz` para erros; key/body nunca logados). Testes no padrão dos
-      métodos existentes do client (sucesso, 404, 403, falha de transporte).
+      métodos existentes do client (sucesso, 404, 403, falha de transporte). De passagem (achado
+      do DoR): corrigir o javadoc desatualizado de `IntervalsIcuClient.java:22` — cita
+      `IntervalsIcuApiException(NOT_FOUND)`, símbolo que não existe (o construtor real é
+      `(HttpStatusCode, String)`, sem enum de causa).
 - [ ] 1.3 Validação: `./mvnw clean test`.
 
 ## Bloco 2 — Mapper `IcuActivityDto` → `TreinoRealizado` (D2)
@@ -57,14 +60,16 @@ TDD: teste antes da implementação em cada bloco.
       Renomear o método do repositório para refletir o filtro real (`statusSincronizacao`), sem
       mudar a query. Scheduler passa a delegar para os dois colaboradores; nenhuma asserção de
       teste existente afrouxada.
-- [ ] 3.3 **Guarda absoluta de campos nulos (correção, não débito — decisão do founder):** dentro
-      do `ReconciliationDecisionExecutor`, implementar o veto: se
-      `realizado.getDuracaoMin() == null` OU `realizado.getDistanciaKm() == null`, o resultado é
-      forçado a `AMBIGUO` independentemente do score calculado — NUNCA `VINCULADO_AUTOMATICO`
-      nesse caso. `MatchingScoreCalculatorImpl` não é alterado (fica isolado no executor, que é
-      novo nesta change). TDD: teste primeiro cobrindo activity sem duração, sem distância, e sem
-      as duas — todos devem resultar em `AMBIGUO` mesmo com temporalScore=1.0 e demais scores
-      artificialmente altos.
+- [ ] 3.3 **Guarda absoluta de campos nulos — AMBOS os lados (correção, não débito — decisão do
+      founder; achado do 2º pre-mortem estende a guarda ao lado `planejado`):** dentro do
+      `ReconciliationDecisionExecutor`, implementar o veto: se `realizado.getDuracaoMin() == null`
+      OU `realizado.getDistanciaKm() == null` OU `planejado.getDuracaoMin() == null` OU
+      `planejado.getDistanciaKm() == null`, o resultado é forçado a `AMBIGUO` independentemente do
+      score calculado — NUNCA `VINCULADO_AUTOMATICO` nesse caso. `MatchingScoreCalculatorImpl` não
+      é alterado (fica isolado no executor, que é novo nesta change). TDD: teste PARAMETRIZADO
+      cobrindo os dois lados — (1) `realizado` sem duração, sem distância, e sem as duas; (2)
+      `planejado` sem duração, sem distância, e sem as duas — todos os casos devem resultar em
+      `AMBIGUO` mesmo com temporalScore=1.0 e demais scores artificialmente altos.
 - [ ] 3.4 Testes unitários do executor cobrindo os quatro desfechos (VINCULADO_AUTOMATICO,
       AMBIGUO por faixa, AMBIGUO por tie-break, NAO_PLANEJADO) + auditoria gravada + `save()` do
       planejado vinculado + sem candidatos na janela + a guarda de campos nulos do 3.3.
@@ -83,19 +88,30 @@ TDD: teste antes da implementação em cada bloco.
       (TOCTOU) → 409 sem persistir, corrida de dedup (`SaveResult` não-inserted → sem
       evento/TSB/reconciliação), reconciliação inline chamada com o treino inserido (CA3, e o
       match primário do gate 3.0 quando aplicável), evento publicado somente após reconciliação
-      computada. Cobrir também 422/429/5xx conforme a matriz de erros completa (design.md D3.1).
+      computada. Cobrir também 422/429/5xx conforme a matriz de erros completa (design.md D3.1) —
+      **429 é reservado exclusivamente para rate-limit do intervals.icu** (teste dedicado, nunca
+      mapeado para 409); os DOIS cenários de origem do 409 dentro deste bloco (credencial
+      intervals.icu revogada — 401/403, passo 3; conexão intervals.icu ausente — passo 1, CA4) são
+      verificações SEPARADAS, com exceções de domínio e mensagens distintas — não reaproveitar o
+      mesmo teste para os dois. O terceiro cenário de 409 (precondição de pausa Strava, passo 0) é
+      coberto na task 4.4/6.8, por ser um passo anterior a todos os demais do fluxo.
 - [ ] 4.2 Guard de segurança (D5.1): antes de prosseguir, verificar que não existe outra conexão
       ativa do mesmo tenant com a mesma `externalAthleteId`; se existir, 409 sem chamada externa.
       Teste dedicado cobrindo esse cenário.
 - [ ] 4.3 Validação de `activityId` (D5): normalizar/rejeitar valores com `/`, `?`, `%` (URL colada
       em vez de id simples) antes de repassar ao client. `activityId` chega como query param (não
       path variable) — ver Bloco 5.
-- [ ] 4.4 **Aviso não-bloqueante de Strava ativo (D5.2, CA11):** calcular `avisoSyncStravaAtivo`
-      lendo `IntegracaoExternaRepository.findByAtletaIdAndPlataformaAndTenantId(atletaId, STRAVA,
-      tenantId)` — `true` quando a integração existe, está `ativo=true` E `autoSyncPausado != true`;
-      caso contrário `null`/omitido. Leitura simples, sem side effect, incluída no
-      `TreinoRealizadoOutputDto` retornado. Teste cobrindo os três casos (sem Strava, Strava ativo
-      sem pausa, Strava pausado).
+- [ ] 4.4 **Precondição bloqueante de Strava ativo (D5.2 — substitui o aviso não-bloqueante,
+      correção do 2º pre-mortem):** passo 0 do serviço (design.md D3), executado ANTES de qualquer
+      outro passo do fluxo (inclusive antes de `conexaoAtiva`): ler
+      `IntegracaoExternaRepository.findActiveByAtletaIdAndPlataformaAndTenantId(atletaId, STRAVA,
+      tenantId)`; se existir integração ativa com `autoSyncPausado=false`, lançar exceção de
+      domínio dedicada (409, mensagem curada "pause a sincronização Strava deste atleta antes de
+      importar do intervals.icu") — sem qualquer chamada externa, sem leitura da conexão
+      intervals.icu, sem dedup check, sem persistência. Sem Strava conectado, ou já pausado, o
+      passo é no-op e o fluxo segue normal a partir do passo 1. TDD: teste cobrindo os três casos
+      (sem Strava → prossegue; Strava ativo sem pausa → 409 e nenhuma interação com
+      repositório/client de intervals.icu; Strava pausado → prossegue).
 - [ ] 4.5 Implementar interface + impl com JavaDoc de idempotência/side effects/tenant-aware;
       HTTP fora da TX, persistência+reconciliação em colaborador transacional, reload da conexão
       dentro da TX antes do insert.
@@ -105,12 +121,7 @@ TDD: teste antes da implementação em cada bloco.
 
 - [ ] 5.1 Verificar handler de `IntervalsIcuApiException` no `GlobalExceptionHandler`; adicionar
       se ausente (mesmo commit do controller), distinguindo o novo caso de auth inválida.
-- [ ] 5.2 Adicionar campo `Boolean avisoSyncStravaAtivo` (nullable) a `TreinoRealizadoOutputDto`
-      (`@JsonInclude(NON_NULL)` já presente na classe — fica omitido nos demais endpoints que
-      retornam esse DTO). Ajustar o mapper/construtor apenas no ponto de retorno do
-      `IntervalsIcuActivityIngestionService` (Bloco 4.4); demais chamadores continuam passando
-      `null`/omitindo o campo.
-- [ ] 5.3 `IntervalsIcuActivityController` — `POST
+- [ ] 5.2 `IntervalsIcuActivityController` — `POST
       /api/v1/intervals-icu/atletas/{atletaId}/activities/import?activityId={id}` (query param,
       não path variable — D5), `@PreAuthorize` TECNICO/ADMIN,
       `@RequireTenant(resourceParamIndex = 0)`, Swagger completo (tag ASCII kebab-case,
@@ -118,13 +129,20 @@ TDD: teste antes da implementação em cada bloco.
       `complete-authorization-controllers` (roles aceitas, ATLETA negado, anônimo negado). Teste
       dedicado de normalização de `activityId` (URL completa colada → extrai segmento final; `/`,
       `?`, `%` soltos → 400).
-- [ ] 5.4 Validação: `./mvnw clean test`.
+- [ ] 5.3 Validação: `./mvnw clean test`.
 
 ## Bloco 6 — Flag de pausa de sincronização Strava por atleta (D5.2 — substitui matching cross-fonte)
 
-- [ ] 6.1 Migration `V54__add_auto_sync_pausado_integracao_externa.sql`: `ALTER TABLE
-      tb_integracao_externa ADD COLUMN auto_sync_pausado BOOLEAN NOT NULL DEFAULT false;` (padrão
-      de nomeação/estrutura de migration do CLAUDE.md do backend). Sem down-migration (aditiva).
+- [ ] 6.1 **Antes de criar o arquivo, confira `ls src/main/resources/db/migration/ | sort -V | tail -3`
+      — V54 é o próximo número livre no momento do DoR (2026-07-16), mas a change ativa
+      `deterministic-planner-engine` TAMBÉM reivindica V54
+      (`V54__Add_planner_metadata_to_plano_semanal.sql`, proposal.md:46). Regra: quem mergear
+      primeiro trava V54; a outra renumera para V55 antes do PR — combine com o founder qual
+      change tranca o número primeiro, ou confira novamente o disco no início da implementação.**
+      Migration `V54__add_auto_sync_pausado_integracao_externa.sql` (ou `V55` se
+      `deterministic-planner-engine` já tiver mergeado): `ALTER TABLE tb_integracao_externa ADD
+      COLUMN auto_sync_pausado BOOLEAN NOT NULL DEFAULT false;` (padrão de nomeação/estrutura de
+      migration do CLAUDE.md do backend). Sem down-migration (aditiva).
 - [ ] 6.2 Campo `autoSyncPausado` em `IntegracaoExterna` (`@Column(name = "auto_sync_pausado",
       nullable = false)`, `boolean`, default `false`). Teste de mapeamento básico se o padrão do
       repo usar `@DataJpaTest` para entidades novas/alteradas (ver Test Layers).
@@ -144,7 +162,22 @@ TDD: teste antes da implementação em cada bloco.
       `PATCH /api/v1/strava/retomar-sync/{atletaId}`, `@PreAuthorize` TECNICO/ADMIN,
       `@RequireTenant(resourceParamIndex = 0)`, Swagger completo (200/403/404). Teste de
       autorização no padrão `*ControllerAuthTest` (roles aceitas, ATLETA negado, anônimo negado).
-- [ ] 6.7 Validação: `./mvnw clean test`.
+- [ ] 6.7 **Late-check no scheduler antes de cada persistência (design.md D5.2 — TOCTOU, achado do
+      2º pre-mortem):** imediatamente antes de persistir a atividade Strava de CADA atleta no
+      `DailyActivitySyncSchedulerImpl`, revalidar `autoSyncPausado` com uma query fresca (não
+      reusar o valor lido em `findAllWithStravaConnected` na listagem inicial); se pausado nesse
+      ponto, pular aquele atleta naquele ciclo (log + métrica, sem lançar erro). TDD: teste
+      dedicado com mock simulando o atleta pausado ENTRE a listagem e o insert (ex.: listagem
+      retorna o atleta elegível, mas a query de revalidação — chamada logo antes do insert —
+      já reflete `autoSyncPausado=true`) → atleta pulado, nenhuma atividade persistida para ele
+      naquele ciclo, sem exceção lançada.
+- [ ] 6.8 **Teste do 409 de precondição no import (design.md D3 passo 0, D5.2):** cenário
+      bloqueado — atleta com Strava ativo e `autoSyncPausado=false`, import de intervals.icu
+      retorna 409 com a mensagem curada, nada persistido (nenhum `TreinoRealizado`, nenhuma
+      chamada ao client intervals.icu). Cenário liberado — atleta sem conexão Strava, OU com
+      `autoSyncPausado=true`, import prossegue normalmente (200). Complementa o TDD da task 4.4;
+      aqui o foco é a integração ponta a ponta via controller/service reais (não só mock).
+- [ ] 6.9 Validação: `./mvnw clean test`.
 
 ## Bloco 7 — Gate de validação real (D6)
 
@@ -160,9 +193,12 @@ TDD: teste antes da implementação em cada bloco.
       (d) virada de dia: activity próxima da meia-noite local não muda de dia;
       (e) paridade: scheduler no próximo ciclo de 2h continua reconciliando outros pendentes
       igual ao comportamento pré-refactor;
-      (f) guarda de pausa Strava (D5.2, CA10/CA11): pausar o atleta founder, confirmar que some de
-      `findAllWithStravaConnected` e que o import de intervals.icu NÃO traz
-      `avisoSyncStravaAtivo`; retomar e confirmar o inverso.
+      (f) guarda de pausa Strava (D5.2, CA10): pausar o atleta founder, confirmar que some de
+      `findAllWithStravaConnected`, e que um import de intervals.icu para ele prossegue
+      normalmente (200); com o atleta NÃO pausado (Strava ativo), confirmar que o import é
+      bloqueado com 409 e mensagem curada, sem persistência; retomar e confirmar o inverso;
+      (g) late-check do scheduler (6.7): validar em ambiente de teste/staging que pausar um atleta
+      no meio de um ciclo do scheduler o exclui daquele mesmo ciclo (não só do próximo).
 - [ ] 7.2 Atualizar proposal.md (Open Questions resolvidas, inclusive o resultado do gate 3.0) e
       este tasks.md com o resultado de cada item do checklist 7.1.
 

@@ -80,6 +80,11 @@ mapear para exceção de domínio dedicada indicando reconexão necessária (409
 key no intervals.icu recebe silenciosamente "atividade não encontrada" para sempre, sem sinal de
 que precisa reconectar.
 
+**Nota (2ª revisão pós-pre-mortem):** este 409 de "reconexão intervals.icu necessária" é uma
+exceção de domínio DIFERENTE da nova exceção de precondição de pausa Strava (D5.2/D3 passo 0) — as
+duas mapeiam para o mesmo código HTTP 409, mas são tipos distintos, cada uma com mensagem curada
+própria. Não há ambiguidade para o cliente: o `message` do corpo de erro sempre distingue a causa.
+
 ## D2 — Mapper `IcuActivityDto` → `TreinoRealizado`
 
 Classe dedicada `IntervalsIcuActivityMapper` (`mapper/` ou `services/helper/`, componente puro,
@@ -136,6 +141,14 @@ TreinoRealizadoOutputDto importarAtividade(UUID atletaId, String activityId, UUI
 
 Fluxo:
 
+0. **Precondição bloqueante de pausa Strava (novo, D5.2 — substitui o aviso não-bloqueante da 1ª
+   revisão):** ANTES de qualquer outro passo — inclusive antes do passo 1 — verificar via
+   `IntegracaoExternaRepository.findActiveByAtletaIdAndPlataformaAndTenantId(atletaId, STRAVA,
+   tenantId)` se existe integração Strava ativa com `autoSyncPausado=false`. Se sim, lançar exceção
+   de domínio dedicada (409, mensagem curada "pause a sincronização Strava deste atleta antes de
+   importar do intervals.icu") sem qualquer persistência, sem consultar a conexão intervals.icu e
+   sem chamar o client. Sem Strava conectado, ou já pausado, este passo é um no-op e o fluxo segue
+   normalmente. Ver D5.2 para detalhamento completo.
 1. `conexaoAtiva(atletaId, tenantId)` — ausente → `DomainRuleViolationException` (409, CA4).
    Também resolve e valida o `Atleta` via `findByIdAndTenantId` explícito (pre-mortem #15 — não
    confiar apenas no `@RequireTenant` de controller, que valida um UUID genérico contra vários
@@ -177,7 +190,9 @@ Fluxo:
     computados no mesmo commit, para que o consumidor veja o treino completo).
 
 Transação: passos 6-9 dentro de `@Transactional`; a chamada HTTP (passos 3-4) fica FORA da
-transação (nunca segurar conexão de banco durante IO externo — lição da change de hardening).
+transação (nunca segurar conexão de banco durante IO externo — lição da change de hardening). O
+passo 0 (precondição Strava) também fica FORA de transação — é uma leitura simples, sem lock, antes
+de qualquer outro I/O do fluxo.
 Implementação: método público não-transacional orquestra; persistência+reconciliação em método
 transacional de colaborador (ou self-injection do proxy — preferir colaborador, padrão
 `IntervalsIcuPushProcessor`).
@@ -191,11 +206,19 @@ Espelho do D4 da change-mãe (`intervals-icu-workout-push`), adaptado ao fluxo d
 | 401/403 | API key inválida ou revogada | `DomainRuleViolationException` dedicada | 409 | Mensagem curada indicando reconexão; conexão marcada com `lastSyncError` |
 | 404 | Activity não encontrada / não pertence ao atleta | `DomainNotFoundException` | 404 | Nada persistido |
 | 422 | Modalidade não suportada (filtro D2) ou rejeição do provedor | `DomainRuleViolationException` | 422 | Nada persistido |
-| 429 | Rate limit do intervals.icu | `DomainRuleViolationException` transitória | 409 (ou 429 propagado — decidir na implementação, manter consistente com `StravaRateLimitException`) | Mensagem "tente novamente mais tarde"; **sem retry automático** — ação manual do coach |
+| 429 | Rate limit do intervals.icu | `DomainRuleViolationException` transitória | 429 | Mensagem "tente novamente mais tarde"; **sem retry automático** — ação manual do coach |
 | 5xx / timeout / falha de transporte (`status` nulo) | Instabilidade do provedor ou rede | `DomainRuleViolationException` transitória | mesmo tratamento de 429 | Idem 429 — sem retry automático nesta change |
 
 Nenhum destes casos aciona retry automático (débito já registrado em `add-external-call-resilience`
 para a família de integrações externas como um todo).
+
+**409 é reservado exclusivamente para precondições de conexão/estado — nunca para rate-limit.**
+Quatro causas distintas de 409 nesta change, cada uma com exceção de domínio e mensagem própria
+(sem ambiguidade para o cliente): (1) ausência de conexão intervals.icu ativa (D3 passo 1, CA4);
+(2) credencial intervals.icu revogada — 401/403 do provedor (D3 passo 3, acima); (3) precondição de
+pausa Strava não satisfeita (D3 passo 0, D5.2); (4) `externalAthleteId` duplicado no tenant (D5.1).
+`429` do intervals.icu é sempre propagado como `429` — nunca reaproveita o 409, consistente com
+`StravaRateLimitException` já existente no `GlobalExceptionHandler`.
 
 ## D4 — Reconciliação inline (extração do scheduler)
 
@@ -285,6 +308,18 @@ tanto para o import inline quanto para o scheduler batch (ambos passam pelo mesm
 existente do Strava/`.fit`, fora de escopo desta change) — a correção fica isolada no ponto de
 decisão do executor, que é novo nesta change e não existe hoje como componente próprio.
 
+**Estensão do veto ao lado `planejado` (2ª revisão, achado do 2º pre-mortem):** a guarda acima, na
+1ª rodada, só cobria duração/distância nulas do `realizado` (a activity importada). O mesmo problema
+existe do lado `planejado` (o `TreinoPlanejado` candidato ao match): se ele não tiver duração nem
+distância cadastrada, `calculateDurationScore`/`calculateDistanceScore` também retornam
+`BigDecimal.ONE` (score perfeito) — o código confirmado nas linhas 56-59/84-86 já trata `null` de
+QUALQUER um dos dois lados dessa forma, não só do `realizado`. A guarda categórica fica, portanto,
+estendida: `VINCULADO_AUTOMATICO` é proibido quando `realizado.getDuracaoMin() == null` OU
+`realizado.getDistanciaKm() == null` OU `planejado.getDuracaoMin() == null` OU
+`planejado.getDistanciaKm() == null` — qualquer uma das quatro condições força `AMBIGUO`. Mesmo
+ponto de decisão (o `ReconciliationDecisionExecutor`), mesmo caráter de veto absoluto (não
+penalização de score).
+
 Trade-off: refatorar o scheduler tem custo/risco de regressão, mas a alternativa (duplicar a
 lógica de seleção+persistência da decisão) cria a segunda e terceira cópia de uma regra crítica de
 negócio — pior.
@@ -315,12 +350,12 @@ POST /api/v1/intervals-icu/atletas/{atletaId}/activities/import?activityId={id}
   inteiramente no service (D3), sem risco de colisão de rota. Padrão espelha
   `StravaAuthController.startAuth`, que já usa `@RequestParam("atletaId")` em vez de path variable
   pelo mesmo motivo de robustez de input.
-- **Campo de aviso na resposta:** `TreinoRealizadoOutputDto` ganha um campo novo `Boolean
-  avisoSyncStravaAtivo` (nullable, `@JsonInclude(NON_NULL)` já presente na classe — fica omitido em
-  todos os outros endpoints que retornam esse DTO). Preenchido `true` apenas quando: atleta tem
-  integração Strava ativa (`plataforma=STRAVA`, `ativo=true`) E `autoSyncPausado != true` (ver D5.2).
-  Calculado no service (D3) por uma leitura simples de `IntegracaoExterna` — não é matching
-  cross-fonte, é só um sinalizador informativo (CA11).
+- **Precondição bloqueante de Strava ativo (substitui o campo de aviso — decisão pós-2º pre-mortem,
+  2026-07-16):** o endpoint NÃO retorna mais nenhum campo de aviso na resposta. Em vez disso, o
+  serviço de import (D3, passo 0) bloqueia a requisição com 409 quando o atleta tem integração
+  Strava ativa (`plataforma=STRAVA`, `ativo=true`) E `autoSyncPausado=false` — ver D5.2 para a
+  precondição completa e a exceção de domínio dedicada. `TreinoRealizadoOutputDto` não ganha campo
+  novo nesta revisão do design (a versão anterior, com `avisoSyncStravaAtivo`, foi removida).
 - Erros novos já mapeados no `GlobalExceptionHandler` (`DomainNotFoundException`,
   `DomainRuleViolationException`, `IntervalsIcuApiException`) — verificar se
   `IntervalsIcuApiException` tem handler; se não, adicionar no mesmo commit do controller.
@@ -404,10 +439,29 @@ possibilidade de esquecer o guard em um future refactor do método). `is null` c
 pré-migration antes do backfill de `DEFAULT false` alcançá-las (proteção defensiva; a coluna é
 `NOT NULL DEFAULT false`, então na prática não deve haver `null`, mas o guard não custa nada).
 
-**Aviso não-bloqueante no import (CA11, D3/D5):** ver D5 — campo `avisoSyncStravaAtivo` calculado
-por uma leitura de `IntegracaoExterna` (plataforma STRAVA, `ativo=true`,
-`autoSyncPausado != true`) no `IntervalsIcuActivityIngestionService`. Não bloqueia, não altera o
-fluxo de persistência — é só um sinalizador para a resposta.
+**Late-check antes da persistência de cada atividade (novo, achado do 2º pre-mortem — TOCTOU):** o
+filtro acima só age na LISTAGEM inicial (`findAllWithStravaConnected`), lida uma única vez no início
+do ciclo do scheduler. Como o scheduler processa vários atletas em sequência dentro do mesmo ciclo,
+o coach pode pausar a flag de um atleta especificamente ENTRE a listagem e o momento em que o
+scheduler chega a esse atleta na iteração — a checagem inicial já está obsoleta para esse atleta
+específico. Mitigação: imediatamente antes de persistir a atividade Strava de CADA atleta (não
+reusar o valor de `autoSyncPausado` lido na listagem), revalidar com uma query fresca via
+`IntegracaoExternaRepository` (`findActiveByAtletaIdAndPlataformaAndTenantId` ou equivalente). Se
+`autoSyncPausado=true` nesse ponto, pular aquele atleta naquele ciclo (log de nível INFO + métrica
+dedicada, ex. `strava_sync_skipped_late_pause` — sem lançar erro; o próximo ciclo simplesmente não o
+inclui mais na listagem inicial). O late-check é por atividade/atleta dentro do ciclo, não pelo
+ciclo inteiro.
+
+**Precondição bloqueante no import (substitui o aviso não-bloqueante — correção do 2º pre-mortem,
+2026-07-16):** o `IntervalsIcuActivityIngestionService` (D3, passo 0 — roda ANTES de qualquer outro
+passo do fluxo, inclusive antes de `conexaoAtiva`) verifica, via
+`IntegracaoExternaRepository.findActiveByAtletaIdAndPlataformaAndTenantId(atletaId, STRAVA,
+tenantId)`, se existe integração Strava ativa (`ativo=true`) com `autoSyncPausado=false`. Se sim,
+lança uma exceção de domínio dedicada nova (distinta das demais exceções 409 do fluxo — ver D3.1)
+mapeada para HTTP 409 com mensagem curada: *"pause a sincronização Strava deste atleta antes de
+importar do intervals.icu"*. Nenhuma persistência ocorre — nem leitura da conexão intervals.icu, nem
+chamada ao client, nem dedup check. Quando o atleta não tem Strava conectado, ou tem mas está com
+`autoSyncPausado=true`, o passo 0 é um no-op e o fluxo segue normalmente a partir do passo 1.
 
 **Por que substitui a abordagem de matching cross-fonte (custo/benefício):** matching por
 heurística teria falsos positivos/negativos e complexidade alta (novo `CrossSourceMatchingService`,
@@ -415,14 +469,24 @@ novos thresholds, novos testes de todas as combinações Strava×intervals.icu);
 determinística, sob controle do coach, e a mudança de schema é uma única coluna boolean aditiva.
 
 **Riscos e mitigações (registrado explicitamente, não implícito):**
-- **Se o coach não pausar, o sistema NÃO impede duplicidade automaticamente nesta change.** Esta é
-  uma limitação conhecida e aceita — não um bug. Mitigação é operacional: o aviso não-bloqueante
-  (`avisoSyncStravaAtivo`) ajuda o coach a perceber a situação, mas não impede a ação.
-- **TOCTOU do scheduler concorrente:** o scheduler roda em ciclo fixo (`PT2H`); se o coach pausar
-  o atleta enquanto o scheduler já está no meio do processamento daquele atleta (leu a lista antes
-  da mudança), esse ciclo específico ainda processa o atleta uma última vez. Fora de escopo desta
-  change — mitigado pela pausa (efetiva a partir do PRÓXIMO ciclo), não por lock distribuído. Risco
-  residual baixo: janela de exposição é no máximo um ciclo de 2h, não indefinida.
+- **Se o coach não pausar, o import intervals.icu é BLOQUEADO com 409** (não mais uma limitação
+  aceita de duplicidade silenciosa — corrigido no 2º pre-mortem, 2026-07-16). O coach precisa
+  pausar explicitamente o Strava do atleta antes do primeiro import; a mensagem curada do erro 409
+  guia essa ação. Isso elimina o cenário em que o PRIMEIRO import duplicava de qualquer forma
+  (achado do 2º pre-mortem sobre a versão anterior, de aviso não-bloqueante pós-facto).
+- **TOCTOU do scheduler concorrente:** o scheduler roda em ciclo fixo (`PT2H`); se o coach pausar o
+  atleta enquanto o scheduler já está no meio do processamento do lote, o late-check (acima) revalida
+  `autoSyncPausado` imediatamente antes de persistir a atividade daquele atleta — se pausado nesse
+  ponto, o atleta é pulado no MESMO ciclo, não apenas a partir do próximo. Risco residual: milissegundos
+  entre a revalidação do late-check e o insert efetivo (mesma classe de qualquer check-then-act sem
+  lock distribuído) — aceito, não eliminado; não há lock distribuído nesta change.
+- **TOCTOU residual entre a checagem de precondição do import manual e um insert concorrente do
+  scheduler:** entre o passo 0 do import (D3) confirmar a precondição (bloqueado ou liberado) e o
+  insert efetivo da atividade intervals.icu, o sync automático do Strava pode, em teoria, inserir
+  uma atividade concorrente na mesma janela de milissegundos — o passo 0 é uma leitura simples fora
+  de transação, sem lock. Aceito e documentado: janela de milissegundos, ação humana (o coach que
+  dispara o import), sem lock distribuído nesta change — mesma classe de risco já aceita em outros
+  TOCTOUs do design (pre-mortem #9).
 
 ## D6 — Validação real (gate de smoke)
 
@@ -447,11 +511,12 @@ Itens obrigatórios do smoke (expandido pós pre-mortem/product review/decisão 
    decisão que o import inline produziria para um caso equivalente (mesmo `CandidateSelector` +
    `ReconciliationDecisionExecutor` compartilhados — não é um teste novo de comportamento, é a
    confirmação de que a extração não regrediu o batch).
-5. **Guarda de pausa Strava (D5.2, CA10/CA11):** pausar o atleta founder via
+5. **Guarda de pausa Strava (D5.2, CA10):** pausar o atleta founder via
    `PATCH .../pausar-sync/{atletaId}` e confirmar que ele desaparece de
    `findAllWithStravaConnected` no próximo ciclo do scheduler (ou via query direta); confirmar que
-   um import de intervals.icu para esse atleta NÃO traz `avisoSyncStravaAtivo`; retomar e confirmar
-   que o atleta volta a aparecer e o aviso volta a `true`.
+   um import de intervals.icu para esse atleta prossegue normalmente (200); com o atleta NÃO
+   pausado (Strava ativo), confirmar que o import é bloqueado com 409 e mensagem curada, sem
+   persistência; retomar a pausa e confirmar que o atleta volta a aparecer para o scheduler.
 
 ## Pre-mortem
 
@@ -483,7 +548,9 @@ disposição:
   deduplicam entre si). **Resolvido nesta própria change** (não adiado): em vez de desligamento
   *automático* do Strava (que tira o controle do coach), a mitigação é a **flag de pausa manual
   por atleta** (D-flag, abaixo) — o coach pausa o sync Strava daquele atleta ao ativar o
-  intervals.icu; import sem a pausa ativa gera aviso não-bloqueante, não bloqueio automático.
+  intervals.icu. **Correção pós-2º pre-mortem (2026-07-16):** import sem a pausa ativa agora é
+  BLOQUEADO (409), não mais um aviso não-bloqueante — a versão anterior deixava o primeiro import
+  duplicar de qualquer forma quando o coach esquecia de pausar.
 - Métrica de sucesso mede construção, não adoção → aceito como métrica de lançamento; adoção real
   (imports/semana por assessoria) fica para acompanhamento pós-merge, fora do escopo desta change.
 - Import manual gera fricção vs sync automático do Strava → aceito conscientemente como MVP; a
@@ -507,3 +574,16 @@ gate de pareamento push→activity (D4.0), guarda absoluta de campos nulos no ma
 #13 acima — elevado de "débito" para "corrigido"), matriz de erros completa (D3.1), contrato do
 endpoint sem `activityId` em path variable (D5), non-goals explícitos de backfill e refresh
 (proposal.md). Re-DoR pendente após esta rodada de correções.
+
+### 2ª rodada de pre-mortem (Codex, 2026-07-16): aviso não-bloqueante → precondição bloqueante
+
+Achado: a versão anterior desta seção (aviso não-bloqueante `avisoSyncStravaAtivo`, CA11) deixava o
+**primeiro import duplicar de qualquer forma** quando o atleta já tinha Strava conectado e o coach
+esquecia de pausar — o aviso era pós-facto (aparecia na resposta do import que JÁ tinha persistido),
+não preventivo. **Decisão corrigida:** o import passa a ser bloqueado por precondição — 409 quando
+Strava ativo E `autoSyncPausado=false` (D3 passo 0, D5.2); sem Strava ou já pausado, prossegue
+normal. `429` fica reservado exclusivamente para rate-limit real do intervals.icu (D3.1). O campo
+`avisoSyncStravaAtivo` e toda a lógica de "aviso" foram removidos do design (D5, D5.2). Achados
+adicionais da mesma rodada, também incorporados: late-check no scheduler antes de cada persistência
+(D5.2, TOCTOU) e extensão do veto de campos nulos no matching para o lado `planejado` além do
+`realizado` (D4).
