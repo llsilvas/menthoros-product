@@ -91,7 +91,7 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       Verify: evidência registrada acima (ids reais, ambos os campos de pareamento nulos nos dois
       sentidos, confirmado também na UI); design.md D4.0 não precisa de correção — a branch "Se NÃO"
       já prevista no design é a que se aplica.
-- [ ] 3.1 **Teste de caracterização PRIMEIRO** (antes de tocar no scheduler): fixar o
+- [x] 3.1 **Teste de caracterização PRIMEIRO** (antes de tocar no scheduler): fixar o
       comportamento atual de `DailyActivitySyncSchedulerImpl` — em especial que a seleção de
       pendentes filtra por `statusSincronizacao=PENDENTE` (não por `reconciliationStatus`, apesar
       do nome do método `findByAtletaIdAndDataTreinoAndReconciliationStatus`) e a janela D-1..D+1
