@@ -98,16 +98,23 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       exata usada hoje.
       Verify: teste de caracterização novo passa contra o comportamento ATUAL do scheduler, ANTES
       de qualquer alteração de código nesta task.
-- [ ] 3.2 Extrair `CandidateSelector` (busca `TreinoPlanejado` na janela D-1..D+1, mesmo filtro de
+- [x] 3.2 Extrair `CandidateSelector` (busca `TreinoPlanejado` na janela D-1..D+1, mesmo filtro de
       compatibilidade do scheduler) e `ReconciliationDecisionExecutor` (decisão via
       `MatchingDecisionEngine` + persistência de status/score/reason/auditoria, com `save()`
       explícito do `TreinoPlanejado` vinculado — não depender de entidade gerenciada implícita).
-      Renomear o método do repositório para refletir o filtro real (`statusSincronizacao`), sem
-      mudar a query. Scheduler passa a delegar para os dois colaboradores; nenhuma asserção de
-      teste existente afrouxada.
-      Verify: suíte existente de `DailyActivitySyncSchedulerImplTest` continua 100% verde sem
-      nenhuma asserção relaxada; o teste de caracterização do 3.1 ainda passa sem alteração.
-- [ ] 3.3 **Guarda absoluta de campos ausentes — AMBOS os lados (correção, não débito — decisão do
+      Renomeado `TreinoRealizadoRepository.findByAtletaIdAndDataTreinoAndReconciliationStatus` →
+      `findByAtletaIdAndDataTreinoAndStatusSincronizacao` (reflete o filtro real da JPQL), sem
+      mudar a query — atualizado também em `MultiTenantIsolationTest`. `DailyActivitySyncSchedulerImpl`
+      passa a delegar para os dois colaboradores (construtor reduzido de 7 para 4 dependências).
+      O teste de caracterização (3.1) foi religado com instâncias REAIS de
+      `CandidateSelector`/`ReconciliationDecisionExecutor` (não mocks) para provar equivalência
+      ponta a ponta — todas as asserções preexistentes passam inalteradas, exceto a que fixava o
+      achado pre-mortem #7 (ausência de `save()` explícito), que agora afirma o comportamento
+      CORRIGIDO (save explícito acontece).
+      Verify: suíte existente de caracterização continua 100% verde (uma asserção atualizada de
+      propósito para refletir a correção do achado #7, documentada no próprio teste); nenhuma
+      outra asserção relaxada.
+- [x] 3.3 **Guarda absoluta de campos ausentes — AMBOS os lados (correção, não débito — decisão do
       founder; achado do 2º pre-mortem estende a guarda ao lado `planejado`; achado do Bloco 2
       corrige a condição de duração de `== null` para `Duration.ZERO.equals(...)`, já que
       `duracaoMin` é coluna `NOT NULL` — `TreinoBase.java:45`, `null` literal é impossível em
@@ -123,12 +130,12 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       resultar em `AMBIGUO` mesmo com temporalScore=1.0 e demais scores artificialmente altos.
       Verify: teste parametrizado com os 6 casos (3 `realizado` + 3 `planejado`) força `AMBIGUO`
       em todos, mesmo com score artificialmente alto nas outras dimensões.
-- [ ] 3.4 Testes unitários do executor cobrindo os quatro desfechos (VINCULADO_AUTOMATICO,
+- [x] 3.4 Testes unitários do executor cobrindo os quatro desfechos (VINCULADO_AUTOMATICO,
       AMBIGUO por faixa, AMBIGUO por tie-break, NAO_PLANEJADO) + auditoria gravada + `save()` do
       planejado vinculado + sem candidatos na janela + a guarda de campos nulos do 3.3.
       Verify: `ReconciliationDecisionExecutorTest` cobre os 4 desfechos + `save()` explícito do
       planejado vinculado verificado via `verify(...)` + auditoria `TreinoReconciliacao` gravada.
-- [ ] 3.5 Validação: `./mvnw clean test` (suítes do scheduler intactas, teste de caracterização
+- [x] 3.5 Validação: `./mvnw clean test` (suítes do scheduler intactas, teste de caracterização
       do 3.1 ainda passa).
 
 ## Bloco 4 — Serviço de ingestão (D3)
