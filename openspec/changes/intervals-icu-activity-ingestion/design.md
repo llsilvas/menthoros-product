@@ -48,12 +48,17 @@ IcuActivityDto buscarAtividade(String apiKey, String activityId);
   ele já delega erros HTTP para o `traduz(WebClientResponseException, String)` privado, que
   preserva `e.getStatusCode()` no `status` da exceção e nunca loga body/API key. Nenhum método novo
   privado é necessário; `buscarAtividade` só adiciona a chamada GET dentro do padrão existente.
-- `IcuActivityDto` (record, `@JsonIgnoreProperties(ignoreUnknown = true)`), campos mínimos lidos:
+- `IcuActivityDto` (record, `@JsonIgnoreProperties(ignoreUnknown = true)`), campos mínimos lidos.
+  **Confirmado contra payload real (gate 3.0, 2026-07-16, activity `i166338796`): o campo do
+  atleta é `icu_athlete_id`, NÃO `athlete_id`** — a suposição original (baseada na doc pública)
+  estava errada; sem essa correção, `athleteId()` sempre desserializaria `null`, quebrando
+  silenciosamente a defesa em profundidade do D3 passo 4 (`dto.athleteId() ≠
+  conexao.externalAthleteId`) para TODO import, não só os maliciosos:
 
 ```java
 public record IcuActivityDto(
         String id,
-        @JsonProperty("athlete_id") String athleteId,
+        @JsonProperty("icu_athlete_id") String athleteId,   // NÃO "athlete_id" — confirmado no gate 3.0
         String type,                                  // "Run", "TrailRun", "VirtualRun", "Ride", ...
         String name,
         @JsonProperty("start_date_local") String startDateLocal,
@@ -109,11 +114,13 @@ sem IO), com null-check de entrada (`IllegalArgumentException`) por padrão do r
   quando `moving_time`/`distance` estiverem ausentes. Não inverter a prioridade: o Strava já prova
   que `moving_time`/`distance` é o dado mais confiável entre fontes.
 - `fcMedia`/`fcMaxima` ← arredondamento de `average_heartrate`/`max_heartrate`.
-- **Cadência (pre-mortem #12):** a unidade real de `average_cadence` do intervals.icu (rpm/spm,
-  perna única ou total) NÃO está confirmada — não reaproveitar a regra ambígua do FIT/Strava sem
-  validar. Criar função nomeada e isolada `sanitizeCadenciaIntervalsIcu` (não reusar
-  `convertStravaCadence` por analogia); o Bloco 2 inclui verificação contra um payload real antes
-  de fixar a fórmula (ver D6).
+- **Cadência (pre-mortem #12) — CONFIRMADO contra payload real (gate 3.0, 2026-07-16):**
+  `average_cadence` do intervals.icu vem em passos/min de UMA perna, igual à convenção do
+  FIT/Strava — valor real observado `80.822655` para uma corrida a 6:29/km (dobrado: ~161.6 spm
+  total, cadência normal). `sanitizeCadenciaIntervalsIcu` (função isolada, não chama
+  `convertStravaCadence` diretamente) dobra e sanitiza na faixa 60-200, mesma fórmula do Strava
+  mas mantida isolada por fonte de propósito (não acoplar as duas integrações a uma função
+  compartilhada só porque a fórmula coincidiu desta vez).
 - `percepcaoEsforco` ← `icu_rpe` arredondado (1..10) quando presente.
 - `metadadosSincronizacao` ← JSON pequeno com `{icuTrainingLoad, calories, totalElevationGain,
   deviceName}` (mantém o TSS deles para comparação sem poluir colunas).
@@ -270,6 +277,19 @@ resolver o `treinoPlanejadoId` diretamente do `external_id` do evento pareado.
 O resultado do gate deve ser registrado no `tasks.md` (Bloco 3) e, se o caso 3 se confirmar, o
 fluxo primário/fallback deve ser refletido no `IntervalsIcuActivityIngestionService` (D3, passo 9)
 antes de escrever testes/implementação do `CandidateSelector`.
+
+**Resultado do gate (2026-07-16, corrida real do founder, atleta i641775, evento `123018234` →
+activity `i166338796`):** **caso 4 — NÃO existe referência.** Probado nos dois sentidos via API
+(`paired_event_id` da activity = `null`; `paired_activity_id` do event = `null`) e confirmado
+visualmente na UI da activity (sem badge de "treino planejado vinculado"). O nome da activity
+herdou "8.00Km CONTINUO" do workout carregado no relógio via Garmin — um efeito cosmético do
+Garmin Connect, não um vínculo de dado gravado pelo intervals.icu. **A heurística D-1..D+1
+(3.1-3.4 do tasks.md) permanece como único mecanismo de reconciliação nesta change — sem match
+primário, sem ajuste no passo 9 do D3.** Achado operacional de passagem: a sincronização
+Garmin→intervals.icu de atividades (`icu_garmin_sync_activities`) vem desligada por padrão mesmo
+com o push de treinos (`icu_garmin_upload_workouts`) habilitado — são dois toggles independentes
+na integração Garmin do intervals.icu, e o segundo não faz backfill de atividades já registradas
+antes de ser ligado.
 
 Problema que a heurística de fallback resolve: `DailyActivitySyncSchedulerImpl` só reconcilia
 pendentes na janela D-1..D+1 a cada 2h. Um import de treino antigo ficaria `PENDENTE` para sempre —

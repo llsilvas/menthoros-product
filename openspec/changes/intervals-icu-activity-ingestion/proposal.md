@@ -266,13 +266,12 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
 - **Aberto: TSS da casa vs `icu_training_load`.** Decisão desta change: calcular com
   `TssCalculatorService` (consistência com `.fit`/PMC interno) e guardar o valor do intervals.icu
   em `metadadosSincronizacao` para comparação futura.
-- **Aberto: formato/prefixo do activity id** (`i86400275` vs numérico). O endpoint aceita o id como
-  `String` opaca e repassa ao intervals.icu; validar formato real no smoke.
-- **Aberto: nome real do campo de pareamento na resposta da activity** (gate 0, design.md D4) — o
-  probe do smoke precisa confirmar se/como o intervals.icu referencia o evento pareado
-  (`external_id = menthoros-<treinoPlanejadoId>`) no payload de `GET /api/v1/activity/{id}`; se não
-  houver referência nenhuma, a heurística D-1..D+1 permanece como único mecanismo (não há fallback
-  para acionar).
+- **Resolvido (gate 3.0, 2026-07-16): formato do activity id** — confirmado `i<dígitos>` (ex.
+  `i166338796`), mesmo padrão do `athlete_id` (`i641775`); `String` opaca segue correta.
+- **Resolvido (gate 3.0, 2026-07-16): campo de pareamento** — NÃO existe (`paired_event_id` da
+  activity e `paired_activity_id` do event ambos `null` mesmo após execução real confirmada; sem
+  badge de vínculo na UI). A heurística D-1..D+1 é o único mecanismo de reconciliação nesta change
+  — ver design.md D4.0 para a evidência completa.
 - **Relação com `first-party-ingestion-architecture`:** dado do intervals.icu é third-party
   agregado (Garmin/outras origens repassadas pelo intervals.icu, não capturado diretamente do
   dispositivo). Para o ML acceptance predictor futuro, fica sujeito à MESMA restrição já declarada

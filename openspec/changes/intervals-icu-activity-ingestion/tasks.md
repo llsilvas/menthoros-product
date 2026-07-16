@@ -15,8 +15,14 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
 - [x] 1.1 Criar `IcuActivityDto` (record, `@JsonIgnoreProperties(ignoreUnknown = true)`) com os
       campos do D1; teste de desserialização com fixture JSON representativa (campos presentes,
       ausentes e extras).
+      **Correção contra payload real (gate 3.0, 2026-07-16, activity `i166338796` do atleta
+      i641775): o campo do atleta é `icu_athlete_id`, NÃO `athlete_id`** — a suposição original
+      (baseada na doc pública) estava errada; sem a correção, `athleteId()` desserializaria sempre
+      `null`, quebrando silenciosamente a defesa em profundidade do D3 passo 4 para TODO import.
+      DTO e fixtures de teste corrigidos.
       Verify: `IcuActivityDtoTest` (ou teste de desserialização no pacote `dto/intervalsicu`) verde
-      cobrindo os três casos (todos campos, campos ausentes → null, campos extras ignorados).
+      cobrindo os três casos (todos campos, campos ausentes → null, campos extras ignorados), com
+      `icu_athlete_id` no fixture.
 - [x] 1.2 Adicionar `buscarAtividade(String apiKey, String activityId)` à interface
       `IntervalsIcuClient` e implementar em `IntervalsIcuClientImpl` (GET `/api/v1/activity/{id}`,
       Basic Auth por chamada, `traduz` para erros; key/body nunca logados). Testes no padrão dos
@@ -47,11 +53,14 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
       Verify: `IntervalsIcuActivityMapperTest` (`@Nested` por cenário) verde cobrindo pace/fallback,
       conversão de unidades, `movingTime` ausente → `Duration.ZERO` (não null), `distance` ausente →
       `null` literal, null input, filtro de modalidade (aceito × rejeitado) e virada de dia.
-- [x] 2.2 Cadência: NÃO reaproveitar a fórmula do FIT/Strava por analogia. Escrever
-      `sanitizeCadenciaIntervalsIcu` isolada e marcar explicitamente como pendente de confirmação
-      contra payload real (revisitar no Bloco 7.1 antes de fechar a change).
-      Verify: método isolado existe e testado com valores sintéticos; comentário/TODO explícito
-      apontando para o item de smoke do Bloco 7.1 que confirma a unidade real.
+- [x] 2.2 Cadência: NÃO reaproveitar a fórmula do FIT/Strava por analogia — escrita como função
+      isolada `sanitizeCadenciaIntervalsIcu`.
+      **Confirmado contra payload real (gate 3.0, 2026-07-16, activity `i166338796`):
+      `average_cadence` é passos/min de UMA perna (valor real `80.822655` para 6:29/km) — dobra +
+      sanitiza na faixa 60-200, mesma fórmula do Strava (coincidência confirmada, não suposição;
+      função mantida isolada por fonte de propósito).**
+      Verify: `IntervalsIcuActivityMapperTest` cobre o valor real do gate 3.0 (80.822655 → 162),
+      fora da faixa após dobrar → `null`, e ausente → `null`.
 - [x] 2.3 Implementar o mapper (componente puro, sem IO) até os testes passarem;
       `metadadosSincronizacao` com `{icuTrainingLoad, calories, totalElevationGain, deviceName}`.
       Verify: todos os testes do 2.1 verdes; `metadadosSincronizacao` serializa como JSON válido
@@ -60,21 +69,28 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
 
 ## Bloco 3 — Gate de pareamento + Extração de `CandidateSelector`/`ReconciliationDecisionExecutor` (D4)
 
-- [ ] 3.0 **Gate de pareamento push→activity (D4.0) — PRÉ-REQUISITO, bloqueia 3.1-3.4:** founder
-      habilita o fluxo de atividades no intervals.icu (se ainda não habilitado) e registra uma
-      corrida real executando um evento previamente empurrado pela change-mãe
-      `intervals-icu-workout-push`. Probe manual do payload de `GET /api/v1/activity/{id}`
-      procurando referência ao evento/workout pareado (`external_id = menthoros-<treinoPlanejadoId>`).
-      Registrar o resultado aqui:
-      - [ ] Referência encontrada? (S/N) — campo: `_____________`
-      - [ ] Se SIM: match direto vira PRIMÁRIO (lookup por PK do `treinoPlanejadoId` resolvido do
-            campo encontrado); heurística D-1..D+1 (3.1-3.4 abaixo) vira FALLBACK — ajustar o passo
-            9 do `IntervalsIcuActivityIngestionService` (Bloco 4) para tentar o match primário
-            antes de acionar o `CandidateSelector`.
-      - [ ] Se NÃO: heurística D-1..D+1 permanece único mecanismo, sem alteração ao design original
-            — seguir 3.1-3.4 normalmente.
-      Verify: campo S/N preenchido acima com evidência (payload colado ou nome do campo
-      encontrado); decisão refletida em D3 passo 9 (design.md) se o resultado for SIM.
+- [x] 3.0 **Gate de pareamento push→activity (D4.0) — PRÉ-REQUISITO, bloqueia 3.1-3.4:** founder
+      habilitou o fluxo de atividades no intervals.icu (`icu_garmin_sync_activities` estava
+      `false`, precisou ser ligado — sem backfill retroativo, só passou a valer daí em diante) e
+      registrou uma corrida real (2026-07-16, atleta i641775, "Taboão da Serra - 8.00Km CONTINUO",
+      8km/51m48s) executando o evento `123018234` (`external_id =
+      menthoros-b216a0f3-69ac-45bd-a6ee-f1bb4d7e70ac`) previamente empurrado pela change-mãe
+      `intervals-icu-workout-push`. Probe realizado nos dois sentidos: `GET
+      /api/v1/athlete/i641775/activities` (activity `i166338796`, campo `paired_event_id`) e `GET
+      /api/v1/athlete/i641775/events/123018234` (campo `paired_activity_id`) — mais inspeção visual
+      da página `https://intervals.icu/activities/i166338796` (sem badge/link de "treino
+      planejado vinculado" na UI).
+      - [x] Referência encontrada? (N) — `paired_event_id` da activity = `null`;
+            `paired_activity_id` do event = `null` (mesmo após a activity real ter sido
+            sincronizada e associada por nome/estrutura ao workout empurrado — o nome da activity
+            herdou "8.00Km CONTINUO" do workout carregado no relógio, mas isso é cosmético do
+            Garmin, não um vínculo de dado do lado do intervals.icu).
+      - [x] Resultado: heurística D-1..D+1 permanece único mecanismo, sem alteração ao design
+            original — segue 3.1-3.4 normalmente. Nenhum ajuste necessário no passo 9 do
+            `IntervalsIcuActivityIngestionService` (Bloco 4).
+      Verify: evidência registrada acima (ids reais, ambos os campos de pareamento nulos nos dois
+      sentidos, confirmado também na UI); design.md D4.0 não precisa de correção — a branch "Se NÃO"
+      já prevista no design é a que se aplica.
 - [ ] 3.1 **Teste de caracterização PRIMEIRO** (antes de tocar no scheduler): fixar o
       comportamento atual de `DailyActivitySyncSchedulerImpl` — em especial que a seleção de
       pendentes filtra por `statusSincronizacao=PENDENTE` (não por `reconciliationStatus`, apesar
@@ -366,10 +382,12 @@ do código já existente (scheduler); 4 depende de 1+2 (client+mapper) e do gate
 ## Bloco 7 — Gate de validação real (D6)
 
 - [ ] 7.1 Smoke com atleta real conectado — checklist obrigatório:
-      (a) formato real do activity id e campos realmente presentes no payload (`athlete_id`,
-      `average_speed` vs `moving_time`/`distance`, unidade de `average_cadence`, formato de
-      `start_date_local`) — ajustar D2/2.2/2.4 se divergir da suposição; roda junto com o probe do
-      gate 3.0 (mesma activity real);
+      (a) **[já confirmado no gate 3.0, 2026-07-16, activity `i166338796` — ver tasks 1.1/2.2]**
+      formato real do activity id (`i<dígitos>`), campo do atleta é `icu_athlete_id` (não
+      `athlete_id`), `average_cadence` é perna única (dobra para total), `start_date_local` sem
+      offset (`2026-07-16T08:12:19`). Falta confirmar nesta rodada de smoke (com o
+      `IntervalsIcuActivityIngestionService` real do Bloco 4): fluxo ponta a ponta via endpoint,
+      não apenas o DTO/mapper isolados;
       (b) import de corrida verdadeira: métricas corretas, reconciliação com o planejado do dia,
       TSB atualizado, idempotência do re-import;
       (c) cross-tenant/cross-atleta: tentativa de acesso com key de outro atleta retorna
