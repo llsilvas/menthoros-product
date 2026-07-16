@@ -1,14 +1,20 @@
 # Proposal: intervals-icu-activity-ingestion
 
 **Tamanho:** M · **Trilha:** Full (novo contrato de API + decisão de design na reconciliação;
-backend-only, **zero migration** — a dedup `uk_treino_realizado_tenant_fonte_external` de V29 já
-cobre a fonte `INTERVALS_ICU`)
+backend-only, **uma migration aditiva** — `tb_integracao_externa.auto_sync_pausado` (nova coluna
+boolean, V54) para a flag de pausa do Strava por atleta; a dedup DENTRO da mesma fonte,
+`uk_treino_realizado_tenant_fonte_external` de V29, já cobre `INTERVALS_ICU` sem migration
+adicional)
 
 ## Status
 
-Proposed (2026-07-15). Abre o sentido **pull** da integração intervals.icu entregue em
-`intervals-icu-workout-push` (arquivada em `archive/2026-07/2026-07-15-intervals-icu-workout-push/`),
-que cobriu apenas o sentido push (planejados → relógio).
+DoR 2026-07-15: NOT READY → bloqueador de dedup cross-fonte substituído por flag de pausa do
+Strava por atleta (decisão do founder); demais gaps do DoR corrigidos (gate de pareamento, guard
+de matching, matriz de erros, non-goals). Re-DoR pendente.
+
+Abre o sentido **pull** da integração intervals.icu entregue em `intervals-icu-workout-push`
+(arquivada em `archive/2026-07/2026-07-15-intervals-icu-workout-push/`), que cobriu apenas o
+sentido push (planejados → relógio).
 
 ## Why
 
@@ -40,11 +46,27 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
    para o treino importado — o passo de persistência da decisão é extraído do
    `DailyActivitySyncSchedulerImpl` para um colaborador reutilizável. Motivo: o scheduler opera em
    janela D-1..D+1; um treino de dias atrás ficaria `PENDENTE` para sempre e invisível na fila
-   manual (que filtra `AMBIGUO`/`NAO_PLANEJADO`).
-4. **Endpoint:** `POST /api/v1/intervals-icu/atletas/{atletaId}/activities/{activityId}/import`
+   manual (que filtra `AMBIGUO`/`NAO_PLANEJADO`). Antes de implementar a heurística de janela, um
+   **gate de pareamento** (ver design.md D4) verifica se a activity retornada referencia o evento
+   pareado pelo push (`external_id = menthoros-<treinoPlanejadoId>`, gravado pela change-mãe
+   `intervals-icu-workout-push`) — se existir, esse vínculo direto vira o match PRIMÁRIO e a
+   heurística D-1..D+1 vira fallback só para activities sem evento pareado.
+4. **Flag de pausa de sincronização Strava por atleta (substitui matching cross-fonte):** novo
+   campo `autoSyncPausado` em `IntegracaoExterna`, endpoints coach-only
+   `PATCH /api/v1/strava/pausar-sync/{atletaId}` e `PATCH /api/v1/strava/retomar-sync/{atletaId}`,
+   e guarda no `DailyActivitySyncSchedulerImpl` (via `AtletaRepository.findAllWithStravaConnected`)
+   pulando atletas com Strava pausado. Decisão do founder: em vez de detectar/bloquear colisão
+   cross-fonte automaticamente por heurística de tempo+distância+duração (complexidade alta, falsos
+   positivos/negativos), o coach pausa manualmente a sincronização automática do Strava do atleta
+   ao habilitá-lo para intervals.icu — eliminando a colisão na origem. Ver design.md D7 e "Riscos e
+   mitigações" abaixo para o risco residual (coach esquece de pausar).
+5. **Endpoint de import:** `POST /api/v1/intervals-icu/atletas/{atletaId}/activities/import?activityId={id}`
    — `TECNICO`/`ADMIN`, `@RequireTenant(resourceParamIndex = 0)`, retorna o
    `TreinoRealizadoOutputDto` do treino ingerido (200 no insert novo, 200 idempotente se já
-   existia — mesma semântica do dedup helper).
+   existia — mesma semântica do dedup helper). `activityId` é query param (não path variable — ver
+   design.md D5) para não colidir com URLs completas coladas pelo coach. Quando o atleta **não**
+   está com o Strava pausado, a resposta inclui `avisoSyncStravaAtivo: true` — aviso NÃO-BLOQUEANTE
+   de risco de duplicidade; o import prossegue normalmente.
 
 ### Fora de escopo
 
@@ -52,18 +74,22 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
   futura).
 - Sync automático, scheduler ou webhook de atividades (esta change é ação manual coach-in-the-loop).
 - Frontend (o endpoint fica disponível; tela vem em change própria).
-- Modalidades além de corrida (mesmo recorte `RUN_SPORT_TYPES` do Strava).
+- Modalidades além de corrida: recorte **próprio** desta change {Run, TrailRun, VirtualRun,
+  Treadmill} — não é um espelho exato do `RUN_SPORT_TYPES` do Strava, que é {Run, TrailRun,
+  VirtualRun} sem Treadmill (verificado em `StravaActivityServiceImpl:53`). Justificativa: esteira
+  é corrida para efeito de PMC/TSS mesmo sem GPS; ver design.md D2.
 - Streams/samples por segundo (apenas o summary da atividade; laps/etapas ficam para evolução).
 - Criptografia at-rest da credencial e circuit breaker (débitos já registrados em
   `add-external-call-resilience`).
-- **Desabilitação automática do sync Strava ao ativar intervals.icu:** atletas com ambas as
-  integrações ativas têm a mesma atividade do Garmin visível em duas fontes. Como o dedup é por
-  `(tenant, fonteDados, externalId)`, fontes diferentes (`STRAVA` vs `INTERVALS_ICU`) não
-  deduplicam entre si, gerando duplicata de `TreinoRealizado`. A regra de negócio é: **ao ativar
-  intervals.icu, o sync Strava do atleta deve ser automaticamente desabilitado** (intervals.icu
-  ativo → Strava off). Esta change não implementa o desligamento automático — fica como
-  pré-requisito para adoção com ambas as integrações ativas e será tratada em change própria (ver
-  risco em "Riscos e mitigações").
+- **Backfill/import em lote:** esta change é import manual, uma atividade por vez. Backfill
+  paginado com checkpoint (histórico de atividades antigas) é change própria futura.
+- **Desligamento *automático* do sync Strava** (levantado no product review, achado confirmado):
+  cogitado e descartado em favor da **flag de pausa manual por atleta, controlada pelo coach**
+  (item 4 do "What Changes" acima) — resolvida **nesta própria change**, não adiada. Import sem a
+  pausa ativa gera aviso não-bloqueante; não há matching automático por tempo+distância+duração
+  entre fontes diferentes.
+- **Refresh de campos em re-import:** re-importar uma activity já alterada na fonte não atualiza os
+  campos mapeados (idempotência de criação continua garantida — ver CA2); débito documentado.
 
 ## Critérios de aceite
 
@@ -94,6 +120,14 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
   uma vez; se a activity tem RPE (`icu_rpe`), ele é mapeado para `percepcaoEsforco`.
 - **CA9 — Sem regressão:** `./mvnw clean test` verde; suítes do push intervals.icu, Strava sync e
   reconciliação intactas.
+- **CA10 — Pausa de sincronização Strava:** Given atleta com `autoSyncPausado=true` na integração
+  Strava, When o scheduler diário (`DailyActivitySyncSchedulerImpl`) roda, Then o atleta é pulado
+  (não aparece em `AtletaRepository.findAllWithStravaConnected`, nenhuma tentativa de sync é feita
+  para ele).
+- **CA11 — Aviso não-bloqueante de duplicidade:** Given activity importada via intervals.icu para
+  atleta com Strava conectado e **sem** `autoSyncPausado=true`, When a resposta do import retorna,
+  Then inclui `avisoSyncStravaAtivo: true` — aviso informativo, não bloqueia nem impede o import.
+  Given atleta com Strava pausado ou sem conexão Strava, Then `avisoSyncStravaAtivo` é omitido/false.
 
 ## Métrica de sucesso
 
@@ -102,6 +136,9 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
   importar), sem tocar em Strava ou arquivo `.fit`.
 - **Confiabilidade:** 0 duplicatas criadas por re-import nos testes e no smoke; 100% dos imports
   com planejado compatível na data saem com decisão de reconciliação gravada na mesma requisição.
+- **Observabilidade:** contador de "imports com aviso de Strava ativo" (`avisoSyncStravaAtivo=true`)
+  para o coach acompanhar quantos atletas ainda não foram migrados/pausados — substitui a métrica
+  de "409 cross-fonte" que não existe mais nesta change.
 
 ## Open Questions & Assumptions
 
@@ -120,12 +157,34 @@ reconciliado com o planejado, minutos depois da execução, mesmo para atletas f
   em `metadadosSincronizacao` para comparação futura.
 - **Aberto: formato/prefixo do activity id** (`i86400275` vs numérico). O endpoint aceita o id como
   `String` opaca e repassa ao intervals.icu; validar formato real no smoke.
+- **Aberto: nome real do campo de pareamento na resposta da activity** (gate 0, design.md D4) — o
+  probe do smoke precisa confirmar se/como o intervals.icu referencia o evento pareado
+  (`external_id = menthoros-<treinoPlanejadoId>`) no payload de `GET /api/v1/activity/{id}`; se não
+  houver referência nenhuma, a heurística D-1..D+1 permanece como único mecanismo (não há fallback
+  para acionar).
+- **Relação com `first-party-ingestion-architecture`:** dado do intervals.icu é third-party
+  agregado (Garmin/outras origens repassadas pelo intervals.icu, não capturado diretamente do
+  dispositivo). Para o ML acceptance predictor futuro, fica sujeito à MESMA restrição já declarada
+  para o Strava naquela change — a decisão formal sobre uso desse dado em modelos de ML pertence a
+  `first-party-ingestion-architecture`, não a esta change.
 
 ## Riscos e mitigações
 
 Revisado com pre-mortem cross-model (Codex) e product review — 15 + 5 achados incorporados;
 detalhamento completo em `design.md` (seção "Pre-mortem"). Síntese dos riscos que sobrevivem à
 mitigação de design:
+
+- **Duplicidade cross-fonte (Strava × intervals.icu) não é detectada automaticamente** (Alto,
+  aceito como responsabilidade operacional): a mesma corrida física pode chegar via Strava sync
+  automático E via import manual do intervals.icu, duplicando TSS/PMC — a dedup
+  `uk_treino_realizado_tenant_fonte_external` só cobre DENTRO da mesma fonte. Mitigação **decidida
+  pelo founder**: flag `autoSyncPausado` (design.md D7) — o coach pausa a sincronização automática
+  do Strava do atleta ao habilitá-lo para intervals.icu, eliminando a colisão na origem, sem
+  matching cross-fonte por heurística. **Risco residual explícito: se o coach esquecer de pausar,
+  o sistema NÃO impede a duplicidade automaticamente nesta change** — o aviso não-bloqueante
+  (`avisoSyncStravaAtivo`, CA11) ajuda a sinalizar, mas não bloqueia. TOCTOU do scheduler
+  concorrente com a mudança da flag (o scheduler pode já estar processando quando o coach pausa) é
+  aceito como fora de escopo — mitigado pela pausa, não por lock distribuído.
 
 - **Extração do scheduler é mais ampla que persistência da decisão** (Alto): a seleção de
   candidatos (janela D-1..D+1) também precisa ser compartilhada, não só a persistência — do
@@ -160,6 +219,11 @@ mitigação de design:
 
 ## Rollback
 
-Aditiva: reverter o PR remove endpoint, serviço e método do client. Nenhuma migration; treinos já
-ingeridos permanecem válidos (fonte `INTERVALS_ICU` já é um valor legítimo do enum) e podem ser
-excluídos pelo fluxo normal se indesejados.
+Aditiva: reverter o PR remove endpoints, serviço e método do client. A migration V54 (coluna
+`auto_sync_pausado`, nullable/default `false`) é aditiva e não precisa de down-migration — reverter
+o PR deixa a coluna órfã (sem código que a leia), sem risco para dados existentes; se necessário,
+uma migration de limpeza pode ser feita em change futura. Treinos já ingeridos permanecem válidos
+(fonte `INTERVALS_ICU` já é um valor legítimo do enum) e podem ser excluídos pelo fluxo normal se
+indesejados. Atletas com `auto_sync_pausado=true` no momento do rollback voltam a sincronizar
+Strava automaticamente assim que o campo deixa de ser lido (comportamento pré-change) — avisar o
+coach antes de reverter em produção.
