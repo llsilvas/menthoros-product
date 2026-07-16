@@ -493,7 +493,15 @@ dois guards desta change filtram por `ativo=true` antes mesmo de checar a flag
 consequência direta de uma invariante que já existe no código, não algo que esta change precisa
 introduzir.
 
-**Endpoints (`StravaAuthController`, mesmo padrão de `status`/`disconnect`):**
+**TOCTOU residual: `retomar-sync` manual vs hook automático em transações concorrentes (achado do
+5º pre-mortem, Baixo/Médio, mesma classe dos demais TOCTOUs já aceitos neste design):** não há lock
+entre um coach chamando `PATCH .../retomar-sync/{atletaId}` e, na mesma janela de milissegundos, um
+dos dois hooks automáticos setando `autoSyncPausado=true` em outra transação (ex.: o atleta
+reconecta o Strava exatamente quando o coach está retomando manualmente). Comportamento hoje:
+last-write-wins, sem lock distribuído — mesmo padrão já aceito para o TOCTOU do scheduler e do
+import manual (ver "Riscos e mitigações" no `proposal.md`). Aceito sem mitigação adicional: é uma
+colisão entre duas ações humanas/deliberadas raras, não um caminho automático recorrente; não
+justifica lock nesta change.
 
 Agora um **override explícito do coach** sobre a flag setada automaticamente pelos hooks acima —
 não mais o mecanismo primário de pausa.

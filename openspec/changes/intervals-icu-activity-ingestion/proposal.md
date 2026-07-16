@@ -31,12 +31,17 @@ adicional)
   (contador de 409 ainda descrevia "atletas não pausados", framing da era manual-primária), wording
   `nullable/default` vs `NOT NULL DEFAULT` no Rollback, e cobertura de teste ausente para reconexão
   do Strava com flag herdada (tasks.md 6.11).
-- DoR rodada 5 (2026-07-16, spec-reviewer Claude): READY. Confirmou consistência entre os quatro
-  arquivos, precisão das tasks 6.11/6.12, e investigou o caso simétrico (desconectar o Strava em si
-  com intervals.icu ativo) — não é gap, é consequência de `ativo=false` já excluir o atleta dos dois
-  guards independentemente de `autoSyncPausado` (nota adicionada em design.md D5.2 para fechar a
-  pergunta preventivamente). Pre-mortem Codex da mesma rodada em andamento para confirmação
-  cross-model antes de `/implement init`.
+- DoR rodada 5 (2026-07-16, spec-reviewer Claude + pre-mortem Codex, em paralelo): spec-reviewer
+  READY; Codex READY COM RESSALVAS — confirmou todas as correções da rodada 4 e apontou dois achados
+  novos e pequenos, ambos corrigidos na mesma rodada: TOCTOU residual entre `retomar-sync` manual e
+  um hook automático em transações concorrentes (documentado como risco aceito, mesma classe dos
+  demais TOCTOUs sem lock já aceitos neste design — ver design.md D5.2); cobertura de teste ausente
+  (mas lógica já segura por construção) para "Strava já pausado manualmente + intervals.icu conecta"
+  (task 6.10). Investigou também o caso simétrico (desconectar o Strava em si com intervals.icu
+  ativo) — confirmado não ser gap: `ativo=false` já exclui o atleta dos dois guards
+  independentemente de `autoSyncPausado` (nota em design.md D5.2).
+- **DoR: READY.** Sem bloqueadores pendentes. Próximo passo: `/implement init
+  intervals-icu-activity-ingestion`.
 
 Abre o sentido **pull** da integração intervals.icu entregue em `intervals-icu-workout-push`
 (arquivada em `archive/2026-07/2026-07-15-intervals-icu-workout-push/`), que cobriu apenas o

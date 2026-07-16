@@ -223,7 +223,10 @@ TDD: teste antes da implementação em cada bloco.
       STRAVA ativa via
       `integracaoRepository.findActiveByAtletaIdAndPlataformaAndTenantId(atletaId,
       FonteDados.STRAVA, tenantId)`; se presente e `autoSyncPausado != true`, setar `true` e
-      salvar.
+      salvar. **Cenário adicional (achado Baixo do 5º pre-mortem — cobertura, lógica já é segura por
+      construção):** Strava já `autoSyncPausado=true` (pausado manualmente antes) + atleta conecta
+      intervals.icu → permanece `true`, sem save duplicado nem erro (idempotente; o `!= true` já
+      evita double-set, só faltava o teste explícito).
 - [ ] 6.11 **Hook automático em `StravaOAuthServiceImpl.exchangeCodeForToken` (D5.2 — Strava nasce
       pausado quando intervals.icu já está ativo):** TDD primeiro — cenário "atleta com
       intervals.icu ativo conecta/reconecta Strava via OAuth → integração Strava nasce com
