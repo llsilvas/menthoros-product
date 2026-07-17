@@ -77,7 +77,7 @@
 
 ## Bloco 3 — `CoachAtletaResumoDto` (roster do coach)
 
-- [ ] 3.1 `CoachAtletaResumoDto`: adiciona os mesmos três campos (`dataVencimentoPlano`,
+- [x] 3.1 `CoachAtletaResumoDto`: adiciona os mesmos três campos (`dataVencimentoPlano`,
       `tipoPlanoAtleta`, `statusVencimentoPlano`).
       `CoachDashboardServiceImpl.montarResumo(Atleta atleta, LocalDate hoje, ...)` (linha
       ~235-269, já recebe `hoje` como parâmetro — D3 do design.md): chama
