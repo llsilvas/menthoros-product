@@ -37,7 +37,17 @@ Validação de cada bloco (frontend): `npm run lint && npm run build`. Blocos co
       `trainingType`/`trainingStage` (nenhum hex bate com semantic) + `categorical.injuryResponse
       === semantic.danger` (exceção declarada) + testes de regressão confirmando o reuso
       intencional em `readiness`/`zone`. 588 testes (+18), lint/build verdes.
-- [ ] 2.7 Escrever unit test de Lime Discipline: nenhum token fora da allowlist (`primary.*`, `sidebar.selectedBg`) resolve para a faixa lime. Validação: `npm run test` — CA2 verde.
+- [x] 2.7 Escrever unit test de Lime Discipline: nenhum token fora da allowlist (`primary.*`, `sidebar.selectedBg`) resolve para a faixa lime. Validação: `npm run test` — CA2 verde.
+      **Allowlist ampliada em relação ao array-exemplo do design.md** (que listava só
+      `sidebar.selectedBg`): a implementação real também usa `primary[500]` em
+      `sidebar.selectedBorder`/`selectedIcon` (acompanham a seleção) e `sidebar.headerColor`
+      (brand mark do header) — mesma categoria "brand"/"primary-action" que o texto do CA2
+      permite (só o array-exemplo do pseudocódigo estava incompleto). Nenhum outro papel da
+      sidebar (`hoverBg`/`divider`/`text`/`textHover`) resolve para lime hoje, então a allowlist
+      seguiu estrita nesses 3 extras em vez de abrir `sidebar.*` inteiro. Teste em
+      `src/theme/limeDiscipline.test.ts`: percorre `premiumTokens` inteiro (exceto `primary`),
+      56 casos — cada token com valor hex é checado contra `LIME_SET = {primary[400,500,600]}`
+      e, se lime, precisa estar na allowlist. 644 testes (+56), lint/build verdes.
 - [ ] 2.8 Gerar matriz de contraste dos novos categóricos contra os fundos de elevação (`surface.900`, panel, card, raised): texto WCAG AA ≥4.5:1; UI/borda ≥3:1. Ajustar tokens que reprovarem. Validação: relatório de contraste anexado; nenhum token reprovado.
 
 ## 3. Phase 3 — Premium polish
