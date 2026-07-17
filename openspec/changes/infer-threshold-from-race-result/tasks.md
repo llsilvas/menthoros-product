@@ -112,6 +112,8 @@
 
 ## Bloco 5 — Validação final
 
-- [ ] 5.1 `./mvnw clean test` — suíte completa.
-- [ ] 5.2 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer, trilha Full).
+- [x] 5.1 `./mvnw clean test` — suíte completa (1747 testes, 0 falhas).
+- [x] 5.2 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer, trilha Full) — sem
+      achados Critical/Important; 1 achado Low do security-reviewer (query sem filtro
+      CANCELADA) e itens Minor do clean-code-reviewer corrigidos em commit separado.
 - [ ] 5.3 `/pr infer-threshold-from-race-result` → merge via CI → `/done`.
