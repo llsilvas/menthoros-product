@@ -1,0 +1,20 @@
+# CPO Weekly — 2026-07-16 (Sprint 16 encerrada → 17-18)
+
+## 1. Resumo executivo
+
+Todas as Sprints 14–16 foram concluidas com sucesso. A sequencia .fit esta completa (parser → derived metrics → running dynamics), o push intervals.icu → Garmin Connect esta entregue com hardening, e a seguranca de autorizacao (complete-authorization-controllers) fechou.
+
+**A change intervals-icu-activity-ingestion (pull) foi criada mas nao esta no SPRINTS.md** — e o gap mais urgente a resolver.
+
+**keycloak-user-onboarding-auth esta zumbi** (Sprint 14, 0% completude) e e pre-requisito de beta.
+
+## 2. Status por sprint
+
+| Sprint | Status | Entregue |
+|:---:|:---:|---|
+| 14 | [OK] Concluida | fit-lap-metrics-parser, fit-running-dynamics-ingestion, complete-authorization-controllers |
+| 15 | [OK] Concluida | intervals-icu-workout-push |
+| 16 | [OK] Concluida | fit-lap-derived-metrics, intervals-icu-push-hardening |
+| 17–18 | [>>] Proximo | deterministic-planner-engine (motor em shadow, ~68 tasks, 0% iniciado) |
+
+**Sprint 14 pendencia:** keycloak-user-onboarding-auth listada como Sprint 14 mas 0% — ver secao 3.
