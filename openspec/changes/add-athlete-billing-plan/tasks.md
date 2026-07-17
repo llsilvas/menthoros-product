@@ -152,11 +152,30 @@
 
 ## Bloco 8 — Validação final
 
-- [ ] 8.1 Backend: `./mvnw clean test` — suíte completa, sem regressão.
-- [ ] 8.2 Frontend: `npm run lint && npm run build && npm run test:run`.
-- [ ] 8.3 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer no backend,
-      frontend-reviewer no frontend, trilha Full) — checar em especial isolamento de tenant nos
-      campos novos (Bloco 3/critério de aceite 6) e ausência de dado sensível de pagamento real
-      (esta change não lida com número de cartão/PIX, só data e enum).
-      Corrigir achados Critical/Important antes de seguir; Minor/Low documentados se adiados.
+- [x] 8.1 Backend: `./mvnw clean test` — suíte completa, sem regressão. 1772 testes, 0 falhas.
+- [x] 8.2 Frontend: `npm run lint && npm run build && npm run test:run`. 570 testes, 0 falhas.
+- [x] 8.3 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer no backend,
+      frontend-reviewer no frontend, trilha Full).
+      **Corrigido (Important):**
+      - Security: `GET /api/v1/atletas` e `GET /api/v1/atletas/{id}` não tinham `@PreAuthorize` —
+        qualquer `ATLETA` autenticado podia listar o roster inteiro do tenant, agora incluindo
+        status de cobrança de outros atletas (IDOR horizontal, pré-existente mas agravado por
+        esta change). Restringido a `hasAnyRole('TECNICO','ADMIN')` — confirmado sem uso legítimo
+        por `ATLETA` (self-service já servido por `/me/*`), sem impacto em telas do frontend (só
+        coach/admin consomem) nem em testes existentes. Commit `c0da3be` (backend).
+      - Frontend: `CoachAthletesPage` reusava `formatDate` (dd/MM, pensado pra `lastActivity`) na
+        coluna `vencimentoPlano`, omitindo o ano — ambíguo para data de cobrança. Extraído
+        `formatDataVencimentoPlano` (dd/MM/yyyy) para `billingPlanAdapters.ts`, compartilhado com
+        `CoachAthleteProfilePage` (removida duplicata local). Commit `3be2d41` (frontend).
+      **Avaliado e descartado:** inconsistência de `LocalDate.now()` direto (`AtletaMapper`,
+      `CoachAthleteProfileServiceImpl`) vs. `Clock` injetado (`CoachDashboardServiceImpl`) —
+      clean-code-reviewer confirmou que é trade-off já deliberado no `design.md` (D2/D3), com
+      precedente (`FaixaTsb`); migrar as duas classes pra `Clock` só por essa call site nova seria
+      escopo maior que a feature. Não corrigido.
+      **Minor/Low adiados:** testes de `AtletaMapperTest`/`CoachAthleteProfileServiceImplTest`
+      usando `LocalDate.now()` em vez de data fixa (frágil em borda de dia); `PUT` full-replace
+      pode zerar `tipoPlanoAtleta`/`dataVencimentoPlano` se o client não enviar (semântica PUT
+      correta, mas sem auditoria específica); falta de range em `dataVencimentoPlano`; enum/data
+      inválidos caem em handler genérico (500 em vez de 400, pré-existente); `helperText`
+      ausente nos campos do `AtletaDialog`.
 - [ ] 8.4 `/pr add-athlete-billing-plan` → merge via CI → `/done`.
