@@ -131,7 +131,7 @@
 
 ## Bloco 6 — Frontend: exibição no perfil (`CoachAthleteProfilePage.tsx`)
 
-- [ ] 6.1 `CoachAthleteProfilePage.tsx`: exibe `dataVencimentoPlano` (formatada) e
+- [x] 6.1 `CoachAthleteProfilePage.tsx`: exibe `dataVencimentoPlano` (formatada) e
       `tipoPlanoAtleta` do `AtletaPerfilCoachDto`, com badge de `statusVencimentoPlano` (reusa
       `StatusBadge`, mesmo mapeamento de cor do Bloco 7). Ausência dos campos (atleta sem dados de
       cobrança) não renderiza nenhum badge — sem placeholder alarmante tipo "vencido" para quem
