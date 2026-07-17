@@ -2,6 +2,27 @@
 
 Validação de cada bloco (frontend): `npm run lint && npm run build`. Blocos com teste declaram o comando de teste explícito.
 
+> **Nota de reconciliação (2026-07-17, antes da Phase 3):** as notas `[x]` de 0.3 e 1.1–1.5
+> abaixo descrevem uma arquitetura por **feature-flag** (`src/theme/featureFlags.ts`,
+> `isPremiumV2Enabled`, estados OFF/ON via `activeTheme`) que **não existe mais no código**. Uma
+> sequência de commits em **28/06/2026** (`a4c989a` → `24ae6e5` → `a46d5c4` → `620516b` →
+> `b0a494a` "consolidar paleta premium como canônica" → `8d5a561` "migrar componentes para
+> tokens" → `ca3aecc` "ativar no-raw-color em todo src (remover ratchet)"), já mergeada em
+> `develop`, **removeu a flag e consolidou premium como a única paleta incondicional** —
+> `activeTheme.ts` hoje não tem branch OFF/ON, e o "ratchet" transitório de 34→30 arquivos citado
+> em 0.2/1.5 foi **zerado globalmente**, não só nos arquivos da Phase 1.
+>
+> Efeito prático, verificado hoje contra o código real (não contra as notas antigas):
+> - **Intenção de cada task 0.3/1.1–1.4 está satisfeita** — os grupos de token (`primary`,
+>   `surface`/`text`, `sidebar`, `trainingStatus`) fluem por `activeTheme` exatamente como as
+>   tasks pediam; só o mecanismo (flag→override) foi trocado por consolidação direta e
+>   incondicional, um resultado estritamente mais simples, não uma regressão.
+> - **Task 4.1 (varredura final = 0 hex raw, CA1 verde) já está satisfeita** desde 28/06 — `npm
+>   run lint` limpo hoje, confirmado por grep AST-aware (o rg naive pega comentários com hex, que
+>   a regra ESLint legitimamente ignora). Marcada `[x]` abaixo.
+> - Tasks genuinamente pendentes (3.1, 3.2, 3.3, 3.4, 4.2, 4.3, 4.4) não são afetadas por essa
+>   reconciliação — verificadas individualmente antes de implementar.
+
 ## 0. Baseline e guard-rails (pré-migração)
 
 - [x] 0.1 Levantar inventário grep de hex raw em componentes (excluindo `design-tokens/**`, `theme/**`, `workoutColors.ts`); registrar a baseline em um arquivo de trabalho. Validação: comando `rg` do design.md roda e a contagem é registrada. **Baseline:** 505 ocorrências / 35 arquivos → 272 em `.tsx` (30 arq) + 14 em `.ts` não-token (4 arq) + 219 no asset de marca `logo_menthoros.svg` (allowlist). Alvo efetivo a zerar ≈ 284. Defeitos concretos: mapas de cor paralelos em `types/TreinoRealizado.ts`, `types/PlanoSemanal.ts`, fallback em `utils/safeValues.ts`; `hooks/useLimeAudit.ts` referencia lime antigo (#D4FF3A) — migrar p/ #BDDE5A na Phase 1.
@@ -73,7 +94,23 @@ Validação de cada bloco (frontend): `npm run lint && npm run build`. Blocos co
 
 ## 4. Aceite e fechamento
 
-- [ ] 4.1 Rodar varredura final de hex raw (grep + `npm run lint`): contagem global = 0 em componentes. Validação: CA1 verde no CI.
+- [x] 4.1 Rodar varredura final de hex raw (grep + `npm run lint`): contagem global = 0 em componentes. Validação: CA1 verde no CI.
+      **Já satisfeita desde 28/06** (ver nota de reconciliação no topo do arquivo) — `8d5a561`
+      "migrar componentes para tokens" + `ca3aecc` "ativar no-raw-color em todo src (remover
+      ratchet)". Reverificado hoje: `npm run lint` limpo; grep textual "solto" pega 227 ocorrências
+      mas todas dentro de comentários (`// #BDDE5A — brand lime`, etc.), que a regra AST do ESLint
+      legitimamente ignora — zero `Literal`/`TemplateElement` com hex fora da allowlist
+      (`design-tokens/**`, `theme/**`, `workoutColors.ts`, testes) e fora da exceção bespoke
+      permanente (`LandingPage.tsx`, `LoginPage.tsx`).
 - [ ] 4.2 Visual diff revisado e aprovado por humano nas três telas: cockpit dashboard, athlete plan view, workout detail. Validação: CA4 — aprovação registrada por tela.
-- [ ] 4.3 Confirmar que backend permanece dono dos thresholds (UI só renderiza banda resolvida) — nenhuma lógica de threshold introduzida no cliente. Validação: revisão de diff (sem cálculo de banda no front).
+- [x] 4.3 Confirmar que backend permanece dono dos thresholds (UI só renderiza banda resolvida) — nenhuma lógica de threshold introduzida no cliente. Validação: revisão de diff (sem cálculo de banda no front).
+      **Nenhuma lógica de threshold nova nesta change** — confirmado: `StatusVencimentoPlano`,
+      `zone` e `trainingStatus` são sempre bandas já resolvidas vindas do backend/dado real; o
+      refactor só trocou qual hex cada banda pinta. **Débito pré-existente, fora de escopo,
+      registrado aqui para não ser perdido:** `ReadinessCard.getReadinessLevel(score)`
+      (`src/features/athlete/components/ReadinessCard.tsx:36-40`) calcula a banda de prontidão
+      no cliente (`score >= 90 → optimal`, etc.) porque o backend ainda não expõe uma banda
+      resolvida para esse card específico (comentário no próprio arquivo cita a change
+      `wire-athlete-shell-to-endpoints` D0.3) — predata esta change, não foi tocado por ela, e não
+      deve ser corrigido aqui (fora do escopo de um refactor de cor).
 - [ ] 4.4 Marcar tasks concluídas (`[x]`) e arquivar a change conforme regras do workspace.
