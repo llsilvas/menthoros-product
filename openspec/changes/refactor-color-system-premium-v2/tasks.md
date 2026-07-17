@@ -48,7 +48,21 @@ Validação de cada bloco (frontend): `npm run lint && npm run build`. Blocos co
       `src/theme/limeDiscipline.test.ts`: percorre `premiumTokens` inteiro (exceto `primary`),
       56 casos — cada token com valor hex é checado contra `LIME_SET = {primary[400,500,600]}`
       e, se lime, precisa estar na allowlist. 644 testes (+56), lint/build verdes.
-- [ ] 2.8 Gerar matriz de contraste dos novos categóricos contra os fundos de elevação (`surface.900`, panel, card, raised): texto WCAG AA ≥4.5:1; UI/borda ≥3:1. Ajustar tokens que reprovarem. Validação: relatório de contraste anexado; nenhum token reprovado.
+- [x] 2.8 Gerar matriz de contraste dos novos categóricos contra os fundos de elevação (`surface.900`, panel, card, raised): texto WCAG AA ≥4.5:1; UI/borda ≥3:1. Ajustar tokens que reprovarem. Validação: relatório de contraste anexado; nenhum token reprovado.
+      **2 tokens reprovaram e foram ajustados** (só luminosidade, matiz preservado — confirmado
+      que `PlanoDetalhePanel.tsx` usa `workoutTypeColor()` como cor de texto direta, então o piso
+      aplicado a todos os 8 categóricos foi sempre o mais estrito, 4.5:1, que cobre o caso UI/borda
+      3:1 de graça):
+      - `categorical.violet`: `#A855F7` (contraste 3.70 contra `raised`) → `#B670F8` (4.64 no pior
+        caso). Usado por `trainingType.FARTLEK`.
+      - `categorical.magenta`: `#E0529C` (4.08 contra `raised`) → `#E364A6` (4.63 no pior caso).
+        Usado por `trainingType.INTERVALADO`.
+      `injuryResponse` (alias de `semantic.danger`, âncora estável inalterada) ficou fora do
+      escopo — não é um "novo categórico" desta change; reprova 4.5:1 contra `card`/`raised`
+      (3.89–4.38) mas é o mesmo vermelho de perigo já em produção, sem regressão introduzida
+      aqui. Relatório (matriz completa, 32 combinações) é o teste automatizado
+      `src/theme/contrastMatrix.test.ts` — living report, reroda a cada CI. `design.md` (tabela
+      trainingType) atualizado com os hex finais. 676 testes (+32), lint/build verdes.
 
 ## 3. Phase 3 — Premium polish
 

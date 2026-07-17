@@ -100,9 +100,9 @@ Hex "atual" extraído de `colors.ts` e `workoutColors.ts`; hex v2.0 de `theme.pr
 | FACIL        | `surface[400]` `#94A3B8` | `categorical.slate` `#8694A8` | neutro dedicado |
 | LONGO        | `cat1` `#3B82F6` | `categorical.teal` `#2BB6A3` | sai do azul (= info) |
 | TEMPO        | `warning[500]` `#F59E0B` | `categorical.coral` `#F2845C` | **descolide de warning** |
-| INTERVALADO  | `danger[500]` `#EF4444` | `categorical.magenta` `#E0529C` | **descolide de danger** |
+| INTERVALADO  | `danger[500]` `#EF4444` | `categorical.magenta` `#E364A6` | **descolide de danger**; clareado de `#E0529C` na task 2.8 (contraste texto <4.5:1 contra `elevation.raised`) |
 | REGENERATIVO | `success[500]` `#10B981` | `categorical.sage` `#7FB894` | **descolide de success** |
-| FARTLEK      | `cat4` `#A855F7` | `categorical.violet` `#A855F7` | hue mantido, agora nomeado |
+| FARTLEK      | `cat4` `#A855F7` | `categorical.violet` `#B670F8` | hue mantido, agora nomeado; clareado de `#A855F7` na task 2.8 (mesmo motivo) |
 | CONTINUO     | `warning[400]` `#FBBF24` | `categorical.gold` `#E8C547` | **descolide de warning** |
 
 ### trainingStage (collision fix + lime discipline)
