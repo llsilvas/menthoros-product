@@ -24,7 +24,19 @@ Validação de cada bloco (frontend): `npm run lint && npm run build`. Blocos co
 - [x] 2.3 Remapear `WORKOUT_STAGE_COLORS` para categóricos (`aquecimento→gold, principal→teal, esforco→coral, recuperacao→sage, desaquecimento→slate`) — `principal` sai do lime. Validação: `npm run lint && npm run build`. **Feito por remoção:** mesmo caso de 2.2 — `WORKOUT_STAGE_COLORS` (com `principal = primary[500]` lime, a colisão exata do proposal) era código morto, sem importadores. `trainingStage` real vive em `theme.premium.ts` via `activeTheme.trainingStage`. Deletado.
 - [x] 2.4 Remapear `readiness` para `critical #EF4444 / caution #F59E0B / good #2DD4BF / optimal #10B981` — banda `good` sai do lime. Validação: `npm run lint && npm run build`. **Feito por remoção:** `readiness` (old, `high: primary[500]` lime) em `shared/design-tokens/colors.ts` era código morto — `ReadinessCard.tsx` já consome `activeTheme.readiness` (`critical/caution/good/optimal`, definido em `theme.premium.ts`, `good = #2DD4BF` teal). Export legado deletado.
 - [x] 2.5 Mudar **apenas** `zone.Z2` para green `#34D399` (Z1/Z3/Z4/Z5 inalterados) em `tokens.ts`. Validação: `npm run lint && npm run build`. **Feito por remoção:** `zones` (old, `Z2: primary[500]` lime, `Z3: categorical.cat1`) em `theme/tokens.ts` era código morto — todo consumo real (`ZoneDistributionInsight`, `DetalheTreinoDialog`, `WorkoutTimelineChart`) já usa `activeTheme.zones`, que roteia para `theme.premium.ts` (`Z2 = #34D399`). Export legado deletado; tipo `ZoneKey` preservado (usado por 4 arquivos) como union literal `'Z1'|'Z2'|'Z3'|'Z4'|'Z5'`, sem depender mais do objeto de cor removido.
-- [ ] 2.6 Escrever unit test de não-colisão: cada hex de `trainingType`/`trainingStage`/`readiness`/`zone` é comparado contra `{danger, warning, success, info}`; falha se compartilhar — exceção declarada e testada `categorical.injuryResponse === semantic.danger`. Validação: comando de teste do front (ex.: `npm run test`) — CA3 verde.
+- [x] 2.6 Escrever unit test de não-colisão: cada hex de `trainingType`/`trainingStage`/`readiness`/`zone` é comparado contra `{danger, warning, success, info}`; falha se compartilhar — exceção declarada e testada `categorical.injuryResponse === semantic.danger`. Validação: comando de teste do front (ex.: `npm run test`) — CA3 verde.
+      **Escopo do CA3 clarificado com o usuário antes de implementar:** o texto do `proposal.md`
+      lista as 4 categorias (`trainingType`/`trainingStage`/`readiness`/`zone`), mas o `design.md`
+      (tabelas de referência já implementadas) mostra `readiness.critical/caution/optimal` e
+      `zone.Z3/Z4/Z5` reusando os mesmos hex de `semantic` **de propósito** ("mantém vermelho de
+      risco", "heat ramp inalterado") — testar as 4 ao pé da letra quebraria contra um token tree
+      que o próprio design já valida como correto. Confirmado: a regra de não-colisão vale só para
+      `trainingType`/`trainingStage` (categorias puras, o defeito real do sistema antigo);
+      `readiness`/`zone` são estado/intensidade e reusam `semantic` como o já documentado
+      `trainingStatus`. Teste em `src/theme/theme.premium.test.ts`: 18 casos, exaustivo sobre
+      `trainingType`/`trainingStage` (nenhum hex bate com semantic) + `categorical.injuryResponse
+      === semantic.danger` (exceção declarada) + testes de regressão confirmando o reuso
+      intencional em `readiness`/`zone`. 588 testes (+18), lint/build verdes.
 - [ ] 2.7 Escrever unit test de Lime Discipline: nenhum token fora da allowlist (`primary.*`, `sidebar.selectedBg`) resolve para a faixa lime. Validação: `npm run test` — CA2 verde.
 - [ ] 2.8 Gerar matriz de contraste dos novos categóricos contra os fundos de elevação (`surface.900`, panel, card, raised): texto WCAG AA ≥4.5:1; UI/borda ≥3:1. Ajustar tokens que reprovarem. Validação: relatório de contraste anexado; nenhum token reprovado.
 
