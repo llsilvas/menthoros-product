@@ -116,4 +116,5 @@
 - [x] 5.2 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer, trilha Full) — sem
       achados Critical/Important; 1 achado Low do security-reviewer (query sem filtro
       CANCELADA) e itens Minor do clean-code-reviewer corrigidos em commit separado.
-- [ ] 5.3 `/pr infer-threshold-from-race-result` → merge via CI → `/done`.
+- [x] 5.3 `/pr infer-threshold-from-race-result` → merge via CI → `/done`. PR #43 mergeado em
+      2026-07-17T11:25:51Z (CI: GitGuardian Security Checks verde).
