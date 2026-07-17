@@ -31,7 +31,7 @@
 
 ## Bloco 1 — DTOs e mapper de CRUD (`AtletaInputDto`/`AtletaOutputDto`)
 
-- [ ] 1.1 `AtletaInputDto`: adiciona `LocalDate dataVencimentoPlano` e `TipoPlanoAtleta
+- [x] 1.1 `AtletaInputDto`: adiciona `LocalDate dataVencimentoPlano` e `TipoPlanoAtleta
       tipoPlanoAtleta`, ambos sem `@NotNull`/`@NotBlank` (preenchimento opcional, pode ficar para
       depois do cadastro). **Ambos com `@Schema(description=..., example=...)`** (achado do
       `spec-reviewer` — obrigatório em todo campo de DTO por convenção do `CLAUDE.md` do
@@ -55,7 +55,7 @@
       no DTO (`@JsonInclude(NON_NULL)` já existente omite); vencido → `VENCIDO`; dentro da janela
       de 7 dias → `PROXIMO_VENCIMENTO`; fora da janela → `EM_DIA`.
       Verify: `./mvnw clean test`.
-- [ ] 1.2 Confirma que `PUT /api/v1/atletas/{id}` (`AtletaController.atualizarAtleta`, já
+- [x] 1.2 Confirma que `PUT /api/v1/atletas/{id}` (`AtletaController.atualizarAtleta`, já
       existente) aceita os dois campos novos via `AtletaInputDto` sem mudança de assinatura —
       teste de integração/controller cobrindo update parcial (só `dataVencimentoPlano`, só
       `tipoPlanoAtleta`, os dois juntos, e nenhum dos dois — sem regressão nos demais campos do
