@@ -64,7 +64,7 @@
 
 ## Bloco 2 — `AtletaPerfilCoachOutputDto` (perfil do coach)
 
-- [ ] 2.1 `AtletaPerfilCoachOutputDto`: adiciona `LocalDate dataVencimentoPlano`, `TipoPlanoAtleta
+- [x] 2.1 `AtletaPerfilCoachOutputDto`: adiciona `LocalDate dataVencimentoPlano`, `TipoPlanoAtleta
       tipoPlanoAtleta`, `StatusVencimentoPlano statusVencimentoPlano` — `@Schema` com descrição,
       `@JsonInclude(NON_NULL)` (padrão já usado no DTO, ver `FonteLimiarInferencia`/
       `ConfiancaInferencia` como referência de enum aditivo).
