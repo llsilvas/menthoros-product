@@ -140,7 +140,7 @@
 
 ## Bloco 7 — Frontend: badge no roster (`CoachAthletesPage.tsx`)
 
-- [ ] 7.1 `AthleteRow` (interface local, linha 67): adiciona `dataVencimentoPlano?: string`,
+- [x] 7.1 `AthleteRow` (interface local, linha 67): adiciona `dataVencimentoPlano?: string`,
       `tipoPlanoAtleta?: TipoPlanoAtleta`, `statusVencimentoPlano?: StatusVencimentoPlano`.
       O `useMemo` que converte `roster` em `athletes` (linha ~282) repassa os três valores de `a`.
       Nova `GridColDef` no array `columns` (linha ~320): renderiza a data formatada (reusa
