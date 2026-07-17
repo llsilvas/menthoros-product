@@ -92,7 +92,7 @@
 
 ## Bloco 4 — Frontend: tipos
 
-- [ ] 4.1 `types/Atleta.ts`: novos tipos `TipoPlanoAtleta` (`'MENSAL' | 'TRIMESTRAL' | 'SEMESTRAL'
+- [x] 4.1 `types/Atleta.ts`: novos tipos `TipoPlanoAtleta` (`'MENSAL' | 'TRIMESTRAL' | 'SEMESTRAL'
       | 'ANUAL'`) e `StatusVencimentoPlano` (`'EM_DIA' | 'PROXIMO_VENCIMENTO' | 'VENCIDO'`).
       Campos `dataVencimentoPlano?: string` (ISO `yyyy-MM-dd`) e `tipoPlanoAtleta?:
       TipoPlanoAtleta` em `Atleta`, `CreateAtleta`, `UpdateAtleta`; `statusVencimentoPlano?:
