@@ -178,4 +178,7 @@
       correta, mas sem auditoria específica); falta de range em `dataVencimentoPlano`; enum/data
       inválidos caem em handler genérico (500 em vez de 400, pré-existente); `helperText`
       ausente nos campos do `AtletaDialog`.
-- [ ] 8.4 `/pr add-athlete-billing-plan` → merge via CI → `/done`.
+- [x] 8.4 `/pr add-athlete-billing-plan` → merge via CI → `/done`.
+      PRs abertos: backend `#44` (https://github.com/llsilvas/menthoros-backend/pull/44),
+      frontend `#39` (https://github.com/llsilvas/menthoros-front/pull/39). Aguardando CI +
+      merge — arquivamento via `/done` só após o merge de ambos.
