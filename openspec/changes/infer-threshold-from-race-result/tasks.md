@@ -2,7 +2,7 @@
 
 ## Bloco 0 — Migration: coluna de proveniência (D6)
 
-- [ ] 0.1 Migration `V56__add_fonte_limiar_pace_plano_metadados.sql` (confira `ls
+- [x] 0.1 Migration `V56__add_fonte_limiar_pace_plano_metadados.sql` (confira `ls
       src/main/resources/db/migration/ | sort -V | tail -3` antes de criar — V56 é o próximo
       número livre no momento do DoR desta change, 2026-07-16): `ALTER TABLE tb_plano_metadados
       ADD COLUMN fonte_limiar_pace VARCHAR(20)` (nullable, sem backfill — `null` = nunca calculado
@@ -15,7 +15,7 @@
 
 ## Bloco 1 — Query de provas realizadas recentes (D2b — sem filtro de distância em SQL)
 
-- [ ] 1.1 `ProvaRepository`: novo método via `@Query` explícito (NÃO derived-name — `Prova` não
+- [x] 1.1 `ProvaRepository`: novo método via `@Query` explícito (NÃO derived-name — `Prova` não
       tem propriedade `tenantId`, só `assessoria`; mesmo padrão de `findByIdAndTenantId`):
       ```
       @Query("""
@@ -41,7 +41,7 @@
 
 ## Bloco 2 — Resolução de distância + fórmula prova→limiar (D2, D2b)
 
-- [ ] 2.1 Novo método privado/pacote em `ThresholdInferenceService`:
+- [x] 2.1 Novo método privado/pacote em `ThresholdInferenceService`:
       `resolverDistanciaMetros(Prova prova)` — duplica isoladamente
       `RaceProjectionServiceImpl.resolveDistanceM` (linhas 202-212): prioriza `prova
       .getDistanciaKm()` (custom, convertido para metros) quando presente, senão resolve o enum
@@ -51,7 +51,7 @@
       TDD: teste unitário cobrindo os 4 valores do enum + o caminho `distanciaKm` customizado
       (quando ambos presentes, `distanciaKm` vence — mesma prioridade do código original).
       Verify: `./mvnw clean test`.
-- [ ] 2.2 Novo método em `ThresholdInferenceService`: `inferirPaceLimiarDeProva(Prova
+- [x] 2.2 Novo método em `ThresholdInferenceService`: `inferirPaceLimiarDeProva(Prova
       provaValida)` — **NÃO chama `RiegelCalculator.calculate()`** (exige `RegressionResult` do
       pipeline de projeção, não é função pura reaproveitável aqui — achado do pre-mortem, ver
       design.md D2). Implementa a fórmula de Riegel isolada, com constante própria
@@ -64,7 +64,7 @@
       prova de 5000m (normalização + offset); prova de 21097m (normalização + offset); resultado
       determinístico e sem dependência de mocks (função pura).
       Verify: `./mvnw clean test`.
-- [ ] 2.3 Filtro de validade (5000-21097m) aplicado sobre a lista de `findProvasRealizadasRecentes`
+- [x] 2.3 Filtro de validade (5000-21097m) aplicado sobre a lista de `findProvasRealizadasRecentes`
       (Bloco 1) usando `resolverDistanciaMetros` (2.1) — retorna a primeira prova válida da lista
       já ordenada por data, ou vazio se nenhuma.
       TDD: teste cobrindo: prova de 3K (fora da faixa) ignorada; prova de 21097m via enum
@@ -75,7 +75,7 @@
 
 ## Bloco 3 — Integração com `atualizarLimiareInferidos` (D3, precedência + persistência D6)
 
-- [ ] 3.1 `TsbServiceImpl.atualizarLimiareInferidos`: antes de chamar `inferirPaceLimiar`
+- [x] 3.1 `TsbServiceImpl.atualizarLimiareInferidos`: antes de chamar `inferirPaceLimiar`
       (quintil), consulta `ProvaRepository.findProvasRealizadasRecentes(...)` + filtro de
       validade (Bloco 2.3); se uma prova válida existe, usa `inferirPaceLimiarDeProva` para
       `paceLimiarEstimado` e seta `fonteLimiarPace = PROVA_REGISTRADA`, **pulando** o quintil só
@@ -89,7 +89,7 @@
       enum (`distanciaKm=null`) é considerada válida; prova de 10K customizada também é válida.
       Verify: `./mvnw clean test` — suíte completa verde, incluindo os testes pré-existentes de
       `TsbServiceImplTest`/`atualizarLimiareInferidos` (não podem regredir).
-- [ ] 3.2 Log de sinalização de outlier (D5 do design.md — métrica revisada, substitui o log
+- [x] 3.2 Log de sinalização de outlier (D5 do design.md — métrica revisada, substitui o log
       comparativo simples da v1): ao computar `paceLimiarEstimado` a partir de uma prova, calcula
       `Δ = novo - antigo` (valor anterior de `PlanoMetaDados.paceLimiarEstimado`, se existia); se
       `|Δ| > 20s/km`, log WARN com `atletaId`, `paceAntigo`, `paceNovo`, `delta`, `provaId` (para
@@ -99,7 +99,7 @@
 
 ## Bloco 4 — Visibilidade da fonte para o coach (D4, D6 — lê o campo persistido, não recomputa)
 
-- [ ] 4.1 `AtletaPerfilCoachOutputDto`: novo campo `fonteLimiarEstimado` (enum
+- [x] 4.1 `AtletaPerfilCoachOutputDto`: novo campo `fonteLimiarEstimado` (enum
       `FonteLimiarInferencia` — `PROVA_REGISTRADA` | `MEDIA_TREINOS`) — `@Schema` com descrição,
       `@JsonInclude(NON_NULL)` (padrão já usado no restante do DTO). Mapper lê **diretamente** de
       `PlanoMetaDados.fonteLimiarPace` (Bloco 0/3) — **sem recomputar** qual seria a fonte no
