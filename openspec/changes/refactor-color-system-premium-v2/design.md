@@ -145,7 +145,9 @@ Hex "atual" extraído de `colors.ts` e `workoutColors.ts`; hex v2.0 de `theme.pr
 | sidebar.divider    | `rgba(255,255,255,0.12)` | hairline |
 | glass.bg     | `rgba(255,255,255,0.08)` | material translúcido |
 | glass.hover  | `rgba(255,255,255,0.12)` | material hover |
+| glass.active | `rgba(255,255,255,0.15)` | material active (task 3.1 — affordance já em produção, fora da tabela original) |
 | glass.border | `rgba(255,255,255,0.15)` | hairline border |
+| glass.borderHover | `rgba(255,255,255,0.25)` | hairline border no hover (task 3.1 — idem) |
 | glass.blur   | `blur(10px)` | desfoque de material |
 | glass.shadow | `0 8px 32px rgba(0,0,0,0.40)` | profundidade |
 

@@ -87,7 +87,19 @@ Validação de cada bloco (frontend): `npm run lint && npm run build`. Blocos co
 
 ## 3. Phase 3 — Premium polish
 
-- [ ] 3.1 Aplicar glass como material/hairline v2.0 nos componentes de superfície elevada (consumindo o token `glass`, sem hex raw). Validação: `npm run lint && npm run build`.
+- [x] 3.1 Aplicar glass como material/hairline v2.0 nos componentes de superfície elevada (consumindo o token `glass`, sem hex raw). Validação: `npm run lint && npm run build`.
+      **Achado:** `glassSx`/`glassSxHover`/`glassAzulSx` (22+ consumidores) já usavam o token
+      `glass` — mas um `glass` **duplicado e hand-rolled** em `tokens.ts`
+      (`${surface[0]}14` etc.), não o canônico de `theme.premium.ts`. Os valores já coincidiam
+      numericamente (~8%/12%/15%, diferença de arredondamento hex-alpha vs rgba irrelevante), mas
+      duas fontes de verdade divergiam do princípio "componentes nunca referenciam hex — apenas
+      os tokens" do `theme.premium.ts`.
+      **Feito:** `theme.premium.ts.glass` ganhou `backgroundActive`/`borderHover` (affordances já
+      em produção, fora da tabela original de 5 campos do design.md — documentadas agora);
+      `tokens.ts` importa `glass` de `theme.premium.ts` em vez de redefinir (`export const glass =
+      premiumGlass`), preservando os 3 pontos que importam `glass`/`glassSx` diretamente de
+      `theme/tokens` sem tocar nenhum consumidor. `design.md` (tabela sidebar/glass) atualizado.
+      Lint/build/676 testes verdes, zero mudança visual (mesmos valores computados).
 - [ ] 3.2 Ajustar densidade conforme v2.0 (espaçamentos/escala) sem reintroduzir cor raw. Validação: `npm run lint && npm run build`.
 - [ ] 3.3 Ajustar negative space das três telas-âncora. Validação: `npm run lint && npm run build`.
 - [ ] 3.4 Atualizar `src/shared/design-tokens/forbidden-uses.ts` com a regra de Lime Discipline e a proibição de `info` em brand/hero. Validação: `npm run lint && npm run build`.
