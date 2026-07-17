@@ -107,7 +107,7 @@
 
 ## Bloco 5 — Frontend: edição (`AtletaDialog.tsx`)
 
-- [ ] 5.1 `components/features/atleta/AtletaDialog.tsx`: adiciona os dois campos editáveis —
+- [x] 5.1 `components/features/atleta/AtletaDialog.tsx`: adiciona os dois campos editáveis —
       seletor de `tipoPlanoAtleta` (MUI `Select`, opções MENSAL/TRIMESTRAL/SEMESTRAL/ANUAL, campo
       opcional) e input de `dataVencimentoPlano` (MUI date input, opcional) — segue o padrão
       visual e de validação já usado pelos demais campos opcionais do mesmo diálogo (D4 do
@@ -117,7 +117,7 @@
       novos dispara `onSave` com os valores corretos; campos vazios não bloqueiam o save (são
       opcionais).
       Verify: `npm run lint && npm run build && npm run test:run`.
-- [ ] 5.2 **Validação do critério de aceite 5** (achado do `spec-reviewer` — não havia task
+- [x] 5.2 **Validação do critério de aceite 5** (achado do `spec-reviewer` — não havia task
       dedicada): `AtletaDialog.tsx` é aberto a partir de `pages/atletas/AtletasList.tsx` (shell
       legado), uma rota separada de `CoachAthleteProfilePage.tsx`/`CoachAthletesPage.tsx` (shell
       do coach) — não há estado client-side compartilhado entre as duas telas. "Sem reload
