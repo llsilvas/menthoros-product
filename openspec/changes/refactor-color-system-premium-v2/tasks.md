@@ -102,7 +102,12 @@ Validação de cada bloco (frontend): `npm run lint && npm run build`. Blocos co
       Lint/build/676 testes verdes, zero mudança visual (mesmos valores computados).
 - [ ] 3.2 Ajustar densidade conforme v2.0 (espaçamentos/escala) sem reintroduzir cor raw. Validação: `npm run lint && npm run build`.
 - [ ] 3.3 Ajustar negative space das três telas-âncora. Validação: `npm run lint && npm run build`.
-- [ ] 3.4 Atualizar `src/shared/design-tokens/forbidden-uses.ts` com a regra de Lime Discipline e a proibição de `info` em brand/hero. Validação: `npm run lint && npm run build`.
+- [x] 3.4 Atualizar `src/shared/design-tokens/forbidden-uses.ts` com a regra de Lime Discipline e a proibição de `info` em brand/hero. Validação: `npm run lint && npm run build`.
+      JSDoc do arquivo ganhou 2 seções: Lime Discipline (allowlist + pointer pro teste automatizado
+      `limeDiscipline.test.ts`) e `info` nunca em brand/hero (Constraint 5 do design.md — sem teste
+      automatizado, verificação por revisão de diff; confirmado hoje por grep que nenhum uso atual
+      de `semantic.info` está em `pages/landing/**` ou em componente de identidade de marca).
+      Lint/build/676 testes verdes.
 
 ## 4. Aceite e fechamento
 
