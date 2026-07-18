@@ -100,8 +100,33 @@ Validação de cada bloco (frontend): `npm run lint && npm run build`. Blocos co
       premiumGlass`), preservando os 3 pontos que importam `glass`/`glassSx` diretamente de
       `theme/tokens` sem tocar nenhum consumidor. `design.md` (tabela sidebar/glass) atualizado.
       Lint/build/676 testes verdes, zero mudança visual (mesmos valores computados).
-- [ ] 3.2 Ajustar densidade conforme v2.0 (espaçamentos/escala) sem reintroduzir cor raw. Validação: `npm run lint && npm run build`.
-- [ ] 3.3 Ajustar negative space das três telas-âncora. Validação: `npm run lint && npm run build`.
+- [x] 3.2 Ajustar densidade conforme v2.0 (espaçamentos/escala) sem reintroduzir cor raw. Validação: `npm run lint && npm run build`.
+      **Sem spec concreta pra implementar:** `design.md`/`proposal.md` não definem nenhum valor de
+      espaçamento/escala v2.0 — "densidade" aparece só como item de risco genérico, sem números.
+      Fechada sem mudança de token: Phases 0-2 + 3.1 já cobrem todo ajuste de token real desta
+      change. O achado concreto de densidade veio via inspeção visual no navegador (ver 3.3) — um
+      bug de largura de card, não de escala de espaçamento.
+- [x] 3.3 Ajustar negative space das três telas-âncora. Validação: `npm run lint && npm run build`.
+      **Inspeção visual real** (login como coach, `/coach/inbox` e `/coach/calendar`, viewport
+      1512px) achou e corrigiu 2 bugs de truncamento (fora do escopo original "negative space",
+      mas confirmados com o usuário antes de mexer — ver decisão registrada na conversa):
+      - `CurrentWeekPlan.tsx` (aba Plano): grid de treinos da semana em `lg: 12/7` (7 cards por
+        linha) cortava "CONTÍNUO"→"CONT...", "No relógio"→"No reló..." — cards estreitos demais
+        pro conteúdo. Corrigido: grid unificado em `lg: 3` (4 por linha, mesma coluna do `md`,
+        semana quebra em 2 linhas em vez de 1); `SyncStatusChip` ganhou `flexShrink: 0`; label do
+        dia da semana trocou `flex:1` por `flexShrink:0` (só 3 chars, não precisa crescer);
+        `noWrap` removido do tipo de treino.
+      - `MetricTile.tsx` (usado só em `CoachInboxPage`, tiles de Aderência/Carga/Forma/ACWR/Próxima
+        Prova): `value` com `noWrap` cortava labels de domínio real — `FAIXA_APRESENTACAO`
+        (`types/FaixaTsb.ts`) tem 9 status possíveis, o pior caso "Fadiga excessiva"/"Muito
+        descansado" (16 chars) sempre cortaria. Corrigido: `value` vira `-webkit-line-clamp: 2` +
+        `overflowWrap: break-word` (2 linhas, quebra palavra única se preciso, sem cortar sem
+        indicação). Verificado ao vivo: "Recuperando" (Maria Santos) agora quebra em 2 linhas
+        legível, em vez de cortar. Fallback "Sem prova próxima" também encurtado pra "Sem prova"
+        (cabia em 1 linha sem precisar do clamp).
+      **Não verificado nesta sessão:** a 3ª tela-âncora (detalhe de treino) — chip do calendário
+      (`/coach/calendar`) só mostra tooltip ao clicar, não abre dialog nesta versão da UI; revisão
+      fica para o humano na task 4.2. Lint/build/676 testes verdes após cada mudança.
 - [x] 3.4 Atualizar `src/shared/design-tokens/forbidden-uses.ts` com a regra de Lime Discipline e a proibição de `info` em brand/hero. Validação: `npm run lint && npm run build`.
       JSDoc do arquivo ganhou 2 seções: Lime Discipline (allowlist + pointer pro teste automatizado
       `limeDiscipline.test.ts`) e `info` nunca em brand/hero (Constraint 5 do design.md — sem teste
