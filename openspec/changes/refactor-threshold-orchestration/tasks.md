@@ -109,4 +109,6 @@
   de stub explícito — funciona hoje pela semântica do nome do método, frágil só se o método for
   renomeado/invertido no futuro).
   1786 testes (+2), lint/build verdes após as correções.
-- [ ] 5.3 Abrir PR (`feature/refactor-threshold-orchestration`) → `develop`.
+- [x] 5.3 Abrir PR (`feature/refactor-threshold-orchestration`) → `develop`.
+  PR aberto: backend `#45` (https://github.com/llsilvas/menthoros-backend/pull/45). Aguardando
+  CI + merge — arquivamento via `/done` só após o merge.
