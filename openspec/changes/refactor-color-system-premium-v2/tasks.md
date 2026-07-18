@@ -177,4 +177,39 @@ Validação de cada bloco (frontend): `npm run lint && npm run build`. Blocos co
       resolvida para esse card específico (comentário no próprio arquivo cita a change
       `wire-athlete-shell-to-endpoints` D0.3) — predata esta change, não foi tocado por ela, e não
       deve ser corrigido aqui (fora do escopo de um refactor de cor).
+
+## QA (antes do `/pr`)
+
+`/qa` rodado com frontend-reviewer + clean-code-reviewer em paralelo sobre o diff completo
+(`develop..feature/refactor-color-system-premium-v2`, 7 commits). Zero Critical nos dois.
+**Corrigido:**
+- `WORKOUT_STATUS_COLORS.PARCIAL` em `workoutColors.ts` valia `warning[400]`, mas
+  `activeTheme.ts` sempre sobrescrevia para `warning[500]` — valor inalcançável em runtime,
+  a própria oportunidade que o commit 1 ("remover mapas legados/mortos") deveria ter pego.
+  Corrigido o valor na fonte e removida a sobrescrita; `workoutStatusColor()` (zero
+  importadores, código morto) removida junto.
+- `forbidden-uses.ts`: a task 3.4 documentou Lime Discipline/`info` num arquivo que já tinha
+  `FORBIDDEN_RAW_COLORS`/`auditRawColors()` mortos (zero chamadores) e desatualizados
+  (referenciavam `categorical.cat4..cat8`, renomeados em fase anterior desta mesma change).
+  Removido o mecanismo morto — o enforcement real já é a regra ESLint `no-restricted-syntax`.
+- `CurrentWeekPlan.tsx`: tipo de treino ganhou `line-clamp:2` (mesmo padrão do `MetricTile.tsx`,
+  por consistência dentro do próprio commit de fix) + comentário explicando a remoção do
+  breakpoint `lg` no grid.
+- `limeDiscipline.test.ts`: lógica de `expect` reescrita pra forma idiomática (`if` + `expect`
+  em vez de `!isLime || isAllowlisted(...)`); comentário do `sidebar.selectedBg` clarifica que é
+  proteção prospectiva (a allowlist nunca é exercitada por esse papel hoje, pois o valor é
+  `rgba(...)`, não hex sólido).
+
+**Registrado, não corrigido agora (fora do escopo de "polish"):** `primary`/`surface`/`semantic`
+estão duplicados byte-a-byte entre `src/shared/design-tokens/colors.ts` e `theme.premium.ts`
+(pré-existente, não introduzido por este diff) — valores batem hoje só por coincidência de
+manutenção manual; a próxima calibração de contraste (como a que este diff já fez pra
+`violet`/`magenta`) pode dessincronizar os dois silenciosamente. `AthleteBottomNav.tsx` também
+importa direto de `colors.ts` em vez de `activeTheme`, violando a invariante declarada no
+cabeçalho do `activeTheme.ts`. Fix recomendado (não feito): `colors.ts` reexportar de
+`theme.premium.ts` (mesmo padrão já usado pra `readiness`/`glass` nesta change) — candidato a
+task numa próxima passada de consolidação, não a esta.
+
+676 testes, lint/build verdes após as correções do QA.
+
 - [ ] 4.4 Marcar tasks concluídas (`[x]`) e arquivar a change conforme regras do workspace.
