@@ -212,4 +212,6 @@ task numa próxima passada de consolidação, não a esta.
 
 676 testes, lint/build verdes após as correções do QA.
 
-- [ ] 4.4 Marcar tasks concluídas (`[x]`) e arquivar a change conforme regras do workspace.
+- [x] 4.4 Marcar tasks concluídas (`[x]`) e arquivar a change conforme regras do workspace.
+      PR frontend #40 mergeado em `develop`. Todas as tasks 0.1–4.4 concluídas (implementadas ou
+      documentadas como avaliadas/fora de escopo, sem tasks deferidas pendentes). Arquivando.
