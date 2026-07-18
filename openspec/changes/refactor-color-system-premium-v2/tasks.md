@@ -144,7 +144,29 @@ Validação de cada bloco (frontend): `npm run lint && npm run build`. Blocos co
       legitimamente ignora — zero `Literal`/`TemplateElement` com hex fora da allowlist
       (`design-tokens/**`, `theme/**`, `workoutColors.ts`, testes) e fora da exceção bespoke
       permanente (`LandingPage.tsx`, `LoginPage.tsx`).
-- [ ] 4.2 Visual diff revisado e aprovado por humano nas três telas: cockpit dashboard, athlete plan view, workout detail. Validação: CA4 — aprovação registrada por tela.
+- [x] 4.2 Visual diff revisado e aprovado por humano nas três telas: cockpit dashboard, athlete plan view, workout detail. Validação: CA4 — aprovação registrada por tela.
+      Revisão ao vivo (login do usuário como coach, viewport 1512px, dev server local +
+      backend real) nas 3 telas:
+      - **Cockpit dashboard** (`/coach/inbox`, aba Diagnóstico): cores premium (categorical,
+        semantic, status badges) renderizando corretas; achado e corrigido o bug de truncamento
+        do `MetricTile` (3.3).
+      - **Athlete plan view** (`/coach/inbox`, aba Plano + `/coach/athletes` → dialog "Planos"):
+        cards de treino com cor categórica por tipo (`CONTINUO`/`LONGO`) corretas; achado e
+        corrigido o truncamento do `CurrentWeekPlan` (3.3). Confirmado também no `/coach/calendar`
+        — chips por tipo de treino (Fácil/Tiros/Longão/Tempo/Recup.) com as cores categóricas
+        dedicadas certas, sem colisão visual.
+      - **Workout detail** (`DetalheTreinoDialog`, via `/coach/athletes` → "Planos" → "Detalhes"
+        num treino): zonas de FC, blocos por etapa (aquecimento/principal/desaquecimento) e
+        distribuição renderizando com as cores de `trainingStage`/`zone` corretas. Achado
+        truncamento no mini-timeline proporcional (`WorkoutTimelineChart`), avaliado e **não
+        corrigido** — é por design (largura proporcional à duração real da etapa) com hover-
+        tooltip revelando o label completo, e o texto integral já aparece sem corte nos cards
+        "Blocos" ao lado; não é perda de informação.
+      **Achado de produto fora de escopo (não é regressão desta change):** os chips do calendário
+      (`/coach/calendar`) só mostram tooltip ao passar o mouse — não abrem nenhum dialog de
+      detalhe ao clicar (`CoachCalendarPage.tsx` nunca teve esse `onClick`, confirmado por
+      `git log`). Registrado aqui para não se perder, não corrigido — fora do escopo de uma
+      change de cores.
 - [x] 4.3 Confirmar que backend permanece dono dos thresholds (UI só renderiza banda resolvida) — nenhuma lógica de threshold introduzida no cliente. Validação: revisão de diff (sem cálculo de banda no front).
       **Nenhuma lógica de threshold nova nesta change** — confirmado: `StatusVencimentoPlano`,
       `zone` e `trainingStatus` são sempre bandas já resolvidas vindas do backend/dado real; o
