@@ -92,7 +92,21 @@
 
 ## 5. QA e entrega
 
-- [ ] 5.1 `./mvnw clean test` verde.
-- [ ] 5.2 QA (Fast track): `code-reviewer` + `clean-code-reviewer` sobre o diff — atenção a CA1 (nenhum
-  assert de teste mudou de expectativa) e CA4 (persistência não duplicada).
+- [x] 5.1 `./mvnw clean test` verde. 1786 testes, 0 falhas.
+- [x] 5.2 QA (Fast track): `code-reviewer` + `clean-code-reviewer` sobre o diff — atenção a CA1 (nenhum
+  assert de teste mudou de expectativa) e CA4 (persistência não duplicada). Zero Critical nos dois;
+  CA1/CA4/CA3 confirmados verdes por ambos.
+  **Corrigido (convergente nos dois revisores):**
+  - `AthleteThresholdUpdater.atualizarLimiares` ganhou null-check explícito em `atleta`
+    (`IllegalArgumentException`) — método agora é público (era privado, sempre chamado com atleta
+    garantido não-nulo); hardening da superfície pública, sem mudar o caminho feliz.
+  - Teste novo pro caminho `assessoria == null` (dívida pré-existente — nem o teste original via
+    reflection cobria; `clean-code-reviewer` confirmou via `git show develop:...`). `+2` testes.
+  - 4 mensagens de log (`log.warn`/`log.info`) ainda citavam `atualizarLimiareInferidos` (nome do
+    método privado pré-extração) — atualizadas para `atualizarLimiares`.
+  **Não corrigido (Minor, custo-benefício baixo):** precisão de stub em 2 cenários de
+  `CoachAthleteProfileServiceImplTest` (staleness de pace cai no default `false` do Mockito em vez
+  de stub explícito — funciona hoje pela semântica do nome do método, frágil só se o método for
+  renomeado/invertido no futuro).
+  1786 testes (+2), lint/build verdes após as correções.
 - [ ] 5.3 Abrir PR (`feature/refactor-threshold-orchestration`) → `develop`.
