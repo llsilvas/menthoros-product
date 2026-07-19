@@ -35,9 +35,9 @@
 
 ## 4. Integracao — PlannerEngine.planWeek()
 
-- [ ] 4.1 TDD: `PlannerEngineTest` — fluxo completo `PlannerInputSnapshot -> WeekPlanSkeleton`. Cobrir FULL_CONTEXT, LEGACY_CONTEXT, fallback conservador com historico insuficiente, `requiresCoachReview=true` (TSB baixo, lesao), e determinismo: mesmo `referenceDate` + inputs -> mesmo skeleton, independente do relogio (CA17). **verify:** testes vermelhos.
-- [ ] 4.2 Implementar `PlannerEngine.planWeek(PlannerInputSnapshot)` — **nunca chama `LocalDate.now()`**; orquestra os 5 subcomponentes; `ProgressaoTreinoService` permanece fora, fornecendo `DecisaoProgressao`. **verify:** `./mvnw -Dtest=PlannerEngineTest test` verde.
-- [ ] 4.3 Escopo running-first: TDD `PlannerScopeTest` — modalidade non-running registra `plannerScope=RUNNING_FIRST` no metadata e usa TSS agregado como guardrail. **verify:** verde.
+- [x] 4.1 TDD: `PlannerEngineTest` — fluxo completo `PlannerInputSnapshot -> WeekPlanSkeleton`. Cobrir FULL_CONTEXT, LEGACY_CONTEXT, fallback conservador com historico insuficiente, `requiresCoachReview=true` (TSB baixo, lesao), e determinismo: mesmo `referenceDate` + inputs -> mesmo skeleton, independente do relogio (CA17). **verify:** testes vermelhos.
+- [x] 4.2 Implementar `PlannerEngine.planWeek(PlannerInputSnapshot)` — **nunca chama `LocalDate.now()`**; orquestra os 6 subcomponentes (5 do sketch original + `InjuryPolicyResolver`, que a Decisao 14 exige como colaborador proprio); `ProgressaoTreinoService` permanece fora, fornecendo `DecisaoProgressao`. **verify:** `./mvnw -Dtest=PlannerEngineTest test` verde.
+- [x] 4.3 Escopo running-first: TDD `PlannerScopeTest` — modalidade non-running registra `plannerScope=RUNNING_FIRST` no metadata e usa TSS agregado como guardrail. **verify:** verde.
 
 ## 5. SkeletonComplianceChecker (logica de dominio, sem wiring)
 
