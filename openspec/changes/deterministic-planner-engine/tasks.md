@@ -46,9 +46,9 @@
 
 ## 6. Golden set deterministico
 
-- [ ] 6.1 Criar 30-50 casos em `PlannerEngineGoldenSetTest` — historico + calendario de prova + constraints -> `WeekPlanSkeleton` esperado exato (nao LLM-graded).
-- [ ] 6.2 Cobrir: periodizacao completa (BASE->BUILD->PEAK->TAPER), step-back, TSB nas 3 faixas, lesao ativa, lesao recente, cold start, multi-prova (alvo explicito + desempate por distancia), BASE_FITNESS, 1 atleta multisport com guardrail conservador.
-- [ ] 6.3 **verify:** `./mvnw -Dtest=PlannerEngineGoldenSetTest test` — 100% verde; regressao bloqueante de merge.
+- [x] 6.1 Criar 30-50 casos em `PlannerEngineGoldenSetTest` — historico + calendario de prova + constraints -> `WeekPlanSkeleton` esperado exato (nao LLM-graded). 37 casos (32 parametrizados + 5 dedicados); asserta fase, requiresCoachReview, plannerScope e injuryRisk().level() exatos por caso.
+- [x] 6.2 Cobrir: periodizacao completa (BASE->BUILD->PEAK->TAPER->RACE_WEEK->POST_RACE, incluindo limites exatos de transicao), step-back, TSB nas 3 faixas, lesao ativa, lesao recente, cold start, multi-prova (alvo explicito + desempate por distancia), BASE_FITNESS, 1 atleta multisport com guardrail conservador, monotonia, descricao de lesao nao estruturada, prova preparatoria na semana, REDUZIR/MANTER/PROGREDIR_LEVE.
+- [x] 6.3 **verify:** `./mvnw -Dtest=PlannerEngineGoldenSetTest test` — 100% verde (37/37); regressao bloqueante de merge.
 
 ## 7. Shadow mode + auditoria + metricas
 
