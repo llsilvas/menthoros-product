@@ -71,4 +71,4 @@
       CA16 `PlannerShadowServiceTest` (divergencia) · CA17 `PlannerEngineTest` (determinismo).
 - [x] 8.2 `progressao-treinos` confirmada arquivada em `changes/archive/2026-07/2026-07-08-progressao-treinos/`; proposal.md (linha 22) documenta esta change como extensao, nao substituicao, do `ProgressaoTreinoService`.
 - [x] 8.3 Doc: `planner-rules.yml` criado em `apps/menthoros-backend/src/main/resources/` — inventario comentado de todos os thresholds hoje hardcoded (LoadTargetResolver, TaperStrategy, InjuryRiskEvaluator, PeriodizationPlanner, SkeletonComplianceChecker), com tag `# CA<n>` nos ancorados em criterio de aceite. Nao carregado pela aplicacao — placeholder para extracao futura com dado do shadow.
-- [ ] 8.4 PR backend aberto; CI verde. Sem frontend.
+- [x] 8.4 PR backend aberto: https://github.com/llsilvas/menthoros-backend/pull/46 — aguardando CI. Sem frontend.
