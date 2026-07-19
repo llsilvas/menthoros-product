@@ -1,12 +1,12 @@
 **Tamanho:** M · **Trilha:** Full
 
-> Full porque cria a fundacao do nucleo de dominio deterministico (`domain/planner`), adiciona migration (V54) e integra em `PlanoServiceImpl` — mas em **shadow mode apenas**: zero mudanca no prompt, no plano gerado ou na experiencia do coach. Parte 1 de 2; o enforcement esta em `planner-engine-enforcement`.
+> Full porque cria a fundacao do nucleo de dominio deterministico (`domain/planner`), adiciona migration (V58) e integra em `PlanoServiceImpl` — mas em **shadow mode apenas**: zero mudanca no prompt, no plano gerado ou na experiencia do coach. Parte 1 de 2; o enforcement esta em `planner-engine-enforcement`.
 
 ## Split (2026-07-14)
 
 Esta change nasceu como um unico L cobrindo motor + enforcement. Foi dividida apos replanejamento:
 
-- **`deterministic-planner-engine` (esta, M)** — motor deterministico completo + `SkeletonComplianceChecker` como logica pura + shadow mode + auditoria V54 + fundacao do pacote `domain/`. **Sem dependencia de nenhuma change ativa** — o shadow engancha em `PlanoServiceImpl` apos a geracao legada, codigo que nenhuma change-irma toca.
+- **`deterministic-planner-engine` (esta, M)** — motor deterministico completo + `SkeletonComplianceChecker` como logica pura + shadow mode + auditoria V58 + fundacao do pacote `domain/`. **Sem dependencia de nenhuma change ativa** — o shadow engancha em `PlanoServiceImpl` apos a geracao legada, codigo que nenhuma change-irma toca.
 - **`planner-engine-enforcement` (M)** — skeleton no prompt, compliance em dois estagios com retry, `SessionSlot` prescritivo, flags `enabled`/`fail-open`. Depende desta e, idealmente, de `refactor-iaservice-decomposition`.
 
 Motivos do split: (1) quebra a dependencia de sequenciamento — o SPRINTS coloca esta change na sprint 17-18 e o refactor so na 24; (2) o shadow coleta dados reais de calibracao (distribuicao de fases, taxa de `requiresCoachReview`, violacoes hipoteticas) **antes** de os thresholds virarem enforcement; (3) cada metade e mergeavel e util sozinha.
@@ -43,7 +43,7 @@ Hoje a logica de periodizacao, progressao de carga e prevencao de lesoes esta im
 
 ### Auditoria e observabilidade
 
-- **Migration `V54__Add_planner_metadata_to_plano_semanal.sql`** — colunas nullable em `tb_plano_semanal`: `planner_enabled`, `planner_version`, `planner_phase`, `planner_requires_coach_review`, `planner_skeleton_hash`, `planner_compliance_status`, `planner_metadata_json`. Em shadow, persiste com `planner_enabled=false` — a segmentacao ja funciona antes do enforcement.
+- **Migration `V58__Add_planner_metadata_to_plano_semanal.sql`** — colunas nullable em `tb_plano_semanal`: `planner_enabled`, `planner_version`, `planner_phase`, `planner_requires_coach_review`, `planner_skeleton_hash`, `planner_compliance_status`, `planner_metadata_json`. Em shadow, persiste com `planner_enabled=false` — a segmentacao ja funciona antes do enforcement.
 - **Metricas Micrometer** — `planner.generated.count`, `planner.requires_coach_review.count`, `planner.compliance.hypothetical_failure.count`, `planner.shadow.error.count`, `planner.phase.divergence.count`, tagueadas por `phase`, `plannerVersion`, `batch`.
 
 ### ADRs
@@ -80,7 +80,7 @@ Hoje a logica de periodizacao, progressao de carga e prevencao de lesoes esta im
 
 ## Metrica de sucesso
 
-**Desta change (calibracao):** com `shadow=true` em staging/producao, 100% dos planos gerados persistem auditoria V54, e os dashboards de metricas respondem: distribuicao de `TrainingPhase`, taxa de `requiresCoachReview`, taxa de violacao hipotetica de skeleton e taxa de divergencia de fase — os quatro insumos que calibram os thresholds antes do enforcement.
+**Desta change (calibracao):** com `shadow=true` em staging/producao, 100% dos planos gerados persistem auditoria V58, e os dashboards de metricas respondem: distribuicao de `TrainingPhase`, taxa de `requiresCoachReview`, taxa de violacao hipotetica de skeleton e taxa de divergencia de fase — os quatro insumos que calibram os thresholds antes do enforcement.
 
 **North-star do par (medida em `planner-engine-enforcement`):** taxa MODIFIED/REJECTED das `SugestaoCoach` com PlannerEngine <= taxa sem ele, segmentada por `planner_version`, `planner_phase` e `compliance_status`.
 

@@ -118,7 +118,7 @@ O `PeriodizationPlanner` implementa selecao **propria** sobre a lista de `Prova`
 
 ## Decisao 9 — Auditoria minima persistida no plano semanal (ja em shadow)
 
-Como `PlanoMetaDados` e por-atleta e mutavel, a auditoria e snapshot por plano em `tb_plano_semanal`. Migration `V54__Add_planner_metadata_to_plano_semanal.sql` (ultima existente: `V53` — confirmar antes de criar):
+Como `PlanoMetaDados` e por-atleta e mutavel, a auditoria e snapshot por plano em `tb_plano_semanal`. Migration `V58__Add_planner_metadata_to_plano_semanal.sql` (ultima existente no momento da revisao DoR 2026-07-18: `V57` — confirmar antes de criar, pois o numero pode ter avancado com outras changes mergeadas nesse meio-tempo):
 
 ```sql
 ALTER TABLE tb_plano_semanal
@@ -138,7 +138,7 @@ ALTER TABLE tb_plano_semanal
 Integracao em `PlanoServiceImpl`, apos a geracao legada retornar (nao dentro de `IaServiceImpl` — o prompt e o retry nao sabem que o planner existe):
 
 1. pipeline legado gera e valida o plano normalmente;
-2. se `planner-engine.shadow=true`: montar `PlannerInputSnapshot` -> `planWeek(...)` -> compliance hipotetico (`checkPreRedistribution` sobre o DTO do LLM; `checkPostRedistribution` sobre os treinos redistribuidos) -> metricas + auditoria V54;
+2. se `planner-engine.shadow=true`: montar `PlannerInputSnapshot` -> `planWeek(...)` -> compliance hipotetico (`checkPreRedistribution` sobre o DTO do LLM; `checkPostRedistribution` sobre os treinos redistribuidos) -> metricas + auditoria V58;
 3. **qualquer excecao no passo 2 e engolida**: log estruturado (`atletaId`, `tenantId`, `plannerVersion`) + `planner.shadow.error.count`. A geracao nunca falha por causa do shadow.
 
 Batch (`coach-batch-plan-generation`): o shadow roda por atleta dentro do fluxo existente de virtual threads, com o mesmo isolamento — erro de shadow nao vira erro individual do job (diferente do enforcement na parte 2, onde falha de compliance vira erro individual). Metricas com tag `batch=true/false`. Nao ha segunda chamada ao LLM em nenhum caso.
@@ -203,6 +203,17 @@ Ordem recomendada (alinhada ao SPRINTS):
 **Ground truth:** ha pelo menos 4 chamadas independentes de `LocalDate.now()` para "a semana atual"/"hoje" (`IaServiceImpl` 313/315/321; `PlanoServiceImpl.calcularSemanaInicio` via linha 165; `Prova.diasFaltando()` 118; `PlanoServiceImpl.obterTreinosParaPlano` 274 passando `now()` a `redistribuirTreinos`), mais `DadosPlanoDto.dataInicio` (so usado para `planoAnterior`). O descompasso pre-existente pode divergir em job que atravessa meia-noite — corrigi-lo por completo esta fora de escopo.
 
 **Decisao, escopada ao planner:** `PlannerEngine.planWeek(...)` recebe `referenceDate` explicito (o `semanaInicio` que `PlanoServiceImpl` ja calcula) — nunca chama `LocalDate.now()`. "Dias para a prova" via `ChronoUnit.DAYS.between(referenceDate, prova.getDataProva())`, sem `Prova.diasFaltando()`. Garante determinismo do golden set. O risco do call site `obterTreinosParaPlano:274` (que alimenta o pos-redistribuicao) fica registrado para a parte 2, que consome esse resultado no estagio 2.
+
+## Rollback / Riscos
+
+**Como desligar:** `planner-engine.shadow=false` (default) desativa o shadow inteiro sem rollback de codigo — `PlanoServiceImpl` simplesmente para de chamar `planWeek(...)`. Nao existe flag `enabled`/`fail-open` nesta parte (nascem em `planner-engine-enforcement`) porque o shadow, por construcao, nunca altera prompt/plano/persistencia do treino (Decisao 10, CA12).
+
+**Migration:** `V58__Add_planner_metadata_to_plano_semanal.sql` e aditiva (`ADD COLUMN` nullable). Nao ha necessidade de down-migration — as colunas podem permanecer mesmo com o shadow desligado, sem custo funcional.
+
+**Riscos residuais e mitigacao:**
+- **Latencia do shadow em lote** (`coach-batch-plan-generation`, virtual threads) — o shadow roda por atleta apos a geracao legada; se `planWeek(...)` ou o compliance hipotetico degradarem o tempo de geracao em lote, o sintoma aparece nas metricas `planner.generated.count{batch=true}` e no tempo total do job. Mitigacao: `planner-engine.shadow=false` remove o custo imediatamente; sem SLA formal de latencia nesta parte porque o shadow e best-effort, nao bloqueante (Decisao 10).
+- **Ruido de calibracao por bug silencioso** — erro engolido no passo 2 (Decisao 10, item 3) evita que o shadow derrube a geracao, mas um bug logico (nao uma excecao) produziria metricas erradas alimentando os thresholds do enforcement sem alertar ninguem. Mitigacao: `planner.shadow.error.count` cobre falha por excecao; falha logica silenciosa e coberta pelo golden set (task 8) antes do merge, e por `planner.phase.divergence.count` (Decisao 12) em producao — divergencia alta e o sinal de que a logica shadow diverge do formatter legado e precisa investigacao antes de confiar nos dados de calibracao.
+- **Drift entre `PeriodizationPlanner` e `PeriodizacaoPromptFormatter`** — duplicacao deliberada e temporaria (Decisao 12); risco de manutencao se um lado mudar sem o outro. Mitigacao: `planner.phase.divergence.count` funciona como teste de integracao continuo em producao; a unificacao (formatter vira renderer do planner) e escopo explicito de `planner-engine-enforcement`, entao o risco tem prazo de vida definido, nao indefinido.
 
 ## Fora de escopo
 

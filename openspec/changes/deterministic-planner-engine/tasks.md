@@ -6,32 +6,32 @@
 
 ## 1. Fundacao do nucleo `domain/` + contratos
 
-- [ ] 1.1 Criar pacotes `domain/planner` e `domain/compliance` e o teste `DomainBoundaryArchTest` (ArchUnit, dependencia test-scope nova — aprovada 2026-07-14): `domain/..` nao importa `entity/..`, `repository/..`, `org.springframework.web`, `org.springframework.ai`, `jakarta.persistence`. **verify:** teste passa com os pacotes vazios e reprova um import proibido plantado temporariamente.
-- [ ] 1.2 Criar `TrainingPhase` enum em `domain/planner` (BASE, BUILD, **CALIBRATION** — reservada, nao emitida por esta change, ver design.md Decisao 2 —, PEAK, TAPER, RACE_WEEK, RECOVERY, RETURN_TO_TRAINING, POST_RACE).
-- [ ] 1.3 Criar records em `domain/planner`: `WeeklyLoadTarget`, `SessionSlot`, `InjuryRiskAssessment`, `ConstraintValidationResult`, `WeekPlanSkeleton`.
-- [ ] 1.4 Criar `OnboardingContext` + sub-records minimos `AthleteBaseline` (`ctlEstimado`, `dataEstimativa`), `PlanningPolicy` (`reviewMode`, `maxProgressionAllowed`, `explanationRequired`), `AthleteConstraints` — formas reservadas para `athlete-onboarding-baseline` popular (design.md Decisao 2); tratado como `Optional<OnboardingContext>` no planner.
-- [ ] 1.5 Criar `PlannerInputSnapshot` (anti-corruption layer) a partir de `DadosPlanoDto + DecisaoProgressao + Optional<OnboardingContext> + referenceDate` (design.md Decisao 17 — `referenceDate` explicito, nunca `LocalDate.now()` interno); mapper entity->record fica na camada de service, fora do dominio.
-- [ ] 1.6 Criar em `domain/compliance`: `PlannerComplianceStatus`, `PlannerViolation` (record proprio `key`+`mensagem`, **sem** estender `ConstraintKey`/`PlanQualityChecker` — design.md Decisao 4), `PlannerAuditMetadata`, `PlannerVersion` constante versionada.
-- [ ] 1.7 Migration `V54__Add_planner_metadata_to_plano_semanal.sql` (confirmar que `V53` continua sendo a ultima) com colunas nullable (`planner_enabled`, `planner_version`, `planner_phase`, `planner_requires_coach_review`, `planner_skeleton_hash`, `planner_compliance_status`, `planner_metadata_json`).
-- [ ] 1.8 Atualizar entidade `PlanoSemanal` para os campos de auditoria (nao expor ao atleta por default).
-- [ ] 1.9 **verify:** `./mvnw -q compile` + `DomainBoundaryArchTest` verde.
+- [x] 1.1 Criar pacotes `domain/planner` e `domain/compliance` e o teste `DomainBoundaryArchTest` (ArchUnit, dependencia test-scope nova — aprovada 2026-07-14): `domain/..` nao importa `entity/..`, `repository/..`, `org.springframework.web`, `org.springframework.ai`, `jakarta.persistence`. **verify:** teste passa com os pacotes vazios e reprova um import proibido plantado temporariamente.
+- [x] 1.2 Criar `TrainingPhase` enum em `domain/planner` (BASE, BUILD, **CALIBRATION** — reservada, nao emitida por esta change, ver design.md Decisao 2 —, PEAK, TAPER, RACE_WEEK, RECOVERY, RETURN_TO_TRAINING, POST_RACE).
+- [x] 1.3 Criar records em `domain/planner`: `WeeklyLoadTarget`, `SessionSlot`, `InjuryRiskAssessment`, `ConstraintValidationResult`, `WeekPlanSkeleton`.
+- [x] 1.4 Criar `OnboardingContext` + sub-records minimos `AthleteBaseline` (`ctlEstimado`, `dataEstimativa`), `PlanningPolicy` (`reviewMode`, `maxProgressionAllowed`, `explanationRequired`), `AthleteConstraints` — formas reservadas para `athlete-onboarding-baseline` popular (design.md Decisao 2); tratado como `Optional<OnboardingContext>` no planner.
+- [x] 1.5 Criar `PlannerInputSnapshot` (anti-corruption layer) a partir de `DadosPlanoDto + DecisaoProgressao + Optional<OnboardingContext> + referenceDate` (design.md Decisao 17 — `referenceDate` explicito, nunca `LocalDate.now()` interno); mapper entity->record fica na camada de service, fora do dominio.
+- [x] 1.6 Criar em `domain/compliance`: `PlannerComplianceStatus`, `PlannerViolation` (record proprio `key`+`mensagem`, **sem** estender `ConstraintKey`/`PlanQualityChecker` — design.md Decisao 4), `PlannerAuditMetadata`, `PlannerVersion` constante versionada.
+- [x] 1.7 Migration `V58__Add_planner_metadata_to_plano_semanal.sql` (confirmar que `V57` continua sendo a ultima antes de criar — numero pode ter avancado) com colunas nullable (`planner_enabled`, `planner_version`, `planner_phase`, `planner_requires_coach_review`, `planner_skeleton_hash`, `planner_compliance_status`, `planner_metadata_json`).
+- [x] 1.8 Atualizar entidade `PlanoSemanal` para os campos de auditoria (nao expor ao atleta por default).
+- [x] 1.9 **verify:** `./mvnw -q compile` + `DomainBoundaryArchTest` verde.
 
 ## 2. Periodizacao + alvo de carga + taper
 
-- [ ] 2.1 TDD: `PeriodizationPlannerTest` — prova-alvo explicita (`isProvaAlvo`), selecao propria sem alvo (mais proxima por data, desempate por distancia — design.md Decisao 7), prova preparatoria na semana, BASE_FITNESS sem prova, RACE_WEEK e POST_RACE. **verify:** testes vermelhos.
-- [ ] 2.2 Implementar `PeriodizationPlanner` em `domain/planner`: logica de fase propria (informada pelas regras hoje em `PeriodizacaoPromptFormatter`, que **nao e tocado** — design.md Decisao 12) + selecao de prova propria sobre `List` de dados de prova (records, nao entity) — **nao chama** `buscarProximaProva`/`getProximaProva`. **verify:** `./mvnw -Dtest=PeriodizationPlannerTest test` verde.
-- [ ] 2.3 TDD: `LoadTargetResolverTest` — fase + taper + `DecisaoProgressao`; `REDUZIR` nunca aumenta carga; `MANTER` nao usa todo teto; historico insuficiente -> alvo conservador; **CA1** rampa CTL nunca > 8 pontos/semana (CTL 40 base); **CA2** 4a semana consecutiva cai 15-25% (step-back). **verify:** testes vermelhos.
-- [ ] 2.4 Implementar `LoadTargetResolver` — consome `DecisaoProgressao` e resolve `WeeklyLoadTarget` nos limites de fase/taper/risco; nao duplica `ProgressaoTreinoService`. **verify:** `./mvnw -Dtest=LoadTargetResolverTest test` verde.
-- [ ] 2.5 TDD: `TaperStrategyTest` — duracao por distancia, curva de reducao, RACE_WEEK terminal. **verify:** testes vermelhos.
-- [ ] 2.6 Implementar `TaperStrategy` — reducao exponencial de TSS mantendo zonas de intensidade nos `SessionSlot`. **verify:** `./mvnw -Dtest=TaperStrategyTest test` verde.
+- [x] 2.1 TDD: `PeriodizationPlannerTest` — prova-alvo explicita (`isProvaAlvo`), selecao propria sem alvo (mais proxima por data, desempate por distancia — design.md Decisao 7), prova preparatoria na semana, BASE_FITNESS sem prova, RACE_WEEK e POST_RACE. **verify:** testes vermelhos.
+- [x] 2.2 Implementar `PeriodizationPlanner` em `domain/planner`: logica de fase propria (informada pelas regras hoje em `PeriodizacaoPromptFormatter`, que **nao e tocado** — design.md Decisao 12) + selecao de prova propria sobre `List` de dados de prova (records, nao entity) — **nao chama** `buscarProximaProva`/`getProximaProva`. **verify:** `./mvnw -Dtest=PeriodizationPlannerTest test` verde.
+- [x] 2.3 TDD: `LoadTargetResolverTest` — fase + taper + `DecisaoProgressao`; `REDUZIR` nunca aumenta carga; `MANTER` nao usa todo teto; historico insuficiente -> alvo conservador; **CA1** rampa CTL nunca > 8 pontos/semana (CTL 40 base); **CA2** 4a semana consecutiva cai 15-25% (step-back). **verify:** testes vermelhos.
+- [x] 2.4 Implementar `LoadTargetResolver` — consome `DecisaoProgressao` e resolve `WeeklyLoadTarget` nos limites de fase/taper/risco; nao duplica `ProgressaoTreinoService`. **verify:** `./mvnw -Dtest=LoadTargetResolverTest test` verde.
+- [x] 2.5 TDD: `TaperStrategyTest` — duracao por distancia, curva de reducao, RACE_WEEK terminal. **verify:** testes vermelhos.
+- [x] 2.6 Implementar `TaperStrategy` — reducao exponencial de TSS mantendo zonas de intensidade nos `SessionSlot`. **verify:** `./mvnw -Dtest=TaperStrategyTest test` verde.
 
 ## 3. Prevencao de lesoes + validacao de constraints
 
-- [ ] 3.1 TDD: `InjuryRiskEvaluatorTest` — faixas de TSB (seguro >-10 / WARNING -10 a -30 / HIGH_RISK <-30 — design.md Decisao 15), monotonia, lesao ativa forcando RECOVERY. **verify:** testes vermelhos.
-- [ ] 3.2 Implementar `InjuryRiskEvaluator` — risco por TSB de `ProgressaoHistoricoResumo.tsbAtual` (**sem** ACWR/`AthleteLoadHistory`); monotonia local (janela 7d de `tssCalculado` agregado por dia, dados chegam via snapshot — sem repository no dominio). **verify:** `./mvnw -Dtest=InjuryRiskEvaluatorTest test` verde.
-- [ ] 3.3 TDD: `InjuryPolicyResolverTest` — `temLesao=true` -> RECOVERY/review; `dataUltimaLesao` recente -> RETURN_TO_TRAINING; descricao sem flag -> review sem NLP (design.md Decisao 14). **verify:** testes vermelhos -> verdes com `InjuryPolicyResolver` implementado (janela via parametro, default 30 vindo de config na camada de service).
-- [ ] 3.4 TDD: `ConstraintValidatorTest` — violacao de dias, max sessoes, duracao, equipamento. **verify:** testes vermelhos.
-- [ ] 3.5 Implementar `ConstraintValidator` — constraints do `OnboardingContext` (ou do snapshot legado), valida contra `WeeklyLoadTarget`. **verify:** `./mvnw -Dtest=ConstraintValidatorTest test` verde.
+- [x] 3.1 TDD: `InjuryRiskEvaluatorTest` — faixas de TSB (seguro >-10 / WARNING -10 a -30 / HIGH_RISK <-30 — design.md Decisao 15), monotonia, lesao ativa forcando RECOVERY. **verify:** testes vermelhos.
+- [x] 3.2 Implementar `InjuryRiskEvaluator` — risco por TSB de `ProgressaoHistoricoResumo.tsbAtual` (**sem** ACWR/`AthleteLoadHistory`); monotonia local (janela 7d de `tssCalculado` agregado por dia, dados chegam via snapshot — sem repository no dominio). **verify:** `./mvnw -Dtest=InjuryRiskEvaluatorTest test` verde.
+- [x] 3.3 TDD: `InjuryPolicyResolverTest` — `temLesao=true` -> RECOVERY/review; `dataUltimaLesao` recente -> RETURN_TO_TRAINING; descricao sem flag -> review sem NLP (design.md Decisao 14). **verify:** testes vermelhos -> verdes com `InjuryPolicyResolver` implementado (janela via parametro, default 30 vindo de config na camada de service).
+- [x] 3.4 TDD: `ConstraintValidatorTest` — violacao de dias, max sessoes, duracao, equipamento. **verify:** testes vermelhos.
+- [x] 3.5 Implementar `ConstraintValidator` — constraints do `OnboardingContext` (ou do snapshot legado), valida contra `List<SessionSlot>` do skeleton candidato (desvio deliberado do texto original "valida contra WeeklyLoadTarget": as 4 dimensoes pedidas — dia/max-sessoes/duracao/equipamento — sao por-sessao, nao expressaveis so no agregado). **verify:** `./mvnw -Dtest=ConstraintValidatorTest test` verde.
 
 ## 4. Integracao — PlannerEngine.planWeek()
 
@@ -53,7 +53,7 @@
 ## 7. Shadow mode + auditoria + metricas
 
 - [ ] 7.1 Config: `planner-engine.shadow=false` (default) e `planner-engine.injury.recent-window-days=30` em `application.yml`. (Flags `enabled`/`fail-open` NAO existem nesta change.)
-- [ ] 7.2 TDD: `PlannerShadowIntegrationTest` — com `shadow=true`, apos a geracao legada: skeleton calculado, compliance hipotetico rodado (pre sobre o DTO do LLM, pos sobre treinos redistribuidos), auditoria V54 persistida com `planner_enabled=false`; prompt/plano/persistencia do treino identicos ao pipeline legado (CA12). **verify:** testes vermelhos.
+- [ ] 7.2 TDD: `PlannerShadowIntegrationTest` — com `shadow=true`, apos a geracao legada: skeleton calculado, compliance hipotetico rodado (pre sobre o DTO do LLM, pos sobre treinos redistribuidos), auditoria V58 persistida com `planner_enabled=false`; prompt/plano/persistencia do treino identicos ao pipeline legado (CA12). **verify:** testes vermelhos.
 - [ ] 7.3 Implementar integracao shadow em `PlanoServiceImpl` (mapper entity->snapshot na camada de service) conforme design.md Decisao 10. **verify:** testes de 7.2 verdes.
 - [ ] 7.4 Isolamento de erro: TDD — excecao plantada no planner com `shadow=true` -> geracao conclui, log + `planner.shadow.error.count` incrementa, nenhum erro ao coach (CA11); em lote, job conclui sem erro individual causado pelo shadow. **verify:** verde (incluir caso em `BatchPlanProcessorTest`).
 - [ ] 7.5 Metricas Micrometer (`planner.generated.count`, `planner.requires_coach_review.count`, `planner.compliance.hypothetical_failure.count`, `planner.shadow.error.count`, `planner.phase.divergence.count`) — a divergencia compara `skeleton.phase()` com a fase do `PeriodizacaoPromptFormatter` (CA16, design.md Decisao 12). **verify:** teste com `SimpleMeterRegistry`.
