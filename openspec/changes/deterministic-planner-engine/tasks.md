@@ -41,8 +41,8 @@
 
 ## 5. SkeletonComplianceChecker (logica de dominio, sem wiring)
 
-- [ ] 5.1 TDD: `SkeletonComplianceCheckerTest` — `checkPreRedistribution`: violacao de fase, sessionCount, TSS +-10%, longo acima do teto, excesso de intensidade, sessao pesada 48-72h antes de prova (posicao gerada), constraint dura. `checkPostRedistribution`: dia indisponivel, sessao pesada perto de prova apos reposicionamento, taper violado. **verify:** testes vermelhos.
-- [ ] 5.2 Implementar `SkeletonComplianceChecker` em `domain/compliance` retornando `List<PlannerViolation>`. Puro — sem excecao de dominio, sem Micrometer dentro do nucleo (metricas ficam no caller). **verify:** `./mvnw -Dtest=SkeletonComplianceCheckerTest test` verde. **Nota:** wiring de retry/enforcement fica em `planner-engine-enforcement`; aqui o checker so e consumido pelo shadow (secao 7).
+- [x] 5.1 TDD: `SkeletonComplianceCheckerTest` — `checkPreRedistribution`: violacao de fase, sessionCount, TSS +-10%, longo acima do teto, excesso de intensidade, sessao pesada 48-72h antes de prova (posicao gerada), constraint dura. `checkPostRedistribution`: dia indisponivel, sessao pesada perto de prova apos reposicionamento, taper violado. **verify:** testes vermelhos.
+- [x] 5.2 Implementar `SkeletonComplianceChecker` em `domain/compliance` retornando `List<PlannerViolation>`. Puro — sem excecao de dominio, sem Micrometer dentro do nucleo (metricas ficam no caller). Assinatura estendida com `ComplianceContext` (prova determinante + constraints + referenceDate) alem de `(plano, skeleton)` — necessario para os checks de prova/constraints que o sketch original de 2 argumentos nao cobria. `GeneratedPlanSnapshot`/`GeneratedSessionSnapshot` novos em `domain/compliance` representam o plano do LLM (pre e pos-redistribuicao). **verify:** `./mvnw -Dtest=SkeletonComplianceCheckerTest test` verde. **Nota:** wiring de retry/enforcement fica em `planner-engine-enforcement`; aqui o checker so e consumido pelo shadow (secao 7).
 
 ## 6. Golden set deterministico
 
