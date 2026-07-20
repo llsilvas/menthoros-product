@@ -2,7 +2,21 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-07-20 (**Auditoria de sprint — 10 changes órfãs resolvidas.** Varredura
+**Última atualização:** 2026-07-20 (**Priorização por ROI a partir do CPO weekly.** O relatório
+`artifacts/cpo-weekly/2026-07-20.md` listava `deterministic-planner-engine` como "0% concluído,
+Sprint 17-18 recém iniciada" — desatualizado: a auditoria desta mesma sessão já havia confirmado e
+arquivado a change como 100% entregue (ver abaixo). Com a capacidade liberada,
+`athlete-onboarding-baseline` foi **puxada de Sprint 19-20 para Sprint 17-18** (decisão do founder) —
+spec já pronta para `/implement init`. **Radar limpo** (`SPRINTS.md` linha ~370): removidas 10
+linhas já concluídas/duplicadas da tabela de sprints principal (achado do CPO weekly), corrigido
+`complete-authorization-controllers` (status incoerente) e a linha corrompida de
+`intervals-icu-workout-push`; adicionados 2 itens genuínos ao radar —
+`add-external-call-resilience` (gap de visibilidade, gate de segurança sem sprint) e o quick-win
+"expor métricas .fit no drilldown" (XS, frontend-only, achado "fora da caixa" do próprio CPO
+weekly). Decisões pendentes do founder, não executadas nesta sessão: sequenciamento de
+`keycloak-user-onboarding-auth`/`add-external-call-resilience` (P0) e reavaliação de
+`add-post-workout-debrief` (P2).) Antes: 2026-07-20 (**Auditoria de sprint — 10 changes órfãs
+resolvidas.** Varredura
 completa das 37 changes ativas em `openspec/changes/` (grilling + auditoria pedida pelo founder)
 achou trabalho já entregue em produção há meses sem nunca ter sido arquivado, além de specs mortas
 sem nenhuma evidência de implementação. Ações: **6 arquivadas retroativamente** —
@@ -238,8 +252,8 @@ BLOCO DE ENGENHARIA (agrupado, Sprint 24+):
 | 17 | ~~`intervals-icu-activity-ingestion`~~ ✅ *(M · Full, backend)* | 8 blocos | **Sentido pull da integração: import de activity realizada.** Coach importa uma activity específica do intervals.icu como `TreinoRealizado` via `POST /api/v1/intervals-icu/atletas/{id}/activities/import?activityId={id}`; flag `autoSyncPausado` em `IntegracaoExterna` pausa automaticamente o Strava do atleta ao conectar qualquer uma das duas integrações (evita duplicação cross-fonte de dado), com override manual (`pausar-sync`/`retomar-sync`). **Smoke real com atleta founder** (Postgres do HomeLab dev, gate 3.0 confirmou formato real do payload — `icu_athlete_id` não `athlete_id`, cadência perna única, sem campo de pareamento nativo) encontrou e corrigiu um `LazyInitializationException` real (500 no re-import de activity já importada) — o próprio teste de integração da task 6.8 mascarava o bug com um `@Transactional` de classe, removido para continuar detectando essa classe de regressão. **QA gate** (code/security/clean-code em paralelo) corrigiu JSON sem escape em `metadadosSincronizacao` (achado convergente nos 3 revisores) + índice composto faltante em `tb_integracao_externa`; achado fora do QA gate original (unidade de `velocidadeMedia`, m/s→km/h sem conversão) corrigido no fluxo do `/pr`. PR backend #42 mergeado 2026-07-16; arquivada em `archive/2026-07/2026-07-16-intervals-icu-activity-ingestion`. Suíte 1714. | `intervals-icu-workout-push` ✅ |
 | 14 | ~~`complete-authorization-controllers`~~ ✅ *(XS, backend)* | 8/8 | **Gate de segurança para beta — concluída 2026-07-14.** Papel (`hasAnyRole TECNICO/ADMIN`) + `@RequireTenant` nos 5 controllers que só exigiam autenticação (Metricas, ProvasProximas, StravaActivity, StravaAuth; webhook/callback seguem públicos por design, provado por teste) + `isAuthenticated()` no `/users/me`. Spec de maio reconciliada no init (papéis corrigidos pela evidência de consumo — endpoints são superfície do coach, `hasRole('ROLE_ATLETA')` original quebraria o produto). **QA gate corrigiu 1 Critical:** `getProvasProximas` era global e vazava provas/atletas de todas as assessorias — agora tenant-scoped. **Descoberta estrutural:** `@WebMvcTest` não carrega `CoreSecurityConfig` — testes de controller nunca exercitaram `@PreAuthorize` (falso verde); criados `AuthWebMvcTestConfig`/`JwtTestSupport` como padrão. 6 débitos registrados na spec arquivada (destaque: state OAuth sem assinatura e POST do webhook sem validação — candidatos a change de hardening). PR backend #39 mergeado 2026-07-14; arquivada em `archive/2026-07/2026-07-14-complete-authorization-controllers`. Suíte 1414. Pendência: smoke manual em dev com token TECNICO. | — |
 
-| 19–20 | `athlete-onboarding-baseline` *(L, backend+front)* | ~36 | **Onboarding + baseline + calibração (parte 1).** Activity Normalizer + Baseline Calculator + Confidence Scorer + migração de atletas existentes. Alimenta `OnboardingContext` consumido pelo `PlannerEngine`. | `deterministic-planner-engine` ✅ |
-| 21–22 | `athlete-onboarding-baseline` *(L, backend+front)* | ~36 | **Onboarding + baseline + calibração (parte 2).** Calibration Phase + PlanningPolicy + formulário de onboarding estendido + UI de calibração + extensão do feedback pós-treino. | `athlete-onboarding-baseline` (parte 1) ✅ |
+| 17–18 | `athlete-onboarding-baseline` *(L, backend+front)* — **puxada para hoje (2026-07-20)** | ~36 | **Onboarding + baseline + calibração (parte 1).** Activity Normalizer + Baseline Calculator + Confidence Scorer + migração de atletas existentes. Alimenta `OnboardingContext` consumido pelo `PlannerEngine`. Reposicionada de Sprint 19-20 para 17-18: a dependência (`deterministic-planner-engine`) mergeou em 2026-07-19 e o CPO weekly (2026-07-20) não havia refletido isso — capacidade liberada hoje. Spec já revisada (product review GO + pre-mortem incorporados, 2026-07-19); pronta para `/implement init`. | `deterministic-planner-engine` ✅ |
+| 19–20 | `athlete-onboarding-baseline` *(L, backend+front)* | ~36 | **Onboarding + baseline + calibração (parte 2).** Calibration Phase + PlanningPolicy + formulário de onboarding estendido + UI de calibração + extensão do feedback pós-treino. | `athlete-onboarding-baseline` (parte 1) ✅ |
 | 14 | `keycloak-user-onboarding-auth` *(S, backend)* | ~8 | **Provisioning automatizado para beta.** Onboarding backend-driven sem operação manual no Keycloak. | — |
 | 23+ | 🤖 `llm-code-switching` *(S, backend)* | ~21 | **EN/PT: ~20% ganho de reasoning + custo menor.** Instruções em EN, conteúdo em PT. Adiado da Sprint 15 — reescorpado após estabilização do novo prompt (`WeekPlanSkeleton` no prompt = enforcement). | `planner-engine-enforcement` |
 | 24+ | 🔧 **BLOCO DE ENGENHARIA** | | Agrupamento coeso de refactors + infraestrutura IA. Coach só percebe valor na saída da RAG. | |
@@ -371,40 +385,21 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 Items identificados como importantes para a jornada do coach, mas sem sprint definido. Revisitar antes de cada ciclo de planejamento.
 
+**Limpeza de 2026-07-20 (auditoria CPO weekly):** removidas 10 linhas já concluídas/escalonadas
+(`coach-plan-review-workflow`, `athlete-profile-drilldown`, `manual-training-entry-lightweight`,
+`notify-athlete-week-closed`, `add-daily-readiness-checkin`, `complete-authorization-controllers`,
+`intervals-icu-workout-push`, `fit-lap-metrics-parser`, `fit-lap-derived-metrics`,
+`fit-running-dynamics-ingestion`) — todas já rastreadas na tabela de sprints principal acima, sem
+precisar duplicar aqui. `complete-authorization-controllers` estava com status incoerente ("Escalonado
+Sprint 14" sem tachado, apesar de concluída 2026-07-14) — corrigido removendo a duplicata.
+`intervals-icu-workout-push` tinha uma linha de tabela markdown corrompida (células extras `| — | — |`)
+— corrigido junto.
+
 | Change | Status | Por que está no radar | Ação sugerida |
 |---|:---:|---|---|
-| ~~`coach-plan-review-workflow`~~ | ✅ **Escalonado Sprint 9e** | Desbloqueador de confiança — aprovado e inserido no roadmap. | — |
-| ~~`athlete-profile-drilldown`~~ | ✅ **Escalonado Sprint 9f** | Prontuário do atleta — aprovado e inserido no roadmap. | — |
-| ~~`manual-training-entry-lightweight`~~ | ✅ **Escalonado Sprint 9d** | Desbloqueador de dado real — proposto e inserido no roadmap. | — |
-| ~~`notify-athlete-week-closed`~~ | ✅ **Promovido Sprint 12** | Promovido na repriorização de 2026-07-06 (fast-follow de `coach-encerrar-semana`). | — |
-| `add-post-workout-debrief` | Roadmap Sprint 25 — **avaliar antecipação** | Com dado real disponível a partir do 9d (log manual), a dependência com `first-party-ingestion` (23) cai. Uma versão simplificada do debrief pode ser viabilizada antes do Sprint 23. | Revisar tasks.md: separar o que depende de métricas FIT do que funciona com log manual. Antecipável para Sprint ~10–11 se as tasks básicas forem independentes. |
-| ~~`add-daily-readiness-checkin`~~ | ✅ **Escalonado Sprint 9k** | Sinal preditivo — aprovado (2026-07-02, decision memo) e inserido no roadmap antes de `add-llm-tool-use`. | — |
-| `complete-authorization-controllers` | ✅ **Escalonado Sprint 14** | Brechas de autorização abertas nos controllers. Obrigatório antes do beta. | Intercalar como hardening em sprints que toquem controllers — não tratar como feature isolada. |
-| `intervals-icu-workout-push` | ✅ **Promovido para Sprint 15** (2026-07-14) | **Sucede `export-planned-workout-fit`** (morta no gate 0.1 em 2026-07-14 — canal `.fit` inexistente). Canal novo **validado no relógio do founder no mesmo dia**: API do intervals.icu → push automático ao Garmin Connect. Push de treinos aprovados na aprovação do plano (coach-in-the-loop é o gatilho); `workout_doc` estruturado (pace `secs/km`, FC `bpm` absoluta, blocos `reps`) comprovado por sondagem; idempotência client-side (API não deduplica) e reconciliação de órfãos especificadas. Product review REFINE → condições incorporadas; pre-mortem Codex incorporado. **Gate CA0 fechado (2026-07-14): doc-only verificado no relógio do founder** — implementação liberada. | ✅ **Alocado** — implementação liberada. Paralelo com `complete-authorization-controllers` (XS) e `keycloak-user-onboarding-auth` (S) na Sprint 14. | — | — |
-| ~~`fit-lap-metrics-parser`~~ ✅ | **Concluída 2026-07-13** (S · Fast, backend) | Elevação, potência e cadência (ppm de duas pernas, fracional incluído) por lap/sessão do .fit — sem migration, colunas já existiam. Validação com .fit real: zero divergências contra o CSV do Garmin Connect (16 laps). QA gate corrigiu 1 Critical (cadência de ciclismo dobrada — conversão agora condicionada ao esporte, resultado montado após o decode) + clamps de sanidade para elevação/potência (upload não confiável). PR backend #36 mergeado 2026-07-13; arquivada em `archive/2026-07/2026-07-13-fit-lap-metrics-parser`. Suíte 1317. | Desbloqueou `fit-lap-derived-metrics` (dependência atendida). |
-| ~~`fit-lap-derived-metrics`~~ ✅ | **Concluída 2026-07-13** (M · Full, backend) | Curva de EF por volta ("decoupling volta a volta"), Pw:HR e GAP interno — cálculo puro sobre dados existentes, zero migration. GAP entregue desligado (hard gate; calibração reprovou por pausas dentro de laps). QA gate (2 rodadas) corrigiu 3 Important, incl. uma regressão no Pa:HR legado introduzida pelo próprio fix do Pw:HR. PR backend #37 mergeado 2026-07-13; arquivada em `archive/2026-07/2026-07-13-fit-lap-derived-metrics`. Suíte 1360. | Desbloqueou a decisão de ativação do GAP (task 3.4, pendente de coleta manual do founder) e o achado de velocidade-por-pausa, fechado por `fit-running-dynamics-ingestion`. |
-| ~~`fit-running-dynamics-ingestion`~~ ✅ | **Concluída 2026-07-13** (M · Full, backend) | Running dynamics (GCT, equilíbrio E/D, passada, oscilação/proporção vertical), temperatura, tempo em movimento e calorias — migration V53. Fecha o achado de `fit-lap-derived-metrics`: pace/velocidade por lap corrigidos com `tempoMovimento` em laps com pausa (validado com dado real). QA gate (2 rodadas) corrigiu `NumberFormatException` não tratada em upload adversarial, overflow de `NUMERIC(4,1)` e um débito de DTO (41 campos posicionais). PR backend #38 mergeado 2026-07-13; arquivada em `archive/2026-07/2026-07-13-fit-running-dynamics-ingestion`. Suíte 1379. | Sequência .fit completa: `fit-lap-metrics-parser` ✅ → `fit-lap-derived-metrics` ✅ → `fit-running-dynamics-ingestion` ✅. Consumo no drilldown do front fica para change própria. |
-
-### Por que esses 3 são os prioritários
-
-```
-manual-training-entry-lightweight (XS)   →   desbloqueador de dado real
-        │
-        ├──▶  add-post-workout-debrief    →   hook diário (o que aconteceu ontem)
-        │
-        └──▶  add-daily-readiness-checkin →   sinal antecipado (readiness antes do TSB)
-
-coach-plan-review-workflow (M)            →   desbloqueador de confiança do coach
-        │
-        └──▶  athlete-profile-drilldown  →   prontuário (contexto antes de decidir)
-```
-
-Entregando `manual-training-entry-lightweight` + `coach-plan-review-workflow` + `athlete-profile-drilldown`, o coach consegue:
-1. Ver o que o atleta fez (dado)
-2. Aprovar o plano antes de chegar ao atleta (controle)
-3. Mergulhar no perfil antes de tomar qualquer decisão (contexto)
-
-Esses três juntos são o "momento de valor" que faz um coach escolher o Menthoros em vez de Excel + WhatsApp.
+| `add-post-workout-debrief` | Roadmap Sprint 25 — **avaliar antecipação** | Com dado real disponível desde o 9d (log manual) e a sequência `.fit` completa desde 2026-07-13, a dependência com `first-party-ingestion` (23) caiu de vez. `WorkoutAnalysisListener` já existe no código. | Revisar tasks.md: separar o que depende de métricas FIT do que funciona com log manual. No radar desde 2026-07-06 sem reavaliação — priorizar essa reavaliação no próximo ciclo. |
+| `add-external-call-resilience` | **Sem sprint atribuído — gap de visibilidade** (achado do CPO weekly 2026-07-20) | Gate de segurança pré-beta (circuit-breaker/timeout para chamadas ao LLM/Keycloak) listado como obrigatório, mas nunca entrou no Radar nem em sprint. | M (~21 tasks). Sequenciar junto com `keycloak-user-onboarding-auth` na decisão de security gates pré-beta (ver "Sinal de atenção" no topo do doc). |
+| Expor métricas `.fit` já calculadas no drilldown | **Não é change ainda — quick-win identificado 2026-07-20** | A sequência `.fit` está completa (GCT, equilíbrio E/D, Pw:HR, EF por volta) mas 100% invisível no front — zero consumo desde `fit-running-dynamics-ingestion` (2026-07-13). Achado "fora da caixa" do CPO weekly: maior gap de exposição vs. esforço do backlog atual. | XS (3-5 tasks, frontend-only, zero endpoint novo — dados já nos DTOs de `GET /realizados/{id}`). Abrir com `/opsx:propose` quando priorizado. |
 
 ---
 
