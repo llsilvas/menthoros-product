@@ -29,6 +29,33 @@ Regras:
 
 Mesma atividade em Garmin + Strava: identificada por janela de +-10 min de inicio + similaridade de duracao/distancia (+-5%). Merge preserva superset de metricas. `source` e `dataQuality` refletem a fonte de maior prioridade.
 
+**Correcao durante a implementacao (2026-07-20):** `TreinoRealizado`/`TreinoBase` nao tem nenhum
+campo com precisao de horario do dia — so `dataTreino` (`LocalDate`). Nenhum conector existente
+(Strava, .fit, intervals.icu) grava horario preciso de inicio hoje. A janela "+-10min" tal como
+descrita acima **nao e implementavel** com o schema atual sem retrofit dos 3 pipelines de ingestao
+ja em producao — fora de escopo desta change (decisao do founder). **Fix v1:** a janela degrada
+para "mesmo `dataTreino`" (em vez de +-10min de horario) + a mesma similaridade de duracao/distancia
+(+-5%) ja descrita. E mais grosseiro (mais chance de falso positivo/negativo dentro do mesmo dia),
+mas e uma extensao do mesmo limite ja aceito abaixo, nao um novo residual — "duas atividades
+legitimas proximas no tempo" ja cobria esse tipo de imprecisao antes desta correcao.
+
+**Escopo do dedup: leitura no calculo do baseline, nao ingestao (correcao durante a
+implementacao, 2026-07-20).** `ActivityDedupService` NAO roda no momento em que uma atividade chega
+de um conector — nao altera `StravaActivityServiceImpl`, `FitTreinoPersister` nem
+`IntervalsIcuActivityIngestionServiceImpl` (os 3 pipelines de ingestao ja em producao, fora de
+escopo). Ele roda dentro do `OnboardingService` (Decisao/Secao 5), como uma funcao de leitura:
+recebe o historico ja normalizado (`List<NormalizedActivity>`, produzido pelo `ActivityNormalizer` a
+partir dos `TreinoRealizado` ja persistidos por qualquer fonte) e devolve uma lista deduplicada para
+o `BaselineCalculator` consumir — **nenhum `TreinoRealizado` e criado, alterado ou apagado** por
+este servico. Para cada duplicata descartada, grava um registro em
+`tb_atividade_proveniencia_descartada` (FK para o `TreinoRealizado` vencedor). Como nao ha insert de
+"registro ativo" novo (as duas atividades duplicadas ja foram persistidas independentemente por seus
+respectivos pipelines de ingestao antes do calculo do baseline rodar), a race de "2 fontes inserindo
+a mesma atividade ao mesmo tempo" nao se aplica aqui — o residual real e bem mais estreito (2
+calculos de baseline do MESMO atleta rodando ao mesmo tempo, ambos escrevendo auditoria para o mesmo
+par duplicado); `@Transactional` no metodo que escreve a auditoria e suficiente, sem lock pessimista
+dedicado.
+
 Ordem de prioridade: Garmin/FIT > Coros/Polar/TrainingPeaks > Strava > Planilha > Manual > Declarado.
 
 **Proveniencia (corrige contradicao com proposal.md "Open Questions"):** o registro ativo da atividade grava so a coluna simples `proveniencia` (a fonte vencedora, `SourcedValue<T>` genérico foi dropado para v1 — decisao CPO 2026-07-13). O valor descartado no merge **nao fica no registro ativo**: vai para uma tabela de auditoria append-only separada (`tb_atividade_proveniencia_descartada` ou equivalente — nome final na implementacao), com FK para a atividade ativa. Isso preserva "nunca apagar" sem reintroduzir o tipo genatico `SourcedValue<T>` que foi explicitamente rejeitado.

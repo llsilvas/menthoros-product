@@ -115,7 +115,7 @@ metricas disponiveis, sem duplicar a atividade.
 
 #### Scenario: Mesma atividade em Garmin e Strava
 - **Given** uma atividade importada tanto do Garmin quanto do Strava
-- **And** ambas caem na janela de +-10min de inicio e +-5% de duracao/distancia
+- **And** ambas tem o mesmo `dataTreino` e caem em +-5% de duracao/distancia (janela degradada de +-10min de horario para "mesmo dia" — schema atual nao tem precisao de horario, design.md Decisao 2)
 - **When** a deduplicacao roda
 - **Then** as duas viram um unico registro ativo, com o superset de metricas das duas fontes
 - **And** o valor descartado fica retido na tabela de auditoria de proveniencia (nunca apagado), nao no registro ativo

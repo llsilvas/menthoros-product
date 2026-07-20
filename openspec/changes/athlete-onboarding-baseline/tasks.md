@@ -54,10 +54,20 @@ destrutivo) — ver "Rollback" no proposal.md.
 
 ## 1. Activity Normalizer
 
-- [ ] 1.1 TDD: `ActivityNormalizerTest` — cobrir normalizacao de cada campo (sport, pace, power null vs 0, rpe null), dataQuality nas 3 dimensoes, dedup entre fontes. **verify:** testes vermelhos.
-- [ ] 1.2 Implementar `ActivityNormalizer` — `NormalizedActivity toCanonical(TreinoRealizado, DataSource)`, tabela de traducao de sport por conector. **verify:** `./mvnw -Dtest=ActivityNormalizerTest test` verde.
-- [ ] 1.3 TDD: `ActivityDedupServiceTest` — mesma atividade em 2 fontes -> merge; atividades distintas no mesmo dia -> nao merge; **processamento concorrente de 2 fontes para a mesma atividade nao deixa auditoria orfa nem 2 registros ativos** (achado do pre-mortem rodada 2). **verify:** testes vermelhos.
-- [ ] 1.4 Implementar `ActivityDedupService` — janela +-10min, similaridade +-5%, ordena por sourcePriority, retem descartado no historico. **Lock por `(atletaId, janela de tempo)` antes de decidir merge vs. insert; insert do registro ativo + insert na auditoria (`tb_atividade_proveniencia_descartada`) na MESMA transacao** (design.md Decisao 2, correcao pre-mortem rodada 2). **verify:** `./mvnw -Dtest=ActivityDedupServiceTest test` verde, incluindo o teste de concorrencia.
+- [x] 1.1 TDD: `ActivityNormalizerTest` — cobrir normalizacao de cada campo (sport, pace, power null vs 0, rpe null), dataQuality nas 3 dimensoes. **Corrigido durante a implementacao:** `toCanonical` tem 1 parametro so (`TreinoRealizado`), nao 2 — a fonte ja vem de `treino.getFonteDados()`, sem precisar de um `DataSource` separado (cada conector ja filtra modalidade antes de persistir). **verify:** testes vermelhos → 11 testes verdes.
+- [x] 1.2 Implementar `ActivityNormalizer` — `NormalizedActivity toCanonical(TreinoRealizado)`, dataQuality = 0.5*completude + 0.3*confiabilidadeFonte + 0.2*consistenciaInterna. **verify:** `./mvnw -Dtest=ActivityNormalizerTest test` verde (11/11).
+- [ ] 1.3 TDD: `ActivityDedupServiceTest` — mesma atividade em 2 fontes -> merge (retem 1, descarta a outra pra auditoria); atividades distintas no mesmo dia -> nao merge. **Escopo corrigido durante a implementacao (design.md Decisao 2):** o dedup roda como leitura no calculo do baseline (`OnboardingService`), NAO no momento da ingestao — nao mexe nos 3 pipelines existentes (Strava/FIT/intervals.icu), nao cria/altera/apaga `TreinoRealizado`. Cobrir: 2 calculos de baseline concorrentes do MESMO atleta nao duplicam auditoria (residual real, mais estreito que o originalmente pensado). **verify:** testes vermelhos.
+- [ ] 1.4 Implementar `ActivityDedupService` — `List<NormalizedActivity> deduplicar(List<NormalizedActivity>
+      historico)`: agrupa por `dataTreino`, dentro do mesmo dia funde por similaridade +-5%
+      duracao/distancia (janela degradada de +-10min de horario — schema sem precisao de hora,
+      correcao durante a implementacao), ordena por `sourcePriority`, retem a de maior prioridade na
+      lista devolvida e grava a(s) descartada(s) em `tb_atividade_proveniencia_descartada` (FK pro
+      `TreinoRealizado` vencedor) — **NAO cria/altera/apaga nenhum `TreinoRealizado`** (correcao de
+      escopo durante a implementacao, design.md Decisao 2: dedup e leitura no calculo do baseline,
+      nao ingestao). `@Transactional` na escrita da auditoria — sem lock pessimista dedicado (o
+      residual de 2 calculos de baseline concorrentes do mesmo atleta e aceito, mesma classe dos
+      demais TOCTOUs sem lock ja aceitos no projeto). **verify:**
+      `./mvnw -Dtest=ActivityDedupServiceTest test` verde.
 
 ## 2. Baseline Calculator
 
