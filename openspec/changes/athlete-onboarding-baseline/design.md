@@ -35,6 +35,8 @@ Ordem de prioridade: Garmin/FIT > Coros/Polar/TrainingPeaks > Strava > Planilha 
 
 **Limites conhecidos do v1** (achado do pre-mortem, aceito como escopo): a janela +-10min/+-5% nao cobre drift de timezone, treadmill sem distancia, ou duas atividades legitimas proximas no tempo. Falsos positivos/negativos de dedup sao esperados no v1; refinamento fica para follow-up com dado real de producao.
 
+**Invariante transacional (achado do pre-mortem cross-model rodada 2, 2026-07-20):** a constraint hoje existente `(tenant_id, fonte_dados, external_id)` (V29) previne duplicata **dentro da mesma fonte**, nao duplicata semantica **entre fontes diferentes** processando a mesma atividade concorrentemente (ex.: Strava e intervals.icu importando a mesma corrida ao mesmo tempo). **Fix:** `ActivityDedupService` (tasks.md 1.4) deve (a) adquirir um lock por `(atletaId, janela de tempo)` antes de decidir merge vs. insert novo — mesmo padrao de lock otimista/pessimista ja usado em outros pontos do dominio de treino; (b) o insert do registro ativo + o insert na tabela de auditoria (`tb_atividade_proveniencia_descartada`, migration V60) devem acontecer na **mesma transacao** — nunca um sem o outro. Sem isso, processamento concorrente pode deixar a auditoria orfa (sem o registro ativo correspondente) ou inserir duas atividades ativas para o mesmo evento fisico.
+
 ## Decisao 3 — Confidence Scorer com 8 criterios ponderados
 
 | Criterio | Peso | Avaliacao |
@@ -72,7 +74,9 @@ public enum CalibrationStage {
 
 `CalibrationStage` e atributo interno de `TrainingPhase.CALIBRATION`, nao um novo valor do enum de fase. O `PlannerEngine` reporta `phase = CALIBRATION` ao restante do sistema, mas usa o estagio internamente para decidir conservadorismo.
 
-**Criterio de saida da calibracao (CA11):** `score >= 45` E sem `HIGH_RISK` (`InjuryRiskLevel.HIGH_RISK`, ja existente no `PlannerEngine`) E `percentualRealizacao` (`MetricasAdesaoService.getAdesaoSemanal`/`SemanaAdesaoDto`, ja existente) `>= 70%` na semana mais recente de calibracao. O numero 70% e hipotese v1, a mesma logica de `planner-rules.yml` (deterministic-planner-engine): threshold hardcoded documentado, calibravel com dado real, nao bloqueante para implementar.
+**Criterio de saida da calibracao (CA11):** `score >= 45` E sem `HIGH_RISK` (`InjuryRiskLevel.HIGH_RISK`, ja existente no `PlannerEngine`) E `percentualRealizacao` `>= 70%` na semana mais recente de calibracao. O numero 70% e hipotese v1, a mesma logica de `planner-rules.yml` (deterministic-planner-engine): threshold hardcoded documentado, calibravel com dado real, nao bloqueante para implementar.
+
+**Correcao (pre-mortem cross-model rodada 2, 2026-07-20):** `MetricasAdesaoService.getAdesaoSemanal(atletaId)` hoje **sempre** calcula a partir de `LocalDate.now()` (`MetricasAdesaoService.java:46`) — nao aceita uma data de referencia, entao nao da para pedir diretamente "a semana mais recente de calibracao" se ela nao for a semana corrente (ex.: job de encerramento avaliando D+1). O metodo privado `calcularSemana(Atleta, LocalDate)` (`MetricasAdesaoService.java:252`) ja aceita a data — so falta expor. **Fix:** adicionar um novo metodo publico `getAdesaoSemana(String atletaId, LocalDate dataReferencia)` que delega para `calcularSemana`, sem alterar `getAdesaoSemanal(atletaId)` existente (aditivo, nao quebra nenhum consumidor atual). `CalibrationService` chama esse novo metodo com a data do fim da semana de calibracao que esta avaliando.
 
 **Aviso ao coach ao sair da calibracao (achado do pre-mortem):** a duracao real varia por cenario (1/2/2-4 semanas) e por reclassificacao bidirecional — o coach precisa ser notificado quando um atleta sai de `CALIBRATION`, nao pode descobrir so olhando o plano seguinte. Reaproveita o canal de notificacao/banner ja previsto para o "Indicador de calibracao" (frontend, secao Backend/Frontend do proposal.md) — sem canal novo.
 
@@ -88,20 +92,55 @@ Sem UI de onboarding para esses atletas — os dados obrigatorios faltantes (obj
 
 ## Decisao 7 — Visibilidade do plano via `PlanoReviewStatus` (mecanismo existente, nao novo)
 
-**Ground truth (achado ao investigar o mecanismo a reaproveitar):** `PlanoSemanal.reviewStatus` (`PlanoReviewStatus`: `AGUARDANDO_REVISAO`/`APROVADO`/`REJEITADO`) ja existe. `PlanoServiceImpl.criarPlanoEntity` (linha ~443) hoje seta `AGUARDANDO_REVISAO` incondicionalmente para **todo** plano gerado, sem excecao por cenario de confianca. Nao existe nenhum caminho de auto-aprovacao no codigo atual — a unica transicao para `APROVADO` e a acao explicita do coach em `PlanoReviewServiceImpl.aprovar`. `buscarPlanoPorAtleta(atletaId, apenasAprovados=true)` (o endpoint atleta-facing) so retorna planos `APROVADO`.
+**Ground truth (achado ao investigar o mecanismo a reaproveitar):** `PlanoSemanal.reviewStatus` (`PlanoReviewStatus`: `AGUARDANDO_REVISAO`/`APROVADO`/`REJEITADO`) ja existe. `PlanoServiceImpl.criarPlanoEntity` (linha ~443) hoje seta `AGUARDANDO_REVISAO` incondicionalmente para **todo** plano gerado, sem excecao por cenario de confianca. Nao existe nenhum caminho de auto-aprovacao no codigo atual — a unica transicao para `APROVADO` e a acao explicita do coach em `PlanoReviewServiceImpl.aprovarPlano`. `buscarPlanoPorAtleta(atletaId, apenasAprovados=true)` (o endpoint atleta-facing) so retorna planos `APROVADO`.
 
 Consequencia direta para esta change:
 - **CA4 (Cenario C, `MANDATORY_BLOCKING`)** — zero trabalho novo. E o comportamento padrao de hoje; a change so precisa garantir que o auto-approve do CA5 **nunca** se aplica a este cenario.
-- **CA5 (Cenario A, `EXCEPTION_ONLY`)** — trabalho novo real: apos `criarPlanoEntity`, se `PlanningPolicy.reviewMode == EXCEPTION_ONLY`, setar `reviewStatus = APROVADO` diretamente (pula a fila). Reaproveita a mesma entidade/coluna, sem novo status nem tabela.
+- **CA5 (Cenario A, `EXCEPTION_ONLY`)** — trabalho novo real, **corrigido pos pre-mortem cross-model rodada 2 (2026-07-20)**, 2 achados criticos:
+  1. **Nao basta `setReviewStatus(APROVADO)` direto** (versao original desta secao) — `PlanoReviewServiceImpl.aprovarPlano` (fluxo manual do coach) tambem seta `reviewComment=null`, chama `inicializarAssociacoes` e **publica `PlanoAprovadoEvent`**
+     (`PlanoReviewServiceImpl.java:70-75`), que o listener `IntervalsIcuPushListener` consome via
+     `@TransactionalEventListener(AFTER_COMMIT)` para empurrar o treino ao relogio do atleta. Sem esse
+     evento, o auto-approve deixaria o plano "aprovado" no banco mas invisivel para qualquer
+     integracao que reaja a aprovacao. **Fix:** extrair de `aprovarPlano` um metodo interno
+     reutilizavel (ex.: `aprovarTransicao(PlanoSemanal, tenantId)`) com os mesmos 4 efeitos
+     (status + comment + save + publish), chamado tanto pelo fluxo manual quanto pelo auto-approve.
+  2. **CA5 auto-aprovava so por `score >= 75`, ignorando o proprio risco calculado pelo planner
+     nesse ciclo especifico** — um atleta Cenario A (score alto, historico) pode ainda assim ter
+     `WeekPlanSkeleton.requiresCoachReview()=true` ou `injuryRisk.level()==InjuryRiskLevel.HIGH_RISK`
+     no ciclo corrente (TSB ruim, lesao recente). **Fix:** o auto-approve so dispara se **as tres**
+     condicoes forem verdadeiras: `reviewMode == EXCEPTION_ONLY` **E**
+     `!weekPlanSkeleton.requiresCoachReview()` **E** `injuryRisk.level() != InjuryRiskLevel.HIGH_RISK`
+     (checagem redundante com a anterior por design — `HIGH_RISK` ja deveria forcar
+     `requiresCoachReview=true`, mas a dupla checagem e defesa em profundidade contra a invariante
+     quebrar num refactor futuro). Se qualquer uma falhar, cai para `AGUARDANDO_REVISAO` (mesmo
+     caminho do Cenario B/C).
 - **Cenario B (`MANDATORY_NON_BLOCKING`)** — mantem `AGUARDANDO_REVISAO` (nao auto-aprova), mas a tela de revisao do coach (`listarPlanosPendentes`) ganha um badge/indicador de "baixa confianca" para o item — reaproveita a UI/endpoint existente, sem tela nova.
 
 ## Decisao 8 — `dataProva` do onboarding cria/atualiza `Prova`
 
 O formulario de onboarding coleta `dataProva` como campo obrigatorio (proposal.md, Frontend). Em vez de um campo solto em `AthleteOnboardingProfile` sem relacao com o dominio de provas, a conclusao do onboarding cria uma `Prova` (CRUD ja existente, ver `specs/prova-crud/spec.md`) com `provaAlvo=true`. Se o atleta ja tiver uma `Prova` com a mesma data/distancia marcada como `provaAlvo`, atualiza em vez de duplicar. Evita duas fontes de verdade (o `PeriodizationPlanner` do `deterministic-planner-engine` seleciona a prova-alvo a partir de `Prova`, nao de um campo de onboarding separado).
 
+**Unicidade de prova-alvo (achado do pre-mortem cross-model rodada 2, 2026-07-20):**
+`ProvaRepository.findByAtletaAndProvaAlvoTrue` retorna `List<Prova>` sem garantia de unicidade
+(`ProvaRepository.java:52`), e `PeriodizationPlanner` seleciona `.filter(provaAlvo).findFirst()`
+sem ordenacao garantida (`PeriodizationPlanner.java:62-67`) — se o onboarding criar uma nova `Prova`
+com `provaAlvo=true` sem desmarcar uma ja existente, o planner pode escolher a prova errada (nao
+necessariamente a que o onboarding acabou de criar), quebrando CA13 silenciosamente. **Fix:** ao
+criar/atualizar a `Prova` do onboarding (task 5.6), **desmarcar `provaAlvo=false` de qualquer outra
+`Prova` ativa do mesmo atleta na MESMA transacao** antes de marcar a nova como `provaAlvo=true` —
+garante no maximo uma prova-alvo ativa por atleta em todo momento. Sem migration nesta change
+(comportamento em codigo, nao constraint de banco); registrar como debito se uma constraint de
+banco (indice parcial unico) for desejada no futuro.
+
 ## Decisao 9 — Acesso a dado de saude do onboarding
 
-Campos de lesao/dor/fadiga/sono/recuperacao (onboarding + extensao do feedback pos-treino durante `CALIBRATION`) sao visiveis a: (1) o proprio atleta dono do dado; (2) o coach responsavel pelo atleta (vinculo de assessoria/coach designado). Nenhum outro coach do mesmo tenant ve por padrao — mesmo modelo de acesso ja aplicado ao resto do perfil do atleta no produto, sem mecanismo de permissao novo.
+**Corrigido (achado do pre-mortem cross-model rodada 2, 2026-07-20):** a versao original desta
+secao dizia "coach responsavel pelo atleta (vinculo de assessoria/coach designado)", sugerindo uma
+relacao coach-atleta granular que **nao existe no modelo hoje** — `Atleta` so tem `assessoria` e
+`usuario` (`Atleta.java:197-203`), sem campo de coach designado individual. Criar esse vinculo agora
+seria escopo novo, fora do que esta change se propoe a resolver.
+
+Campos de lesao/dor/fadiga/sono/recuperacao (onboarding + extensao do feedback pos-treino durante `CALIBRATION`) sao visiveis a: (1) o proprio atleta dono do dado; (2) **qualquer usuario TECNICO/ADMIN do mesmo tenant** — mesmo modelo de acesso ja aplicado ao resto do perfil do atleta no produto hoje (tenant-wide para papeis de coach), sem mecanismo de permissao granular novo. Isso e mais amplo do que "so o coach designado", mas e consistente com o padrao de autorizacao ja usado em todo o resto do produto (`@RequireTenant` + papel, nao vinculo individual coach-atleta) — introduzir um vinculo mais granular fica como debito registrado para change futura, se o founder decidir que e necessario.
 
 ## Fora de escopo
 

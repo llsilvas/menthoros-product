@@ -2,8 +2,12 @@
 
 > Cenarios Given/When/Then para os criterios de aceite CA1-CA13 do proposal.md. Consome o
 > contrato reservado por `deterministic-planner-engine` (`PlannerEngine`, `TrainingPhase.CALIBRATION`,
-> `OnboardingContext`/`AthleteBaseline`/`PlanningPolicy`/`AthleteConstraints`), ja mergeado em
-> `develop`.
+> `OnboardingContext`/`PlanningPolicy`/`AthleteConstraints`), ja mergeado em `develop`. O record
+> `AthleteBaseline` (2 campos, `ctlEstimado`/`dataEstimativa`) tambem ja existe como contrato minimo
+> de leitura — **corrigido pre-mortem rodada 2:** o estado completo (CTL/ATL/TSB + flags + score)
+> e persistido por esta change numa entidade nova, `AthleteBaselineSnapshot` (design.md Decisao 6,
+> tasks.md 0.2.1/2.3), mapeada para o record na borda do `OnboardingContext` — o record em si nao
+> muda.
 
 ## New Requirements
 
@@ -51,16 +55,26 @@ O sistema SHALL manter o plano de atletas de baixa confianca em `PlanoReviewStat
 - **Given** um atleta com score < 45 (Cenario C, `PlanningPolicy.reviewMode = MANDATORY_BLOCKING`)
 - **When** um `PlanoSemanal` e gerado para esse atleta
 - **Then** `reviewStatus` permanece `AGUARDANDO_REVISAO`
-- **And** o plano SHALL NOT ficar visivel ao atleta (`buscarPlanoPorAtleta(atletaId, apenasAprovados=true)` nao o retorna) ate o coach aprovar via `PlanoReviewServiceImpl.aprovar`
+- **And** o plano SHALL NOT ficar visivel ao atleta (`buscarPlanoPorAtleta(atletaId, apenasAprovados=true)` nao o retorna) ate o coach aprovar via `PlanoReviewServiceImpl.aprovarPlano`
 
 ### Requirement: Auto-aprovacao para Cenario A (CA5)
 
-O sistema SHALL pular a fila de revisao manual do coach quando o atleta tem confianca alta.
+O sistema SHALL pular a fila de revisao manual do coach quando o atleta tem confianca alta **E** o
+proprio ciclo de planejamento nao exigir revisao (corrigido pre-mortem cross-model rodada 2:
+confianca historica alta nao anula um risco pontual do ciclo atual).
 
-#### Scenario: Atleta Cenario A gera um plano
+#### Scenario: Atleta Cenario A gera um plano sem risco no ciclo
 - **Given** um atleta com score >= 75 (Cenario A, `PlanningPolicy.reviewMode = EXCEPTION_ONLY`)
+- **And** `WeekPlanSkeleton.requiresCoachReview = false` e `injuryRisk.level != HIGH_RISK` para o ciclo gerado
 - **When** um `PlanoSemanal` e gerado para esse atleta
 - **Then** `reviewStatus` e setado para `APROVADO` diretamente (sem passar por `AGUARDANDO_REVISAO` na fila do coach)
+- **And** `PlanoAprovadoEvent` e publicado (mesmo efeito colateral do fluxo manual de aprovacao — dispara sync com intervals.icu quando aplicavel)
+
+#### Scenario: Atleta Cenario A mas com risco no ciclo atual — NAO auto-aprova
+- **Given** um atleta com score >= 75 (Cenario A)
+- **And** `WeekPlanSkeleton.requiresCoachReview = true` OU `injuryRisk.level = HIGH_RISK` para o ciclo gerado
+- **When** um `PlanoSemanal` e gerado para esse atleta
+- **Then** `reviewStatus` permanece `AGUARDANDO_REVISAO` (mesmo caminho do Cenario B/C) — a confianca historica alta nao anula o risco calculado pelo planner neste ciclo especifico
 
 ### Requirement: Score bidirecional (CA6)
 
@@ -134,24 +148,30 @@ encerrar CALIBRATION.
 - **Then** o atleta sai de CALIBRATION
 - **And** o coach e notificado (banner/indicador) de que a fase mudou
 
-### Requirement: Acesso a dado de saude restrito ao atleta e ao coach responsavel (CA12)
+### Requirement: Acesso a dado de saude restrito ao atleta e a TECNICO/ADMIN do tenant (CA12)
 
 O sistema SHALL restringir a leitura de campos de saude (lesao, dor, fadiga, sono, recuperacao)
-ao atleta dono do dado e ao coach responsavel por ele.
+ao atleta dono do dado e a usuarios TECNICO/ADMIN do MESMO tenant. **Corrigido pre-mortem cross-model
+rodada 2:** o modelo atual (`Atleta.assessoria`/`Atleta.usuario`) nao tem um vinculo de "coach
+responsavel" designado por atleta — o controle real e por tenant + papel, mesmo padrao ja usado no
+resto do produto.
 
-#### Scenario: Coach de outro atleta tenta ler o dado
+#### Scenario: Usuario de outro tenant tenta ler o dado
 - **Given** um atleta com dados de saude preenchidos no onboarding
-- **And** um segundo coach do mesmo tenant, sem vinculo com esse atleta
-- **When** o segundo coach tenta acessar esses campos
+- **And** um usuario TECNICO/ADMIN de um tenant DIFERENTE
+- **When** esse usuario tenta acessar esses campos
 - **Then** o acesso SHALL ser negado (403/404, sem vazar existencia do dado)
 
 ### Requirement: `dataProva` do onboarding cria uma `Prova` real (CA13)
 
 O sistema SHALL criar (ou atualizar) uma `Prova` marcada como alvo a partir do `dataProva` do
-onboarding, reaproveitando o CRUD de `Prova` existente.
+onboarding (campo **obrigatorio**, nao opcional — corrigido pre-mortem rodada 2), reaproveitando o
+CRUD de `Prova` existente, e desmarcando qualquer outra `Prova` do atleta que estivesse marcada
+como alvo.
 
-#### Scenario: Atleta conclui o onboarding com dataProva preenchido
-- **Given** um atleta concluindo o onboarding com `dataProva` preenchido
+#### Scenario: Atleta conclui o onboarding
+- **Given** um atleta concluindo o onboarding (com `dataProva`, campo obrigatorio)
 - **When** o onboarding e submetido
 - **Then** uma `Prova` e criada (ou atualizada, se ja existir uma equivalente) com `provaAlvo = true`
+- **And** qualquer outra `Prova` do mesmo atleta com `provaAlvo = true` e desmarcada na mesma transacao (no maximo uma prova-alvo ativa por atleta)
 - **And** essa `Prova` e a mesma que o `PeriodizationPlanner` (`deterministic-planner-engine`) usa para resolver a fase

@@ -2,6 +2,26 @@
 
 > Full porque toca backend (novo fluxo de onboarding + normalizacao + baseline + calibracao) e frontend (formulario de onboarding estendido + UI de calibracao + extensao do feedback pos-treino). Depende de `deterministic-planner-engine` (consome `PlannerEngine`, `TrainingPhase.CALIBRATION`, `OnboardingContext`).
 
+## Status
+
+- Product review (2026-07-19): GO após 2ª rodada; pre-mortem cross-model (Codex): 6 achados críticos
+  + 7 moderados, todos incorporados em proposal.md/design.md/tasks.md.
+- `specs/athlete-onboarding/spec.md` criado (Given/When/Then para CA1-CA13).
+- **DoR gate (`spec-reviewer`, 2026-07-20) para `/implement init`: NOT READY** na 1ª passada — 3
+  gaps: (1) zero migration listada apesar de 3 tabelas novas + 1 alteração; (2) contrato de API não
+  declarado; (3) sem seção de Rollback/Risco. **Corrigido:** tasks.md ganhou a seção "0.2 Migrations"
+  (V59-V62) e os endpoints novos na seção 6; proposal.md ganhou a seção "Rollback e Riscos" abaixo.
+- **Pre-mortem cross-model rodada 2 (Codex, 2026-07-20) — NÃO foi uma passada limpa:** 2 achados
+  críticos + 6 moderados + 1 baixo, todos corrigidos nesta revisão (design.md Decisões 2/5/7/8/9,
+  tasks.md seções 1.4/4.2/5.3/5.4/5.6/6.0.5/9.0). Críticos: auto-approve (CA5) pulava
+  `PlanoAprovadoEvent` (sync com intervals.icu nunca disparava) e ignorava
+  `requiresCoachReview`/`HIGH_RISK` calculado pelo próprio planner no ciclo. Moderados: contrato real
+  de `AthleteBaseline` (já corrigido no round 1 do DoR, achado convergente); assinatura real de
+  `PlannerEngine.planWeek`; invariante transacional do dedup cross-fonte; `MetricasAdesaoService`
+  sempre usava `LocalDate.now()`; múltiplas provas-alvo sem unicidade; "coach responsável" não existe
+  como relação no modelo (corrigido para TECNICO/ADMIN do tenant). Baixo: `dataProva`
+  obrigatório-vs-opcional contraditório (resolvido: é obrigatório).
+
 ## Why
 
 Hoje o Menthoros nao tem um fluxo formal de onboarding do atleta. O cadastro e simples (nome, email, vinculo com assessoria) e o primeiro plano e gerado sem baseline, sem score de confianca, sem fase de calibracao. Isso cria tres riscos:
@@ -37,7 +57,7 @@ Hoje o Menthoros nao tem um fluxo formal de onboarding do atleta. O cadastro e s
 - **CA1 — Classificacao automatica:** atleta com >= 8 semanas de historico completo -> score >= 75 -> Cenario A.
 - **CA2 — Baseline Cenario C:** atleta sem historico -> baseline marcado ESTIMATED, fase CALIBRATION, requiresCoachReview = true.
 - **CA3 — Re-baseline:** apos semana de calibracao com dado real -> baseline atualizado para MEASURED, score recalculado.
-- **CA4 — Bloqueio Cenario C (comportamento ja existente, sem trabalho novo):** plano de atleta score < 45 permanece `PlanoReviewStatus.AGUARDANDO_REVISAO` — invisivel ao atleta ate o coach aprovar via `PlanoReviewServiceImpl.aprovar`. Esta change so garante que Cenario C **nunca** recebe o auto-approve do CA5.
+- **CA4 — Bloqueio Cenario C (comportamento ja existente, sem trabalho novo):** plano de atleta score < 45 permanece `PlanoReviewStatus.AGUARDANDO_REVISAO` — invisivel ao atleta ate o coach aprovar via `PlanoReviewServiceImpl.aprovarPlano`. Esta change so garante que Cenario C **nunca** recebe o auto-approve do CA5.
 - **CA5 — Auto-aprovacao Cenario A (trabalho novo):** atleta score >= 75 -> plano gerado ja nasce `PlanoReviewStatus.APROVADO` (pula a fila de revisao do coach), em vez do `AGUARDANDO_REVISAO` padrao.
 - **CA6 — Score bidirecional:** score pode descer durante calibracao -> reclassificacao automatica de cenario (ex: A -> B).
 - **CA7 — Coach como proxy:** perfil preenchido pelo coach (nao auto-declarado) -> bonus de confianca (sobe um tier).
@@ -46,7 +66,12 @@ Hoje o Menthoros nao tem um fluxo formal de onboarding do atleta. O cadastro e s
 - **CA10 — Atleta legado migrado:** atleta existente pre-ONBOARD -> Cenario B automatico na primeira geracao pos-deploy.
 - **CA11 — Saida de calibracao (aderencia minima):** atleta sai de CALIBRATION quando score >= 45 E sem HIGH_RISK E `percentualRealizacao` (`MetricasAdesaoService`/`SemanaAdesaoDto`, ja existente) >= 70% na semana mais recente. Default v1 a calibrar com Design Partners (ver Open Questions).
 - **CA12 — Acesso a dado de saude:** campos de lesao/dor/fadiga/sono/recuperacao do onboarding e do feedback pos-treino durante CALIBRATION sao visiveis ao atleta dono do dado e ao coach responsavel; nenhum outro coach do tenant os ve por padrao.
-- **CA13 — `dataProva` cria `Prova`:** ao concluir o onboarding com `dataProva` preenchido, uma `Prova` e criada (ou atualizada, se ja existir uma `Prova` identica pendente) com `provaAlvo=true` — nao fica como campo solto fora do CRUD de `Prova`.
+- **CA13 — `dataProva` cria `Prova`:** `dataProva` e um dos 11 campos **obrigatorios** do onboarding
+  (nao opcional — corrigido pre-mortem rodada 2, achado de contradicao com "se preenchido"). Ao
+  concluir o onboarding, uma `Prova` e sempre criada (ou atualizada, se ja existir uma `Prova`
+  identica pendente) com `provaAlvo=true`, desmarcando qualquer outra `Prova` do atleta que
+  estivesse marcada como alvo (design.md Decisao 8) — nao fica como campo solto fora do CRUD de
+  `Prova`.
 
 ## Metrica de sucesso
 
@@ -74,3 +99,40 @@ Hoje o Menthoros nao tem um fluxo formal de onboarding do atleta. O cadastro e s
 - ⚠️ **Proveniencia (SourcedValue<T> dropado) x historico de dedup retido** — contradicao entre este arquivo (linha 64, coluna simples) e design.md Decisao 2 ("valor descartado retido no historico de proveniencia, nunca apagado"). Resolvido em design.md Decisao 2 (ver correcao la): coluna `proveniencia` simples no registro ativo + tabela de auditoria separada (append-only) para os valores descartados no dedup — sem reintroduzir `SourcedValue<T>` como tipo de campo.
 - **Heuristica Cenario C** — tabela hardcoded; calibrar com Design Partners
 - **Duracao exata de calibracao por cenario** — hipotese inicial (1/2/2-4 semanas); ajustar com dado real. O coach precisa ser avisado (banner/notificacao) de quando cada atleta sai da calibracao — nao pode ser silencioso (achado do pre-mortem).
+
+## Rollback e Riscos (achado do DoR gate — spec-reviewer, 2026-07-20)
+
+### Rollback
+
+Todas as 4 migrations novas (V59-V62, ver tasks.md 0.2) sao aditivas — `CREATE TABLE`/`ADD COLUMN`,
+sem `DROP`/`ALTER` destrutivo. Reverter o PR deixa as tabelas/colunas orfas (sem codigo que as leia
+ou escreva), sem risco para dado existente. Nenhuma migration desta change altera ou remove dado de
+`TreinoRealizado`, `PlanoSemanal` ou `Atleta` — so adiciona.
+
+### Como desligar so o auto-approve (CA5), sem desligar o resto da change
+
+O auto-approve (CA5, design.md Decisao 7) precisa de um kill-switch **isolado** do
+`planner-engine.enabled` (que desliga o motor inteiro, nao so a auto-aprovacao). Nova flag:
+`onboarding.auto-approve.enabled` (default `true` apos deploy calibrado; ver tasks.md 5.4). Se o
+auto-approve se comportar mal em producao (planos ruins entrando sem revisao do coach), desligar essa
+flag faz todo plano voltar a `AGUARDANDO_REVISAO` (comportamento CA4, ja testado e seguro) — **sem
+reverter planos ja aprovados** (eles ficam como estao; a flag so afeta planos futuros).
+
+### Principais riscos de implementacao (novos, alem dos ja aceitos no design.md)
+
+- **Auto-approve pula efeitos colaterais do fluxo manual de aprovacao** (Alto, a verificar na task
+  5.4): `PlanoReviewServiceImpl.aprovarPlano` pode disparar efeitos alem de setar `reviewStatus`
+  (ex.: `PlanoAprovadoEvent`, que hoje dispara sync ao intervals.icu quando aplicavel). O auto-approve
+  desta change seta `reviewStatus=APROVADO` diretamente em `criarPlanoEntity`, **fora** do metodo
+  `aprovar` — se `PlanoAprovadoEvent` for necessario para o plano aparecer corretamente ao atleta ou
+  sincronizar com integracoes externas, o auto-approve precisa publicar o MESMO evento, nao so setar
+  o campo. Mitigacao: task 5.4 deve incluir um teste de caracterizacao comparando o efeito colateral
+  completo de `aprovar()` vs. o auto-approve, garantindo paridade (ou documentando a diferenca
+  aceita).
+- **Dedup falso-positivo/negativo entre fontes** (Medio, aceito no v1 — design.md Decisao 2): a
+  janela +-10min/+-5% pode juntar duas atividades legitimas ou deixar de juntar a mesma atividade com
+  drift de timezone. Aceito como escopo v1; refinamento fica para follow-up com dado real.
+- **Onboarding incompleto trava a primeira geracao de plano** (Medio): se `AthleteOnboardingProfile`
+  (tabela nova, RASCUNHO) nunca chegar a `COMPLETO`, o atleta fica sem baseline nem plano. Mitigacao:
+  a metrica de sucesso (taxa de conclusao > 80%) e o sinal direto disso; sem fallback automatico
+  nesta change alem do que ja existe para atletas legados (Decisao 6 — defaults conservadores).
