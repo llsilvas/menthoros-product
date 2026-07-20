@@ -14,7 +14,7 @@ Nenhuma migration estava listada apesar de 3 estruturas novas persistidas + 1 ta
 Próxima migration livre: **V59**. Todas aditivas (`CREATE TABLE`/`ADD COLUMN`, sem `DROP`/`ALTER`
 destrutivo) — ver "Rollback" no proposal.md.
 
-- [ ] 0.2.1 `V59__create_tb_athlete_baseline_snapshot.sql` — nova tabela `tb_athlete_baseline_snapshot`
+- [x] 0.2.1 `V59__create_tb_athlete_baseline_snapshot.sql` — nova tabela `tb_athlete_baseline_snapshot`
       (1 linha por atleta, `UNIQUE(atleta_id, tenant_id)`): `id UUID PK`, `atleta_id UUID FK`,
       `tenant_id UUID`, `ctl_estimado NUMERIC`, `atl_estimado NUMERIC`, `tsb_estimado NUMERIC`,
       `ctl_flag`/`atl_flag`/`tsb_flag VARCHAR(20)` (`ESTIMATED`/`MEASURED` por componente),
@@ -25,14 +25,14 @@ destrutivo) — ver "Rollback" no proposal.md.
       tabela é o lado de escrita/persistência completo desta change; o record existente é mapeado a
       partir dela na borda do `OnboardingContext`. **verify:** migration roda limpa em dev
       (`./mvnw flyway:migrate` ou subida da app), `\d tb_athlete_baseline_snapshot` confere o schema.
-- [ ] 0.2.2 `V60__create_tb_atividade_proveniencia_descartada.sql` — nova tabela append-only
+- [x] 0.2.2 `V60__create_tb_atividade_proveniencia_descartada.sql` — nova tabela append-only
       (design.md Decisão 2, nome definitivo — substitui "ou equivalente"): `id UUID PK`,
       `atividade_id UUID FK` (para a `TreinoRealizado` ativa), `tenant_id UUID`,
       `fonte_descartada VARCHAR(50)`, `dados_descartados JSONB`, `motivo_descarte VARCHAR(255)`,
       `criado_em TIMESTAMP`. Sem `UPDATE`/`DELETE` no fluxo normal (auditoria). **verify:** teste de
       integração do `ActivityDedupService` (task 1.4) confirma insert nesta tabela ao descartar uma
       atividade duplicada.
-- [ ] 0.2.3 `V61__create_tb_perfil_onboarding_atleta.sql` — nova tabela `tb_perfil_onboarding_atleta`
+- [x] 0.2.3 `V61__create_tb_perfil_onboarding_atleta.sql` — nova tabela `tb_perfil_onboarding_atleta`
       **corrigida durante a implementação (design.md Decisão 10 — achado: 7 dos 11 campos já
       existem em `Atleta`, não duplicar)**: (`UNIQUE(atleta_id, tenant_id)`): `id UUID PK`,
       `atleta_id UUID FK`, `tenant_id UUID`, `status VARCHAR(20)` (`RASCUNHO`/`COMPLETO` — suporta
@@ -45,7 +45,7 @@ destrutivo) — ver "Rollback" no proposal.md.
       sem migration nova para eles. **verify:** teste de integração cobrindo save-parcial (status
       RASCUNHO, incluindo campos já escritos em `Atleta` antes da conclusão) + retomada (CA8, task
       9.3).
-- [ ] 0.2.4 `V62__add_calibration_fields_treino_realizado.sql` — `ALTER TABLE tb_treino_realizado ADD
+- [x] 0.2.4 `V62__add_calibration_fields_treino_realizado.sql` — `ALTER TABLE tb_treino_realizado ADD
       COLUMN nivel_dor INTEGER NULL`, `ADD COLUMN nivel_fadiga INTEGER NULL`, `ADD COLUMN
       nivel_recuperacao INTEGER NULL` (1-10, mesmo padrão de `nivel_estresse`/
       `qualidade_sono_noite_anterior` já existentes na mesma tabela — **sono e estresse já existem,
