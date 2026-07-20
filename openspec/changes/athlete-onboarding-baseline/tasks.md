@@ -1,8 +1,12 @@
 # Tasks — athlete-onboarding-baseline
 
-> Cross-repo. Ordem: backend (1-5) -> contrato (6) -> frontend (7-9).
-> Depende de `deterministic-planner-engine` merged (consome `PlannerEngine`, `OnboardingContext`, `TrainingPhase.CALIBRATION`).
+> Cross-repo. Ordem: spec (0) -> backend (1-5) -> contrato (6) -> frontend (7-9).
+> Depende de `deterministic-planner-engine` merged (consome `PlannerEngine`, `OnboardingContext`, `TrainingPhase.CALIBRATION`) — **confirmado mergeado em `develop`, 2026-07-20**.
 > Validacao: backend `./mvnw clean test`; frontend `npm run lint && npm run build && npm run test:run`.
+
+## 0. Spec (DoR)
+
+- [x] 0.1 `specs/athlete-onboarding/spec.md` — cenarios Given/When/Then para CA1-CA13, espelhando o padrao de `deterministic-planner-engine/specs/planner-engine/spec.md`.
 
 ## 1. Activity Normalizer
 
@@ -24,8 +28,8 @@
 
 ## 4. Calibration Phase + PlanningPolicy
 
-- [ ] 4.1 Adicionar `CALIBRATION` ao `TrainingPhase` enum + `CalibrationStage` enum interno.
-- [ ] 4.2 TDD: `CalibrationServiceTest` — transicao OBSERVATION->CALIBRATION->STABILIZATION, re-baseline semanal, score bidirecional (sobe e desce), saida da calibracao (score >= 45 + sem HIGH_RISK + aderencia minima). **verify:** testes vermelhos.
+- [ ] 4.1 `CALIBRATION` ja existe em `TrainingPhase` (reservado por `deterministic-planner-engine`, merged) — so criar `CalibrationStage` enum interno, sem editar o enum de fase.
+- [ ] 4.2 TDD: `CalibrationServiceTest` — transicao OBSERVATION->CALIBRATION->STABILIZATION, re-baseline semanal, score bidirecional (sobe e desce), saida da calibracao (score >= 45 + sem HIGH_RISK + `percentualRealizacao` >= 70% via `MetricasAdesaoService`, design.md Decisao 5). **verify:** testes vermelhos.
 - [ ] 4.3 Implementar `CalibrationService` — gerencia `CalibrationStage`, recalcula baseline e score a cada semana, emite alerta ao treinador se preso em CALIBRATION alem da semana 4. **verify:** `./mvnw -Dtest=CalibrationServiceTest test` verde.
 - [ ] 4.4 TDD: `PlanningPolicyResolverTest` — derivar reviewMode/maxProgression/explanationRequired da faixa de score. **verify:** testes vermelhos.
 - [ ] 4.5 Implementar `PlanningPolicyResolver` — tabela de faixas (>=75, 45-74, <45) -> `PlanningPolicy`. **verify:** `./mvnw -Dtest=PlanningPolicyResolverTest test` verde.
@@ -35,8 +39,10 @@
 - [ ] 5.1 TDD: `OnboardingServiceTest` — fluxo completo onboarding -> baseline -> score -> OnboardingContext. **verify:** testes vermelhos.
 - [ ] 5.2 Implementar `OnboardingService` — orquestra ActivityNormalizer -> BaselineCalculator -> ConfidenceScorer -> OnboardingContext. **verify:** `./mvnw -Dtest=OnboardingServiceTest test` verde.
 - [ ] 5.3 Integrar no `PlanoServiceImpl` — se `OnboardingContext` presente e `planner-engine.enabled`, chamar `PlannerEngine.planWeek(dados, ctx)`. **verify:** teste de integracao.
-- [ ] 5.4 Gate de aprovacao Cenario C — `PlanningPolicy.reviewMode == MANDATORY_BLOCKING` -> `WeekSuggestion` nao visivel ao atleta ate ACCEPTED/MODIFIED. **verify:** teste de integracao cobrindo visibilidade.
-- [ ] 5.5 Migracao de atletas existentes — flag `onboarding.migrate-existing` que calcula baseline + score para atletas sem `AthleteBaseline`. **verify:** teste com atleta legado (dados reais do seed).
+- [ ] 5.4 TDD: auto-approve Cenario A (CA5, design.md Decisao 7) — apos `criarPlanoEntity`, se `PlanningPolicy.reviewMode == EXCEPTION_ONLY`, `plano.setReviewStatus(PlanoReviewStatus.APROVADO)` em vez do `AGUARDANDO_REVISAO` padrao; para `MANDATORY_NON_BLOCKING`/`MANDATORY_BLOCKING`, mantem `AGUARDANDO_REVISAO` (comportamento ja existente, sem alteracao — CA4). **verify:** teste de integracao cobrindo os 3 `reviewMode`.
+- [ ] 5.5 Badge de baixa confianca na fila de revisao do coach (Cenario B, `MANDATORY_NON_BLOCKING`) — reaproveita `listarPlanosPendentes`/`PlanoReviewServiceImpl`, sem endpoint novo. **verify:** teste de integracao.
+- [ ] 5.6 `dataProva` do onboarding cria/atualiza `Prova` (CA13, design.md Decisao 8) — reaproveita o CRUD de `Prova` existente. **verify:** teste de integracao.
+- [ ] 5.7 Migracao de atletas existentes — flag `onboarding.migrate-existing` que calcula baseline + score para atletas sem `AthleteBaseline`. **verify:** teste com atleta legado (dados reais do seed).
 
 ## 6. Contrato — novos tipos no front
 
@@ -58,10 +64,12 @@
 - [ ] 8.2 Implementar `CalibrationBanner` na Home do atleta — consome endpoint de calibracao retornando `CalibrationStatus`. **verify:** `npm run test:run`.
 - [ ] 8.3 TDD: `PostWorkoutFeedbackExtrasTest` — durante CALIBRATION, campos extras (dor, fadiga, sono, recuperacao) visiveis; fora de CALIBRATION, apenas RPE. **verify:** testes vermelhos.
 - [ ] 8.4 Implementar extensao do `PostWorkoutFeedback` — condicional em `CalibrationStatus != null`, campos adicionais. **verify:** `npm run test:run`.
+- [ ] 8.5 Notificacao/banner quando o atleta sai de CALIBRATION (design.md Decisao 5) — reaproveita o `CalibrationBanner` (8.2), sem canal novo. **verify:** `npm run test:run`.
 
 ## 9. Verificacao de aceite (DoD)
 
-- [ ] 9.1 CA1-CA10 verificados ponta-a-ponta (backend + frontend).
+- [ ] 9.0 Acesso a dado sensivel (CA12, design.md Decisao 9) — teste de integracao confirmando que so o atleta dono e o coach responsavel leem campos de lesao/dor/fadiga/sono/recuperacao; outro coach do tenant recebe 403/404.
+- [ ] 9.1 CA1-CA13 verificados ponta-a-ponta (backend + frontend).
 - [ ] 9.2 Atleta legado: gerar plano para atleta do seed -> Cenario B, sem quebra.
 - [ ] 9.3 Onboarding interrompido: fechar browser no step 2, reabrir -> retoma do step 2.
 - [ ] 9.4 PR backend e PR front abertos (backend primeiro); CI verde nos dois.
