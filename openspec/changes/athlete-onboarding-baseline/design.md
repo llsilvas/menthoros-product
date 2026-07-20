@@ -142,6 +142,35 @@ seria escopo novo, fora do que esta change se propoe a resolver.
 
 Campos de lesao/dor/fadiga/sono/recuperacao (onboarding + extensao do feedback pos-treino durante `CALIBRATION`) sao visiveis a: (1) o proprio atleta dono do dado; (2) **qualquer usuario TECNICO/ADMIN do mesmo tenant** — mesmo modelo de acesso ja aplicado ao resto do perfil do atleta no produto hoje (tenant-wide para papeis de coach), sem mecanismo de permissao granular novo. Isso e mais amplo do que "so o coach designado", mas e consistente com o padrao de autorizacao ja usado em todo o resto do produto (`@RequireTenant` + papel, nao vinculo individual coach-atleta) — introduzir um vinculo mais granular fica como debito registrado para change futura, se o founder decidir que e necessario.
 
+## Decisao 10 — Perfil de onboarding NAO duplica campos que ja existem em `Atleta`
+
+**Achado durante a implementacao (2026-07-20):** o design original desta secao (e a migration V61
+planejada) assumia uma tabela nova `tb_perfil_onboarding_atleta` com os 11 campos obrigatorios do
+formulario. Ao implementar, descobrimos que **7 desses 11 campos ja existem em `Atleta.java`**:
+`objetivo` (linha 55), `nivelExperiencia` (59), `diasDisponiveis` (124), `historicoLesoes`/`temLesao`/
+`descricaoLesao`/`dataUltimaLesao` (137-146), `volumeSemanalMax` (134, proxy de "volume atual").
+Duplicar esses campos numa tabela separada criaria duas fontes de verdade — exatamente o padrao que
+a Decisao 8 (`dataProva`/`Prova`) ja rejeitou de proposito nesta mesma change. Se o coach editar
+`Atleta` diretamente depois (CRUD ja existente), o registro de onboarding ficaria dessincronizado
+silenciosamente.
+
+**Correcao:** o onboarding escreve DIRETO em `Atleta` para os 7 campos que ja existem la (a cada
+step do formulario, nao so na conclusao — resumabilidade do CA8 fica mais robusta assim, o dado ja
+esta na entidade real em vez de preso numa tabela de staging). `tb_perfil_onboarding_atleta` (V61)
+encolhe para conter apenas:
+- `status` (`RASCUNHO`/`COMPLETO` — o UNICO estado que realmente precisa de um lugar novo para
+  existir, ja que "em qual step o atleta esta" nao e um conceito de `Atleta`)
+- Os **5 campos genuinamente novos**, sem equivalente em `Atleta` hoje: `maiorTreinoRecente`,
+  `duracaoDisponivel`, `restricoes`, `modalidade`, `percepcaoCondicionamento`
+- `dataProva` **nao** vai nem para `Atleta` nem para esta tabela — vira uma `Prova` real (Decisao 8),
+  mesma logica ja aplicada.
+- `preenchido_por_coach` (bonus coach-como-proxy, Decisao 3)
+
+`AthleteOnboardingProfile` (o tipo exposto ao frontend, proposal.md/tasks.md 6.2) passa a ser uma
+**composicao** na borda da API: campos de `Atleta` + os 5 campos novos + `status` — nao um espelho
+1:1 de uma tabela unica. O endpoint de conclusao (tasks.md 6.0.3) grava em `Atleta` E na tabela nova
+na mesma transacao.
+
 ## Fora de escopo
 
 - Diagnostico medico, recomendacao nutricional, analise biomecanica

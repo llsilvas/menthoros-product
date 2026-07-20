@@ -33,13 +33,18 @@ destrutivo) — ver "Rollback" no proposal.md.
       integração do `ActivityDedupService` (task 1.4) confirma insert nesta tabela ao descartar uma
       atividade duplicada.
 - [ ] 0.2.3 `V61__create_tb_perfil_onboarding_atleta.sql` — nova tabela `tb_perfil_onboarding_atleta`
-      (`UNIQUE(atleta_id, tenant_id)`): `id UUID PK`, `atleta_id UUID FK`, `tenant_id UUID`,
-      `status VARCHAR(20)` (`RASCUNHO`/`COMPLETO` — suporta retomar draft, CA8), os 11 campos
-      obrigatórios do formulário (objetivo, nível de experiência, dias disponíveis, `data_prova`,
-      histórico de lesão declarada, etc. — mapear 1:1 com o formulário de `AthleteOnboardingProfile`
-      do proposal.md/Frontend antes de implementar), `preenchido_por_coach BOOLEAN DEFAULT false`
-      (bônus coach-como-proxy, Decisão 3), `criado_em`/`atualizado_em`. **verify:** teste de
-      integração cobrindo save-parcial (status RASCUNHO) + retomada (CA8, task 9.3).
+      **corrigida durante a implementação (design.md Decisão 10 — achado: 7 dos 11 campos já
+      existem em `Atleta`, não duplicar)**: (`UNIQUE(atleta_id, tenant_id)`): `id UUID PK`,
+      `atleta_id UUID FK`, `tenant_id UUID`, `status VARCHAR(20)` (`RASCUNHO`/`COMPLETO` — suporta
+      retomar draft, CA8), **apenas os 5 campos genuinamente novos** (`maior_treino_recente_km
+      NUMERIC`, `duracao_disponivel_min INTEGER`, `restricoes TEXT`, `modalidade VARCHAR(30)`,
+      `percepcao_condicionamento VARCHAR(30)`), `preenchido_por_coach BOOLEAN DEFAULT false` (bônus
+      coach-como-proxy, Decisão 3), `criado_em`/`atualizado_em`. Os outros 7 campos obrigatórios
+      (objetivo, nivelExperiencia, diasDisponiveis, historicoLesoes/temLesao/descricaoLesao/
+      dataUltimaLesao, volumeSemanalMax) são escritos DIRETO em `tb_atleta` — colunas já existentes,
+      sem migration nova para eles. **verify:** teste de integração cobrindo save-parcial (status
+      RASCUNHO, incluindo campos já escritos em `Atleta` antes da conclusão) + retomada (CA8, task
+      9.3).
 - [ ] 0.2.4 `V62__add_calibration_fields_treino_realizado.sql` — `ALTER TABLE tb_treino_realizado ADD
       COLUMN nivel_dor INTEGER NULL`, `ADD COLUMN nivel_fadiga INTEGER NULL`, `ADD COLUMN
       nivel_recuperacao INTEGER NULL` (1-10, mesmo padrão de `nivel_estresse`/
@@ -132,11 +137,15 @@ destrutivo) — ver "Rollback" no proposal.md.
 **Endpoints novos (achado do DoR gate — superfície não estava declarada):**
 
 - [ ] 6.0.1 `POST /api/v1/atletas/{atletaId}/onboarding` — submete/salva o formulário (parcial ou
-      completo); persiste em `tb_perfil_onboarding_atleta` com `status=RASCUNHO` se incompleto,
-      `COMPLETO` se todos os 11 campos obrigatórios presentes. `@RequireTenant`, papel
-      ATLETA (dono) ou TECNICO/ADMIN (coach-como-proxy, Decisão 3). Retorna o perfil salvo.
+      completo). **Corrigido (design.md Decisão 10):** escreve os 7 campos já existentes DIRETO em
+      `Atleta` (objetivo, nivelExperiencia, diasDisponiveis, historicoLesoes/temLesao/
+      descricaoLesao/dataUltimaLesao, volumeSemanalMax) e os 5 campos novos +
+      `status=RASCUNHO`/`COMPLETO` (todos os 11 presentes) em `tb_perfil_onboarding_atleta` — mesma
+      transação. `@RequireTenant`, papel ATLETA (dono) ou TECNICO/ADMIN (coach-como-proxy,
+      Decisão 3). Retorna o perfil composto (campos de `Atleta` + tabela nova).
 - [ ] 6.0.2 `GET /api/v1/atletas/{atletaId}/onboarding` — recupera o draft salvo (CA8, retomar
-      onboarding interrompido). `@RequireTenant`, mesmo controle de acesso do 6.0.1.
+      onboarding interrompido); compõe os 7 campos já em `Atleta` + os 5 campos +
+      `status` de `tb_perfil_onboarding_atleta`. `@RequireTenant`, mesmo controle de acesso do 6.0.1.
 - [ ] 6.0.3 `POST /api/v1/atletas/{atletaId}/onboarding/concluir` — finaliza o onboarding: dispara
       `BaselineCalculator` + `ConfidenceScorer`, persiste `AthleteBaselineSnapshot`, cria/atualiza
       `Prova` a partir de `dataProva` (CA13, Decisão 8). Retorna `AthleteBaseline` (o record de
