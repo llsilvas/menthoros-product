@@ -331,3 +331,12 @@ cd apps/menthoros-backend
 **Tests:** ✅ All tests PASSING (ActivityTypeCompatibilityMatrix + MatchingScoreCalculator + MatchingEngine)
 **Codex Review Resolution:** ✅ Round 2 fixes all committed (e2150e0, d9424fd, 23d09dc)
 **Summary:** MVP 100% complete + Codex Round 2 NO-GO issues resolved with real implementations
+
+
+---
+
+**Arquivamento retroativo (auditoria de sprint, 2026-07-20):** implementado em produção entre
+2026-04-30 e 2026-05-01 (`DailyActivitySyncScheduler`, `MatchingDecisionEngine`,
+`ManualReconciliationController`, migrations V17-V20 em `apps/menthoros-backend`), mas nunca
+arquivado na época — falha de processo anterior à disciplina atual de arquivamento OpenSpec.
+Arquivada em `changes/archive/2026-05/2026-05-01-strava-activity-sync/`.

@@ -37,4 +37,9 @@
 ## Seção 5 — Entrega
 
 - [x] 5.1 Commits por seção (Conventional Commits PT-BR).
-- [ ] 5.2 Push + PR contra `develop`.
+- [x] 5.2 **Não houve push/PR deste branch.** A migração do `AtletaDialog` para dark-first foi
+      entregue de fato em `develop` via `standardize-coach-dialogs` (2026-06-27, PR front #19, sem
+      spec formal — sweep que consolidou `CoachDialog` como shell único e migrou todos os dialogs do
+      coach, incluindo este). Confirmado no código: `AtletaDialog.tsx` já está dark-first, zero hex
+      hardcoded (commit `2586507`). Esta change fica arquivada como **entregue por outra change**,
+      não por PR próprio (auditoria de sprint, 2026-07-20).

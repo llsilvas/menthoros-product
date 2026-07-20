@@ -35,3 +35,11 @@
 - [ ] 6.1 Executar `openspec status --change "strava-oauth" --json` e confirmar artifacts `done`
 - [ ] 6.2 Executar `openspec instructions apply --change "strava-oauth" --json` e revisar tasks pendentes
 - [ ] 6.3 Registrar resultado da revisão no PR antes de merge
+
+---
+
+**Arquivamento retroativo (auditoria de sprint, 2026-07-20):** implementado em produção em
+2026-04-26 (evidência: StravaOAuthServiceImpl, StravaAuthController (endpoints /api/strava/auth, /callback, /status, /disconnect) — commits 6622a70,3bb20c5,d83fe80 em apps/menthoros-backend), mas nunca
+arquivado na época — falha de processo anterior à disciplina atual de arquivamento OpenSpec.
+Os checkboxes acima não foram marcados individualmente quando o trabalho foi feito; a
+evidência de conclusão está nos commits citados, não no histórico de tasks marcadas.

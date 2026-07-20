@@ -221,3 +221,11 @@
 - Day 1: Backend (3h)
 - Day 2: Frontend (6.5h)
 - Day 3: QA + Testing (3h)
+
+---
+
+**Arquivamento retroativo (auditoria de sprint, 2026-07-20):** implementado em produção em
+2026-04-29 (evidência: StravaActivityController (GET /sync-status/{atletaId}, POST /sync/{atletaId}), colunas syncActivityCount/lastSyncError em IntegracaoExterna — commits 236916e em apps/menthoros-backend), mas nunca
+arquivado na época — falha de processo anterior à disciplina atual de arquivamento OpenSpec.
+Os checkboxes acima não foram marcados individualmente quando o trabalho foi feito; a
+evidência de conclusão está nos commits citados, não no histórico de tasks marcadas.
