@@ -21,6 +21,19 @@
   sempre usava `LocalDate.now()`; múltiplas provas-alvo sem unicidade; "coach responsável" não existe
   como relação no modelo (corrigido para TECNICO/ADMIN do tenant). Baixo: `dataProva`
   obrigatório-vs-opcional contraditório (resolvido: é obrigatório).
+- **Sessão de grilling / domain modeling (2026-07-21), 7 commits já implementados (Seções 1-5.5):**
+  interrogatório sobre o modelo de domínio do que já existe em código, não só nos docs. 7 decisões
+  resolvidas, 3 ADRs novos criados em `apps/menthoros-backend/docs/adr/`, glossário iniciado em
+  `apps/menthoros-backend/CONTEXT.md`. Achados: origem da aprovação indistinguível (novo campo
+  `origemAprovacao`); `AthleteBaselineSnapshot` sem histórico, renomeado + tabela de histórico nova;
+  acesso a dado de saúde confirmado como tenant-wide, não por técnico responsável (débito registrado,
+  ADR-0001); draft do onboarding **revisitado** — a Decisão 10 do design.md dizia escrita direta em
+  `Atleta` a cada step, decisão final é staging com mitigação de conflito (ADR-0002); trigger da
+  avaliação semanal de calibração (que não era chamada de lugar nenhum) definido como acoplado ao
+  ciclo de geração de plano; canal de integração novo (`CanalIntegracao`, CA14) — Strava excluído
+  para atleta novo por decisão do founder de descontinuação futura (ADR-0003). Pendente: peso exato
+  de `CanalIntegracao` no Confidence Scorer; código ainda não atualizado para nenhuma dessas decisões
+  (só os docs) — ver tasks.md para o que precisa de retrofit nas Seções 1-5.5 já implementadas.
 
 ## Why
 
@@ -48,7 +61,8 @@ Hoje o Menthoros nao tem um fluxo formal de onboarding do atleta. O cadastro e s
 
 ### Frontend
 
-- **Formulario de onboarding estendido** — coleta dos 11 campos obrigatorios (objetivo, dataProva, nivelExperiencia, volumeAtual, maiorTreinoRecente, diasDisponiveis, duracaoDisponivel, historicoLesoes, restricoes, modalidade, percepcaoCondicionamento). Dados opcionais (fcMaxima, fcRepouso, ritmoLimiar, ftp, etc.) nao bloqueiam. Estado intermediario salvo como draft, retomavel.
+- **Formulario de onboarding estendido** — coleta dos 12 campos obrigatorios (objetivo, dataProva, nivelExperiencia, volumeAtual, maiorTreinoRecente, diasDisponiveis, duracaoDisponivel, historicoLesoes, restricoes, modalidade, percepcaoCondicionamento, **canalIntegracao** — novo, decisao 2026-07-21). Dados opcionais (fcMaxima, fcRepouso, ritmoLimiar, ftp, etc.) nao bloqueiam. Estado intermediario salvo como draft, retomavel.
+- **Canal de integracao** (`CanalIntegracao`: `INTERVALS_ICU` | `MANUAL`) — declaracao de qual plataforma o atleta vai usar para enviar/receber treinos, com Garmin como dispositivo prioritario na orientacao de conexao quando `INTERVALS_ICU`. Strava **nao** e oferecido como opcao para atletas novos (ADR-0003, `apps/menthoros-backend/docs/adr/`) — em descontinuacao, mas ainda ativo para quem ja esta conectado. Alimenta o Confidence Scorer (CA14).
 - **Extensao do feedback pos-treino** — durante `CALIBRATION`, modal coleta campos adicionais (dor, fadiga, sono, recuperacao entre sessoes) alem do RPE ja existente. Reaproveita o modal atual, sem novo canal de captura.
 - **Indicador de calibracao** — banner/progresso na Home do atleta mostrando em qual semana de calibracao esta e o que falta para o plano personalizado.
 
@@ -72,6 +86,11 @@ Hoje o Menthoros nao tem um fluxo formal de onboarding do atleta. O cadastro e s
   identica pendente) com `provaAlvo=true`, desmarcando qualquer outra `Prova` do atleta que
   estivesse marcada como alvo (design.md Decisao 8) — nao fica como campo solto fora do CRUD de
   `Prova`.
+- **CA14 — Canal de integracao declarado:** o onboarding exige `canalIntegracao` (`INTERVALS_ICU`
+  ou `MANUAL`, nunca `STRAVA` para atleta novo — ADR-0003). Quando `INTERVALS_ICU`, a orientacao de
+  conexao mostrada prioriza Garmin como dispositivo. O valor declarado alimenta o Confidence Scorer
+  como sinal de confianca inicial antes de qualquer atividade real existir (formula exata e
+  peso: em aberto, ver Open Questions).
 
 ## Metrica de sucesso
 
@@ -99,6 +118,13 @@ Hoje o Menthoros nao tem um fluxo formal de onboarding do atleta. O cadastro e s
 - ⚠️ **Proveniencia (SourcedValue<T> dropado) x historico de dedup retido** — contradicao entre este arquivo (linha 64, coluna simples) e design.md Decisao 2 ("valor descartado retido no historico de proveniencia, nunca apagado"). Resolvido em design.md Decisao 2 (ver correcao la): coluna `proveniencia` simples no registro ativo + tabela de auditoria separada (append-only) para os valores descartados no dedup — sem reintroduzir `SourcedValue<T>` como tipo de campo.
 - **Heuristica Cenario C** — tabela hardcoded; calibrar com Design Partners
 - **Duracao exata de calibracao por cenario** — hipotese inicial (1/2/2-4 semanas); ajustar com dado real. O coach precisa ser avisado (banner/notificacao) de quando cada atleta sai da calibracao — nao pode ser silencioso (achado do pre-mortem).
+- ✅ **Origem da aprovacao (`origemAprovacao`)** — campo novo em `PlanoSemanal` (`COACH`/`AUTO_CONFIANCA_ALTA`), sem o qual as duas origens de `PlanoReviewStatus.APROVADO` ficam indistinguiveis (decisao 2026-07-21, sessao de grilling).
+- ✅ **`AthleteBaselineSnapshot` renomeado para `AthleteBaselineState`** + nova tabela `AthleteBaselineHistory` (append-only) para nao perder a evolucao do score durante a calibracao (decisao 2026-07-21).
+- ✅ **Acesso a dado de saude e por tenant, nao por tecnico responsavel** — a relacao "tecnico responsavel pelo atleta" nao existe no modelo hoje; fica registrada como debito (ADR-0001) para uma change futura propria, nao construida aqui (decisao 2026-07-21).
+- ✅ **Draft do onboarding usa staging, nao escreve direto em `Atleta`** — decisao final revisitada (a versao anterior desta secao dizia o oposto); mitigacao de conflito via comparacao de timestamp na conclusao (ADR-0002, decisao 2026-07-21).
+- ✅ **Trigger da avaliacao semanal de calibracao** — acoplado ao ciclo de geracao de plano (`PlanoServiceImpl.persistirPlanoCompleto`), nao um scheduler novo (decisao 2026-07-21).
+- ✅ **Canal de integracao (`CanalIntegracao`)** — novo campo obrigatorio, `INTERVALS_ICU`/`MANUAL`, Strava excluido para atleta novo (ADR-0003, decisao 2026-07-21).
+- **Formula/peso exato de como `CanalIntegracao` alimenta o Confidence Scorer** — o campo existe e a decisao de inclui-lo esta tomada, mas o peso/formula exata ainda nao foi definida (aberto).
 
 ## Rollback e Riscos (achado do DoR gate — spec-reviewer, 2026-07-20)
 

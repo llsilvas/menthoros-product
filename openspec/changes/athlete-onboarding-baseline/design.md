@@ -181,10 +181,22 @@ a Decisao 8 (`dataProva`/`Prova`) ja rejeitou de proposito nesta mesma change. S
 `Atleta` diretamente depois (CRUD ja existente), o registro de onboarding ficaria dessincronizado
 silenciosamente.
 
-**Correcao:** o onboarding escreve DIRETO em `Atleta` para os 7 campos que ja existem la (a cada
-step do formulario, nao so na conclusao — resumabilidade do CA8 fica mais robusta assim, o dado ja
-esta na entidade real em vez de preso numa tabela de staging). `tb_perfil_onboarding_atleta` (V61)
-encolhe para conter apenas:
+**Correcao (revisitada em 2026-07-21 — decisao final, substitui a versao anterior desta secao que
+escrevia direto em `Atleta` a cada step):** os 7 campos que ja existem em `Atleta` ficam em
+staging em `tb_perfil_onboarding_atleta` durante `RASCUNHO`, nao escritos em `Atleta` ate a
+conclusao (ver ADR-0002, `apps/menthoros-backend/docs/adr/0002-*.md`). A versao anterior (escrita
+direta a cada step) evitava dessincronia com edicoes do coach durante o rascunho, mas trocava por
+um risco pior: rascunho abandonado deixa dado parcial permanente em `Atleta`, indistinguivel de
+dado completo por qualquer outro fluxo que ja le `Atleta` direto.
+
+**Mitigacao do risco simetrico (coach edita `Atleta` enquanto o atleta esta em rascunho):** na
+conclusao do onboarding, comparar `Atleta.atualizadoEm` com o timestamp de inicio do rascunho
+(`PerfilOnboardingAtleta.criadoEm`). Se `Atleta` foi modificada depois do inicio do rascunho,
+**nao migrar silenciosamente** (last-write-wins errado) — bloquear a conclusao com
+`DomainConflictException`, pedindo que o atleta/coach revise os campos antes de confirmar. Custo:
+uma comparacao de timestamp, sem lock novo.
+
+`tb_perfil_onboarding_atleta` (V61) encolhe para conter apenas:
 - `status` (`RASCUNHO`/`COMPLETO` — o UNICO estado que realmente precisa de um lugar novo para
   existir, ja que "em qual step o atleta esta" nao e um conceito de `Atleta`)
 - Os **5 campos genuinamente novos**, sem equivalente em `Atleta` hoje: `maiorTreinoRecente`,
