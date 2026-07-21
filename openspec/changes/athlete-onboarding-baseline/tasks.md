@@ -238,19 +238,32 @@ destrutivo) — ver "Rollback" no proposal.md.
       grava nas duas tabelas no mesmo `save` (estado atual + uma linha de histórico), toda vez que
       recalcula. **verify:** teste confirmando que 3 recálculos seguidos do mesmo atleta produzem 1
       linha em `AthleteBaselineState` (sobrescrita) e 3 linhas em `AthleteBaselineHistory`.
-- [ ] 10.3 Draft do onboarding em staging (substitui o comportamento atual de `tb_perfil_onboarding_atleta`
+- [x] 10.3 Draft do onboarding em staging (substitui o comportamento atual de `tb_perfil_onboarding_atleta`
       só guardar os 5 campos novos — ver 6.0.1/6.0.2/6.0.3 acima e ADR-0002): adicionar os 7 campos
       espelhados de `Atleta` como colunas nullable em `tb_perfil_onboarding_atleta` (migration
       nova). Endpoint de conclusão (6.0.3) migra para `Atleta` só na conclusão, com a checagem de
       conflito por `atualizadoEm` (`DomainConflictException` se `Atleta` foi editada depois do
       início do rascunho). **verify:** teste cobrindo save-parcial sem tocar `Atleta`, conclusão
       migrando tudo numa transação, e o caso de conflito (edição concorrente) bloqueando com erro.
+      **Implementado na camada de serviço** (`OnboardingService.salvarRascunho`/`concluirOnboarding`,
+      `OnboardingDraftInput`, migration V65, 7 testes novos) — os controllers REST (6.0.1-6.0.3)
+      ainda não existem; quando forem construídos, chamam esses métodos em vez de reimplementar
+      a lógica de staging/conflito.
 - [ ] 10.4 Ligar `CalibrationService.avaliarSemana` — hoje implementado e testado isoladamente, mas
-      não chamado de lugar nenhum. Chamar de dentro de `PlanoServiceImpl.persistirPlanoCompleto`
-      (mesmo ponto onde o shadow do `PlannerEngine` e o auto-approve já rodam, passo 4.5/4.6) —
-      "uma semana de calibração" = um ciclo de `gerarPlanoTreino`, sem scheduler novo. **verify:**
-      teste de integração confirmando que gerar um plano para um atleta em `CALIBRATION` dispara
-      `avaliarSemana` e persiste o resultado (10.2).
+      não chamado de lugar nenhum, e nada emite `TrainingPhase.CALIBRATION` ainda (era um gap real,
+      não só mecânico — decisão tomada durante o retrofit, 2026-07-21): entrada em calibração é
+      disparada na primeira vez que o `OnboardingContext` calcula `confidenceTier` B ou C (tipicamente
+      logo após concluir onboarding, Cenário B/C); persistir `calibracaoIniciadaEm` (novo campo,
+      `AthleteBaselineState`, migration nova) só na 1ª vez que `tier != A`; `semanaDesdeInicioCalibracao`
+      = semanas decorridas entre `calibracaoIniciadaEm` e o início do plano atual. Sai de `CALIBRATION`
+      quando `CalibrationEvaluation.elegivel() = true` (critério já implementado em
+      `CalibrationServiceImpl`) — ao sair, limpar `calibracaoIniciadaEm` (permite reentrar depois se o
+      tier cair de novo). Chamar de dentro de `PlanoServiceImpl.persistirPlanoCompleto` (mesmo ponto
+      onde o shadow do `PlannerEngine` e o auto-approve já rodam, passo 4.5/4.6) — "uma semana de
+      calibração" = um ciclo de `gerarPlanoTreino`, sem scheduler novo. **verify:** teste confirmando
+      que a 1ª vez que um atleta cai para tier B/C `calibracaoIniciadaEm` é setado; gerar planos nas
+      semanas seguintes incrementa `semanaDesdeInicioCalibracao` e dispara `avaliarSemana`; ao ficar
+      `elegivel`, `calibracaoIniciadaEm` é limpo e `avaliarSemana` para de ser chamado.
 - [ ] 10.5 Acesso a dado de saúde — já implementado corretamente como TECNICO/ADMIN do tenant
       (task 6.0.5/9.0 abaixo); sem mudança de código, só de documentação (ADR-0001 já registra o
       "técnico responsável" como débito para change futura — não construir aqui).
