@@ -86,18 +86,18 @@ destrutivo) — ver "Rollback" no proposal.md.
 
 ## 4. Calibration Phase + PlanningPolicy
 
-- [ ] 4.1 `CALIBRATION` ja existe em `TrainingPhase` (reservado por `deterministic-planner-engine`, merged) — so criar `CalibrationStage` enum interno, sem editar o enum de fase.
-- [ ] 4.2 TDD: `CalibrationServiceTest` — transicao OBSERVATION->CALIBRATION->STABILIZATION, re-baseline semanal, score bidirecional (sobe e desce), saida da calibracao (score >= 45 + sem HIGH_RISK + `percentualRealizacao` >= 70% via o novo `getAdesaoSemana(atletaId, dataReferencia)`, design.md Decisao 5). **verify:** testes vermelhos.
-- [ ] 4.2.1 Adicionar `MetricasAdesaoService.getAdesaoSemana(String atletaId, LocalDate dataReferencia)`
+- [x] 4.1 `CALIBRATION` ja existe em `TrainingPhase` (reservado por `deterministic-planner-engine`, merged) — so criar `CalibrationStage` enum interno, sem editar o enum de fase.
+- [x] 4.2 TDD: `CalibrationServiceTest` — transicao OBSERVATION->CALIBRATION->STABILIZATION, re-baseline semanal, score bidirecional (sobe e desce), saida da calibracao (score >= 45 + sem HIGH_RISK + `percentualRealizacao` >= 70% via o novo `getAdesaoSemana(atletaId, dataReferencia)`, design.md Decisao 5). **verify:** testes vermelhos.
+- [x] 4.2.1 Adicionar `MetricasAdesaoService.getAdesaoSemana(String atletaId, LocalDate dataReferencia)`
       — novo metodo publico, delega para o `calcularSemana(Atleta, LocalDate)` privado ja existente
       (`MetricasAdesaoService.java:252`); aditivo, nao altera `getAdesaoSemanal(atletaId)` existente
       (correcao do pre-mortem rodada 2 — o metodo publico atual sempre usa `LocalDate.now()`, nao
       serve para avaliar "a semana mais recente de calibracao" quando ela nao e a semana corrente).
       **verify:** teste unitario comparando `getAdesaoSemana(id, dataPassada)` vs. `calcularSemana`
       direto.
-- [ ] 4.3 Implementar `CalibrationService` — gerencia `CalibrationStage`, recalcula baseline e score a cada semana (usando `getAdesaoSemana` da task 4.2.1 para a semana correta, nao `LocalDate.now()`), emite alerta ao treinador se preso em CALIBRATION alem da semana 4. **verify:** `./mvnw -Dtest=CalibrationServiceTest test` verde.
-- [ ] 4.4 TDD: `PlanningPolicyResolverTest` — derivar reviewMode/maxProgression/explanationRequired da faixa de score. **verify:** testes vermelhos.
-- [ ] 4.5 Implementar `PlanningPolicyResolver` — tabela de faixas (>=75, 45-74, <45) -> `PlanningPolicy`. **verify:** `./mvnw -Dtest=PlanningPolicyResolverTest test` verde.
+- [x] 4.3 Implementar `CalibrationService` — gerencia `CalibrationStage`, recalcula baseline e score a cada semana (usando `getAdesaoSemana` da task 4.2.1 para a semana correta, nao `LocalDate.now()`), emite alerta ao treinador se preso em CALIBRATION alem da semana 4. **verify:** `./mvnw -Dtest=CalibrationServiceTest test` verde.
+- [x] 4.4 TDD: `PlanningPolicyResolverTest` — derivar reviewMode/maxProgression/explanationRequired da faixa de score. **verify:** testes vermelhos.
+- [x] 4.5 Implementar `PlanningPolicyResolver` — tabela de faixas (>=75, 45-74, <45) -> `PlanningPolicy`. **verify:** `./mvnw -Dtest=PlanningPolicyResolverTest test` verde.
 
 ## 5. Integracao com fluxo de geracao de plano
 
