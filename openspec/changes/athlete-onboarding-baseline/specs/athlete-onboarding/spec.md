@@ -175,3 +175,30 @@ como alvo.
 - **Then** uma `Prova` e criada (ou atualizada, se ja existir uma equivalente) com `provaAlvo = true`
 - **And** qualquer outra `Prova` do mesmo atleta com `provaAlvo = true` e desmarcada na mesma transacao (no maximo uma prova-alvo ativa por atleta)
 - **And** essa `Prova` e a mesma que o `PeriodizationPlanner` (`deterministic-planner-engine`) usa para resolver a fase
+
+### Requirement: Canal de integracao e dispositivo do atleta (CA14)
+
+O sistema SHALL coletar, no onboarding, o canal de integracao de treinos (`canalIntegracao`:
+`INTERVALS_ICU`/`MANUAL`) e o dispositivo do atleta (`dispositivoMarca`: `GARMIN`/`COROS`/`POLAR`/
+`SUUNTO`/`APPLE`/`OUTRO`, obrigatorio; `dispositivoModelo`: texto livre, opcional) — ambos campos
+obrigatorios (exceto o modelo). `STRAVA` NAO SHALL ser oferecido como opcao de canal para atletas
+novos (descontinuacao anunciada, ADR-0003 — atletas ja conectados via Strava continuam funcionando
+pelo pipeline existente). `dispositivoMarca` alimenta o `ConfidenceScorer` como prior do criterio
+"Fonte confiavel" (mesmo peso, 15 pontos, placeholder) antes de qualquer atividade real existir;
+assim que houver atividade real, o dado real sempre substitui o prior.
+
+#### Scenario: Onboarding nao oferece Strava como opcao de canal
+- **Given** um atleta novo preenchendo o formulario de onboarding
+- **When** o formulario apresenta as opcoes de `canalIntegracao`
+- **Then** apenas `INTERVALS_ICU` e `MANUAL` sao oferecidos
+- **And** `STRAVA` nao aparece como opcao
+
+#### Scenario: Score de confianca usa a marca do dispositivo como prior antes de atividade real
+- **Given** um atleta recem-onboarded com `dispositivoMarca = GARMIN`, sem nenhuma atividade real ainda
+- **When** o `ConfidenceScorer` calcula o score
+- **Then** o criterio "Fonte confiavel" pontua os 15 pontos (prior de alta prioridade), como se houvesse atividade de fonte confiavel
+
+#### Scenario: Atividade real substitui o prior de dispositivo
+- **Given** um atleta com `dispositivoMarca = GARMIN` que ja possui atividades reais de outra fonte (ex.: Strava)
+- **When** o `ConfidenceScorer` calcula o score
+- **Then** o criterio "Fonte confiavel" usa a fonte real das atividades (`FontePriority`), ignorando o prior declarado no onboarding

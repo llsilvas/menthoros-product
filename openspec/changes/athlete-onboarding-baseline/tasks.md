@@ -11,7 +11,7 @@
 
 ## 0. Spec (DoR)
 
-- [x] 0.1 `specs/athlete-onboarding/spec.md` — cenarios Given/When/Then para CA1-CA13, espelhando o padrao de `deterministic-planner-engine/specs/planner-engine/spec.md`. **Pendente (ver 10.8):** CA14 (canal de integração + dispositivo) ainda não tem cenário — adicionado depois da sessão de grilling.
+- [x] 0.1 `specs/athlete-onboarding/spec.md` — cenarios Given/When/Then para CA1-CA14 (CA14 adicionado no retrofit 10.8), espelhando o padrao de `deterministic-planner-engine/specs/planner-engine/spec.md`.
 
 ## 0.2. Migrations (Flyway) — achado do DoR gate (spec-reviewer, 2026-07-20)
 
@@ -37,7 +37,7 @@ destrutivo) — ver "Rollback" no proposal.md.
       `criado_em TIMESTAMP`. Sem `UPDATE`/`DELETE` no fluxo normal (auditoria). **verify:** teste de
       integração do `ActivityDedupService` (task 1.4) confirma insert nesta tabela ao descartar uma
       atividade duplicada.
-- [x] 0.2.3 ⚠️ **Retrofit pendente (10.3/10.6): tabela precisa dos 7 campos espelhados + `canalIntegracao`/`dispositivoMarca`/`dispositivoModelo` (migration nova, não editar esta).** `V61__create_tb_perfil_onboarding_atleta.sql` — nova tabela `tb_perfil_onboarding_atleta`
+- [x] 0.2.3 ✅ **Retrofit aplicado (10.3/10.6): tabela ganhou os 7 campos espelhados (V65) + `canalIntegracao`/`dispositivoMarca`/`dispositivoModelo` (V67), migrations novas, esta não foi editada.** `V61__create_tb_perfil_onboarding_atleta.sql` — nova tabela `tb_perfil_onboarding_atleta`
       **corrigida durante a implementação (design.md Decisão 10 — achado: 7 dos 11 campos já
       existem em `Atleta`, não duplicar)**: (`UNIQUE(atleta_id, tenant_id)`): `id UUID PK`,
       `atleta_id UUID FK`, `tenant_id UUID`, `status VARCHAR(20)` (`RASCUNHO`/`COMPLETO` — suporta
@@ -100,7 +100,7 @@ destrutivo) — ver "Rollback" no proposal.md.
       serve para avaliar "a semana mais recente de calibracao" quando ela nao e a semana corrente).
       **verify:** teste unitario comparando `getAdesaoSemana(id, dataPassada)` vs. `calcularSemana`
       direto.
-- [x] 4.3 ⚠️ **Retrofit pendente (10.4): servico implementado e testado, mas nunca chamado em producao.** Implementar `CalibrationService` — gerencia `CalibrationStage`, recalcula baseline e score a cada semana (usando `getAdesaoSemana` da task 4.2.1 para a semana correta, nao `LocalDate.now()`), emite alerta ao treinador se preso em CALIBRATION alem da semana 4. **verify:** `./mvnw -Dtest=CalibrationServiceTest test` verde.
+- [x] 4.3 ✅ **Retrofit aplicado (10.4): servico agora ligado em `PlanoServiceImpl.persistirPlanoCompleto`, além de implementado e testado isoladamente.** Implementar `CalibrationService` — gerencia `CalibrationStage`, recalcula baseline e score a cada semana (usando `getAdesaoSemana` da task 4.2.1 para a semana correta, nao `LocalDate.now()`), emite alerta ao treinador se preso em CALIBRATION alem da semana 4. **verify:** `./mvnw -Dtest=CalibrationServiceTest test` verde.
 - [x] 4.4 TDD: `PlanningPolicyResolverTest` — derivar reviewMode/maxProgression/explanationRequired da faixa de score. **verify:** testes vermelhos.
 - [x] 4.5 Implementar `PlanningPolicyResolver` — tabela de faixas (>=75, 45-74, <45) -> `PlanningPolicy`. **verify:** `./mvnw -Dtest=PlanningPolicyResolverTest test` verde.
 
@@ -139,7 +139,7 @@ destrutivo) — ver "Rollback" no proposal.md.
       para empurrar o treino ao relogio do atleta — sem isso, planos auto-aprovados nunca
       sincronizariam com integracoes externas. **verify:** teste de integracao confirma
       `PlanoAprovadoEvent` publicado nos dois caminhos (manual e auto-approve).
-- [x] 5.5 Badge de baixa confianca na fila de revisao do coach (Cenario B, `MANDATORY_NON_BLOCKING`) — reaproveita `listarPlanosPendentes`/`PlanoReviewServiceImpl`, sem endpoint novo. Adicionado campo `confidenceTier` (nullable) em `PlanoSemanalOutputDto`, populado em `PlanoReviewServiceImpl.enriquecerComConfidenceTier` a partir do `AthleteBaselineSnapshotRepository` (null quando o atleta ainda nao passou pelo onboarding). **verify:** `./mvnw -Dtest=PlanoReviewServiceImplTest test` verde (3 novos testes de enriquecimento).
+- [x] 5.5 Badge de baixa confianca na fila de revisao do coach (Cenario B, `MANDATORY_NON_BLOCKING`) — reaproveita `listarPlanosPendentes`/`PlanoReviewServiceImpl`, sem endpoint novo. Adicionado campo `confidenceTier` (nullable) em `PlanoSemanalOutputDto`, populado em `PlanoReviewServiceImpl.enriquecerComConfidenceTier` a partir do `AthleteBaselineSnapshotRepository` (renomeado para `AthleteBaselineStateRepository` no retrofit 10.2) (null quando o atleta ainda nao passou pelo onboarding). **verify:** `./mvnw -Dtest=PlanoReviewServiceImplTest test` verde (3 novos testes de enriquecimento).
 - [x] 5.6 `dataProva` do onboarding cria/atualiza `Prova` (CA13, design.md Decisao 8) — reaproveita o
       CRUD de `Prova` existente. **Na mesma transacao, desmarcar `provaAlvo=false` de qualquer outra
       `Prova` ativa do atleta antes de marcar a nova/atualizada como `provaAlvo=true`** (correcao do
@@ -156,6 +156,7 @@ destrutivo) — ver "Rollback" no proposal.md.
 - [x] 5.7 Migracao de atletas existentes — flag `onboarding.migrate-existing.enabled` (default true)
       que calcula baseline + score para atletas sem `AthleteBaseline`. Implementado em
       `PlanoServiceImpl.resolverOnboardingContext`: atletas SEM `AthleteBaselineSnapshot`
+      (renomeada para `AthleteBaselineState` no retrofit 10.2)
       (`OnboardingService.possuiBaseline`) so tem o contexto calculado quando a flag esta ligada;
       atletas que JA possuem snapshot continuam recalculando incondicionalmente (necessario para
       o re-baseline da calibracao, CA3). **verify:** `./mvnw -Dtest=PlanoServiceImplTest,OnboardingServiceTest test` verde (3 novos testes cobrindo legado+flag on/off e ja-migrado+flag off).
@@ -218,10 +219,11 @@ destrutivo) — ver "Rollback" no proposal.md.
 
 ## 10. Retrofit — sessão de grilling/domain-modeling (2026-07-21)
 
-> Faz ANTES de continuar para a Seção 6+ — as decisões abaixo mudam o schema e o comportamento de
-> código já commitado (Seções 1-5.7, `develop`..`b8892a7`). Migrations novas (V63+; V59-V62 já
-> aplicadas, não editar). Contexto completo: `apps/menthoros-backend/CONTEXT.md` +
-> `apps/menthoros-backend/docs/adr/0001-0003`.
+> ✅ **Concluída em 2026-07-21** (10.1-10.8, `feature/athlete-onboarding-baseline` commits
+> a596c1d..01a39b3) — as decisões abaixo mudaram o schema e o comportamento de código já
+> commitado (Seções 1-5.7, `develop`..`b8892a7`). Migrations V63-V67. `./mvnw clean test` verde
+> (2017 testes). Contexto completo: `apps/menthoros-backend/CONTEXT.md` +
+> `apps/menthoros-backend/docs/adr/0001-0003`. Pode seguir para a Seção 6+.
 
 - [x] 10.1 `origemAprovacao` em `PlanoSemanal` (`COACH`/`AUTO_CONFIANCA_ALTA`) — migration nova
       (`ALTER TABLE tb_plano_semanal ADD COLUMN origem_aprovacao VARCHAR(30) NULL`).
@@ -267,7 +269,7 @@ destrutivo) — ver "Rollback" no proposal.md.
 - [x] 10.5 Acesso a dado de saúde — já implementado corretamente como TECNICO/ADMIN do tenant
       (task 6.0.5/9.0 abaixo); sem mudança de código, só de documentação (ADR-0001 já registra o
       "técnico responsável" como débito para change futura — não construir aqui).
-- [ ] 10.6 `CanalIntegracao` (`INTERVALS_ICU`/`MANUAL`) e `dispositivoMarca`/`dispositivoModelo` —
+- [x] 10.6 `CanalIntegracao` (`INTERVALS_ICU`/`MANUAL`) e `dispositivoMarca`/`dispositivoModelo` —
       2 colunas novas (enum) + 1 opcional (texto livre) em `tb_perfil_onboarding_atleta` (mesma
       migration da 10.3, ou separada). `ConfidenceScorer` ganha `dispositivoMarca` como input,
       usando `FontePriority` (já existente, reusado) como prior de "Fonte confiável" antes de
@@ -276,9 +278,9 @@ destrutivo) — ver "Rollback" no proposal.md.
       form não oferece `STRAVA` como opção de canal (ADR-0003). **verify:** teste do
       `ConfidenceScorer` cobrindo o prior por `dispositivoMarca` isolado (sem histórico de
       atividade) e o caso onde dado real substitui o prior.
-- [ ] 10.7 **verify final da Seção 10:** `./mvnw clean test` verde; `tasks.md` Seções 1-5.7 revisadas
+- [x] 10.7 **verify final da Seção 10:** `./mvnw clean test` verde; `tasks.md` Seções 1-5.7 revisadas
       para confirmar que nenhuma outra descrição ficou incompatível com as decisões acima.
-- [ ] 10.8 Adicionar cenário Given/When/Then para CA14 em `specs/athlete-onboarding/spec.md` (0.1) —
+- [x] 10.8 Adicionar cenário Given/When/Then para CA14 em `specs/athlete-onboarding/spec.md` (0.1) —
       canal de integração + dispositivo declarados, incluindo o cenário de Strava não aparecer como
       opção para atleta novo (ADR-0003).
 
