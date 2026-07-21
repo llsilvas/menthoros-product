@@ -249,7 +249,7 @@ destrutivo) — ver "Rollback" no proposal.md.
       `OnboardingDraftInput`, migration V65, 7 testes novos) — os controllers REST (6.0.1-6.0.3)
       ainda não existem; quando forem construídos, chamam esses métodos em vez de reimplementar
       a lógica de staging/conflito.
-- [ ] 10.4 Ligar `CalibrationService.avaliarSemana` — hoje implementado e testado isoladamente, mas
+- [x] 10.4 Ligar `CalibrationService.avaliarSemana` — hoje implementado e testado isoladamente, mas
       não chamado de lugar nenhum, e nada emite `TrainingPhase.CALIBRATION` ainda (era um gap real,
       não só mecânico — decisão tomada durante o retrofit, 2026-07-21): entrada em calibração é
       disparada na primeira vez que o `OnboardingContext` calcula `confidenceTier` B ou C (tipicamente
@@ -264,7 +264,7 @@ destrutivo) — ver "Rollback" no proposal.md.
       que a 1ª vez que um atleta cai para tier B/C `calibracaoIniciadaEm` é setado; gerar planos nas
       semanas seguintes incrementa `semanaDesdeInicioCalibracao` e dispara `avaliarSemana`; ao ficar
       `elegivel`, `calibracaoIniciadaEm` é limpo e `avaliarSemana` para de ser chamado.
-- [ ] 10.5 Acesso a dado de saúde — já implementado corretamente como TECNICO/ADMIN do tenant
+- [x] 10.5 Acesso a dado de saúde — já implementado corretamente como TECNICO/ADMIN do tenant
       (task 6.0.5/9.0 abaixo); sem mudança de código, só de documentação (ADR-0001 já registra o
       "técnico responsável" como débito para change futura — não construir aqui).
 - [ ] 10.6 `CanalIntegracao` (`INTERVALS_ICU`/`MANUAL`) e `dispositivoMarca`/`dispositivoModelo` —
