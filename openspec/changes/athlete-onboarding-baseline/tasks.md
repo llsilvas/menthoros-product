@@ -78,7 +78,7 @@ destrutivo) — ver "Rollback" no proposal.md.
 
 - [x] 2.1 TDD: `BaselineCalculatorTest` — Cenario A (8+ semanas, baseline direto), Cenario B (4 semanas, hibrido real + extrapolacao), Cenario C (zero, heuristica). **verify:** testes vermelhos.
 - [x] 2.2 Implementar `BaselineCalculator` — reusa `TsbService` para CTL/ATL/TSB; Cen B preenche lacunas com TSS estimado (marcado ESTIMATED); Cen C usa tabela heuristica (`nivelExperiencia` x `modalidade`). **verify:** `./mvnw -Dtest=BaselineCalculatorTest test` verde.
-- [x] 2.3 ⚠️ **Retrofit pendente (10.2): `AthleteBaselineSnapshot` renomeada para `AthleteBaselineState` + nova `AthleteBaselineHistory`.** Criar entidade JPA `AthleteBaselineSnapshot` mapeando `tb_athlete_baseline_snapshot`
+- [x] 2.3 ✅ **Retrofit aplicado (10.2): `AthleteBaselineSnapshot` renomeada para `AthleteBaselineState` + nova `AthleteBaselineHistory` (append-only).** Criar entidade JPA `AthleteBaselineSnapshot` mapeando `tb_athlete_baseline_snapshot`
       (migration 0.2.1) — persiste CTL/ATL/TSB + flags ESTIMATED/MEASURED por componente +
       `calculatedAt` + `confidenceScore`/`confidenceTier`. Mapper para o record `AthleteBaseline`
       (2 campos, já reservado por `deterministic-planner-engine`) na borda de leitura do
@@ -129,7 +129,7 @@ destrutivo) — ver "Rollback" no proposal.md.
       Implementado em `PlanoServiceImpl.aplicarAutoApproveSeElegivel`. **verify:**
       `PlanoServiceImplTest$AutoApproveCenarioA` (7 testes) cobre os 3 `reviewMode`, o caso "score
       alto mas requiresCoachReview=true", risco HIGH_RISK, flag desabilitada e shadow vazio.
-- [x] 5.4.1 ⚠️ **Retrofit pendente (10.1): `aprovarTransicao` precisa gravar `origemAprovacao`.** Extrair de `PlanoReviewServiceImpl.aprovarPlano` (linhas 67-78) um metodo interno
+- [x] 5.4.1 ✅ **Retrofit aplicado (10.1): `aprovarTransicao` grava `origemAprovacao`.** Extrair de `PlanoReviewServiceImpl.aprovarPlano` (linhas 67-78) um metodo interno
       reutilizavel (ex.: `aprovarTransicao(PlanoSemanal plano, UUID tenantId)`) com os mesmos 4
       efeitos: `setReviewStatus(APROVADO)`, `setReviewComment(null)`, `save` +
       `inicializarAssociacoes`, e **publicar `PlanoAprovadoEvent`** — chamado tanto pelo fluxo manual
@@ -223,14 +223,14 @@ destrutivo) — ver "Rollback" no proposal.md.
 > aplicadas, não editar). Contexto completo: `apps/menthoros-backend/CONTEXT.md` +
 > `apps/menthoros-backend/docs/adr/0001-0003`.
 
-- [ ] 10.1 `origemAprovacao` em `PlanoSemanal` (`COACH`/`AUTO_CONFIANCA_ALTA`) — migration nova
+- [x] 10.1 `origemAprovacao` em `PlanoSemanal` (`COACH`/`AUTO_CONFIANCA_ALTA`) — migration nova
       (`ALTER TABLE tb_plano_semanal ADD COLUMN origem_aprovacao VARCHAR(30) NULL`).
       `PlanoReviewServiceImpl.aprovarTransicao` (task 5.4.1) passa a receber a origem como
       parâmetro e setar o campo; `aprovarPlano` (fluxo manual) passa `COACH`,
       `PlanoServiceImpl.aplicarAutoApproveSeElegivel` (task 5.4) passa `AUTO_CONFIANCA_ALTA`.
       **verify:** teste de integração confirmando os dois caminhos gravam a origem correta;
       `PlanoReviewServiceImplTest`/`PlanoServiceImplTest` existentes continuam verdes.
-- [ ] 10.2 Renomear `AthleteBaselineSnapshot` -> `AthleteBaselineState` (classe, repository,
+- [x] 10.2 Renomear `AthleteBaselineSnapshot` -> `AthleteBaselineState` (classe, repository,
       referências em `OnboardingServiceImpl`/`PlanoReviewServiceImpl`/`PlannerShadowService`) + nova
       entidade/tabela `AthleteBaselineHistory`/`tb_athlete_baseline_history` (append-only: mesmas
       colunas de `tb_athlete_baseline_snapshot` menos a `UNIQUE(atleta_id, tenant_id)`, mais
