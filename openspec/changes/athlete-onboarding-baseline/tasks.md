@@ -71,9 +71,9 @@ destrutivo) — ver "Rollback" no proposal.md.
 
 ## 2. Baseline Calculator
 
-- [ ] 2.1 TDD: `BaselineCalculatorTest` — Cenario A (8+ semanas, baseline direto), Cenario B (4 semanas, hibrido real + extrapolacao), Cenario C (zero, heuristica). **verify:** testes vermelhos.
-- [ ] 2.2 Implementar `BaselineCalculator` — reusa `TsbService` para CTL/ATL/TSB; Cen B preenche lacunas com TSS estimado (marcado ESTIMATED); Cen C usa tabela heuristica (`nivelExperiencia` x `modalidade`). **verify:** `./mvnw -Dtest=BaselineCalculatorTest test` verde.
-- [ ] 2.3 Criar entidade JPA `AthleteBaselineSnapshot` mapeando `tb_athlete_baseline_snapshot`
+- [x] 2.1 TDD: `BaselineCalculatorTest` — Cenario A (8+ semanas, baseline direto), Cenario B (4 semanas, hibrido real + extrapolacao), Cenario C (zero, heuristica). **verify:** testes vermelhos.
+- [x] 2.2 Implementar `BaselineCalculator` — reusa `TsbService` para CTL/ATL/TSB; Cen B preenche lacunas com TSS estimado (marcado ESTIMATED); Cen C usa tabela heuristica (`nivelExperiencia` x `modalidade`). **verify:** `./mvnw -Dtest=BaselineCalculatorTest test` verde.
+- [x] 2.3 Criar entidade JPA `AthleteBaselineSnapshot` mapeando `tb_athlete_baseline_snapshot`
       (migration 0.2.1) — persiste CTL/ATL/TSB + flags ESTIMATED/MEASURED por componente +
       `calculatedAt` + `confidenceScore`/`confidenceTier`. Mapper para o record `AthleteBaseline`
       (2 campos, já reservado por `deterministic-planner-engine`) na borda de leitura do

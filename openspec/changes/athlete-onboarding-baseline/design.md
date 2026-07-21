@@ -198,6 +198,34 @@ encolhe para conter apenas:
 1:1 de uma tabela unica. O endpoint de conclusao (tasks.md 6.0.3) grava em `Atleta` E na tabela nova
 na mesma transacao.
 
+## Decisao 11 — Baseline Calculator: formula continua, nao 3 branches separados
+
+**Achado durante a implementacao (2026-07-20):** os "3 cenarios" (A >= 8 semanas direto, B parcial
+hibrido, C zero heuristica) sao modelados como uma UNICA formula de interpolacao linear, nao 3
+branches de codigo distintos — mesmo padrao ja usado pelo Confidence Scorer (Decisao 3, criterio
+"Historico >= 8 semanas... proporcional linear entre 0 semanas (0 pts) e 8 semanas (20 pts, teto)").
+
+```
+proporcaoHeuristica = clamp((8 - semanasObservadas) / 8, 0, 1)
+ctlFinal = ctlReal * (1 - proporcaoHeuristica) + ctlHeuristico * proporcaoHeuristica
+atlFinal = atlReal * (1 - proporcaoHeuristica) + atlHeuristico * proporcaoHeuristica
+tsbFinal = ctlFinal - atlFinal
+origem   = proporcaoHeuristica > 0 ? ESTIMATED : MEASURED
+```
+
+- `ctlReal`/`atlReal`: saida do `TsbService.recalcularHistoricoCompleto` + `MetricasDiariasRepository.findLatestByAtletaId`
+  (0.0 se nao houver `MetricasDiarias`, ex.: atleta sem nenhum `TreinoRealizado`).
+- `ctlHeuristico`: tabela por `NivelExperiencia` (INICIANTE=25, INTERMEDIARIO=40, AVANCADO=55,
+  ELITE=70) — hipotese v1, mesma classe de threshold hardcoded documentado de `planner-rules.yml`,
+  calibravel com dado real. `atlHeuristico = ctlHeuristico` (forma neutra, TSB=0 — sem sinal de
+  fadiga recente para um atleta sem historico algum).
+- `semanasObservadas`: dias entre a atividade mais antiga do historico deduplicado e hoje, /7.
+
+Em `semanasObservadas >= 8`, `proporcaoHeuristica = 0` -> Cenario A (baseline 100% real, `MEASURED`).
+Em `semanasObservadas = 0`, `proporcaoHeuristica = 1` -> Cenario C (100% heuristica, `ESTIMATED`).
+Valores intermediarios sao o Cenario B (blend, `ESTIMATED`) — nao ha um "modo hibrido" especial
+separado, e o mesmo calculo em todo o intervalo.
+
 ## Fora de escopo
 
 - Diagnostico medico, recomendacao nutricional, analise biomecanica
