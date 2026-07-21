@@ -148,7 +148,12 @@ destrutivo) — ver "Rollback" no proposal.md.
       a prova-alvo atual; caso contrario cria uma nova e desmarca qualquer outra. **verify:**
       `./mvnw -Dtest=OnboardingServiceTest test` verde (5 novos testes, incluindo o caso de
       desmarcar a prova-alvo antiga).
-- [ ] 5.7 Migracao de atletas existentes — flag `onboarding.migrate-existing` que calcula baseline + score para atletas sem `AthleteBaseline`. **verify:** teste com atleta legado (dados reais do seed).
+- [x] 5.7 Migracao de atletas existentes — flag `onboarding.migrate-existing.enabled` (default true)
+      que calcula baseline + score para atletas sem `AthleteBaseline`. Implementado em
+      `PlanoServiceImpl.resolverOnboardingContext`: atletas SEM `AthleteBaselineSnapshot`
+      (`OnboardingService.possuiBaseline`) so tem o contexto calculado quando a flag esta ligada;
+      atletas que JA possuem snapshot continuam recalculando incondicionalmente (necessario para
+      o re-baseline da calibracao, CA3). **verify:** `./mvnw -Dtest=PlanoServiceImplTest,OnboardingServiceTest test` verde (3 novos testes cobrindo legado+flag on/off e ja-migrado+flag off).
 
 ## 6. Contrato — endpoints novos + tipos no front
 
