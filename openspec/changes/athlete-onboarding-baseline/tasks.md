@@ -165,7 +165,7 @@ destrutivo) — ver "Rollback" no proposal.md.
 
 **Endpoints novos (achado do DoR gate — superfície não estava declarada):**
 
-- [ ] 6.0.1 `POST /api/v1/atletas/{atletaId}/onboarding` — submete/salva o formulário (parcial ou
+- [x] 6.0.1 `POST /api/v1/atletas/{atletaId}/onboarding` — submete/salva o formulário (parcial ou
       completo). **Decisão final revisitada na sessão de grilling 2026-07-21 (substitui a
       "Corrigida Decisão 10" anterior, que mandava escrever direto em `Atleta` a cada step — ver
       Seção 10, task 10.3, e `apps/menthoros-backend/docs/adr/0002-*.md`):** durante `RASCUNHO`,
@@ -174,11 +174,11 @@ destrutivo) — ver "Rollback" no proposal.md.
       `tb_perfil_onboarding_atleta` — nada é escrito em `Atleta` neste endpoint. `@RequireTenant`,
       papel ATLETA (dono) ou TECNICO/ADMIN (coach-como-proxy, Decisão 3). Retorna o perfil
       (só a tabela nova, não composto com `Atleta` — composição só acontece após `COMPLETO`).
-- [ ] 6.0.2 `GET /api/v1/atletas/{atletaId}/onboarding` — recupera o draft salvo (CA8, retomar
+- [x] 6.0.2 `GET /api/v1/atletas/{atletaId}/onboarding` — recupera o draft salvo (CA8, retomar
       onboarding interrompido); lê os 13 campos direto de `tb_perfil_onboarding_atleta` (durante
       `RASCUNHO`, é a única fonte — não compõe com `Atleta` ainda). `@RequireTenant`, mesmo
       controle de acesso do 6.0.1.
-- [ ] 6.0.3 `POST /api/v1/atletas/{atletaId}/onboarding/concluir` — finaliza o onboarding.
+- [x] 6.0.3 `POST /api/v1/atletas/{atletaId}/onboarding/concluir` — finaliza o onboarding.
       **Ordem (ver Seção 10, task 10.3):** (1) checar conflito — se `Atleta.atualizadoEm` for
       posterior ao `criadoEm` do rascunho, retornar `DomainConflictException` (409) em vez de
       migrar; (2) migrar os 7 campos espelhados de `tb_perfil_onboarding_atleta` para `Atleta`; (3)
@@ -187,14 +187,25 @@ destrutivo) — ver "Rollback" no proposal.md.
       `AthleteBaselineState` + primeira linha em `AthleteBaselineHistory`, cria/atualiza `Prova` a
       partir de `dataProva` (CA13, Decisão 8). Retorna `AthleteBaseline` (o record de leitura) +
       `confidenceScore`/`tier`. `@RequireTenant`.
-- [ ] 6.0.4 `GET /api/v1/atletas/{atletaId}/calibracao` — retorna `CalibrationStatus` (phase, stage,
+- [x] 6.0.4 `GET /api/v1/atletas/{atletaId}/calibracao` — retorna `CalibrationStatus` (phase, stage,
       weekNumber, confidenceScore) para o `CalibrationBanner` (task 8.2). `@RequireTenant`, papel
       ATLETA (próprio) ou TECNICO/ADMIN.
-- [ ] 6.0.5 Campos de saúde (CA12, design.md Decisão 9, **corrigida no pre-mortem rodada 2** —
+- [x] 6.0.5 Campos de saúde (CA12, design.md Decisão 9, **corrigida no pre-mortem rodada 2** —
       "coach responsável" não existe como relação no modelo hoje): os endpoints acima usam
       `@RequireTenant` + papel ATLETA (dono) OU TECNICO/ADMIN do mesmo tenant (não um vínculo de
       coach designado, que exigiria modelagem nova fora de escopo). Documentar isso explicitamente
-      no controller/Swagger — não deixar implícito.
+      no controller/Swagger — não deixar implícito. **Implementado:** `OnboardingController`
+      (`@Tag` description) + `@ApiResponses` de cada endpoint documentam o modelo de acesso.
+
+> **6.0.1-6.0.5 implementados** (2026-07-21, `feature/athlete-onboarding-baseline` commits
+> d8ca4dd..95e433d): `OnboardingController` + `OnboardingMapper` + `AtletaOnboardingInputDto`/
+> `OnboardingConclusaoInputDto`/`AtletaOnboardingOutputDto`/`OnboardingConclusaoOutputDto`/
+> `CalibracaoStatusOutputDto`. Camada de serviço (`OnboardingService.salvarRascunho`/
+> `buscarRascunho`/`concluirOnboarding`/`obterStatusCalibracao`) com checagem de posse
+> (atleta só acessa o próprio onboarding; TECNICO/ADMIN irrestrito no tenant). 18 testes novos
+> (`OnboardingServiceTest`, `OnboardingMapperTest`, `OnboardingControllerTest`).
+> `./mvnw clean test` verde (2044 testes). 6.1 (referência de API) e 6.2-6.4 (frontend,
+> `menthoros-front`) ainda pendentes.
 
 - [ ] 6.1 Gerar referencia da API a partir dos endpoints 6.0.1-6.0.4; nao sobrescrever fachada.
 - [ ] 6.2 Portar `AthleteOnboardingProfile` (13 campos obrigatorios — inclui `canalIntegracao`/
