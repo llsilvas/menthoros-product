@@ -61,8 +61,9 @@ Hoje o Menthoros nao tem um fluxo formal de onboarding do atleta. O cadastro e s
 
 ### Frontend
 
-- **Formulario de onboarding estendido** — coleta dos 12 campos obrigatorios (objetivo, dataProva, nivelExperiencia, volumeAtual, maiorTreinoRecente, diasDisponiveis, duracaoDisponivel, historicoLesoes, restricoes, modalidade, percepcaoCondicionamento, **canalIntegracao** — novo, decisao 2026-07-21). Dados opcionais (fcMaxima, fcRepouso, ritmoLimiar, ftp, etc.) nao bloqueiam. Estado intermediario salvo como draft, retomavel.
-- **Canal de integracao** (`CanalIntegracao`: `INTERVALS_ICU` | `MANUAL`) — declaracao de qual plataforma o atleta vai usar para enviar/receber treinos, com Garmin como dispositivo prioritario na orientacao de conexao quando `INTERVALS_ICU`. Strava **nao** e oferecido como opcao para atletas novos (ADR-0003, `apps/menthoros-backend/docs/adr/`) — em descontinuacao, mas ainda ativo para quem ja esta conectado. Alimenta o Confidence Scorer (CA14).
+- **Formulario de onboarding estendido** — coleta dos 13 campos obrigatorios (objetivo, dataProva, nivelExperiencia, volumeAtual, maiorTreinoRecente, diasDisponiveis, duracaoDisponivel, historicoLesoes, restricoes, modalidade, percepcaoCondicionamento, **canalIntegracao**, **dispositivoMarca** — 2 novos, decisao 2026-07-21). `dispositivoModelo` e opcional (texto livre, sem uso funcional ainda — nao trava conclusao). Dados opcionais (fcMaxima, fcRepouso, ritmoLimiar, ftp, etc.) nao bloqueiam. Estado intermediario salvo como draft, retomavel.
+- **Canal de integracao** (`CanalIntegracao`: `INTERVALS_ICU` | `MANUAL`) — declaracao de qual plataforma o atleta vai usar para enviar/receber treinos, com Garmin como dispositivo prioritario na orientacao de conexao quando `INTERVALS_ICU`. Strava **nao** e oferecido como opcao para atletas novos (ADR-0003, `apps/menthoros-backend/docs/adr/`) — em descontinuacao, mas ainda ativo para quem ja esta conectado.
+- **Dispositivo do atleta** (`dispositivoMarca` obrigatorio: `GARMIN`/`COROS`/`POLAR`/`SUUNTO`/`APPLE`/`OUTRO`; `dispositivoModelo` opcional, texto livre) — marca alimenta o Confidence Scorer como prior via `FontePriority` (ja existente, reusado); modelo so armazenado para feature futura de capacidade por dispositivo, sem logica de capacidade nesta change. Ortogonal ao canal de integracao (CA14).
 - **Extensao do feedback pos-treino** — durante `CALIBRATION`, modal coleta campos adicionais (dor, fadiga, sono, recuperacao entre sessoes) alem do RPE ja existente. Reaproveita o modal atual, sem novo canal de captura.
 - **Indicador de calibracao** — banner/progresso na Home do atleta mostrando em qual semana de calibracao esta e o que falta para o plano personalizado.
 
@@ -86,11 +87,13 @@ Hoje o Menthoros nao tem um fluxo formal de onboarding do atleta. O cadastro e s
   identica pendente) com `provaAlvo=true`, desmarcando qualquer outra `Prova` do atleta que
   estivesse marcada como alvo (design.md Decisao 8) — nao fica como campo solto fora do CRUD de
   `Prova`.
-- **CA14 — Canal de integracao declarado:** o onboarding exige `canalIntegracao` (`INTERVALS_ICU`
-  ou `MANUAL`, nunca `STRAVA` para atleta novo — ADR-0003). Quando `INTERVALS_ICU`, a orientacao de
-  conexao mostrada prioriza Garmin como dispositivo. O valor declarado alimenta o Confidence Scorer
-  como sinal de confianca inicial antes de qualquer atividade real existir (formula exata e
-  peso: em aberto, ver Open Questions).
+- **CA14 — Canal de integracao e dispositivo declarados:** o onboarding exige `canalIntegracao`
+  (`INTERVALS_ICU` ou `MANUAL`, nunca `STRAVA` para atleta novo — ADR-0003) e `dispositivoMarca`
+  (`GARMIN`/`COROS`/`POLAR`/`SUUNTO`/`APPLE`/`OUTRO`). Quando `INTERVALS_ICU`, a orientacao de
+  conexao mostrada prioriza Garmin. `dispositivoMarca` alimenta o Confidence Scorer como sinal de
+  confianca inicial (via `FontePriority`) antes de qualquer atividade real existir — formula exata
+  de quanto isso pesa fica em aberto (ver Open Questions). `dispositivoModelo` (texto livre,
+  opcional) e so armazenado, sem logica de capacidade nesta change.
 
 ## Metrica de sucesso
 
@@ -124,7 +127,8 @@ Hoje o Menthoros nao tem um fluxo formal de onboarding do atleta. O cadastro e s
 - ✅ **Draft do onboarding usa staging, nao escreve direto em `Atleta`** — decisao final revisitada (a versao anterior desta secao dizia o oposto); mitigacao de conflito via comparacao de timestamp na conclusao (ADR-0002, decisao 2026-07-21).
 - ✅ **Trigger da avaliacao semanal de calibracao** — acoplado ao ciclo de geracao de plano (`PlanoServiceImpl.persistirPlanoCompleto`), nao um scheduler novo (decisao 2026-07-21).
 - ✅ **Canal de integracao (`CanalIntegracao`)** — novo campo obrigatorio, `INTERVALS_ICU`/`MANUAL`, Strava excluido para atleta novo (ADR-0003, decisao 2026-07-21).
-- **Formula/peso exato de como `CanalIntegracao` alimenta o Confidence Scorer** — o campo existe e a decisao de inclui-lo esta tomada, mas o peso/formula exata ainda nao foi definida (aberto).
+- ✅ **Dispositivo do atleta (`dispositivoMarca`/`dispositivoModelo`)** — marca obrigatoria (enum, alimenta prior do Confidence Scorer via `FontePriority` ja existente), modelo opcional (texto livre, sem logica de capacidade nesta change — feature futura, decisao 2026-07-21). Ortogonal a `CanalIntegracao`.
+- **Formula/peso exato de como `dispositivoMarca` alimenta o Confidence Scorer** — o campo existe e a decisao de inclui-lo esta tomada, mas o peso/formula exata (e como ele e substituido pelo dado real assim que a primeira atividade chega) ainda nao foi definida (aberto).
 
 ## Rollback e Riscos (achado do DoR gate — spec-reviewer, 2026-07-20)
 
