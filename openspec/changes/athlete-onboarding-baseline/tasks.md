@@ -135,13 +135,19 @@ destrutivo) — ver "Rollback" no proposal.md.
       sincronizariam com integracoes externas. **verify:** teste de integracao confirma
       `PlanoAprovadoEvent` publicado nos dois caminhos (manual e auto-approve).
 - [x] 5.5 Badge de baixa confianca na fila de revisao do coach (Cenario B, `MANDATORY_NON_BLOCKING`) — reaproveita `listarPlanosPendentes`/`PlanoReviewServiceImpl`, sem endpoint novo. Adicionado campo `confidenceTier` (nullable) em `PlanoSemanalOutputDto`, populado em `PlanoReviewServiceImpl.enriquecerComConfidenceTier` a partir do `AthleteBaselineSnapshotRepository` (null quando o atleta ainda nao passou pelo onboarding). **verify:** `./mvnw -Dtest=PlanoReviewServiceImplTest test` verde (3 novos testes de enriquecimento).
-- [ ] 5.6 `dataProva` do onboarding cria/atualiza `Prova` (CA13, design.md Decisao 8) — reaproveita o
+- [x] 5.6 `dataProva` do onboarding cria/atualiza `Prova` (CA13, design.md Decisao 8) — reaproveita o
       CRUD de `Prova` existente. **Na mesma transacao, desmarcar `provaAlvo=false` de qualquer outra
       `Prova` ativa do atleta antes de marcar a nova/atualizada como `provaAlvo=true`** (correcao do
       pre-mortem rodada 2 — `ProvaRepository.findByAtletaAndProvaAlvoTrue` nao garante unicidade e
       `PeriodizationPlanner.findFirst()` nao tem ordenacao determinada; sem essa correcao, o planner
-      pode escolher uma prova diferente da que o onboarding acabou de criar). **verify:** teste de
-      integracao confirmando no maximo 1 `Prova` com `provaAlvo=true` por atleta apos o fluxo.
+      pode escolher uma prova diferente da que o onboarding acabou de criar). Implementado como
+      `OnboardingService.criarOuAtualizarProvaAlvo(atletaId, tenantId, dataProva, tipoProva,
+      distancia, distanciaKm, nomeProva)` — so o `dataProva` e obrigatorio nos 11 campos do
+      onboarding (proposal.md); `tipoProva`/`distancia` ficam para o controller de `/onboarding/concluir`
+      (task 6.0.3) prover. Atualiza a `Prova` existente quando `dataProva`+`distancia` coincidem com
+      a prova-alvo atual; caso contrario cria uma nova e desmarca qualquer outra. **verify:**
+      `./mvnw -Dtest=OnboardingServiceTest test` verde (5 novos testes, incluindo o caso de
+      desmarcar a prova-alvo antiga).
 - [ ] 5.7 Migracao de atletas existentes — flag `onboarding.migrate-existing` que calcula baseline + score para atletas sem `AthleteBaseline`. **verify:** teste com atleta legado (dados reais do seed).
 
 ## 6. Contrato — endpoints novos + tipos no front
