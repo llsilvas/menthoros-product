@@ -134,7 +134,7 @@ destrutivo) — ver "Rollback" no proposal.md.
       para empurrar o treino ao relogio do atleta — sem isso, planos auto-aprovados nunca
       sincronizariam com integracoes externas. **verify:** teste de integracao confirma
       `PlanoAprovadoEvent` publicado nos dois caminhos (manual e auto-approve).
-- [ ] 5.5 Badge de baixa confianca na fila de revisao do coach (Cenario B, `MANDATORY_NON_BLOCKING`) — reaproveita `listarPlanosPendentes`/`PlanoReviewServiceImpl`, sem endpoint novo. **verify:** teste de integracao.
+- [x] 5.5 Badge de baixa confianca na fila de revisao do coach (Cenario B, `MANDATORY_NON_BLOCKING`) — reaproveita `listarPlanosPendentes`/`PlanoReviewServiceImpl`, sem endpoint novo. Adicionado campo `confidenceTier` (nullable) em `PlanoSemanalOutputDto`, populado em `PlanoReviewServiceImpl.enriquecerComConfidenceTier` a partir do `AthleteBaselineSnapshotRepository` (null quando o atleta ainda nao passou pelo onboarding). **verify:** `./mvnw -Dtest=PlanoReviewServiceImplTest test` verde (3 novos testes de enriquecimento).
 - [ ] 5.6 `dataProva` do onboarding cria/atualiza `Prova` (CA13, design.md Decisao 8) — reaproveita o
       CRUD de `Prova` existente. **Na mesma transacao, desmarcar `provaAlvo=false` de qualquer outra
       `Prova` ativa do atleta antes de marcar a nova/atualizada como `provaAlvo=true`** (correcao do
