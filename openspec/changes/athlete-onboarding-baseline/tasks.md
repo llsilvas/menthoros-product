@@ -81,8 +81,8 @@ destrutivo) — ver "Rollback" no proposal.md.
 
 ## 3. Confidence Scorer
 
-- [ ] 3.1 TDD: `ConfidenceScorerTest` — cobrir cada um dos 8 criterios, cenarios A/B/C por score, bonus coach-como-proxy. **verify:** testes vermelhos.
-- [ ] 3.2 Implementar `ConfidenceScorer` — soma ponderada 0-100, normalizacao para 0.0-1.0 na borda do `OnboardingContext`. **verify:** `./mvnw -Dtest=ConfidenceScorerTest test` verde.
+- [x] 3.1 TDD: `ConfidenceScorerTest` — cobrir cada um dos 8 criterios, cenarios A/B/C por score, bonus coach-como-proxy. **verify:** testes vermelhos.
+- [x] 3.2 Implementar `ConfidenceScorer` — soma ponderada 0-100, normalizacao para 0.0-1.0 na borda do `OnboardingContext`. **verify:** `./mvnw -Dtest=ConfidenceScorerTest test` verde.
 
 ## 4. Calibration Phase + PlanningPolicy
 
