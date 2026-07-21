@@ -101,16 +101,17 @@ destrutivo) — ver "Rollback" no proposal.md.
 
 ## 5. Integracao com fluxo de geracao de plano
 
-- [ ] 5.1 TDD: `OnboardingServiceTest` — fluxo completo onboarding -> baseline -> score -> OnboardingContext. **verify:** testes vermelhos.
-- [ ] 5.2 Implementar `OnboardingService` — orquestra ActivityNormalizer -> BaselineCalculator -> ConfidenceScorer -> OnboardingContext. **verify:** `./mvnw -Dtest=OnboardingServiceTest test` verde.
-- [ ] 5.3 Integrar no `PlanoServiceImpl` — se `OnboardingContext` presente e `planner-engine.enabled`,
-      montar `PlannerInputSnapshot` (populando o campo `onboardingContext`, hoje `Optional.empty()`
-      em `PlannerShadowService.java:178-180`) e chamar **`PlannerEngine.planWeek(PlannerInputSnapshot)`**
-      — correcao do pre-mortem rodada 2: a assinatura `planWeek(dados, ctx)` da versao anterior desta
-      task nao existe no codigo real; o metodo real e `planWeek(PlannerInputSnapshot)`
-      (`PlannerEngine.java:49`). Definir onde vive o mapper `DadosPlanoDto + OnboardingContext ->
-      PlannerInputSnapshot`. **verify:** teste de integracao.
-- [ ] 5.4 TDD: auto-approve Cenario A (CA5, design.md Decisao 7 — **2 achados criticos do pre-mortem
+- [x] 5.1 TDD: `OnboardingServiceTest` — fluxo completo onboarding -> baseline -> score -> OnboardingContext. **verify:** testes vermelhos.
+- [x] 5.2 Implementar `OnboardingService` — orquestra ActivityNormalizer -> BaselineCalculator -> ConfidenceScorer -> OnboardingContext. **verify:** `./mvnw -Dtest=OnboardingServiceTest test` verde (6 testes).
+- [x] 5.3 Integrar no `PlanoServiceImpl` — `PlannerShadowService.aplicarShadow` ganhou uma sobrecarga
+      que aceita `Optional<OnboardingContext>` (a original de 6 args delega para ela com
+      `Optional.empty()`, preservando os 9 testes existentes de `PlannerShadowServiceTest`) e agora
+      retorna `Optional<WeekPlanSkeleton>` em vez de `void` — necessario para o auto-approve (5.4)
+      inspecionar `requiresCoachReview()`/`injuryRisk()` do ciclo corrente. `PlanoServiceImpl` chama
+      `OnboardingService.montarContexto(...)` antes do shadow e repassa o contexto, que populam o
+      campo `PlannerInputSnapshot.onboardingContext` (antes sempre `Optional.empty()`). **verify:**
+      `./mvnw -Dtest=PlannerShadowServiceTest,PlanoServiceImplTest test` verde.
+- [x] 5.4 TDD: auto-approve Cenario A (CA5, design.md Decisao 7 — **2 achados criticos do pre-mortem
       rodada 2, ambos corrigidos abaixo**):
       (a) apos `criarPlanoEntity`, se `PlanningPolicy.reviewMode == EXCEPTION_ONLY` E flag
       `onboarding.auto-approve.enabled` (nova, default true — kill-switch isolado, ver proposal.md
@@ -120,9 +121,10 @@ destrutivo) — ver "Rollback" no proposal.md.
       se qualquer condicao falhar, mantem `AGUARDANDO_REVISAO` padrao.
       (b) para `MANDATORY_NON_BLOCKING`/`MANDATORY_BLOCKING`, mantem `AGUARDANDO_REVISAO`
       (comportamento ja existente, sem alteracao — CA4).
-      **verify:** teste de integracao cobrindo os 3 `reviewMode` **e** o caso "score alto mas
-      requiresCoachReview=true" (nao deve auto-aprovar).
-- [ ] 5.4.1 Extrair de `PlanoReviewServiceImpl.aprovarPlano` (linhas 67-78) um metodo interno
+      Implementado em `PlanoServiceImpl.aplicarAutoApproveSeElegivel`. **verify:**
+      `PlanoServiceImplTest$AutoApproveCenarioA` (7 testes) cobre os 3 `reviewMode`, o caso "score
+      alto mas requiresCoachReview=true", risco HIGH_RISK, flag desabilitada e shadow vazio.
+- [x] 5.4.1 Extrair de `PlanoReviewServiceImpl.aprovarPlano` (linhas 67-78) um metodo interno
       reutilizavel (ex.: `aprovarTransicao(PlanoSemanal plano, UUID tenantId)`) com os mesmos 4
       efeitos: `setReviewStatus(APROVADO)`, `setReviewComment(null)`, `save` +
       `inicializarAssociacoes`, e **publicar `PlanoAprovadoEvent`** — chamado tanto pelo fluxo manual
