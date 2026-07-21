@@ -1,12 +1,17 @@
 # Tasks — athlete-onboarding-baseline
 
-> Cross-repo. Ordem: spec (0) -> backend (1-5) -> contrato (6) -> frontend (7-9).
+> Cross-repo. Ordem: spec (0) -> backend (1-5) -> **retrofit (10, novo — fazer ANTES de continuar
+> pra 6-9)** -> contrato (6) -> frontend (7-9).
 > Depende de `deterministic-planner-engine` merged (consome `PlannerEngine`, `OnboardingContext`, `TrainingPhase.CALIBRATION`) — **confirmado mergeado em `develop`, 2026-07-20**.
 > Validacao: backend `./mvnw clean test`; frontend `npm run lint && npm run build && npm run test:run`.
+> **Sessao de grilling/domain-modeling (2026-07-21):** 8 decisoes tomadas sobre o que ja esta
+> implementado nas Secoes 1-5.7 (commits ate `b8892a7`). Nenhum codigo foi alterado ainda — ver
+> Secao 10 (Retrofit). `apps/menthoros-backend/CONTEXT.md` (glossario) e
+> `apps/menthoros-backend/docs/adr/0001-0003` documentam o raciocinio completo de cada decisao.
 
 ## 0. Spec (DoR)
 
-- [x] 0.1 `specs/athlete-onboarding/spec.md` — cenarios Given/When/Then para CA1-CA13, espelhando o padrao de `deterministic-planner-engine/specs/planner-engine/spec.md`.
+- [x] 0.1 `specs/athlete-onboarding/spec.md` — cenarios Given/When/Then para CA1-CA13, espelhando o padrao de `deterministic-planner-engine/specs/planner-engine/spec.md`. **Pendente (ver 10.8):** CA14 (canal de integração + dispositivo) ainda não tem cenário — adicionado depois da sessão de grilling.
 
 ## 0.2. Migrations (Flyway) — achado do DoR gate (spec-reviewer, 2026-07-20)
 
@@ -32,7 +37,7 @@ destrutivo) — ver "Rollback" no proposal.md.
       `criado_em TIMESTAMP`. Sem `UPDATE`/`DELETE` no fluxo normal (auditoria). **verify:** teste de
       integração do `ActivityDedupService` (task 1.4) confirma insert nesta tabela ao descartar uma
       atividade duplicada.
-- [x] 0.2.3 `V61__create_tb_perfil_onboarding_atleta.sql` — nova tabela `tb_perfil_onboarding_atleta`
+- [x] 0.2.3 ⚠️ **Retrofit pendente (10.3/10.6): tabela precisa dos 7 campos espelhados + `canalIntegracao`/`dispositivoMarca`/`dispositivoModelo` (migration nova, não editar esta).** `V61__create_tb_perfil_onboarding_atleta.sql` — nova tabela `tb_perfil_onboarding_atleta`
       **corrigida durante a implementação (design.md Decisão 10 — achado: 7 dos 11 campos já
       existem em `Atleta`, não duplicar)**: (`UNIQUE(atleta_id, tenant_id)`): `id UUID PK`,
       `atleta_id UUID FK`, `tenant_id UUID`, `status VARCHAR(20)` (`RASCUNHO`/`COMPLETO` — suporta
@@ -73,7 +78,7 @@ destrutivo) — ver "Rollback" no proposal.md.
 
 - [x] 2.1 TDD: `BaselineCalculatorTest` — Cenario A (8+ semanas, baseline direto), Cenario B (4 semanas, hibrido real + extrapolacao), Cenario C (zero, heuristica). **verify:** testes vermelhos.
 - [x] 2.2 Implementar `BaselineCalculator` — reusa `TsbService` para CTL/ATL/TSB; Cen B preenche lacunas com TSS estimado (marcado ESTIMATED); Cen C usa tabela heuristica (`nivelExperiencia` x `modalidade`). **verify:** `./mvnw -Dtest=BaselineCalculatorTest test` verde.
-- [x] 2.3 Criar entidade JPA `AthleteBaselineSnapshot` mapeando `tb_athlete_baseline_snapshot`
+- [x] 2.3 ⚠️ **Retrofit pendente (10.2): `AthleteBaselineSnapshot` renomeada para `AthleteBaselineState` + nova `AthleteBaselineHistory`.** Criar entidade JPA `AthleteBaselineSnapshot` mapeando `tb_athlete_baseline_snapshot`
       (migration 0.2.1) — persiste CTL/ATL/TSB + flags ESTIMATED/MEASURED por componente +
       `calculatedAt` + `confidenceScore`/`confidenceTier`. Mapper para o record `AthleteBaseline`
       (2 campos, já reservado por `deterministic-planner-engine`) na borda de leitura do
@@ -95,7 +100,7 @@ destrutivo) — ver "Rollback" no proposal.md.
       serve para avaliar "a semana mais recente de calibracao" quando ela nao e a semana corrente).
       **verify:** teste unitario comparando `getAdesaoSemana(id, dataPassada)` vs. `calcularSemana`
       direto.
-- [x] 4.3 Implementar `CalibrationService` — gerencia `CalibrationStage`, recalcula baseline e score a cada semana (usando `getAdesaoSemana` da task 4.2.1 para a semana correta, nao `LocalDate.now()`), emite alerta ao treinador se preso em CALIBRATION alem da semana 4. **verify:** `./mvnw -Dtest=CalibrationServiceTest test` verde.
+- [x] 4.3 ⚠️ **Retrofit pendente (10.4): servico implementado e testado, mas nunca chamado em producao.** Implementar `CalibrationService` — gerencia `CalibrationStage`, recalcula baseline e score a cada semana (usando `getAdesaoSemana` da task 4.2.1 para a semana correta, nao `LocalDate.now()`), emite alerta ao treinador se preso em CALIBRATION alem da semana 4. **verify:** `./mvnw -Dtest=CalibrationServiceTest test` verde.
 - [x] 4.4 TDD: `PlanningPolicyResolverTest` — derivar reviewMode/maxProgression/explanationRequired da faixa de score. **verify:** testes vermelhos.
 - [x] 4.5 Implementar `PlanningPolicyResolver` — tabela de faixas (>=75, 45-74, <45) -> `PlanningPolicy`. **verify:** `./mvnw -Dtest=PlanningPolicyResolverTest test` verde.
 
@@ -124,7 +129,7 @@ destrutivo) — ver "Rollback" no proposal.md.
       Implementado em `PlanoServiceImpl.aplicarAutoApproveSeElegivel`. **verify:**
       `PlanoServiceImplTest$AutoApproveCenarioA` (7 testes) cobre os 3 `reviewMode`, o caso "score
       alto mas requiresCoachReview=true", risco HIGH_RISK, flag desabilitada e shadow vazio.
-- [x] 5.4.1 Extrair de `PlanoReviewServiceImpl.aprovarPlano` (linhas 67-78) um metodo interno
+- [x] 5.4.1 ⚠️ **Retrofit pendente (10.1): `aprovarTransicao` precisa gravar `origemAprovacao`.** Extrair de `PlanoReviewServiceImpl.aprovarPlano` (linhas 67-78) um metodo interno
       reutilizavel (ex.: `aprovarTransicao(PlanoSemanal plano, UUID tenantId)`) com os mesmos 4
       efeitos: `setReviewStatus(APROVADO)`, `setReviewComment(null)`, `save` +
       `inicializarAssociacoes`, e **publicar `PlanoAprovadoEvent`** — chamado tanto pelo fluxo manual
@@ -160,19 +165,27 @@ destrutivo) — ver "Rollback" no proposal.md.
 **Endpoints novos (achado do DoR gate — superfície não estava declarada):**
 
 - [ ] 6.0.1 `POST /api/v1/atletas/{atletaId}/onboarding` — submete/salva o formulário (parcial ou
-      completo). **Corrigido (design.md Decisão 10):** escreve os 7 campos já existentes DIRETO em
-      `Atleta` (objetivo, nivelExperiencia, diasDisponiveis, historicoLesoes/temLesao/
-      descricaoLesao/dataUltimaLesao, volumeSemanalMax) e os 5 campos novos +
-      `status=RASCUNHO`/`COMPLETO` (todos os 11 presentes) em `tb_perfil_onboarding_atleta` — mesma
-      transação. `@RequireTenant`, papel ATLETA (dono) ou TECNICO/ADMIN (coach-como-proxy,
-      Decisão 3). Retorna o perfil composto (campos de `Atleta` + tabela nova).
+      completo). **Decisão final revisitada na sessão de grilling 2026-07-21 (substitui a
+      "Corrigida Decisão 10" anterior, que mandava escrever direto em `Atleta` a cada step — ver
+      Seção 10, task 10.3, e `apps/menthoros-backend/docs/adr/0002-*.md`):** durante `RASCUNHO`,
+      **todos os 13 campos obrigatórios** (os 7 que também existem em `Atleta` + os 5 novos +
+      `canalIntegracao`/`dispositivoMarca`, mais `dispositivoModelo` opcional) ficam SÓ em
+      `tb_perfil_onboarding_atleta` — nada é escrito em `Atleta` neste endpoint. `@RequireTenant`,
+      papel ATLETA (dono) ou TECNICO/ADMIN (coach-como-proxy, Decisão 3). Retorna o perfil
+      (só a tabela nova, não composto com `Atleta` — composição só acontece após `COMPLETO`).
 - [ ] 6.0.2 `GET /api/v1/atletas/{atletaId}/onboarding` — recupera o draft salvo (CA8, retomar
-      onboarding interrompido); compõe os 7 campos já em `Atleta` + os 5 campos +
-      `status` de `tb_perfil_onboarding_atleta`. `@RequireTenant`, mesmo controle de acesso do 6.0.1.
-- [ ] 6.0.3 `POST /api/v1/atletas/{atletaId}/onboarding/concluir` — finaliza o onboarding: dispara
-      `BaselineCalculator` + `ConfidenceScorer`, persiste `AthleteBaselineSnapshot`, cria/atualiza
-      `Prova` a partir de `dataProva` (CA13, Decisão 8). Retorna `AthleteBaseline` (o record de
-      leitura) + `confidenceScore`/`tier`. `@RequireTenant`.
+      onboarding interrompido); lê os 13 campos direto de `tb_perfil_onboarding_atleta` (durante
+      `RASCUNHO`, é a única fonte — não compõe com `Atleta` ainda). `@RequireTenant`, mesmo
+      controle de acesso do 6.0.1.
+- [ ] 6.0.3 `POST /api/v1/atletas/{atletaId}/onboarding/concluir` — finaliza o onboarding.
+      **Ordem (ver Seção 10, task 10.3):** (1) checar conflito — se `Atleta.atualizadoEm` for
+      posterior ao `criadoEm` do rascunho, retornar `DomainConflictException` (409) em vez de
+      migrar; (2) migrar os 7 campos espelhados de `tb_perfil_onboarding_atleta` para `Atleta`; (3)
+      `status -> COMPLETO`; tudo na mesma transação. Depois: dispara `BaselineCalculator` +
+      `ConfidenceScorer` (usando `dispositivoMarca` como prior via `FontePriority`), persiste
+      `AthleteBaselineState` + primeira linha em `AthleteBaselineHistory`, cria/atualiza `Prova` a
+      partir de `dataProva` (CA13, Decisão 8). Retorna `AthleteBaseline` (o record de leitura) +
+      `confidenceScore`/`tier`. `@RequireTenant`.
 - [ ] 6.0.4 `GET /api/v1/atletas/{atletaId}/calibracao` — retorna `CalibrationStatus` (phase, stage,
       weekNumber, confidenceScore) para o `CalibrationBanner` (task 8.2). `@RequireTenant`, papel
       ATLETA (próprio) ou TECNICO/ADMIN.
@@ -183,7 +196,8 @@ destrutivo) — ver "Rollback" no proposal.md.
       no controller/Swagger — não deixar implícito.
 
 - [ ] 6.1 Gerar referencia da API a partir dos endpoints 6.0.1-6.0.4; nao sobrescrever fachada.
-- [ ] 6.2 Portar `AthleteOnboardingProfile` (11 campos obrigatorios + opcionais) para `types/`.
+- [ ] 6.2 Portar `AthleteOnboardingProfile` (13 campos obrigatorios — inclui `canalIntegracao`/
+      `dispositivoMarca` — + opcionais, incluindo `dispositivoModelo`) para `types/`.
 - [ ] 6.3 Portar `CalibrationStatus` (phase, stage, weekNumber, confidenceScore) para `types/`.
 - [ ] 6.4 **verify:** `npm run build`.
 
@@ -202,13 +216,66 @@ destrutivo) — ver "Rollback" no proposal.md.
 - [ ] 8.4 Implementar extensao do `PostWorkoutFeedback` — condicional em `CalibrationStatus != null`, campos adicionais. **verify:** `npm run test:run`.
 - [ ] 8.5 Notificacao/banner quando o atleta sai de CALIBRATION (design.md Decisao 5) — reaproveita o `CalibrationBanner` (8.2), sem canal novo. **verify:** `npm run test:run`.
 
+## 10. Retrofit — sessão de grilling/domain-modeling (2026-07-21)
+
+> Faz ANTES de continuar para a Seção 6+ — as decisões abaixo mudam o schema e o comportamento de
+> código já commitado (Seções 1-5.7, `develop`..`b8892a7`). Migrations novas (V63+; V59-V62 já
+> aplicadas, não editar). Contexto completo: `apps/menthoros-backend/CONTEXT.md` +
+> `apps/menthoros-backend/docs/adr/0001-0003`.
+
+- [ ] 10.1 `origemAprovacao` em `PlanoSemanal` (`COACH`/`AUTO_CONFIANCA_ALTA`) — migration nova
+      (`ALTER TABLE tb_plano_semanal ADD COLUMN origem_aprovacao VARCHAR(30) NULL`).
+      `PlanoReviewServiceImpl.aprovarTransicao` (task 5.4.1) passa a receber a origem como
+      parâmetro e setar o campo; `aprovarPlano` (fluxo manual) passa `COACH`,
+      `PlanoServiceImpl.aplicarAutoApproveSeElegivel` (task 5.4) passa `AUTO_CONFIANCA_ALTA`.
+      **verify:** teste de integração confirmando os dois caminhos gravam a origem correta;
+      `PlanoReviewServiceImplTest`/`PlanoServiceImplTest` existentes continuam verdes.
+- [ ] 10.2 Renomear `AthleteBaselineSnapshot` -> `AthleteBaselineState` (classe, repository,
+      referências em `OnboardingServiceImpl`/`PlanoReviewServiceImpl`/`PlannerShadowService`) + nova
+      entidade/tabela `AthleteBaselineHistory`/`tb_athlete_baseline_history` (append-only: mesmas
+      colunas de `tb_athlete_baseline_snapshot` menos a `UNIQUE(atleta_id, tenant_id)`, mais
+      `evento VARCHAR(30)` — ex. `ONBOARDING_CONCLUIDO`/`RE_BASELINE_SEMANAL`). `OnboardingService`
+      grava nas duas tabelas no mesmo `save` (estado atual + uma linha de histórico), toda vez que
+      recalcula. **verify:** teste confirmando que 3 recálculos seguidos do mesmo atleta produzem 1
+      linha em `AthleteBaselineState` (sobrescrita) e 3 linhas em `AthleteBaselineHistory`.
+- [ ] 10.3 Draft do onboarding em staging (substitui o comportamento atual de `tb_perfil_onboarding_atleta`
+      só guardar os 5 campos novos — ver 6.0.1/6.0.2/6.0.3 acima e ADR-0002): adicionar os 7 campos
+      espelhados de `Atleta` como colunas nullable em `tb_perfil_onboarding_atleta` (migration
+      nova). Endpoint de conclusão (6.0.3) migra para `Atleta` só na conclusão, com a checagem de
+      conflito por `atualizadoEm` (`DomainConflictException` se `Atleta` foi editada depois do
+      início do rascunho). **verify:** teste cobrindo save-parcial sem tocar `Atleta`, conclusão
+      migrando tudo numa transação, e o caso de conflito (edição concorrente) bloqueando com erro.
+- [ ] 10.4 Ligar `CalibrationService.avaliarSemana` — hoje implementado e testado isoladamente, mas
+      não chamado de lugar nenhum. Chamar de dentro de `PlanoServiceImpl.persistirPlanoCompleto`
+      (mesmo ponto onde o shadow do `PlannerEngine` e o auto-approve já rodam, passo 4.5/4.6) —
+      "uma semana de calibração" = um ciclo de `gerarPlanoTreino`, sem scheduler novo. **verify:**
+      teste de integração confirmando que gerar um plano para um atleta em `CALIBRATION` dispara
+      `avaliarSemana` e persiste o resultado (10.2).
+- [ ] 10.5 Acesso a dado de saúde — já implementado corretamente como TECNICO/ADMIN do tenant
+      (task 6.0.5/9.0 abaixo); sem mudança de código, só de documentação (ADR-0001 já registra o
+      "técnico responsável" como débito para change futura — não construir aqui).
+- [ ] 10.6 `CanalIntegracao` (`INTERVALS_ICU`/`MANUAL`) e `dispositivoMarca`/`dispositivoModelo` —
+      2 colunas novas (enum) + 1 opcional (texto livre) em `tb_perfil_onboarding_atleta` (mesma
+      migration da 10.3, ou separada). `ConfidenceScorer` ganha `dispositivoMarca` como input,
+      usando `FontePriority` (já existente, reusado) como prior de "Fonte confiável" antes de
+      qualquer atividade real existir — peso exato ainda em aberto (ver proposal.md Open
+      Questions), usar o mesmo peso do critério "Fonte confiável" (15) como placeholder. Onboarding
+      form não oferece `STRAVA` como opção de canal (ADR-0003). **verify:** teste do
+      `ConfidenceScorer` cobrindo o prior por `dispositivoMarca` isolado (sem histórico de
+      atividade) e o caso onde dado real substitui o prior.
+- [ ] 10.7 **verify final da Seção 10:** `./mvnw clean test` verde; `tasks.md` Seções 1-5.7 revisadas
+      para confirmar que nenhuma outra descrição ficou incompatível com as decisões acima.
+- [ ] 10.8 Adicionar cenário Given/When/Then para CA14 em `specs/athlete-onboarding/spec.md` (0.1) —
+      canal de integração + dispositivo declarados, incluindo o cenário de Strava não aparecer como
+      opção para atleta novo (ADR-0003).
+
 ## 9. Verificacao de aceite (DoD)
 
 - [ ] 9.0 Acesso a dado sensivel (CA12, design.md Decisao 9, corrigida rodada 2) — teste de
       integracao confirmando que o atleta dono e qualquer TECNICO/ADMIN do MESMO tenant leem campos
       de lesao/dor/fadiga/sono/recuperacao; um usuario de OUTRO tenant recebe 403/404 (isolamento de
       tenant, nao vinculo de coach individual — esse vinculo nao existe no modelo).
-- [ ] 9.1 CA1-CA13 verificados ponta-a-ponta (backend + frontend).
+- [ ] 9.1 CA1-CA14 verificados ponta-a-ponta (backend + frontend).
 - [ ] 9.2 Atleta legado: gerar plano para atleta do seed -> Cenario B, sem quebra.
 - [ ] 9.3 Onboarding interrompido: fechar browser no step 2, reabrir -> retoma do step 2.
 - [ ] 9.4 PR backend e PR front abertos (backend primeiro); CI verde nos dois.
