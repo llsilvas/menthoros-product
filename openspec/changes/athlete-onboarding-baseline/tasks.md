@@ -287,8 +287,8 @@ destrutivo) — ver "Rollback" no proposal.md.
       (nivelDor/nivelFadiga/qualidadeSonoNoiteAnterior/nivelRecuperacao). **Retrofit de backend
       necessário e feito em paralelo:** a migration V62 (`tb_treino_realizado.nivel_dor`/
       `nivel_fadiga`/`nivel_recuperacao`) já existia mas nunca tinha sido ligada a nenhum DTO/service
-      — `TreinoManualInputDto`/entidade/service atualizados no mesmo ciclo (ver commit no
-      `menthoros-backend`, mesma branch `feature/athlete-onboarding-baseline`).
+      — `TreinoManualInputDto`/entidade/service atualizados no mesmo ciclo (`menthoros-backend`
+      commit d6df1e0, mesma branch `feature/athlete-onboarding-baseline`; 2047 testes verdes).
 - [x] 8.5 Notificacao/banner quando o atleta sai de CALIBRATION (design.md Decisao 5) — reaproveita
       o `CalibrationBanner` (8.2), sem canal novo. **verify:** `npm run test:run`.
       **Implementado:** `CalibrationBanner` ganha a prop `justExited`; `useCalibracao` detecta a
