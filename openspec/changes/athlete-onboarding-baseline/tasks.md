@@ -267,11 +267,33 @@ destrutivo) — ver "Rollback" no proposal.md.
 
 ## 8. Frontend — Calibracao UI
 
-- [ ] 8.1 TDD: `CalibrationBannerTest` — renderiza por stage (OBSERVATION/CALIBRATION/STABILIZATION), mostra semana atual, progresso. **verify:** testes vermelhos.
-- [ ] 8.2 Implementar `CalibrationBanner` na Home do atleta — consome `GET /calibracao` (task 6.0.4) retornando `CalibrationStatus`. **verify:** `npm run test:run`.
-- [ ] 8.3 TDD: `PostWorkoutFeedbackExtrasTest` — durante CALIBRATION, campos extras (dor, fadiga, sono, recuperacao) visiveis; fora de CALIBRATION, apenas RPE. **verify:** testes vermelhos.
-- [ ] 8.4 Implementar extensao do `PostWorkoutFeedback` — condicional em `CalibrationStatus != null`, campos adicionais. **verify:** `npm run test:run`.
-- [ ] 8.5 Notificacao/banner quando o atleta sai de CALIBRATION (design.md Decisao 5) — reaproveita o `CalibrationBanner` (8.2), sem canal novo. **verify:** `npm run test:run`.
+- [x] 8.1 TDD: `CalibrationBannerTest` — renderiza por stage (OBSERVATION/CALIBRATION/STABILIZATION), mostra semana atual, progresso. **verify:** testes vermelhos.
+      **Implementado:** `CalibrationBanner.test.tsx`, 8 testes (mensagem por stage, semana atual,
+      dismiss, e as 2 variantes informativa/saída).
+- [x] 8.2 Implementar `CalibrationBanner` na Home do atleta — consome `GET /calibracao` (task 6.0.4)
+      retornando `CalibrationStatus`. **verify:** `npm run test:run`.
+      **Implementado:** `CalibrationBanner.tsx` + `useCalibracao.ts` (resolve atletaId via
+      `UsuarioService.getMe()`, mesmo padrão de `useAthletePlan`); ligado no topo do
+      `AthleteHomePage`, antes do `WeekClosedBanner`.
+- [x] 8.3 TDD: `PostWorkoutFeedbackExtrasTest` — durante CALIBRATION, campos extras (dor, fadiga,
+      sono, recuperacao) visiveis; fora de CALIBRATION, apenas RPE. **verify:** testes vermelhos.
+      **Escopo esclarecido durante a implementação:** o componente real que coleta RPE (entrada,
+      não leitura) é `ManualTrainingForm.tsx`, não `PostWorkoutFeedbackCard` (que é só o resumo
+      read-only pós-submissão) — os testes novos vivem em `ManualTrainingForm.test.tsx`.
+- [x] 8.4 Implementar extensao do `PostWorkoutFeedback` — condicional em `CalibrationStatus != null`,
+      campos adicionais. **verify:** `npm run test:run`.
+      **Implementado em `ManualTrainingForm.tsx`** (ver nota da 8.3): prop `emCalibracao` (derivada
+      de `useCalibracao` em `ManualTrainingFormPage`), 4 `Slider` 1-10 condicionais
+      (nivelDor/nivelFadiga/qualidadeSonoNoiteAnterior/nivelRecuperacao). **Retrofit de backend
+      necessário e feito em paralelo:** a migration V62 (`tb_treino_realizado.nivel_dor`/
+      `nivel_fadiga`/`nivel_recuperacao`) já existia mas nunca tinha sido ligada a nenhum DTO/service
+      — `TreinoManualInputDto`/entidade/service atualizados no mesmo ciclo (ver commit no
+      `menthoros-backend`, mesma branch `feature/athlete-onboarding-baseline`).
+- [x] 8.5 Notificacao/banner quando o atleta sai de CALIBRATION (design.md Decisao 5) — reaproveita
+      o `CalibrationBanner` (8.2), sem canal novo. **verify:** `npm run test:run`.
+      **Implementado:** `CalibrationBanner` ganha a prop `justExited`; `useCalibracao` detecta a
+      transição comparando com um flag persistido em `localStorage` entre visitas (a saída
+      acontece na geração de plano, fora do fluxo do usuário — só é perceptível entre sessões).
 
 ## 10. Retrofit — sessão de grilling/domain-modeling (2026-07-21)
 
