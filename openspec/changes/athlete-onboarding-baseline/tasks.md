@@ -225,17 +225,45 @@ destrutivo) — ver "Rollback" no proposal.md.
 > `@Lock(PESSIMISTIC_WRITE)` escopado só a este fluxo — não em `AuditableEntity`.
 
 - [ ] 6.1 Gerar referencia da API a partir dos endpoints 6.0.1-6.0.4; nao sobrescrever fachada.
-- [ ] 6.2 Portar `AthleteOnboardingProfile` (13 campos obrigatorios — inclui `canalIntegracao`/
+- [x] 6.2 Portar `AthleteOnboardingProfile` (13 campos obrigatorios — inclui `canalIntegracao`/
       `dispositivoMarca` — + opcionais, incluindo `dispositivoModelo`) para `types/`.
-- [ ] 6.3 Portar `CalibrationStatus` (phase, stage, weekNumber, confidenceScore) para `types/`.
-- [ ] 6.4 **verify:** `npm run build`.
+      **Implementado:** `src/types/Onboarding.ts` (`AthleteOnboardingProfile`/`OnboardingDraftInput`/
+      `OnboardingConclusaoInput`/`OnboardingConclusaoResult`) + `src/api/services/OnboardingService.ts`.
+- [x] 6.3 Portar `CalibrationStatus` (phase, stage, weekNumber, confidenceScore) para `types/`.
+      **Implementado:** `src/types/Calibracao.ts`.
+- [x] 6.4 **verify:** `npm run build`. Verde (`feature/athlete-onboarding-baseline` no
+      `menthoros-front`, commit bcbb457).
 
 ## 7. Frontend — Onboarding form
 
-- [ ] 7.1 TDD: `AthleteOnboardingPageTest` — renderiza 11 campos, validacao, estado intermediario salvo/restaurado. **verify:** testes vermelhos.
-- [ ] 7.2 Implementar `AthleteOnboardingPage` — formulario multi-step (perfil -> objetivo -> disponibilidade -> saude), progresso salvo como draft. **verify:** `npm run test:run`.
-- [ ] 7.3 Integrar com `POST /onboarding` (draft, task 6.0.1) a cada step e `POST /onboarding/concluir` (task 6.0.3) no final — recebe `AthleteBaseline` + score. **verify:** smoke manual.
-- [ ] 7.4 Bonus coach-como-proxy — se usuario logado e treinador preenchendo perfil de atleta, UI mostra "Preenchendo como treinador" e envia flag `filledByCoach: true`.
+- [x] 7.1 TDD: `AthleteOnboardingPageTest` — renderiza 11 campos, validacao, estado intermediario
+      salvo/restaurado. **verify:** testes vermelhos. **Escopo atualizado durante a implementação:**
+      o formulario agora cobre os 16 campos de rascunho + 5 campos de prova alvo (13+opcionais do
+      proposal.md original, expandido pelo retrofit 10.6 com `canalIntegracao`/`dispositivoMarca`/
+      `dispositivoModelo`) — "11 campos" no texto original desta task estava desatualizado.
+      9 testes em `AthleteOnboardingPage.test.tsx` + 8 em `useOnboarding.test.ts`.
+- [x] 7.2 Implementar `AthleteOnboardingPage` — formulario multi-step (perfil -> objetivo ->
+      disponibilidade -> saude), progresso salvo como draft. **verify:** `npm run test:run`.
+      **Implementado:** 5 etapas via MUI `Stepper` (Perfil, Objetivo, Disponibilidade, Saúde, Prova
+      alvo) — primeiro form multi-etapa do app (não havia lib de form nem wizard existente; seguiu
+      o padrão `useState` por campo de `ManualTrainingForm.tsx`). Rascunho salvo a cada "Avançar"
+      via `useOnboarding.saveDraft`; retomada de onboarding interrompido via
+      `OnboardingService.buscarRascunho` no mount (CA8).
+- [x] 7.3 Integrar com `POST /onboarding` (draft, task 6.0.1) a cada step e `POST /onboarding/concluir`
+      (task 6.0.3) no final — recebe `AthleteBaseline` + score. **verify:** smoke manual.
+      **Implementado e verificado** via `npm run lint`/`build`/`test:run` (693 testes) — smoke manual
+      end-to-end (subir backend+front e completar o fluxo) ainda não executado nesta sessão.
+- [ ] 7.4 Bonus coach-como-proxy — se usuario logado e treinador preenchendo perfil de atleta, UI
+      mostra "Preenchendo como treinador" e envia flag `filledByCoach: true`. **Nao implementado —
+      gap de escopo identificado:** a rota `/athlete/onboarding` e guardada por
+      `RoleRoute allow={['ATLETA']}`, e `useOnboarding` resolve `atletaId` via
+      `UsuarioService.getMe().atletaId` (so existe pra quem tem role ATLETA) — hoje nao ha como um
+      TECNICO/ADMIN alcancar esta pagina para preencher em nome de outro atleta. `filledByCoach`
+      tambem nao precisa ser enviado pelo client: o backend ja deriva `preenchidoPorCoach` do papel
+      do chamador via JWT (`OnboardingController.isCoach()`), nao de um campo do body. Implementar
+      esta bonus exige decidir ONDE o coach entra nesse fluxo (ex.: botao em
+      `CoachAthleteProfilePage` linkando pra uma rota nova `/coach/athletes/:atletaId/onboarding`) —
+      fora do escopo de "portar o formulario"; registrar como pendencia para decisao do founder.
 
 ## 8. Frontend — Calibracao UI
 
