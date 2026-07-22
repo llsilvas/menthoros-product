@@ -180,7 +180,9 @@ destrutivo) — ver "Rollback" no proposal.md.
       controle de acesso do 6.0.1.
 - [x] 6.0.3 `POST /api/v1/atletas/{atletaId}/onboarding/concluir` — finaliza o onboarding.
       **Ordem (ver Seção 10, task 10.3):** (1) checar conflito — se `Atleta.atualizadoEm` for
-      posterior ao `criadoEm` do rascunho, retornar `DomainConflictException` (409) em vez de
+      posterior ao `atualizadoEm` do rascunho (correção QA 2026-07-21: não o `criadoEm` — comparar
+      contra o início travaria a conclusão para sempre após qualquer edição direta), retornar
+      `DomainConflictException` (409) em vez de
       migrar; (2) migrar os 7 campos espelhados de `tb_perfil_onboarding_atleta` para `Atleta`; (3)
       `status -> COMPLETO`; tudo na mesma transação. Depois: dispara `BaselineCalculator` +
       `ConfidenceScorer` (usando `dispositivoMarca` como prior via `FontePriority`), persiste
@@ -206,6 +208,21 @@ destrutivo) — ver "Rollback" no proposal.md.
 > (`OnboardingServiceTest`, `OnboardingMapperTest`, `OnboardingControllerTest`).
 > `./mvnw clean test` verde (2044 testes). 6.1 (referência de API) e 6.2-6.4 (frontend,
 > `menthoros-front`) ainda pendentes.
+
+> **QA gate rodado (2026-07-21)** — 3 agentes (code-reviewer, security-reviewer, clean-code-reviewer)
+> sobre o diff completo da branch. Sem achado Critical. Corrigidos (commit b20f220): checagem de
+> conflito usava `criadoEm` em vez de `atualizadoEm` do rascunho (travava `concluirOnboarding` pra
+> sempre após qualquer edição direta em `Atleta`, mesmo com o rascunho resalvo depois — bug real,
+> CA8); `semanaDesdeInicioCalibracao` duplicado entre `obterStatusCalibracao`/
+> `avaliarCalibracaoSeAplicavel`; `AtividadeProvenienciaDescartadaRepository.findByAtividadeId`
+> sem tenant (landmine, sem chamador ainda); Bean Validation faltando nos DTOs de onboarding.
+> **Débito registrado, não corrigido agora** (decisão do usuário 2026-07-21): checagem de conflito
+> de `concluirOnboarding` é check-then-act sem lock — `Atleta` não tem `@Version`
+> (`AuditableEntity`, compartilhada por todas as entidades do sistema); duas conclusões
+> concorrentes para o mesmo atleta podem intercalar um lost-update sem disparar o 409. Risco
+> residual aceito nesta fase (baixa concorrência real, pré-launch); documentado no javadoc de
+> `OnboardingService.concluirOnboarding`. Se virar problema real, resolver com
+> `@Lock(PESSIMISTIC_WRITE)` escopado só a este fluxo — não em `AuditableEntity`.
 
 - [ ] 6.1 Gerar referencia da API a partir dos endpoints 6.0.1-6.0.4; nao sobrescrever fachada.
 - [ ] 6.2 Portar `AthleteOnboardingProfile` (13 campos obrigatorios — inclui `canalIntegracao`/
