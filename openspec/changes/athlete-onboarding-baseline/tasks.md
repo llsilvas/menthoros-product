@@ -224,7 +224,17 @@ destrutivo) — ver "Rollback" no proposal.md.
 > `OnboardingService.concluirOnboarding`. Se virar problema real, resolver com
 > `@Lock(PESSIMISTIC_WRITE)` escopado só a este fluxo — não em `AuditableEntity`.
 
-- [ ] 6.1 Gerar referencia da API a partir dos endpoints 6.0.1-6.0.4; nao sobrescrever fachada.
+- [x] 6.1 Gerar referencia da API a partir dos endpoints 6.0.1-6.0.4; nao sobrescrever fachada.
+      **Verificado com geração real** (2026-07-22): subiu backend local na porta 8098 contra o
+      `menthoros-db` já em execução (schema Flyway v67), rodou
+      `npx openapi --input http://localhost:8098/api-docs --output /tmp/api-scratch --client axios
+      --useUnionTypes` a partir do `menthoros-front`. Métodos/paths/erros do
+      `OnboardingService` gerado batem com a fachada curada. **Divergência real encontrada:**
+      `AtletaOnboardingOutputDto.nivelExperiencia` gerado inclui `ELITE` (4º valor do enum Java
+      `NivelExperiencia`, pré-existente, nunca coberto pelo tipo `nivelExperiencia` em
+      `types/Atleta.ts`) — corrigido em `types/Atleta.ts` (commit 987b280, `menthoros-front`),
+      union e `NIVEL_EXPERIENCIA_LABELS` atualizados; `npm run build`/`lint`/`test:run` verdes
+      (725 testes). Backend de verificação encerrado e `src/api` confirmado intocado após a geração.
 - [x] 6.2 Portar `AthleteOnboardingProfile` (13 campos obrigatorios — inclui `canalIntegracao`/
       `dispositivoMarca` — + opcionais, incluindo `dispositivoModelo`) para `types/`.
       **Implementado:** `src/types/Onboarding.ts` (`AthleteOnboardingProfile`/`OnboardingDraftInput`/
@@ -364,11 +374,36 @@ destrutivo) — ver "Rollback" no proposal.md.
 
 ## 9. Verificacao de aceite (DoD)
 
-- [ ] 9.0 Acesso a dado sensivel (CA12, design.md Decisao 9, corrigida rodada 2) — teste de
+- [x] 9.0 Acesso a dado sensivel (CA12, design.md Decisao 9, corrigida rodada 2) — teste de
       integracao confirmando que o atleta dono e qualquer TECNICO/ADMIN do MESMO tenant leem campos
       de lesao/dor/fadiga/sono/recuperacao; um usuario de OUTRO tenant recebe 403/404 (isolamento de
       tenant, nao vinculo de coach individual — esse vinculo nao existe no modelo).
+      **Implementado:** `OnboardingSensitiveDataAccessIT` (`apps/menthoros-backend/src/test/java/br/com/
+      menthoros/backend/controller/`), `@SpringBootTest` com Testcontainers (nao mock) para exercitar o
+      `UsuarioSyncServiceImpl` real. 8 cenarios: lesao via `GET /api/v1/atletas/{atletaId}/onboarding`
+      (dono ATLETA, TECNICO e ADMIN do mesmo tenant -> 200; usuario de outro tenant -> 403, via
+      `TenantValidationAspect`/`@RequireTenant`) e dor/fadiga/sono/recuperacao via
+      `GET /api/v1/atletas/me/treinos` (dono ATLETA -> 200) e `GET /api/v1/treinos/realizados/{id}`
+      (TECNICO/ADMIN do mesmo tenant -> 200; outro tenant -> 404, via `findByIdAndTenantId` — sem
+      `@RequireTenant` nesse endpoint por design, contrato 404 documentado no controller). **Bug real
+      encontrado e corrigido:** `OnboardingServiceImpl.buscarRascunho` retornava
+      `PerfilOnboardingAtleta.diasDisponiveis` (`@ElementCollection` LAZY) sem inicializar; com
+      `open-in-view: false`, o Jackson tentava serializar a colecao fora da transacao e todo
+      `GET .../onboarding` quebrava com 500 (`HttpMessageNotWritableException`). Corrigido com
+      `Hibernate.initialize(...)` dentro da transacao (mesmo padrao ja usado em `AtletaServiceImpl`).
 - [ ] 9.1 CA1-CA14 verificados ponta-a-ponta (backend + frontend).
-- [ ] 9.2 Atleta legado: gerar plano para atleta do seed -> Cenario B, sem quebra.
+- [x] 9.2 Atleta legado: gerar plano para atleta do seed -> Cenario B, sem quebra.
+      **Verificado contra dado real** (2026-07-22): backend local apontado para a base compartilhada
+      192.168.15.24 (schema Flyway v67, sem migracao pendente). Atleta "Maria Santos"
+      (20102cd6-8578-473e-a86f-5217f35b6b12, tenant 1b5ce37e-..., sem `AthleteBaselineState` previo)
+      via `POST /api/v1/planos/atletas/{id}/gerar` autenticado como ADMIN real — `200 OK`, plano
+      `PLANEJADO` gerado com treinos estruturados/etapas/justificativa da IA. Apos a chamada:
+      `AthleteBaselineState` criado com `confidenceTier=C` e `calibracaoIniciadaEm` preenchido
+      (Cenario B/tier baixo triggerando calibracao, conforme retrofit 10.4). Logs sem exceptions —
+      apenas warnings esperados (sem prova alvo, sem checkin de prontidao, sem historico de metricas,
+      degradacao de categoria por CTL baixo, reconciliacoes de plano da IA).
 - [ ] 9.3 Onboarding interrompido: fechar browser no step 2, reabrir -> retoma do step 2.
-- [ ] 9.4 PR backend e PR front abertos (backend primeiro); CI verde nos dois.
+- [x] 9.4 PR backend e PR front abertos (backend primeiro); CI verde nos dois.
+      **Verificado** (2026-07-22): backend PR #47 (aberto antes) e frontend PR #41, ambos em
+      `llsilvas/menthoros-backend`/`llsilvas/menthoros-front`, `base: develop`, `state: OPEN`.
+      `gh pr checks` — único check configurado (GitGuardian Security Checks) passou nos dois.
