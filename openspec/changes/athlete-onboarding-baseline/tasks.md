@@ -391,7 +391,30 @@ destrutivo) — ver "Rollback" no proposal.md.
       `open-in-view: false`, o Jackson tentava serializar a colecao fora da transacao e todo
       `GET .../onboarding` quebrava com 500 (`HttpMessageNotWritableException`). Corrigido com
       `Hibernate.initialize(...)` dentro da transacao (mesmo padrao ja usado em `AtletaServiceImpl`).
-- [ ] 9.1 CA1-CA14 verificados ponta-a-ponta (backend + frontend).
+- [x] 9.1 CA1-CA14 verificados ponta-a-ponta (backend + frontend).
+      **Verificado via click-through manual real** (2026-07-22): backend local (porta 8099) +
+      frontend local (porta 5174), ambos contra a base/Keycloak compartilhados
+      (192.168.15.24), atleta real `carmaniacs1@hotmail.com` (papel ATLETA, atleta
+      d83c4c31-607b-4370-8bfe-de270ad33121). Fluxo completo do formulario multi-etapa ate
+      `POST /onboarding/concluir` -> `200 OK` (`duration_ms=22707`). Observado diretamente nos
+      logs: baseline calculado com `semanasObservadas=50, ctl=32.82, atl=12.63, tsb=20.19,
+      origem=MEASURED` (CA1/CA2/CA3), `confidenceScore=66, tier=B` (CA1), `AthleteThresholdUpdater`
+      atualizando o limiar via a prova-alvo criada (CA13), draft retomado apos relogin (CA8).
+      CA6/CA7/CA9/CA11/CA12 permanecem cobertos pela suite automatizada (2047 testes) — nao
+      re-exercitados manualmente nesta rodada. **3 bugs reais encontrados e corrigidos durante o
+      teste** (nenhum pego pelos testes com mock, todos exigiam Hibernate/Postgres reais):
+      (1) `NivelExperiencia`/`DiaSemana` usam `@JsonFormat(shape=OBJECT)` no backend — o GET
+      devolvia `{value,label,...}` e o front reenviava esse objeto cru no proximo
+      `salvarRascunho`, causando 400 "Failed to read request" (Jackson sem `@JsonCreator` para
+      desserializar o objeto de volta); corrigido no cliente curado
+      (`OnboardingService.normalizeProfile`/`unwrapEnumValue`, menthoros-front commit 6d1b68e).
+      (2) `concluirOnboarding` fazia `atleta.setDiasDisponiveis(perfil.getDiasDisponiveis())`
+      reusando a mesma colecao Hibernate-gerenciada entre duas entidades -> `JpaSystemException:
+      Found shared references to a collection`; corrigido copiando para uma nova `ArrayList`
+      (menthoros-backend commit 9a54059). (3) `AtividadeProvenienciaDescartada.dadosDescartados`
+      sem `@JdbcTypeCode(SqlTypes.JSON)` -> Postgres rejeitava o INSERT de auditoria do dedup
+      (`column is of type jsonb but expression is of type character varying`); corrigido com a
+      mesma anotacao ja usada em `RaceProjectionSnapshot` (mesmo commit 9a54059).
 - [x] 9.2 Atleta legado: gerar plano para atleta do seed -> Cenario B, sem quebra.
       **Verificado contra dado real** (2026-07-22): backend local apontado para a base compartilhada
       192.168.15.24 (schema Flyway v67, sem migracao pendente). Atleta "Maria Santos"
@@ -402,7 +425,11 @@ destrutivo) — ver "Rollback" no proposal.md.
       (Cenario B/tier baixo triggerando calibracao, conforme retrofit 10.4). Logs sem exceptions —
       apenas warnings esperados (sem prova alvo, sem checkin de prontidao, sem historico de metricas,
       degradacao de categoria por CTL baixo, reconciliacoes de plano da IA).
-- [ ] 9.3 Onboarding interrompido: fechar browser no step 2, reabrir -> retoma do step 2.
+- [x] 9.3 Onboarding interrompido: fechar browser no step 2, reabrir -> retoma do step 2.
+      **Verificado** (2026-07-22): durante o mesmo teste manual da 9.1, o token expirou entre
+      etapas e o atleta relogou — `fetchDraft()` recuperou o rascunho salvo via
+      `GET /onboarding` (nao 204) e o formulario retomou com os campos ja preenchidos, exercitando
+      exatamente o caminho de retomada do CA8 (e foi o que expos o bug (1) do enum-objeto acima).
 - [x] 9.4 PR backend e PR front abertos (backend primeiro); CI verde nos dois.
       **Verificado** (2026-07-22): backend PR #47 (aberto antes) e frontend PR #41, ambos em
       `llsilvas/menthoros-backend`/`llsilvas/menthoros-front`, `base: develop`, `state: OPEN`.
