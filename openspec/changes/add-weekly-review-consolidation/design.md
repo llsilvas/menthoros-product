@@ -26,11 +26,21 @@ Fatia 1 de 3 do `weekly-athlete-review`: o núcleo determinístico. Consolida a 
 
 ### D1: Consolidação determinística + `recommendationType`
 
-**Decisão:** Aderência, carga, fadiga e evolução são calculadas deterministicamente. `recommendationType ∈ {RECOVERY, MAINTAIN, PROGRESS}` também é determinístico: baixa aderência (TSS <60% do planejado OU ≥1 treino de criticidade `≥1.15` não realizado) OU `confidence = BAIXA` ⇒ nunca `PROGRESS`.
+**Decisão:** Aderência, carga, fadiga e evolução são calculadas deterministicamente. `adherenceSummary.status` e `recommendationType` seguem regras fixas (confirmadas com o founder, 2026-07-24), ancoradas no vocabulário PMC e no piso de TSB `−25` já usado no codebase (`RecoveryCargaSkill`/retention-radar):
 
-**Rationale:** O campo estruturado torna CA2/CA3 testáveis por JUnit sem depender de LLM. É o contrato que a Fatia 2 vai consumir para restringir a narrativa.
+**`adherenceSummary.status`** (por `TSS realizado / TSS planejado` da janela):
+- `ALTA` ≥ 90%
+- `MEDIA` 60–89%
+- `BAIXA` < 60% **ou** ≥1 treino de alta criticidade (`TipoTreino.getFatorImpacto() ≥ 1.15`) não realizado
 
-**Limiar de `confidence = BAIXA`:** janela com <2 treinos realizados OU sem ponto de PMC/TSB válido (default v1, ajustável).
+**`recommendationType`** (árvore determinística, avaliada nesta ordem):
+1. `RECOVERY` — se `TSB ≤ −25` **ou** (`status = BAIXA` **e** `TSB ≤ −10`)
+2. `PROGRESS` — se `status = ALTA` **e** `TSB ≥ −10` **e** `confidence = ALTA` **e** nenhum treino crítico faltando
+3. `MAINTAIN` — caso contrário (default; inclui `confidence = BAIXA` e todos os casos intermediários)
+
+**Rationale:** O campo estruturado torna CA1/CA2/CA2b/CA3 testáveis por JUnit sem depender de LLM (asserção sobre valor esperado, não só exclusão). É o contrato que a Fatia 2 consome para restringir a narrativa. TSB entra na decisão porque uma semana de alta aderência mas fadiga alta **não** deve sinalizar progressão.
+
+**Limiar de `confidence = BAIXA`:** janela com <2 treinos realizados **ou** sem ponto de PMC/TSB válido (default v1, ajustável). `confidence = BAIXA` ⇒ nunca `PROGRESS` (cai em MAINTAIN por default).
 
 ### D2: `nextWeekFocus` template nesta fatia
 

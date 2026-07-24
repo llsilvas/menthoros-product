@@ -22,7 +22,10 @@ Escopo v1 (decisão do founder, CPO review 2026-07-24): consolida sobre o **dado
 ## Critérios de aceite
 
 - **CA1 — Contrato mínimo.** DADO um atleta com treinos na semana, QUANDO a revisão é gerada para `[semanaInicio, semanaFim]`, ENTÃO o resultado contém `semanaInicio`, `semanaFim`, `adherenceSummary` (status + %), `trainingLoadSummary`, `fatigueSummary`, `progressionSummary`, `recommendationType`, `weekOverWeekDelta`, `confidence` e `nextWeekFocus` (template não-vazio).
-- **CA2 — Baixa aderência bloqueia progressão.** DADO TSS realizado <60% do planejado OU ≥1 treino de alta criticidade (`TipoTreino.getFatorImpacto() ≥ 1.15`) não realizado, QUANDO a revisão é gerada, ENTÃO `adherenceSummary.status = BAIXA` e `recommendationType ∈ {RECOVERY, MAINTAIN}` — nunca `PROGRESS`.
+- **CA1b — Cortes de aderência.** DADO a razão `TSS realizado / TSS planejado` da janela, QUANDO a revisão é gerada, ENTÃO `adherenceSummary.status` é `ALTA` (≥90%), `MEDIA` (60–89%) ou `BAIXA` (<60% OU ≥1 treino de alta criticidade `TipoTreino.getFatorImpacto() ≥ 1.15` não realizado).
+- **CA2 — RECOVERY em fadiga/baixa aderência.** DADO `TSB ≤ −25` OU (`status = BAIXA` E `TSB ≤ −10`), QUANDO a revisão é gerada, ENTÃO `recommendationType = RECOVERY`.
+- **CA2b — PROGRESS só em semana boa.** DADO `status = ALTA` E `TSB ≥ −10` E `confidence = ALTA` E nenhum treino crítico faltando, QUANDO a revisão é gerada, ENTÃO `recommendationType = PROGRESS`.
+- **CA2c — MAINTAIN é o default.** DADO uma semana que não satisfaz RECOVERY nem PROGRESS (inclui `confidence = BAIXA` e casos intermediários), QUANDO a revisão é gerada, ENTÃO `recommendationType = MAINTAIN`.
 - **CA3 — Dados insuficientes.** DADO uma janela com <2 treinos realizados OU sem ponto de PMC/TSB válido, QUANDO a revisão é gerada, ENTÃO `confidence = BAIXA` e `recommendationType ≠ PROGRESS`.
 - **CA6 — Janela idempotente.** DADO a mesma janela de um atleta, QUANDO a revisão é (re)gerada, ENTÃO ela é atualizada in-place — não duplica registro.
 - **CA7 — Isolamento multi-tenant.** DADO revisões de tenants distintos, QUANDO geradas/consultadas, ENTÃO cada operação respeita o `TenantContext`; o endpoint de leitura é coach-only e não expõe ao atleta.

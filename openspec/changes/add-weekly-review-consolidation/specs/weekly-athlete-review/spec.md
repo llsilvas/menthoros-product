@@ -7,10 +7,21 @@ O sistema SHALL gerar uma revisão semanal estruturada por atleta, consolidando 
 - **WHEN** uma revisão semanal for gerada
 - **THEN** o resultado SHALL conter `semanaInicio`, `semanaFim`, `adherenceSummary`, `trainingLoadSummary`, `fatigueSummary`, `progressionSummary`, `recommendationType`, `weekOverWeekDelta`, `confidence` e `nextWeekFocus`
 
-#### Scenario: Semana com baixa aderência bloqueia progressão
-- **WHEN** o TSS realizado na semana ficar <60% do planejado OU um treino de alta criticidade (`TipoTreino.getFatorImpacto() ≥ 1.15`) ficar sem realizado
-- **THEN** `adherenceSummary.status` SHALL ser `BAIXA`
-- **THEN** `recommendationType` SHALL ser `RECOVERY` ou `MAINTAIN`, nunca `PROGRESS`
+#### Scenario: Cortes de aderência
+- **WHEN** a revisão for gerada
+- **THEN** `adherenceSummary.status` SHALL ser `ALTA` se `TSS realizado ≥ 90%` do planejado, `MEDIA` se entre 60% e 89%, e `BAIXA` se `< 60%` OU se ≥1 treino de alta criticidade (`TipoTreino.getFatorImpacto() ≥ 1.15`) ficar sem realizado
+
+#### Scenario: RECOVERY em fadiga alta ou baixa aderência com fadiga
+- **WHEN** `TSB ≤ −25` OU (`adherenceSummary.status = BAIXA` E `TSB ≤ −10`)
+- **THEN** `recommendationType` SHALL ser `RECOVERY`
+
+#### Scenario: PROGRESS apenas em semana boa
+- **WHEN** `adherenceSummary.status = ALTA` E `TSB ≥ −10` E `confidence = ALTA` E nenhum treino crítico ficou sem realizado
+- **THEN** `recommendationType` SHALL ser `PROGRESS`
+
+#### Scenario: MAINTAIN é o default
+- **WHEN** a semana não satisfizer as condições de `RECOVERY` nem de `PROGRESS` (inclui `confidence = BAIXA`)
+- **THEN** `recommendationType` SHALL ser `MAINTAIN`
 
 #### Scenario: Semana sem dados suficientes
 - **WHEN** a janela possuir <2 treinos realizados OU nenhum ponto de PMC/TSB válido
