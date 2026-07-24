@@ -1,6 +1,8 @@
-<!-- SUPERSEDED por `changes/add-weekly-athlete-review` (spin-off do épico, 2026-07-24).
+<!-- SUPERSEDED. Spin-off do épico (2026-07-24), depois fatiado em 3 changes ativas:
+     `add-weekly-review-consolidation` (backend determinístico), `add-weekly-review-llm-focus`
+     (narrativa IA + insumo no plano) e `add-weekly-review-coach-card` (leitura no shell do coach).
      Esta capability NÃO foi implementada dentro deste épico — só a decomposição foi arquivada.
-     A spec canônica e viva vive na change ativa. Mantido aqui só como registro histórico. -->
+     Mantido aqui só como registro histórico. -->
 
 ## ADDED Requirements
 
