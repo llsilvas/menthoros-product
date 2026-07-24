@@ -1,62 +1,77 @@
 ## ADDED Requirements
 
-### Requirement: Consolidar revisão semanal do atleta (determinística)
-O sistema SHALL gerar uma revisão semanal estruturada por atleta, consolidando aderência, carga, fadiga, evolução, `recommendationType` e `nextWeekFocus` (template) de forma determinística.
+### Requirement: Gerar a revisão no encerramento da semana, ancorada ao PlanoSemanal
+O sistema SHALL gerar uma `RevisaoSemanal` 1:1 com o `PlanoSemanal` quando este é encerrado (`CONCLUIDO`), congelando o sinal determinístico do que foi proposto ao coach.
 
-#### Scenario: Contrato mínimo da revisão
-- **WHEN** uma revisão semanal for gerada
-- **THEN** o resultado SHALL conter `semanaInicio`, `semanaFim`, `adherenceSummary`, `trainingLoadSummary`, `fatigueSummary`, `progressionSummary`, `recommendationType`, `weekOverWeekDelta`, `confidence` e `nextWeekFocus`
+#### Scenario: Encerramento gera a revisão
+- **WHEN** um `PlanoSemanal` transiciona para `CONCLUIDO` via `EncerramentoSemanaService`
+- **THEN** o sistema SHALL criar uma `RevisaoSemanal` associada, com `recommendationType`, `adherenceStatus`, `dadosSuficientes` e `geradaEm`
+
+#### Scenario: Antes do encerramento não há revisão
+- **WHEN** o `PlanoSemanal` ainda não está `CONCLUIDO`
+- **THEN** a consulta da revisão SHALL retornar HTTP 404 com corpo vazio
+
+#### Scenario: Re-encerramento é idempotente
+- **WHEN** o encerramento roda novamente para o mesmo `PlanoSemanal`
+- **THEN** o sistema SHALL fazer upsert por `plano_semanal_id`, sem duplicar
+
+### Requirement: Aderência por contagem na janela do plano
+O sistema SHALL derivar `adherenceStatus` da contagem de treinos realizados/planejados na janela exata do `PlanoSemanal` — métrica distinta do `aderenciaPercentual` do roster (rolante de 4 semanas).
 
 #### Scenario: Cortes de aderência
-- **WHEN** a revisão for gerada
-- **THEN** `adherenceSummary.status` SHALL ser `ALTA` se `TSS realizado ≥ 90%` do planejado, `MEDIA` se entre 60% e 89%, e `BAIXA` se `< 60%` OU se ≥1 treino de alta criticidade (`TipoTreino.getFatorImpacto() ≥ 1.15`) ficar sem realizado
+- **WHEN** a revisão é gerada, contando realizados/planejados na janela exata `[semanaInicio, semanaFim]` do `PlanoSemanal`
+- **THEN** `adherenceStatus` SHALL ser `ALTA` se `≥ 90%`, `MEDIA` se entre 60% e 89%, e `BAIXA` se `< 60%` OU se ≥1 treino de alta criticidade (`TipoTreino.getFatorImpacto() ≥ 1.15`) ficar sem realizado
 
-#### Scenario: RECOVERY em fadiga alta ou baixa aderência com fadiga
-- **WHEN** `TSB ≤ −25` OU (`adherenceSummary.status = BAIXA` E `TSB ≤ −10`)
+### Requirement: recommendationType determinístico sobre tsb_fim
+O sistema SHALL derivar `recommendationType` de `adherenceStatus`, `dadosSuficientes` e `PlanoSemanal.tsb_fim`.
+
+#### Scenario: RECOVERY
+- **WHEN** `tsb_fim ≤ −25` OU (`adherenceStatus = BAIXA` E `tsb_fim ≤ −10`)
 - **THEN** `recommendationType` SHALL ser `RECOVERY`
 
-#### Scenario: PROGRESS apenas em semana boa
-- **WHEN** `adherenceSummary.status = ALTA` E `TSB ≥ −10` E `confidence = ALTA` E nenhum treino crítico ficou sem realizado
+#### Scenario: PROGRESS
+- **WHEN** `adherenceStatus = ALTA` E `tsb_fim ≥ −10` E `dadosSuficientes = true` E nenhum treino crítico ficou sem realizado
 - **THEN** `recommendationType` SHALL ser `PROGRESS`
 
 #### Scenario: MAINTAIN é o default
-- **WHEN** a semana não satisfizer as condições de `RECOVERY` nem de `PROGRESS` (inclui `confidence = BAIXA`)
+- **WHEN** a semana não satisfizer RECOVERY nem PROGRESS
 - **THEN** `recommendationType` SHALL ser `MAINTAIN`
 
-#### Scenario: Semana sem dados suficientes
+#### Scenario: TSB ausente cai em MAINTAIN
+- **WHEN** `PlanoSemanal.tsb_fim` for nulo
+- **THEN** `dadosSuficientes` SHALL ser `false`
+- **THEN** os ramos numéricos (RECOVERY/PROGRESS) SHALL NOT se aplicar e `recommendationType` SHALL ser `MAINTAIN`
+
+#### Scenario: Dados insuficientes bloqueiam progressão
 - **WHEN** a janela possuir <2 treinos realizados OU nenhum ponto de PMC/TSB válido
-- **THEN** `confidence` SHALL ser `BAIXA`
+- **THEN** `dadosSuficientes` SHALL ser `false`
 - **THEN** `recommendationType` SHALL NOT ser `PROGRESS`
 
-### Requirement: Revisão deve trazer comparação com a semana anterior
-O sistema SHALL calcular `weekOverWeekDelta` contra a revisão imediatamente anterior do atleta.
+### Requirement: Sinal congelado — fidelidade a mudança de regra
+O sistema SHALL persistir o sinal derivado no momento da geração e NÃO recalculá-lo na leitura.
 
-#### Scenario: Existe revisão anterior
-- **WHEN** existir revisão da semana anterior e a corrente for gerada
-- **THEN** `weekOverWeekDelta` SHALL conter Δaderência, ΔTSS, ΔTSB e a transição de `recommendationType`
+#### Scenario: Leitura devolve o valor persistido, sem recomputar
+- **WHEN** o `recommendationType` persistido de uma revisão contradiz o que a regra atual produziria para aquele `PlanoSemanal`
+- **THEN** a leitura SHALL devolver o valor persistido (congelado no encerramento), sem recomputar
 
-#### Scenario: Não existe revisão anterior
-- **WHEN** não existir revisão anterior do atleta
+### Requirement: Delta semana-a-semana computado
+O sistema SHALL computar `weekOverWeekDelta` na leitura, contra o `PlanoSemanal` anterior do atleta.
+
+#### Scenario: Existe semana anterior
+- **WHEN** existir um `PlanoSemanal` anterior do atleta
+- **THEN** `weekOverWeekDelta` SHALL conter Δaderência, ΔTSB e a transição de `recommendationType`
+
+#### Scenario: Não existe semana anterior
+- **WHEN** não existir `PlanoSemanal` anterior
 - **THEN** `weekOverWeekDelta` SHALL indicar `PRIMEIRA_SEMANA` (nulo), sem erro
 
-### Requirement: Revisão temporalmente consistente e idempotente
-O sistema SHALL associar cada revisão a uma janela semanal explícita e única por atleta e tenant.
-
-#### Scenario: Identificação da semana revisada
-- **WHEN** uma revisão semanal for consultada
-- **THEN** o sistema SHALL informar `semanaInicio` e `semanaFim`
-
-#### Scenario: Regeração da mesma janela não duplica
-- **WHEN** a revisão de uma janela já existente for gerada novamente
-- **THEN** o sistema SHALL atualizar o registro existente in-place, sem duplicar
-
 ### Requirement: Leitura coach-only sob isolamento multi-tenant
-O sistema SHALL expor a revisão por um endpoint read-only acessível ao treinador, sempre no escopo do `TenantContext`, e nunca ao atleta.
+O sistema SHALL expor a revisão por endpoint read-only restrito ao treinador, sempre sob `TenantContext`, nunca ao atleta.
 
 #### Scenario: Revisão não vaza entre tenants
 - **WHEN** revisões de tenants distintos existirem
-- **THEN** cada geração ou consulta SHALL retornar apenas revisões do tenant corrente
+- **THEN** cada consulta SHALL retornar apenas revisões do tenant corrente
 
-#### Scenario: Endpoint não exposto ao atleta
-- **WHEN** a revisão for consultada pelo endpoint de leitura
-- **THEN** o acesso SHALL ser restrito ao treinador, não ao atleta
+#### Scenario: Endpoint restrito ao treinador
+- **WHEN** a revisão é consultada
+- **THEN** o acesso SHALL exigir papel `TECNICO`/`ADMIN`, negado ao atleta

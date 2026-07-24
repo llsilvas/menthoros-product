@@ -1,46 +1,47 @@
 **Tamanho:** M · **Trilha:** Full
 
-> Full porque introduz schema novo (tabela de revisão semanal) e expõe endpoint de leitura. Backend-only, **100% determinístico — sem LLM** (logo, sem o gate de custo A1). É a Fatia 1 de 3 do `weekly-athlete-review`; as fatias `add-weekly-review-llm-focus` (narrativa por IA + insumo no plano) e `add-weekly-review-coach-card` (leitura no shell do coach) dependem desta.
+> Full porque introduz schema novo (`tb_revisao_semanal`) e um hook no fluxo de encerramento de semana. Backend-only, **100% determinístico — sem LLM** (sem gate de custo A1). Fatia 1 de 3 do `weekly-athlete-review`; `add-weekly-review-llm-focus` (narrativa por IA + `focusOutcome`) e `add-weekly-review-coach-card` (leitura no shell do coach) dependem desta. Desenho consolidado em grelhagem 2026-07-24 (ver ADR-0006 no backend).
 
 ## Why
 
-Fechar a semana de cada atleta (aderência, carga, fadiga, evolução) é a tarefa mais repetitiva do treinador e não escala manualmente. Esta fatia entrega o **núcleo determinístico** dessa consolidação e o expõe por um endpoint — a base sobre a qual a narrativa por IA (Fatia 2) e a leitura no shell do coach (Fatia 3) se apoiam. Determinístico primeiro: valor testável, custo zero de LLM, risco isolado.
+Fechar a semana de cada atleta é a tarefa mais repetitiva do treinador e não escala manualmente. Esta fatia entrega o **núcleo determinístico** da revisão: no encerramento da semana, congela o **sinal estruturado do que foi proposto ao coach** e o expõe por endpoint. É a base sobre a qual a narrativa por IA (Fatia 2) e a leitura no shell do coach (Fatia 3) se apoiam.
 
-Escopo v1 (decisão do founder, CPO review 2026-07-24): consolida sobre o **dado do log manual** já disponível (planejado/realizado, PMC/TSB), **sem** métricas de zona `.fit` e **sem** depender de `first-party-ingestion-architecture`.
+Escopo v1 (founder, CPO review 2026-07-24): sobre o **dado do log manual** já disponível, **sem** métricas de zona `.fit` e **sem** depender de `first-party-ingestion-architecture`.
 
 ## What Changes
 
-- nova capability `weekly-athlete-review` (parte determinística)
-- consolidação determinística por janela: aderência (planejado vs realizado), carga (TSS realizado vs planejado), fadiga (TSB final + delta), evolução
-- `recommendationType` determinístico (RECOVERY|MAINTAIN|PROGRESS) a partir dos sinais consolidados
-- `weekOverWeekDelta` — comparação com a revisão da semana anterior (Δaderência, ΔTSS, ΔTSB, transição de `recommendationType`)
-- `confidence` (ALTA|BAIXA) rebaixada em semana com dados insuficientes
-- `nextWeekFocus` **template determinístico** derivado do `recommendationType` (a narrativa por LLM entra na Fatia 2, substituindo o template)
-- persistência por janela explícita (`semanaInicio`/`semanaFim`), idempotente
+- nova capability `weekly-athlete-review` (parte determinística), **ancorada 1:1 ao `PlanoSemanal`** — reusa `semana_inicio/fim`, `tsb_inicio/fim`, volumes; não inventa janela própria
+- nova `tb_revisao_semanal` (1:1, FK única a `plano_semanal_id`) congelando: `recommendationType`, `adherenceStatus`, `dadosSuficientes`, `geradaEm`
+- geração **event-driven no encerramento** da semana (`EncerramentoSemanaService`, manual ou fallback automático) — sem cron novo
+- `adherenceStatus` **por contagem** na janela exata do plano `[semanaInicio, semanaFim]` (via `findComRealizadoByAtletaAndPeriodo` escopado à semana — **não** é o número rolante de 4 semanas do roster) + override "treino crítico faltando" (`TipoTreino.getFatorImpacto() ≥ 1.15`)
+- `recommendationType` determinístico a partir de `adherenceStatus` + `PlanoSemanal.tsb_fim`
+- `weekOverWeekDelta` **computado** (diff contra o `PlanoSemanal` anterior) — não persistido
 - endpoint `GET` read-only da revisão, **coach-only**, sob `TenantContext`
 
 ## Critérios de aceite
 
-- **CA1 — Contrato mínimo.** DADO um atleta com treinos na semana, QUANDO a revisão é gerada para `[semanaInicio, semanaFim]`, ENTÃO o resultado contém `semanaInicio`, `semanaFim`, `adherenceSummary` (status + %), `trainingLoadSummary`, `fatigueSummary`, `progressionSummary`, `recommendationType`, `weekOverWeekDelta`, `confidence` e `nextWeekFocus` (template não-vazio).
-- **CA1b — Cortes de aderência.** DADO a razão `TSS realizado / TSS planejado` da janela, QUANDO a revisão é gerada, ENTÃO `adherenceSummary.status` é `ALTA` (≥90%), `MEDIA` (60–89%) ou `BAIXA` (<60% OU ≥1 treino de alta criticidade `TipoTreino.getFatorImpacto() ≥ 1.15` não realizado).
-- **CA2 — RECOVERY em fadiga/baixa aderência.** DADO `TSB ≤ −25` OU (`status = BAIXA` E `TSB ≤ −10`), QUANDO a revisão é gerada, ENTÃO `recommendationType = RECOVERY`.
-- **CA2b — PROGRESS só em semana boa.** DADO `status = ALTA` E `TSB ≥ −10` E `confidence = ALTA` E nenhum treino crítico faltando, QUANDO a revisão é gerada, ENTÃO `recommendationType = PROGRESS`.
-- **CA2c — MAINTAIN é o default.** DADO uma semana que não satisfaz RECOVERY nem PROGRESS (inclui `confidence = BAIXA` e casos intermediários), QUANDO a revisão é gerada, ENTÃO `recommendationType = MAINTAIN`.
-- **CA3 — Dados insuficientes.** DADO uma janela com <2 treinos realizados OU sem ponto de PMC/TSB válido, QUANDO a revisão é gerada, ENTÃO `confidence = BAIXA` e `recommendationType ≠ PROGRESS`.
-- **CA6 — Janela idempotente.** DADO a mesma janela de um atleta, QUANDO a revisão é (re)gerada, ENTÃO ela é atualizada in-place — não duplica registro.
-- **CA7 — Isolamento multi-tenant.** DADO revisões de tenants distintos, QUANDO geradas/consultadas, ENTÃO cada operação respeita o `TenantContext`; o endpoint de leitura é coach-only e não expõe ao atleta.
-- **CA9 — Delta semana-a-semana.** DADO que existe revisão da semana anterior, QUANDO a corrente é gerada, ENTÃO `weekOverWeekDelta` traz Δaderência, ΔTSS, ΔTSB e a transição de `recommendationType`; sem anterior ⇒ `PRIMEIRA_SEMANA` (nulo, sem erro).
+- **CA1 — Geração no encerramento.** DADO um `PlanoSemanal` que transiciona para `CONCLUIDO` (via `EncerramentoSemanaService`), QUANDO o encerramento roda, ENTÃO uma `RevisaoSemanal` 1:1 é criada com `recommendationType`, `adherenceStatus`, `dadosSuficientes` e `geradaEm`. Antes do `CONCLUIDO`, o `GET` retorna **HTTP 404** (corpo vazio).
+- **CA1b — Cortes de aderência (contagem na janela do plano).** DADO a contagem realizados/planejados na janela exata `[semanaInicio, semanaFim]` do plano, ENTÃO `adherenceStatus` é `ALTA` (≥90%), `MEDIA` (60–89%) ou `BAIXA` (<60% OU ≥1 treino de alta criticidade `TipoTreino.getFatorImpacto() ≥ 1.15` não realizado).
+- **CA2 — RECOVERY.** DADO `PlanoSemanal.tsb_fim ≤ −25` OU (`adherenceStatus = BAIXA` E `tsb_fim ≤ −10`), ENTÃO `recommendationType = RECOVERY`.
+- **CA2b — PROGRESS.** DADO `adherenceStatus = ALTA` E `tsb_fim ≥ −10` E `dadosSuficientes = true` E nenhum treino crítico faltando, ENTÃO `recommendationType = PROGRESS`.
+- **CA2c — MAINTAIN (default).** DADO uma semana que não satisfaz RECOVERY nem PROGRESS, ENTÃO `recommendationType = MAINTAIN`.
+- **CA3 — Dados insuficientes.** DADO <2 treinos realizados OU nenhum ponto de PMC/TSB válido na janela (inclui `PlanoSemanal.tsb_fim` nulo), ENTÃO `dadosSuficientes = false` e `recommendationType ≠ PROGRESS`.
+- **CA3b — TSB ausente cai em MAINTAIN.** DADO `PlanoSemanal.tsb_fim` nulo, QUANDO a revisão é gerada, ENTÃO os ramos numéricos (RECOVERY/PROGRESS) não se aplicam e `recommendationType = MAINTAIN`.
+- **CA-Congelamento — Fidelidade.** DADO uma `RevisaoSemanal` já gerada, QUANDO os limiares da regra (`−25`/`−10`/`90%`) mudam e a revisão é relida, ENTÃO `recommendationType` permanece o **congelado no encerramento** (não recalcula). _(Núcleo do ADR-0006.)_
+- **CA6 — Idempotência.** DADO o mesmo `PlanoSemanal`, QUANDO o encerramento roda de novo, ENTÃO a `RevisaoSemanal` é upsert por `plano_semanal_id` — não duplica.
+- **CA7 — Multi-tenant + coach-only.** DADO revisões de tenants distintos, ENTÃO geração/consulta respeitam `TenantContext`; o endpoint de leitura é coach-only (`@PreAuthorize hasAnyRole('TECNICO','ADMIN')`), nunca exposto ao atleta.
+- **CA9 — Delta semana-a-semana (computado).** DADO um `PlanoSemanal` anterior do atleta, QUANDO a revisão é lida, ENTÃO `weekOverWeekDelta` traz Δaderência, ΔTSB e a transição de `recommendationType`; sem anterior ⇒ `PRIMEIRA_SEMANA` (nulo, sem erro).
 
 ## Métrica de sucesso
 
-- **Desta fatia (correção):** a revisão gerada é completa, determinística e reprodutível (mesma janela ⇒ mesmo resultado), e recuperável pelo endpoint read-only.
-- **North Star (realizada com a Fatia 3):** mediana de minutos que o treinador gasta para fechar a semana de um atleta cai para ≤ 50% do baseline. Esta fatia é o pré-requisito de dado.
+- **Desta fatia (correção):** a revisão gerada no encerramento é completa, determinística e **congelada** (reler após mudança de regra não altera o `recommendationType` — CA-Congelamento), e recuperável pelo endpoint coach-only.
+- **North Star (realizada com a Fatia 3):** mediana de minutos que o treinador gasta para fechar a semana cai para ≤ 50% do baseline. Esta fatia é o pré-requisito de dado.
 
 ## Open Questions & Assumptions
 
-- **A2 — Gatilho.** Revisão calculada **sob demanda** (idempotente por janela). Job automático fica pós-v1.
-- **A3 — Criticidade de treino (ex-"treino-chave").** Confirmado no código: NÃO existe conceito nomeado; aderência é count/TSS-based (`MetricasAdesaoService`). Proxy de criticidade `TipoTreino.getFatorImpacto() ≥ 1.15` (existente). Ver Code Anchors (design.md).
-- **Sem gate A1:** esta fatia não usa LLM, portanto não há gate de custo.
+- **A2 — Gatilho.** Event-driven no encerramento (`EncerramentoSemanaService`), não sob demanda nem cron próprio. Regeneração só por ação explícita (upsert por `plano_semanal_id`).
+- **A3 — Criticidade de treino.** Sem conceito de "treino-chave" no backend; proxy `TipoTreino.getFatorImpacto() ≥ 1.15` (existente).
+- **Sem gate A1:** esta fatia não usa LLM.
 
 ## Capabilities
 
@@ -50,11 +51,12 @@ Escopo v1 (decisão do founder, CPO review 2026-07-24): consolida sobre o **dado
 
 ## Impact
 
-**Produto:** entrega a base da revisão semanal; sozinha não é vista pelo coach (isso é a Fatia 3), mas destrava as outras duas.
+**Produto:** entrega a base congelada e fiel da revisão; sozinha não é vista pelo coach (Fatia 3), mas destrava as outras duas e preserva o ground-truth do moat.
 
 **Backend:**
-- nova entidade/tabela `tb_revisao_semanal` (migration aditiva), unicidade `(tenant, atleta, semanaInicio)`
-- serviço de consolidação determinística + `recommendationType` + `weekOverWeekDelta`
+- nova entidade/tabela `tb_revisao_semanal` (migration aditiva), FK única a `plano_semanal_id`
+- hook em `EncerramentoSemanaService` para gerar/congelar a revisão no `CONCLUIDO`
+- serviço de consolidação determinística (aderência por contagem + `recommendationType` sobre `tsb_fim`)
 - endpoint `GET` read-only coach-only sob `TenantContext`
 
-**Fora de escopo desta fatia:** narrativa por LLM e insumo no plano (Fatia 2); card no shell do coach (Fatia 3); métricas `.fit`, notificação ao atleta, tendência multi-semana.
+**Fora de escopo desta fatia:** narrativa `nextWeekFocus` por LLM, `focusOutcome` e insumo no plano (Fatia 2); card no shell do coach (Fatia 3); métricas `.fit`, notificação ao atleta, tendência multi-semana.

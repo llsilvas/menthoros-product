@@ -1,100 +1,102 @@
 ## Context
 
-Fatia 1 de 3 do `weekly-athlete-review`: o núcleo determinístico. Consolida a semana do atleta a partir de dados já persistidos (planejado/realizado, PMC/TSB) e expõe por endpoint. Sem LLM. As Fatias 2 (`add-weekly-review-llm-focus`) e 3 (`add-weekly-review-coach-card`) dependem desta.
+Fatia 1 de 3 do `weekly-athlete-review`: o núcleo determinístico, **ancorado 1:1 ao `PlanoSemanal`**. Desenho consolidado em grelhagem 2026-07-24 contra os domain docs do backend (ver `CONTEXT.md` → "Revisão Semanal" e **ADR-0006**). As Fatias 2 (`add-weekly-review-llm-focus`) e 3 (`add-weekly-review-coach-card`) dependem desta.
 
-## Code Anchors (confirmados no backend — 2026-07-24)
+## Code Anchors (backend, 2026-07-24)
 
-- **Aderência / criticidade.** NÃO existe "treino-chave" no backend. Aderência é count/TSS-based:
-  - `MetricasAdesaoService.calcularSemana(Atleta, LocalDate)` / `getAdesaoSemana(String, LocalDate)` — % realizados/planejados (aceita data arbitrária). **Fonte primária da consolidação.**
-  - Roster: `CoachDashboardServiceImpl.java:257`. Fila: `CoachAttentionSignalEvaluator.avaliarAderencia(...)` (`:108`).
-  - Proxy de criticidade: `TipoTreino.getFatorImpacto()` (LONGO 1.15, INTERVALADO 1.4, TIRO 1.5, SUBIDA 1.6). `percepcaoEsforcoEsperada` (`TreinoPlanejado.java:45`) é RPE alvo, não criticidade.
-- **PMC/TSB.** `PmcPontoDto` (ctl/atl/tsb/tss) já calculado — fonte de fadiga/evolução.
+- **`PlanoSemanal`** (`tb_plano_semanal`) já carrega `semana_inicio`/`semana_fim`, `tsb_inicio`/`tsb_fim`, `volume_planejado_km`/`volume_realizado_km`/`volume_alvo_km`, `status` (`PlanoStatus.CONCLUIDO`), `review_status`, `objetivo_semana`. A revisão **reusa** esses campos; não os duplica.
+- **Encerramento:** `EncerramentoSemanaService.encerrarPlanosElegiveis(...)` fecha o plano (`CONCLUIDO`), disparado pelo coach (manual) ou pelo `EncerramentoSemanaScheduler` (fallback diário, `menthoros.encerramento-semana.enabled`). Ponto de hook da geração da revisão.
+- **Aderência:** contagem realizados/planejados na janela exata do plano via `treinoPlanejadoRepository.findComRealizadoByAtletaAndPeriodo(atletaId, tenantId, semanaInicio, semanaFim)`. **NÃO** usar `MetricasAdesaoService.getAdesaoSemana` (semana domingo–sábado, incompatível com o segunda–domingo do plano) nem equiparar ao `aderenciaPercentual` do roster (rolante de 4 semanas) — são métricas distintas. Criticidade: `TipoTreino.getFatorImpacto()`.
+- **Multi-tenant:** `TenantContext.getTenantId()` (UUID). Coach-only: `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")` (padrão do `CoachDashboardController`).
 
 ## Goals / Non-Goals
 
 **Goals:**
-- consolidar aderência, carga, fadiga e evolução de forma determinística
-- derivar `recommendationType` e `weekOverWeekDelta` determinísticos
-- persistir por janela idempotente e expor por endpoint read-only coach-only
+- congelar, no encerramento, o sinal estruturado do que foi proposto (`recommendationType`, `adherenceStatus`, `dadosSuficientes`)
+- aderência por contagem na janela exata do plano; `recommendationType` determinístico sobre `tsb_fim`
+- `weekOverWeekDelta` computado; leitura coach-only
 
 **Non-Goals (desta fatia):**
-- narrativa por LLM e insumo na geração de plano (Fatia 2)
-- superfície visual no shell do coach (Fatia 3)
-- métricas `.fit`, tendência multi-semana com gráfico, notificação ao atleta, job automático
+- narrativa `nextWeekFocus` por LLM, `focusOutcome`, insumo na geração de plano (Fatia 2)
+- card no shell do coach (Fatia 3)
+- métricas `.fit`, tendência multi-semana, notificação ao atleta, cron próprio
 
 ## Decisions
 
-### D1: Consolidação determinística + `recommendationType`
+### D1: Ancorar 1:1 ao `PlanoSemanal`
 
-**Decisão:** Aderência, carga, fadiga e evolução são calculadas deterministicamente. `adherenceSummary.status` e `recommendationType` seguem regras fixas (confirmadas com o founder, 2026-07-24), ancoradas no vocabulário PMC e no piso de TSB `−25` já usado no codebase (`RecoveryCargaSkill`/retention-radar):
+**Decisão:** A revisão é 1:1 com um `PlanoSemanal` (FK única `plano_semanal_id`), reusando janela, TSB e volumes do plano. Não há conceito de "semana" independente.
 
-**`adherenceSummary.status`** (por `TSS realizado / TSS planejado` da janela):
-- `ALTA` ≥ 90%
-- `MEDIA` 60–89%
-- `BAIXA` < 60% **ou** ≥1 treino de alta criticidade (`TipoTreino.getFatorImpacto() ≥ 1.15`) não realizado
+**Rationale:** É a unidade semanal canônica do domínio (o glossário avisa contra inventar um "week" paralelo). `tsb_inicio/tsb_fim` já dão o TSB e o delta da semana — elimina "qual TSB usar" (PMC vs baseline estimado durante `CALIBRATION`): usa-se o que o plano registrou.
 
-**`recommendationType`** (árvore determinística, avaliada nesta ordem):
-1. `RECOVERY` — se `TSB ≤ −25` **ou** (`status = BAIXA` **e** `TSB ≤ −10`)
-2. `PROGRESS` — se `status = ALTA` **e** `TSB ≥ −10` **e** `confidence = ALTA` **e** nenhum treino crítico faltando
-3. `MAINTAIN` — caso contrário (default; inclui `confidence = BAIXA` e todos os casos intermediários)
+### D2: Persistir congelado — só o rule-dependent (ADR-0006)
 
-**Rationale:** O campo estruturado torna CA1/CA2/CA2b/CA3 testáveis por JUnit sem depender de LLM (asserção sobre valor esperado, não só exclusão). É o contrato que a Fatia 2 consome para restringir a narrativa. TSB entra na decisão porque uma semana de alta aderência mas fadiga alta **não** deve sinalizar progressão.
+**Decisão:** `tb_revisao_semanal` congela no encerramento apenas o sinal que depende de **regra mutável**: `recommendationType`, `adherenceStatus`, `dadosSuficientes` (+ `percentualRealizacao` exibido, `geradaEm`). TSB/volumes ficam no `PlanoSemanal` (congelados por `CONCLUIDO`); `weekOverWeekDelta` é **computado** na leitura.
 
-**Limiar de `confidence = BAIXA`:** janela com <2 treinos realizados **ou** sem ponto de PMC/TSB válido (default v1, ajustável). `confidence = BAIXA` ⇒ nunca `PROGRESS` (cai em MAINTAIN por default).
+**Rationale:** Os limiares (`−25`/`−10`/`90%`) são ajustáveis. Recomputar reescreveria "o que foi proposto ao coach", corrompendo o moat (proposta-IA vs. edição-do-coach). Congelar preserva ground-truth para o moat e análises LLM/RAG. O que não depende de regra (TSB, volumes, delta) não é congelado — é recomputável e estável.
 
-### D2: `nextWeekFocus` template nesta fatia
+### D3: Gerar/congelar no encerramento da semana
 
-**Decisão:** Nesta fatia, `nextWeekFocus` é um **template determinístico** derivado do `recommendationType` (ex.: RECOVERY → "Semana de recuperação: reduza volume ~20%…"). A narrativa por LLM entra na Fatia 2, substituindo o template atrás de flag.
+**Decisão:** Hook em `EncerramentoSemanaService` — a revisão nasce quando o `PlanoSemanal` vira `CONCLUIDO` (manual ou fallback automático). Sem scheduler novo. Upsert idempotente por `plano_semanal_id`. Antes do `CONCLUIDO`, o `GET` retorna "não disponível".
 
-**Rationale:** Permite a Fatia 3 (leitura pelo coach) já mostrar um foco útil sem esperar a camada de IA nem o gate de custo.
+**Rationale:** É quando `tsb_fim`/`volume_realizado_km` ficam finais — congelamento fiel, sem race. Espelha o padrão "Semana de Calibração" do domínio (hook no fluxo existente, não cron próprio).
 
-### D3: Janela fechada + idempotência
+### D4: Aderência por contagem na janela exata do plano
 
-**Decisão:** Revisão por janela explícita (`semanaInicio`/`semanaFim`), unicidade `(tenant, atleta, semanaInicio)`, upsert in-place. Geração/consulta sob `TenantContext`; endpoint de leitura coach-only.
+**Decisão:** `adherenceStatus` deriva de uma contagem realizados/planejados na janela **exata** do plano `[PlanoSemanal.semanaInicio, PlanoSemanal.semanaFim]` (segunda–domingo), reusando o repositório de casamento planejado-vs-realizado do roster (`treinoPlanejadoRepository.findComRealizadoByAtletaAndPeriodo`) escopado a essa única semana. Cortes `ALTA ≥90%` / `MEDIA 60–89%` / `BAIXA <60%`, com override: ≥1 treino de alta criticidade (`TipoTreino.getFatorImpacto() ≥ 1.15`) não realizado ⇒ `BAIXA`.
 
-### D4: `weekOverWeekDelta`
+**Rationale:** Contagem (não TSS) para reusar a mesma *lógica de casamento* do roster, sem inventar uma segunda métrica de esforço. **Correção (re-gate 2026-07-24):** o número **NÃO** é igual ao `aderenciaPercentual` do roster — o roster é uma janela **rolante de 4 semanas** (`inicioSemana.minusWeeks(3)`), esta é a semana do plano; e `MetricasAdesaoService.getAdesaoSemana` usa semana domingo–sábado, incompatível com o segunda–domingo do `PlanoSemanal`. Por isso **não** se usa `getAdesaoSemana`: conta-se direto na janela do plano. São métricas distintas por design (per-semana vs. tendência de 4 semanas). O override de criticidade cobre "fez os fáceis, pulou o tiro".
 
-**Decisão:** `weekOverWeekDelta` calculado contra a revisão imediatamente anterior persistida (Δaderência, ΔTSS, ΔTSB, transição de `recommendationType`). Sem anterior ⇒ `PRIMEIRA_SEMANA`.
+### D5: `recommendationType` determinístico sobre `tsb_fim`
 
-**Rationale:** Linhas já acumulam por janela; custo é 1 query. Transforma "foto" em "trajetória".
+**Decisão (árvore, nesta ordem):**
+1. `RECOVERY` — `tsb_fim ≤ −25` **ou** (`adherenceStatus = BAIXA` **e** `tsb_fim ≤ −10`)
+2. `PROGRESS` — `adherenceStatus = ALTA` **e** `tsb_fim ≥ −10` **e** `dadosSuficientes` **e** sem crítico faltando
+3. `MAINTAIN` — caso contrário (default; inclui `dadosSuficientes = false`)
+
+**`dadosSuficientes`** = `false` se <2 treinos realizados **ou** sem ponto de PMC/TSB válido na janela ⇒ nunca `PROGRESS`. (Nome escolhido para não colidir com `ConfidenceTier` — ex-`confidence`.)
+
+**TSB ausente:** `PlanoSemanal.tsb_fim` é nullable. Se for `null`, `dadosSuficientes = false` e os ramos numéricos (RECOVERY/PROGRESS, que comparam `tsb_fim`) **não se aplicam** ⇒ `MAINTAIN`. A checagem de `tsb_fim` nulo precede qualquer comparação numérica na árvore.
+
+**Rationale:** `tsb_fim` é o estado ao fim da semana — o que orienta a próxima. Limiar `−25` ancorado no piso já usado por `RecoveryCargaSkill`/retention-radar.
 
 ## Technical Notes
 
-### Contrato (Fatia 1)
+### Contrato — `tb_revisao_semanal` (só o congelado)
 
 ```text
-WeeklyAthleteReview
-- tenantId · atletaId
-- semanaInicio · semanaFim          (unicidade (tenant, atleta, semanaInicio))
-- adherenceSummary                  (ALTA|MEDIA|BAIXA + %)         ← determinístico
-- trainingLoadSummary               (TSS realizado vs planejado)   ← determinístico
-- fatigueSummary                    (TSB final + delta)            ← determinístico
-- progressionSummary                                               ← determinístico
-- recommendationType                (RECOVERY|MAINTAIN|PROGRESS)   ← determinístico
-- weekOverWeekDelta                 (Δs; PRIMEIRA_SEMANA se nulo)  ← determinístico
-- nextWeekFocus                     (TEMPLATE por recommendationType — LLM na Fatia 2)
-- confidence                        (ALTA|BAIXA)
-- generatedAt
+RevisaoSemanal
+- id
+- planoSemanalId          (FK única → tb_plano_semanal)
+- recommendationType      (RECOVERY|MAINTAIN|PROGRESS)   ← congelado
+- adherenceStatus         (ALTA|MEDIA|BAIXA)             ← congelado
+- percentualRealizacao    (contagem, como-exibido)       ← congelado
+- dadosSuficientes         (boolean)                      ← congelado
+- geradaEm
 ```
 
-> Campos `focusOutcome` e a substituição LLM de `nextWeekFocus` são adicionados pela Fatia 2 (migration aditiva própria).
+> Janela, TSB, volumes → `PlanoSemanal` (join). `weekOverWeekDelta` → computado na leitura (current vs. `PlanoSemanal` anterior). `nextWeekFocus`/`focusOutcome` → Fatia 2 (tabela/coluna própria 1:1 com o mesmo `PlanoSemanal`).
+
+### Leitura e congelamento
+
+O endpoint lê a coluna `recommendation_type` persistida e **nunca** recomputa — é isso que garante o congelamento (CA-Congelamento). O teste de congelamento (5.7) constrói uma `RevisaoSemanal` cujo `recommendationType` persistido **contradiz** o que a regra atual produziria para aquele `PlanoSemanal`, e assevera que a leitura devolve o valor **persistido** — sem depender de externalizar limiares. Os limiares (`−25`/`−10`/`90%`) são constantes Java na v1. Antes do `CONCLUIDO` não há linha ⇒ HTTP **404** com corpo vazio (contrato de "não disponível").
 
 ## Risks / Trade-offs
 
-- **[Risco] Template de foco genérico demais** → aceitável nesta fatia; a Fatia 2 substitui por narrativa por atleta.
-- **[Risco] Vazamento multi-tenant** → geração/consulta sob `TenantContext`, unicidade inclui tenant, endpoint coach-only (CA7).
-- **[Risco] Progressão em semana ruim/incompleta** → `confidence = BAIXA`/baixa aderência bloqueiam `PROGRESS` (CA2/CA3).
+- **[Risco] Aderência por contagem trata todo treino igual** → override de criticidade mitiga; consistência com o roster vale mais que a granularidade de TSS na v1.
+- **[Risco] Sem encerramento (flag off + coach não fecha) → sem revisão** → aceitável: sem semana fechada, não há o que revisar.
+- **[Risco] Vazamento multi-tenant** → geração/consulta sob `TenantContext`; endpoint coach-only (CA7).
 
 ## Migration Plan
 
-1. Migration aditiva `tb_revisao_semanal` com unicidade `(tenant, atleta, semanaInicio)`
-2. Consolidação determinística + `recommendationType` + `weekOverWeekDelta`
+1. Migration **V71** aditiva `tb_revisao_semanal` (FK única `plano_semanal_id`)
+2. Consolidação determinística + hook no `EncerramentoSemanaService`
 3. Endpoint `GET` read-only coach-only
 
 ## Rollback
 
-Migration aditiva, sem rollback de schema. A fatia não altera nenhum fluxo existente (só adiciona leitura), então desativar = não expor o endpoint.
+Migration aditiva, sem rollback de schema. A fatia não altera fluxo existente além de **adicionar** um passo no encerramento (protegível por flag se necessário) e um endpoint de leitura.
 
 ## Open Questions
 
-- Nenhuma bloqueante nesta fatia. A1 (custo LLM) não se aplica (sem LLM).
+- Nenhuma bloqueante. A1 (custo LLM) não se aplica (sem LLM).
