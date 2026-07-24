@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: `nextWeekFocus` por IA restrito ao tipo determinístico
-O sistema SHALL, com a flag da narrativa ligada, gerar `nextWeekFocus` por LLM sobre os sinais consolidados, respeitando o `recommendationType`; com a flag desligada, SHALL usar o template determinístico da fatia de consolidação.
+O sistema SHALL, com a flag da narrativa ligada, gerar `nextWeekFocus` por LLM sobre os sinais consolidados, respeitando o `recommendationType`; com a flag desligada, SHALL usar um template determinístico derivado do `recommendationType` (fallback desta fatia — a F1 não tem template).
 
 #### Scenario: Flag ligada — narrativa consistente
 - **WHEN** a flag da narrativa estiver ligada e a revisão for gerada
@@ -18,7 +18,7 @@ O sistema SHALL disponibilizar a revisão mais recente como insumo para a geraç
 
 #### Scenario: Geração da próxima semana
 - **WHEN** o próximo plano semanal for gerado com a flag de injeção ligada
-- **THEN** o sistema SHALL consumir `nextWeekFocus` e `risks` da revisão mais recente como contexto
+- **THEN** o sistema SHALL consumir `nextWeekFocus` e `recommendationType` da revisão mais recente como contexto
 
 #### Scenario: Revisão não altera o plano automaticamente
 - **WHEN** uma revisão existir

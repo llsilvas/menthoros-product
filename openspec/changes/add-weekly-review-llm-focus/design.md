@@ -1,6 +1,6 @@
 ## Context
 
-Fatia 2 de 3 do `weekly-athlete-review`. A Fatia 1 (`add-weekly-review-consolidation`) já entrega a revisão determinística persistida com `nextWeekFocus` template e `recommendationType`. Esta fatia troca o template por narrativa LLM (atrás de flag), injeta a revisão na geração do próximo plano e captura o sinal de aprendizado.
+Fatia 2 de 3 do `weekly-athlete-review`. A Fatia 1 (`add-weekly-review-consolidation`) já entrega a revisão determinística congelada (`recommendationType`, `adherenceStatus`, `dadosSuficientes`) em `tb_revisao_semanal`, 1:1 com o `PlanoSemanal` — **sem narrativa**. Esta fatia adiciona a narrativa `nextWeekFocus` (LLM atrás de flag), injeta a revisão na geração do próximo plano e captura o sinal de aprendizado.
 
 ## Code Anchors (confirmados no backend — 2026-07-24)
 
@@ -23,7 +23,7 @@ Fatia 2 de 3 do `weekly-athlete-review`. A Fatia 1 (`add-weekly-review-consolida
 
 ### D5: Narrativa LLM restrita pelo `recommendationType`, atrás de flag (kill-switch)
 
-**Decisão:** O `nextWeekFocus` passa a ser redigido por LLM sobre os sinais já consolidados, recebendo o `recommendationType` como restrição (a narrativa não pode contrariar o tipo determinístico). A geração fica atrás de `menthoros.weekly-review.llm.enabled`; desligada, volta ao template da Fatia 1. Uma segunda flag controla a injeção da revisão na geração de plano.
+**Decisão:** O `nextWeekFocus` é redigido por LLM sobre os sinais já consolidados, recebendo o `recommendationType` como restrição (a narrativa não pode contrariar o tipo determinístico). A geração fica atrás de `menthoros.weekly-review.llm.enabled`; desligada, usa um **template determinístico derivado do `recommendationType`** (fallback desta fatia — a F1 não tem template). Uma segunda flag controla a injeção da revisão na geração de plano.
 
 **Rationale:** Isola custo/qualidade de LLM; permite implementar sem esperar o gate A1 (aferido em canary) e rollback imediato sem perder o núcleo determinístico.
 
@@ -33,18 +33,20 @@ Fatia 2 de 3 do `weekly-athlete-review`. A Fatia 1 (`add-weekly-review-consolida
 
 ### D7: Loop de aprendizado — `focusOutcome`
 
-**Decisão:** Ao gerar/aprovar o próximo plano, registrar se o `nextWeekFocus` proposto foi mantido, editado ou descartado (`focusOutcome`). Campo aditivo à entidade da Fatia 1.
+**Decisão:** Ao gerar/aprovar o próximo plano, registrar se o `nextWeekFocus` proposto foi mantido, editado ou descartado (`focusOutcome`). Coluna aditiva em `tb_revisao_semanal` (a tabela da Fatia 1).
 
-**Rationale:** Sinal proposta-IA vs. correção-do-coach — o moat que compõe com o `WeekSuggestion`.
+**Rationale:** Sinal proposta-IA vs. correção-do-coach — o moat que compõe com o sinal de revisão de plano do coach (`PlanoReviewStatus`/`origemAprovacao`).
 
 ## Technical Notes
 
-### Delta de contrato (sobre a Fatia 1)
+### Delta de contrato — colunas aditivas em `tb_revisao_semanal`
 
 ```text
-+ nextWeekFocus     → narrativa LLM (atrás de flag; template como fallback)
-+ focusOutcome      (PROPOSTO|MANTIDO|EDITADO|DESCARTADO)   ← migration aditiva
++ next_week_focus   → narrativa LLM (atrás de flag; template determinístico como fallback)
++ focus_outcome     (PROPOSTO|MANTIDO|EDITADO|DESCARTADO)   ← migration aditiva
 ```
+
+> A geração de `next_week_focus` roda no encerramento (mesmo hook da F1), atrás de flag. `focus_outcome` é escrito depois, na geração/aprovação do próximo plano.
 
 ## Risks / Trade-offs
 
@@ -60,7 +62,7 @@ Fatia 2 de 3 do `weekly-athlete-review`. A Fatia 1 (`add-weekly-review-consolida
 
 ## Rollback
 
-- Flag da narrativa desligada ⇒ volta ao template determinístico da Fatia 1.
+- Flag da narrativa desligada ⇒ `nextWeekFocus` é o template determinístico (fallback desta fatia); a F1 segue intacta.
 - Flag de injeção desligada ⇒ a revisão para de alimentar o plano, sem afetar planos existentes. Migration aditiva.
 
 ## Open Questions

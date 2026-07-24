@@ -1,6 +1,6 @@
 **Tamanho:** S · **Trilha:** Fast
 
-> Fast porque é frontend-only, sem contrato de banco e com risco baixo (card read-only). Fatia 3 de 3 do `weekly-athlete-review` — **depende de `add-weekly-review-consolidation`** (Fatia 1: endpoint `GET` read-only). Consome a revisão determinística; funciona mesmo antes da Fatia 2 (mostra o `nextWeekFocus` template).
+> Fast porque é frontend-only, sem contrato de banco e com risco baixo (card read-only). Fatia 3 de 3 do `weekly-athlete-review` — **depende de `add-weekly-review-consolidation`** (Fatia 1: endpoint `GET` read-only, gerado no encerramento da semana). Consome a revisão determinística da F1; funciona mesmo antes da Fatia 2 — sem a narrativa LLM, o card mostra o sinal estruturado (`recommendationType`, `adherenceStatus`, `weekOverWeekDelta`) com um rótulo derivado do `recommendationType`; a narrativa `nextWeekFocus` aparece quando a F2 estiver ativa.
 
 ## Why
 
@@ -15,8 +15,8 @@ A revisão só entrega o valor-núcleo (o coach *lê* a semana consolidada e eco
 
 ## Critérios de aceite
 
-- **CA10 — Leitura pelo coach.** DADO um treinador autenticado abrindo o drilldown de um atleta com revisão existente, QUANDO a página carrega, ENTÃO o card exibe resumos, `recommendationType`, `weekOverWeekDelta` e `nextWeekFocus` em modo somente-leitura.
-- **CA10.1 — Estados.** DADO a revisão carregando, ausente ou em erro, ENTÃO o card renderiza, respectivamente, loading, empty e error explícitos (teste de componente).
+- **CA10 — Leitura pelo coach.** DADO um treinador autenticado abrindo o drilldown de um atleta com revisão da última semana fechada, QUANDO a página carrega, ENTÃO o card exibe `recommendationType`, `adherenceStatus`, `dadosSuficientes`, `weekOverWeekDelta` e — quando disponível (F2) — `nextWeekFocus`, em modo somente-leitura.
+- **CA10.1 — Estados.** DADO a revisão carregando, ausente (endpoint 404 — nenhuma semana fechada) ou em erro, ENTÃO o card renderiza, respectivamente, loading, empty e error explícitos (teste de componente).
 - **CA10.2 — Read-only.** DADO o card renderizado, ENTÃO ele NÃO oferece nenhuma ação que altere o plano do atleta.
 
 ## Métrica de sucesso

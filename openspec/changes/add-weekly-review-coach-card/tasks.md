@@ -14,7 +14,7 @@
 
 ## 2. Card
 
-- [ ] 2.1 `SectionCard` read-only "Revisão semanal" no grid de `CoachAthleteProfilePage.tsx`; mostra resumos, `recommendationType`, `weekOverWeekDelta`, `nextWeekFocus` — [CA10]
+- [ ] 2.1 `SectionCard` read-only "Revisão semanal" no grid de `CoachAthleteProfilePage.tsx`; mostra `recommendationType`, `adherenceStatus`, `dadosSuficientes`, `weekOverWeekDelta` e `nextWeekFocus` quando disponível (F2) — [CA10]
 - [ ] 2.2 Estados loading (`Skeleton`) / empty (`Alert warning`) / error (`Alert` + "Tentar novamente") — [CA10.1]
 - [ ] 2.3 Read-only: nenhuma ação que altere o plano — [CA10.2]
 
