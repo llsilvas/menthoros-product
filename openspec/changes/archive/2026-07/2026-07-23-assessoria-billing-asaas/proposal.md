@@ -20,7 +20,7 @@ O Menthoros hoje cobra as assessorias (tenants B2B) de forma manual/informal: `A
 
 ### Backend (`menthoros-backend`) — única área afetada; sem mudança no frontend nesta change
 
-- **Entidade `Assinatura`** (nova, 1:1 com `Assessoria`, sem histórico local — ver ADR-0004): `asaasCustomerId`, `asaasSubscriptionId`, `status` (`ATIVA`/`INADIMPLENTE`/`SUSPENSA`/`CANCELADA`), `dataProximaCobranca`, `valor`, `overdueDesde`.
+- **Entidade `Assinatura`** (nova, 1:1 com `Assessoria`, sem histórico local — ver ADR-0004): `asaasCustomerId`, `asaasSubscriptionId`, `status` (`PENDENTE`/`ATIVA`/`INADIMPLENTE`/`SUSPENSA`/`CANCELADA` — `PENDENTE` é estado transitório de criação, ver design.md Decisão 9), `dataProximaCobranca`, `valor`, `overdueDesde`.
 - **Cliente Asaas** (`services/gateway` novo) — criação de customer + subscription (com token de cartão e `nextDueDate` configurável, suportando trial com cobrança diferida — ver ADR-0005), atualização de valor, cancelamento.
 - **Endpoints administrativos** (`/api/admin/assessorias/{id}/assinatura`, `@PreAuthorize("hasRole('ADMIN')")`, mesmo padrão de `AssessoriaController`):
   - `POST` — cria `Assinatura` (Asaas + local).
@@ -45,6 +45,9 @@ O Menthoros hoje cobra as assessorias (tenants B2B) de forma manual/informal: `A
 - **CA10 — Idempotência do webhook:** reenvio do mesmo evento (mesmo `id`/`payment.id`) não duplica transição de estado nem side-effect.
 - **CA11 — Autenticação do webhook:** requisição sem header `asaas-access-token` válido é rejeitada, sem processar o payload.
 - **CA12 — Trial com cartão capturado:** `Assinatura` criada em modo trial aceita `nextDueDate` no futuro (ex.: +60 dias); `PlanoAssessoria` já reflete o tier vendido desde a criação, não `GRATUITO`.
+- **CA13 — Falha parcial na criação preserva âncora local:** o `POST` grava `Assinatura` local `PENDENTE` antes de chamar o Asaas; se a chamada falhar, a `Assinatura` fica `PENDENTE` (âncora local) e nenhum customer/subscription órfão fica invisível no Asaas; sucesso confirma para `ATIVA` (design.md Decisão 9).
+- **CA14 — Idempotência do POST de criação:** reexecução do `POST` para uma assessoria que já tem `Assinatura` retoma a `PENDENTE` (sem duplicar customer no Asaas, via `externalReference`) ou responde conflito tratado se já `ATIVA` — nunca cria segunda assinatura nem estoura o `UNIQUE(assessoria_id)` com erro não tratado.
+- **CA15 — Atomicidade lógica de PATCH/DELETE:** a chamada ao Asaas é a última operação dentro da transação local; falha externa reverte o lado local — nenhum lado fica alterado (garantia operacional do CA9).
 
 ## Revisão de produto (2026-07-21, `product-reviewer`)
 
@@ -58,7 +61,14 @@ O Menthoros hoje cobra as assessorias (tenants B2B) de forma manual/informal: `A
 
 **Nota de escopo:** diferente da maioria das changes do produto, esta não otimiza diretamente a rotina do treinador (coach) — é uma capability de operação/financeiro do próprio Menthoros sobre seus clientes B2B (as assessorias). Sinalizado para o `product-reviewer` avaliar se esse desvio do North Star é aceitável para uma change de infraestrutura de negócio.
 
-**Do time comercial/financeiro:** redução de reconciliação manual de cobrança (hoje 100% manual, sem qualquer integração) e eliminação do risco de assessorias inadimplentes sem gatilho de suspensão. Meta: 100% das assessorias com contrato ativo têm `Assinatura` sincronizada automaticamente com o Asaas, sem intervenção manual de status.
+**Do time comercial/financeiro:** redução de reconciliação manual de cobrança (hoje 100% manual, sem qualquer integração) e eliminação do risco de assessorias inadimplentes sem gatilho de suspensão.
+
+**Sinais mensuráveis (com mecanismo de medição):**
+- **Zero intervenção manual de status:** nenhuma escrita direta em `Assessoria.ativo` fora da sincronização a partir de `Assinatura` (Decisão 2) — auditável por `grep`/revisão de código no PR (nenhum caller manual sobra) e, em runtime, pela ausência de `Assinatura` "presa" em `PENDENTE` (query `SELECT count(*) FROM tb_assinatura WHERE status='PENDENTE' AND criado_em < now() - interval '1 hour'` deve ser 0; alvo de alerta operacional).
+- **Latência de suspensão dentro do SLA:** toda `Assinatura` que ultrapassa a carência é suspensa pelo job diário em ≤ 24h após o 5º dia — verificável por `overdue_desde` vs. o instante da transição para `SUSPENSA` (log estruturado do scheduler).
+- **Cobertura de assinatura:** proporção de assessorias com contrato comercial ativo que têm `Assinatura` não-`PENDENTE` associada — query direta em `tb_assinatura`/`tb_assessoria`; meta 100% para as assessorias pagas onboardadas por esta capability.
+
+Como hoje há **zero** assessorias cobradas, o baseline é 0 e a primeira assessoria paga é o primeiro ponto de medição — não há histórico manual a comparar, o ganho é a existência do mecanismo automático em si.
 
 ## Impact
 
