@@ -24,12 +24,12 @@
 
 ## 2. Consolidação determinística
 
-- [ ] 2.1 `adherenceStatus` por contagem na janela exata `[semanaInicio, semanaFim]` via `treinoPlanejadoRepository.findComRealizadoByAtletaAndPeriodo(atletaId, tenantId, semanaInicio, semanaFim)`: ALTA ≥90% / MEDIA 60-89% / BAIXA <60% ou treino crítico (`fatorImpacto ≥1.15`) faltando — [CA1b]
-  - verify: teste parametrizado nos 3 cortes + crítico faltando forçando BAIXA; janela contada é a do plano (segunda–domingo), NÃO 4 semanas nem via `getAdesaoSemana`.
-- [ ] 2.2 `dadosSuficientes = false` no limiar (<2 treinos realizados OU sem ponto PMC/TSB válido, inclui `tsb_fim` nulo) — [CA3]
-  - verify: teste nos gatilhos, incluindo `tsb_fim` nulo.
-- [ ] 2.3 `recommendationType` (árvore D5, TSB de `PlanoSemanal.tsb_fim`): se `tsb_fim` nulo ⇒ MAINTAIN (ramos numéricos não se aplicam); senão RECOVERY se `tsb_fim≤−25` ou (`BAIXA` e `tsb_fim≤−10`); PROGRESS se `ALTA` e `tsb_fim≥−10` e `dadosSuficientes` e sem crítico faltando; senão MAINTAIN — [CA2, CA2b, CA2c, CA3b]
-  - verify: teste parametrizado cobrindo os 3 ramos + default + `tsb_fim` nulo → MAINTAIN.
+- [x] 2.1 `adherenceStatus` por contagem na janela exata `[semanaInicio, semanaFim]` reusando **`findComRealizadoByAtletaAndPeriodo`** (existente) + filtro em memória `dataTreino ≤ semanaFim` (não expande a API do repositório compartilhado): ALTA ≥90% / MEDIA 60-89% / BAIXA <60% ou treino crítico (`fatorImpacto ≥1.15`) faltando — [CA1b]
+  - verify: ✅ `RevisaoSemanalCalculatorTest` (cortes + crítico→BAIXA) + `RevisaoSemanalServiceImplTest` (contagem + corte da janela: treino de semana futura é ignorado).
+- [x] 2.2 `dadosSuficientes = false` no limiar (<2 treinos realizados OU sem ponto PMC/TSB válido, inclui `tsb_fim` nulo) — [CA3]
+  - verify: ✅ `RevisaoSemanalCalculatorTest.DadosSuficientes` (poucos treinos + `tsb_fim` nulo).
+- [x] 2.3 `recommendationType` (árvore D5, TSB de `PlanoSemanal.tsb_fim`): se `tsb_fim` nulo ⇒ MAINTAIN (ramos numéricos não se aplicam); senão RECOVERY se `tsb_fim≤−25` ou (`BAIXA` e `tsb_fim≤−10`); PROGRESS se `ALTA` e `tsb_fim≥−10` e `dadosSuficientes` e sem crítico faltando; senão MAINTAIN — [CA2, CA2b, CA2c, CA3b]
+  - verify: ✅ `RevisaoSemanalCalculatorTest.Arvore` (12 casos: 3 ramos + default + `tsb_fim` nulo). Lógica pura em `RevisaoSemanalCalculator`.
 
 ## 3. Geração no encerramento & congelamento
 
