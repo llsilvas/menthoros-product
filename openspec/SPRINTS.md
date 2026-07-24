@@ -2,7 +2,22 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-07-20 (**Priorização por ROI a partir do CPO weekly.** O relatório
+**Última atualização:** 2026-07-24 (**Poda de 8 changes zumbis confirmada — CPO weekly.** O
+relatório `artifacts/cpo-weekly/2026-07-24.md` (§4, recomendação 5) reclassificou 23 das 26 changes
+ativas como zumbis (0% tasks, sem commit há meses) e recomendou podar 8 delas para fora do foco
+coach-facing. Na apuração: as 8 — `add-continuous-daily-load-management`,
+`add-macrociclo-structure`, `add-running-field-tests`, `add-taper-guidance`,
+`add-zone-confidence-management`, `refine-tss-tsb-precision`, `add-race-evaluation-skill`,
+`add-health-connect-ingestion` — já estavam textualmente deprioritizadas na seção "Pós-MVP" deste
+doc (linhas ~301-330); o gap real era de **governança, não de priorização**: os specs seguem soltos
+em `openspec/changes/` sem essa correspondência registrada em lugar nenhum. Fechado agora — as 8
+ficam **confirmadas como backlog frio**, sem trabalho previsto até os gatilhos já documentados em
+cada bullet do Pós-MVP (fim do MVP, RAG, planner, decisão de app mobile). **Não movidas** para
+`archive/` (reservado a trabalho entregue) nem deletadas — permanecem em `openspec/changes/` como
+spec de referência, só que fora de qualquer sprint ativo. As 15 zumbis restantes seguem como
+decisões distintas do founder (pacote pré-beta `keycloak-user-onboarding-auth` +
+`add-external-call-resilience`, debrief/review coach-facing, família RAG condicionada, bloco de
+engenharia) — não entraram nesta poda.) Antes: 2026-07-20 (**Priorização por ROI a partir do CPO weekly.** O relatório
 `artifacts/cpo-weekly/2026-07-20.md` listava `deterministic-planner-engine` como "0% concluído,
 Sprint 17-18 recém iniciada" — desatualizado: a auditoria desta mesma sessão já havia confirmado e
 arquivado a change como 100% entregue (ver abaixo). Com a capacidade liberada,
@@ -299,6 +314,12 @@ Ordenadas por criticidade dentro do bloco: segurança (exposição de dados) ant
 ---
 
 ## Pós-MVP — backlog priorizado por ROI de continuidade
+
+*(8 changes desta seção — `add-zone-confidence-management`, `refine-tss-tsb-precision`,
+`add-continuous-daily-load-management`, `add-running-field-tests`, `add-race-evaluation-skill`,
+`add-taper-guidance`, `add-macrociclo-structure`, `add-health-connect-ingestion` — foram confirmadas
+como backlog frio no CPO weekly 2026-07-24, ver changelog acima. `validate-interval-workout-standards`
+e `refactor-iaservice-decomposition` seguem aqui sem confirmação formal de poda.)*
 
 **Aceleradores de qualidade (logo após o MVP):**
 `add-zone-confidence-management` (12) — confiança nas zonas. (~~`progressao-treinos`~~ ✅ antecipada e entregue na Sprint 14.)
