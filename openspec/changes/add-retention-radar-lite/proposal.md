@@ -14,12 +14,12 @@ Uma auditoria de código feita durante a análise do CPO weekly (mesma sessão) 
 sinais de risco do RF2** do PRD já têm dado pronto hoje, sem ingestão nova: `dias_sem_treino` e
 `aderencia_14d` (já calculados em `CoachAttentionQueueServiceImpl`), `sem_meta_ou_prova_futura`
 (`ProvaRepository`, entregue em `add-athlete-engagement-signals`), `readiness_baixo` (`CheckinProntidaoRepository`,
-entregue em `add-daily-readiness-checkin`), `queda_vs_baseline_individual` (`AthleteBaselineState`,
-entregue há 2 dias em `athlete-onboarding-baseline`). Um sexto sinal (`plano_vencido_ou_inexistente`)
-também está pronto — `PlanoSemanalRepository.findMostRecentRelevantPlano` já resolve as duas metades
-(vencido **e** inexistente) numa query só, achado desta pesquisa que corrige a suposição original do
-CPO weekly de que precisaria de um join novo. Só o sétimo sinal (`sem_mensagem_ou_checkin_14_dias`,
-metade "mensagem") depende de `add-athlete-coach-messaging`, que não existe.
+entregue em `add-daily-readiness-checkin`) e `plano_vencido_ou_inexistente` (via `PlanoSemanalRepository`).
+Dois sinais foram ajustados na revisão da spec: `queda_vs_baseline_individual` (`AthleteBaselineState`)
+**foi cortado da v1** — o baseline é sobrescrito a cada recálculo, tornando "queda" ambígua (Q5); e
+`plano_vencido` exige uma query nova (filtro de `status`/`reviewStatus`), não a reutilização direta que
+o pre-mortem refutou. Só o sinal `sem_mensagem_ou_checkin_14_dias` (metade "mensagem") depende de
+`add-athlete-coach-messaging`, que não existe. Resultado: a v1 roda com **5** sub-sinais prontos hoje.
 
 Esta change entrega a fatia "Fora da caixa #1" recomendada no CPO weekly: um **Retention Radar lite**
 que roda hoje, reaproveitando o padrão já existente `SinalAtencao` / `CoachAttentionSignalEvaluator`
@@ -53,39 +53,43 @@ anti-padrão "peça trivial em change própria").
    usa o override quando presente, senão cai no `motivo().getSuggestedAction()` de hoje. Contrato do
    DTO de saída permanece intacto (o override alimenta o mesmo campo `suggestedAction` já existente).
 
-3. **`CoachAttentionSignalEvaluator.avaliarRetencao(...)` (novo método):** conta quantos dos 6 sinais
-   disponíveis dispararam para o atleta e mapeia para `Severidade`:
+3. **`CoachAttentionSignalEvaluator.avaliarRetencao(...)` (novo método):** conta quantos dos **5**
+   sub-sinais dispararam para o atleta e mapeia para `Severidade`:
    - `dias_sem_treino ≥ 14` (reaproveita `diasInativos`, já calculado em `montarItem`);
    - `perdidos ≥ 3` na janela de 14 dias (reaproveita `perdidos`, já calculado);
-   - sem prova/meta futura: sem prova futura (`ProvaRepository.findUpcomingByAtletaIdAndTenantId`
-     vazia) E sem prova-alvo **futura** — o pre-mortem mostrou que `findByAtletaAndProvaAlvoTrue` não
-     filtra data (uma prova-alvo passada mascararia o sinal); precisa de um finder novo com
-     `dataProva >= :hoje` (ver design, tabela de risco);
+   - sem prova/meta futura **condicionado a histórico de prova** (decisão Q4): só conta quando o atleta
+     **já teve** prova registrada (`ProvaRepository`) E não tem nenhuma prova futura
+     (`findUpcomingByAtletaIdAndTenantId` vazia) nem prova-alvo **futura** (finder novo com
+     `dataProva >= :hoje` — o pre-mortem mostrou que `findByAtletaAndProvaAlvoTrue` não filtra data).
+     Atleta que nunca correu (treina por saúde) **não** é penalizado;
    - sem plano vigente **acionável**: o pre-mortem mostrou que `findMostRecentRelevantPlano` não
      filtra `status`/`reviewStatus` (contaria um plano `CONCLUIDO`/`REJEITADO` como vigente → falso
      negativo); precisa de um finder novo tenant-aware com `:hoje` explícito filtrando
      `status <> CONCLUIDO AND reviewStatus <> REJEITADO` (ver design, Decisão 4);
    - sem check-in nos últimos 14 dias OU último check-in com `NivelProntidao.DESCANSAR`
-     (`CheckinProntidaoRepository.findTopByAtletaIdOrderByDataDesc`);
-   - queda de CTL vs baseline individual, **só quando há baseline calculado**
-     (`AthleteBaselineStateRepository.findByAtletaIdAndTenantId` presente E `PlanoMetaDados.ctlAtual`
-     abaixo do baseline por uma margem a definir — ver Q2). **Ressalva do pre-mortem:** o baseline é
-     "estado atual sobrescrito", não snapshot inicial — a semântica de "queda" é ambígua (Q5); se não
-     for resolvível barato, este sub-sinal **sai da v1** (fica com 5 sub-sinais).
+     (`CheckinProntidaoRepository.findTopByAtletaIdOrderByDataDesc`).
+
+   (O 6º sinal candidato — queda de CTL vs baseline — foi **cortado da v1**, decisão Q5.)
 
    Contagem → severidade: 0–1 sinal = sem card (mesmo padrão de silêncio dos outros evaluators);
-   2 sinais = `MEDIA`; 3–4 = `ALTA`; 5–6 = `CRITICA`. `rationale` lista a fase (`FaseRetencao`) e os
+   2 sinais = `MEDIA`; 3 = `ALTA`; 4–5 = `CRITICA`. `rationale` lista a fase (`FaseRetencao`) e os
    motivos específicos que dispararam; `sourceRules` lista cada sub-sinal disparado. O evaluator também
    resolve o **sub-sinal dominante** (ordem de prioridade fixa: sem plano vigente > lacuna de treino >
-   queda de baseline > readiness baixo > baixa aderência > sem prova futura) e produz o
-   `suggestedActionOverride` do RF4 correspondente.
+   readiness baixo > baixa aderência > sem prova futura) e produz o `suggestedActionOverride` do RF4
+   correspondente.
 
-4. **`CoachAttentionQueueServiceImpl.montarItem`:** injeta os 4 repositórios novos
-   (`ProvaRepository`, `CheckinProntidaoRepository`, `AthleteBaselineStateRepository` e
-   `PlanoSemanalRepository` — este **não** é injetado hoje, só o `PlanoMetadadosRepository`, confirmado
-   pelo pre-mortem) e chama `evaluator.avaliarRetencao(...)` junto dos 6 evaluators existentes. Zero
-   mudança de assinatura pública — `RISCO_RETENCAO` entra na mesma disputa de `primaryReason` por
-   severidade que os outros motivos já usam.
+4. **`CoachAttentionQueueServiceImpl.montarItem`:** injeta os 3 repositórios novos
+   (`ProvaRepository`, `CheckinProntidaoRepository` e `PlanoSemanalRepository` — este **não** é
+   injetado hoje, só o `PlanoMetadadosRepository`, confirmado pelo pre-mortem; o
+   `AthleteBaselineStateRepository` **não** é mais necessário após o corte do sub-sinal de baseline) e
+   chama `evaluator.avaliarRetencao(...)` junto dos 6 evaluators existentes. `RISCO_RETENCAO` entra na
+   mesma disputa de `primaryReason` por severidade que os outros motivos já usam.
+
+5. **Corte de exibição por-motivo (decisão Q1):** o filtro compartilhado da fila
+   (`CORTE_SEVERIDADE = Severidade.ALTA.getPeso()` em `getAttentionQueue`/`getSinaisParaAtleta`) passa a
+   deixar passar `RISCO_RETENCAO` a partir de `MEDIA`, mantendo `ALTA+` para os demais 6 motivos.
+   Mudança pontual e testada — é a única alteração de lógica compartilhada da change (registro de risco
+   de regressão no design).
 
 ### Frontend (wiring mínimo, sem componente novo)
 
@@ -98,8 +102,8 @@ ortogonal ao motivo.
 O único trabalho de front é registrar o novo valor de motivo (o tipo é **curado à mão**, não gerado do
 OpenAPI — então não é regen de cliente):
 
-5. **`src/types/Coach.ts`:** adicionar `'RISCO_RETENCAO'` ao union `AttentionReason`.
-6. **Dois `Record<AttentionReason, string>` de label** (exaustivos — sem a entrada, o `tsc -b` quebra):
+6. **`src/types/Coach.ts`:** adicionar `'RISCO_RETENCAO'` ao union `AttentionReason`.
+7. **Dois `Record<AttentionReason, string>` de label** (exaustivos — sem a entrada, o `tsc -b` quebra):
    `REASON_LABEL` em `CoachAttentionQueuePage.tsx` e `ATTENTION_REASON_LABEL` em
    `DashboardAttentionQueueRow.tsx` — adicionar `RISCO_RETENCAO: 'Risco de retenção'` (ou similar) nos dois.
 
@@ -122,10 +126,9 @@ OpenAPI — então não é regen de cliente):
   conscientemente, não por mapeamento esquecido). Promover ao inbox é o gancho do bloco completo (ver
   design, Decisão 6). O sinal em si continua calculado on-demand a cada request, não persistido —
   mesma decisão de `add-recommendation-explainability`.
-- **Alterar o corte de exibição global da fila (`CORTE_SEVERIDADE = Severidade.ALTA.getPeso()`)** —
-  ver Open Question Q1: nesta v1, um atleta cujo **único** sinal ativo seja retenção em nível `MEDIA`
-  não aparece na fila (mesmo comportamento hoje para qualquer motivo isolado em `MEDIA`), embora o PRD
-  (RF3) peça exibição a partir de risco médio.
+- **Sub-sinal de queda vs baseline** — **cortado da v1** (decisão Q5): o `AthleteBaselineState` é
+  sobrescrito a cada recálculo, tornando a semântica de "queda" ambígua. O radar roda com **5**
+  sub-sinais corretos; o de baseline volta no bloco completo com uma referência bem definida.
 - **ML preditivo** — fora do MVP do PRD, fora também desta fatia.
 
 ## Critérios de aceite
@@ -134,15 +137,30 @@ OpenAPI — então não é regen de cliente):
 - **Dado** um atleta com `createdAt` há 200 dias, **quando** a fila for calculada, **então** nenhum
   sinal `RISCO_RETENCAO` é avaliado para ele (outros motivos continuam funcionando normalmente).
 
-**CA-2: Contagem de sinais mapeia corretamente para severidade**
-- **Dado** um atleta em D45 com exatamente 2 sub-sinais disparados (lacuna de treino + sem prova
-  futura), **quando** `avaliarRetencao` rodar, **então** o sinal retorna `Severidade.MEDIA`.
-- **Dado** o mesmo atleta com 5 sub-sinais disparados, **quando** `avaliarRetencao` rodar, **então**
-  o sinal retorna `Severidade.CRITICA`.
+**CA-2: Contagem de sinais mapeia corretamente para severidade (5 sub-sinais na v1)**
+- **Dado** um atleta em D45 com exatamente 2 sub-sinais disparados (lacuna de treino + sem plano
+  vigente), **quando** `avaliarRetencao` rodar, **então** o sinal retorna `Severidade.MEDIA`.
+- **Dado** um atleta com 3 sub-sinais, **quando** `avaliarRetencao` rodar, **então** retorna
+  `Severidade.ALTA`.
+- **Dado** um atleta com 4 ou 5 sub-sinais, **quando** `avaliarRetencao` rodar, **então** retorna
+  `Severidade.CRITICA`.
 
-**CA-3: Sinal de queda de baseline não dispara sem baseline calculado**
-- **Dado** um atleta em D20 sem `AthleteBaselineState` (calibração ainda em andamento), **quando**
-  `avaliarRetencao` rodar, **então** o sub-sinal de queda vs baseline nunca conta como disparado.
+**CA-3: `RISCO_RETENCAO` em nível `MEDIA` aparece na fila (decisão Q1 — corte por-motivo)**
+- **Dado** um atleta cujo `primaryReason` é `RISCO_RETENCAO` em `MEDIA` e nenhum outro motivo em
+  `ALTA+`, **quando** a fila for consultada, **então** o item **aparece** (retenção é exibida a partir
+  de `MEDIA`), enquanto um item cujo `primaryReason` seja qualquer outro motivo em `MEDIA` continua
+  filtrado (corte `ALTA+` inalterado para os demais).
+
+**CA-8: "sem prova futura" só dispara com histórico de prova (decisão Q4)**
+- **Dado** um atleta que **nunca** teve prova registrada, **quando** `avaliarRetencao` rodar, **então**
+  o sub-sinal "sem prova/meta futura" **não** conta (atleta de saúde não é penalizado).
+- **Dado** um atleta com prova(s) passada(s) mas nenhuma futura, **quando** `avaliarRetencao` rodar,
+  **então** o sub-sinal conta.
+
+**CA-9: Atleta legado sem data confiável fica fora do radar (decisão Q6)**
+- **Dado** um atleta cujo `createdAt` é o backfill da migração V25 e que não tem data de
+  onboarding/baseline, **quando** a fila for calculada, **então** nenhum `RISCO_RETENCAO` é avaliado
+  (a fase de retenção usa a data de onboarding, com fallback de exclusão).
 
 **CA-4: `rationale` e `sourceRules` são concretos**
 - **Dado** um sinal `RISCO_RETENCAO` com fase `HABITO` e 3 sub-sinais disparados, **quando** o item
@@ -184,7 +202,7 @@ um dashboard de coorte (isso é RF9, bloco completo). Sinais mínimos de que o l
 
 - **Precisão percebida:** no smoke/piloto, os atletas marcados com `RISCO_RETENCAO` batem com a
   percepção manual do coach (não é falso alarme sistemático). Guardrail: se `RISCO_RETENCAO` disparar
-  para **> 40% do roster** de uma assessoria no piloto, os thresholds (Q2, contagem) estão frouxos —
+  para **> 40% do roster** de uma assessoria no piloto, os thresholds (contagem 2/3/4-5) estão frouxos —
   revisar antes de generalizar.
 - **Acionabilidade:** o coach consegue dizer, olhando o card, qual é o próximo passo (o RF4 dá a ação;
   o rationale dá o porquê) — sem precisar abrir o perfil para decidir.
@@ -194,48 +212,36 @@ um dashboard de coorte (isso é RF9, bloco completo). Sinais mínimos de que o l
 
 ## Open Questions & Assumptions
 
-**Abertas (bloqueantes para a implementação — decidir no DoR / `/implement init`):**
-- **Q1 — Corte de exibição:** aceitar que risco de retenção `MEDIA` isolado não aparece na fila v1
-  (Non-Goal), ou vale a pena introduzir um corte por-motivo (`RISCO_RETENCAO` visível a partir de
-  `MEDIA`, os demais continuam em `ALTA`+)? Essa segunda opção tem mais risco de regressão (toca a
-  lógica de filtro compartilhada por todos os 7 motivos). **Recomendação (proposta + product-review):
-  não fazer agora** — aceitar Q1 como Non-Goal, reduz ruído; reavaliar se o piloto mostrar que
-  MEDIA+retenção é acionável. O founder decide.
-- **Q2 — Threshold de queda de baseline:** qual margem de queda de CTL vs `AthleteBaselineState.ctlEstimado`
-  conta como sinal (ex.: 15%, 20%)? **Recomendação (proposta + product-review): 15%**, alinhado à faixa
-  "queda relevante" já usada em outros gates + fail-closed (sem baseline não dispara) — não é constante
-  clínica publicada, precisa do aval do founder.
-- **Q3 — Peso de `RISCO_RETENCAO` (45):** colocação relativa entre `SOBRECARGA` (40) e `FADIGA` (50)
-  é uma escolha de produto (retenção importa, mas não deve ofuscar sinais de lesão/fadiga aguda).
-  **Recomendação (proposta + product-review): 45** — confirmar com o founder antes de implementar.
-- **Q4 — Falso-positivo de "sem prova futura" (achado do product-review):** o sub-sinal
-  `semProvaFutura` dispara para qualquer atleta sem prova no calendário — inclusive quem treina por
-  saúde/manutenção, sem intenção de competir. Isso pode inflar `RISCO_RETENCAO` numa coorte que não
-  está em risco real. Opções: (a) deixar como está no lite (o RF4 estático suaviza — a ação só vira
-  "definir meta" se `semProvaFutura` for o sub-sinal *dominante*); (b) condicionar o sub-sinal ao
-  campo `objetivo` do atleta (só conta se objetivo for competitivo). **Recomendação: (a) no lite,
-  registrar (b) como refino** — mas o founder decide se (b) entra já.
-- **Q5 — Referência de comparação do sub-sinal de baseline (achado do pre-mortem):** `AthleteBaselineState`
-  é sobrescrito a cada re-baseline, então comparar `ctlAtual` contra `ctlEstimado` é ambíguo (falso
-  negativo se o baseline for recalculado após a queda; falso positivo permanente se nunca for). Definir:
-  baseline inicial imutável, rolling, ou média recente de N dias? **Recomendação: se não for resolvível
-  barato, cortar o sub-sinal de baseline da v1** (5 sub-sinais corretos > 6 com um ambíguo) e tratá-lo
-  no bloco completo.
-- **Q6 — Relógio de retenção para atletas legados (crítico do pre-mortem):** a migration V25 preencheu
-  `created_at` dos atletas pré-existentes com a data da migração, não a de cadastro real — todos cairiam
-  em `FUNDACAO` (D1-D30) de uma vez, enviesando o radar no primeiro deploy. Definir a fonte de "início
-  de acompanhamento": (a) data de onboarding/baseline quando presente; (b) excluir da avaliação de
-  retenção atletas com `created_at` = backfill da V25 até haver data confiável. **Recomendação: (a) com
-  fallback (b)** — bloqueante, sem isso o guardrail de over-alerting dispara no primeiro deploy.
+**Decididas no DoR (founder, 2026-07-24) — todas fechadas, nada bloqueante restante:**
+- **Q1 — Corte de exibição → corte POR-MOTIVO.** `RISCO_RETENCAO` é exibido a partir de `MEDIA`; os
+  demais 6 motivos continuam em `ALTA+`. Mais alinhado ao RF3 do PRD. Custo: é a única alteração de
+  lógica compartilhada da change (filtro de `getAttentionQueue`/`getSinaisParaAtleta`) — risco de
+  regressão registrado no design, coberto por teste. Ver What Changes item 5.
+- **Q2 — Threshold de queda de baseline → SEM EFEITO.** O sub-sinal de baseline foi cortado (Q5);
+  a pergunta do threshold deixa de existir na v1.
+- **Q3 — Peso de `RISCO_RETENCAO` → 45.** Entre `SOBRECARGA` (40) e `FADIGA` (50): retenção importa,
+  mas não ofusca sinais de lesão/fadiga aguda.
+- **Q4 — Falso-positivo de "sem prova futura" → CONDICIONAR A HISTÓRICO DE PROVA.** O sub-sinal só
+  conta quando o atleta **já teve** prova registrada mas não tem nenhuma futura. Atleta que nunca
+  correu (treina por saúde) não é penalizado. Escolhido em vez de condicionar ao `objetivo` porque
+  esse campo é **texto livre** (`String` de 500 chars, verificado no código) — classificá-lo seria
+  frágil; histórico de prova é dado limpo (`ProvaRepository`). Ver What Changes item 3.
+- **Q5 — Referência de comparação do baseline → CORTAR O SUB-SINAL DA V1.** O `AthleteBaselineState` é
+  sobrescrito a cada re-baseline (semântica de "queda" ambígua); melhor 5 sub-sinais corretos que 6 com
+  um ambíguo. O sinal volta no bloco completo com uma referência bem definida. Ver Non-Goals.
+- **Q6 — Relógio de retenção para atletas legados → DATA DE ONBOARDING + FALLBACK DE EXCLUSÃO.** A fase
+  D1-D120 usa a data de onboarding/baseline (não o `createdAt` cru, que para atletas legados é o
+  backfill da V25); atletas sem data confiável ficam fora do radar. Protege o primeiro deploy do viés
+  de "todos legados em FUNDACAO". Ver What Changes item 3 / design Decisão 7.
 
-**Resolvidas para esta change:**
+**Resolvidas para esta change (contexto):**
 - A: v1 cobre só D1-D120 (RF1 do PRD). O recorte não é arbitrário: o próprio PRD (RF1) classifica
   D121+ como fase "Maduro = acompanhamento normal" — o radar de churn mira exatamente a janela de
   risco concentrado (os primeiros 90-100 dias, evidência §2.1 do discovery). Estender a fase Maduro é
   uma pergunta separada ("os mesmos sinais predizem churn em atleta veterano?") que o bloco completo
   pode testar com dado de coorte.
-- B: `plano_vencido_ou_inexistente` resolvido numa query só (`findMostRecentRelevantPlano`) — não
-  precisa de um novo campo/flag em `PlanoSemanal` nem de um join adicional, como se supôs inicialmente
-  no CPO weekly.
+- B: "sem plano vigente" **exige query nova** (finder tenant-aware com `:hoje` + filtro de
+  `status`/`reviewStatus`) — a suposição inicial de reutilizar `findMostRecentRelevantPlano` foi
+  refutada pelo pre-mortem (contaria plano `CONCLUIDO`/`REJEITADO` como vigente). Ver design Decisão 4.
 - C: nenhuma persistência de evento nesta v1 — mesma decisão já tomada em `add-recommendation-explainability`.
 - D: `RISCO_RETENCAO` é um motivo entre outros 6 na mesma fila — não cria endpoint, tela ou contrato novo.
