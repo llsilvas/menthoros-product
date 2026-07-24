@@ -1,3 +1,7 @@
+<!-- SUPERSEDED por `changes/add-weekly-athlete-review` (spin-off do épico, 2026-07-24).
+     Esta capability NÃO foi implementada dentro deste épico — só a decomposição foi arquivada.
+     A spec canônica e viva vive na change ativa. Mantido aqui só como registro histórico. -->
+
 ## ADDED Requirements
 
 ### Requirement: Consolidar revisão semanal do atleta
