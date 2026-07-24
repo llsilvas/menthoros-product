@@ -16,11 +16,11 @@
 
 ## 1. Modelo & migration
 
-- [ ] 1.1 Migration **V71** aditiva `tb_revisao_semanal` com FK **única** `plano_semanal_id` — [CA6]
-  - verify: `flyway:validate`; índice único em `plano_semanal_id`.
-- [ ] 1.2 Entidade + DTO: `planoSemanalId`, `recommendationType`, `adherenceStatus`, `percentualRealizacao`, `dadosSuficientes`, `geradaEm` — [CA1]
-  - verify: teste de mapeamento entidade↔DTO.
-- [ ] 1.3 Validação: `./mvnw clean test`
+- [x] 1.1 Migration **V71** aditiva `tb_revisao_semanal` com FK **única** `plano_semanal_id` — [CA6]
+  - verify: ✅ `RevisaoSemanalRepositoryTest` (Testcontainers) — Flyway V71 aplica; `uk_revisao_semanal_plano` barra duplicata.
+- [x] 1.2 Entidade + DTO: `planoSemanalId`, `recommendationType`, `adherenceStatus`, `percentualRealizacao`, `dadosSuficientes`, `geradaEm` — [CA1]
+  - verify: ✅ round-trip dos campos/enums contra o schema real (enums novos `RecommendationType`, `NivelAderencia`).
+- [x] 1.3 Validação: ✅ `./mvnw test -Dtest=RevisaoSemanalRepositoryTest` — 3/3 verde.
 
 ## 2. Consolidação determinística
 
