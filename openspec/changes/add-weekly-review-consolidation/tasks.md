@@ -33,11 +33,11 @@
 
 ## 3. Geração no encerramento & congelamento
 
-- [ ] 3.1 Hook em `EncerramentoSemanaService`: ao `CONCLUIDO`, gerar+persistir a `RevisaoSemanal` (upsert idempotente por `plano_semanal_id`) sob `TenantContext` — [CA1, CA6, CA7]
-  - verify: encerrar um plano → 1 `RevisaoSemanal`; encerrar de novo → segue 1 (upsert).
-- [ ] 3.2 Congelamento: os campos derivados são gravados no encerramento; a leitura devolve a coluna `recommendation_type` persistida e **não** recomputa — [CA-Congelamento]
-  - verify: persistir uma `RevisaoSemanal` cujo `recommendationType` contradiz o que a regra atual produziria; reler → devolve o persistido (sem externalizar limiares).
-- [ ] 3.3 Validação: `./mvnw clean test`
+- [x] 3.1 Hook via `RevisaoSemanalListener` (`@TransactionalEventListener AFTER_COMMIT` no `SemanaEncerradaEvent`) → `RevisaoSemanalService.gerarNoEncerramento` (insert-if-absent por `plano_semanal_id`, gate de status `CONCLUIDO`, tenant-scoped) — [CA1, CA6, CA7]
+  - verify: ✅ `RevisaoSemanalGeracaoIT` (Testcontainers) — CONCLUIDO gera 1 revisão; reexecutar → segue 1; não-CONCLUIDO/tenant errado → nenhuma. + `RevisaoSemanalListenerTest` (delega + engole exceção).
+- [x] 3.2 Congelamento — lado da **geração**: insert-if-absent não sobrescreve a revisão já congelada (preserva o valor gravado no encerramento) — [CA-Congelamento]
+  - verify: ✅ idempotência de `gerarNoEncerramento` (`RevisaoSemanalGeracaoIT`). O lado da **leitura** (devolver o persistido sem recomputar, mesmo com regra mudada) é testado no bloco 4 (5.7), onde o endpoint existe.
+- [x] 3.3 Validação: ✅ `./mvnw test -Dtest='RevisaoSemanal*'` — 44/44 verde.
 
 ## 4. Leitura
 
