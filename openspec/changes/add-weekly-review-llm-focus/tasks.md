@@ -27,13 +27,14 @@
   - verify: ✅ `RevisaoSemanalCalculator.nextWeekFocusTemplate` (5 testes: 3 tipos + `@EnumSource` de cobertura total + rejeição de nulo) e `RevisaoSemanalGeracaoIT.nasceComFocoTemplate` — revisão nasce com template e `TEMPLATE`, sem tocar em LLM. Como o texto deriva do tipo, ele nunca pode contrariá-lo.
 - [x] 1.2b **(gap descoberto na execução)** Expor `nextWeekFocus` + `focusSource` no `RevisaoSemanalOutputDto` — sem isso a narrativa nunca chega ao card da F3, que já a renderiza — [CA-LLM]
   - verify: ✅ `CoachRevisaoSemanalControllerTest` verde com os campos novos no contrato.
-- [ ] 1.3 Narrativa por LLM em `@Async` com executor dedicado, timeout + retry só de transitório; grava por update sobre a revisão já persistida, com `focusSource = LLM` — [CA-LLM, CA-Fonte, D8]
-  - verify: revisão é salva antes da chamada; falha/timeout deixa template + `TEMPLATE` intactos.
+- [x] 1.3 Narrativa por LLM em `@Async("weeklyFocusExecutor")`, com `@Retryable` (2 tentativas, backoff 2s); grava por update sobre a revisão já persistida, com `focusSource = LLM` — [CA-LLM, CA-Fonte, D8]
+  - verify: ✅ `WeeklyFocusNarrativeServiceTest` 5/5 — falha do modelo preserva template + `TEMPLATE` e não propaga; revisão inexistente é no-op.
+  - ⚠️ **Timeout de resposta NÃO entregue.** Nenhum cliente LLM do módulo tem timeout (gap já registrado no `CLAUDE.md`), e configurá-lo exigiria mexer no `MultiModelConfig`, mudando o comportamento de todas as rotas (geração de plano, análise de treino). Fica para `add-external-call-resilience`. Mitigação: pool dedicado (core 1 / max 2) — chamada pendurada consome thread deste executor, nunca a do coach.
 - [ ] 1.4 Checker determinístico de consistência (espelha `PlanQualityChecker`): narrativa sugerindo progressão com RECOVERY/MAINTAIN é reprovada ⇒ template + `focusSource = TEMPLATE` + contador Micrometer — [CA-LLM, D10]
   - verify: teste unitário do checker sobre textos fixos; reprovação persiste `TEMPLATE`, não `LLM`.
-- [ ] 1.5 Flag `menthoros.weekly-review.llm.enabled`: desligada ⇒ template, zero chamada LLM — [CA-LLM, D5]
-  - verify: `verifyNoInteractions` no cliente LLM com a flag off.
-- [ ] 1.6 Validação: `./mvnw clean test`
+- [x] 1.5 Flag `menthoros.weekly-review.llm.enabled` (**default `false`** — gate A1 em aberto): desligada ⇒ template, zero chamada LLM — [CA-LLM, D5]
+  - verify: ✅ `verifyNoInteractions(modelRouter, templateLoader, revisaoSemanalRepository)` com a flag off.
+- [x] 1.6 Validação: ✅ `./mvnw clean test` — **2164/2164** (era 2138 na baseline; +26 testes novos).
 
 ## 2. Insumo na geração do próximo plano
 
