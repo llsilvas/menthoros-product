@@ -41,22 +41,22 @@
 
 ## 4. Leitura
 
-- [ ] 4.1 Endpoint `GET` read-only da revisão do atleta, `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")`; antes do `CONCLUIDO` → **HTTP 404** (corpo vazio) — [CA1, CA7]
-  - verify: MockMvc 200 TECNICO/ADMIN, 403 ATLETA; 404 antes do encerramento.
-- [ ] 4.2 `weekOverWeekDelta` computado na leitura (vs. `PlanoSemanal` anterior; `PRIMEIRA_SEMANA` sem anterior) — [CA9]
-  - verify: teste com/sem plano anterior.
-- [ ] 4.3 Validação: `./mvnw clean test`
+- [x] 4.1 Endpoint `GET /api/v1/coach/atletas/{atletaId}/revisao-semanal` read-only, `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")` + `@RequireTenant(0)`; sem revisão → **HTTP 404** via `DomainNotFoundException` (corpo = erro padrão do `GlobalExceptionHandler`, não vazio — convenção do módulo) — [CA1, CA7]
+  - verify: ✅ `CoachRevisaoSemanalControllerTest` (@WebMvcTest) — 200 + 404. **403 ATLETA não é tecível no slice** (@PreAuthorize não é tecido com `addFilters=false`) — mesma limitação/débito documentado em `CoachKudosControllerTest`; anotação verificada por leitura.
+- [x] 4.2 `weekOverWeekDelta` computado na leitura (top-2 por `semanaInicio`; `semAnterior()` sem anterior) — [CA9]
+  - verify: ✅ `RevisaoSemanalLeituraIT` (com delta + primeira semana).
+- [x] 4.3 Validação: ✅ `./mvnw test -Dtest='RevisaoSemanal*,CoachRevisaoSemanalControllerTest'` — 50/50.
 
-## 5. Testes (rastreados a CA)
+## 5. Testes (rastreados a CA) — cobertos inline nos blocos 1–4
 
-- [ ] 5.1 Geração no encerramento cria RevisaoSemanal 1:1 completa [CA1]
-- [ ] 5.2 Cortes de aderência ALTA/MEDIA/BAIXA por contagem + crítico faltando [CA1b]
-- [ ] 5.3 RECOVERY em `tsb_fim ≤ −25` e em (`BAIXA` e `tsb_fim ≤ −10`) [CA2]
-- [ ] 5.4 PROGRESS só com `ALTA` + `tsb_fim ≥ −10` + `dadosSuficientes` + sem crítico faltando [CA2b]
-- [ ] 5.5 MAINTAIN no default (intermediário, `dadosSuficientes = false`, e `tsb_fim` nulo → MAINTAIN) [CA2c, CA3b]
-- [ ] 5.6 `dadosSuficientes = false` → `recommendationType ≠ PROGRESS` [CA3]
-- [ ] 5.7 **Congelamento**: leitura devolve `recommendationType` persistido mesmo contradizendo a regra atual (sem recompute) [CA-Congelamento]
-- [ ] 5.8 Idempotência: re-encerrar não duplica (upsert por `plano_semanal_id`) [CA6]
-- [ ] 5.9 Isolamento multi-tenant + endpoint coach-only (200 TECNICO/ADMIN, 403 ATLETA) [CA7]
-- [ ] 5.10 `weekOverWeekDelta` computado vs. anterior; `PRIMEIRA_SEMANA` sem anterior [CA9]
-- [ ] 5.11 Validação final: `./mvnw clean test`
+- [x] 5.1 Geração no encerramento cria RevisaoSemanal 1:1 completa [CA1] — `RevisaoSemanalGeracaoIT`
+- [x] 5.2 Cortes de aderência ALTA/MEDIA/BAIXA por contagem + crítico faltando [CA1b] — `Calculator`/`ServiceImpl`Test
+- [x] 5.3 RECOVERY em `tsb_fim ≤ −25` e em (`BAIXA` e `tsb_fim ≤ −10`) [CA2] — `CalculatorTest.Arvore`
+- [x] 5.4 PROGRESS só com `ALTA` + `tsb_fim ≥ −10` + `dadosSuficientes` + sem crítico faltando [CA2b] — `Calculator`/`ServiceImpl`Test
+- [x] 5.5 MAINTAIN no default (intermediário, `dadosSuficientes = false`, e `tsb_fim` nulo → MAINTAIN) [CA2c, CA3b] — `CalculatorTest.Arvore`
+- [x] 5.6 `dadosSuficientes = false` → `recommendationType ≠ PROGRESS` [CA3] — `CalculatorTest.DadosSuficientes`
+- [x] 5.7 **Congelamento**: leitura devolve `recommendationType` persistido mesmo contradizendo a regra atual (sem recompute) [CA-Congelamento] — `RevisaoSemanalLeituraIT.congelamento`
+- [x] 5.8 Idempotência: re-encerrar não duplica [CA6] — `RevisaoSemanalGeracaoIT.idempotente` + `RepositoryTest` unicidade
+- [x] 5.9 Isolamento multi-tenant + endpoint coach-only [CA7] — `RepositoryTest` (isolamento) + `GeracaoIT` (tenant errado) + `ControllerTest` (403 = débito)
+- [x] 5.10 `weekOverWeekDelta` computado vs. anterior; `semAnterior()` sem anterior [CA9] — `RevisaoSemanalLeituraIT`
+- [ ] 5.11 Validação final (suíte completa): `./mvnw clean test`
