@@ -33,7 +33,7 @@ O sistema SHALL disponibilizar a revisão mais recente como insumo para a geraç
 - **THEN** o sistema SHALL NOT alterar o plano do atleta sem ação do treinador, e SHALL NOT expor a revisão ao atleta
 
 ### Requirement: Registrar desfecho da revisão consumida (sinal de aprendizado)
-O sistema SHALL registrar, **no `PlanoSemanal` que consumiu a revisão**, o que aconteceu com ela — inferido de sinais já existentes no domínio, sem exigir declaração explícita do treinador. O plano que consome uma revisão SHALL nascer com `consumedReviewOutcome = PENDING` e SHALL guardar o vínculo `revisao_semanal_id`. A `RevisaoSemanal` SHALL NOT ser reescrita para registrar desfecho.
+O sistema SHALL registrar, **no `PlanoSemanal` que consumiu a revisão**, o que aconteceu com ela — inferido de sinais já existentes no domínio, sem exigir declaração explícita do treinador. O plano que consome uma revisão SHALL nascer com `consumedReviewOutcome = PENDING` e SHALL guardar o vínculo `consumed_review_id`. A `RevisaoSemanal` SHALL NOT ser reescrita para registrar desfecho.
 
 #### Scenario: Plano aprovado sem ajuste
 - **WHEN** um plano que consumiu a revisão for aprovado pelo treinador sem nenhum treino editado ou adicionado

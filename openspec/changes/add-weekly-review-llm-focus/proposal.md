@@ -18,7 +18,7 @@ A Fatia 1 entrega a revisão determinística congelada — o **sinal estruturado
 
 ## Critérios de aceite
 
-- **CA4 — Insumo da próxima prescrição.** DADO uma revisão **dentro da janela de validade** (semana imediatamente anterior + 7 dias, D11), QUANDO o próximo plano é gerado com a flag de injeção ligada, ENTÃO a geração consome `nextWeekFocus` e `recommendationType` como contexto e grava o vínculo `revisao_semanal_id` no plano; DADO uma revisão fora da janela, ENTÃO ela não é consumida (`NOT_CONSUMED`, sem chamada nem custo).
+- **CA4 — Insumo da próxima prescrição.** DADO uma revisão **dentro da janela de validade** (semana imediatamente anterior + 7 dias, D11), QUANDO o próximo plano é gerado com a flag de injeção ligada, ENTÃO a geração consome `nextWeekFocus` e `recommendationType` como contexto e grava o vínculo `consumed_review_id` no plano; DADO uma revisão fora da janela, ENTÃO ela não é consumida (`NOT_CONSUMED`, sem chamada nem custo).
 - **CA5 — Coach-in-the-loop.** DADO uma revisão, ENTÃO ela nunca altera o plano automaticamente sem ação do coach e nunca é exposta ao atleta.
 - **CA8 — Sinal de aprendizado.** DADO um plano que consumiu uma revisão, QUANDO ele é aprovado pelo coach sem treino editado/adicionado, aprovado com treino editado/adicionado, rejeitado, ou auto-aprovado por `AUTO_CONFIANCA_ALTA`, ENTÃO o sistema registra em `PlanoSemanal.consumedReviewOutcome` respectivamente `NO_ADJUSTMENT`, `ADJUSTED`, `PLAN_REJECTED` ou `NO_COACH_IN_LOOP`; DADO um plano que não consumiu revisão, ENTÃO registra `NOT_CONSUMED` (heurística da D9 — sem superfície nova de UI).
 - **CA-Fonte — Rastreabilidade do foco.** DADO uma revisão com `nextWeekFocus`, ENTÃO `focusSource` registra se ele veio do LLM ou do template, permitindo segmentar o sinal de aprendizado por regime (D12).
@@ -53,7 +53,7 @@ A Fatia 1 entrega a revisão determinística congelada — o **sinal estruturado
 
 **Backend:**
 - geração de `nextWeekFocus` via infra LLM existente atrás de flag `menthoros.weekly-review.llm.enabled`, em `@Async` com executor dedicado (D8)
-- migration **V72**: aditivas (`next_week_focus`, `focus_source` em `tb_revisao_semanal`; `revisao_semanal_id`, `consumed_review_outcome` em `tb_plano_semanal`) + renames (`dados_suficientes`→`sufficient_data`, `percentual_realizacao`→`completion_rate`)
+- migration **V72**: aditivas (`next_week_focus`, `focus_source` em `tb_revisao_semanal`; `consumed_review_id`, `consumed_review_outcome` em `tb_plano_semanal`) + renames (`dados_suficientes`→`sufficient_data`, `percentual_realizacao`→`completion_rate`)
 - ponto de integração `IaService.geraPlanoSemanalAvancado` → `PlanoTreinoPromptBuilder.buildOptimizedPrompt`
 - `RevisaoConsumidaEvent{tenant, atleta, semanaInicio, revisaoId, planoId}`
 - checker determinístico de consistência da narrativa (D10)

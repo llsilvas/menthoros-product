@@ -21,8 +21,8 @@
 
 ## 1. Schema e narrativa atrás de flag
 
-- [ ] 1.1 Migration **V72**: aditivas `next_week_focus TEXT` + `focus_source VARCHAR(10)` em `tb_revisao_semanal`; `revisao_semanal_id UUID NULL REFERENCES tb_revisao_semanal(id) ON DELETE SET NULL` + `consumed_review_outcome VARCHAR(20)` em `tb_plano_semanal`; renames `dados_suficientes`→`sufficient_data` e `percentual_realizacao`→`completion_rate`. Entidades + enums `FocusSource` e `ConsumedReviewOutcome` — [D5, D9, D12, D13]
-  - verify: `./mvnw flyway:validate`; suíte da F1 verde após o rename (47 referências no backend).
+- [x] 1.1 Migration **V72**: aditivas `next_week_focus TEXT` + `focus_source VARCHAR(10)` em `tb_revisao_semanal`; `consumed_review_id UUID NULL REFERENCES tb_revisao_semanal(id) ON DELETE SET NULL` + `consumed_review_outcome VARCHAR(20)` em `tb_plano_semanal`; renames `dados_suficientes`→`sufficient_data` e `percentual_realizacao`→`completion_rate`. Entidades + enums `FocusSource` e `ConsumedReviewOutcome` — [D5, D9, D12, D13]
+  - verify: ✅ `RevisaoSemanalRepositoryTest` 8/8 contra Postgres real (Testcontainers) — V71+V72 aplicam limpo em base nova; round-trip de `next_week_focus`/`focus_source`, vínculo `consumed_review_id` e desfechos independentes em consumo duplo. Rename aplicado em 34 referências do escopo da revisão (o `percentualRealizacao` do domínio de adesão NÃO foi tocado — outro conceito). Suíte completa 2138 testes, 6 erros **pré-existentes** (checksum V71 no Postgres local, reproduzido em árvore limpa).
 - [ ] 1.2 Template determinístico de `nextWeekFocus` derivado do `recommendationType`, escrito em `gerarNoEncerramento` com `focusSource = TEMPLATE` — [CA-LLM, CA-Fonte, D5]
   - verify: revisão nasce com template e `TEMPLATE`, sem tocar em LLM.
 - [ ] 1.3 Narrativa por LLM em `@Async` com executor dedicado, timeout + retry só de transitório; grava por update sobre a revisão já persistida, com `focusSource = LLM` — [CA-LLM, CA-Fonte, D8]
@@ -39,7 +39,7 @@
   - verify: golden-master do prompt muda só no bloco novo; flag off ⇒ prompt byte-idêntico.
 - [ ] 2.2 Janela de validade (D11): consome só revisão da semana imediatamente anterior + 7 dias de folga; fora dela não consome e não chama LLM — [CA4, D11]
   - verify: teste de fronteira (dentro, no limite, fora) — revisão de 3 semanas atrás não entra no prompt.
-- [ ] 2.3 Gravar `revisao_semanal_id` + `consumedReviewOutcome = PENDING` no plano novo (padrão in-memory dos `planner_*`) e emitir `RevisaoConsumidaEvent{tenant, atleta, semanaInicio, revisaoId, planoId}` — [CA4, D9]
+- [ ] 2.3 Gravar `consumed_review_id` + `consumedReviewOutcome = PENDING` no plano novo (padrão in-memory dos `planner_*`) e emitir `RevisaoConsumidaEvent{tenant, atleta, semanaInicio, revisaoId, planoId}` — [CA4, D9]
   - verify: `ArgumentCaptor` confirma o payload; plano tem FK e `PENDING`; sem consumo ⇒ FK nulo + `NOT_CONSUMED`, nada publicado.
 - [ ] 2.4 Coach-in-the-loop: revisão é contexto, não altera plano automaticamente nem é exposta ao atleta — [CA5]
   - verify: nenhuma rota `/me/*` devolve a revisão; geração não escreve plano sem ação do coach.

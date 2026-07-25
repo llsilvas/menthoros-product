@@ -46,7 +46,7 @@ Fatia 2 de 3 do `weekly-athlete-review`. A Fatia 1 (`add-weekly-review-consolida
 
 **Por que no plano e não na revisão:** uma revisão é **1:N** com os planos que a consomem — rejeitar e regerar faz dois planos consumirem a mesma revisão. Num campo único da revisão, o segundo desfecho sobrescreveria o primeiro, apagando justamente a rejeição que interessa ao moat. No plano, cada consumo é uma linha com seu próprio desfecho. Bônus: a `RevisaoSemanal` deixa de sofrer escrita pós-congelamento, ficando estritamente "o que foi proposto" (espírito do ADR-0006).
 
-**Vínculo plano→revisão:** o plano **novo** ganha `revisao_semanal_id` (FK nullable), gravado na geração, junto com o `RevisaoConsumidaEvent`. A aprovação/rejeição lê esse FK; FK nulo ⇒ `NOT_CONSUMED`. O `RevisaoConsumidaEvent` carrega `revisaoId` + `planoId` (o payload original `{tenant, atleta, semanaInicio}` não bastava como registro do vínculo).
+**Vínculo plano→revisão:** o plano **novo** ganha `consumed_review_id` (FK nullable), gravado na geração, junto com o `RevisaoConsumidaEvent`. A aprovação/rejeição lê esse FK; FK nulo ⇒ `NOT_CONSUMED`. O `RevisaoConsumidaEvent` carrega `revisaoId` + `planoId` (o payload original `{tenant, atleta, semanaInicio}` não bastava como registro do vínculo).
 
 **Auto-approve não conta como aceitação:** `aprovarTransicao` é compartilhado entre o clique do coach e o auto-approve (`aplicarAutoApproveSeElegivel`, `OrigemAprovacao.AUTO_CONFIANCA_ALTA`), onde nunca há edição do coach — registrar `NO_ADJUSTMENT` ali inflaria a taxa de aceitação com planos que nenhum coach revisou. Esse caminho grava `NO_COACH_IN_LOOP`. Um `PENDING` que nunca resolve seria dado sujo disfarçado de dado pendente.
 
@@ -92,7 +92,7 @@ tb_revisao_semanal (F1)
 ~ percentual_realizacao → completion_rate  ┘ ver CLAUDE.md "Identifier Language")
 
 tb_plano_semanal
-+ revisao_semanal_id       UUID NULL REFERENCES tb_revisao_semanal(id) ON DELETE SET NULL
++ consumed_review_id       UUID NULL REFERENCES tb_revisao_semanal(id) ON DELETE SET NULL
                                     → revisão consumida na geração deste plano (vínculo da D9)
 + consumed_review_outcome  VARCHAR  (PENDING|NO_ADJUSTMENT|ADJUSTED|
                                      PLAN_REJECTED|NOT_CONSUMED|NO_COACH_IN_LOOP)   ← D9
@@ -122,9 +122,9 @@ tb_plano_semanal
 
 ## Migration Plan
 
-1. V72: aditivas (`next_week_focus`, `focus_source` em `tb_revisao_semanal`; `revisao_semanal_id`, `consumed_review_outcome` em `tb_plano_semanal`) + renames (`dados_suficientes`→`sufficient_data`, `percentual_realizacao`→`completion_rate`)
+1. V72: aditivas (`next_week_focus`, `focus_source` em `tb_revisao_semanal`; `consumed_review_id`, `consumed_review_outcome` em `tb_plano_semanal`) + renames (`dados_suficientes`→`sufficient_data`, `percentual_realizacao`→`completion_rate`)
 2. Template determinístico + geração LLM de `nextWeekFocus` atrás de flag (assíncrona, D8), com `focus_source`
-3. Injeção na geração do próximo plano, respeitando a janela de validade (D11): grava `revisao_semanal_id` + `PENDING` no plano novo e emite `RevisaoConsumidaEvent{tenant, atleta, semanaInicio, revisaoId, planoId}`
+3. Injeção na geração do próximo plano, respeitando a janela de validade (D11): grava `consumed_review_id` + `PENDING` no plano novo e emite `RevisaoConsumidaEvent{tenant, atleta, semanaInicio, revisaoId, planoId}`
 4. Heurística de `consumedReviewOutcome` na aprovação/rejeição (D9), lendo o FK
 5. Front: renomear os dois campos no tipo/adapter/testes do card (PR coordenado, D13)
 
