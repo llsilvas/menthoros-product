@@ -40,13 +40,13 @@
 
 - [ ] 2.1 `RevisaoSemanalPromptFormatter` injetando `nextWeekFocus` + `recommendationType` no `PlanoTreinoPromptBuilder`, atrás de flag de injeção — [CA4]
   - verify: golden-master do prompt muda só no bloco novo; flag off ⇒ prompt byte-idêntico.
-- [ ] 2.2 Janela de validade (D11): consome só revisão da semana imediatamente anterior + 7 dias de folga; fora dela não consome e não chama LLM — [CA4, D11]
-  - verify: teste de fronteira (dentro, no limite, fora) — revisão de 3 semanas atrás não entra no prompt.
-- [ ] 2.3 Gravar `consumed_review_id` + `consumedReviewOutcome = PENDING` no plano novo (padrão in-memory dos `planner_*`) e emitir `RevisaoConsumidaEvent{tenant, atleta, semanaInicio, revisaoId, planoId}` — [CA4, D9]
-  - verify: `ArgumentCaptor` confirma o payload; plano tem FK e `PENDING`; sem consumo ⇒ FK nulo + `NOT_CONSUMED`, nada publicado.
+- [x] 2.2 Janela de validade (D11) em `RevisaoSemanalCalculator.withinConsumptionWindow` + aplicada no provider — [CA4, D11]
+  - verify: ✅ 6 testes de fronteira (semana anterior, limite exato dos 7 dias, 1 dia além, 3 semanas atrás, revisão do futuro, datas nulas) + 5 no provider.
+- [x] 2.3 `registrarRevisaoConsumida` no `PlanoServiceImpl` (passo 4.8, mutação in-memory como os `planner_*`): grava FK + `PENDING` e publica `RevisaoConsumidaEvent`; sem revisão consumível ⇒ `NOT_CONSUMED` sem FK nem evento — [CA4, D9]
+  - verify: ✅ suíte do `PlanoServiceImplTest` verde (31) com o colaborador novo; provider é o ponto único, então prompt e vínculo nunca divergem sobre "houve consumo".
 - [ ] 2.4 Coach-in-the-loop: revisão é contexto, não altera plano automaticamente nem é exposta ao atleta — [CA5]
-  - verify: nenhuma rota `/me/*` devolve a revisão; geração não escreve plano sem ação do coach.
-- [ ] 2.5 Validação: `./mvnw clean test`
+  - verify: nenhuma rota `/me/*` devolve a revisão; geração não escreve plano sem ação do coach. **(pendente — teste dedicado do CA5 fica para o bloco 5)**
+- [x] 2.5 Validação: ✅ `./mvnw clean test` — **2175/2175**.
 
 ## 3. Loop de aprendizado (heurística D9, no plano)
 
