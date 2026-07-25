@@ -27,7 +27,7 @@
   - verify: ✅ `RevisaoSemanalCalculator.nextWeekFocusTemplate` (5 testes: 3 tipos + `@EnumSource` de cobertura total + rejeição de nulo) e `RevisaoSemanalGeracaoIT.nasceComFocoTemplate` — revisão nasce com template e `TEMPLATE`, sem tocar em LLM. Como o texto deriva do tipo, ele nunca pode contrariá-lo.
 - [x] 1.2b **(gap descoberto na execução)** Expor `nextWeekFocus` + `focusSource` no `RevisaoSemanalOutputDto` — sem isso a narrativa nunca chega ao card da F3, que já a renderiza — [CA-LLM]
   - verify: ✅ `CoachRevisaoSemanalControllerTest` verde com os campos novos no contrato.
-- [x] 1.3 Narrativa por LLM em `@Async("weeklyFocusExecutor")`, com `@Retryable` (2 tentativas, backoff 2s); grava por update sobre a revisão já persistida, com `focusSource = LLM` — [CA-LLM, CA-Fonte, D8]
+- [x] 1.3 Narrativa por LLM em `@Async("weeklyFocusExecutor")`; `@Retryable` (2 tentativas, backoff 2s) isolado em `WeeklyFocusModelClient` — no mesmo método o `try/catch` engolia a exceção e o retry nunca disparava (achado do QA); grava por update sobre a revisão já persistida — [CA-LLM, CA-Fonte, D8]
   - verify: ✅ `WeeklyFocusNarrativeServiceTest` 5/5 — falha do modelo preserva template + `TEMPLATE` e não propaga; revisão inexistente é no-op.
   - ⚠️ **Timeout de resposta NÃO entregue.** Nenhum cliente LLM do módulo tem timeout (gap já registrado no `CLAUDE.md`), e configurá-lo exigiria mexer no `MultiModelConfig`, mudando o comportamento de todas as rotas (geração de plano, análise de treino). Fica para `add-external-call-resilience`. Mitigação: pool dedicado (core 1 / max 2) — chamada pendurada consome thread deste executor, nunca a do coach.
 - [x] 1.4 `WeeklyFocusConsistencyChecker` (espelha `PlanQualityChecker`): narrativa sugerindo progressão com RECOVERY/MAINTAIN é reprovada ⇒ mantém template + contador `weekly_review.focus.rejected` — [CA-LLM, D10]
@@ -70,6 +70,15 @@
   - verify: ✅ lint sem issues, build ok, **748/748**. `TaxaAdesaoWidget.tsx`/`Metricas.ts` **não** foram tocados — `percentualRealizacao` ali é do `SemanaAdesao`, outro domínio (mesma distinção feita no backend).
 - [ ] 4.2 Merge coordenado: backend e front mergeados em sequência (janela curta de campo `undefined` aceita) — [D13]
   - verify: após os dois merges, card renderiza aderência e suficiência de dado com dado real.
+
+## 6. Correções do QA gate (2026-07-25)
+
+- [x] 6.1 `findByIdAndTenant` no caminho `@Async` — o `findById` genérico não valida tenant e o `TenantContext` não cruza a fronteira assíncrona (convergente: security + code)
+- [x] 6.2 `@Retryable` extraído para `WeeklyFocusModelClient` — no serviço, o `try/catch` matava o retry (code-reviewer)
+- [x] 6.3 `RevisaoConsumidaEvent` publicado **depois** do save — `planoId` é `@GeneratedValue` e vinha sempre nulo (code-reviewer)
+- [x] 6.4 Narrativa truncada em 280 chars antes de persistir — vira contexto de um segundo prompt; saída de LLM não é dado confiável (convergente: security + code)
+- [ ] 6.5 **Resolução única da revisão** — hoje `resolverParaGeracao` roda 2× (prompt e vínculo), contradizendo o "ponto único" documentado; exige passar a revisão por `gerarPlanoSemanal` → `IaService` → `PlanoTreinoPromptBuilder` (5 arquivos + golden tests). Convergente: clean-code (Important) + security (Minor)
+- [ ] 6.6 Minor aceitos, não corrigidos: índice sem `tenant_id` composto (lookup por FK), `save()` redundante em `registrarDesfecho`, `RejectedExecutionHandler` implícito, fragilidade dos testes estruturais do CA5
 
 ## 5. Testes (rastreados a CA)
 
