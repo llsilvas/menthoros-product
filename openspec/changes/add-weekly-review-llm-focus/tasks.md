@@ -30,7 +30,8 @@
 - [x] 1.3 Narrativa por LLM em `@Async("weeklyFocusExecutor")`, com `@Retryable` (2 tentativas, backoff 2s); grava por update sobre a revisão já persistida, com `focusSource = LLM` — [CA-LLM, CA-Fonte, D8]
   - verify: ✅ `WeeklyFocusNarrativeServiceTest` 5/5 — falha do modelo preserva template + `TEMPLATE` e não propaga; revisão inexistente é no-op.
   - ⚠️ **Timeout de resposta NÃO entregue.** Nenhum cliente LLM do módulo tem timeout (gap já registrado no `CLAUDE.md`), e configurá-lo exigiria mexer no `MultiModelConfig`, mudando o comportamento de todas as rotas (geração de plano, análise de treino). Fica para `add-external-call-resilience`. Mitigação: pool dedicado (core 1 / max 2) — chamada pendurada consome thread deste executor, nunca a do coach.
-- [ ] 1.4 Checker determinístico de consistência (espelha `PlanQualityChecker`): narrativa sugerindo progressão com RECOVERY/MAINTAIN é reprovada ⇒ template + `focusSource = TEMPLATE` + contador Micrometer — [CA-LLM, D10]
+- [x] 1.4 `WeeklyFocusConsistencyChecker` (espelha `PlanQualityChecker`): narrativa sugerindo progressão com RECOVERY/MAINTAIN é reprovada ⇒ mantém template + contador `weekly_review.focus.rejected` — [CA-LLM, D10]
+  - verify: ✅ 14 testes, incluindo a **invariante template × checker** e entradas degeneradas. Conservador por decisão: "evite aumentar" é reprovado — falso positivo custa cair no template; falso negativo entrega contradição ao coach.
   - verify: teste unitário do checker sobre textos fixos; reprovação persiste `TEMPLATE`, não `LLM`.
 - [x] 1.5 Flag `menthoros.weekly-review.llm.enabled` (**default `false`** — gate A1 em aberto): desligada ⇒ template, zero chamada LLM — [CA-LLM, D5]
   - verify: ✅ `verifyNoInteractions(modelRouter, templateLoader, revisaoSemanalRepository)` com a flag off.
@@ -38,23 +39,26 @@
 
 ## 2. Insumo na geração do próximo plano
 
-- [ ] 2.1 `RevisaoSemanalPromptFormatter` injetando `nextWeekFocus` + `recommendationType` no `PlanoTreinoPromptBuilder`, atrás de flag de injeção — [CA4]
+- [x] 2.1 `WeeklyReviewPromptFormatter` + `WeeklyReviewPromptProvider` injetando `nextWeekFocus` + `recommendationType` no `PlanoTreinoPromptBuilder`, atrás de `menthoros.weekly-review.injection.enabled` — [CA4]
+  - verify: ✅ golden-master byte-idêntico com a injeção desligada; bloco só aparece quando há revisão consumível.
   - verify: golden-master do prompt muda só no bloco novo; flag off ⇒ prompt byte-idêntico.
 - [x] 2.2 Janela de validade (D11) em `RevisaoSemanalCalculator.withinConsumptionWindow` + aplicada no provider — [CA4, D11]
   - verify: ✅ 6 testes de fronteira (semana anterior, limite exato dos 7 dias, 1 dia além, 3 semanas atrás, revisão do futuro, datas nulas) + 5 no provider.
 - [x] 2.3 `registrarRevisaoConsumida` no `PlanoServiceImpl` (passo 4.8, mutação in-memory como os `planner_*`): grava FK + `PENDING` e publica `RevisaoConsumidaEvent`; sem revisão consumível ⇒ `NOT_CONSUMED` sem FK nem evento — [CA4, D9]
   - verify: ✅ suíte do `PlanoServiceImplTest` verde (31) com o colaborador novo; provider é o ponto único, então prompt e vínculo nunca divergem sobre "houve consumo".
-- [ ] 2.4 Coach-in-the-loop: revisão é contexto, não altera plano automaticamente nem é exposta ao atleta — [CA5]
-  - verify: nenhuma rota `/me/*` devolve a revisão; geração não escreve plano sem ação do coach. **(pendente — teste dedicado do CA5 fica para o bloco 5)**
+- [x] 2.4 Coach-in-the-loop: revisão é contexto, não altera plano automaticamente nem é exposta ao atleta — [CA5]
+  - verify: ✅ `RevisaoSemanalCoachInTheLoopTest` 3/3 — asserções **estruturais** (nenhum controller fora de `Coach*` menciona `RevisaoSemanal`; endpoint coach-only sem verbo de mutação; `registrarRevisaoConsumida` não transiciona review status). Estrutural de propósito: um teste sobre uma rota específica não cobriria a próxima rota criada.
 - [x] 2.5 Validação: ✅ `./mvnw clean test` — **2175/2175**.
 
 ## 3. Loop de aprendizado (heurística D9, no plano)
 
 - [x] 3.1 `ConsumedReviewOutcomeResolver.naAprovacao` aplicado em `aprovarTransicao`, após `inicializarAssociacoes` (que carrega os treinos de onde vêm os sinais) — [CA8, D9]
   - verify: ✅ 8 testes do resolver + 2 ponta a ponta no `PlanoReviewServiceImplTest`; desfecho gravado no plano, `RevisaoSemanal` intocada.
-- [ ] 3.2 `PLAN_REJECTED` na rejeição; dois planos consumindo a mesma revisão preservam desfechos independentes — [CA8, D9]
+- [x] 3.2 `naRejeicao` → `PLAN_REJECTED`; dois planos consumindo a mesma revisão preservam desfechos independentes — [CA8, D9]
+  - verify: ✅ resolver + `semRevisaoNaoRegistraDesfecho` + `doisPlanosMesmaRevisao` (Postgres real).
   - verify: cenário rejeita-e-regera mantém `PLAN_REJECTED` no primeiro plano.
-- [ ] 3.3 Auto-approve (`aprovarTransicao` via `AUTO_CONFIANCA_ALTA`) grava `NO_COACH_IN_LOOP`, nunca `NO_ADJUSTMENT` — [CA8, D9]
+- [x] 3.3 Auto-approve (`AUTO_CONFIANCA_ALTA`) grava `NO_COACH_IN_LOOP`, nunca `NO_ADJUSTMENT` — [CA8, D9]
+  - verify: ✅ `autoApproveNaoContaComoAceitacao`.
   - verify: caminho auto-approve não conta como aceitação.
 - [x] 3.4 Contador `weekly_review.outcome` com tags `outcome` + `focus_source` [D12]
   - verify: ✅ asserção sobre o `SimpleMeterRegistry` real no teste do serviço.
@@ -62,17 +66,17 @@
 
 ## 4. Front — renomeação do contrato (D13)
 
-- [ ] 4.1 Renomear `dadosSuficientes`→`sufficientData` e `percentualRealizacao`→`completionRate` no tipo, adapter, VM, card e testes — [D13]
-  - verify: `npm run lint && npm run build && npm run test:run` verdes; nenhuma referência remanescente aos nomes antigos.
+- [x] 4.1 Renomear `dadosSuficientes`→`sufficientData` e `percentualRealizacao`→`completionRate` no tipo, adapter, VM, card e testes (7 arquivos) — [D13]
+  - verify: ✅ lint sem issues, build ok, **748/748**. `TaxaAdesaoWidget.tsx`/`Metricas.ts` **não** foram tocados — `percentualRealizacao` ali é do `SemanaAdesao`, outro domínio (mesma distinção feita no backend).
 - [ ] 4.2 Merge coordenado: backend e front mergeados em sequência (janela curta de campo `undefined` aceita) — [D13]
   - verify: após os dois merges, card renderiza aderência e suficiência de dado com dado real.
 
 ## 5. Testes (rastreados a CA)
 
-- [ ] 5.1 Geração consome a revisão dentro da janela e não consome fora dela [CA4, D11]
-- [ ] 5.2 Revisão não vaza ao atleta nem altera plano sem ação do coach [CA5]
-- [ ] 5.3 `consumedReviewOutcome` nos 5 desfechos + preservação em consumo duplo [CA8]
-- [ ] 5.4 Flag off ⇒ template sem LLM; narrativa reprovada pelo checker cai no template [CA-LLM]
-- [ ] 5.5 Falha/timeout do LLM não deixa a revisão sem foco nem afeta o sinal da F1 [CA-LLM, D8]
-- [ ] 5.6 `focusSource` grava a origem correta nos dois regimes [CA-Fonte]
-- [ ] 5.7 Validação final: `./mvnw clean test` (backend) + gate do front
+- [x] 5.1 Geração consome a revisão dentro da janela e não consome fora dela [CA4, D11] — `WeeklyReviewPromptProviderTest` (5) + `withinConsumptionWindow` (6 fronteiras)
+- [x] 5.2 Revisão não vaza ao atleta nem altera plano sem ação do coach [CA5] — `RevisaoSemanalCoachInTheLoopTest` (3)
+- [x] 5.3 `consumedReviewOutcome` nos 5 desfechos + preservação em consumo duplo [CA8] — `ConsumedReviewOutcomeResolverTest` (8) + `PlanoReviewServiceImplTest` (2) + `RevisaoSemanalRepositoryTest.doisPlanosMesmaRevisao`
+- [x] 5.4 Flag off ⇒ template sem LLM; narrativa reprovada pelo checker cai no template [CA-LLM] — `WeeklyFocusNarrativeServiceTest` (5) + `WeeklyFocusConsistencyCheckerTest` (14)
+- [x] 5.5 Falha do LLM não deixa a revisão sem foco nem afeta o sinal da F1 [CA-LLM, D8] — `falhaDoLlmPreservaTemplate`. ⚠️ **timeout não coberto porque não foi implementado** (ver 1.3)
+- [x] 5.6 `focusSource` grava a origem correta nos dois regimes [CA-Fonte] — `narrativaConsistentePersiste` (LLM) + `nasceComFocoTemplate` (TEMPLATE)
+- [x] 5.7 Validação final: ✅ backend **2188/2188**; front lint + build + **748/748**
