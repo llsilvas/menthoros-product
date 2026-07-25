@@ -20,15 +20,15 @@
 
 ## 2. Card
 
-- [ ] 2.1 `SectionCard` read-only "Revisão semanal" no grid de `CoachAthleteProfilePage.tsx`; mostra `recommendationType`, `adherenceStatus`, `dadosSuficientes`, `weekOverWeekDelta` (e `nextWeekFocus` quando vier da F2) — [CA10]
-  - verify: card renderiza com dado real no drilldown.
-- [ ] 2.2 Estados loading (`Skeleton`) / empty (`Alert` warning — "nenhuma semana fechada") / error (`Alert` + "Tentar novamente" → refetch) — [CA10.1]
-  - verify: teste de componente cobre os 3 estados.
-- [ ] 2.3 Read-only: nenhuma ação/botão que altere o plano — [CA10.2]
-  - verify: teste assevera ausência de ação mutadora.
+- [x] 2.1 `WeeklyReviewCard` (presentacional) num `SectionCard` "Revisão semanal" no grid de `CoachAthleteProfilePage.tsx`; mostra período, `recomendação`, `aderência`, delta, `nextWeekFocus` (quando da F2) e aviso de dados insuficientes — [CA10]
+  - verify: ✅ card renderiza o VM (teste de componente); montado via hook + adapter na page.
+- [x] 2.2 Estados loading (`Skeleton`) / empty (`Alert` warning — "nenhuma semana fechada") / error (`Alert` + "Tentar novamente" → `fetchRevisao`) — [CA10.1]
+  - verify: ✅ `WeeklyReviewCard.test.tsx` cobre os 3 estados.
+- [x] 2.3 Read-only: sem botão/ação mutadora no estado de dados — [CA10.2]
+  - verify: ✅ teste assevera `queryByRole('button') === null` no estado de dados.
 
 ## 3. Testes & validação
 
-- [ ] 3.1 Teste de componente (Vitest + Testing Library): loading/empty/error + read-only [CA10.1, CA10.2]
-- [ ] 3.2 Teste do adapter `buildWeeklyReviewFromDto` [CA10]
-- [ ] 3.3 Validação: `npm run lint && npm run build && npm run test:run`
+- [x] 3.1 Teste de componente (Vitest + RTL): loading/empty/error + read-only [CA10.1, CA10.2] — `WeeklyReviewCard.test.tsx` 4/4
+- [x] 3.2 Teste do adapter `buildWeeklyReviewFromDto` [CA10] — `weeklyReviewAdapters.test.ts` 4/4
+- [x] 3.3 Validação: ✅ `npm run lint` (sem issues) `&& npm run build` (ok) `&& npm run test:run` (**747/747**, 98 arquivos)
