@@ -23,8 +23,10 @@
 
 - [x] 1.1 Migration **V72**: aditivas `next_week_focus TEXT` + `focus_source VARCHAR(10)` em `tb_revisao_semanal`; `consumed_review_id UUID NULL REFERENCES tb_revisao_semanal(id) ON DELETE SET NULL` + `consumed_review_outcome VARCHAR(20)` em `tb_plano_semanal`; renames `dados_suficientes`→`sufficient_data` e `percentual_realizacao`→`completion_rate`. Entidades + enums `FocusSource` e `ConsumedReviewOutcome` — [D5, D9, D12, D13]
   - verify: ✅ `RevisaoSemanalRepositoryTest` 8/8 contra Postgres real (Testcontainers) — V71+V72 aplicam limpo em base nova; round-trip de `next_week_focus`/`focus_source`, vínculo `consumed_review_id` e desfechos independentes em consumo duplo. Rename aplicado em 34 referências do escopo da revisão (o `percentualRealizacao` do domínio de adesão NÃO foi tocado — outro conceito). Suíte completa 2138 testes, 6 erros **pré-existentes** (checksum V71 no Postgres local, reproduzido em árvore limpa).
-- [ ] 1.2 Template determinístico de `nextWeekFocus` derivado do `recommendationType`, escrito em `gerarNoEncerramento` com `focusSource = TEMPLATE` — [CA-LLM, CA-Fonte, D5]
-  - verify: revisão nasce com template e `TEMPLATE`, sem tocar em LLM.
+- [x] 1.2 Template determinístico de `nextWeekFocus` derivado do `recommendationType`, escrito em `gerarNoEncerramento` com `focusSource = TEMPLATE` — [CA-LLM, CA-Fonte, D5]
+  - verify: ✅ `RevisaoSemanalCalculator.nextWeekFocusTemplate` (5 testes: 3 tipos + `@EnumSource` de cobertura total + rejeição de nulo) e `RevisaoSemanalGeracaoIT.nasceComFocoTemplate` — revisão nasce com template e `TEMPLATE`, sem tocar em LLM. Como o texto deriva do tipo, ele nunca pode contrariá-lo.
+- [x] 1.2b **(gap descoberto na execução)** Expor `nextWeekFocus` + `focusSource` no `RevisaoSemanalOutputDto` — sem isso a narrativa nunca chega ao card da F3, que já a renderiza — [CA-LLM]
+  - verify: ✅ `CoachRevisaoSemanalControllerTest` verde com os campos novos no contrato.
 - [ ] 1.3 Narrativa por LLM em `@Async` com executor dedicado, timeout + retry só de transitório; grava por update sobre a revisão já persistida, com `focusSource = LLM` — [CA-LLM, CA-Fonte, D8]
   - verify: revisão é salva antes da chamada; falha/timeout deixa template + `TEMPLATE` intactos.
 - [ ] 1.4 Checker determinístico de consistência (espelha `PlanQualityChecker`): narrativa sugerindo progressão com RECOVERY/MAINTAIN é reprovada ⇒ template + `focusSource = TEMPLATE` + contador Micrometer — [CA-LLM, D10]
