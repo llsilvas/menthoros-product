@@ -32,17 +32,43 @@ O sistema SHALL disponibilizar a revisão mais recente como insumo para a geraç
 - **WHEN** uma revisão existir
 - **THEN** o sistema SHALL NOT alterar o plano do atleta sem ação do treinador, e SHALL NOT expor a revisão ao atleta
 
-### Requirement: Registrar desfecho do foco (sinal de aprendizado)
-O sistema SHALL registrar o desfecho do `nextWeekFocus` proposto ao gerar/aprovar o próximo plano, inferido a partir de sinais já existentes no domínio — sem exigir uma declaração explícita do treinador. A revisão SHALL nascer com `focusOutcome = PROPOSTO`.
+### Requirement: Registrar desfecho da revisão consumida (sinal de aprendizado)
+O sistema SHALL registrar, **no `PlanoSemanal` que consumiu a revisão**, o que aconteceu com ela — inferido de sinais já existentes no domínio, sem exigir declaração explícita do treinador. O plano que consome uma revisão SHALL nascer com `consumedReviewOutcome = PENDING` e SHALL guardar o vínculo `revisao_semanal_id`. A `RevisaoSemanal` SHALL NOT ser reescrita para registrar desfecho.
 
-#### Scenario: Foco mantido
-- **WHEN** o próximo plano tiver consumido a revisão e for aprovado sem treino editado ou adicionado pelo treinador
-- **THEN** o sistema SHALL registrar `focusOutcome = MANTIDO` na revisão consumida
+#### Scenario: Plano aprovado sem ajuste
+- **WHEN** um plano que consumiu a revisão for aprovado pelo treinador sem nenhum treino editado ou adicionado
+- **THEN** o sistema SHALL registrar `consumedReviewOutcome = NO_ADJUSTMENT` nesse plano
 
-#### Scenario: Foco editado
-- **WHEN** o próximo plano tiver consumido a revisão e for aprovado com ao menos um treino marcado como editado ou adicionado pelo treinador
-- **THEN** o sistema SHALL registrar `focusOutcome = EDITADO` na revisão consumida
+#### Scenario: Plano aprovado com ajuste
+- **WHEN** um plano que consumiu a revisão for aprovado pelo treinador com ao menos um treino marcado como editado ou adicionado
+- **THEN** o sistema SHALL registrar `consumedReviewOutcome = ADJUSTED` nesse plano
 
-#### Scenario: Foco descartado
-- **WHEN** o próximo plano for gerado sem consumir a revisão, ou for rejeitado pelo treinador
-- **THEN** o sistema SHALL registrar `focusOutcome = DESCARTADO` na revisão mais recente
+#### Scenario: Plano rejeitado
+- **WHEN** um plano que consumiu a revisão for rejeitado pelo treinador
+- **THEN** o sistema SHALL registrar `consumedReviewOutcome = PLAN_REJECTED` nesse plano
+
+#### Scenario: Mesma revisão consumida por dois planos
+- **WHEN** um plano que consumiu a revisão for rejeitado e um novo plano consumir a mesma revisão
+- **THEN** cada plano SHALL manter seu próprio desfecho, e o desfecho do plano rejeitado SHALL NOT ser sobrescrito
+
+#### Scenario: Plano sem revisão consumida
+- **WHEN** um plano for gerado sem consumir revisão (flag desligada, revisão ausente ou fora da janela de validade)
+- **THEN** o sistema SHALL registrar `consumedReviewOutcome = NOT_CONSUMED` e SHALL NOT alterar nenhuma revisão
+
+#### Scenario: Plano auto-aprovado
+- **WHEN** um plano que consumiu a revisão for aprovado pelo sistema por confiança alta, sem revisão do treinador
+- **THEN** o sistema SHALL registrar `consumedReviewOutcome = NO_COACH_IN_LOOP`, e esse plano SHALL NOT contar como aceitação do foco
+
+### Requirement: Janela de validade da revisão consumida
+O sistema SHALL consumir apenas revisão da semana imediatamente anterior à do plano sendo gerado, com folga de 7 dias.
+
+#### Scenario: Revisão obsoleta não é consumida
+- **WHEN** a revisão mais recente do atleta for anterior à janela (ex.: atleta sem plano há três semanas)
+- **THEN** a geração SHALL NOT consumir a revisão, SHALL NOT chamar o LLM por causa dela, e o plano SHALL registrar `NOT_CONSUMED`
+
+### Requirement: Registrar a origem do foco
+O sistema SHALL registrar em `focusSource` se o `nextWeekFocus` daquela revisão foi produzido por LLM ou pelo template determinístico.
+
+#### Scenario: Segmentação do sinal por origem
+- **WHEN** o sinal de aprendizado for agregado
+- **THEN** SHALL ser possível separar os desfechos por `focusSource`, distinguindo narrativa por IA de template
