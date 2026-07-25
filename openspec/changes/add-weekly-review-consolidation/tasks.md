@@ -60,3 +60,16 @@
 - [x] 5.9 Isolamento multi-tenant + endpoint coach-only [CA7] — `RepositoryTest` (isolamento) + `GeracaoIT` (tenant errado) + `ControllerTest` (403 = débito)
 - [x] 5.10 `weekOverWeekDelta` computado vs. anterior; `semAnterior()` sem anterior [CA9] — `RevisaoSemanalLeituraIT`
 - [x] 5.11 Validação final (suíte completa): ✅ `./mvnw clean test` — **2134/2134 verde** (inclui `DomainBoundaryArchTest`).
+
+## Fechamento (2026-07-24)
+
+**Entregue** — 100% do escopo da Fatia 1. Backend `menthoros-backend` PR #50 mergeado em `develop`.
+Commits: modelo/V71 → consolidação → geração no encerramento → leitura → ajustes do QA gate.
+QA gate sem Critical (code + security + clean-code).
+
+**Adiado / débitos registrados:**
+- Teste automatizado de **403 por role ATLETA** no endpoint — não tecível no `@WebMvcTest` slice
+  (`@PreAuthorize` não é aplicado com `addFilters=false`); mesma limitação de `CoachKudosControllerTest`.
+  Anotação verificada por leitura; cobrir por E2E/integração de segurança no futuro.
+- **Reconciliação** da falha silenciosa do `RevisaoSemanalListener` (job/alerta) — aceitável no pilot.
+- `add-weekly-review-llm-focus` (Fatia 2) e `add-weekly-review-coach-card` (Fatia 3) seguem ativas.
