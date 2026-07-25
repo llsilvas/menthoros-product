@@ -59,4 +59,4 @@
 - [x] 5.8 Idempotência: re-encerrar não duplica [CA6] — `RevisaoSemanalGeracaoIT.idempotente` + `RepositoryTest` unicidade
 - [x] 5.9 Isolamento multi-tenant + endpoint coach-only [CA7] — `RepositoryTest` (isolamento) + `GeracaoIT` (tenant errado) + `ControllerTest` (403 = débito)
 - [x] 5.10 `weekOverWeekDelta` computado vs. anterior; `semAnterior()` sem anterior [CA9] — `RevisaoSemanalLeituraIT`
-- [ ] 5.11 Validação final (suíte completa): `./mvnw clean test`
+- [x] 5.11 Validação final (suíte completa): ✅ `./mvnw clean test` — **2134/2134 verde** (inclui `DomainBoundaryArchTest`).
