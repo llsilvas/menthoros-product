@@ -50,15 +50,15 @@
 
 ## 3. Loop de aprendizado (heurística D9, no plano)
 
-- [ ] 3.1 Na aprovação pelo coach (`PlanoReviewServiceImpl.aprovarPlano`): `NO_ADJUSTMENT` sem treino editado/adicionado, `ADJUSTED` com — [CA8, D9]
-  - verify: teste dos dois ramos; desfecho gravado no plano, revisão intocada.
+- [x] 3.1 `ConsumedReviewOutcomeResolver.naAprovacao` aplicado em `aprovarTransicao`, após `inicializarAssociacoes` (que carrega os treinos de onde vêm os sinais) — [CA8, D9]
+  - verify: ✅ 8 testes do resolver + 2 ponta a ponta no `PlanoReviewServiceImplTest`; desfecho gravado no plano, `RevisaoSemanal` intocada.
 - [ ] 3.2 `PLAN_REJECTED` na rejeição; dois planos consumindo a mesma revisão preservam desfechos independentes — [CA8, D9]
   - verify: cenário rejeita-e-regera mantém `PLAN_REJECTED` no primeiro plano.
 - [ ] 3.3 Auto-approve (`aprovarTransicao` via `AUTO_CONFIANCA_ALTA`) grava `NO_COACH_IN_LOOP`, nunca `NO_ADJUSTMENT` — [CA8, D9]
   - verify: caminho auto-approve não conta como aceitação.
-- [ ] 3.4 Contador Micrometer por desfecho, com tag de `focusSource` — sinal de aprendizado segmentável [D12]
-  - verify: métrica incrementa com a tag correta nos dois regimes.
-- [ ] 3.5 Validação: `./mvnw clean test`
+- [x] 3.4 Contador `weekly_review.outcome` com tags `outcome` + `focus_source` [D12]
+  - verify: ✅ asserção sobre o `SimpleMeterRegistry` real no teste do serviço.
+- [x] 3.5 Validação: ✅ `./mvnw clean test` — **2185/2185**.
 
 ## 4. Front — renomeação do contrato (D13)
 
