@@ -77,7 +77,15 @@
 - [x] 6.2 `@Retryable` extraído para `WeeklyFocusModelClient` — no serviço, o `try/catch` matava o retry (code-reviewer)
 - [x] 6.3 `RevisaoConsumidaEvent` publicado **depois** do save — `planoId` é `@GeneratedValue` e vinha sempre nulo (code-reviewer)
 - [x] 6.4 Narrativa truncada em 280 chars antes de persistir — vira contexto de um segundo prompt; saída de LLM não é dado confiável (convergente: security + code)
-- [ ] 6.5 **Resolução única da revisão** — hoje `resolverParaGeracao` roda 2× (prompt e vínculo), contradizendo o "ponto único" documentado; exige passar a revisão por `gerarPlanoSemanal` → `IaService` → `PlanoTreinoPromptBuilder` (5 arquivos + golden tests). Convergente: clean-code (Important) + security (Minor)
+- [ ] 6.5 **Resolução única da revisão consumida.** Hoje `WeeklyReviewPromptProvider.resolverParaGeracao` é chamado 2× por geração — uma no `PlanoTreinoPromptBuilder` (para o prompt) e outra no `PlanoServiceImpl` (para o vínculo) — em leituras não-atômicas da mesma query `ORDER BY semanaInicio DESC LIMIT 1`. Se uma revisão nova do mesmo atleta for persistida entre as duas, o LLM vê uma e o plano grava outra, contaminando em silêncio a métrica do moat. Contradiz o "ponto único" afirmado no Javadoc de `registrarRevisaoConsumida` e na D9. Convergente: clean-code (Important) + security (Minor).
+
+  **Plano de execução — resolver uma vez e passar adiante (anchors por símbolo; linhas aproximadas):**
+  1. `PlanoTreinoPromptBuilder` — remover o campo `weeklyReviewPromptProvider` (ctor ~:56-88) e trocar a resolução da ETAPA 1.6 (~:239-247) por um parâmetro `@Nullable RevisaoSemanal revisaoConsumida`; manter o `weeklyReviewPromptFormatter`. Novo overload de `buildOptimizedPrompt` preservando os dois existentes (~:165 e ~:171).
+  2. `IaService` (:22) e `IaServiceImpl.geraPlanoSemanalAvancado` (:309) — novo parâmetro `@Nullable RevisaoSemanal revisaoConsumida`, repassado ao builder. Único chamador de produção: `PlanoServiceImpl.gerarPlanoSemanal`.
+  3. `PlanoServiceImpl` — resolver **uma vez** em `gerarPlanoTreino` (antes da chamada a `gerarPlanoSemanal`, ~:144), passar o mesmo `Optional<RevisaoSemanal>` para (a) `gerarPlanoSemanal` → `iaService` e (b) `persistirPlanoCompleto` → `registrarRevisaoConsumida` (que já recebe `Optional`, ~:272). Remover a segunda chamada a `resolverParaGeracao` no passo 4.8. `publicarRevisaoConsumida` (após o save) fica como está.
+  4. Testes: `PlanoPromptArquetipos.builder()` (~:83-105) deixa de receber o provider; `PlanoServiceImplTest` mantém o `@Mock` do provider (agora usado só uma vez); `WeeklyReviewPromptProviderTest` não muda.
+
+  - verify: golden-master do prompt **byte-idêntico** (sem revisão consumível o bloco não existe); um teste novo provando que a revisão injetada no prompt é a MESMA gravada em `consumedReview` (ex.: `ArgumentCaptor` no `iaService` + asserção no plano salvo); `./mvnw clean test` verde.
 - [ ] 6.6 Minor aceitos, não corrigidos: índice sem `tenant_id` composto (lookup por FK), `save()` redundante em `registrarDesfecho`, `RejectedExecutionHandler` implícito, fragilidade dos testes estruturais do CA5
 
 ## 5. Testes (rastreados a CA)
