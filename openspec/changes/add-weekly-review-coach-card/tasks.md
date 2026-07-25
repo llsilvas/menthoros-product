@@ -11,12 +11,12 @@
 
 ## 1. Camada de dados
 
-- [ ] 1.1 Tipos TS `RevisaoSemanalOutputDto` + `WeekOverWeekDelta` em `src/types/RevisaoSemanal.ts` (espelham o contrato do backend) + `CoachRevisaoSemanalService.getRevisaoSemanal(atletaId)` em `src/api/services/` (GET `/coach/atletas/{atletaId}/revisao-semanal`) — [CA10]
-  - verify: `npm run build` (tsc) compila; tipos batem com o payload real do endpoint.
-- [ ] 1.2 `useWeeklyAthleteReview(atletaId)` em `src/features/coach/hooks/` (espelha `useAthleteProfile`; 404 → estado empty, não erro) — [CA10, CA10.1]
-  - verify: `npm run build`; hook expõe data/loading/error/empty.
-- [ ] 1.3 `buildWeeklyReviewFromDto` em `src/features/coach/adapters/` (+ teste irmão) e VM em `src/features/coach/types/WeeklyAthleteReview.ts` — [CA10]
-  - verify: teste do adapter (Vitest) mapeia DTO→VM incl. `weekOverWeekDelta.primeiraSemana`.
+- [x] 1.1 Tipos TS `RevisaoSemanalOutputDto` + `WeekOverWeekDeltaDto` (`src/types/RevisaoSemanal.ts`) + `CoachRevisaoSemanalService.getRevisaoSemanal` (`src/api/services/`) — [CA10]
+  - verify: ✅ `npm run build` (tsc + vite) compila.
+- [x] 1.2 `useWeeklyAthleteReview(atletaId)` (`src/features/coach/hooks/`) — espelha `useAthleteProfile`, 404 → `naoDisponivel` (empty) — [CA10, CA10.1]
+  - verify: ✅ build; hook expõe `revisao/isLoading/error/naoDisponivel/fetchRevisao`.
+- [x] 1.3 `buildWeeklyReviewFromDto` (`src/features/coach/adapters/weeklyReviewAdapters.ts`, + teste) e VM `WeeklyReviewVM` (`src/features/coach/types/WeeklyAthleteReview.ts`) — [CA10]
+  - verify: ✅ `weeklyReviewAdapters.test.ts` 4/4 (rótulos PT-BR, período, delta primeira semana vs. anterior, percentual ausente).
 
 ## 2. Card
 
