@@ -129,9 +129,10 @@ com `withFixedDelay` não precisa de nada novo.
 **Sem impacto em contrato de API:** os status 503/502/429 do `GlobalExceptionHandler` permanecem;
 muda o mecanismo que os dispara.
 
-**Changes derivadas a abrir:**
-1. Chamada de LLM dentro da transação — `PlanoServiceImpl` segura conexão de banco durante a
-   chamada externa.
+**Changes derivadas:**
+1. ✅ **`refactor-llm-call-outside-transaction`** (criada 2026-07-26) — `PlanoServiceImpl` segura
+   conexão de banco durante a chamada externa. Esta change limita a posse; aquela desfaz o
+   acoplamento.
 2. Reprocessamento de análises `FAILED` — hoje `AnaliseStatus.FAILED` é terminal (não há caminho de
    reprocessamento; o listener reage a um evento que já passou), então um blip perde a análise
    daquele treino para sempre. Retentar *mais tarde* é o retry com chance real de funcionar.

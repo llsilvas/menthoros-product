@@ -84,9 +84,11 @@
 
 ## Derivadas — abrir como changes próprias
 
-- [ ] 6.1 Chamada de LLM dentro da `@Transactional` (`PlanoServiceImpl.gerarPlanoTreino`): a
-  transação — e portanto uma conexão do pool de 10 — fica aberta durante a chamada externa. O
-  timeout limita a posse, mas não desfaz o acoplamento.
+- [x] 6.1 Chamada de LLM dentro da `@Transactional` — **change criada:
+  `refactor-llm-call-outside-transaction`** (M · Full). O timeout desta change limita a posse da
+  conexão, mas não desfaz o acoplamento. Ponto de ruptura calculado: o lote leva `N × 20s`, então em
+  **~90 atletas** ele ultrapassa o `recovery-limite-min: 30`, cujo comentário afirma que "nenhum
+  lote real dura tanto".
 - [ ] 6.2 Reprocessamento de análises `FAILED`: `AnaliseStatus.FAILED` é terminal e o listener reage
   a um evento que já passou, então um blip perde a análise daquele treino para sempre. Retentar
   *mais tarde* é o retry com chance real de funcionar (o de 2s depois, não).
