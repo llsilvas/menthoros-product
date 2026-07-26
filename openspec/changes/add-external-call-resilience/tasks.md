@@ -7,6 +7,9 @@
 
 - [ ] 1.1 `StravaWebClientConfig`: configurar `HttpClient` (Reactor Netty) com connect timeout + `responseTimeout`; injetar no `WebClient.builder()`
 - [ ] 1.2 LLM: impor limite de tempo de resposta às chamadas via `ChatClient` (timeout na borda) alinhado ao p95 + margem
+  - **Call sites a cobrir** (o timeout hoje não existe em nenhum): geração de plano (`IaServiceImpl`), análise de treino (`WorkoutAnalysisListener`) e **`WeeklyFocusModelClient`** — este último nasceu depois desta change, na `add-weekly-review-llm-focus` (task 1.3), e é o motivo de ela ter entregue a narrativa por LLM sem timeout.
+  - Restrição herdada da `add-weekly-review-llm-focus`: configurar o timeout no `MultiModelConfig` muda o comportamento de **todas** as rotas de uma vez. Ou o valor é calibrado por rota (o p95 de geração de plano é bem maior que o do foco semanal), ou a mudança global precisa ser validada contra as três. Foi exatamente esse acoplamento que fez a F2 adiar o item para cá.
+  - Mitigação em vigor até lá: o foco semanal roda em pool dedicado (`weeklyFocusExecutor`, core 1 / max 2), então uma chamada pendurada nunca consome a thread do coach — mas, com o pool cheio, o retry e o fallback para template não acontecem até o cliente retornar (achado P2 do `/codex:review` em 2026-07-26).
 - [ ] 1.3 Externalizar timeouts para `application.yml` sob `app.external.{llm,strava,keycloak}.*-timeout`, mantendo Keycloak (5s/10s) como referência
 - [ ] 1.4 Teste: simular dependência lenta (mock/stub) e verificar que a chamada falha por timeout dentro do limite, sem segurar thread
 - [ ] 1.5 `./mvnw clean test` verde
