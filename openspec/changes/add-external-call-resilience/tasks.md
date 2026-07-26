@@ -1,41 +1,92 @@
-## Pré-requisitos
+# Tasks — add-external-call-resilience (S · Fast · backend)
+
+> Reescrito em 2026-07-26 após grilling. O bloco de circuit breaker (Resilience4j) saiu — ver
+> Non-Goals do `proposal.md`. Fechar cada bloco com `./mvnw clean test`. `verify:` = como saber que
+> funcionou.
+
+## Anchors reais (verificados em 2026-07-26)
+
+- **Timeout de LLM:** não mora no `MultiModelConfig` (esse já é por rota, com `model`/`temperature`/
+  `maxTokens` de `app.llm.routing`). No Spring AI vive no cliente HTTP do `ChatModel`, e existem só
+  dois — `OpenAiChatModel` e `AnthropicChatModel`, auto-configurados pelos starters.
+- **Topologia:** `SIMPLE` (gpt-4o-mini, foco semanal) e `PLANO` (gpt-4o, geração) são **o mesmo
+  provider** — por isso timeout por provider não serve. `COMPLEX` (Sonnet, análise de treino) é
+  Anthropic. Mapa em `ModelRouter.route`.
+- **Retries existentes, de comportamento oposto:** `PlanoResilienceService` só retenta falha de
+  *validação* (infra propaga); `WeeklyFocusModelClient:37` retenta `Exception.class` — timeout
+  incluído.
+- **Latência:** só o `PLANO` tem número, e é comentário de código (`PlanoResilienceService`, "~80s
+  por tentativa"), não p95 medido. `CostTrackingAdvisor` só tem `Counter` — nenhum `Timer`.
+- **Já resolvidos, não tocar:** `KeycloakAdminRestClientConfig` (5s/10s) e
+  `IntervalsIcuWebClientConfig` (5s/10s).
+- **Teste de dependência lenta:** WireMock standalone já está no `pom.xml` — usar `withFixedDelay`.
+
+## 0. Pré-requisitos
 
 - [ ] 0.1 Criar branch `feature/add-external-call-resilience` em `apps/menthoros-backend`
-- [ ] 0.2 Levantar latência p95 atual de `gerarPlanoSemanal` e das chamadas Strava/Keycloak (logs/métricas) para calibrar timeouts
+- [ ] 0.2 ~~Levantar p95 via logs/métricas~~ — **não executável como estava**: não há `Timer` por
+  rota, e o único dado é um log de duração do `PLANO` (`IaServiceImpl`). Substituído pela 4.1
+  (instrumentar) + valores provisórios da 1.x. Recalibrar depois de ~2 semanas de dado.
 
-## 1. Timeouts (sem dependência nova)
+## 1. Timeout de LLM por rota
 
-- [ ] 1.1 `StravaWebClientConfig`: configurar `HttpClient` (Reactor Netty) com connect timeout + `responseTimeout`; injetar no `WebClient.builder()`
-- [ ] 1.2 LLM: impor limite de tempo de resposta às chamadas via `ChatClient` (timeout na borda) alinhado ao p95 + margem
-  - **Call sites a cobrir** (o timeout hoje não existe em nenhum): geração de plano (`IaServiceImpl`), análise de treino (`WorkoutAnalysisListener`) e **`WeeklyFocusModelClient`** — este último nasceu depois desta change, na `add-weekly-review-llm-focus` (task 1.3), e é o motivo de ela ter entregue a narrativa por LLM sem timeout.
-  - Restrição herdada da `add-weekly-review-llm-focus`: configurar o timeout no `MultiModelConfig` muda o comportamento de **todas** as rotas de uma vez. Ou o valor é calibrado por rota (o p95 de geração de plano é bem maior que o do foco semanal), ou a mudança global precisa ser validada contra as três. Foi exatamente esse acoplamento que fez a F2 adiar o item para cá.
-  - Mitigação em vigor até lá: o foco semanal roda em pool dedicado (`weeklyFocusExecutor`, core 1 / max 2), então uma chamada pendurada nunca consome a thread do coach — mas, com o pool cheio, o retry e o fallback para template não acontecem até o cliente retornar (achado P2 do `/codex:review` em 2026-07-26).
-- [ ] 1.3 Externalizar timeouts para `application.yml` sob `app.external.{llm,strava,keycloak}.*-timeout`, mantendo Keycloak (5s/10s) como referência
-- [ ] 1.4 Teste: simular dependência lenta (mock/stub) e verificar que a chamada falha por timeout dentro do limite, sem segurar thread
-- [ ] 1.5 `./mvnw clean test` verde
+- [ ] 1.1 Campo `timeout` (`Duration`, `@NotNull`) em `LlmRoutingProperties.RotaLlm` + valores em
+  `app.llm.routing.*.timeout`: `simple` 20s, `standard` 30s, `complex` 45s, `expert` 90s,
+  `plano` 120s
+  - verify: contexto sobe; rota sem `timeout` no yml falha rápido na validação (`@Validated` já
+    exige as 5 rotas completas)
+- [ ] 1.2 `MultiModelConfig`: `ChatModel` próprio por rota, com `RestClient` de timeout distinto,
+  ligado ao `ChatClient` já existente daquela rota — [CA1, CA2]
+  - verify: teste com WireMock atrasando a resposta prova que `SIMPLE` estoura em ~20s e `PLANO`
+    não estoura no mesmo intervalo — **é a asserção que prova granularidade por rota, não por
+    provider** (os dois são OpenAI)
+- [ ] 1.3 `./mvnw clean test` verde
 
-## 2. Circuit breaker (Resilience4j)
+## 2. Timeout do Strava
 
-- [ ] 2.1 Adicionar dependência Resilience4j (starter de circuit breaker) ao `pom.xml` — commit `chore` isolado com justificativa
-- [ ] 2.2 Definir instâncias nomeadas (`llm`, `keycloak`, `strava`) em `application.yml`: sliding window, failure-rate threshold, wait-duration-in-open-state, slow-call-threshold
-- [ ] 2.3 Envolver as chamadas a LLM, Keycloak e Strava com circuit breaker (+ `TimeLimiter` onde a chamada for reativa)
-- [ ] 2.4 Mapear circuito aberto → `LLMException` / `KeycloakIntegrationException` / `StravaRateLimitException` (preservar status 503/502/429 do `GlobalExceptionHandler`)
-- [ ] 2.5 Teste: forçar abertura do circuito (N falhas consecutivas) e verificar fail-fast + exceção/status corretos
-- [ ] 2.6 `./mvnw clean test` verde
+- [ ] 2.1 `StravaWebClientConfig`: `HttpClient` (Reactor Netty) com connect 5s + `responseTimeout`
+  10s, no código — espelhar `IntervalsIcuWebClientConfig`, que já é a cópia da referência Keycloak.
+  **Não** externalizar para `app.external.*` — [CA5]
+  - verify: WireMock com atraso > 10s ⇒ a chamada falha em ~10s
+- [ ] 2.2 `./mvnw clean test` verde
 
-## 3. Retry (ajuste do existente)
+## 3. Retry e teto total
 
-- [ ] 3.1 Auditar todos os pontos com retry (`@EnableRetry`/retry template); restringir a falhas transitórias (timeout, 5xx, 429)
-- [ ] 3.2 Confirmar que nenhum write não idempotente é retried cegamente (cruzar com o JavaDoc de idempotência dos serviços)
-- [ ] 3.3 Garantir backoff + teto de tentativas
+- [ ] 3.1 `WeeklyFocusModelClient`: tirar timeout do `retryFor` (hoje é `Exception.class`), mantendo
+  retry para 5xx/429. Timeout falha direto para o fallback de template — [CA3]
+  - verify: teste com WireMock lento ⇒ **uma** chamada ao modelo (não duas) e revisão preservada com
+    `focusSource = TEMPLATE`
+- [ ] 3.2 `PlanoResilienceService`: deadline total checado antes da 2ª tentativa (ponto exato: o
+  `if (tentativa >= MAX_TENTATIVAS) break;` do loop). Se o decorrido já passou de ~100s, desiste em
+  vez de pagar mais 120s — [CA4]
+  - verify: 1ª tentativa lenta + rejeição na validação ⇒ 2ª tentativa **não** acontece; 1ª tentativa
+    rápida + rejeição ⇒ 2ª acontece normalmente (o caso comum não pode regredir)
+- [ ] 3.3 `./mvnw clean test` verde
 
-## 4. Observabilidade
+## 4. Observabilidade e corte do lote
 
-- [ ] 4.1 Expor métricas Resilience4j (circuit breaker state, calls, slow calls) e de timeout/retry via Micrometer/Prometheus
-- [ ] 4.2 Logar transições de estado do circuito (CLOSED→OPEN→HALF_OPEN) em nível WARN/INFO com contexto
+- [ ] 4.1 `Timer` por rota no `CostTrackingAdvisor` (ao lado dos `Counter` que já existem) +
+  contador de timeout por rota — [CA7]
+  - verify: asserção sobre `SimpleMeterRegistry` real, como já se faz no `WeeklyFocusNarrativeService`
+- [ ] 4.2 `BatchPlanProcessor`: encerrar o job após N falhas consecutivas (sugestão: 3) em vez de
+  percorrer a fila inteira — [CA6]
+  - verify: lote com N+2 atletas e provider sempre falhando ⇒ job encerra como falha após N, e as
+    gerações restantes **não** são tentadas
+- [ ] 4.3 `./mvnw clean test` verde
 
 ## 5. Validação final
 
 - [ ] 5.1 `./mvnw clean test` + `./mvnw verify` verdes
-- [ ] 5.2 Teste manual: derrubar/atrasar uma dependência (ex.: LLM) e confirmar fail-fast com status correto, sem degradar o restante do sistema
-- [ ] 5.3 Atualizar este `tasks.md` (implementado vs. adiado) e arquivar a change conforme regra do CLAUDE.md raiz
+- [ ] 5.2 Teste manual: atrasar/derrubar uma dependência e confirmar que o erro chega em tempo
+  previsível **e que o resto do app segue respondendo** (login e telas do atleta) — é o sintoma que
+  motivou a change
+- [ ] 5.3 Atualizar este `tasks.md` (implementado vs. adiado) e arquivar conforme o `CLAUDE.md` raiz
+
+## Derivadas — abrir como changes próprias
+
+- [ ] 6.1 Chamada de LLM dentro da `@Transactional` (`PlanoServiceImpl.gerarPlanoTreino`): a
+  transação — e portanto uma conexão do pool de 10 — fica aberta durante a chamada externa. O
+  timeout limita a posse, mas não desfaz o acoplamento.
+- [ ] 6.2 Reprocessamento de análises `FAILED`: `AnaliseStatus.FAILED` é terminal e o listener reage
+  a um evento que já passou, então um blip perde a análise daquele treino para sempre. Retentar
+  *mais tarde* é o retry com chance real de funcionar (o de 2s depois, não).
