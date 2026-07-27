@@ -18,6 +18,7 @@
 - [x] 0.2 Reancoragem contra a F1 entregue (gate DoR 2026-07-25): hook real, threading (D8), checker (D10), migration V72
 - [x] 0.3 Grilling de domínio (2026-07-25): desfecho renomeado e movido para o plano (D9), janela de validade (D11), `focusSource` (D12), padronização de idioma (D13) — glossário e `CLAUDE.md` atualizados
 - [ ] 0.4 Gate de rollout (não bloqueia implementação): validar A1 (custo LLM/atleta/mês) em canary via `CostTrackingAdvisor`, agora segmentável por `focusSource` — [A1, D5, D12]
+  - **ADIADA no arquivamento (2026-07-27).** Não é task de código: exige tráfego real com a flag ligada, que não existe pré-pilot. A change fecha com `menthoros.weekly-review.llm.enabled=false` — em produção hoje só roda o template determinístico, custo LLM zero. Ligar a flag continua condicionado a este gate; a instrumentação necessária (`focusSource` nos contadores `weekly_review.focus.rejected` e `weekly_review.outcome`) já foi entregue nas tasks 1.4 e 3.4, então a medição é só rodar o canary.
 
 ## 1. Schema e narrativa atrás de flag
 
@@ -68,8 +69,8 @@
 
 - [x] 4.1 Renomear `dadosSuficientes`→`sufficientData` e `percentualRealizacao`→`completionRate` no tipo, adapter, VM, card e testes (7 arquivos) — [D13]
   - verify: ✅ lint sem issues, build ok, **748/748**. `TaxaAdesaoWidget.tsx`/`Metricas.ts` **não** foram tocados — `percentualRealizacao` ali é do `SemanaAdesao`, outro domínio (mesma distinção feita no backend).
-- [ ] 4.2 Merge coordenado: backend e front mergeados em sequência (janela curta de campo `undefined` aceita) — [D13]
-  - verify: após os dois merges, card renderiza aderência e suficiência de dado com dado real.
+- [x] 4.2 Merge coordenado: backend e front mergeados em sequência (janela curta de campo `undefined` aceita) — [D13]
+  - verify: ✅ front PR #46 mergeado em 2026-07-26 e backend PR #52 em 2026-07-27 (CI verde, `mergeStateStatus: CLEAN`). A ordem saiu **invertida** em relação ao planejado (o front foi primeiro), então a janela de `undefined` no card durou de 26/07 até o merge do backend, e não os minutos previstos. Sem impacto: a flag `menthoros.weekly-review.llm.enabled` nasce `false` e o card degrada para os estados de empty já cobertos por teste.
 
 ## 6. Correções do QA gate (2026-07-25)
 
