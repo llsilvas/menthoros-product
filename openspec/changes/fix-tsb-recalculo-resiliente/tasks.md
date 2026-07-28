@@ -1,4 +1,4 @@
-# Tasks — fix-tsb-recalculo-resiliente (M · Full · backend)
+# Tasks — fix-tsb-recalculo-resiliente (M · Full · backend · 17 tasks)
 
 > Fechar cada bloco com `./mvnw clean test`. `verify:` = como saber que funcionou.
 > A suíte precisa de Docker no ar (Testcontainers) e `POSTGRES_DB=localhost` para os testes de
@@ -17,6 +17,15 @@
   - dataset precisa cruzar as fronteiras de bloco em **D-1 e D-7** (`rampRate` usa D-7), incluir dias
     sem treino e um atleta com `ctlTimeConstant`/`atlTimeConstant` customizados — [CA5]
   - verify: teste verde contra o código atual, sem nenhuma alteração de produção
+- [ ] 0.2b Teste de idempotência: rodar `recalcularHistoricoCompleto` 2x consecutivas sobre o mesmo
+  dataset e confirmar que os 90 valores de CTL/ATL/TSB são idênticos nas duas execuções — [CA5]
+  - verify: segunda execução produz os mesmos checkpoints do dataset de referência. Nenhum dia
+    diverge > 0.01
+- [ ] 0.3 Teste de atleta sem histórico: `recalcularHistoricoCompleto` com atleta que não possui
+  nenhum treino nem métricas → `PlanoMetaDados` zerado (CTL=0, ATL=0, TSB=0), zero escritas em
+  `metricasDiariasRepository` — [CA6]
+  - verify: `planoMetaDadosRepository.findByAtletaId` retorna entidade com `ctlAtual=0.0`,
+    `atlAtual=0.0`, `tsbProntidaoAtual=0.0`; `metricasDiariasRepository.count()` inalterado
 
 ## 1. Fronteira transacional do bloco
 
@@ -76,6 +85,14 @@
   agregados semanais (`MetricasAgregadasServiceImpl:71-80`)
   - verify: contrato explícito por endpoint (bloquear, servir anterior, ou aceitar misto) — não "aceito
     o risco" implícito
+- [ ] 3b.3a Teste de leitura concorrente durante recálculo: disparar `recalcularHistoricoCompleto` em
+  thread A e, enquanto os blocos estão sendo processados, executar leituras em thread B nos 5 endpoints
+  reais (PMC, home, dashboard, fila de atenção, agregados). Nenhuma leitura pode lançar exceção
+  (`NullPointerException`, `EntityNotFoundException`) — o contrato mínimo é "dado disponível, mesmo
+  que parcial" — [CA3]
+  - verify: 5 chamadas de leitura durante recálculo retornam HTTP 200. Se o endpoint optar por
+    bloquear (HTTP 423 ou retry), o contrato é explícito. Se optar por servir dado misto, o response
+    body é válido. Nenhum stack trace 500.
 - [ ] 3b.4 `./mvnw clean test` verde
 
 ## 4. Validação final
