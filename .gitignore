@@ -1,2 +1,7 @@
 
 .DS_Store
+
+# Worktrees e estado local do Claude Code. Sem isto, `.claude/worktrees/`
+# aparece como untracked no repo principal e pode ser comitado por engano
+# num `git add -A` — já aconteceu. Mesma regra do menthoros-backend.
+/.claude/
