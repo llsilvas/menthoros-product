@@ -14,6 +14,7 @@ Integrações externas do backend, por sistema:
 | **OpenAI / Anthropic (via Spring AI)** | Geração de sugestões de plano, prescrição assistida por IA | Ativo, em produção |
 | **Strava** | Sincronização de atividades reais do atleta | Implementado no código, **deferido** por clareza jurídica |
 | **Railway** | Hosting/deploy do backend e frontend | Ativo (infraestrutura, não integração de domínio) |
+| **Intervals.icu** | Push de treinos aprovados ao relógio do atleta via Garmin Connect | Em implementação (change `intervals-icu-workout-push`, Sprint 15); atividade-ingestão planejada (`intervals-icu-activity-ingestion`, Sprint 16) |
 
 ## Por que importa para o Menthoros
 
@@ -57,6 +58,21 @@ Integrações externas do backend, por sistema:
 - OAuth, sync de atividades, e webhooks estão implementados mas não habilitados
   para uso em produção pelo bloqueio jurídico.
 - `StravaRateLimitException` já mapeada no `GlobalExceptionHandler`.
+
+### Intervals.icu (em implementação)
+- **Push de treinos (Sprint 15):** `IntervalsIcuConnectionController` (POST/GET/DELETE
+  `/api/v1/integracoes/me/intervals-icu`), `IntervalsIcuPushListener`
+  (`PlanoAprovadoEvent` → `AFTER_COMMIT` + `@Async`), `IntervalsIcuWorkoutConverter`
+  (conversão `TreinoPlanejado` → `workout_doc` JSON).
+- **Atividade-ingestão (Sprint 16, planejada):** pull de atividades realizadas
+  do intervals.icu (fecha o ciclo prescreve → executa → analisa).
+- Auth: API Key por atleta (HTTP Basic `API_KEY:<key>`), validada na conexão
+  via `GET /api/v1/athlete/0`.
+- Idempotência: client-side via `external_id = "menthoros-<treinoId>"` (a API
+  do intervals.icu NÃO deduplica por `external_id` — comprovado empiricamente).
+- Rate limit: 5.000 chamadas/dia por key (MVP: ~5-7 POSTs por aprovação de plano).
+- Guia do usuário: `docs/guides/conectar-intervals-icu.md` (a definir local).
+- Design doc: `openspec/changes/intervals-icu-workout-push/design.md`.
 
 ## Fontes
 

@@ -114,6 +114,62 @@ proxy do Spring. Fica documentado ou removido, para não sugerir garantia inexis
 - **CA9** — Dado um recálculo concluído, quando a geração de plano lê os metadados em seguida, então
   ela **não** recebe valor de cache anterior ao recálculo.
 
+## Janela de Teste para o CA5 (Dataset de Referência)
+
+> **Recomendação: 90 dias com atleta AVANÇADO (τ_ctl=42) + constantes customizadas.**
+> Dataset de referência com valores esperados calculados manualmente (EWMA, round-half-up)
+> em `openspec/changes/fix-tsb-recalculo-resiliente/reference-dataset.md`.
+
+### Fundamentação matemática
+
+A fórmula de CTL/ATL é uma média móvel exponencial (EWMA). O peso de um treino com `d` dias de idade
+decai por `e^(-d/τ)`. Isso define a janela mínima para que um teste capture o sinal real:
+
+| Dias | Peso remanescente (τ=42) | Significado |
+|---|---|---|
+| 42 (1τ) | ~37% | Meia-vida ~29d; 63% do sinal é recente |
+| 84 (2τ) | ~14% | 86% do CTL determinado pela janela |
+| 126 (3τ) | ~5% | 95% do CTL — região onde o sinal praticamente estabiliza |
+| 168 (4τ) | ~2% | 98% — gold standard |
+
+**Fontes:** Coggan, A. (2003). *Training and Racing with a Power Meter*. VeloPress. — o τ=42 é
+convenção de Coggan para ciclismo (Established). A extrapolação 2τ/3τ/4τ é propriedade matemática
+padrão de EWMA (Established — Clarke & Skiba, 2013).
+
+### Por que 90 dias (não 65, não 168)
+
+| Janela | τ cobertos (avançado) | Blocos de 30d | rampRate cross-chunk | Verdict |
+|---|---|---|---|---|
+| 65d | 1.5τ (~78% do sinal) | 2 | Só 1ª fronteira | Insuficiente: CTL ainda responde ao dia 1 |
+| **90d** | **2.1τ (~88%)** | **3** | **2 fronteiras** | **Ideal: sinal ≥86%, 3 blocos exercitam D-7** |
+| 168d | 4τ (~98%) | 5 | 4 fronteiras | Overkill para teste de equivalência |
+
+90 dias com τ=42 cobre ≥2τ (88% do sinal determinado pela janela). Com τ menor (INICIANTE=30,
+INTERMEDIÁRIO=35), cobre 3τ e 2.6τ respectivamente — folga em vez de insuficiência.
+
+O `rampRate` depende de D-7 (`TsbServiceImpl:226`). Com 3 blocos de 30 dias, as duas fronteiras
+(dia 30→31 e dia 60→61) exercitam `data.minusDays(7)` cruzando o corte do chunk, validando que o
+`flush`/`clear` não quebrou a leitura.
+
+### Estrutura do dataset
+
+- **90 dias** cobrindo 8 fases de periodização: construção, progressão, pico, recuperação, pausa
+  completa, retorno, pico abrupto (TSS 180), taper
+- **Valores esperados:** CTL, ATL, TSB calculados manualmente com `round(value, 2)` (round-half-up)
+- **Casos especiais:** dia 1 sem histórico, 7 dias de pausa (TSS=0), pico abrupto isolado,
+  duplicação de treino no mesmo dia, TSB negativo (overreaching), TSB cruzando zero
+- **Constantes testadas:** τ_ctl=42 (padrão AVANÇADO) + dataset com τ_ctl=30 (INICIANTE) para
+  validar constantes customizadas
+
+### Nível de evidência da recomendação
+
+| Afirmação | Nível | Fonte |
+|---|---|---|
+| 2τ cobre ≥86% do sinal de CTL | Established | Matemática de EWMA; Clarke & Skiba (2013) |
+| τ=42 para CTL | Established | Coggan (2003) — ciclismo, adotado como padrão |
+| 90d como janela de teste | Heuristic | Engenharia de teste, não fisiologia — derivado de 2τ + 3 blocos |
+| τ adaptativo por nível | Heuristic | Decisão de produto Menthoros, sem referência publicada |
+
 ## Métrica de sucesso
 
 Zero atletas com histórico parcial silencioso após falha de recálculo — hoje esse estado é
