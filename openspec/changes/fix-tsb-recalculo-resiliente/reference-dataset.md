@@ -57,7 +57,7 @@ round(v, 2) = Math.round(v × 100) / 100
 | 11 | 50 | 8.03 | 28.80 | -20.78 | TSB < -20 |
 | 12 | 0 | 7.84 | 24.97 | -17.13 | Descanso |
 | 13 | 55 | 8.95 | 28.97 | -20.02 | TSB < -20 |
-| 14 | 55 | 9.68 | 30.44 | -20.76 | TSB < -20 |
+| 14 | 40 | 9.68 | 30.44 | -20.76 | ⚠️ TSS era 55 na v1.0 — typo; ver "Validação do gabarito" |
 | 15 | 60 | 10.86 | 34.37 | -23.51 | TSB < -20 |
 | 16 | 65 | 12.14 | 38.45 | -26.31 | TSB < -20 |
 | 17 | 0 | 11.85 | 33.33 | -21.48 | Descanso, TSB < -20 |
@@ -314,6 +314,27 @@ void ca5DeveProduzirValoresIdenticosAposChunkingIniciante() {
 4. **Decaimento puro:** dia 38 CTL=32.09 → dia 44 CTL=30.75. Em 7 dias de recuperação, CTL caiu apenas 1.34 pontos (τ=42 é muito lento para decair rápido) ✅
 5. **rampRate na fronteira de chunk:** CTL[61] - CTL[54] = 43.54 - 37.60 = 5.94. D-7 cruza a fronteira dia 60→61 corretamente ✅
 6. **Idempotência:** recalcular do zero produz os mesmos valores que cálculo incremental ✅ (por construção — usamos a mesma fórmula)
+
+## Validação do gabarito (2026-07-28)
+
+O gabarito foi reproduzido independentemente antes de virar teste, para não construir 90 dias de
+fixtures em cima de números errados. Dois achados:
+
+**1. Typo na coluna TSS do dia 14 (corrigido acima).** A tabela AVANÇADO trazia 55; a INICIANTE
+trazia 40 para o mesmo dia. Reproduzindo a EWMA com 55, **12 dos 14 checkpoints divergem** — o erro
+entra no dia 14 e propaga por toda a série. Com 40, todos batem. Os CTL/ATL/TSB tabelados nas duas
+tabelas já haviam sido calculados com 40; só a célula de TSS da tabela AVANÇADO estava errada.
+
+**2. `DELTA = 0.01` fica na fronteira — use `0.02`.** Modelando a semântica de arredondamento real do
+código (`TsbServiceImpl:132-146`), o desvio máximo entre o gabarito e a implementação é exatamente
+`0.0100`. O código carrega CTL/ATL **arredondados** para o dia seguinte (`metricasOntem.getCtl()`,
+`:107-110`), mas calcula TSB a partir dos valores **não arredondados** do mesmo dia — a diferença
+acumula ao longo de 90 dias. Com `0.01` o teste fica sem margem para ruído de ponto flutuante.
+
+Isso não afrouxa o CA5: a tolerância vale só para as asserções contra o gabarito, que provam que a
+implementação segue a matemática. A prova de que o chunking não mudou nada é a comparação **exata**
+dia a dia antes/depois (`snapshot()` em `TsbRecalculoEquivalenciaIT`), sem tolerância nenhuma, e
+inclui `rampRate`.
 
 ## Fontes
 

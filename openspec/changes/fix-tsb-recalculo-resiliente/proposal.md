@@ -1,53 +1,69 @@
 **Tamanho:** M · **Trilha:** Full
 
-> Origem: dívida técnica **BUG-TEC-002**, já **parcialmente aplicada** na branch
-> `feature/testes-carga-referencia` pelo commit `f9e754b` ("fix(BUG-TEC-002): remover @Transactional
-> do recálculo histórico", autor `Hermes Agent`, 2026-07-28).
+> Origem: dívida técnica **BUG-TEC-002**.
 >
-> **Baseline desta change: `feature/testes-carga-referencia`**, não `develop`. As duas divergem no
-> ponto central — ver "Estado da baseline". Esta change termina o que aquele commit começou e desfaz
-> o dano que ele introduziu.
+> **Baseline desta change: `develop`** (`9bd32ff`). Rebaselinada em 2026-07-28 — ver "Estado da
+> baseline".
 
 ## Estado da baseline
 
-O commit `f9e754b` alterou **duas linhas** de comportamento em `TsbServiceImpl`: removeu
-`@Transactional` de `recalcularHistoricoCompleto` e escreveu um comentário afirmando que existem
-"chunks de 30 dias com flush/clear". **O chunking não foi implementado** — `recalcularPeriodoComProgresso`
-segue um laço `while` dia a dia, sem bloco, sem `flush`, sem `clear`.
+**Baseline = `develop`.** `recalcularHistoricoCompleto` (`:349`) é `@Transactional` (`:348`): uma
+transação única cobrindo 400+ dias, exatamente o que o ticket BUG-TEC-002 descreve. O delete
+antecipado está em `:361`, o `backup` em `:355`, e `recalcularPeriodoComProgresso` (`:445`) é um laço
+`while` dia a dia — sem bloco, sem `flush`, sem `clear`.
 
-Em `develop` o método ainda é `@Transactional` e o comentário não existe. E, no momento da escrita
-desta spec, há uma alteração **não commitada** na branch re-adicionando `@Transactional` — alguém está
-revertendo aquele fix. A change vale para os dois estados: o alvo (chunking explícito) substitui tanto
-"uma transação gigante" quanto "nenhuma transação".
+### Por que não baselinamos em `f9e754b`
+
+Uma versão anterior desta spec adotava como baseline a branch `feature/testes-carga-referencia` e o
+commit `f9e754b`, que removeu o `@Transactional` de `recalcularHistoricoCompleto`, sob a tese de que
+esta change "terminaria o que aquele commit começou".
+
+**Descartado com evidência (2026-07-28).** O teste de equivalência do CA5
+(`TsbRecalculoEquivalenciaIT`) foi rodado contra as duas branches:
+
+| Branch | Resultado |
+|---|---|
+| `f9e754b` | **5 erros de 5** |
+| `develop` | **5 passam de 5** |
+
+Sem transação envolvente, o método lança para **todo** atleta, com ou sem histórico — duas
+`LazyInitializationException` distintas, por não haver sessão Hibernate: `TreinoRealizado.etapasRealizadas`
+(via `TssCalculatorService:482`) no caminho com treinos, e o proxy de `Atleta` no caminho sem treinos.
+Não é fragilidade sob falha: o método **não funciona**, nunca.
+
+Agravante: o `deleteByAtletaId` + `flush` roda **antes** do trecho que lança, e `SimpleJpaRepository`
+traz `@Transactional` próprio — o delete comita sozinho e só então a reconstrução falha. `f9e754b`
+não deixou meio caminho andado; deixou um método que apaga e aborta.
+
+Como aquele commit não está mergeado, não existe em nenhum remote e não tem nada aproveitável, a
+change passa a partir de `develop`. O alvo técnico é idêntico: chunking explícito substitui a
+transação única.
 
 ## Why
 
-**1. Meia correção é pior que nenhuma.** Tirar a transação sem implementar chunking não resolveu o
-problema do ticket e criou um novo. Sem transação envolvente:
+**1. Uma transação de 400+ dias é o problema do ticket.** Em `develop`, `recalcularHistoricoCompleto`
+é `@Transactional`: um recálculo longo segura uma conexão do pool (Hikari default de 10) do começo ao
+fim, e uma falha no dia 300 reverte os 299 dias já reconstruídos. É o que o ticket descreve.
 
-- `deleteByAtletaId` + `flush` (`:364-365`) **comita de verdade**, antes de qualquer reconstrução;
-- cada dia comita sozinho no laço;
-- uma falha no meio deixa o atleta com histórico **parcial**, sem volta.
-
-Enquanto isso o javadoc continua dizendo "dados são restaurados do backup" e o log de erro continua
-dizendo "a transação será revertida e o banco voltará ao estado anterior". Ambos passaram a ser falsos
-com aquele commit — o código mente sobre o que faz.
+**2. O javadoc e o log prometem o que o chunking não poderá cumprir.** O javadoc diz "Faz backup
+automático e rollback em caso de erro" (`:342`) e "dados são restaurados do backup" (`:346`); o log de
+erro diz "a transação será revertida e o banco voltará ao estado anterior" (`:388`). Hoje a reversão
+de fato acontece — mas ela vem da transação única, que é justamente o que sai. Com chunking, essas
+três frases viram mentira se não forem reescritas junto.
 
 Para o treinador, um atleta com CTL/ATL truncado gera recomendação de carga errada até alguém
 perceber e mandar recalcular de novo. É perda silenciosa de dado, não fragilidade de performance.
 
-**2. O problema original do ticket continua de pé.** Pelo caminho do onboarding
-(`OnboardingServiceImpl.montarContexto`, `@Transactional`), o recálculo **participa da transação do
-chamador** — porque um método sem anotação herda o contexto ambiente. Ou seja, 400+ dias numa
-transação só, exatamente como o ticket descreve, segurando uma conexão do pool (Hikari default de 10).
-A remoção da anotação só afetou o caminho do controller.
+**3. Os dois caminhos de entrada sofrem igual — e é o pior caso dos dois.** Com `@Transactional` em
+`develop`, o recálculo abre transação própria quando vem do controller e **participa da transação do
+chamador** quando vem do onboarding. Nos dois casos são 400+ dias numa transação só.
 
-| Entrada | Contexto transacional na baseline | Efeito |
+| Entrada | Contexto transacional na baseline (`develop`) | Efeito |
 |---|---|---|
-| `AtletaController` → `AtletaServiceImpl.recalcularMetricasAtleta` (`:237`, sem anotação) | **nenhum** | cada escrita comita; falha deixa histórico parcial |
-| `OnboardingServiceImpl.montarContexto` (`:99`, `@Transactional`) → `BaselineCalculator.calcular` | **transação do chamador** | 400+ dias numa transação só |
+| `AtletaController` → `AtletaServiceImpl.recalcularMetricasAtleta` (`:237`) | transação própria (`REQUIRED`) | 400+ dias numa transação; falha reverte tudo |
+| `OnboardingServiceImpl.montarContexto` (`:99`, `@Transactional`) → `BaselineCalculator.calcular` | **transação do chamador** | 400+ dias dentro de uma transação ainda maior |
 
-**3. `@Transactional` morto.** A anotação em `atualizarTsbDia` (`:46`) nunca vale no recálculo: o laço
+**4. `@Transactional` morto.** A anotação em `atualizarTsbDia` (`:46`) nunca vale no recálculo: o laço
 chama a sobrecarga **privada** de 3 argumentos (`:457` → `:51`), e auto-invocação não passa pelo proxy
 do Spring. Quem lê o arquivo acredita numa garantia por dia que não existe.
 
@@ -173,18 +189,34 @@ O `rampRate` depende de D-7 (`TsbServiceImpl:226`). Com 3 blocos de 30 dias, as 
 ## Métrica de sucesso
 
 Zero atletas com histórico parcial silencioso após falha de recálculo — hoje esse estado é
-indetectável, então a primeira entrega é conseguir distingui-lo. Efeito na rotina do treinador: o
-recálculo de um atleta com histórico longo deixa de ser uma operação que pode corromper a base de
-carga em silêncio e passar recomendação errada até alguém notar.
+indetectável, então a primeira entrega é conseguir distingui-lo.
+
+**Sinal que torna a métrica mensurável (Decisão 8):** contador Micrometer de recálculos abortados,
+tagueado com o bloco onde a execução parou, e log estruturado com o intervalo efetivamente
+reconstruído. Sem esse sinal, "zero" seria uma afirmação que ninguém consegue verificar depois do
+deploy. A leitura da métrica é o contador em zero **com** recálculos ocorrendo (o denominador
+importa: zero abortos e zero recálculos não prova nada).
+
+Efeito na rotina do treinador: o recálculo de um atleta com histórico longo deixa de ser uma operação
+que pode corromper a base de carga em silêncio e passar recomendação errada até alguém notar.
 
 ## Impact
 
 **Código alterado:** `TsbServiceImpl` (`recalcularHistoricoCompleto`, `recalcularPeriodoComProgresso`,
 javadoc e comentário `BUG-TEC-002`), mais um colaborador novo para a fronteira transacional do bloco
-(`REQUIRES_NEW` exige proxy — não pode ser método privado da mesma classe).
+(`REQUIRES_NEW` exige proxy — não pode ser método privado da mesma classe), um método de consulta de
+limites (`min(data)`/`max(data)`) em `MetricasDiariasRepository`, e um contador Micrometer para a
+instrumentação da Decisão 8.
+
+**Nenhum dos cinco serviços leitores é alterado** — a Decisão 6 fecha o contrato da janela mista como
+"servir o dado disponível", que já é o comportamento atual deles.
 
 **Sem migration, sem mudança de contrato de API, sem mudança de schema.** Só muda quando o dado é
 comitado.
+
+**Rollback.** Reverter o código é seguro e não exige nada no banco: o recálculo é idempotente e os
+valores produzidos por bloco são byte-idênticos aos da transação única (é o CA5). O único efeito
+residual de um revert é histórico já reconstruído — que re-rodar corrige, com o mesmo resultado.
 
 **Risco principal — pressão no pool de conexões.** `REQUIRES_NEW` chamado de dentro do caminho do
 onboarding mantém **duas conexões abertas simultaneamente** (a do chamador, suspensa mas ainda
@@ -220,14 +252,20 @@ sai com CTL/TSB anteriores ao recálculo.
 
 - **Premissa:** 30 dias por bloco vem do comentário já existente no código, não de medição. Com ~400
   dias, são ~14 transações. Não há dado sobre a duração de um bloco.
-- **Premissa:** nenhum consumidor depende de ler o histórico *durante* o recálculo. Com chunking,
-  passa a existir uma janela em que o histórico está parcialmente reconstruído e visível — antes
-  (no caminho transacional) isso ficava invisível até o commit final.
-- **Em aberto:** o que fazer com um recálculo que falhou no meio. Retentar do bloco seguinte? Marcar o
-  atleta para reprocessamento? Hoje não há nada — decidir no `design.md`.
-- **Em aberto:** o dimensionamento do pool sob `REQUIRES_NEW` no caminho do onboarding. Se as duas
-  conexões simultâneas forem inaceitáveis, a alternativa é tirar o recálculo de dentro da transação do
-  onboarding — o que aproxima esta change da `refactor-llm-call-outside-transaction`.
+- **Premissa:** com chunking passa a existir uma janela em que o histórico está parcialmente
+  reconstruído e visível — antes (no caminho transacional) isso ficava invisível até o commit final.
+  **Resolvido (Decisão 6):** os cinco leitores servem o dado disponível, sem bloqueio. Nenhum deles é
+  alterado; o teste 3b.3a prova que a janela não gera erro.
+- **Resolvido (Decisão 7):** um recálculo que falha no meio propaga exceção com o intervalo
+  efetivamente reconstruído; os metadados ficam no estado anterior, explicitamente stale. Não há
+  retentativa automática nem marcação de reprocessamento — o recálculo é idempotente, então
+  re-disparar é o caminho de recuperação.
+- **Resolvido (Decisão 8):** a falha deixa de ser silenciosa — contador Micrometer de recálculos
+  abortados (tagueado pelo bloco de parada) + log estruturado do intervalo reconstruído.
+- **Premissa aceita (Decisão 4):** duas conexões simultâneas por recálculo no caminho do onboarding,
+  sob `REQUIRES_NEW`. Aceitar e medir. **Gatilho de reavaliação:** se o onboarding passar a rodar em
+  lote, a saída é tirar o recálculo de dentro da transação do onboarding — o que aproxima esta change
+  da `refactor-llm-call-outside-transaction`.
 
 ## Pre-mortem cross-model (Codex, 2026-07-28)
 
@@ -235,7 +273,7 @@ Rodado sobre a spec + o código real. Achados incorporados acima:
 
 | # | Severidade | Achado | Onde entrou |
 |---|---|---|---|
-| 1 | Crítico | Baseline errada — em `develop` o método **é** `@Transactional` | "Estado da baseline"; baseline redefinida para a branch |
+| 1 | Crítico | Baseline errada — em `develop` o método **é** `@Transactional` | "Estado da baseline"; resolvido definitivamente pela rebaseline em `develop` (2026-07-28) |
 | 2 | Crítico | `REQUIRES_NEW` quebra a atomicidade do onboarding | Impact + CA8 |
 | 3 | Importante | `PlanoMetaDados` fora do escopo transacional | CA8 |
 | 4 | Importante | `backup` **é** usado para delimitar o intervalo | Non-Goals (correção) + CA7 |
@@ -255,9 +293,10 @@ rollback total."* Isso descreve `develop` — e continua valendo, na baseline, p
 onboarding.
 
 O commit `f9e754b` tentou resolver removendo a anotação. Isso: (a) não implementou o chunking que o
-próprio comentário afirma existir; (b) não afetou o caminho do onboarding, onde o problema do ticket
-persiste; e (c) introduziu a perda silenciosa de histórico no caminho do controller, com javadoc e log
-prometendo uma reversão que deixou de acontecer.
+próprio comentário afirma existir; e (b) quebrou o método por completo — sem sessão Hibernate, ele
+lança `LazyInitializationException` para todo atleta, depois de já ter comitado o delete. O teste de
+equivalência do CA5 confirmou: 5 erros de 5 naquele commit, 5 verdes em `develop`. Por isso a change
+foi rebaselinada em `develop` e aquele commit descartado.
 
-Esta change termina o trabalho: implementa o chunking de fato, torna a semântica de falha honesta e
-elimina a janela de "apagado e não reconstruído".
+Esta change faz o trabalho: implementa o chunking, torna a semântica de falha honesta e elimina a
+janela de "apagado e não reconstruído".
