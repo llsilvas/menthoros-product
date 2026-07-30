@@ -1,4 +1,4 @@
-# Tasks — fix-tsb-recalculo-resiliente (M · Full · backend · 26 tasks, 25 concluídas)
+# Tasks — fix-tsb-recalculo-resiliente (M · Full · backend · 26 tasks, 26 concluídas)
 
 > Fechar cada bloco com `./mvnw clean test`. `verify:` = como saber que funcionou.
 > A suíte precisa de Docker no ar (Testcontainers) e `POSTGRES_DB=localhost` para os testes de
@@ -159,7 +159,8 @@
   - ✅ verify: `TsbRecalculoCaminhosIT.falhaDoChamadorNaoDesfazHistorico`. É a quebra aceita na
     Decisão 4; o teste existe para que mudá-la seja decisão explícita, não surpresa
 - [x] 4.3a Atualizar este `tasks.md` (implementado vs. adiado) — ver "Balanço de entrega"
-- [ ] 4.3b Arquivar em `changes/archive/YYYY-MM/` — **só após o merge do PR** (via `/done`)
+- [x] 4.3b Arquivada em `changes/archive/2026-07/2026-07-30-fix-tsb-recalculo-resiliente/` após o
+  merge do backend PR #54 em `develop` (2026-07-30)
 
 ## Balanço de entrega
 
