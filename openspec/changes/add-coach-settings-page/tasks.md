@@ -2,8 +2,29 @@
 
 **Tamanho:** XS · **Trilha:** Fast
 
-Branch: `feature/add-coach-settings-page`. Só iniciar após `add-coach-lgpd-consent` estar mergeada
-em `develop` — a tabela `tb_usuario_lgpd_consent`, a entidade, o repository e a `V73` vêm de lá.
+Branch: `feature/add-coach-settings-page` (backend `c53ad5b`, front `f915202`).
+
+**Dependência satisfeita:** `add-coach-lgpd-consent` mergeada em `develop` em 2026-07-31 — a
+tabela, a entidade, o repository e a `V73` já existem.
+
+## Verificações do `init` contra o código real (2026-07-31)
+
+Três premissas da spec estavam desatualizadas ou incompletas:
+
+- **A assinatura do repository é outra.** A spec dizia
+  `findTopByUsuarioIdOrderByConsentedAtDesc`; o método que existe é
+  `findTopByUsuario_IdAndTenantIdOrderByConsentedAtDesc` — **tenant-scoped**, e é essa a correta.
+  Usar uma versão sem tenant leria consentimento de outra assessoria.
+- **`avatarUrl` NÃO está no `UsuarioMeOutputDto`.** A spec mandava "conferir"; conferido — está na
+  entidade `Usuario`, mas não é exposto. Tem de ser adicionado.
+- **O frontend descarta o avatar hoje.** `useCurrentUser` declara `avatarUrl?` em `CurrentCoach`,
+  mas `setCoach` só preenche `id` e `name` — campo morto que a tela de perfil precisa ligar.
+
+E um detalhe que a spec não previa:
+
+- **`CoachRoute` é uma union de strings tipada** (`constants/routes.ts`). Adicionar o item na
+  sidebar não compila sem estender esse tipo **e** adicionar `SETTINGS` em `ROUTES`. Não existe
+  nenhuma rota `settings` no `App.tsx` hoje.
 
 ---
 
@@ -13,10 +34,16 @@ em `develop` — a tabela `tb_usuario_lgpd_consent`, a entidade, o repository e 
   - Campos `Instant lgpdConsentedAt`, `String lgpdAcceptedPolicyVersion` e
     `String lgpdAcceptedTermsVersion`, todos nullable com `@Schema` (o DTO já tem
     `@JsonInclude(NON_NULL)`, então somem do JSON quando não há aceite).
-  - Origem: `UsuarioLgpdConsentRepository.findTopByUsuarioIdOrderByConsentedAtDesc` — o **último**
-    aceite. Não confundir com as versões **vigentes** (`lgpdCurrentPolicyVersion`), que já vêm da
-    config em `add-coach-lgpd-consent`: exibir a aceita é o ponto, e ela pode ser mais antiga.
-  - Conferir se `avatarUrl` já está exposto no DTO; se não, adicionar junto (`Usuario.avatarUrl`).
+  - Origem: `UsuarioLgpdConsentRepository.findTopByUsuario_IdAndTenantIdOrderByConsentedAtDesc`
+    — o **último** aceite, tenant-scoped. Não confundir com as versões **vigentes**
+    (`lgpdCurrentPolicyVersion`), que já vêm da config: exibir a aceita é o ponto, e ela pode ser
+    mais antiga que a vigente — é justamente essa diferença que o coach precisa enxergar.
+  - **`avatarUrl` precisa ser adicionado** ao DTO (verificado no `init`: existe em `Usuario`, não
+    no `UsuarioMeOutputDto`).
+  - `UsuarioMapper.toMeOutputDto` já tem 5 parâmetros; acrescentar os 4 novos elevaria para 9.
+    **Passar um objeto** em vez de mais parâmetros posicionais — o `clean-code-reviewer` já
+    sinalizou Data Clump nessa assinatura no QA da change anterior.
+  - `verify:` `./mvnw clean test` verde e `GET /users/me` devolvendo os campos novos.
   - Atualizar o mapeamento em `UsuarioServiceImpl.getCurrentUser()`.
   - **Teste:** `UsuarioServiceImplTest` — propaga data e versões do último aceite quando existe;
     com **duas** linhas, retorna a mais recente; sem nenhuma, os três campos vêm nulos sem quebrar
@@ -25,11 +52,15 @@ em `develop` — a tabela `tb_usuario_lgpd_consent`, a entidade, o repository e 
 
 ## 2. Frontend
 
-- [ ] **2.1 Regenerar o cliente OpenAPI**
-  - Trazer `lgpdConsentedAt`, `lgpdAcceptedPolicyVersion`, `lgpdAcceptedTermsVersion` (e
-    `avatarUrl`, se adicionado) para o tipo de `/users/me`.
-  - Não editar tipos gerados à mão.
-  - **Validação:** `npm run lint && npm run build`
+- [ ] **2.1 Portar o contrato no cliente curado**
+  - **Não rodar o gerador por cima:** `src/api` é fachada curada à mão (ver `CLAUDE.md` do front,
+    "API Client & Types"). O texto original desta task dizia "regenerar" e "não editar à mão" —
+    está errado para este repo, e a change anterior já seguiu o porte manual.
+  - Acrescentar `lgpdConsentedAt`, `lgpdAcceptedPolicyVersion`, `lgpdAcceptedTermsVersion` e
+    `avatarUrl` a `UsuarioMeOutputDto` em `src/types/Usuario.ts`.
+  - **Preencher `avatarUrl` no `useCurrentUser`** — hoje `CurrentCoach.avatarUrl` é declarado e
+    nunca populado.
+  - `verify:` `npm run lint && npm run build`
 
 - [ ] **2.2 `CoachSettingsPage`**
   - `src/features/coach/pages/CoachSettingsPage.tsx`, consumindo o hook de usuário atual já
@@ -49,11 +80,11 @@ em `develop` — a tabela `tb_usuario_lgpd_consent`, a entidade, o repository e 
   - **Validação:** `npm run lint && npm run build && npm test`
 
 - [ ] **2.3 Rota e navegação**
+  - `constants/routes.ts`: adicionar `COACH_SETTINGS: '/coach/settings'` em `ROUTES` **e**
+    `| '/coach/settings'` na union `CoachRoute` — sem isso o item da sidebar não compila.
   - `App.tsx`: adicionar `{ path: 'settings', element: <CoachSettingsPage /> }` dentro dos
-    children de `coach` (rota final `/coach/settings`), seguindo o padrão de `lazy` das demais
-    páginas do shell do coach.
-  - `CoachSidebar.tsx`: item "Configurações" (ícone `Settings`) ao final, apontando para
-    `/coach/settings`.
+    children de `coach`, seguindo o padrão das demais páginas do shell.
+  - `CoachSidebar.tsx`: item "Configurações" (ícone `Settings`) ao final de `NAV_ITEMS`.
   - **Teste:** `CoachSidebar.test.tsx` — o item aparece e navega para `/coach/settings` (CA1).
   - **Validação:** `npm run lint && npm run build && npm test`
 
