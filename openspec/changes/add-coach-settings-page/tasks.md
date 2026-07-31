@@ -114,7 +114,7 @@ E um detalhe que a spec não previa:
 
 - [ ] **3.1** Sidebar → "Configurações" abre `/coach/settings` (CA1).
 - [ ] **3.2** Nome, e-mail e avatar corretos e não editáveis (CA2).
-- [ ] **3.3** Data e versão do último aceite exibidas corretamente; coach sem aceite não quebra a
+- [ ] **3.3** Data e as duas versões aceitas (Política e Termos) exibidas corretamente; coach sem aceite não quebra a
   tela (CA3, CA4).
 - [ ] **3.4** Links de política, DPO e exclusão funcionam (CA5).
 - [ ] **3.5** Página responsiva em telas pequenas e grandes (CA6).
