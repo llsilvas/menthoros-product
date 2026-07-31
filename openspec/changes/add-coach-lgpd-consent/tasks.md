@@ -40,17 +40,20 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
   - **JPQL** (nomes de campo da entidade, **sem** `nativeQuery`):
     `UPDATE Usuario u SET u.lgpdConsentGranted = true, u.lgpdConsentedAt = :now
      WHERE u.id = :id AND u.assessoria.id = :tenantId AND u.lgpdConsentGranted = false`.
-  - `@Modifying(flushAutomatically = true, clearAutomatically = true)` — **obrigatório**: sem
-    `clearAutomatically`, o `Usuario` que o `JwtTenantFilter` já carregou nesta request fica stale
-    no cache de 1º nível e uma leitura posterior devolveria `false` logo após o aceite.
+  - `@Modifying(clearAutomatically = true)` — protege contra leitura stale **dentro da própria
+    transação** de `registerConsent()` (o método carrega o `Usuario` para resolver o caller antes
+    do update). Precedente: `RaceProjectionSnapshotRepository`. **Não** usar
+    `flushAutomatically`: não há mutação pendente a descarregar.
+  - Nota verificada: com `open-in-view: false` e `syncUsuarioFromJwt` em `@Transactional` próprio,
+    o `Usuario` vindo do `JwtTenantFilter` já está detached — não é afetado por este update.
   - Filtrar por `assessoria.id` também — a query precisa ser tenant-scoped de fato, não só na
     descrição.
   - Read-modify-write no service **não** é aceitável: dois POSTs concorrentes gravariam timestamps
     diferentes e o último commit venceria, corrompendo o registro legal.
   - **Teste:** `@DataJpaTest` — segunda chamada retorna `0` e **não** altera o `lgpd_consented_at`
-    da primeira (CA13); após o update, uma releitura na **mesma** transação enxerga
-    `lgpdConsentGranted = true` (prova que o cache foi limpo); `id` correto mas de outro tenant
-    retorna `0` e não altera nada.
+    da primeira (CA13); carregar o `Usuario`, rodar o update e reler na **mesma** transação
+    enxerga `lgpdConsentGranted = true` (prova que o cache foi limpo); `id` correto mas de outro
+    tenant retorna `0` e não altera nada.
   - **Validação:** `./mvnw clean test`
 
 - [ ] **1.6 `UsuarioService.registerConsent()` + impl**

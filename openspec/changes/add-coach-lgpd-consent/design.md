@@ -93,7 +93,7 @@ gravam timestamps diferentes e o último commit vence, corrompendo a data do reg
 
 ```java
 // JPQL — nomes de CAMPO da entidade, não de coluna. Bulk update: sem nativeQuery.
-@Modifying(flushAutomatically = true, clearAutomatically = true)
+@Modifying(clearAutomatically = true)
 @Query("""
     UPDATE Usuario u
        SET u.lgpdConsentGranted = true, u.lgpdConsentedAt = :now
@@ -111,15 +111,24 @@ garante a invariante; a corrida deixa de existir.
 
 - **É JPQL, não SQL nativo.** Os identificadores são campos da entidade
   (`u.lgpdConsentGranted`), nunca colunas (`lgpd_consent_granted`). Sem `nativeQuery = true`.
-- **`clearAutomatically`/`flushAutomatically` são obrigatórios.** Bulk update passa ao lado do
-  cache de 1º nível: o `Usuario` que o `JwtTenantFilter` já carregou **nesta mesma request**
-  ficaria stale, e uma leitura posterior devolveria `lgpdConsentGranted = false` logo após o
-  aceite. Consequência a respeitar: depois do `clear()` as entidades ficam **detached** — o
-  service não pode continuar usando a instância anterior, nem o atributo da request (que passa a
-  apontar para um objeto stale). O endpoint de consentimento está na whitelist, então o
-  interceptor não o lê nessa request; ainda assim, **não reutilizar** o objeto após o update.
+- **`clearAutomatically = true`.** Bulk update passa ao lado do cache de 1º nível: se
+  `registerConsent()` carregar o `Usuario` para resolver o caller e depois rodar o update, a
+  instância na persistence context **daquela transação** fica stale. `clearAutomatically` evita
+  que um `read` posterior no mesmo método devolva `lgpdConsentGranted = false` logo após o aceite.
+  Precedente na casa: `RaceProjectionSnapshotRepository.clearOfficialByAthleteIdAndRaceId`.
+
+  **Escopo real do risco (verificado):** `spring.jpa.open-in-view` é `false` nos três profiles e
+  `syncUsuarioFromJwt` é `@Transactional` próprio — logo o `Usuario` que o `JwtTenantFilter`
+  devolve já está **detached** quando o controller roda. Ele **não** é afetado pelo cache de 1º
+  nível da transação do consentimento. O risco é estritamente intra-método, não intra-request.
+
+  **`flushAutomatically` não é necessário:** não há mutação pendente na persistence context antes
+  do update que precise ser descarregada.
 - **O `WHERE` inclui o tenant.** O `id` é o `sub` do Keycloak e já é globalmente único, mas o
   filtro por `assessoria.id` mantém a query tenant-scoped de fato, e não só na descrição.
+  Acesso a FK de associação em bulk JPQL é válido e já usado na casa
+  (`MetricasDiariasRepository` usa `m.atleta.id`; `RaceProjectionSnapshotRepository` usa
+  `s.athlete.id`) — não gera join implícito.
 
 ```java
 /**
