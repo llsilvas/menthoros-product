@@ -178,5 +178,5 @@ correto do gerador. Ali um dado bom é substituído por um ruim, hoje.
 ## Impacto
 
 - **Backend:** `TssCalculatorService` (1 método), mais o destino dos dados históricos conforme Q1
-- **Sem migration** se a decisão da Q1 for não recalcular; **com migration** se for
+- **Com recálculo de dado existente** (Q1 decidida): snapshot + job de recálculo das 129 linhas, via aplicação. Gate de confirmação do `CLAUDE.md`.
 - **Sem mudança de contrato de API** — muda o valor, não a forma

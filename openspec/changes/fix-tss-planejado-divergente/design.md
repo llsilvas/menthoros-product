@@ -118,8 +118,10 @@ antigos, na **mesma coluna**. As opções:
 | **Deixar conviver** | zero risco de escrita | a coluna passa a ter duas escalas sem marcação — qualquer agregação histórica mente |
 | **Recalcular sob demanda** | sem migração em massa | a inconsistência persiste até o treino ser tocado, de forma imprevisível |
 
-Não escolho aqui de propósito: é decisão de produto sobre dado existente, e a opção do meio é a
-única que garante um estado permanentemente ambíguo — o que vale registrar explicitamente antes de
+A opção do meio — deixar conviver sem critério — fica registrada como **rejeitada**, não como
+alternativa em aberto: é a única que garante estado permanentemente ambíguo, e é também a mais
+barata, o que a torna tentadora para quem chegar depois sem o contexto.
+
 alguém escolhê-la por ser a mais barata.
 
 ## Riscos
