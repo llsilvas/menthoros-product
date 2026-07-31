@@ -68,7 +68,8 @@ consumidores não é mapa de impacto até alguém abrir o código.
 
 ## Por que a correção continua valendo
 
-O valor está na **ordem**: `planner-engine-enforcement` vai ligar o `SkeletonComplianceChecker`, e o
+O valor está na **ordem**: `planner-engine-enforcement` (change ativa em
+`openspec/changes/planner-engine-enforcement/`) vai ligar o `SkeletonComplianceChecker`, e o
 guard existe pronto esperando ser ligado. Ligar consumidores sobre duas escalas convivendo significa
 calibrar thresholds contra número errado — e a correção deixa de custar uma fórmula para custar a
 recalibragem de tudo que foi ajustado em cima dela.

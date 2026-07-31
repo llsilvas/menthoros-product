@@ -57,7 +57,7 @@ O argumento é **a janela de calibração do planner**, e ela é datada.
 
 `PlannerShadowService` já consome `tssPlanejado` e alimenta o `SkeletonComplianceChecker` com ele.
 O shadow está desligado por padrão (`planner-engine.shadow: false`), mas ligá-lo é justamente o
-pré-requisito de `planner-engine-enforcement`, cujo gate no `SPRINTS.md` é **"shadow calibrado —
+pré-requisito de `planner-engine-enforcement` (change **ativa** em `openspec/changes/planner-engine-enforcement/`), cujo gate no `SPRINTS.md` é **"shadow calibrado —
 divergência ≤ 2% em ≥ 2 semanas / ≥ 30 planos"**.
 
 Se o shadow for ligado antes desta correção, essas duas semanas de dados de calibração são
