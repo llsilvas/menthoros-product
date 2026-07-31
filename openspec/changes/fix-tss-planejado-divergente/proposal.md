@@ -39,24 +39,34 @@ gravidade ao bug **não estão ligados**:
 | Consumidor | Estado real |
 |---|---|
 | `TrainingPrescriptionGuardSkill` | **zero chamadores em produção** — só o próprio teste |
-| `SkeletonComplianceChecker` | citado apenas em Javadoc; o planner roda em shadow |
+| `SkeletonComplianceChecker` | **ligado** — injetado em `PlannerShadowService`, que consome `tssPlanejado` |
 | `TreinoRealizado.getDiferencaTss()` | sem consumidor em `src/main` |
 | view `v_metricas_diarias_agregadas` (V9), que faz `AVG(tp.tss_planejado)` | zero referências em `src/main` |
 
-Ou seja: hoje o número errado é **gravado e exibido**, mas não alimenta nenhuma decisão automática.
-Não há guard-rail cego. A severidade real é bem menor do que esta proposta afirmava.
+Ou seja: hoje o número errado é **gravado e exibido**, mas não altera nenhum plano — o
+`planner-engine.shadow` nasce `false`. Não há guard-rail cego decidindo errado.
+
+> **Correção de uma correção.** A primeira versão desta tabela dizia que o `SkeletonComplianceChecker`
+> tinha zero chamadores. Estava errado: o levantamento usou `head -3` e truncou o resultado antes do
+> chamador real. Ele **está ligado**, via `PlannerShadowService`. Registrado porque muda a
+> justificativa da change — ver abaixo.
 
 ## Por que ainda vale corrigir — antes, não depois
 
-O argumento não é incidente em produção. É **ordem de execução**:
+O argumento é **a janela de calibração do planner**, e ela é datada.
 
-- `planner-engine-enforcement` (roadmap) vai ligar o `SkeletonComplianceChecker`, que soma e compara
-  `tssPlanejado` contra tetos.
-- O `TrainingPrescriptionGuardSkill` existe pronto e sem uso — quando for ligado, herda a escala errada.
+`PlannerShadowService` já consome `tssPlanejado` e alimenta o `SkeletonComplianceChecker` com ele.
+O shadow está desligado por padrão (`planner-engine.shadow: false`), mas ligá-lo é justamente o
+pré-requisito de `planner-engine-enforcement`, cujo gate no `SPRINTS.md` é **"shadow calibrado —
+divergência ≤ 2% em ≥ 2 semanas / ≥ 30 planos"**.
 
-Ligar esses consumidores com duas escalas convivendo significa **calibrar thresholds contra um
-número errado**. Corrigir agora custa uma fórmula; corrigir depois custa recalibrar tudo o que foi
-ajustado em cima dela — e, aí sim, com risco de segurança real.
+Se o shadow for ligado antes desta correção, essas duas semanas de dados de calibração são
+computadas sobre uma escala de TSS errada — e o gate que autoriza o enforcement passa a ser medido
+contra número ruim. Corrigir agora custa uma fórmula. Corrigir depois custa **descartar a janela de
+calibração e recomeçar**.
+
+O `TrainingPrescriptionGuardSkill` continua sem chamador algum; quando for ligado, herdaria a mesma
+escala.
 
 **Um efeito é imediato, porém:** em `TreinoPlanejadoServiceImpl:437`, mudar a duração de um treino
 **recalcula** `tssPlanejado` com a fórmula divergente, **sobrescrevendo** um valor que pode ter vindo

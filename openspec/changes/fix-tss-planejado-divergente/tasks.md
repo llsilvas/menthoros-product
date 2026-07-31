@@ -13,15 +13,21 @@ mergear a branch inteira.
 
 ## 0. Discovery — feita no `/change` (2026-07-31), resultado no `design.md`
 
-- [x] **0.1 Mapear quem consome `tssPlanejado`.** Concluído: dos seis consumidores, **apenas
-  `TreinoPlanejadoServiceImpl` está ligado**. Guard, compliance checker, `getDiferencaTss` e a view
-  da V9 têm zero chamadores em `src/main`. A premissa de "guard-rail cego" foi retirada da spec.
+- [x] **0.1 Mapear quem consome `tssPlanejado`.** Concluído (com uma correção pelo caminho):
+  **ligados** são `TreinoPlanejadoServiceImpl` e o `SkeletonComplianceChecker` via
+  `PlannerShadowService`. Sem chamador: `TrainingPrescriptionGuardSkill`, `getDiferencaTss` e a view
+  da V9. A premissa de "guard-rail cego" foi retirada; a de "compliance checker desligado" também
+  estava errada e foi corrigida — o levantamento inicial truncou a saída com `head -3`.
 - [x] **0.2 Origem de `metaTssSemanal`.** Perdeu a urgência pelo mesmo motivo — passa a ser assunto
   de `planner-engine-enforcement`.
 
 - [ ] **0.3 Confirmar o mapa antes de mexer.** Refazer o levantamento no `develop` do dia da
   implementação: se `planner-engine-enforcement` tiver entrado no meio, o quadro muda e a
   severidade sobe.
+  - **Sem `head`/`| head -N` no levantamento.** Foi truncagem que produziu o mapa errado da
+    primeira vez; contar arquivos (`grep -rl | wc -l`) antes de olhar linha a linha.
+  - Checar também se `planner-engine.shadow` foi ligado em algum ambiente — se sim, a janela de
+    calibração já está sendo contaminada e a urgência sobe.
   - `verify:` `grep` de chamadores dos seis consumidores, resultado anexado à task.
 
 ## 1. Rede de segurança antes da correção

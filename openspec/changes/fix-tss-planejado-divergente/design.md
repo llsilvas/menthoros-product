@@ -46,14 +46,20 @@ ligado**:
 | Consumidor | Chamadores em `src/main` |
 |---|---|
 | `TrainingPrescriptionGuardSkill` | **0** (só o próprio teste) |
-| `SkeletonComplianceChecker` | 0 — só menções em Javadoc; planner em shadow |
+| `SkeletonComplianceChecker` | **ligado** — injetado em `PlannerShadowService` (`:65`), que passa `tssPlanejado` para `GeneratedSessionSnapshot` (`:260`, `:271`) |
 | `TreinoRealizado.getDiferencaTss()` | 0 |
 | view `v_metricas_diarias_agregadas` (`AVG(tp.tss_planejado)`) | 0 |
 | `TreinoPlanejadoServiceImpl` (grava e recalcula) | **2** — este roda |
 | `IaServiceImpl` | preserva o valor vindo do LLM |
 
-**Consequência:** hoje o número errado é gravado e exibido, mas não decide nada. Não existe o
-guard-rail cego que a versão anterior descrevia.
+**Consequência:** o número errado é gravado, exibido e **entra no cálculo de compliance do shadow** —
+mas o shadow nasce desligado (`planner-engine.shadow: false`), então não altera plano nenhum hoje.
+
+**Este mapa foi corrigido duas vezes, e vale registrar como.** A primeira versão afirmava que só
+`TreinoPlanejadoServiceImpl` estava ligado; o levantamento usara `head -3` e truncou antes de
+alcançar `PlannerShadowService`. Antes disso, o pre-mortem tinha listado consumidores sem checar se
+algum tinha chamador. Nenhuma das duas passadas estava certa: uma superestimou o alcance, a outra
+subestimou. Só a leitura completa, sem truncagem, fechou o quadro.
 
 Registrar isto importa por dois motivos. Primeiro, honestidade: a justificativa caiu e a spec não
 pode continuar apoiada nela. Segundo, porque **o pre-mortem também errou na direção oposta** —
