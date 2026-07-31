@@ -1,23 +1,29 @@
 # Design — fix-tsb-recalculo-resiliente
 
-> Anchors verificados em 2026-07-28 na branch **`feature/testes-carga-referencia`** (baseline desta
-> change), repo `menthoros-backend`. Números de linha referem-se a ela, **não** a `develop` — as duas
-> divergem: em `develop` o método é `@Transactional` e o comentário `BUG-TEC-002` não existe.
+> Anchors verificados em 2026-07-28 na branch **`develop`** (`9bd32ff`), repo `menthoros-backend`.
+> `TsbServiceImpl.java` tem 643 linhas. A change foi **rebaselinada em `develop`** nessa data — a
+> baseline anterior (`f9e754b`) foi descartada por deixar o método quebrado; ver "Estado da baseline"
+> no `proposal.md`.
 
 ## Anchors reais
 
-- `TsbServiceImpl.recalcularHistoricoCompleto` (`:353`) — `@Transactional` **removido** pelo commit
-  `f9e754b`; a classe (`:31`) também não tem. Herda o contexto do chamador. ⚠️ Há uma alteração **não
-  commitada** re-adicionando a anotação — confirmar o estado antes de começar.
-- `TsbServiceImpl.recalcularPeriodoComProgresso` (`:447`) — laço `while` dia a dia. **Não há chunk,
-  `flush` nem `clear`**, apesar do comentário em `:350` afirmar que há.
+- `TsbServiceImpl.recalcularHistoricoCompleto` (`:349`) — **`@Transactional` (`:348`)**. Transação
+  única cobrindo todo o período; a classe (`:31`) não tem anotação.
+- `TsbServiceImpl.recalcularPeriodoComProgresso` (`:445`) — laço `while` dia a dia. **Não há chunk,
+  `flush` nem `clear`.**
 - `TsbServiceImpl.atualizarTsbDia(UUID, LocalDate)` (`:47`) tem `@Transactional` (`:46`), mas o laço
   chama a sobrecarga **privada** de 3 argumentos (`:457` → `:51`): auto-invocação, sem proxy, sem
-  transação.
-- Delete antecipado: `deleteByAtletaId` + `flush` em `:364-365`, antes de qualquer reconstrução.
-- `backup` carregado em `:358` e passado a `determinarIntervaloRecalculo` (`:369`), onde define
-  `primeiraMetrica`/`ultimaMetrica` (`:421-425`). **Não** serve para restaurar, mas **delimita** o
+  transação própria.
+- Delete antecipado: `deleteByAtletaId` + `flush` em `:361-362`, antes de qualquer reconstrução.
+- `backup` carregado em `:355` e passado a `determinarIntervaloRecalculo` (`:366`), onde define
+  `primeiraMetrica`/`ultimaMetrica` (`:417-418`). **Não** serve para restaurar, mas **delimita** o
   intervalo — não pode ser removido sem substituir essa consulta.
+- Javadoc e log a corrigir: "backup automático e rollback" (`:342`), "restaurados do backup" (`:346`),
+  "a transação será revertida e o banco voltará ao estado anterior" (`:388`), "A transação foi
+  revertida" (`:393`).
+- Fase pós-blocos: `atualizarMetaDados` (`:380`) e `recalcularSemanasProgressao` (`:383`);
+  `zerarMetaDadosSemHistorico` em `:468`.
+- `rampRate` lê D-7 em `:227`.
 - Chamadores: `AtletaServiceImpl.recalcularMetricasAtleta` (`:237`, sem `@Transactional`) via
   `AtletaController:144`; e `BaselineCalculatorImpl.calcular` (`:62`, classe sem `@Transactional`),
   chamado por `OnboardingServiceImpl.montarContexto` (`:99`, **`@Transactional`**) e por
@@ -29,7 +35,7 @@
 de dentro da mesma classe) não passa pelo proxy — é exatamente o defeito que já existe hoje com
 `atualizarTsbDia`. Repetir o padrão faria a change parecer entregue sem mudar nada.
 
-Portanto: o bloco de 30 dias vira um **bean colaborador** (ex.: `TsbChunkRecalculador`), com o método
+Portanto: o bloco de 30 dias vira um **bean colaborador** (ex.: `TsbRecalculoExecutor`), com o método
 anotado `@Transactional(propagation = REQUIRES_NEW)`, injetado no `TsbServiceImpl`.
 
 **Teste que fecha essa porta:** verificar a propagação real (bloco comita mesmo com o chamador
@@ -109,6 +115,48 @@ Se o cálculo do primeiro dia de um bloco depender de uma entidade carregada no 
 virá do banco de novo — correto, desde que o bloco anterior já tenha comitado. A ordem sequencial não
 é opcional; paralelizar blocos quebraria o cálculo.
 
+## Decisão 6 — janela de histórico misto: servir, não bloquear
+
+Fechada no gate de DoR (2026-07-28). Os cinco leitores da janela — PMC
+(`AtletaProgressServiceImpl:87-96`), home do atleta (`:222-225`), dashboard do coach
+(`CoachDashboardServiceImpl:236-256`), fila de atenção (`CoachAttentionQueueServiceImpl:122-129`) e
+agregados semanais (`MetricasAgregadasServiceImpl:71-80`) — **continuam respondendo normalmente
+durante o recálculo, com o dado que houver**.
+
+Motivo: bloquear a leitura durante um recálculo de 400 dias degradaria o dashboard do coach por
+minutos, trocando um dado parcialmente desatualizado por um erro visível. O dado misto é
+numericamente válido — cada dia individual está correto, uns na versão nova e outros na antiga.
+
+Consequência: **nenhum dos cinco serviços é alterado**. A task 3b.3 vira documentação do contrato +
+o teste 3b.3a, que passa a ser o que prova a decisão: leitura concorrente não pode lançar exceção
+nem retornar 500.
+
+## Decisão 7 — falha nos metadados: exceção informativa, metadados no estado anterior
+
+Fechada no gate de DoR (2026-07-28). Se os blocos comitarem e `atualizarMetaDados` ou
+`recalcularSemanasProgressao` falhar depois, a exceção propaga informando o intervalo efetivamente
+reconstruído e que **os metadados permaneceram no estado anterior** — explicitamente stale, não
+silenciosamente dessincronizados.
+
+Motivo: não exige migration, o que mantém a promessa de "sem mudança de schema" do `proposal.md`, e
+é coerente com a Decisão 3 (falha informa progresso, não alega reversão). O recálculo é idempotente,
+então o caminho de recuperação é re-disparar — não há estado a reparar manualmente.
+
+Descartado: campo de status persistido no `PlanoMetaDados` marcando "dessincronizado". É mais
+detectável depois do fato, mas puxa migration e amplia o escopo. Se a detecção pós-fato virar
+necessidade, é change própria.
+
+## Decisão 8 — instrumentação: log estruturado + contador Micrometer
+
+Fechada no gate de DoR (2026-07-28). A métrica de sucesso do `proposal.md` ("zero atletas com
+histórico parcial silencioso") só é mensurável se o estado deixar de ser silencioso. O sinal:
+
+- **Contador Micrometer** de recálculos abortados, tagueado com o bloco onde parou.
+- **Log estruturado** com o intervalo efetivamente reconstruído e o ponto de parada.
+
+Reaproveita o registry Micrometer/Prometheus que a `add-external-call-resilience` já estabeleceu, sem
+schema novo. É o que transforma a métrica de sucesso de afirmação em consulta.
+
 ## Riscos e mitigações
 
 | Risco | Mitigação |
@@ -119,9 +167,10 @@ virá do banco de novo — correto, desde que o bloco anterior já tenha comitad
 | Histórico misto visível durante o recálculo | Aceito e documentado; alternativa (vazio) é pior |
 | Blocos paralelizados por engano num refactor futuro | Comentário explícito + teste de ordem sequencial |
 | Onboarding perde atomicidade (TSB novo sem baseline) | CA8; se inaceitável, tirar o recálculo da transação do onboarding |
-| `PlanoMetaDados` dessincronizado do histórico | Fase transacional própria para metadados, com semântica de falha |
+| `PlanoMetaDados` dessincronizado do histórico | Decisão 7 — exceção informa o intervalo; metadados ficam no estado anterior, explicitamente stale |
 | Cache `metadados-atleta` servindo valor pré-recálculo | Invalidar ao fim do recálculo; CA9 |
-| Leitor concorrente decidindo com histórico misto | Estado observável de "recalculando" + política por endpoint |
+| Leitor concorrente decidindo com histórico misto | Decisão 6 — servir o dado disponível, sem bloqueio; provado pelo teste 3b.3a |
+| Falha de recálculo continuar indetectável | Decisão 8 — contador Micrometer + log estruturado do intervalo reconstruído |
 | Remover `backup` quebrar o intervalo de dias de descanso | CA7; trocar a lista por consulta de limites |
 
 ## Alternativas descartadas
