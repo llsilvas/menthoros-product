@@ -48,21 +48,35 @@ consultar ou agir sobre ele depois.
 > **Quando** ela carrega `GET /api/v1/users/me`
 > **Então** exibe nome, e-mail e avatar do coach, todos não editáveis.
 
-**CA3 — Data do aceite é exibida**
+**CA3 — Data e versões do aceite são exibidas**
 > **Dado** um coach com consentimento registrado
 > **Quando** ele abre a seção "Privacidade"
-> **Então** vê a data do último aceite formatada em pt-BR **e a versão** da Política aceita.
+> **Então** vê a data do último aceite formatada em pt-BR **e as versões aceitas da Política e dos
+> Termos** — as duas, porque o DTO carrega ambas e mostrar só uma deixaria metade do registro legal
+> invisível.
 
-**CA4 — Ausência de aceite não quebra a página**
-> **Dado** um coach **sem nenhuma linha** em `tb_usuario_lgpd_consent`
-> **Quando** ele abre a seção "Privacidade"
-> **Então** a seção renderiza sem erro, indicando que não há aceite registrado.
+**CA4 — Ausência de aceite não quebra a renderização** *(teste de componente, não de fluxo)*
+> **Dado** o componente da seção "Privacidade" recebendo aceite nulo
+> **Quando** ele renderiza
+> **Então** não quebra, e indica que não há aceite registrado.
+>
+> **Por que é teste de componente:** verificado no `init` — o `CoachLayout` retorna o modal
+> **antes** do `<Outlet />` quando falta consentimento, então um coach sem aceite **não consegue
+> chegar** em `/coach/settings`. O estado é inalcançável pela UI. Manter a renderização defensiva
+> ainda vale (o campo é nullable no contrato e a página não pode explodir), mas afirmar que é um
+> fluxo de usuário seria falso. **Não** isentar `/coach/settings` do gate para tornar o cenário
+> alcançável — isso enfraqueceria o gate de conformidade por causa de um caso de borda.
 
 **CA5 — Ações de privacidade funcionam**
 > **Dado** a seção "Privacidade"
 > **Quando** o coach usa os links
-> **Então** a Política aponta para `/privacidade` e as ações de DPO e exclusão abrem `mailto:`
-> para o endereço do DPO, a de exclusão com assunto pré-preenchido.
+> **Então** a Política é navegada via `RouterLink` e resolve como rota de **hash**
+> (`#/privacidade`), e as ações de DPO e exclusão abrem `mailto:` para o endereço do DPO, a de
+> exclusão com assunto pré-preenchido.
+>
+> **Hash não é detalhe:** o app usa `createHashRouter`. Um `href="/privacidade"` já quebrou
+> exatamente assim em `add-coach-lgpd-consent`, e o teste que "cobria" o caso passava para a forma
+> correta e para a quebrada porque usava `MemoryRouter`. O teste aqui monta `createHashRouter`.
 
 **CA6 — Responsividade**
 > **Dado** a página em viewport pequeno
@@ -90,11 +104,22 @@ consultar ou agir sobre ele depois.
 - **A3.** Dados pessoais são somente leitura nesta v1 — o Keycloak é a fonte da verdade e
   escrever nele exige Admin API.
 - **A4.** A rota `/privacidade` já existe (`PrivacidadePage`) e é pública.
+- **A5.** *(verificada no `init`)* `useCurrentUser` **não busca sozinho** — cada chamada cria estado
+  próprio e só carrega se alguém invocar `fetchCurrentUser`. O `CoachLayout` já buscou o `me`, mas
+  **não** expõe `coach`/`consent` no `CoachLayoutOutletContext`. Chamar o hook de novo na página
+  renderizaria fallback vazio para sempre; chamar e disparar o fetch duplicaria o `GET`. A página
+  precisa consumir o dado pelo outlet context, que passa a carregá-lo.
+- **A6.** `avatarUrl` é URL externa arbitrária vinda do Keycloak. Renderizá-la faz o navegador
+  buscar em terceiro — usar `referrerPolicy="no-referrer"` para não vazar a rota interna do coach
+  no header de referrer.
 
 **Em aberto:**
 
 - **Q1.** O `mailto:` é aceitável como processo de exclusão para a v1, ou o jurídico exige um
-  registro rastreável (ticket/tabela) desde o início?
+  registro rastreável desde o início? **Limite conhecido:** `mailto:` não gera protocolo nem
+  autentica o solicitante — qualquer um com acesso ao cliente de e-mail pode enviar. Enquanto for
+  assim, a UI precisa dizer explicitamente que a solicitação **será confirmada por e-mail** antes
+  de qualquer exclusão, senão o coach assume que clicou e a conta some.
 - ~~**Q2.** O e-mail do DPO deve ser um endereço dedicado?~~ — **resolvida em 2026-07-31:**
   `contato@menthoros.com` é o canal oficial, caixa já criada. Sem pendência.
 

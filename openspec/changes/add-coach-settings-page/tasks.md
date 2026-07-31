@@ -20,6 +20,18 @@ Três premissas da spec estavam desatualizadas ou incompletas:
 - **O frontend descarta o avatar hoje.** `useCurrentUser` declara `avatarUrl?` em `CurrentCoach`,
   mas `setCoach` só preenche `id` e `name` — campo morto que a tela de perfil precisa ligar.
 
+E o passe cross-model (Codex, opcional no Fast track mas rodado) reprovou o DoR com mais três,
+todas confirmadas no código:
+
+- **CA4 descrevia um fluxo inalcançável.** O `CoachLayout` retorna o modal **antes** do `<Outlet />`
+  quando falta consentimento, então um coach sem aceite não chega em `/coach/settings`. Virou teste
+  de componente, com o motivo registrado no `proposal.md`.
+- **A fonte de dados da página estava subespecificada.** `useCurrentUser` não busca sozinho e o
+  `CoachLayoutOutletContext` não expõe `coach`/`consent` — a página renderizaria fallback vazio para
+  sempre, ou duplicaria o `GET /users/me`. Resolvido estendendo o outlet context (task 2.2).
+- **O link da Política repetiria o bug do hash routing.** CA5 agora exige `RouterLink` e teste com
+  `createHashRouter`.
+
 E um detalhe que a spec não previa:
 
 - **`CoachRoute` é uma union de strings tipada** (`constants/routes.ts`). Adicionar o item na
@@ -63,20 +75,30 @@ E um detalhe que a spec não previa:
   - `verify:` `npm run lint && npm run build`
 
 - [ ] **2.2 `CoachSettingsPage`**
-  - `src/features/coach/pages/CoachSettingsPage.tsx`, consumindo o hook de usuário atual já
-    existente (`useCurrentUser`).
+  - **Antes da página: estender `CoachLayoutOutletContext`** com `coach` e `consent` (o layout já
+    tem os dois). A página consome via `useOutletContext`, **não** chamando `useCurrentUser` de
+    novo — o hook não busca sozinho, então uma segunda instância ficaria em fallback vazio, e
+    disparar o fetch nela duplicaria o `GET /users/me`.
+  - `src/features/coach/pages/CoachSettingsPage.tsx`.
+  - Avatar com `referrerPolicy="no-referrer"` — a URL vem do Keycloak e é externa; renderizar sem
+    isso vaza a rota interna do coach no header de referrer para um terceiro.
   - **Seção "Dados pessoais":** avatar, nome e e-mail — somente leitura (CA2).
   - **Seção "Privacidade":**
-    - link para `/privacidade`;
-    - data do último aceite formatada em pt-BR a partir de `lgpdConsentedAt` **e a versão aceita**
-      da Política, com fallback explícito quando não há registro (CA3, CA4);
+    - link para a Política via `component={RouterLink} to={ROUTES.PRIVACIDADE}` — **nunca `href`
+      absoluto**, que não resolve sob `createHashRouter` (ver bug de `add-coach-lgpd-consent`);
+    - data do último aceite formatada em pt-BR a partir de `lgpdConsentedAt` **e as versões aceitas
+      da Política e dos Termos**, com fallback explícito quando não há registro (CA3, CA4);
     - contato do DPO (`mailto:`);
-    - ação "Solicitar exclusão de conta" (`mailto:` com assunto pré-preenchido) (CA5).
+    - ação "Solicitar exclusão de conta" (`mailto:` com assunto pré-preenchido), acompanhada de
+      texto dizendo que a solicitação **será confirmada por e-mail** — `mailto:` não gera protocolo
+      nem autentica quem envia, e sem esse aviso o coach assume que a conta já foi excluída (CA5).
   - Layout responsivo — seções empilham em viewport pequeno, sem overflow horizontal (CA6).
   - Estados de `loading` e de erro no carregamento de `me`.
-  - **Teste:** `CoachSettingsPage.test.tsx` — renderiza as duas seções com os dados do usuário
-    (CA2); exibe data e versão quando há aceite (CA3); renderiza sem erro quando não há aceite
-    registrado (CA4); os `href` de política, DPO e exclusão estão corretos (CA5).
+  - **Teste:** `CoachSettingsPage.test.tsx` — monta com **`createHashRouter`**, não `MemoryRouter`.
+    Renderiza as duas seções com os dados do usuário e **sem nenhum controle editável** (CA2);
+    exibe data e as duas versões quando há aceite (CA3); renderiza sem erro com aceite nulo (CA4,
+    teste de componente); link da Política resolve para `#/privacidade` e os `mailto:` de DPO e
+    exclusão estão corretos (CA5).
   - **Validação:** `npm run lint && npm run build && npm test`
 
 - [ ] **2.3 Rota e navegação**
