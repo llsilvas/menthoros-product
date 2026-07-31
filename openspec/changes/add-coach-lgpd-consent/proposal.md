@@ -21,9 +21,10 @@ auditável de quando e o que cada coach aceitou.
 
 ## Escopo
 
-1. **Campos de consentimento** na entidade `Usuario` + migração Flyway (`V73`)
-2. **Endpoint `POST /api/v1/users/me/consent`** — registra o aceite (idempotente)
-3. **Campo `lgpdConsentGranted`** exposto no `GET /api/v1/users/me` para o frontend decidir a exibição
+1. **Tabela append-only `tb_usuario_lgpd_consent`** + migração Flyway (`V73`) — uma linha por
+   aceite, versionada por data de vigência da Política e dos Termos
+2. **Endpoint `POST /api/v1/users/me/consent`** — registra o aceite (idempotente via `UNIQUE`)
+3. **`lgpdConsentGranted` derivado** + versões vigentes expostos no `GET /api/v1/users/me`
 4. **Enforcement no backend** — coach sem consentimento recebe `403` em operações de escrita,
    atrás de flag de rollout (`off` → `report-only` → `on`)
 5. **Modal bloqueante no primeiro login** (`CoachConsentDialog`) com 2 checkboxes
@@ -37,8 +38,11 @@ auditável de quando e o que cada coach aceitou.
 ## Fora do escopo
 
 - **Página de perfil/configurações do coach** — extraída para `add-coach-settings-page`
-- Versionamento da Política de Privacidade / re-consentimento (decisão registrada: booleano +
-  timestamp; re-consentimento futuro exigirá nova migração e change própria)
+- **Automação do bump de versão** — trocar a Política é uma operação manual (editar
+  `PrivacidadePage`, atualizar `app.lgpd.policy-version`, seguir o procedimento de rollout). Não
+  há painel nem fluxo de publicação nesta change.
+- **Consentimento granular por finalidade** — o aceite aqui é dos dois documentos como um todo,
+  não opt-in por tipo de tratamento.
 - Auto-cadastro de coach (`keycloak-user-onboarding-auth`)
 - Wizard de boas-vindas (`coach-first-login-wizard`)
 - Consentimento do atleta (já coberto pela Política vigente)
@@ -57,22 +61,41 @@ auditável de quando e o que cada coach aceitou.
 > **Quando** zero ou apenas um dos dois checkboxes está marcado
 > **Então** o botão "Aceitar e continuar" permanece desabilitado.
 
-**CA3 — Aceite é registrado com timestamp**
-> **Dado** um coach com `lgpdConsentGranted = false`
-> **Quando** ele envia `POST /api/v1/users/me/consent` com `termsAccepted: true` e
-> `privacyPolicyAccepted: true`
-> **Então** o backend retorna `200`, grava `lgpdConsentGranted = true` e
-> `lgpdConsentedAt = now()`.
+**CA3 — Aceite é registrado com versão e timestamp**
+> **Dado** um coach sem consentimento das versões vigentes
+> **Quando** ele envia `POST /api/v1/users/me/consent` com ambos os aceites `true` e as versões
+> vigentes
+> **Então** o backend retorna `200` e grava **uma linha** em `tb_usuario_lgpd_consent` com
+> `policy_version`, `terms_version`, `consented_at` e `tenant_id`.
 
 **CA4 — Aceite parcial é rejeitado**
 > **Dado** um coach sem consentimento
-> **Quando** ele envia `POST /api/v1/users/me/consent` com qualquer um dos dois campos `false`
-> **Então** o backend retorna `400` e **não** grava consentimento.
+> **Quando** ele envia `POST /api/v1/users/me/consent` com qualquer um dos dois aceites `false`
+> **Então** o backend retorna `400` e **não** grava linha alguma.
 
 **CA5 — Reenvio é idempotente**
-> **Dado** um coach que já consentiu
-> **Quando** ele reenvia `POST /api/v1/users/me/consent` com ambos `true`
-> **Então** o backend retorna `200` e **preserva** o `lgpdConsentedAt` original (não sobrescreve).
+> **Dado** um coach que já aceitou as versões vigentes
+> **Quando** ele reenvia o mesmo aceite
+> **Então** o backend retorna `200` e **não** cria segunda linha; o `consented_at` original é
+> preservado.
+
+**CA14 — Versão defasada é rejeitada, não carimbada**
+> **Dado** que a Política vigente passou a ser `2026-11-01`
+> **Quando** um coach envia o aceite declarando `policyVersion: "2026-06-30"` (a que sua página
+> exibia)
+> **Então** o backend retorna `409 CONSENT_VERSION_STALE` e **não** grava — o registro nunca
+> afirma que ele aceitou um texto que não viu.
+
+**CA15 — Re-consentimento preserva o histórico**
+> **Dado** um coach que aceitou a Política `2026-06-30`
+> **Quando** a vigente muda para `2026-11-01` e ele aceita a nova
+> **Então** existem **duas** linhas em `tb_usuario_lgpd_consent`, e a de `2026-06-30` permanece
+> intacta com seu `consented_at` original.
+
+**CA16 — Mudança de versão reabre o gate**
+> **Dado** um coach com consentimento da Política `2026-06-30`
+> **Quando** a configuração passa a exigir `2026-11-01`
+> **Então** `GET /users/me` retorna `lgpdConsentGranted = false` e o modal reaparece.
 
 **CA6 — Escrita bloqueada sem consentimento**
 > **Dado** um coach com `lgpdConsentGranted = false` e a flag `app.lgpd.consent-enforcement = on`
@@ -91,10 +114,11 @@ auditável de quando e o que cada coach aceitou.
 > **Então** apenas o `Usuario` do coach A é alterado; o coach B permanece com
 > `lgpdConsentGranted = false`.
 
-**CA9 — Migração preserva dados existentes**
+**CA9 — Migração não toca em dados existentes**
 > **Dado** o banco com coaches já cadastrados
 > **Quando** a `V73` é aplicada
-> **Então** nenhuma linha é perdida e todos recebem `lgpd_consent_granted = false`.
+> **Então** `tb_usuario_lgpd_consent` é criada vazia, `tb_usuario` permanece inalterada, e todo
+> coach existente passa a computar `lgpdConsentGranted = false` por ausência de registro.
 
 **CA10 — Flag de rollout controla o enforcement**
 > **Dado** um coach sem consentimento
@@ -116,19 +140,28 @@ auditável de quando e o que cada coach aceitou.
 
 **CA13 — Registro do aceite é atômico sob concorrência**
 > **Dado** um coach sem consentimento
-> **Quando** dois `POST /api/v1/users/me/consent` chegam simultaneamente
-> **Então** apenas um grava, ambos retornam `200`, e existe um único `lgpdConsentedAt` final.
+> **Quando** dois `POST /api/v1/users/me/consent` chegam simultaneamente com as mesmas versões
+> **Então** a constraint `uk_usuario_lgpd_consent_versoes` garante **uma única** linha, e ambas as
+> requisições retornam `200`.
 
 ## Métrica de sucesso
 
-- **Cobertura:** 100% dos coaches ativos com consentimento registrado em até **14 dias** após o
-  deploy (consulta: `SELECT count(*) FROM tb_usuario WHERE role='TECNICO' AND ativo AND NOT
-  lgpd_consent_granted` → zero).
+- **Cobertura:** 100% dos coaches ativos com consentimento das versões vigentes em até **14 dias**
+  após o deploy:
+  ```sql
+  SELECT count(*) FROM tb_usuario u
+   WHERE u.role = 'TECNICO' AND u.ativo
+     AND NOT EXISTS (SELECT 1 FROM tb_usuario_lgpd_consent c
+                      WHERE c.usuario_id = u.id
+                        AND c.policy_version = :vigente
+                        AND c.terms_version  = :vigente)  -- → zero
+  ```
 - **Atrito na rotina do treinador:** o aceite é uma interação única de **< 30 segundos**, sem
   passos adicionais em logins seguintes — a change protege a operação sem custo recorrente de
   tempo para o coach.
-- **Auditabilidade:** para qualquer coach, é possível responder "quando consentiu" a partir de um
-  único campo (`lgpd_consented_at`).
+- **Auditabilidade:** para qualquer coach é possível responder **o quê**, **qual versão** e
+  **quando** — inclusive para aceites já superados por uma versão mais nova, que permanecem no
+  histórico.
 
 ## Open Questions & Assumptions
 
@@ -136,12 +169,14 @@ auditável de quando e o que cada coach aceitou.
 
 - **A1.** O `UsuarioController` está mapeado em `/api/v1/users`, portanto o endpoint é
   `/api/v1/users/me/consent` — a versão anterior desta proposta dizia `/api/v1/me`, que não existe.
-- **A2.** Nomes de identificadores novos em **inglês**, conforme ADR-0007 (`lgpdConsentGranted`,
-  `lgpdConsentedAt`), ainda que `tb_waitlist.aceite_lgpd` (legado) use PT.
-- **A3.** `lgpd_consented_at` é `TIMESTAMPTZ` mapeado como `Instant`, divergindo das colunas
-  legadas de `tb_usuario` (`timestamp without time zone` / `LocalDateTime`). Justificativa: um
-  timestamp de consentimento é **registro legal** e não pode ser ambíguo quanto a fuso; as demais
-  colunas da tabela são operacionais. Divergência deliberada.
+- **A2.** Nomes de identificadores novos em **inglês**, conforme ADR-0007, ainda que
+  `tb_waitlist.aceite_lgpd` (legado) use PT.
+- **A3.** `consented_at` é `TIMESTAMPTZ` mapeado como `Instant`. Como é tabela nova, isso segue o
+  padrão de tabelas do repo sem divergir de nada — a ressalva anterior (colunas legadas de
+  `tb_usuario` em `timestamp without time zone`) deixou de se aplicar, já que `tb_usuario` não é
+  mais alterada.
+- **A10.** Versão é a **data de vigência** do documento (`YYYY-MM-DD`), com o backend como fonte da
+  verdade via `app.lgpd.*`. O cliente ecoa a versão que renderizou; o servidor rejeita divergência.
 - **A4.** O enforcement se aplica **somente à role `TECNICO`**. Atletas e admins não são afetados
   por esta change.
 - **A5.** O modal é bloqueante no frontend, mas a garantia real é o `403` do backend — o frontend
@@ -169,21 +204,33 @@ auditável de quando e o que cada coach aceitou.
   em `off`/`report-only` é aceitável.
 - **Q3.** A whitelist precisa ser revisada quando `keycloak-user-onboarding-auth` entrar — o fluxo
   de auto-cadastro cria `Usuario` antes do aceite.
-- **Q4.** *(levantada no pre-mortem)* Sem `policyVersion`/`termsVersion`, não é possível provar
-  **qual texto** o coach aceitou nem re-solicitar aceite quando a Política mudar. A decisão de
-  ficar em booleano + timestamp foi tomada conscientemente — vale confirmar com o jurídico se é
-  suficiente, sabendo que corrigir depois exige nova migração e change própria.
+- ~~**Q4.** Sem `policyVersion`/`termsVersion`, não é possível provar qual texto foi aceito.~~
+  **Resolvida em 2026-07-31 — decisão revertida.** O consentimento passa a ser **versionado por
+  data de vigência** e gravado em tabela **append-only**, então prova qual texto foi aceito, quando,
+  e preserva os aceites anteriores quando a Política mudar. Duas consequências novas assumidas:
+  (a) bumpar a versão invalida o consentimento de todos de uma vez — vira um mini-rollout, com
+  procedimento próprio nos gates do bloco 5; (b) a data em `app.lgpd.policy-version` precisa bater
+  com a exibida na `PrivacidadePage`, senão o registro aponta para um texto que ninguém viu.
+
+- **Q6.** *(nova, decorrente da Q4)* A `V73` nasce com a tabela vazia — nenhum coach existente tem
+  consentimento registrado. Confirmar que não há intenção de fazer backfill de "aceite presumido"
+  para a base atual (o correto sob LGPD é **não** presumir, mas é decisão a registrar
+  explicitamente).
 - **Q5.** *(product-review)* `coach-first-login-wizard` empilha um segundo overlay bloqueante logo
   após este. O design já prevê stepper compartilhado ("Passo 1 de 4"), mas a decisão de UI
   unificada precisa ser confirmada antes de as duas changes irem para implementação.
 
 ## Impacto
 
-- **Backend:** `Usuario.java` (+2 campos), migração `V73`, `ConsentInputDto`, `UsuarioService` +
-  `UsuarioServiceImpl`, `UsuarioController` (+1 endpoint), `UsuarioMeOutputDto` (+1 campo),
-  novo interceptor de enforcement, `GlobalExceptionHandler` (+1 handler)
-- **Frontend:** `CoachConsentDialog`, `CoachLayout` (interceptação), cliente OpenAPI regenerado
-- **Documentação:** Política de Privacidade, Mapeamento de Dados e RIPD já atualizados
+- **Backend:** migração `V73` (tabela nova — `tb_usuario` **não** é alterada), entidade
+  `UsuarioLgpdConsent` + repository, `ConsentInputDto`, `LgpdProperties` +
+  `ConsentEnforcementMode`, `UsuarioService`/`Impl` (+`registerConsent`, +derivação do granted),
+  `UsuarioController` (+1 endpoint), `UsuarioMeOutputDto` (+3 campos), `JwtTenantFilter`
+  (`USUARIO_ATTR`), `LgpdConsentInterceptor`, `GlobalExceptionHandler` (+2 handlers)
+- **Frontend:** `CoachConsentDialog`, `CoachLayout` (interceptação), `PrivacidadePage` (data de
+  vigência alinhada à config), cliente OpenAPI regenerado
+- **Documentação:** Política de Privacidade, Mapeamento de Dados e RIPD já atualizados; o RIPD
+  precisa declarar execução de contrato como base legal do sync (gate 5.5)
 
 ## Dependências
 

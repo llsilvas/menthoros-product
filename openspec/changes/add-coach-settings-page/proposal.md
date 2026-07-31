@@ -25,7 +25,8 @@ consultar ou agir sobre ele depois.
 3. **Seção "Privacidade"** — link para a Política de Privacidade, data do aceite LGPD, contato do
    DPO e ação de solicitar exclusão de conta (via `mailto:`)
 4. **Item "Configurações"** no `CoachSidebar`
-5. **Expor `lgpdConsentedAt`** no `UsuarioMeOutputDto` (backend), para exibir a data do aceite
+5. **Expor o último consentimento** no `UsuarioMeOutputDto` (backend) — data **e versões** aceitas,
+   lidas de `tb_usuario_lgpd_consent` (append-only, criada por `add-coach-lgpd-consent`)
 
 ## Fora do escopo
 
@@ -48,12 +49,12 @@ consultar ou agir sobre ele depois.
 > **Então** exibe nome, e-mail e avatar do coach, todos não editáveis.
 
 **CA3 — Data do aceite é exibida**
-> **Dado** um coach com `lgpdConsentedAt` preenchido
+> **Dado** um coach com consentimento registrado
 > **Quando** ele abre a seção "Privacidade"
-> **Então** vê a data do aceite formatada em pt-BR.
+> **Então** vê a data do último aceite formatada em pt-BR **e a versão** da Política aceita.
 
 **CA4 — Ausência de aceite não quebra a página**
-> **Dado** um coach com `lgpdConsentedAt` nulo
+> **Dado** um coach **sem nenhuma linha** em `tb_usuario_lgpd_consent`
 > **Quando** ele abre a seção "Privacidade"
 > **Então** a seção renderiza sem erro, indicando que não há aceite registrado.
 
@@ -99,13 +100,14 @@ consultar ou agir sobre ele depois.
 
 ## Impacto
 
-- **Backend:** `UsuarioMeOutputDto` (+`lgpdConsentedAt`, e `avatarUrl` se ausente) +
-  mapeamento no `UsuarioServiceImpl`
+- **Backend:** `UsuarioMeOutputDto` (+data e versões do último aceite, e `avatarUrl` se ausente) +
+  mapeamento no `UsuarioServiceImpl`, lendo `tb_usuario_lgpd_consent` via
+  `findTopByUsuarioIdOrderByConsentedAtDesc`
 - **Frontend:** `CoachSettingsPage` (nova), `CoachSidebar` (+1 item), `App.tsx` (+1 rota),
   cliente OpenAPI regenerado
 
 ## Dependências
 
-- **Depende de:** `add-coach-lgpd-consent` — os campos `lgpdConsentGranted`/`lgpdConsentedAt` e a
-  migração `V73` nascem lá. Esta change **não** pode entrar antes.
+- **Depende de:** `add-coach-lgpd-consent` — a tabela `tb_usuario_lgpd_consent`, a entidade, o
+  repository e a migração `V73` nascem lá. Esta change **não** pode entrar antes.
 - **Destrava:** nenhuma.
