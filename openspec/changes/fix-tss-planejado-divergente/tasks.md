@@ -45,14 +45,14 @@ mergear a branch inteira.
   o serviço real. As ~800 linhas continuam disponíveis em `feature/testes-carga-referencia` para
   quem for cobrir o `TsbServiceImpl`.
 
-- [ ] **1.1b Rede de segurança real: caracterizar o `TssCalculatorService` ANTES de mudar.**
+- [x] **1.1b Rede de segurança real: caracterizar o `TssCalculatorService` ANTES de mudar.**
   - Testes que exercitam o serviço de verdade (não reimplementam fórmula), fixando o comportamento
     atual dos dois caminhos — inclusive o do planejado, ainda errado.
   - São testes de caracterização: alguns vão precisar ser atualizados na task 2.1, e isso é
     esperado. O valor está em provar que **só** o que se pretende mudar mudou.
   - `verify:` `./mvnw clean test` verde antes de qualquer alteração em `src/main`.
 
-- [ ] **1.2 Teste de convergência (o red).** Grade de (duração × RPE) afirmando que o caminho
+- [x] **1.2 Teste de convergência (o red).** Grade de (duração × RPE) afirmando que o caminho
   planejado e o realizado **calculado só por RPE** produzem o mesmo TSS (CA1). Deve falhar agora,
   com a divergência de 2,4×–6× visível na mensagem.
   - **Não comparar contra o pipeline realizado completo** (FC, pace, etapas, elevação): ele diverge
