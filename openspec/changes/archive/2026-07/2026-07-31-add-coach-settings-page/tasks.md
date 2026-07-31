@@ -2,6 +2,31 @@
 
 **Tamanho:** XS · **Trilha:** Fast
 
+## Estado no arquivamento (2026-07-31)
+
+**Entregue:** blocos 1–2 (4/4 tasks de código) + task 3.6. PRs backend #56 e front #48 mergeados em
+`develop`, nesta ordem. Suítes: backend 2273/2273, front 776/776 (lint e build limpos).
+
+**Adiado:**
+
+- **Bloco 3 — click-through manual (3.1–3.5): NÃO executado.** A superfície é pequena (tela
+  read-only) e o comportamento tem cobertura automatizada, mas dois pontos só o navegador confirma:
+  o item novo da sidebar navegando de fato, e o avatar externo carregando com a proteção aplicada.
+  **Vale registrar o padrão:** este mesmo bloco ficou aberto em `add-coach-lgpd-consent`, e foi
+  exatamente ali que os dois únicos bugs reais daquela change apareceram — com 762 testes verdes e
+  um deles coberto por um teste que passava para a forma quebrada.
+
+**Débito registrado no QA, deliberadamente não feito (limpeza adjacente, fora do escopo):**
+
+- `CoachLayoutOutletContext` chegou a 16 campos, com prefixo `review*` simulando namespace.
+  Agrupar em sub-objetos tocaria `CoachInboxPage`, `CoachPlanReviewPage` e testes.
+- Existem **três** cópias locais equivalentes ao `SectionCard` (esta change passou a usar a
+  compartilhada; `CoachAthleteProfilePage` ainda tem a sua).
+- `LgpdConsentStatus` mistura versões *vigentes* (config) e *aceitas* (banco). O ponto de corte para
+  aninhar o contrato JSON é o **terceiro** documento LGPD, não antes.
+
+---
+
 Branch: `feature/add-coach-settings-page` (backend `c53ad5b`, front `f915202`).
 
 **Dependência satisfeita:** `add-coach-lgpd-consent` mergeada em `develop` em 2026-07-31 — a
