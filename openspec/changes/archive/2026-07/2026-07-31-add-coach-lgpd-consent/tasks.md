@@ -2,6 +2,31 @@
 
 **Tamanho:** S · **Trilha:** Full
 
+## Estado no arquivamento (2026-07-31)
+
+**Entregue:** blocos 1–3 (16/16 tasks de código). PRs backend #55 e front #47 mergeados em
+`develop`. Suítes: backend 2270/2270, front 766/766 (lint e build limpos).
+
+**Adiado, com motivo:**
+
+- **Bloco 4 — verificação E2E manual (14 itens): NÃO executado.** Boa parte tem equivalente
+  automatizado (4.1, 4.3, 4.4, 4.7, 4.9, 4.11 cobertos por `LgpdConsentEnforcementIT` e
+  `UsuarioLgpdConsentRepositoryTest`; 4.14 são as suítes, verdes). O que falta é o click-through com
+  a flag em `on`: 4.2, 4.10, 4.12, 4.13. **Isto importa** — os dois únicos bugs que chegaram ao
+  usuário nesta change (link dentro do `<label>` e `href` sem hash routing) passaram por 762 testes
+  verdes e só apareceram no navegador.
+- **Bloco 5 — gates de ativação da flag (7 itens): abertos por design.** Não bloqueiam merge;
+  bloqueiam virar `app.lgpd.consent-enforcement` para `on`. Dependem de decisão humana e de
+  artefatos que não existem (Termos de Uso publicados, validação jurídica do texto).
+- **Bloco 6 — procedimento de bump de versão (7 itens): operacional, para o futuro.** Só se executa
+  quando a Política ou os Termos mudarem.
+
+**Consequência prática:** a change está em produção **inerte**. A flag nasce `off`, então o `403`
+não dispara para ninguém; o que já opera é o registro do aceite e o modal. Fechar o bloco 5 é o que
+liga o enforcement de fato.
+
+---
+
 Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-backend`,
 `apps/menthoros-front`), criada a partir de `develop` antes de qualquer código.
 
