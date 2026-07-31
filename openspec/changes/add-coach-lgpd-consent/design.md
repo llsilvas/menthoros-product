@@ -124,6 +124,13 @@ registro nenhum. Então:
 - O servidor compara com as vigentes. Divergiu → **`409 CONSENT_VERSION_STALE`**, sem gravar. O
   frontend recarrega e reapresenta o texto novo.
 
+**[PM] Limite honesto deste mecanismo:** ele protege contra **cliente defasado**, não contra
+**cliente adulterado**. Um coach que envie as versões vigentes por `curl`, sem nunca ter aberto a
+página, é registrado normalmente. O que a change prova é **aceite autenticado de uma versão
+identificada** — não prova leitura. Se algum dia for preciso mais que isso, o caminho é registrar
+hash do documento publicado, IP e user-agent; está fora do escopo aqui, e a spec **não deve** ser
+lida como prova de leitura.
+
 - `@PreAuthorize("isAuthenticated()")`; retorna `ResponseEntity<Void>`.
 - **Sem `@RequireTenant`** — self-resolving pelo `sub` do JWT, igual ao `GET /me`.
 - `200` no primeiro aceite e no reenvio das mesmas versões (idempotente).
@@ -152,14 +159,58 @@ computado, não persistido. `lgpdConsentedAt` **não** entra aqui — fica com
  */
 ```
 
-Fluxo: validar versões contra a config → `INSERT` → `DataIntegrityViolationException` na
-constraint é capturada e tratada como sucesso (`200`), porque significa "este usuário já aceitou
-exatamente estas versões".
+Fluxo: validar versões contra a config → verificar tenant → `saveAndFlush` →
+`DataIntegrityViolationException` **da constraint específica** é tratada como sucesso.
 
-> Capturar a violação de constraint é aceitável aqui e **não** viola a regra de "sem try/catch para
-> mapear HTTP": não estamos mapeando status, estamos traduzindo uma corrida vencida em no-op no
-> service. O `@ExceptionHandler` do `GlobalExceptionHandler` segue sendo o único lugar que decide
-> status.
+**[PM] O método NÃO leva `@Transactional`** — e isso não é detalhe de estilo. Capturar
+`DataIntegrityViolationException` dentro de uma transação ativa deixa a transação marcada
+**rollback-only**: o `catch` engole a exceção, o método retorna "sucesso", e o commit falha depois,
+fora do alcance do `try`. O resultado é um `500` num caminho que a spec chama de idempotente.
+
+**Precedente da casa a seguir literalmente** — `WaitlistServiceImpl` resolve exatamente esta
+corrida e documenta a razão no Javadoc da classe:
+
+```java
+/**
+ * Sem @Transactional no método: cada chamada ao repositório roda na própria transação.
+ * Isso permite capturar a DataIntegrityViolationException da corrida (índice único) sem
+ * deixar uma transação externa marcada como rollback-only.
+ */
+```
+
+```java
+private static final String UK_CONSENT = "uk_usuario_lgpd_consent_versoes";
+
+try {
+    consentRepository.saveAndFlush(novo);
+} catch (DataIntegrityViolationException e) {
+    // Só é no-op se a violação for DESTA constraint (corrida entre o exists e o insert).
+    // Qualquer outra violação de integridade é erro real — propaga.
+    Throwable causa = e.getMostSpecificCause();
+    if (causa.getMessage() == null || !causa.getMessage().contains(UK_CONSENT)) {
+        throw e;
+    }
+    log.info("Consentimento já registrado (corrida resolvida pela constraint)");
+}
+```
+
+Checar o **nome da constraint** é obrigatório: um `catch` genérico transformaria qualquer falha de
+integridade — FK quebrada, `NOT NULL` violado — em falso sucesso, gravando nada e dizendo que
+gravou.
+
+### Guarda de tenant antes de gravar
+
+**[PM]** `tenant_id` não tem FK — a integridade é 100% da aplicação. E o fail-safe do
+`JwtTenantFilter` resolve o usuário por `findByKeycloakId` (`JwtTenantFilter.java:110`), que
+**não é tenant-scoped**. Logo, o `Usuario` disponível pode, em teoria, pertencer a outro tenant que
+não o do `TenantContext`.
+
+**Regra:** antes de gravar, exigir `usuario.getAssessoria().getId().equals(tenantId)`. Divergiu →
+erro, nunca gravação. Um consentimento carimbado com o `tenant_id` errado é registro legal
+apontando para a assessoria errada.
+
+O mesmo vale para a decisão do interceptor: usuário cujo tenant não bate com o `TenantContext` é
+tratado como **não resolvido** (guarda 5 → `503`), não como "sem consentimento".
 
 ### Re-consentimento
 
@@ -191,7 +242,10 @@ todos os coaches de uma vez**. Um bump de Política é, na prática, um mini-rel
 2. `TenantContext` não populado → **passa** (rota tenant-less por design).
 3. Role do caller ≠ `TECNICO` → **passa**.
 4. Rota na whitelist → **passa**.
-5. `Usuario` não resolvido → **`503`**, nunca `403`. Não se decide consentimento no escuro.
+5. `Usuario` não resolvido **ou com `assessoria.id` divergente do `TenantContext`** →
+   **`503`**, nunca `403`. Não se decide consentimento no escuro, e tenant divergente não é
+   "sem consentimento" — é resolução falha (o fail-safe do filtro usa `findByKeycloakId`,
+   que não é tenant-scoped).
 6. Sem consentimento das versões vigentes → **`403 LGPD_CONSENT_REQUIRED`**.
 
 **Custo da guarda 6:** uma query `EXISTS` indexada em `tb_usuario_lgpd_consent`. Ela roda **só**
@@ -269,10 +323,21 @@ frontend distinguir de erros de autorização comuns.
 
 > Texto do segundo checkbox é rascunho e depende de validação jurídica (Q2).
 
-**[PR] Continuidade visual com o wizard.** `coach-first-login-wizard` exibe **outro** overlay
-bloqueante logo após este, no momento que aquela change identifica como determinante para
-retenção. Para não empilhar duas barreiras distintas, o dialog nasce com cabeçalho de passo
-("Passo 1 de 4 — Consentimento") no mesmo container/stepper que o wizard adotará.
+**[PR] Continuidade visual com o wizard — problema real, acoplamento adiado.**
+`coach-first-login-wizard` exibirá **outro** overlay bloqueante logo após este, no momento que
+aquela change identifica como determinante para retenção. O risco de empilhar duas barreiras
+visualmente distintas é legítimo.
+
+Mas a versão anterior deste design **codificava a solução antes da decisão**: mandava o dialog
+nascer com "Passo 1 de 4" e compartilhar container com uma change que ainda não tem design
+fechado. Isso hardcoda um total de passos que ninguém confirmou e um contrato de container que não
+existe em código.
+
+**Decisão:** o `CoachConsentDialog` nasce **standalone**, sem numeração de passo. A unificação
+visual é responsabilidade de `coach-first-login-wizard`, que virá depois e conhece os próprios
+passos — absorver um dialog standalone num stepper é trabalho menor do que corrigir uma numeração
+errada em duas changes. A Q5 registra a decisão de UI para aquele momento, e deixa de bloquear
+esta change.
 
 **`CoachLayout`**: se `!me.lgpdConsentGranted` → renderiza **apenas** o `CoachConsentDialog` (sem
 `CoachSidebar`, sem `<Outlet />`). Após o `200`, refetch de `me` libera a navegação.
@@ -291,7 +356,7 @@ JwtTenantFilter sincroniza tb_usuario  ← tratamento já ocorre aqui (base lega
         ↓
 GET /api/v1/users/me → lgpdConsentGranted = false + versões vigentes
         ↓
-CoachLayout → CoachConsentDialog (bloqueante, "Passo 1 de 4")
+CoachLayout → CoachConsentDialog (bloqueante, standalone)
         ↓
 (escrita nesse estado, com flag em `on` → 403 LGPD_CONSENT_REQUIRED)
         ↓
@@ -333,10 +398,12 @@ refetch de me → lgpdConsentGranted = true → navegação liberada
 | **[PM] Bypass da whitelist por matching de string** | Alto | Matching por padrão MVC; testes com trailing slash, `//`, `;matrix`, encoding. |
 | **[PM] Interceptor quebra webhooks / públicas / admin** | Alto | Guardas 1 e 2 antes de qualquer decisão; testes por classe de rota. |
 | **[PM] `Usuario` não resolvido → decisão no escuro** | Alto | Guarda 5: `503`, nunca `403`. |
-| **Registro legal falso (aceite de texto não exibido)** | Alto | Cliente ecoa as versões renderizadas; servidor rejeita divergência com `409`. |
+| **Registro legal falso (aceite de texto não exibido)** | Alto | Cliente ecoa as versões renderizadas; servidor rejeita divergência com `409`. Protege contra cliente defasado, **não** contra payload adulterado — limite declarado. |
+| **`catch` da constraint em transação ativa → rollback-only** | Alto | Método **sem** `@Transactional` + `saveAndFlush`, seguindo `WaitlistServiceImpl`; `catch` filtra pelo nome da constraint e propaga qualquer outra violação. |
+| **`tenant_id` gravado errado** | Alto | `tb_usuario_lgpd_consent.tenant_id` não tem FK e o fail-safe do filtro resolve por `findByKeycloakId` (não tenant-scoped). Exigir `usuario.assessoria.id == tenantId` antes de gravar; divergência é erro, não gravação. |
 | **Versão da config divergir do texto publicado** | Médio | `PrivacidadePage` exibe a data de vigência; conferência manual no gate 5.2. Sem isso, o registro aponta para um texto que ninguém viu. |
 | **[PM] Gate confundido com base legal** | Alto | Enquadramento no topo; RIPD declara execução de contrato como base do sync. |
 | **Query extra por escrita de coach** | Baixo | `EXISTS` indexado, só após as guardas 1–5; leitura não paga. Cachear por request se medir gargalo. |
-| **[PR] Dois modais bloqueantes no primeiro login** | Médio | Stepper compartilhado com `coach-first-login-wizard`. |
+| **[PR] Dois modais bloqueantes no primeiro login** | Médio | Dialog nasce standalone; a unificação visual é responsabilidade de `coach-first-login-wizard`, que conhece os próprios passos (Q5). |
 | **[PM] `GET` com efeito colateral** | Baixo | Auditados (Strava OAuth); nenhum é operação de coach. |
 | **Lock da migração** | Baixo | `CREATE TABLE` novo, sem tocar em `tb_usuario`. Zero risco de lock em tabela existente. |

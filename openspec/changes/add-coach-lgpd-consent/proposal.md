@@ -79,24 +79,6 @@ auditável de quando e o que cada coach aceitou.
 > **Então** o backend retorna `200` e **não** cria segunda linha; o `consented_at` original é
 > preservado.
 
-**CA14 — Versão defasada é rejeitada, não carimbada**
-> **Dado** que a Política vigente passou a ser `2026-11-01`
-> **Quando** um coach envia o aceite declarando `policyVersion: "2026-06-30"` (a que sua página
-> exibia)
-> **Então** o backend retorna `409 CONSENT_VERSION_STALE` e **não** grava — o registro nunca
-> afirma que ele aceitou um texto que não viu.
-
-**CA15 — Re-consentimento preserva o histórico**
-> **Dado** um coach que aceitou a Política `2026-06-30`
-> **Quando** a vigente muda para `2026-11-01` e ele aceita a nova
-> **Então** existem **duas** linhas em `tb_usuario_lgpd_consent`, e a de `2026-06-30` permanece
-> intacta com seu `consented_at` original.
-
-**CA16 — Mudança de versão reabre o gate**
-> **Dado** um coach com consentimento da Política `2026-06-30`
-> **Quando** a configuração passa a exigir `2026-11-01`
-> **Então** `GET /users/me` retorna `lgpdConsentGranted = false` e o modal reaparece.
-
 **CA6 — Escrita bloqueada sem consentimento**
 > **Dado** um coach com `lgpdConsentGranted = false` e a flag `app.lgpd.consent-enforcement = on`
 > **Quando** ele chama qualquer endpoint de escrita (`POST`/`PUT`/`PATCH`/`DELETE`) fora da
@@ -111,8 +93,9 @@ auditável de quando e o que cada coach aceitou.
 **CA8 — Isolamento por tenant**
 > **Dado** dois coaches em assessorias distintas
 > **Quando** o coach A registra consentimento
-> **Então** apenas o `Usuario` do coach A é alterado; o coach B permanece com
-> `lgpdConsentGranted = false`.
+> **Então** grava-se **uma** linha com o `tenant_id` do coach A; o coach B segue sem registro e com
+> `lgpdConsentGranted = false`. Um `Usuario` cujo tenant divirja do `TenantContext` **não** é
+> aceito para gravação.
 
 **CA9 — Migração não toca em dados existentes**
 > **Dado** o banco com coaches já cadastrados
@@ -144,6 +127,24 @@ auditável de quando e o que cada coach aceitou.
 > **Então** a constraint `uk_usuario_lgpd_consent_versoes` garante **uma única** linha, e ambas as
 > requisições retornam `200`.
 
+**CA14 — Versão defasada é rejeitada, não carimbada**
+> **Dado** que a Política vigente passou a ser `2026-11-01`
+> **Quando** um coach envia o aceite declarando `policyVersion: "2026-06-30"` (a que sua página
+> exibia)
+> **Então** o backend retorna `409 CONSENT_VERSION_STALE` e **não** grava — o registro nunca
+> afirma que ele aceitou um texto que não viu.
+
+**CA15 — Re-consentimento preserva o histórico**
+> **Dado** um coach que aceitou a Política `2026-06-30`
+> **Quando** a vigente muda para `2026-11-01` e ele aceita a nova
+> **Então** existem **duas** linhas em `tb_usuario_lgpd_consent`, e a de `2026-06-30` permanece
+> intacta com seu `consented_at` original.
+
+**CA16 — Mudança de versão reabre o gate**
+> **Dado** um coach com consentimento da Política `2026-06-30`
+> **Quando** a configuração passa a exigir `2026-11-01`
+> **Então** `GET /users/me` retorna `lgpdConsentGranted = false` e o modal reaparece.
+
 ## Métrica de sucesso
 
 - **Cobertura:** 100% dos coaches ativos com consentimento das versões vigentes em até **14 dias**
@@ -153,8 +154,8 @@ auditável de quando e o que cada coach aceitou.
    WHERE u.role = 'TECNICO' AND u.ativo
      AND NOT EXISTS (SELECT 1 FROM tb_usuario_lgpd_consent c
                       WHERE c.usuario_id = u.id
-                        AND c.policy_version = :vigente
-                        AND c.terms_version  = :vigente)  -- → zero
+                        AND c.policy_version = :policyVersionVigente
+                        AND c.terms_version  = :termsVersionVigente)  -- → zero
   ```
 - **Atrito na rotina do treinador:** o aceite é uma interação única de **< 30 segundos**, sem
   passos adicionais em logins seguintes — a change protege a operação sem custo recorrente de
@@ -186,9 +187,12 @@ auditável de quando e o que cada coach aceitou.
 - **A8.** *(verificada)* `/api/admin/**` e `/api/v1/waitlist` rodam **sem** `TenantContext`
   (`JwtTenantFilter.shouldNotFilter`), e o `Usuario` pode ser `null` quando o sync falha. O
   interceptor trata os dois casos explicitamente.
-- **A9.** `ADD COLUMN NOT NULL DEFAULT false` é metadata-only em PostgreSQL ≥ 11 e `tb_usuario`
-  tem escala de centenas de linhas — sem risco de lock relevante. Confirmar a versão do PG na
-  task 1.1.
+- **A9.** A `V73` é `CREATE TABLE` puro — não toca em `tb_usuario`, logo não há risco de lock em
+  tabela existente. *(Substitui a premissa anterior sobre `ADD COLUMN`, obsoleta desde a reversão
+  da Q4.)*
+- **A11.** O eco de versão protege contra **cliente defasado**, não contra **payload adulterado**.
+  A change prova *aceite autenticado de uma versão identificada*, **não** prova leitura do texto.
+  Registrar hash do documento, IP e user-agent está fora do escopo.
 - **A6.** O link de "Termos de Uso" é placeholder (`#`) até o documento existir; o checkbox
   correspondente permanece obrigatório para não precisar de nova migração quando o documento sair.
 
@@ -216,9 +220,12 @@ auditável de quando e o que cada coach aceitou.
   consentimento registrado. Confirmar que não há intenção de fazer backfill de "aceite presumido"
   para a base atual (o correto sob LGPD é **não** presumir, mas é decisão a registrar
   explicitamente).
-- **Q5.** *(product-review)* `coach-first-login-wizard` empilha um segundo overlay bloqueante logo
-  após este. O design já prevê stepper compartilhado ("Passo 1 de 4"), mas a decisão de UI
-  unificada precisa ser confirmada antes de as duas changes irem para implementação.
+- **Q5.** *(product-review)* `coach-first-login-wizard` empilhará um segundo overlay bloqueante
+  logo após este. **Deixou de bloquear esta change em 2026-07-31:** o dialog nasce **standalone**,
+  sem numeração de passo, porque a versão anterior da spec codificava a solução ("Passo 1 de 4")
+  antes de a decisão existir — hardcodando um total de passos que ninguém confirmou. A unificação
+  visual fica com `coach-first-login-wizard`, que conhece os próprios passos; absorver um dialog
+  standalone num stepper é trabalho menor do que corrigir numeração errada em duas changes.
 
 ## Impacto
 
@@ -234,6 +241,6 @@ auditável de quando e o que cada coach aceitou.
 
 ## Dependências
 
-- **Destrava:** `keycloak-user-onboarding-auth` e `coach-first-login-wizard` (ambas declaram esta
-  change como dependência)
+- **Destrava:** `keycloak-user-onboarding-auth`, `coach-first-login-wizard` e
+  `add-coach-settings-page` (esta última consome a tabela, a entidade e o repository criados aqui)
 - **Depende de:** nenhuma

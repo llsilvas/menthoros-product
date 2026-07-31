@@ -72,14 +72,22 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
   - **Valida as versões recebidas contra a config**; divergiu → `ConsentVersionStaleException`
     (CA14). Sem isso, um coach com a página aberta durante um deploy seria registrado aceitando
     um texto que nunca viu.
-  - Insere a linha. `DataIntegrityViolationException` na constraint → tratada como **no-op
-    idempotente**, retorna sucesso (CA5). Isso não é mapeamento de HTTP no service — é traduzir
-    corrida perdida em no-op; o status segue decidido no `GlobalExceptionHandler`.
+  - **Guarda de tenant antes de gravar:** exigir `usuario.getAssessoria().getId().equals(tenantId)`.
+    O fail-safe do `JwtTenantFilter` resolve por `findByKeycloakId` (`JwtTenantFilter.java:110`),
+    que **não** é tenant-scoped — e `tenant_id` na tabela não tem FK. Divergiu → erro, nunca
+    gravação.
+  - **O método NÃO leva `@Transactional`.** Usar `saveAndFlush` e capturar
+    `DataIntegrityViolationException` **filtrando pelo nome da constraint**
+    (`uk_usuario_lgpd_consent_versoes`), propagando qualquer outra violação. Seguir literalmente o
+    precedente de `WaitlistServiceImpl` — cujo Javadoc de classe já explica o porquê: capturar a
+    exceção dentro de transação ativa deixa a transação **rollback-only**, o método retorna
+    sucesso e o commit estoura depois, fora do `try`, virando `500` num caminho idempotente.
   - Log de entrada/saída com `usuarioId`, `tenantId` e versões.
   - **Teste:** `UsuarioServiceImplTest` (`@Nested class RegisterConsent`) — primeiro aceite insere
     (CA3); versão defasada → `ConsentVersionStaleException` e **nenhum** insert (CA14); violação
-    de constraint → sem erro (CA5); usuário inexistente no tenant → `DomainNotFoundException`
-    (CA8); `@BeforeEach`/`@AfterEach` com `TenantContext`.
+    da constraint de versões → sem erro (CA5); violação de **outra** constraint → propaga;
+    `Usuario` de tenant divergente → erro e nenhum insert (CA8);
+    `@BeforeEach`/`@AfterEach` com `TenantContext`.
   - **Validação:** `./mvnw clean test`
 
 - [ ] **1.7 Endpoint `POST /api/v1/users/me/consent` no `UsuarioController`**
@@ -126,7 +134,8 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
 - [ ] **2.4 `LgpdConsentInterceptor` + registro no `WebMvcConfigurer`**
   - **Ordem obrigatória de guardas** (ver `design.md`): (1) sem `Authentication`/`Jwt` → passa;
     (2) sem `TenantContext` → passa; (3) role ≠ `TECNICO` → passa; (4) whitelist → passa;
-    (5) `Usuario` não resolvido → **`503`**; (6) sem consentimento → `403`.
+    (5) `Usuario` não resolvido **ou com tenant divergente do `TenantContext`** → **`503`**;
+    (6) sem consentimento das versões vigentes → `403`.
   - **Matching por padrão MVC resolvido** (`BEST_MATCHING_PATTERN_ATTRIBUTE` / `HandlerMethod`),
     **nunca** `String.startsWith` no `requestURI` — comparação de URI crua é bypass fácil.
   - Whitelist: `POST /api/v1/users/me/consent`, rotas `permitAll` da `SecurityFilterChain`,
@@ -166,8 +175,10 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
   - MUI `Dialog` bloqueante: `disableEscapeKeyDown`, sem fechar por backdrop, sem botão de fechar.
   - Responsivo — `fullScreen` em telas pequenas via `useMediaQuery`.
   - 2 checkboxes (Termos de Uso → link `#`; Política de Privacidade → link `/privacidade`).
-  - Cabeçalho de passo ("Passo 1 de 4 — Consentimento") no mesmo container/stepper que
-    `coach-first-login-wizard` vai adotar, para os dois overlays não parecerem barreiras distintas.
+  - **Standalone, sem numeração de passo.** Não hardcodar "Passo 1 de N" nem container
+    compartilhado: `coach-first-login-wizard` ainda não tem design fechado, e fixar um total de
+    passos aqui codifica uma decisão que não existe (Q5). A unificação visual é responsabilidade
+    daquela change.
   - Botão "Aceitar e continuar" desabilitado até ambos marcados; `loading` no submit; `Alert` de erro.
   - **Envia as versões recebidas do `/users/me`** (`lgpdCurrentPolicyVersion`/
     `lgpdCurrentTermsVersion`) — **nunca** constantes hardcoded no front, para não criar segunda
@@ -179,12 +190,6 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
     o modal aberto (CA14); erro genérico da API renderiza o `Alert`.
   - **Validação:** `npm run lint && npm run build && npm test`
 
-- [ ] **3.4 `PrivacidadePage` — data de vigência alinhada**
-  - A data exibida na Política precisa bater com `app.lgpd.policy-version`. Divergência significa
-    que o coach aceitou um texto e o sistema registrou outra versão.
-  - Conferência é manual (documento estático); registrar a data vigente no topo da página.
-  - **Validação:** `npm run lint && npm run build`
-
 - [ ] **3.3 `CoachLayout` — interceptar o consentimento**
   - Após carregar `me`, se `!me.lgpdConsentGranted` → renderizar **somente** o
     `CoachConsentDialog` (sem `CoachSidebar`, sem `<Outlet />`).
@@ -193,6 +198,12 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
     renderiza a sidebar (CA1); com `true` renderiza o layout normal sem modal; após o aceite,
     refetch libera.
   - **Validação:** `npm run lint && npm run build && npm test`
+
+- [ ] **3.4 `PrivacidadePage` — data de vigência alinhada**
+  - A data exibida na Política precisa bater com `app.lgpd.policy-version`. Divergência significa
+    que o coach aceitou um texto e o sistema registrou outra versão.
+  - Conferência é manual (documento estático); registrar a data vigente no topo da página.
+  - **Validação:** `npm run lint && npm run build`
 
 ## 4. Verificação end-to-end (P0)
 
@@ -239,8 +250,21 @@ em produção.
 Trocar a Política ou os Termos **invalida o consentimento de todos os coaches de uma vez**. Com a
 flag em `on`, isso é um lock-out em massa. Sequência obrigatória, toda vez:
 
+**Responsável:** o founder/CTO executa e é dono do go/no-go de cada passo (equipe solo — nomear
+evita que o procedimento fique órfão).
+
 - [ ] **6.1** Baixar a flag para `report-only` **antes** de publicar a nova versão.
-- [ ] **6.2** Publicar o documento e atualizar `app.lgpd.*` com a nova data de vigência.
-- [ ] **6.3** Comunicar os coaches.
-- [ ] **6.4** Acompanhar o log de `report-only` até a cauda de não-aceites esvaziar.
-- [ ] **6.5** Voltar para `on`.
+- [ ] **6.2** **Publicar o documento primeiro, atualizar `app.lgpd.*` depois.** Nunca o inverso: se
+  a config apontar para uma versão cujo texto ainda não está acessível, o sistema registra aceite
+  de um documento que o coach não tinha como ler. Os dois passos não são atômicos, então a ordem
+  é a única proteção — e a janela entre eles deve ser minutos, não horas.
+- [ ] **6.3** Conferir que a data exibida na `PrivacidadePage` bate com `app.lgpd.policy-version`
+  **em produção**, por inspeção direta da página publicada.
+- [ ] **6.4** Comunicar os coaches.
+- [ ] **6.5** Acompanhar o log de `report-only` até a **cauda esvaziar**, com critério objetivo:
+  reusar a query de cobertura da "Métrica de sucesso" com as novas versões vigentes até retornar
+  **zero**, ou até a cauda restante ser de contas comprovadamente inativas.
+- [ ] **6.6** Voltar para `on`.
+- [ ] **6.7** **Smoke pós-ativação:** confirmar com uma conta real de coach que já aceitou que a
+  escrita segue funcionando. Se falhar, voltar imediatamente para `report-only` — é reversão por
+  configuração, sem redeploy.
