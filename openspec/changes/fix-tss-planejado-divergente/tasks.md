@@ -92,6 +92,7 @@ mergear a branch inteira.
 
 - [ ] **4.1** Convergência planejado × realizado em toda a grade (CA1).
 - [ ] **4.2** Recalcular por mudança de duração produz valor na escala certa (CA2).
-- [ ] **4.3** Guard bloqueia plano excessivo (CA3), conforme a conclusão da 0.1.
+- [ ] **4.3** Soma do guard na mesma escala da meta, por teste unitário (CA3). **Não** verificar
+  "plano bloqueado": o skill não tem chamador em produção, então não há fluxo para observar.
 - [ ] **4.4** Nenhuma linha em escala antiga; snapshot existe e o rollback foi provado (CA4).
 - [ ] **4.5** `./mvnw clean test` verde.
