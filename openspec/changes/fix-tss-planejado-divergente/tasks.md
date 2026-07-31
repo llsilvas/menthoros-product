@@ -51,13 +51,26 @@ mergear a branch inteira.
   bloquear planos que antes escapavam (CA3), à luz da conclusão da 0.1.
   - `verify:` teste do `TrainingPrescriptionGuardSkill` cobrindo o caso limite.
 
-## 3. Dados históricos — depende da decisão da Q1
+## 3. Dados históricos — Q1 decidida: recalcular só os `PENDENTE`
 
-- [ ] **3.1 Registrar a decisão da Q1** no `design.md` antes de implementar: recalcular em
-  migração, deixar conviver, ou recalcular sob demanda.
-- [ ] **3.2 Implementar o que foi decidido** (CA4). Se for migração, ela **altera dado existente** —
-  cai no gate de confirmação do `CLAUDE.md`.
-  - `verify:` nenhuma linha fica em estado ambíguo (mesma coluna com duas escalas sem marcação).
+- [x] **3.1 Decisão registrada** no `proposal.md` e no `design.md` (2026-07-31).
+
+- [ ] **3.2 Migração que recalcula apenas `status_treino = 'PENDENTE'`** (CA4).
+  - `UPDATE tb_treino_planejado SET tss_planejado = <nova fórmula> WHERE status_treino = 'PENDENTE'
+    AND duracao_min IS NOT NULL AND percepcao_esforco_esperada IS NOT NULL`.
+  - **Altera dado existente → gate de confirmação do `CLAUDE.md`.** Não rodar sem aprovação
+    explícita.
+  - Conferir a contagem **no ambiente alvo** antes de aplicar: em dev eram 38 de 129, mas o número
+    muda com o tempo, e `PENDENTE` vira `REALIZADO` sozinho.
+  - A fórmula tem de ficar idêntica à do código. Duplicá-la em SQL cria duas fontes que divergem na
+    próxima mudança — avaliar recalcular via aplicação em vez de SQL puro.
+  - `verify:` nenhum treino `REALIZADO`/`PERDIDO` foi tocado; todos os `PENDENTE` com inputs ficaram
+    na escala nova.
+
+- [ ] **3.3 Documentar a convivência das duas escalas** onde alguém vá tropeçar: JavaDoc de
+  `TreinoPlanejado.tssPlanejado` e comentário na migração, dizendo que `status_treino` é o critério
+  que separa uma escala da outra.
+  - `verify:` quem ler a entidade descobre isso sem precisar do histórico do git.
 
 ## 4. Verificação
 

@@ -122,11 +122,23 @@ correto do gerador. Ali um dado bom é substituído por um ruim, hoje.
 - **A3.** A correção e os testes já existem escritos na branch `feature/testes-carga-referencia`
   (commits `949d0ff` e os cinco `RefCarga*`), nunca mergeados.
 
-**Em aberto — bloqueiam a implementação:**
+**Resolvidas:**
 
-- **Q1.** O que fazer com os `tssPlanejado` **já gravados** na escala antiga? Recalcular em
-  migração, deixar como estão (convivendo duas escalas na mesma coluna), ou recalcular sob demanda?
-  Sem decisão aqui, o CA4 não é implementável.
+- **Q1 — dados históricos. DECIDIDO em 2026-07-31: recalcular apenas os `PENDENTE`.**
+  Levantamento em dev: 129 linhas com `tssPlanejado`, **todas** com `duracaoMin` e
+  `percepcaoEsforcoEsperada` — recomputáveis de forma determinística, sem estimativa nova.
+  Distribuição: 38 `PENDENTE`, 47 `PERDIDO`, 44 `REALIZADO`.
+  A migração recalcula os **38 pendentes**; os 91 já executados ficam como estão.
+  **Razão:** os executados são história sobre a qual o coach já decidiu — reescrever o TSS de um
+  plano que ele aprovou muda um número que ele viu, sem que ele saiba. Os pendentes ainda vão ser
+  executados, então precisam estar na escala certa.
+  **Consequência aceita:** a coluna passa a ter duas escalas, mas separadas por um critério
+  explícito e verificável (`status_treino`), não por acaso — que é o que diferencia esta opção da
+  rejeitada.
+  **Rejeitada explicitamente:** "deixar conviver sem critério". É a única que garante ambiguidade
+  permanente, e nenhuma agregação histórica conseguiria distinguir as duas escalas depois.
+
+**Em aberto:**
 - ~~**Q2.** `metaTssSemanal` é derivada de carga realizada?~~ **Perdeu a urgência:** o guard não
   está ligado, então a resposta não muda a severidade hoje. O `LoadTargetResolver` documenta que o
   alvo parte do CTL atual (carga realizada), o que sugere "sim" — mas isso passa a ser problema de

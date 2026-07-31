@@ -81,7 +81,21 @@ public int calcularTssEstimado(Duration duracaoMin, Integer rpe) {
 
 Idêntica ao caminho realizado, incluindo o clamp. É a correção de `949d0ff`, portada.
 
-## Dados históricos — a decisão que falta (Q1)
+## Dados históricos — DECIDIDO (Q1)
+
+**Recalcular só os `PENDENTE` (38 de 129).** Os 91 já executados (`REALIZADO`/`PERDIDO`) ficam na
+escala antiga: são história sobre a qual o coach já decidiu, e reescrevê-los mudaria números que ele
+viu e aprovou. Os pendentes ainda serão executados e comparados com o realizado — esses precisam
+estar certos.
+
+A coluna fica com duas escalas, mas o critério é `status_treino`: verificável, documentável, e
+suficiente para qualquer consulta futura distinguir uma da outra. É isso que separa esta opção da
+que o design rejeita abaixo.
+
+Todas as 129 linhas têm `duracaoMin` e `percepcaoEsforcoEsperada`, então o recálculo é
+determinístico — aplica a mesma fórmula nova aos mesmos inputs, sem inventar dado.
+
+### Opções consideradas
 
 `tssPlanejado` está persistido. Depois da correção, valores novos saem 2,4×–6× maiores que os
 antigos, na **mesma coluna**. As opções:
