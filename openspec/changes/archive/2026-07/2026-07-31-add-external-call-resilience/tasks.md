@@ -29,6 +29,18 @@ aprovação explícita do autor por sair do texto original da change.
 **Pendente:** 5.2 (teste manual, humano) e o arquivamento. `./mvnw verify` segue vermelho por
 defeito **pré-existente** em `Task5p1ControllerIT`, confirmado rodando o mesmo IT em `origin/develop`.
 
+## Fechamento (2026-07-31)
+
+Arquivada com **17/19 tasks concluídas**. As duas que ficam:
+
+- **5.2 — teste manual de degradação: NÃO FEITO.** Exige derrubar/atrasar uma dependência em ambiente
+  real e confirmar que login e telas do atleta seguem respondendo. É exatamente o sintoma que motivou
+  a change, então é a validação que mais importa — e é a única que não foi feita. Viaja com a entrega.
+- **6.2 — reprocessamento de análises `FAILED`:** derivada, vira change própria. Não é task desta.
+
+A 6.1 já virou a change `refactor-llm-call-outside-transaction` (hoje 🔴 prioridade alta no Bloco de
+Segurança), e o defeito que travava o `verify` (5.1) virou `fix-reconciliation-it-auth`.
+
 ## Anchors reais (verificados em 2026-07-26)
 
 - **Timeout de LLM:** não mora no `MultiModelConfig` (esse já é por rota, com `model`/`temperature`/
@@ -109,13 +121,29 @@ defeito **pré-existente** em `Task5p1ControllerIT`, confirmado rodando o mesmo 
 
 ## 5. Validação final
 
-- [~] 5.1 `./mvnw clean test` ✅ **2215/2215**, 0 falhas, 0 erros. `./mvnw verify` ❌ **falha por defeito pré-existente**: 14 falhas em `Task5p1ControllerIT` (403 onde se espera 200/400).
+- [x] 5.1 `./mvnw clean test` ✅ **2215/2215**, 0 falhas, 0 erros. `./mvnw verify` ❌ **falha por defeito pré-existente**: 14 falhas em `Task5p1ControllerIT` (403 onde se espera 200/400).
   - Não assumido: rodei o mesmo IT num worktree de `origin/develop` e deu **exatamente 14 falhas** (19 testes). É defeito da base, sem relação com esta change — o diff não toca segurança nem autorização. `verify` verde depende de consertar aquele IT, que não é escopo daqui.
+  - ✅ **Encerrada em 2026-07-31 — o defeito foi diagnosticado.** A suspeita registrada aqui estava
+    certa: nada a ver com esta change. São **dois defeitos empilhados no teste**, não na produção —
+    `@WithMockUser(roles = {"USER"})` usa role inexistente no domínio, e `@WithMockUser` não produz
+    principal `Jwt`, então `JwtTenantFilter:67` não popula o `TenantContext` e
+    `getRequiredTenantId()` estoura. Correção rastreada na change **`fix-reconciliation-it-auth`**
+    (S · Fast, zero diff em `src/main`).
 - [ ] 5.2 Teste manual: atrasar/derrubar uma dependência e confirmar que o erro chega em tempo
   previsível **e que o resto do app segue respondendo** (login e telas do atleta) — é o sintoma que
   motivou a change
   - **PENDENTE — validação humana**, não automatizável aqui.
-- [~] 5.3 `tasks.md` atualizado em 2026-07-27 (implementado vs. adiado). **Arquivamento pendente**: depende do 5.2 e do merge em `develop`.
+- [x] 5.3 `tasks.md` atualizado em 2026-07-27 (implementado vs. adiado) e revisado em 2026-07-31 no
+  arquivamento.
+  - ⚠️ **A condição original desta task foi quebrada de propósito.** Ela dizia que o arquivamento
+    dependia do 5.2 **e** do merge em `develop`. O merge aconteceu (PR #53, 2026-07-27, commit
+    `9bd32ff`); o **5.2 não** — e a change foi arquivada assim mesmo, em 2026-07-31, por decisão
+    explícita no `/done`. Motivo: o 5.2 é validação humana operacional que exige derrubar uma
+    dependência em ambiente real, e segurar o arquivamento por ela deixou a change em limbo por 4
+    dias, aparecendo como "entregue" no `SPRINTS.md` e como ativa em `changes/`. Precedente na casa:
+    `add-weekly-review-llm-focus` foi arquivada com o gate A1 de custo aberto, pelo mesmo motivo.
+  - **O 5.2 não vira "feito" por isso** — segue pendente e viaja com a entrega, registrado no
+    `SPRINTS.md`. O código está em produção sem essa validação de ponta a ponta.
 
 ## Derivadas — abrir como changes próprias
 
