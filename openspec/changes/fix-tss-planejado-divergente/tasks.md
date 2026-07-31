@@ -37,11 +37,16 @@ mergear a branch inteira.
   - Adaptar ao estado atual do `develop`: eles foram escritos antes da
     `fix-tsb-recalculo-resiliente` reescrever o `TsbServiceImpl`.
   - **Devem passar ANTES da correção**, exceto os que afirmam a convergência — esses são o red.
-  - `verify:` `./mvnw clean test` verde, com os testes de convergência falhando pelo motivo certo.
+  - **Cherry-pick com `--no-commit` e revisar o diff antes de commitar.** A branch contém o
+    `f9e754b`, refutado; nada garante sozinho que o `949d0ff` não dependa dele.
+  - `verify:` `./mvnw clean test` verde, com os testes de convergência falhando pelo motivo certo,
+    **e** o diff aplicado conferido contra os arquivos que o `f9e754b` toca.
 
 - [ ] **1.2 Teste de convergência (o red).** Grade de (duração × RPE) afirmando que o caminho
-  planejado e o realizado produzem o mesmo TSS (CA1). Deve falhar agora, com a divergência de
-  2,4×–6× visível na mensagem.
+  planejado e o realizado **calculado só por RPE** produzem o mesmo TSS (CA1). Deve falhar agora,
+  com a divergência de 2,4×–6× visível na mensagem.
+  - **Não comparar contra o pipeline realizado completo** (FC, pace, etapas, elevação): ele diverge
+    de propósito, e a grade daria red falso.
   - `verify:` falha por desigualdade numérica, não por erro de compilação ou setup.
 
 ## 2. Correção
@@ -53,35 +58,40 @@ mergear a branch inteira.
     próximo a ler precisa entender que a mudança de escala é intencional.
   - `verify:` os testes de 1.2 passam a verde; `./mvnw clean test` verde.
 
-- [ ] **2.2 Guard: confirmar o efeito.** Com a correção, verificar que a regra de TSS passa a
-  bloquear planos que antes escapavam (CA3), à luz da conclusão da 0.1.
-  - `verify:` teste do `TrainingPrescriptionGuardSkill` cobrindo o caso limite.
+- [ ] **2.2 Guard: teste unitário isolado.** Cobrir no `TrainingPrescriptionGuardSkillTest` que a
+  soma de `tssEstimado` das sessões fica na mesma escala da meta (CA3).
+  - **Não** escrever teste de integração nem afirmar mudança de comportamento em produção: o skill
+    **não tem chamador** em `src/main`. Prometer "planos que antes escapavam agora são bloqueados"
+    descreveria um efeito que não existe.
+  - `verify:` teste unitário verde; nenhuma asserção depende de fluxo real.
 
 ## 3. Dados históricos — Q1 decidida: recalcular só os `PENDENTE`
 
 - [x] **3.1 Decisão registrada** no `proposal.md` e no `design.md` (2026-07-31).
 
-- [ ] **3.2 Migração que recalcula apenas `status_treino = 'PENDENTE'`** (CA4).
-  - `UPDATE tb_treino_planejado SET tss_planejado = <nova fórmula> WHERE status_treino = 'PENDENTE'
-    AND duracao_min IS NOT NULL AND percepcao_esforco_esperada IS NOT NULL`.
-  - **Altera dado existente → gate de confirmação do `CLAUDE.md`.** Não rodar sem aprovação
-    explícita.
-  - Conferir a contagem **no ambiente alvo** antes de aplicar: em dev eram 38 de 129, mas o número
-    muda com o tempo, e `PENDENTE` vira `REALIZADO` sozinho.
-  - A fórmula tem de ficar idêntica à do código. Duplicá-la em SQL cria duas fontes que divergem na
-    próxima mudança — avaliar recalcular via aplicação em vez de SQL puro.
-  - `verify:` nenhum treino `REALIZADO`/`PERDIDO` foi tocado; todos os `PENDENTE` com inputs ficaram
-    na escala nova.
+- [ ] **3.2 Snapshot antes de tocar em qualquer linha.** Tabela ou dump com
+  `(treino_planejado_id, tss_planejado_anterior, migrado_em)`.
+  - É o que torna a operação auditável e o rollback trivial. Sem isso, reverter exige recomputar a
+    fórmula antiga — possível, mas é reconstrução, não reversão.
+  - `verify:` snapshot com a mesma contagem de linhas que a migração vai tocar.
 
-- [ ] **3.3 Documentar a convivência das duas escalas** onde alguém vá tropeçar: JavaDoc de
-  `TreinoPlanejado.tssPlanejado` e comentário na migração, dizendo que `status_treino` é o critério
-  que separa uma escala da outra.
-  - `verify:` quem ler a entidade descobre isso sem precisar do histórico do git.
+- [ ] **3.3 Recálculo de TODAS as linhas com `tssPlanejado` (CA4), via aplicação.**
+  - **Decidido: job/serviço que chama `calcularTssEstimado` já corrigido**, não `UPDATE` com a
+    fórmula reescrita em SQL. Duplicar a fórmula criaria uma segunda fonte de verdade que diverge na
+    próxima mudança — e esta change existe justamente porque duas fontes divergiram.
+  - **Altera dado existente → gate de confirmação do `CLAUDE.md`.** Não rodar sem aprovação
+    explícita no momento.
+  - Conferir a contagem no ambiente alvo antes de aplicar (em dev eram 129).
+  - `verify:` zero linhas com `tssPlanejado` na escala antiga; contagem tocada igual à do snapshot.
+
+- [ ] **3.4 Rollback documentado e testado em dev.**
+  - Restaurar a partir do snapshot da 3.2, não recomputando.
+  - `verify:` executado em dev, com os 129 voltando aos valores originais.
 
 ## 4. Verificação
 
 - [ ] **4.1** Convergência planejado × realizado em toda a grade (CA1).
 - [ ] **4.2** Recalcular por mudança de duração produz valor na escala certa (CA2).
 - [ ] **4.3** Guard bloqueia plano excessivo (CA3), conforme a conclusão da 0.1.
-- [ ] **4.4** Dados históricos no estado decidido (CA4).
+- [ ] **4.4** Nenhuma linha em escala antiga; snapshot existe e o rollback foi provado (CA4).
 - [ ] **4.5** `./mvnw clean test` verde.

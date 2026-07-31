@@ -87,10 +87,15 @@ correto do gerador. Ali um dado bom é substituído por um ruim, hoje.
 
 ## Critérios de aceite
 
-**CA1 — As duas fórmulas convergem**
+**CA1 — As duas fórmulas convergem no caminho RPE-only**
 > **Dado** duração e RPE idênticos
-> **Quando** se calcula o TSS pelo caminho planejado e pelo realizado
+> **Quando** se calcula o TSS pelo caminho planejado e pelo realizado **calculado também só por
+> RPE** (sem FC, pace, etapas ou elevação)
 > **Então** os dois resultados são iguais.
+>
+> A delimitação é essencial: o pipeline realizado completo usa dados de execução que um treino
+> planejado não tem. Montar a grade de convergência contra o pipeline completo produziria um red
+> falso, por divergência intencional.
 
 **CA2 — Recalcular não piora um valor bom**
 > **Dado** um treino cujo `tssPlanejado` veio do gerador de plano
@@ -105,15 +110,19 @@ correto do gerador. Ali um dado bom é substituído por um ruim, hoje.
 > Verificável só por teste unitário do skill — **não** por comportamento de sistema, porque o skill
 > não está no fluxo. Afirmar o contrário seria testar algo que não roda.
 
-**CA4 — Valores históricos têm destino definido**
-> **Dado** treinos planejados com `tssPlanejado` na escala antiga
-> **Quando** a correção sobe
-> **Então** o comportamento é o decidido na Q1, e não um estado ambíguo em que a mesma coluna
-> guarda duas escalas sem marcação.
+**CA4 — Nenhuma linha fica em escala antiga**
+> **Dado** as linhas com `tssPlanejado` gravado antes da correção
+> **Quando** a migração roda
+> **Então** todas passam à escala nova, e existe snapshot dos valores anteriores que permite
+> reverter sem recomputar.
 
 ## Métrica de sucesso
 
-- **Convergência:** para uma grade de (duração × RPE), planejado e realizado diferem em **zero**.
+- **Convergência:** para uma grade de (duração × RPE), planejado e realizado (caminho RPE-only)
+  diferem em **zero**.
+- **Sem métrica ligada à rotina do coach, e isso é aceito.** O gate normalmente exige uma; aqui não
+  há, porque nenhum consumidor do valor está ativo em produção. Inventar uma métrica de coach para
+  esta change seria fabricar sinal.
 - **Sem métrica de guard.** A primeira versão propunha medir "planos bloqueados deixam de ser zero";
   isso não é mensurável, porque o guard não roda. Quando `planner-engine-enforcement` o ligar, a
   métrica de aceitação pertence àquela change — inclusive a contra-métrica que o product-review
@@ -134,19 +143,26 @@ correto do gerador. Ali um dado bom é substituído por um ruim, hoje.
 
 **Resolvidas:**
 
-- **Q1 — dados históricos. DECIDIDO em 2026-07-31: recalcular apenas os `PENDENTE`.**
-  Levantamento em dev: 129 linhas com `tssPlanejado`, **todas** com `duracaoMin` e
-  `percepcaoEsforcoEsperada` — recomputáveis de forma determinística, sem estimativa nova.
-  Distribuição: 38 `PENDENTE`, 47 `PERDIDO`, 44 `REALIZADO`.
-  A migração recalcula os **38 pendentes**; os 91 já executados ficam como estão.
-  **Razão:** os executados são história sobre a qual o coach já decidiu — reescrever o TSS de um
-  plano que ele aprovou muda um número que ele viu, sem que ele saiba. Os pendentes ainda vão ser
-  executados, então precisam estar na escala certa.
-  **Consequência aceita:** a coluna passa a ter duas escalas, mas separadas por um critério
-  explícito e verificável (`status_treino`), não por acaso — que é o que diferencia esta opção da
-  rejeitada.
-  **Rejeitada explicitamente:** "deixar conviver sem critério". É a única que garante ambiguidade
-  permanente, e nenhuma agregação histórica conseguiria distinguir as duas escalas depois.
+- **Q1 — dados históricos. DECIDIDO em 2026-07-31 (segunda decisão): recalcular TODOS os 129.**
+
+  A primeira decisão foi recalcular só os `PENDENTE`, deixando as escalas separadas por
+  `status_treino`. **Foi revertida no DoR:** o critério não é estável. `PENDENTE` vira `REALIZADO`
+  ou `PERDIDO` em produção (`TreinoServiceImpl:122`, `:393`,
+  `ManualReconciliationServiceImpl:73`), então semanas depois da migração os status executados
+  conteriam as duas escalas misturadas, sem nada que as distinga. O critério era verdadeiro só no
+  instante da migração.
+
+  **Decisão:** recalcular as 129 linhas. Todas têm `duracaoMin` e `percepcaoEsforcoEsperada`, então
+  o recálculo é determinístico — mesma fórmula, mesmos inputs, sem estimativa nova.
+
+  **Custo aceito:** o TSS de 91 treinos já executados muda, incluindo planos que o coach aprovou.
+  Mitigação: **snapshot dos valores anteriores antes do `UPDATE`**, para auditoria e para tornar o
+  rollback trivial.
+
+  **Rejeitadas:** separar por `status_treino` (instável, como acima) e não recalcular nada (deixa a
+  coluna com duas escalas indistinguíveis para sempre). Uma coluna marcadora de versão de escala foi
+  considerada e descartada: resolveria, mas deixa no schema, permanentemente, uma coluna cuja única
+  função é registrar uma dívida de duas semanas.
 
 **Em aberto:**
 - ~~**Q2.** `metaTssSemanal` é derivada de carga realizada?~~ **Perdeu a urgência:** o guard não

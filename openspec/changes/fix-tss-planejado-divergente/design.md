@@ -48,7 +48,7 @@ ligado**:
 | `TrainingPrescriptionGuardSkill` | **0** (só o próprio teste) |
 | `SkeletonComplianceChecker` | **ligado** — injetado em `PlannerShadowService` (`:65`), que passa `tssPlanejado` para `GeneratedSessionSnapshot` (`:260`, `:271`) |
 | `TreinoRealizado.getDiferencaTss()` | 0 |
-| view `v_metricas_diarias_agregadas` (`AVG(tp.tss_planejado)`) | 0 |
+| view `v_resumo_semanal_atleta` (`AVG(tp.tss_planejado)`, V9 linha 83) | 0 |
 | `TreinoPlanejadoServiceImpl` (grava e recalcula) | **2** — este roda |
 | `IaServiceImpl` | preserva o valor vindo do LLM |
 
@@ -87,19 +87,21 @@ public int calcularTssEstimado(Duration duracaoMin, Integer rpe) {
 
 Idêntica ao caminho realizado, incluindo o clamp. É a correção de `949d0ff`, portada.
 
-## Dados históricos — DECIDIDO (Q1)
+## Dados históricos — DECIDIDO (Q1, segunda decisão)
 
-**Recalcular só os `PENDENTE` (38 de 129).** Os 91 já executados (`REALIZADO`/`PERDIDO`) ficam na
-escala antiga: são história sobre a qual o coach já decidiu, e reescrevê-los mudaria números que ele
-viu e aprovou. Os pendentes ainda serão executados e comparados com o realizado — esses precisam
-estar certos.
+**Recalcular todas as 129 linhas.**
 
-A coluna fica com duas escalas, mas o critério é `status_treino`: verificável, documentável, e
-suficiente para qualquer consulta futura distinguir uma da outra. É isso que separa esta opção da
-que o design rejeita abaixo.
+A primeira decisão — recalcular só os `PENDENTE`, separando as escalas por `status_treino` — foi
+**revertida no DoR**. O critério não sobrevive ao tempo: `PENDENTE` vira `REALIZADO`/`PERDIDO` em
+produção, então os status executados passariam a misturar as duas escalas sem marcação. Um separador
+que só vale no instante da migração não é separador.
 
-Todas as 129 linhas têm `duracaoMin` e `percepcaoEsforcoEsperada`, então o recálculo é
-determinístico — aplica a mesma fórmula nova aos mesmos inputs, sem inventar dado.
+Todas as 129 têm `duracaoMin` e `percepcaoEsforcoEsperada`, então o recálculo é determinístico.
+
+**O custo real:** 91 treinos já executados mudam de número, incluindo planos que o coach aprovou.
+Não há como evitar isso e ainda ter uma escala só — é o preço de não deixar dívida indistinguível no
+schema. Mitigação obrigatória: gravar snapshot dos valores anteriores antes do `UPDATE`, o que torna
+a operação auditável e reversível.
 
 ### Opções consideradas
 
