@@ -21,7 +21,10 @@ mergear a branch inteira.
 - [x] **0.2 Origem de `metaTssSemanal`.** Perdeu a urgência pelo mesmo motivo — passa a ser assunto
   de `planner-engine-enforcement`.
 
-- [ ] **0.3 Confirmar o mapa antes de mexer.** Refazer o levantamento no `develop` do dia da
+- [x] **0.3 Confirmar o mapa antes de mexer.** Refeito em 2026-07-31, sem truncagem:
+  `TrainingPrescriptionGuardSkill` 0 chamadores; `SkeletonComplianceChecker` 9 arquivos (ligado via
+  `PlannerShadowService`); **`planner-engine.shadow` continua `false`** — a janela de calibração
+  ainda não foi contaminada, então a correção chega a tempo. Fórmula divergente ainda presente. Refazer o levantamento no `develop` do dia da
   implementação: se `planner-engine-enforcement` tiver entrado no meio, o quadro muda e a
   severidade sobe.
   - **Sem `head`/`| head -N` no levantamento.** Foi truncagem que produziu o mapa errado da
@@ -32,15 +35,22 @@ mergear a branch inteira.
 
 ## 1. Rede de segurança antes da correção
 
-- [ ] **1.1 Portar os testes de referência** de `feature/testes-carga-referencia`
-  (`RefCargaTest`, `RefCargaBordaTest`, `RefCargaEdgeTest` — `PingTest` não tem valor, descartar).
-  - Adaptar ao estado atual do `develop`: eles foram escritos antes da
-    `fix-tsb-recalculo-resiliente` reescrever o `TsbServiceImpl`.
-  - **Devem passar ANTES da correção**, exceto os que afirmam a convergência — esses são o red.
-  - **Cherry-pick com `--no-commit` e revisar o diff antes de commitar.** A branch contém o
-    `f9e754b`, refutado; nada garante sozinho que o `949d0ff` não dependa dele.
-  - `verify:` `./mvnw clean test` verde, com os testes de convergência falhando pelo motivo certo,
-    **e** o diff aplicado conferido contra os arquivos que o `f9e754b` toca.
+- [x] **1.1 Portar os testes de referência — CANCELADA em 2026-07-31, com motivo.**
+  A verificação mostrou que os três `RefCarga*` **replicam as fórmulas localmente** e não instanciam
+  código de produção: testam CTL/ATL/TSB (domínio do `TsbServiceImpl`), não o
+  `TssCalculatorService`. O `RefCargaBordaTest` só cita o BUG-CONF-001 num comentário de Javadoc.
+  Portá-los não protegeria esta correção de nada — vieram de uma auditoria mais ampla e são sobre
+  outro pedaço do sistema.
+  **Consequência:** a rede de segurança desta change passa a ser a task 1.1b, escrita do zero contra
+  o serviço real. As ~800 linhas continuam disponíveis em `feature/testes-carga-referencia` para
+  quem for cobrir o `TsbServiceImpl`.
+
+- [ ] **1.1b Rede de segurança real: caracterizar o `TssCalculatorService` ANTES de mudar.**
+  - Testes que exercitam o serviço de verdade (não reimplementam fórmula), fixando o comportamento
+    atual dos dois caminhos — inclusive o do planejado, ainda errado.
+  - São testes de caracterização: alguns vão precisar ser atualizados na task 2.1, e isso é
+    esperado. O valor está em provar que **só** o que se pretende mudar mudou.
+  - `verify:` `./mvnw clean test` verde antes de qualquer alteração em `src/main`.
 
 - [ ] **1.2 Teste de convergência (o red).** Grade de (duração × RPE) afirmando que o caminho
   planejado e o realizado **calculado só por RPE** produzem o mesmo TSS (CA1). Deve falhar agora,
