@@ -9,7 +9,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
 
 ## 1. Backend — persistência e contrato
 
-- [ ] **1.1 Migração Flyway `V73__create_tb_usuario_lgpd_consent.sql`**
+- [x] **1.1 Migração Flyway `V73__create_tb_usuario_lgpd_consent.sql`**
   - `CREATE TABLE IF NOT EXISTS tb_usuario_lgpd_consent` com `id UUID PK DEFAULT gen_random_uuid()`,
     `usuario_id UUID NOT NULL REFERENCES tb_usuario(id) ON DELETE CASCADE`, `tenant_id UUID NOT NULL`,
     `policy_version VARCHAR(20) NOT NULL`, `terms_version VARCHAR(20) NOT NULL`,
@@ -23,7 +23,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
   - Conferir que `V72` continua sendo a última antes de criar.
   - **Validação:** `./mvnw clean test`
 
-- [ ] **1.2 Entidade `UsuarioLgpdConsent` + repository**
+- [x] **1.2 Entidade `UsuarioLgpdConsent` + repository**
   - Entidade em `entity/`, mapeando a tabela; `consentedAt` como `Instant`; `@ManyToOne(LAZY)`
     para `Usuario`.
   - `UsuarioLgpdConsentRepository` com:
@@ -37,7 +37,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
     segunda linha e **preserva** a primeira intacta (CA15).
   - **Validação:** `./mvnw clean test`
 
-- [ ] **1.3 `LgpdProperties` + `ConsentEnforcementMode`**
+- [x] **1.3 `LgpdProperties` + `ConsentEnforcementMode`**
   - `enum ConsentEnforcementMode { OFF, REPORT_ONLY, ON }`.
   - `@ConfigurationProperties(prefix = "app.lgpd")` + `@Validated`, record com
     `@NotNull consentEnforcement`, `@NotBlank policyVersion`, `@NotBlank termsVersion`.
@@ -47,14 +47,14 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
     inicialização do contexto.
   - **Validação:** `./mvnw clean test`
 
-- [ ] **1.4 `ConsentInputDto` (record em `dto/input/`)**
+- [x] **1.4 `ConsentInputDto` (record em `dto/input/`)**
   - `termsAccepted` e `privacyPolicyAccepted` (`Boolean`) com `@NotNull` + `@AssertTrue`, mensagens
     em PT-BR.
   - `policyVersion` e `termsVersion` (`String`) com `@NotBlank` — o cliente ecoa o que renderizou.
   - `@Schema` na classe e em cada campo.
   - **Validação:** `./mvnw clean compile`
 
-- [ ] **1.5 `UsuarioMeOutputDto` — granted derivado + versões vigentes**
+- [x] **1.5 `UsuarioMeOutputDto` — granted derivado + versões vigentes**
   - `boolean lgpdConsentGranted` — **computado** em `getCurrentUser()` via
     `existsByUsuarioIdAndTenantIdAndPolicyVersionAndTermsVersion` com as versões da config. Não é
     campo persistido.
@@ -65,7 +65,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
     → `true`; com registro de versão **antiga** → `false` (CA16).
   - **Validação:** `./mvnw clean test`
 
-- [ ] **1.6 `UsuarioService.registerConsent()` + impl**
+- [x] **1.6 `UsuarioService.registerConsent()` + impl**
   - JavaDoc obrigatório: `Idempotent: YES`, `Side Effects: Database insert
     (tb_usuario_lgpd_consent) — nunca update, nunca delete`, `Tenant-aware: YES`.
   - Resolve o caller pelo `sub` do JWT (mesmo caminho de `getCurrentUser()`).
@@ -90,7 +90,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
     `@BeforeEach`/`@AfterEach` com `TenantContext`.
   - **Validação:** `./mvnw clean test`
 
-- [ ] **1.7 Endpoint `POST /api/v1/users/me/consent` no `UsuarioController`**
+- [x] **1.7 Endpoint `POST /api/v1/users/me/consent` no `UsuarioController`**
   - `@PreAuthorize("isAuthenticated()")`, `@Valid @RequestBody ConsentInputDto`.
   - `@Operation` + `@ApiResponses` (`200`, `400`, `401`, `404`, `409`).
   - Retorna `ResponseEntity<Void>` (`200`). Sem try/catch.
@@ -104,7 +104,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
 
 ## 2. Backend — enforcement
 
-- [ ] **2.1 Exceções + handlers**
+- [x] **2.1 Exceções + handlers**
   - `LgpdConsentRequiredException` e `ConsentVersionStaleException` em `exception/`.
   - Dois `@ExceptionHandler` no `GlobalExceptionHandler` → `403 LGPD_CONSENT_REQUIRED` e
     `409 CONSENT_VERSION_STALE`, no mesmo formato de erro dos handlers existentes.
@@ -112,7 +112,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
     atualizado.
   - **Validação:** `./mvnw clean compile`
 
-- [ ] **2.2 `JwtTenantFilter` — expor o `Usuario` resolvido**
+- [x] **2.2 `JwtTenantFilter` — expor o `Usuario` resolvido**
   - Constante pública `USUARIO_ATTR` no `JwtTenantFilter` — é **contrato** entre filtro e
     interceptor, não um atributo anônimo.
   - Depositar o `Usuario` resolvido pelo sync nesse atributo, para o interceptor consumir sem
@@ -123,7 +123,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
     a leitura direta não acha o usuário.
   - **Validação:** `./mvnw clean test`
 
-- [ ] **2.3 Modo `report-only`**
+- [x] **2.3 Modo `report-only`**
   - O enum e o `LgpdProperties` já vieram na task 1.3 — aqui é só o comportamento.
   - `REPORT_ONLY`: **não** bloqueia, mas loga cada request que *seria* bloqueada, com `usuarioId`,
     rota e tenant. É o insumo para saber quando é seguro virar `ON`.
@@ -131,7 +131,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
   - **Teste:** coberto junto com 2.4 (CA10).
   - **Validação:** `./mvnw clean test`
 
-- [ ] **2.4 `LgpdConsentInterceptor` + registro no `WebMvcConfigurer`**
+- [x] **2.4 `LgpdConsentInterceptor` + registro no `WebMvcConfigurer`**
   - **Ordem obrigatória de guardas** (ver `design.md`): (1) sem `Authentication`/`Jwt` → passa;
     (2) sem `TenantContext` → passa; (3) role ≠ `TECNICO` → passa; (4) whitelist → passa;
     (5) `Usuario` não resolvido **ou com tenant divergente do `TenantContext`** → **`503`**;
@@ -153,7 +153,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
     `;matrix=params` e percent-encoding continuam sendo reconhecidos como a rota isenta.
   - **Validação:** `./mvnw clean test`
 
-- [ ] **2.5 Teste de integração do enforcement**
+- [x] **2.5 Teste de integração do enforcement**
   - `@SpringBootTest` + `@AutoConfigureMockMvc` + `@ActiveProfiles("test")` com a flag em `on`:
     coach sem consentimento recebe `403 LGPD_CONSENT_REQUIRED` num endpoint de escrita real; após
     `POST /users/me/consent`, a mesma escrita passa.
@@ -163,14 +163,14 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
 
 ## 3. Frontend
 
-- [ ] **3.1 Regenerar o cliente OpenAPI**
+- [x] **3.1 Regenerar o cliente OpenAPI**
   - Backend no ar → regenerar via `openapi-typescript-codegen` para trazer `lgpdConsentGranted`,
     `lgpdCurrentPolicyVersion` e `lgpdCurrentTermsVersion` no tipo de `/users/me`, além do novo
     método de consentimento.
   - Não editar tipos gerados à mão.
   - **Validação:** `npm run lint && npm run build`
 
-- [ ] **3.2 `CoachConsentDialog`**
+- [x] **3.2 `CoachConsentDialog`**
   - `src/features/coach/components/CoachConsentDialog.tsx`.
   - MUI `Dialog` bloqueante: `disableEscapeKeyDown`, sem fechar por backdrop, sem botão de fechar.
   - Responsivo — `fullScreen` em telas pequenas via `useMediaQuery`.
@@ -190,7 +190,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
     o modal aberto (CA14); erro genérico da API renderiza o `Alert`.
   - **Validação:** `npm run lint && npm run build && npm test`
 
-- [ ] **3.3 `CoachLayout` — interceptar o consentimento**
+- [x] **3.3 `CoachLayout` — interceptar o consentimento**
   - Após carregar `me`, se `!me.lgpdConsentGranted` → renderizar **somente** o
     `CoachConsentDialog` (sem `CoachSidebar`, sem `<Outlet />`).
   - Após o `200`, refetch de `me` libera a navegação.
@@ -199,7 +199,7 @@ Branch: `feature/add-coach-lgpd-consent` nos **dois** repos (`apps/menthoros-bac
     refetch libera.
   - **Validação:** `npm run lint && npm run build && npm test`
 
-- [ ] **3.4 `PrivacidadePage` — data de vigência alinhada**
+- [x] **3.4 `PrivacidadePage` — data de vigência alinhada**
   - A data exibida na Política precisa bater com `app.lgpd.policy-version`. Divergência significa
     que o coach aceitou um texto e o sistema registrou outra versão.
   - Conferência é manual (documento estático); registrar a data vigente no topo da página.
