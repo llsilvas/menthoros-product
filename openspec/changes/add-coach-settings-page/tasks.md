@@ -42,7 +42,7 @@ E um detalhe que a spec não previa:
 
 ## 1. Backend — expor os campos do perfil
 
-- [ ] **1.1 `UsuarioMeOutputDto` — expor o último consentimento**
+- [x] **1.1 `UsuarioMeOutputDto` — expor o último consentimento**
   - Campos `Instant lgpdConsentedAt`, `String lgpdAcceptedPolicyVersion` e
     `String lgpdAcceptedTermsVersion`, todos nullable com `@Schema` (o DTO já tem
     `@JsonInclude(NON_NULL)`, então somem do JSON quando não há aceite).
@@ -64,7 +64,7 @@ E um detalhe que a spec não previa:
 
 ## 2. Frontend
 
-- [ ] **2.1 Portar o contrato no cliente curado**
+- [x] **2.1 Portar o contrato no cliente curado**
   - **Não rodar o gerador por cima:** `src/api` é fachada curada à mão (ver `CLAUDE.md` do front,
     "API Client & Types"). O texto original desta task dizia "regenerar" e "não editar à mão" —
     está errado para este repo, e a change anterior já seguiu o porte manual.
@@ -74,7 +74,7 @@ E um detalhe que a spec não previa:
     nunca populado.
   - `verify:` `npm run lint && npm run build`
 
-- [ ] **2.2 `CoachSettingsPage`**
+- [x] **2.2 `CoachSettingsPage`**
   - **Antes da página: estender `CoachLayoutOutletContext`** com `coach` e `consent` (o layout já
     tem os dois). A página consome via `useOutletContext`, **não** chamando `useCurrentUser` de
     novo — o hook não busca sozinho, então uma segunda instância ficaria em fallback vazio, e
@@ -101,7 +101,7 @@ E um detalhe que a spec não previa:
     exclusão estão corretos (CA5).
   - **Validação:** `npm run lint && npm run build && npm test`
 
-- [ ] **2.3 Rota e navegação**
+- [x] **2.3 Rota e navegação**
   - `constants/routes.ts`: adicionar `COACH_SETTINGS: '/coach/settings'` em `ROUTES` **e**
     `| '/coach/settings'` na union `CoachRoute` — sem isso o item da sidebar não compila.
   - `App.tsx`: adicionar `{ path: 'settings', element: <CoachSettingsPage /> }` dentro dos
