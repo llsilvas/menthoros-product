@@ -1,48 +1,30 @@
-## 1. Configuração e Infra
+# Tasks — keycloak-user-onboarding-auth
 
-- [ ] 1.1 Adicionar propriedades de integração administrativa do Keycloak (`url`, `realm`, `admin-client-id`, `admin-client-secret`) em `application.yml` e `.env.example`
-- [ ] 1.2 Criar cliente HTTP dedicado para chamadas ao Keycloak (token admin, criação de usuário, atribuição de roles/grupos)
-- [ ] 1.3 Definir política de timeout/retry para chamadas externas ao Keycloak
+## Backend (7 tasks)
 
-## 2. Login Backend
+- [ ] 1.1 **DTO `CoachSignupInputDto`:** record com `nome`, `email`, `senha`, `nomeAssessoria`, `dominioAssessoria`; validações `@NotBlank`, `@Email`, `@Size`.
+- [ ] 1.2 **Serviço `CoachSignupService`:** método `cadastrar()` que, em uma transação, (a) cria Assessoria via `AssessoriaService`, (b) provisiona Keycloak user + organization, (c) cria Usuario vinculado, (d) retorna token JWT para login automático.
+- [ ] 1.3 **Endpoint `POST /api/public/signup`:** público (sem auth), chama `CoachSignupService`, retorna 201 + `{ token, redirectTo }`.
+- [ ] 1.4 **Verificar domínio único** — `AssessoriaRepository.existsByDominio()` já cobre; erro 409 se duplicado.
+- [ ] 1.5 **Verificar e-mail único** — validar no Keycloak antes de criar; erro 409 se já existir.
+- [ ] 1.6 **Plano padrão:** toda assessoria criada via signup recebe `plano = BASIC`, `maxAtletas = 10`, `maxTecnicos = 1`.
+- [ ] 1.7 **Testes:** `CoachSignupServiceTest` — cadastro feliz, domínio duplicado, e-mail duplicado, rollback em falha parcial.
 
-- [ ] 2.1 Criar DTOs `LoginRequest`, `LoginResponse` e mapeamento de erro de autenticação
-- [ ] 2.2 Implementar `AuthController` com `POST /api/public/auth/login`
-- [ ] 2.3 Implementar `AuthService` que chama endpoint de token do Keycloak e retorna payload normalizado
-- [ ] 2.4 Atualizar `SecurityConfig` para liberar `POST /api/public/auth/login`
-- [ ] 2.5 Garantir que senha/token não sejam registrados em logs
+## Frontend (5 tasks)
 
-## 3. Provisionamento de Usuário
+- [ ] 2.1 **Página `CoachSignupPage`** (`/cadastro`): formulário MUI com 5 campos (nome, email, senha, nome assessoria, domínio) + checkbox LGPD (Termos + Privacidade).
+- [ ] 2.2 **Validação client-side** — e-mail válido, senha ≥ 8 caracteres, domínio `[a-z0-9-]+`, nome assessoria obrigatório.
+- [ ] 2.3 **`useCoachSignup` hook:** chama `POST /api/public/signup`, gerencia estados loading/error/success.
+- [ ] 2.4 **Login automático pós-cadastro:** receber token JWT → `localStorage.setItem` → `useAuth().login(token)` → redirect.
+- [ ] 2.5 **Testes:** `CoachSignupPage.test.tsx` — renderiza form, valida campos, submete, redireciona.
 
-- [ ] 3.1 Criar DTOs de entrada/saída para `POST /api/admin/usuarios`
-- [ ] 3.2 Implementar serviço de provisionamento: cria usuário no Keycloak, define senha, roles e vínculo de tenant
-- [ ] 3.3 Persistir/sincronizar registro em `tb_usuario` com `tenant_id` e identificador do Keycloak
-- [ ] 3.4 Tratar conflito de email/username já existente com retorno `409`
-- [ ] 3.5 Implementar estratégia compensatória em falha parcial (rollback no Keycloak quando aplicável)
+## Verificação (6 tasks)
 
-## 4. Autorização e Multi-Tenancy
+- [ ] 3.1 Cadastro feliz: coach criado, assessoria criada, login automático → modal consentimento.
+- [ ] 3.2 Domínio duplicado: erro 409, mensagem amigável.
+- [ ] 3.3 E-mail Keycloak enviado (verify-email).
+- [ ] 3.4 Rollback: se Keycloak falhar após criar Assessoria, assessoria é desfeita.
+- [ ] 3.5 Rota pública `/cadastro` acessível sem auth.
+- [ ] 3.6 Senha nunca logada (mascarada no front, ausente nos logs do backend).
 
-- [ ] 4.1 Restringir `POST /api/admin/usuarios` para role administrativa
-- [ ] 4.2 Validar `tenantId` de destino e impedir criação fora da política definida
-- [ ] 4.3 Garantir que claims/roles emitidos pelo Keycloak permaneçam compatíveis com `JwtTenantFilter`
-
-## 5. Testes
-
-- [ ] 5.1 Testes unitários do `AuthService` (sucesso, 401, falha externa)
-- [ ] 5.2 Testes unitários do provisionamento (sucesso, conflito, falha parcial com compensação)
-- [ ] 5.3 Testes de controller para `/api/public/auth/login` e `/api/admin/usuarios`
-- [ ] 5.4 Teste de integração mínimo com Keycloak (ou mock contratual) para criação e login
-
-## 6. Documentação e Operação
-
-- [ ] 6.1 Atualizar README com fluxo de criação de usuário e login
-- [ ] 6.2 Documentar variáveis obrigatórias de Keycloak para ambientes local/cloud
-- [ ] 6.3 Documentar respostas de erro padronizadas para frontend
-
-## 7. Critérios de Aceite
-
-- [ ] 7.1 Login válido retorna `200` com `accessToken` utilizável nas APIs protegidas
-- [ ] 7.2 Login inválido retorna `401` com mensagem funcional sem expor detalhes sensíveis
-- [ ] 7.3 Criação de usuário com dados válidos retorna `201` e usuário autenticável no Keycloak
-- [ ] 7.4 Criação duplicada (email/username) retorna `409`
-- [ ] 7.5 Usuário criado contém vínculo correto de `tenant_id` para uso nos endpoints multi-tenant
+## Sizing: M (~18 tasks)

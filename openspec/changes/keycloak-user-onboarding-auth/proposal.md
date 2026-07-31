@@ -1,26 +1,29 @@
-## Why
+# keycloak-user-onboarding-auth — Auto-cadastro de Coach e Assessoria
 
-Hoje o backend valida JWT do Keycloak, mas não possui um fluxo padronizado para:
-- criar usuários de forma consistente entre Keycloak e domínio Menthoros;
-- vincular o usuário criado ao tenant correto;
-- oferecer um endpoint de login backend-friendly para o dashboard consumir sem acoplamento direto ao Keycloak.
+**Status:** proposta
+**Criado:** 2026-07-31
+**Sizing:** M (~18 tasks, backend + frontend)
+**Dependência:** `add-coach-lgpd-consent` (modal consentimento precisa existir antes)
 
-Sem esse change, o onboarding depende de ações manuais no Keycloak e o login do frontend fica frágil para evolução operacional.
+## Problema
 
-## What Changes
+Hoje, para cada assessoria nova, o ADMIN precisa manualmente:
+1. Criar usuário coach no Keycloak Admin Console
+2. Atribuir role TECNICO + grupo da assessoria
+3. Criar Assessoria via `POST /api/admin/assessorias`
+4. Vincular o coach à assessoria
 
-- Adicionar fluxo de provisionamento de usuário no backend com criação no Keycloak e vínculo ao tenant da assessoria.
-- Adicionar endpoint público de login no backend (`/api/public/auth/login`) que realiza troca de credenciais no Keycloak e retorna token padronizado para o frontend.
-- Garantir idempotência e tratamento de erros de conflito (usuário já existente) e credenciais inválidas.
-- Definir trilha de auditoria mínima para criação e autenticação (sem logar senha/token em texto puro).
+Isso escala zero. A waitlist captura leads, mas não há conversão automatizada.
 
-## Impact
+## Escopo
 
-- APIs novas:
-  - `POST /api/public/auth/login`
-  - `POST /api/admin/usuarios` (ou rota equivalente protegida para provisionamento)
-- Segurança:
-  - endpoint de login permitido em `SecurityConfig`;
-  - endpoint de criação protegido por role administrativa.
-- Integração:
-  - backend passa a depender de credenciais de service account/admin client do Keycloak para criar usuário.
+1. **Tela de cadastro do coach** (`/cadastro`) — formulário com nome, e-mail, senha, nome da assessoria, domínio
+2. **Criação automática** — backend provisiona Keycloak (user + organization) + Assessoria + Usuario em uma transação
+3. **E-mail de confirmação** — Keycloak envia verify-email + boas-vindas
+4. **Redirecionamento pós-cadastro** — login automático → modal consentimento LGPD → wizard boas-vindas
+
+## Fora do escopo
+
+- Conversão da waitlist → cadastro (follow-up)
+- Múltiplos técnicos (follow-up)
+- Cobrança/plano no cadastro (usa plano BASIC padrão)
