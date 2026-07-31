@@ -83,7 +83,9 @@ consultar ou agir sobre ele depois.
 - **A1.** `GET /api/v1/users/me` já retorna `nome`, `email` e a assessoria; o avatar vem de
   `Usuario.avatarUrl` e precisa ser adicionado ao DTO se ainda não estiver exposto — **conferir na
   implementação**.
-- **A2.** O endereço do DPO é `contato@menthoros.com` até existir um canal dedicado.
+- **A2.** O endereço do DPO é `contato@menthoros.com` — **confirmado e definitivo** (caixa criada;
+  já é o endereço publicado na Política de Privacidade, `PrivacidadePage.tsx:7`). Não é
+  placeholder.
 - **A3.** Dados pessoais são somente leitura nesta v1 — o Keycloak é a fonte da verdade e
   escrever nele exige Admin API.
 - **A4.** A rota `/privacidade` já existe (`PrivacidadePage`) e é pública.
@@ -92,8 +94,8 @@ consultar ou agir sobre ele depois.
 
 - **Q1.** O `mailto:` é aceitável como processo de exclusão para a v1, ou o jurídico exige um
   registro rastreável (ticket/tabela) desde o início?
-- **Q2.** O e-mail do DPO deve ser um endereço dedicado (`dpo@menthoros.com`) em vez do contato
-  genérico?
+- ~~**Q2.** O e-mail do DPO deve ser um endereço dedicado?~~ — **resolvida em 2026-07-31:**
+  `contato@menthoros.com` é o canal oficial, caixa já criada. Sem pendência.
 
 ## Impacto
 
