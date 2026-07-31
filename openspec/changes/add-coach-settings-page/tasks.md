@@ -118,4 +118,4 @@ E um detalhe que a spec não previa:
   tela (CA3, CA4).
 - [ ] **3.4** Links de política, DPO e exclusão funcionam (CA5).
 - [ ] **3.5** Página responsiva em telas pequenas e grandes (CA6).
-- [ ] **3.6** `./mvnw clean test` e `npm run lint && npm run build && npm test` verdes.
+- [x] **3.6** `./mvnw clean test` e `npm run lint && npm run build && npm test` verdes.
