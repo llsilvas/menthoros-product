@@ -1,30 +1,37 @@
 # Tasks — keycloak-user-onboarding-auth
 
-## Backend (7 tasks)
+## 1. Discovery e decisões
 
-- [ ] 1.1 **DTO `CoachSignupInputDto`:** record com `nome`, `email`, `senha`, `nomeAssessoria`, `dominioAssessoria`; validações `@NotBlank`, `@Email`, `@Size`.
-- [ ] 1.2 **Serviço `CoachSignupService`:** método `cadastrar()` que, em uma transação, (a) cria Assessoria via `AssessoriaService`, (b) provisiona Keycloak user + organization, (c) cria Usuario vinculado, (d) retorna token JWT para login automático.
-- [ ] 1.3 **Endpoint `POST /api/public/signup`:** público (sem auth), chama `CoachSignupService`, retorna 201 + `{ token, redirectTo }`.
-- [ ] 1.4 **Verificar domínio único** — `AssessoriaRepository.existsByDominio()` já cobre; erro 409 se duplicado.
-- [ ] 1.5 **Verificar e-mail único** — validar no Keycloak antes de criar; erro 409 se já existir.
-- [ ] 1.6 **Plano padrão:** toda assessoria criada via signup recebe `plano = BASIC`, `maxAtletas = 10`, `maxTecnicos = 1`.
-- [ ] 1.7 **Testes:** `CoachSignupServiceTest` — cadastro feliz, domínio duplicado, e-mail duplicado, rollback em falha parcial.
+- [ ] 1.1 Mapear OIDC/PKCE, claims de role/tenant, modelo Keycloak, serviços/repositórios e contratos de erro existentes; registrar caminhos reais e decisões.
+- [ ] 1.2 Decidir e documentar em ADR curto: container de tenant, verificação de e-mail, estado de provisionamento, compensação/reconciliação e proteção anti-abuso.
+- [ ] 1.3 Revisar o arquivo `specs/keycloak-user-onboarding-auth/spec.md`, que atualmente descreve login público por senha e provisionamento administrativo, e alinhá-lo ao signup público desta change antes de implementar.
 
-## Frontend (5 tasks)
+## 2. Backend
 
-- [ ] 2.1 **Página `CoachSignupPage`** (`/cadastro`): formulário MUI com 5 campos (nome, email, senha, nome assessoria, domínio) + checkbox LGPD (Termos + Privacidade).
-- [ ] 2.2 **Validação client-side** — e-mail válido, senha ≥ 8 caracteres, domínio `[a-z0-9-]+`, nome assessoria obrigatório.
-- [ ] 2.3 **`useCoachSignup` hook:** chama `POST /api/public/signup`, gerencia estados loading/error/success.
-- [ ] 2.4 **Login automático pós-cadastro:** receber token JWT → `localStorage.setItem` → `useAuth().login(token)` → redirect.
-- [ ] 2.5 **Testes:** `CoachSignupPage.test.tsx` — renderiza form, valida campos, submete, redireciona.
+- [ ] 2.1 Criar DTO/validação/normalização para nome, e-mail, senha, nome e slug; adicionar lista de slugs reservados e limites de payload.
+- [ ] 2.2 Criar constraints/migração e, conforme ADR, estado/tabela de provisionamento e idempotência; validar com dados concorrentes.
+- [ ] 2.3 Adaptar o gateway Keycloak existente para criar, consultar, habilitar/desabilitar e remover tenant/usuário, atribuir role/claim e enviar verify-email.
+- [ ] 2.4 Implementar orquestrador idempotente, plano BASIC (`maxAtletas=10`, `maxTecnicos=1`), compensações e registro para reconciliação; não confiar em `@Transactional` para Keycloak.
+- [ ] 2.5 Implementar `POST /api/public/coach-signups` com respostas `201/400/409/429/502/503`, feature flag, limite de corpo e sem tokens na resposta.
+- [ ] 2.6 Implementar rate limit distribuído e a proteção anti-bot decidida; configurar CORS/CSRF e service account de menor privilégio.
+- [ ] 2.7 Adicionar logs estruturados por correlation ID, métricas sem senha/token e alerta/runbook para `RECONCILIATION_REQUIRED`.
+- [ ] 2.8 Testar validação, idempotência, corridas, cada ponto de falha/compensação e ausência de segredos em logs/respostas.
+- [ ] 2.9 Executar `./mvnw clean test`, migrações e testes de integração com Keycloak efêmero; registrar resultados.
 
-## Verificação (6 tasks)
+## 3. Frontend
 
-- [ ] 3.1 Cadastro feliz: coach criado, assessoria criada, login automático → modal consentimento.
-- [ ] 3.2 Domínio duplicado: erro 409, mensagem amigável.
-- [ ] 3.3 E-mail Keycloak enviado (verify-email).
-- [ ] 3.4 Rollback: se Keycloak falhar após criar Assessoria, assessoria é desfeita.
-- [ ] 3.5 Rota pública `/cadastro` acessível sem auth.
-- [ ] 3.6 Senha nunca logada (mascarada no front, ausente nos logs do backend).
+- [ ] 3.1 Criar rota pública `/cadastro`, formulário acessível e links informativos configurados para documentos legais, sem checkbox de aceite.
+- [ ] 3.2 Criar client/hook com estados loading, erros funcionais, `429`, indisponibilidade e chave de idempotência por tentativa.
+- [ ] 3.3 Após `201`, exibir confirmação de verificação de e-mail e iniciar o login OIDC/PKCE existente somente por ação do usuário; não usar `localStorage.setItem` manual.
+- [ ] 3.4 Testar validação, duplo clique/idempotência, conflito, rate limit, falha do provedor e redirecionamento.
+- [ ] 3.5 Executar `npm run lint && npm run build` e a suíte de testes configurada; registrar resultados.
 
-## Sizing: M (~18 tasks)
+## 4. Entrega
+
+- [ ] 4.1 E2E real: signup → e-mail → login → claims corretos → consentimento → wizard/dashboard.
+- [ ] 4.2 Testar falhas injetadas após cada recurso criado e comprovar que compensação/reconciliação não deixa conta utilizável sem tenant local.
+- [ ] 4.3 Habilitar por feature flag, observar métricas e executar o runbook de rollback/reconciliação.
+
+## Estimativa
+
+L (aprox. 15–25 dias de engenharia, mais configuração de infraestrutura/e-mail). Identidade pública, multi-tenancy, integração não transacional e anti-abuso tornam a estimativa M original irrealista.

@@ -1,29 +1,51 @@
 # keycloak-user-onboarding-auth — Auto-cadastro de Coach e Assessoria
 
+**Tamanho:** L · **Trilha:** Full
 **Status:** proposta
 **Criado:** 2026-07-31
-**Sizing:** M (~18 tasks, backend + frontend)
-**Dependência:** `add-coach-lgpd-consent` (modal consentimento precisa existir antes)
 
 ## Problema
 
-Hoje, para cada assessoria nova, o ADMIN precisa manualmente:
-1. Criar usuário coach no Keycloak Admin Console
-2. Atribuir role TECNICO + grupo da assessoria
-3. Criar Assessoria via `POST /api/admin/assessorias`
-4. Vincular o coach à assessoria
-
-Isso escala zero. A waitlist captura leads, mas não há conversão automatizada.
+Cada nova assessoria exige criação manual de tenant, usuário e vínculos no Keycloak e no banco local. O processo não escala e falhas parciais podem deixar identidades órfãs.
 
 ## Escopo
 
-1. **Tela de cadastro do coach** (`/cadastro`) — formulário com nome, e-mail, senha, nome da assessoria, domínio
-2. **Criação automática** — backend provisiona Keycloak (user + organization) + Assessoria + Usuario em uma transação
-3. **E-mail de confirmação** — Keycloak envia verify-email + boas-vindas
-4. **Redirecionamento pós-cadastro** — login automático → modal consentimento LGPD → wizard boas-vindas
+1. Página pública `/cadastro` com nome do coach, e-mail, senha, nome da assessoria e slug desejado.
+2. Endpoint público que reserva o slug, cria `Assessoria` no plano BASIC, provisiona organização/usuário/role no Keycloak e cria o `Usuario` local.
+3. Verificação de e-mail pelo fluxo nativo do Keycloak.
+4. Compensação explícita e observabilidade para falhas entre PostgreSQL e Keycloak.
+5. Após cadastro, redirecionamento para o login OIDC padrão. Depois da autenticação/verificação, a jornada segue para consentimento e wizard conforme as changes correspondentes.
 
 ## Fora do escopo
 
-- Conversão da waitlist → cadastro (follow-up)
-- Múltiplos técnicos (follow-up)
-- Cobrança/plano no cadastro (usa plano BASIC padrão)
+- Troca de senha, recuperação de conta e telas de login customizadas; usar os fluxos OIDC/Keycloak existentes.
+- Conversão automática da waitlist, cobrança, escolha de plano ou múltiplos técnicos.
+- Aceite LGPD no formulário de cadastro; o aceite auditável pertence a `add-coach-lgpd-consent` e não será duplicado.
+- Retornar senha, access token ou refresh token pelo endpoint de signup, armazenar token manualmente no `localStorage` ou implementar Resource Owner Password Credentials.
+- Garantia ACID entre banco e Keycloak; integrações externas exigem compensação e reconciliação.
+
+## Dependências e ordem
+
+- Técnica: integração administrativa com Keycloak, criação de `Assessoria`, persistência de `Usuario`, OIDC e `TenantContext` existentes devem ser confirmados na discovery task.
+- Jornada: implantar `add-coach-lgpd-consent` antes de abrir o cadastro ao público. `coach-first-login-wizard` pode ser implantada depois; até lá o coach segue ao dashboard.
+- `assessoria-settings-ui` e `import-atletas-csv` não são dependências do signup.
+
+## Critérios de aceite
+
+- **Quando** dados válidos e únicos são enviados, **então** a API retorna `201` sem tokens/segredos, e assessoria, organização, usuário Keycloak e usuário local ficam vinculados ao mesmo tenant.
+- **Quando** e-mail ou slug já existem, **então** retorna `409` genérico o suficiente para não expor outras contas além do necessário ao fluxo.
+- **Quando** uma etapa externa falha, **então** a operação termina em erro controlado, executa compensações na ordem inversa e registra eventual resíduo para reconciliação.
+- **Dado** cadastro concluído, **quando** o coach segue o CTA, **então** entra pelo Authorization Code + PKCE usado pela aplicação, verifica o e-mail conforme política e recebe JWT com tenant/role corretos.
+- **Quando** o rate limit, limite de payload ou proteção anti-bot dispara, **então** nenhuma entidade é criada.
+- Senha e tokens nunca aparecem em logs, respostas de erro, analytics ou traces.
+
+## Métrica de sucesso
+
+Pelo menos 90% dos cadastros válidos concluem a criação em até 2 minutos, com menos de 1% de estados residuais que exijam reconciliação manual.
+
+## Open Questions & Assumptions
+
+- **Bloqueante:** confirmar se o deployment usa Keycloak Organizations ou grupos/atributos para representar tenant; os documentos usam “container de tenant” até essa decisão.
+- **Bloqueante:** definir política de verificação de e-mail: bloquear o primeiro login ou permitir acesso limitado. A premissa recomendada é `verifyEmail=true` antes do acesso protegido.
+- **Bloqueante:** escolher proteção anti-abuso (rate limit distribuído e CAPTCHA/Turnstile) e limites por IP/e-mail.
+- **Premissa:** o slug é o campo hoje chamado `dominio` na entidade; a UI o chama “endereço da assessoria” para não sugerir domínio DNS.

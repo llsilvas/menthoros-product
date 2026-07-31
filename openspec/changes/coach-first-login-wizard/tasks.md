@@ -1,21 +1,30 @@
 # Tasks — coach-first-login-wizard
 
-## Backend (2 tasks)
+## 1. Discovery e backend
 
-- [ ] 1.1 **Campo `onboardingConcluido`** no `Usuario.java` — boolean, default false. Migração Flyway `ALTER TABLE tb_usuario ADD COLUMN onboarding_concluido BOOLEAN NOT NULL DEFAULT false`.
-- [ ] 1.2 **Endpoint `POST /api/v1/me/onboarding-concluir`** — seta `onboardingConcluido = true`; `UsuarioMeOutputDto` inclui o campo.
+- [ ] 1.1 Confirmar caminhos e contratos reais de `me`, update/leitura da assessoria, criação de atleta e convite; definir quais campos de atleta são obrigatórios.
+- [ ] 1.2 Criar migração que preserve coaches existentes como concluídos e deixe novos signups pendentes; auditar todos os caminhos de criação de `Usuario`.
+- [ ] 1.3 Mapear `onboardingConcluido`, estender `me` e implementar `POST /api/v1/me/onboarding/concluir` idempotente e baseado no principal.
+- [ ] 1.4 Testar migração com usuários existentes, signup novo, conclusão repetida e isolamento entre usuários/tenants.
+- [ ] 1.5 Executar `./mvnw clean test` e migrações; registrar resultados.
 
-## Frontend (5 tasks)
+## 2. Frontend
 
-- [ ] 2.1 **`CoachWelcomeWizard`** (`src/features/coach/components/CoachWelcomeWizard.tsx`): MUI Stepper horizontal com 3 steps.
-- [ ] 2.2 **Step 1 — "Sua assessoria":** campos opcionais (logo upload, cor primária, cor secundária, nome). Botão "Pular" + "Próximo".
-- [ ] 2.3 **Step 2 — "Primeiro atleta":** formulário `AtletaDialog` simplificado (nome, email, peso, altura, nível, objetivo). Botão "Pular" + "Próximo".
-- [ ] 2.4 **Step 3 — "Convide":** confirmação visual do atleta criado, botão "Enviar convite" (chama `POST /api/v1/atletas/{id}/convite`), feedback de sucesso, botão "Ir para o Dashboard".
-- [ ] 2.5 **Testes:** renderiza wizard quando `onboardingConcluido=false`, permite pular steps, conclui e redireciona.
+- [ ] 2.1 Centralizar no `CoachLayout` a precedência sessão → consentimento → onboarding → conteúdo, sem gates duplicados.
+- [ ] 2.2 Criar `CoachWelcomeWizard` responsivo/acessível, confirmação para pular tudo, estados persistidos em memória e tratamento de loading/erro.
+- [ ] 2.3 Implementar etapa de assessoria reutilizando tipos/client/form controls da página completa e respeitando o escopo real de logo.
+- [ ] 2.4 Extrair/reutilizar formulário de atleta e client canônico; prevenir duplo submit e tratar conflito após refresh.
+- [ ] 2.5 Implementar convite apenas para atleta criado, com estado já-enviado, retry e opção de concluir sem convite.
+- [ ] 2.6 Ao concluir, chamar endpoint, refazer `me` e só então liberar o dashboard; instrumentar eventos sem PII.
+- [ ] 2.7 Testar fluxo completo, pular parcial/total, voltar, mobile/teclado, erros, refresh e ausência de atleta no convite.
+- [ ] 2.8 Executar `npm run lint && npm run build` e testes configurados; registrar resultados.
 
-## Verificação (2 tasks)
+## 3. Entrega
 
-- [ ] 3.1 Wizard aparece após modal consentimento (fluxo completo: login → consent → wizard → dashboard).
-- [ ] 3.2 Wizard NÃO aparece no segundo login (`onboardingConcluido=true`).
+- [ ] 3.1 E2E com signup novo: login → consentimento → wizard → dashboard → segundo login sem wizard.
+- [ ] 3.2 E2E com coach legado para provar que não há interrupção retroativa.
+- [ ] 3.3 Validar eventos e métricas de conclusão/criação de primeiro atleta.
 
-## Sizing: S (~7 tasks)
+## Estimativa
+
+M (aprox. 8–13 dias), desde que os três contratos reutilizados estejam prontos. Se for necessário criar upload, convite ou cadastro de atleta, reestimar com a change dona.
