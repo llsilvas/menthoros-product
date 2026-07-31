@@ -22,7 +22,7 @@ O coach não consegue manter o nome e a identidade visual da própria assessoria
 - Editor/crop avançado, biblioteca de imagens, histórico de logos ou CDN customizada.
 - URL externa arbitrária fornecida pelo cliente.
 - Personalização de componentes além dos tokens de marca já suportados; acessibilidade sempre prevalece sobre a cor escolhida.
-- Configuração de perfil pessoal (`add-coach-lgpd-consent`).
+- Configuração de perfil pessoal (`add-coach-settings-page`) — perfil do coach é escopo daquela change, não desta; `add-coach-lgpd-consent` cobre só o aceite e está entregue.
 
 ## Dependências e ordem
 
