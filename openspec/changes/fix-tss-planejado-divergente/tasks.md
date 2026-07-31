@@ -65,7 +65,7 @@ mergear a branch inteira.
     descreveria um efeito que não existe.
   - `verify:` teste unitário verde; nenhuma asserção depende de fluxo real.
 
-## 3. Dados históricos — Q1 decidida: recalcular só os `PENDENTE`
+## 3. Dados históricos — Q1 decidida (2ª): recalcular TODAS as 129, com snapshot
 
 - [x] **3.1 Decisão registrada** no `proposal.md` e no `design.md` (2026-07-31).
 

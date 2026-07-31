@@ -50,6 +50,7 @@ ligado**:
 | `TreinoRealizado.getDiferencaTss()` | 0 |
 | view `v_resumo_semanal_atleta` (`AVG(tp.tss_planejado)`, V9 linha 83) | 0 |
 | `TreinoPlanejadoServiceImpl` (grava e recalcula) | **2** — este roda |
+| **Frontend** — `TreinoEditDialog`, `buildWeeklyPlan`, `DetalheTreinoDialog` | exibem o valor ao coach e ao atleta |
 | `IaServiceImpl` | preserva o valor vindo do LLM |
 
 **Consequência:** o número errado é gravado, exibido e **entra no cálculo de compliance do shadow** —
@@ -99,7 +100,9 @@ que só vale no instante da migração não é separador.
 
 Todas as 129 têm `duracaoMin` e `percepcaoEsforcoEsperada`, então o recálculo é determinístico.
 
-**O custo real:** 91 treinos já executados mudam de número, incluindo planos que o coach aprovou.
+**O custo real:** 91 treinos já executados mudam de número, incluindo planos que o coach aprovou —
+e o número **aparece na tela**: `TreinoEditDialog`, `buildWeeklyPlan` e `DetalheTreinoDialog` o
+exibem para coach e atleta. Não é alteração invisível de banco; é um valor que eles já viram.
 Não há como evitar isso e ainda ter uma escala só — é o preço de não deixar dívida indistinguível no
 schema. Mitigação obrigatória: gravar snapshot dos valores anteriores antes do `UPDATE`, o que torna
 a operação auditável e reversível.
