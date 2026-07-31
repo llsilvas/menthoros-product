@@ -61,14 +61,14 @@ mergear a branch inteira.
 
 ## 2. Correção
 
-- [ ] **2.1 Unificar `calcularTssEstimado(Duration, Integer)`** para
+- [x] **2.1 Unificar `calcularTssEstimado(Duration, Integer)`** para
   `h × converterRpeParaIf(rpe)² × 100`, com o mesmo clamp de IF do caminho realizado.
   - Referência: `949d0ff` da branch antiga.
   - Documentar no JavaDoc **por que** as duas fórmulas existiam e o que a divergência causava — o
     próximo a ler precisa entender que a mudança de escala é intencional.
   - `verify:` os testes de 1.2 passam a verde; `./mvnw clean test` verde.
 
-- [ ] **2.2 Guard: teste unitário isolado.** Cobrir no `TrainingPrescriptionGuardSkillTest` que a
+- [x] **2.2 Guard: teste unitário isolado.** Cobrir no `TrainingPrescriptionGuardSkillTest` que a
   soma de `tssEstimado` das sessões fica na mesma escala da meta (CA3).
   - **Não** escrever teste de integração nem afirmar mudança de comportamento em produção: o skill
     **não tem chamador** em `src/main`. Prometer "planos que antes escapavam agora são bloqueados"
