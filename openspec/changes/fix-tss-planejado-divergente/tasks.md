@@ -79,7 +79,7 @@ mergear a branch inteira.
 
 - [x] **3.1 Decisão registrada** no `proposal.md` e no `design.md` (2026-07-31).
 
-- [ ] **3.2 Snapshot antes de tocar em qualquer linha.** Tabela ou dump com
+- [x] **3.2 Snapshot antes de tocar em qualquer linha.** Tabela ou dump com
   `(treino_planejado_id, tss_planejado_anterior, migrado_em)`.
   - É o que torna a operação auditável e o rollback trivial. Sem isso, reverter exige recomputar a
     fórmula antiga — possível, mas é reconstrução, não reversão.
@@ -94,7 +94,7 @@ mergear a branch inteira.
   - Conferir a contagem no ambiente alvo antes de aplicar (em dev eram 129).
   - `verify:` zero linhas com `tssPlanejado` na escala antiga; contagem tocada igual à do snapshot.
 
-- [ ] **3.4 Rollback documentado e testado em dev.**
+- [x] **3.4 Rollback documentado e testado em dev.**
   - Restaurar a partir do snapshot da 3.2, não recomputando.
   - `verify:` executado em dev, com os 129 voltando aos valores originais.
 
