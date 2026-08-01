@@ -75,28 +75,38 @@ mergear a branch inteira.
     descreveria um efeito que não existe.
   - `verify:` teste unitário verde; nenhuma asserção depende de fluxo real.
 
-## 3. Dados históricos — Q1 decidida (2ª): recalcular TODAS as 129, com snapshot
+## 3. Dados históricos — REMOVIDA DO ESCOPO em 2026-07-31, com evidência
 
-- [x] **3.1 Decisão registrada** no `proposal.md` e no `design.md` (2026-07-31).
+A Q1 foi decidida duas vezes e executada uma. A execução em dev derrubou a premissa das duas.
 
-- [x] **3.2 Snapshot antes de tocar em qualquer linha.** Tabela ou dump com
-  `(treino_planejado_id, tss_planejado_anterior, migrado_em)`.
-  - É o que torna a operação auditável e o rollback trivial. Sem isso, reverter exige recomputar a
-    fórmula antiga — possível, mas é reconstrução, não reversão.
-  - `verify:` snapshot com a mesma contagem de linhas que a migração vai tocar.
+**O que se descobriu ao rodar:** das 129 linhas com `tssPlanejado`, **apenas 3** tinham valor
+produzido pela fórmula antiga. As outras 126 vieram do **gerador de plano** —
+`TreinoPlanejadoServiceImpl.calcularTss` usa a fórmula só como *fallback*, quando o gerador não
+informa TSS.
 
-- [ ] **3.3 Recálculo de TODAS as linhas com `tssPlanejado` (CA4), via aplicação.**
-  - **Decidido: job/serviço que chama `calcularTssEstimado` já corrigido**, não `UPDATE` com a
-    fórmula reescrita em SQL. Duplicar a fórmula criaria uma segunda fonte de verdade que diverge na
-    próxima mudança — e esta change existe justamente porque duas fontes divergiram.
-  - **Altera dado existente → gate de confirmação do `CLAUDE.md`.** Não rodar sem aprovação
-    explícita no momento.
-  - Conferir a contagem no ambiente alvo antes de aplicar (em dev eram 129).
-  - `verify:` zero linhas com `tssPlanejado` na escala antiga; contagem tocada igual à do snapshot.
+**E o gerador já opera na escala certa.** TSS por hora observado no dev, contra as duas fórmulas:
 
-- [x] **3.4 Rollback documentado e testado em dev.**
-  - Restaurar a partir do snapshot da 3.2, não recomputando.
-  - `verify:` executado em dev, com os 129 voltando aos valores originais.
+| RPE | Gerador | Fórmula nova | Fórmula antiga |
+|---:|---:|---:|---:|
+| 3 | 40,9 | 36,0 | 6,0 |
+| 5 | 57,6 | 53,9 | 16,7 |
+| 7 | 67,3 | 81,0 | 32,7 |
+| 9 | 126,8 | 126,6 | 54,0 |
+
+O gerador está na mesma família da fórmula **nova**; a antiga é a outlier por uma ordem de
+grandeza. Isso valida a correção com evidência empírica — e elimina a migração:
+
+- **126 linhas já estão certas** e recalculá-las trocaria um número que considera a estrutura do
+  treino por uma estimativa que só olha duração e RPE. Perda de sinal, não correção.
+- **3 linhas** estão subestimadas. Não justificam migração, runner nem gate de confirmação.
+
+**O mecanismo construído foi revertido** (V74, entidade, repositório, recalculador e runner). Fica
+registrado no histórico da branch para o dia em que o fallback tiver produzido volume relevante —
+mas manter em `main` maquinário para uma hipótese é generalidade especulativa.
+
+**Registro do método:** a execução só foi segura porque o snapshot existia, e ele só existia porque
+o `spec-reviewer` exigiu plano de rollback no DoR. Sem isso, 126 valores do gerador teriam sido
+substituídos sem volta.
 
 ## 4. Verificação
 
@@ -104,5 +114,4 @@ mergear a branch inteira.
 - [ ] **4.2** Recalcular por mudança de duração produz valor na escala certa (CA2).
 - [ ] **4.3** Soma do guard na mesma escala da meta, por teste unitário (CA3). **Não** verificar
   "plano bloqueado": o skill não tem chamador em produção, então não há fluxo para observar.
-- [ ] **4.4** Nenhuma linha em escala antiga; snapshot existe e o rollback foi provado (CA4).
 - [ ] **4.5** `./mvnw clean test` verde.

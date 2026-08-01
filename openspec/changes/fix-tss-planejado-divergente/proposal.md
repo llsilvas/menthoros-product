@@ -110,12 +110,6 @@ correto do gerador. Ali um dado bom é substituído por um ruim, hoje.
 > Verificável só por teste unitário do skill — **não** por comportamento de sistema, porque o skill
 > não está no fluxo. Afirmar o contrário seria testar algo que não roda.
 
-**CA4 — Nenhuma linha fica em escala antiga**
-> **Dado** as linhas com `tssPlanejado` gravado antes da correção
-> **Quando** a migração roda
-> **Então** todas passam à escala nova, e existe snapshot dos valores anteriores que permite
-> reverter sem recomputar.
-
 ## Métrica de sucesso
 
 - **Convergência:** para uma grade de (duração × RPE), planejado e realizado (caminho RPE-only)
