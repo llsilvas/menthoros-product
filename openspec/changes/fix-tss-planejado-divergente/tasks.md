@@ -131,8 +131,45 @@ substituídos sem volta.
   400 × 1,15 = 460 → BLOCKER. Conforme decidido na 2.2, **não** se verificou "plano bloqueado" em
   fluxo real: o skill continua sem chamador em `src/main`.
 
-- [x] **4.5** `./mvnw clean test` verde — 2299 testes, 0 falhas.
+- [x] **4.5** `./mvnw clean test` verde — 2307 testes, 0 falhas (2299 antes das correções de QA;
+  +8 casos parametrizados novos).
   - Ressalva: `./mvnw clean verify` **não** está verde no `develop`, com 14 falhas em
     `Task5p1ControllerIT` que são anteriores e alheias a esta change (`@WithMockUser` não produz um
     `Jwt`, então o `JwtTenantFilter` não popula o `TenantContext` e tudo responde 403). Nenhum `*IT`
     toca `TssCalculatorService`.
+
+## 5. QA pré-PR — 2026-08-01
+
+Quatro revisões: convenções, design, fidelidade à spec e passagem cross-model (Codex).
+
+**Aceito e corrigido:**
+
+- **A "unificação" era só numérica — a fórmula seguia duplicada.** `calcularTssEstimado` reimplementava
+  o clamp e o `h × IF² × 100` que `calcularTssRpe` já tinha. Deixar assim recriaria exatamente o
+  mecanismo do BUG-CONF-001: duas cópias da mesma conta evoluindo em separado. Núcleo extraído para
+  `calcularTssPorRpe`, chamado pelos dois caminhos. A suíte inteira passou sem nenhum valor mudar,
+  o que confirma que a extração é neutra.
+- **`proposal.md` e `design.md` ainda afirmavam a migração removida na §3.** Só o `tasks.md` tinha
+  sido atualizado. Ambos reescritos com a evidência; o `design.md` também perdeu um fragmento solto
+  de edição anterior.
+- **O teste do CA3 não afirmava QUAL violação disparou.** O guard tem cinco regras e `aprovado()` é
+  falso se qualquer uma cair — mexer no `inputPadrao` faria o teste seguir verde pelo motivo errado.
+  Passa a exigir `"tss excessivo"` em `violacoes()`.
+- **Faltavam âncoras absolutas nas bordas do clamp e fora de 60 min.** RPE 1 e 10 apareciam só na
+  grade de igualdade, e em 1h a duração some da conta. Somados RPE 1 (20), RPE 10 (156), 30min RPE 5
+  (27) e 90min RPE 7 (122). Descoberta lateral: o clamp é **inerte** na faixa 1–10 (RPE 1 dá
+  exatamente `MIN_IF_RPE`, RPE 10 dá 1,25 < `MAX_IF`) — é puramente defensivo.
+- **O stub `49` no teste de wiring era o valor da fórmula antiga**, plantando a escala errada para
+  quem lesse. Trocado por 122.
+
+**Refutado, com verificação:**
+
+- *"O teste deveria ser `@Nested` dentro de `TssCalculatorServiceTest`"* — essa classe não existe. O
+  padrão da casa é uma classe por preocupação (`...EtapasTest`, `...SafetyTest`, `...ImpactFactorTest`,
+  `...RpeMappingTest`); o arquivo novo segue a convenção vigente.
+- *Codex `NO-GO` por RPE nulo divergir entre planejado e realizado* — divergência real, mas
+  pré-existente (`develop:62` já assumia RPE 5) e de contrato, não defeito. Registrada como ressalva
+  explícita no `design.md` em vez de "corrigida".
+- *Risco de escala no `SkeletonComplianceChecker`* — levantado por dois revisores, sem quebra
+  concreta apontada. O consumidor recebe TSS do gerador, que já opera na escala nova (tabela da §3);
+  e `planner-engine.shadow` continua `false`.

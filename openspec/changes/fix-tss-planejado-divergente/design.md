@@ -77,52 +77,74 @@ recalibragem de tudo que foi ajustado em cima dela.
 
 ## Correção
 
+A correção de `949d0ff` foi portada, mas **não como cópia da fórmula**: o núcleo do pipeline
+RPE → IF → TSS foi extraído para um método privado que os dois caminhos chamam.
+
 ```java
 public int calcularTssEstimado(Duration duracaoMin, Integer rpe) {
     long minutos = duracaoMin != null ? duracaoMin.toMinutes() : 0L;
     int r = rpe != null ? rpe : 5;
-    double duracaoHoras = minutos / 60.0;
-    double intensityFactor = Math.max(MIN_IF_RPE, Math.min(MAX_IF, converterRpeParaIf(r)));
+    return calcularTssPorRpe(minutos / 60.0, r);
+}
+
+/** Núcleo único: h × IF² × 100, com o IF clampado. Chamado pelo planejado E pelo realizado. */
+private int calcularTssPorRpe(double duracaoHoras, double rpe) {
+    double intensityFactor = converterRpeParaIf(rpe);
+    intensityFactor = Math.max(MIN_IF_RPE, Math.min(MAX_IF, intensityFactor));
     return (int) Math.round(duracaoHoras * intensityFactor * intensityFactor * 100.0);
 }
 ```
 
-Idêntica ao caminho realizado, incluindo o clamp. É a correção de `949d0ff`, portada.
+Copiar a fórmula corrigida para o método do planejado deixaria os dois caminhos numericamente iguais
+**hoje** e livres para divergir de novo amanhã — que é literalmente a história do BUG-CONF-001: duas
+cópias da mesma conta evoluindo em separado. Com o núcleo compartilhado, mexer na fórmula ou no
+clamp move os dois de uma vez, e a divergência deixa de ser possível por construção.
 
-## Dados históricos — DECIDIDO (Q1, segunda decisão)
+**Ressalva de escopo — RPE nulo continua divergindo, de propósito.** O planejado sem RPE assume 5 e
+estima; o realizado sem RPE, FC, pace e tipo devolve 0. São contratos diferentes, não um defeito: um
+treino planejado sempre precisa de estimativa a priori, um realizado sem nenhum dado genuinamente
+não tem o que calcular. Comportamento pré-existente, fora do escopo desta change.
 
-**Recalcular todas as 129 linhas.**
+## Dados históricos — DECIDIDO (Q1, terceira e última decisão): não migrar
 
-A primeira decisão — recalcular só os `PENDENTE`, separando as escalas por `status_treino` — foi
-**revertida no DoR**. O critério não sobrevive ao tempo: `PENDENTE` vira `REALIZADO`/`PERDIDO` em
-produção, então os status executados passariam a misturar as duas escalas sem marcação. Um separador
-que só vale no instante da migração não é separador.
+**Nenhuma linha é recalculada. A migração saiu do escopo e o mecanismo construído foi revertido.**
 
-Todas as 129 têm `duracaoMin` e `percepcaoEsforcoEsperada`, então o recálculo é determinístico.
+As duas decisões anteriores (recalcular só os `PENDENTE`; depois recalcular todos os 129) assentavam
+na mesma premissa: que as 129 linhas com `tssPlanejado` vinham da fórmula antiga. **Executar em dev
+derrubou a premissa.**
 
-**O custo real:** 91 treinos já executados mudam de número, incluindo planos que o coach aprovou —
-e o número **aparece na tela**: `TreinoEditDialog`, `buildWeeklyPlan` e `DetalheTreinoDialog` o
-exibem para coach e atleta. Não é alteração invisível de banco; é um valor que eles já viram.
-Não há como evitar isso e ainda ter uma escala só — é o preço de não deixar dívida indistinguível no
-schema. Mitigação obrigatória: gravar snapshot dos valores anteriores antes do `UPDATE`, o que torna
-a operação auditável e reversível.
+Das 129 linhas, **3** foram produzidas pela fórmula antiga. As outras **126 vieram do gerador de
+plano** — `TreinoPlanejadoServiceImpl.calcularTss` usa a fórmula apenas como *fallback*, quando o
+gerador não informa TSS. E o gerador já opera na escala certa:
+
+| RPE | Gerador (dev) | Fórmula nova | Fórmula antiga |
+|---:|---:|---:|---:|
+| 3 | 40,9 | 36,0 | 6,0 |
+| 5 | 57,6 | 53,9 | 16,7 |
+| 7 | 67,3 | 81,0 | 32,7 |
+| 9 | 126,8 | 126,6 | 54,0 |
+
+O gerador está na família da fórmula **nova**; a antiga é a outlier por uma ordem de grandeza. Isso
+valida a correção empiricamente **e** elimina a migração: recalcular as 126 substituiria um número
+que considera a estrutura do treino por uma estimativa que só olha duração e RPE — perda de sinal.
+As 3 restantes estão subestimadas, mas não justificam migração, runner nem gate de confirmação.
+
+Some assim também o custo que a decisão anterior tinha aceitado: nenhum treino já executado muda de
+número, e nada que coach ou atleta já viram na tela (`TreinoEditDialog`, `buildWeeklyPlan`,
+`DetalheTreinoDialog`) é reescrito.
 
 ### Opções consideradas
 
-`tssPlanejado` está persistido. Depois da correção, valores novos saem 2,4×–6× maiores que os
-antigos, na **mesma coluna**. As opções:
+| Opção | A favor | Contra | Veredito |
+|---|---|---|---|
+| **Não migrar** | preserva os 126 valores bons do gerador; sem escrita em dado existente | 3 linhas seguem subestimadas | **escolhida** |
+| **Recalcular em migração** | uma escala só na coluna | destrói 126 valores melhores que o substituto; gate de confirmação | rejeitada pela evidência acima |
+| **Separar por `status_treino`** | migração parcial, menor risco | critério instável: `PENDENTE` vira `REALIZADO`/`PERDIDO` (`TreinoServiceImpl:122`, `:393`), então as escalas se misturam semanas depois | rejeitada no DoR |
+| **Coluna marcadora de versão de escala** | desambigua para sempre | deixa no schema, permanentemente, uma coluna cuja única função é registrar uma dívida de duas semanas | rejeitada |
 
-| Opção | A favor | Contra |
-|---|---|---|
-| **Recalcular em migração** | uma escala só, comparações históricas voltam a fazer sentido | altera dado existente (gate de confirmação); precisa de `duracaoMin`/RPE preservados para recomputar |
-| **Deixar conviver** | zero risco de escrita | a coluna passa a ter duas escalas sem marcação — qualquer agregação histórica mente |
-| **Recalcular sob demanda** | sem migração em massa | a inconsistência persiste até o treino ser tocado, de forma imprevisível |
-
-A opção do meio — deixar conviver sem critério — fica registrada como **rejeitada**, não como
-alternativa em aberto: é a única que garante estado permanentemente ambíguo, e é também a mais
-barata, o que a torna tentadora para quem chegar depois sem o contexto.
-
-alguém escolhê-la por ser a mais barata.
+**Registro do método:** a execução só foi segura porque havia snapshot, e ele só existia porque o
+`spec-reviewer` exigiu plano de rollback no DoR. Sem isso, 126 valores do gerador teriam sido
+substituídos sem volta — e a premissa errada nunca teria aparecido.
 
 ## Riscos
 

@@ -137,26 +137,26 @@ correto do gerador. Ali um dado bom é substituído por um ruim, hoje.
 
 **Resolvidas:**
 
-- **Q1 — dados históricos. DECIDIDO em 2026-07-31 (segunda decisão): recalcular TODOS os 129.**
+- **Q1 — dados históricos. DECIDIDO em 2026-07-31 (terceira e última decisão): NÃO migrar nada.**
+  A migração foi **removida do escopo** e o mecanismo já construído foi revertido. Detalhe completo
+  com a evidência em `tasks.md` §3; resumo abaixo.
 
-  A primeira decisão foi recalcular só os `PENDENTE`, deixando as escalas separadas por
-  `status_treino`. **Foi revertida no DoR:** o critério não é estável. `PENDENTE` vira `REALIZADO`
-  ou `PERDIDO` em produção (`TreinoServiceImpl:122`, `:393`,
-  `ManualReconciliationServiceImpl:73`), então semanas depois da migração os status executados
-  conteriam as duas escalas misturadas, sem nada que as distinga. O critério era verdadeiro só no
-  instante da migração.
+  As duas primeiras decisões (recalcular só os `PENDENTE`; depois recalcular todos os 129) partiam
+  da premissa de que os 129 valores vinham da fórmula antiga. **Executar em dev derrubou a
+  premissa:** apenas **3** das 129 linhas foram produzidas pela fórmula antiga. As outras 126 vieram
+  do **gerador de plano** — `TreinoPlanejadoServiceImpl.calcularTss` só usa a fórmula como
+  *fallback*, quando o gerador não informa TSS.
 
-  **Decisão:** recalcular as 129 linhas. Todas têm `duracaoMin` e `percepcaoEsforcoEsperada`, então
-  o recálculo é determinístico — mesma fórmula, mesmos inputs, sem estimativa nova.
+  E o gerador já opera na escala certa: o TSS/hora observado em dev (40,9 / 57,6 / 67,3 / 126,8 para
+  RPE 3/5/7/9) acompanha a fórmula **nova** (36,0 / 53,9 / 81,0 / 126,6), não a antiga (6,0 / 16,7 /
+  32,7 / 54,0). Recalcular as 126 trocaria um número que considera a estrutura do treino por uma
+  estimativa que só olha duração e RPE — perda de sinal, não correção. As 3 restantes não justificam
+  migração, runner nem gate de confirmação.
 
-  **Custo aceito:** o TSS de 91 treinos já executados muda, incluindo planos que o coach aprovou.
-  Mitigação: **snapshot dos valores anteriores antes do `UPDATE`**, para auditoria e para tornar o
-  rollback trivial.
-
-  **Rejeitadas:** separar por `status_treino` (instável, como acima) e não recalcular nada (deixa a
-  coluna com duas escalas indistinguíveis para sempre). Uma coluna marcadora de versão de escala foi
-  considerada e descartada: resolveria, mas deixa no schema, permanentemente, uma coluna cuja única
-  função é registrar uma dívida de duas semanas.
+  **Rejeitadas:** separar por `status_treino` (critério instável — `PENDENTE` vira `REALIZADO` ou
+  `PERDIDO` em produção, `TreinoServiceImpl:122`, `:393`), recalcular tudo (destrói os 126 valores
+  bons) e coluna marcadora de versão de escala (deixa no schema, permanentemente, uma coluna cuja
+  única função é registrar uma dívida de duas semanas).
 
 **Em aberto:**
 - ~~**Q2.** `metaTssSemanal` é derivada de carga realizada?~~ **Perdeu a urgência:** o guard não
@@ -171,6 +171,9 @@ correto do gerador. Ali um dado bom é substituído por um ruim, hoje.
 
 ## Impacto
 
-- **Backend:** `TssCalculatorService` (1 método), mais o destino dos dados históricos conforme Q1
-- **Com recálculo de dado existente** (Q1 decidida): snapshot + job de recálculo das 129 linhas, via aplicação. Gate de confirmação do `CLAUDE.md`.
+- **Backend:** `TssCalculatorService` — `calcularTssEstimado` passa a delegar ao núcleo comum
+  `calcularTssPorRpe`, compartilhado com o caminho realizado, para que as duas fórmulas não voltem a
+  divergir
+- **Sem migração e sem mudança de schema** (Q1 acima): nenhum `UPDATE` em dado existente, nenhuma
+  migration nova, nenhum gate de confirmação necessário
 - **Sem mudança de contrato de API** — muda o valor, não a forma
