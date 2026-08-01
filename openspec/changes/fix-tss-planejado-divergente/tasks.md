@@ -108,10 +108,31 @@ mas manter em `main` maquinário para uma hipótese é generalidade especulativa
 o `spec-reviewer` exigiu plano de rollback no DoR. Sem isso, 126 valores do gerador teriam sido
 substituídos sem volta.
 
-## 4. Verificação
+## 4. Verificação — concluída em 2026-08-01
 
-- [ ] **4.1** Convergência planejado × realizado em toda a grade (CA1).
-- [ ] **4.2** Recalcular por mudança de duração produz valor na escala certa (CA2).
-- [ ] **4.3** Soma do guard na mesma escala da meta, por teste unitário (CA3). **Não** verificar
-  "plano bloqueado": o skill não tem chamador em produção, então não há fluxo para observar.
-- [ ] **4.5** `./mvnw clean test` verde.
+- [x] **4.1 Convergência planejado × realizado em toda a grade (CA1).**
+  `TssCalculatorServiceConvergenciaTest`: 14 casos de convergência (duração × RPE, incluindo as
+  bordas RPE 1 e 10) mais 10 de valor absoluto. Os absolutos existem porque só a igualdade não
+  bastaria — se os dois caminhos quebrassem juntos, a convergência seguiria verde.
+
+- [x] **4.2 Recalcular por mudança de duração produz valor na escala certa (CA2).**
+  O seam é `TreinoPlanejadoServiceImpl.recalcularTssSeNecessario` (`:425`), alcançado por
+  `editarTreino`. O *wiring* já estava coberto por três testes (recalcula ao mudar duração; não
+  recalcula com `tssPlanejado` explícito; não recalcula sem mudança de volume) — mas **nenhum deles
+  afirmava escala**: o `TssCalculatorService` é `@Mock` na classe, e o valor esperado era o stub
+  `49`, que por coincidência é exatamente o que a fórmula **antiga** produzia (90 × 7² / 90).
+  Adicionado `tssRecalculadoSaiNaEscalaDoRealizado`, que instancia o serviço com o
+  `TssCalculatorService` **real** e afirma duas coisas: o valor absoluto (90min RPE 7 → **122**) e a
+  igualdade com o caminho realizado equivalente. Com a fórmula antiga o resultado seria 49 — um
+  treino alongado de 60 para 90 min valendo *menos* que os 81 que o gerador havia posto.
+
+- [x] **4.3 Soma do guard na mesma escala da meta, por teste unitário (CA3).**
+  `TrainingPrescriptionGuardSkillTest`: 6 × (60min, RPE 7) = 6 × 81 = 486 TSS contra meta
+  400 × 1,15 = 460 → BLOCKER. Conforme decidido na 2.2, **não** se verificou "plano bloqueado" em
+  fluxo real: o skill continua sem chamador em `src/main`.
+
+- [x] **4.5** `./mvnw clean test` verde — 2299 testes, 0 falhas.
+  - Ressalva: `./mvnw clean verify` **não** está verde no `develop`, com 14 falhas em
+    `Task5p1ControllerIT` que são anteriores e alheias a esta change (`@WithMockUser` não produz um
+    `Jwt`, então o `JwtTenantFilter` não popula o `TenantContext` e tudo responde 403). Nenhum `*IT`
+    toca `TssCalculatorService`.
