@@ -4,8 +4,10 @@ Ordem de execução TDD (teste primeiro, sempre). Em `apps/menthoros-backend`:
 
 - **Inner loop (blocos 1–6, tudo `*Test`):** `./mvnw clean test`.
 - **Gate de entrega (blocos 7–8):** `./mvnw clean verify` — `test` sozinho **não** roda nenhum
-  `*IT`. Red conhecido em `develop`: 14 falhas em `Task5p1ControllerIT` (`@WithMockUser` não produz
-  `Jwt`); confirmar que as falhas do `verify` são só essas.
+  `*IT`. O gate está **verde** em `develop` desde o PR #59 (`fix-reconciliation-it-auth`), então
+  qualquer falha no `verify` é desta change. Ao escrever `*IT`: `@WithMockUser` não produz um `Jwt`,
+  logo o `JwtTenantFilter` não popula o `TenantContext` e todo request responde 403 — autenticar com
+  JWT real, subject UUID com `Usuario` semeado e authorities explícitas.
 
 Branch: `feature/intervals-icu-activity-laps` no repo `apps/menthoros-backend` — criar **antes** de
 qualquer código.
@@ -47,8 +49,9 @@ change anterior (cadência de perna única, `average_speed` em m/s).
 - [ ] 2.3 Teste primeiro: erro HTTP (404, 429, 500) → `IntervalsIcuApiException` com o status
       preservado.
 - [ ] 2.4 Adicionar `buscarIntervalos(String apiKey, String activityId)` a `IntervalsIcuClient` e
-      implementar em `IntervalsIcuClientImpl` (D7). Sem timeout novo — reusa
-      `IntervalsIcuWebClientConfig`.
+      implementar em `IntervalsIcuClientImpl` espelhando `buscarAtividade` (`:135-142`): mesmo
+      helper `executa(...)` para tradução de erro e mesmo `basic(h, apiKey)` para a auth. Sem timeout
+      novo — reusa `IntervalsIcuWebClientConfig`.
 - **Validação:** `./mvnw clean test`
 
 ## 3. Mapper — intervalo → EtapaRealizada
@@ -116,10 +119,14 @@ Sem este bloco, um 429 de segundos vira perda permanente de etapas sob o schedul
       `lapsStatus` daquele treino permanece `FAILED` e ele segue elegível na próxima execução.
 - [ ] 5b.6 Teste primeiro: as chamadas de rede do backfill ocorrem **fora de transação**, mesmo
       princípio do D1 — a persistência de cada treino é sua própria transação curta.
-- [ ] 5b.7 Implementar o serviço de backfill e o endpoint
-      `POST /api/v1/intervals-icu/atletas/{atletaId}/activities/backfill-laps`, com `@Operation`,
-      `@ApiResponses`, `@PreAuthorize` e DTO de saída tipado (nunca `Map<String,Object>`) — ver
-      Controller Standards.
+- [ ] 5b.7 Nova query em `TreinoRealizadoRepository` para os candidatos — o repositório hoje só tem
+      lookup por `externalId` (`:33`, `:49`), nada por atleta + fonte + ausência de etapas. Query
+      tenant-scoped, com `LEFT JOIN`/`NOT EXISTS` sobre `tb_etapa_realizada`.
+- [ ] 5b.8 Implementar o serviço de backfill e o endpoint
+      `POST /api/v1/intervals-icu/atletas/{atletaId}/activities/backfill-laps` em
+      `IntervalsIcuActivityController` (`@RequestMapping("/api/v1/intervals-icu")`, `:30`), espelhando
+      o endpoint de import (`:36-49`): `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")`,
+      `@Operation`, `@ApiResponses` e DTO de saída tipado (nunca `Map<String,Object>`).
 - **Validação:** `./mvnw clean test`
 
 ## 6. Observabilidade
