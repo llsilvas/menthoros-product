@@ -1,4 +1,4 @@
-# Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend · 12 tasks)
+# Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend · 15 tasks)
 
 > **Refinada em 2026-08-02:** escopo reduzido ao **formato de alvo** (padrão Garmin). O
 > `ZonaTreinoService` **não é tocado** — nenhuma faixa muda. Diff em `ZonaTreinoService.java` é sinal
