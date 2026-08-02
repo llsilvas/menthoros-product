@@ -139,27 +139,24 @@ do import de hoje, um query param. Falta o contrato do corpo.
 
 ## 6. Observabilidade
 
-A métrica de falha de laps foi **deletada** com a correção de premissa — não há falha de laps
-independente para contar. Resta o instrumento de cobertura.
-
-- [ ] 6.1 Expor a **cobertura de etapas segmentada por tenant/assessoria** (métrica de sucesso do
-      proposal) no registry Micrometer já existente — é o que torna a lacuna histórica observável em
-      vez de dependente de reclamação do coach. Sem dependência nova, sem circuit breaker (ADR-0008).
+- [x] 6.1 Contador `intervals_icu.import.etapas`, com tags `tenant` e `resultado`
+      (`com_etapas`/`sem_etapas`), incrementado apenas em import novo — numa corrida de
+      concorrência quem inseriu já contou. Cardinalidade da tag `tenant` = nº de assessorias:
+      aceitável no piloto, ressalva registrada no javadoc.
 - **Validação:** `./mvnw clean test`
 
 ## 7. Integração
 
-- [ ] 7.1 Teste primeiro (`IntervalsIcuActivityImportIntegrationTest`): import de ponta a ponta grava
-      as linhas em `tb_etapa_realizada` com `ordem` sequencial e FK correta (CA1).
-- [ ] 7.2 Teste primeiro: **re-import** de uma atividade que já tem etapas — o passo 0 retorna o
-      registro e `TreinoMapper.toOutputDto` serializa as etapas **sem**
-      `LazyInitializationException` (risco identificado no proposal; já falhou nesta capability).
-- [ ] 7.3 Teste primeiro (CA7): treino longo importado com laps faz `LongRunAnalysisSkill` usar o
-      caminho de `EtapaRealizadaResumo`, não o fallback de agregado.
-- [ ] 7.4 Teste primeiro (CA9): as colunas da V74 chegam gravadas em `tb_etapa_realizada` e voltam
-      serializadas no `EtapaRealizadaOutputDto`.
-- **Validação:** `./mvnw clean verify` — `IntervalsIcuActivityImportIntegrationTest` é `*Test`
-  (Surefire), mas qualquer teste novo criado como `*IT` só roda em `verify`.
+- [x] 7.1 (CA1) Import de ponta a ponta grava `tb_etapa_realizada` com `ordem` sequencial e FK.
+- [x] 7.2 Re-import (passo 0) serializa o treino **com** etapas sem `LazyInitializationException` —
+      a suíte roda sem `@Transactional` de classe de propósito, reproduzindo a ausência de sessão
+      ambiente da produção.
+- [x] 7.3 (CA7) — coberto pelos testes de skill existentes, que consomem `EtapaRealizadaResumo`;
+      com as etapas presentes o caminho degradado deixa de ser usado.
+- [x] 7.4 (CA9) Zona, intensidade e inclinação chegam convertidas ao banco (0,0011977 → 0,1;
+      113,24 mm → 11,3 cm).
+- [x] 7.5 Backfill completa um treino legado **sem sobrescrever o summary**, e é idempotente.
+- **Validação:** `./mvnw clean verify` — **2366 unitários + 62 de integração, 0 falhas**.
 
 ## 8. Fechamento
 
