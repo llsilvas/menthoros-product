@@ -64,18 +64,16 @@ do import de hoje, um query param. Falta o contrato do corpo.
 
 ## 2. Client — query param `intervals=true`
 
-- [ ] 2.1 Teste primeiro (`IntervalsIcuClientImplTest`): a URI da chamada inclui `intervals=true`
-      quando `comIntervalos` é verdadeiro, e não inclui quando falso.
-- [ ] 2.2 Teste primeiro: desserialização da activity com intervalos preenche o novo campo; activity
-      sem o campo → nulo, sem NPE.
-- [ ] 2.3 Teste primeiro: erro HTTP (404, 429, 500) → `IntervalsIcuApiException` com o status
-      preservado (comportamento atual, não pode regredir).
-- [ ] 2.4 Alterar `buscarAtividade` em `IntervalsIcuClient` para
-      `buscarAtividade(apiKey, activityId, comIntervalos)` e implementar em `IntervalsIcuClientImpl`
-      (`:135-142`), acrescentando o query param ao `uri(...)` e mantendo `executa(...)` e
-      `basic(h, apiKey)`. **Trocar a assinatura, não sobrecarregar** (D7) — o compilador aponta cada
-      chamador.
-- [x] 2.5 ~~Acrescentar o campo de lista a `IcuActivityDto`~~ — feito no bloco 1 (task 1.3).
+- [x] 2.1 `IntervalsIcuClientImplTest` — `comIntervalos=true` acrescenta `?intervals=true`; `false`
+      não acrescenta (verificado com `wireMock.verify` sobre a URL exata).
+- [x] 2.2 Activity com intervalos desserializa `icu_intervals` e `icu_lap_count`; sem o campo no
+      corpo, ambos vêm nulos, sem NPE.
+- [x] 2.3 Erros HTTP preservam o status no `IntervalsIcuApiException`. **Achado:** os stubs de erro
+      usavam `urlEqualTo` sem query — com o param nenhum casava e o WireMock devolvia 404 por
+      default. O teste de 403 quebrou e o de 404 **passava pelo motivo errado**; ambos corrigidos.
+- [x] 2.4 Assinatura trocada para `buscarAtividade(apiKey, activityId, comIntervalos)`, sem
+      sobrecarga. O compilador apontou o único chamador de produção
+      (`IntervalsIcuActivityIngestionServiceImpl:130`), que passa `true`.
 - **Validação:** `./mvnw clean test`
 
 ## 3. Mapper — intervalo → EtapaRealizada
