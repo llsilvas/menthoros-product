@@ -123,29 +123,19 @@ do import de hoje, um query param. Falta o contrato do corpo.
 
 ## 5b. Backfill de etapas (D9 — lacuna histórica)
 
-Cobre os treinos intervals.icu importados **antes** desta change, que o guard de dedup impede de
-corrigir por re-import. O caso "lap fetch falhou" deixou de existir com a correção de premissa.
-
-- [ ] 5b.1 Teste primeiro: o conjunto de candidatos é `fonteDados=INTERVALS_ICU` **e**
-      `etapasRealizadas` vazio, do atleta e tenant informados — treinos de outro tenant nunca entram.
-- [ ] 5b.2 Teste primeiro (CA8): treino candidato recebe as etapas via UPDATE, sem passar pelo guard
-      de dedup e sem criar um `TreinoRealizado` novo.
-- [ ] 5b.3 Teste primeiro: o **summary não é sobrescrito** — distância, pace, FC e descrição do
-      treino permanecem como estavam, mesmo que o payload traga valores diferentes.
-- [ ] 5b.4 Teste primeiro: idempotência — segunda execução é no-op para os já corrigidos.
-- [ ] 5b.5 Teste primeiro: falha na chamada de um treino não aborta os demais; aquele treino segue
-      elegível na próxima execução.
-- [ ] 5b.6 Teste primeiro: as chamadas de rede do backfill ocorrem **fora de transação** — a
-      persistência de cada treino é sua própria transação curta.
-- [ ] 5b.7 Nova query em `TreinoRealizadoRepository` para os candidatos — o repositório hoje só tem
-      lookup por `externalId` (`:33`, `:49`), nada por atleta + fonte + ausência de etapas. Query
-      tenant-scoped, com `LEFT JOIN`/`NOT EXISTS` sobre `tb_etapa_realizada`.
-- [ ] 5b.8 Implementar o serviço de backfill e o endpoint
-      `POST /api/v1/intervals-icu/atletas/{atletaId}/activities/backfill-laps` em
-      `IntervalsIcuActivityController` (`@RequestMapping("/api/v1/intervals-icu")`, `:30`), espelhando
-      o endpoint de import (`:36-49`): `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")`,
-      `@Operation`, `@ApiResponses` e DTO de saída tipado (nunca `Map<String,Object>`).
-- **Validação:** `./mvnw clean test`
+- [x] 5b.1 Candidatos escopados por tenant + atleta + `INTERVALS_ICU`, com `externalId` não-nulo.
+- [x] 5b.2 Etapas gravadas via UPDATE, sem passar pelo guard de dedup e sem criar treino novo.
+- [x] 5b.3 **Summary não é sobrescrito.** `mapEtapas` foi extraído de `map` exatamente para isso —
+      o backfill nunca chama `map`, o que o teste verifica com `verify(mapper, never()).map(...)`.
+- [x] 5b.4 Idempotência: sem candidatos é no-op; o persister também ignora treino que já tem etapas.
+- [x] 5b.5 Falha em um treino não aborta os demais; nada é marcado, então ele segue candidato.
+- [x] 5b.6 HTTP fora de transação no orquestrador; persistência por treino em `REQUIRES_NEW`.
+- [x] 5b.7 `TreinoRealizadoRepository.findSemEtapasByAtletaAndFonte` com `not exists` sobre
+      `EtapaRealizada`, tenant-scoped.
+- [x] 5b.8 `POST /api/v1/intervals-icu/atletas/{atletaId}/activities/backfill-laps` com
+      `@PreAuthorize`, `@RequireTenant`, `@Operation`, `@ApiResponses` e `BackfillEtapasOutputDto`
+      tipado. 4 testes de auth (TECNICO 200, ATLETA 403, sem auth 401, cross-tenant 403).
+- **Validação:** `./mvnw clean test` — 2358 testes, 0 falhas.
 
 ## 6. Observabilidade
 
