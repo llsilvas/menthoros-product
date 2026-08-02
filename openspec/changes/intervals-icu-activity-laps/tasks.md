@@ -160,11 +160,13 @@ do import de hoje, um query param. Falta o contrato do corpo.
 
 ## 8. Fechamento
 
-- [ ] 8.1 `/qa` — `code-reviewer` + `security-reviewer` + `test-master` (trilha Full).
-- [ ] 8.2 Atualizar `design.md` com o que o smoke e a implementação revelaram (a change anterior
-      registra que achados críticos só apareceram ao implementar, não ao revisar a spec).
-- [ ] 8.3 Com a cobertura por assessoria em mãos, confirmar que o backfill manual do coach dá conta
-      do passivo histórico e registrar a decisão no proposal.
+- [x] 8.1 `/qa` — `code-reviewer`, `security-reviewer` e `clean-code-reviewer` em paralelo.
+      **3 achados Importantes e 1 Low aplicados**; segurança sem nenhum Critical/High/Medium.
+      Ver "Achados do QA" no design.
+- [x] 8.2 `design.md` atualizado com o que o smoke e a implementação revelaram.
+- [x] 8.3 **Open Question #6 decidido:** o backfill fica **manual** (ação do coach). O passivo é
+      finito, o cap de 50 por execução protege o rate limit, e `restantes` diz quando repetir.
+      Promover a job agendado só se a métrica de cobertura por assessoria mostrar volume que
+      justifique — decisão reversível, sem custo de migration.
 - [ ] 8.4 `/pr intervals-icu-activity-laps` — PR para `develop`, sem merge local.
-- **Validação:** CI verde e `./mvnw clean verify` local **sem nenhuma falha** — o gate está verde em
-  `develop`, então qualquer vermelho é desta change.
+- **Validação:** CI verde e `./mvnw clean verify` local **sem nenhuma falha**.

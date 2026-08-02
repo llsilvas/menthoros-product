@@ -502,3 +502,35 @@ Regra de sempre: strict stubbing, sem `LENIENT`. Skills não entram — elas já
    scheduler em lote, volume relevante. Estimar no DoR.
 4. **Ordem de merge com `intervals-icu-activity-sync-scheduler`** — as duas mexem em
    `IntervalsIcuActivityPersister`, e agora também compartilham a semântica de falha do D3.
+
+---
+
+## Achados do QA (2026-08-02)
+
+Três revisores em paralelo sobre `develop...HEAD`. Nenhum bloqueador; quatro correções aplicadas.
+
+| Revisor | Severidade | Achado | Correção |
+|---|---|---|---|
+| code-reviewer | Importante | `label` do intervalo vem de terceiro sem limite e ia direto para uma coluna de 500. As etapas entram por **cascade na mesma transação do treino**: uma label longa reverteria a persistência do treino inteiro | Truncamento defensivo com WARN + 2 testes |
+| code-reviewer | Importante | V74 sem `CHECK`, quebrando o padrão das colunas vizinhas (V7 tem `ck_*_fc_media`, `ck_*_potencia`, `ck_*_cadencia`) | Três `CHECK` idempotentes na V74 |
+| clean-code | Importante | `catch (RuntimeException)` no backfill engolia bug de programação junto com falha de negócio; e não havia fail-fast em credencial revogada | Só `IntervalsIcuApiException` é capturada; 401/403 aborta o lote |
+| security | Low | Backfill sem teto de lote: N chamadas bloqueantes em série num request síncrono | Cap de 50/execução, com o corte visível em `restantes` |
+
+**Segurança: zero achados Critical/High/Medium.** O revisor confirmou o isolamento multi-tenant em
+três camadas independentes (aspect, query de candidatos, reload por `(id, tenantId)` no persister) e
+que a API key não vaza em log nem em mensagem de exceção.
+
+**Débito registrado, fora de escopo:** `IntegracaoExterna.accessToken` é `TEXT` em texto plano;
+merece change dedicada de hardening de credenciais.
+
+### Armadilha de infraestrutura encontrada ao aplicar a V74
+
+`OpenApiConfigTest` e `CoreSecurityConfigTest` bootam contra o **banco de dev real**
+(`192.168.15.24:5432/menthoros-db`), não contra Testcontainers. Qualquer edição de migration já
+aplicada quebra a suíte inteira por checksum mismatch — foi o que aconteceu com a V73 em julho e se
+repetiu aqui.
+
+Pior: `docker exec menthoros-db psql` e `192.168.15.24:5432` são **instâncias diferentes**. Resetar
+uma enquanto a aplicação valida a outra produz um estado aparentemente impossível (a linha some do
+histórico e o Flyway insiste que está aplicada). **Migrar esses dois testes para Testcontainers
+eliminaria a classe inteira do problema** — change própria, mas o pedágio já foi cobrado duas vezes.
