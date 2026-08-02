@@ -112,8 +112,10 @@ substituídos sem volta.
 
 - [x] **4.1 Convergência planejado × realizado em toda a grade (CA1).**
   `TssCalculatorServiceConvergenciaTest`: 14 casos de convergência (duração × RPE, incluindo as
-  bordas RPE 1 e 10) mais 10 de valor absoluto. Os absolutos existem porque só a igualdade não
-  bastaria — se os dois caminhos quebrassem juntos, a convergência seguiria verde.
+  bordas RPE 1 e 10) mais 22 de valor absoluto — 10 por caminho, cobrindo as bordas do clamp
+  (RPE 1 e 10), durações fora de 60min e as duas sentinelas de ordem de multiplicação, mais 2 testes
+  avulsos (duração nula, RPE nulo). Os absolutos existem porque só a igualdade não bastaria: se os
+  dois caminhos quebrassem juntos, a convergência seguiria verde.
 
 - [x] **4.2 Recalcular por mudança de duração produz valor na escala certa (CA2).**
   O seam é `TreinoPlanejadoServiceImpl.recalcularTssSeNecessario` (`:425`), alcançado por
@@ -131,8 +133,8 @@ substituídos sem volta.
   400 × 1,15 = 460 → BLOCKER. Conforme decidido na 2.2, **não** se verificou "plano bloqueado" em
   fluxo real: o skill continua sem chamador em `src/main`.
 
-- [x] **4.5** `./mvnw clean test` verde — 2307 testes, 0 falhas (2299 antes das correções de QA;
-  +8 casos parametrizados novos).
+- [x] **4.5** `./mvnw clean test` verde — 2311 testes, 0 falhas (2299 antes do QA; +12 casos
+  parametrizados novos, incluindo as duas sentinelas de ordem de multiplicação).
   - Ressalva: `./mvnw clean verify` **não** está verde no `develop`, com 14 falhas em
     `Task5p1ControllerIT` que são anteriores e alheias a esta change (`@WithMockUser` não produz um
     `Jwt`, então o `JwtTenantFilter` não popula o `TenantContext` e tudo responde 403). Nenhum `*IT`
@@ -161,6 +163,25 @@ Quatro revisões: convenções, design, fidelidade à spec e passagem cross-mode
   exatamente `MIN_IF_RPE`, RPE 10 dá 1,25 < `MAX_IF`) — é puramente defensivo.
 - **O stub `49` no teste de wiring era o valor da fórmula antiga**, plantando a escala errada para
   quem lesse. Trocado por 122.
+
+### Segunda passagem do Codex — 2026-08-02
+
+Rodada sobre a spec já corrigida. Achou um **BLOCKER que a primeira passagem não pegou**, e que a
+suíte de 2307 testes não pegava.
+
+- **A extração do núcleo não era neutra.** Ao unificar, a expressão do realizado passou de
+  `h × IF × 100 × IF` para `h × IF² × 100`. Multiplicação em ponto flutuante não é associativa: a
+  reordenação vira o arredondamento em **8 pares (duração, RPE) da faixa 1–10**, todos em treinos
+  longos — ex. RPE 9 / 288 min, produto exato 607,4999999999999 em vez de 607,5, devolvendo 607 onde
+  antes dava 608. Ou seja, a change alterava silenciosamente o caminho **realizado**, que ela não
+  deveria tocar.
+  **Correção:** o helper preserva a ordem original do realizado. Isso torna a extração neutra para
+  ele e o planejado idêntico por construção (CA1). Dois casos-sentinela (`288min/RPE 9 = 608`,
+  `410min/RPE 7 = 554`) foram adicionados para travar a ordem — sem eles, "simplificar" a expressão
+  passa verde. O `design.md` registra a ordem como normativa.
+  **Método:** o achado saiu de varredura exaustiva de (duração 0–1440min × RPE 0–20) comparando as
+  duas ordens, feita em paralelo por mim e pelo Codex — chegamos aos mesmos 8 casos e às mesmas duas
+  sentinelas de forma independente. Nenhuma revisão por leitura tinha pegado.
 
 **Refutado, com verificação:**
 

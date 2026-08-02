@@ -87,13 +87,22 @@ public int calcularTssEstimado(Duration duracaoMin, Integer rpe) {
     return calcularTssPorRpe(minutos / 60.0, r);
 }
 
-/** Núcleo único: h × IF² × 100, com o IF clampado. Chamado pelo planejado E pelo realizado. */
+/** Núcleo único: h × IF × 100 × IF, com o IF clampado. Chamado pelo planejado E pelo realizado. */
 private int calcularTssPorRpe(double duracaoHoras, double rpe) {
     double intensityFactor = converterRpeParaIf(rpe);
     intensityFactor = Math.max(MIN_IF_RPE, Math.min(MAX_IF, intensityFactor));
-    return (int) Math.round(duracaoHoras * intensityFactor * intensityFactor * 100.0);
+    return (int) Math.round(duracaoHoras * intensityFactor * 100 * intensityFactor);
 }
 ```
+
+**A ordem das multiplicações é normativa, não estilo.** Multiplicação em ponto flutuante não é
+associativa: escrever `h × IF² × 100` em vez de `h × IF × 100 × IF` muda o último bit e vira o
+arredondamento em **8 pares (duração, RPE) da faixa válida** — todos em treinos longos, ex.
+RPE 9 / 288 min, cujo produto exato cai em 607,4999999999999 em vez de 607,5, devolvendo 607 em vez
+de 608. Como a ordem preservada é a que o caminho **realizado** já usava, a extração fica neutra
+para ele e o planejado passa a ser idêntico por construção — que é o CA1. Dois casos-sentinela
+(`288min/RPE 9 = 608`, `410min/RPE 7 = 554`) travam isso em teste; sem eles, "simplificar" a
+expressão passa verde.
 
 Copiar a fórmula corrigida para o método do planejado deixaria os dois caminhos numericamente iguais
 **hoje** e livres para divergir de novo amanhã — que é literalmente a história do BUG-CONF-001: duas
