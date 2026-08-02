@@ -168,5 +168,5 @@ do import de hoje, um query param. Falta o contrato do corpo.
       finito, o cap de 50 por execução protege o rate limit, e `restantes` diz quando repetir.
       Promover a job agendado só se a métrica de cobertura por assessoria mostrar volume que
       justifique — decisão reversível, sem custo de migration.
-- [ ] 8.4 `/pr intervals-icu-activity-laps` — PR para `develop`, sem merge local.
+- [x] 8.4 PR #61 aberto para `develop` (llsilvas/menthoros-backend), sem merge local.
 - **Validação:** CI verde e `./mvnw clean verify` local **sem nenhuma falha**.
