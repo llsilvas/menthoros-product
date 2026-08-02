@@ -20,38 +20,44 @@ IntervalsIcuActivityIngestionServiceImpl.importarAtividade   (NÃO transacional)
 ```
 
 A separação orquestrador/persister é deliberada e está documentada no javadoc do impl: **nunca
-segurar conexão de banco durante IO externo**. Todo este design existe para respeitar essa regra ao
-adicionar uma segunda chamada HTTP.
+segurar conexão de banco durante IO externo**. Esta change preserva essa estrutura sem tensioná-la —
+ver D1.
 
 ---
 
-## D1 — Onde entra a segunda chamada HTTP
+## D1 — Não há segunda chamada HTTP: os intervalos vêm no mesmo payload
 
-**Decisão:** no orquestrador, como **passo 3b**, logo depois do guard cross-atleta (passo 4) e antes
-de chamar o persister.
+**Correção de premissa (founder, 2026-08-02).** O design original desta change presumia um endpoint
+separado de laps, espelhando o Strava (`GET /activities/{id}/laps`). **Errado.** O intervals.icu
+devolve os intervalos na própria activity, sob um query param:
 
 ```
-  3.  buscarAtividade      → IcuActivityDto
-  4.  guard cross-atleta                          ← barato, roda ANTES de gastar a 2ª chamada
-  5.  filtro de modalidade                        ← idem
-  3b. buscarIntervalos     → List<IcuActivityIntervalDto>   (best-effort, ver D3)
-  6-9. persister.persistir(dto, etapas, atleta, tenantId, externalId)
+GET /api/v1/activity/{id}?intervals=true
 ```
 
-**Por quê nessa posição:**
+O fluxo, portanto, **não muda de forma** — só o passo 3 ganha um parâmetro:
 
-- **Depois dos guards 4 e 5**, não antes: uma activity de outro atleta ou de modalidade não suportada
-  aborta o import de qualquer jeito — gastar a segunda chamada nesses casos é desperdiçar rate limit
-  do intervals.icu à toa, e no caso do guard 4 seria confirmar externamente a existência de uma
-  activity que a resposta ao coach vai negar (404).
-- **Fora do persister**, não dentro: o persister é `@Transactional`. Buscar laps lá dentro seguraria
-  uma conexão do pool Hikari durante uma chamada de rede — exatamente a dívida que o caminho Strava
-  carrega (`StravaActivityServiceImpl.attachLaps` é chamado de dentro de métodos `@Transactional`).
-  Esta change **não** conserta o Strava (non-goal), mas **não replica** o problema.
+```
+  3.  buscarAtividade(apiKey, id, comIntervalos=true)  → IcuActivityDto (com intervalos dentro)
+  4.  guard cross-atleta                                (inalterado)
+  5.  filtro de modalidade                              (inalterado)
+  6-9. persister.persistir(dto, atleta, tenantId, externalId)
+```
 
-**Alternativa descartada:** chamar de dentro do persister e aceitar a simetria com o Strava.
-Descartada porque a regra do módulo é explícita (External Call Resilience no CLAUDE.md do backend) e
-porque o scheduler em lote multiplicaria o dano.
+**O que essa correção elimina:**
+
+| Problema do design anterior | Estado |
+|---|---|
+| Onde posicionar a 2ª chamada sem gastar rate limit à toa | **Não existe** |
+| Segurar conexão de banco durante IO extra | **Não existe** — continua uma chamada só, já fora de transação |
+| +1 chamada HTTP por atividade; o dobro sob o scheduler | **Custo zero** — mesmo número de chamadas de hoje |
+| Falha "só nos laps" virando perda permanente (achado HIGH do Codex) | **Não existe** — ver D3 |
+
+A regra de External Call Resilience continua satisfeita por construção: a chamada já acontecia no
+orquestrador não-transacional, e continua sendo uma só.
+
+**O caminho Strava permanece intocado** (non-goal). A assimetria entre as duas integrações é da
+fonte, não do nosso código: o Strava exige a chamada extra, o intervals.icu não.
 
 ---
 
@@ -86,68 +92,56 @@ simetria com o summary — foi exatamente essa suposição que produziu os dois 
 change anterior (cadência de perna única não dobrada; `average_speed` em m/s atribuído direto a
 km/h).
 
-**Envelope da resposta:** o endpoint pode devolver um objeto envelope (ex.
-`{ "icu_intervals": [...], "icu_groups": [...] }`) em vez de uma lista nua. O client absorve essa
-diferença e devolve `List<IcuActivityIntervalDto>` — o mapper nunca vê o envelope.
+**Onde a lista mora:** os intervalos vêm **dentro** do corpo da activity (D1), então
+`IcuActivityDto` ganha um campo — provavelmente `icu_intervals`, a confirmar no smoke:
+
+```java
+public record IcuActivityDto(
+        // ... campos atuais, inalterados ...
+        @JsonProperty("icu_intervals") List<IcuActivityIntervalDto> intervalos
+) {}
+```
+
+Campo **nullable**: quando o import é feito sem `intervals=true`, ou quando a activity não tem
+intervalos, ele vem ausente ou nulo. O mapper trata `null` como lista vazia — nunca NPE.
+
+**Compatibilidade:** acrescentar um componente a um `record` muda o construtor canônico. Todo ponto
+que constrói `IcuActivityDto` à mão (fixtures de teste, `IntervalsIcuActivityMapperTest`) precisa ser
+atualizado no mesmo commit. A desserialização via Jackson não é afetada.
 
 ---
 
-## D3 — Falha na busca de laps é não-fatal
+## D3 — Semântica de falha: não existe "falha só nos laps"
 
-**Decisão:** a segunda chamada é **best-effort**. Qualquer falha (404, 429, 5xx, timeout, corpo
-vazio) resulta em lista vazia, WARN estruturado e métrica — o import do summary prossegue e responde
-200.
+**Esta seção mudou por inteiro com a correção de premissa do D1.** A versão anterior desenhava uma
+política de best-effort para uma segunda chamada que **não existe**, e o pre-mortem do Codex atacou
+corretamente as consequências dela. Com uma chamada só, o problema é resolvido **por construção**:
 
-```java
-private List<IcuActivityIntervalDto> buscarIntervalosBestEffort(IntegracaoExterna conexao, String activityId) {
-    try {
-        return intervalsIcuClient.buscarIntervalos(conexao.getAccessToken(), activityId);
-    } catch (IntervalsIcuApiException e) {
-        log.warn("Laps intervals.icu indisponíveis — import prossegue sem etapas: activityId={}, status={}",
-                activityId, e.getStatus());
-        // métrica: intervals_icu_laps_fetch_failure{status=...}
-        return List.of();
-    }
-}
-```
+- Se a chamada falhar (401, 404, 429, 5xx, timeout), o import inteiro falha — **exatamente como
+  hoje**, pelo caminho de erro que `buscarAtividade` já implementa (`IntervalsIcuActivityIngestionServiceImpl:128-150`).
+- Não há estado intermediário "treino importado com sucesso, mas sem etapas por falha transitória".
+- O scheduler continua abortando o lote em rate-limit e **não avança o cursor** — a atividade é
+  reprocessada no ciclo seguinte, com os intervalos. Nenhuma perda permanente.
 
-**Por quê:** o import de summary está em produção e funciona. Fazer a falha de um dado
-*complementar* derrubar um import que hoje é bem-sucedido seria uma regressão de disponibilidade —
-troca ruim. O comportamento degradado é exatamente o comportamento de hoje.
+**O achado HIGH #1 do Codex fica resolvido, não mitigado.** Ele estava certo sobre o design que leu;
+o design que leu partia de uma premissa errada minha.
 
-### Correção após pre-mortem (Codex, 2026-08-02) — best-effort SEM recuperação era perda de dado
+**O que ainda pode acontecer:** a activity vir com `intervals` ausente, nulo ou vazio. Isso não é
+falha — é uma corrida sem laps registrados. O treino é salvo sem etapas, como qualquer treino sem
+esse dado, e nenhum tratamento especial é necessário.
 
-A versão original desta decisão dizia "a contrapartida é que o import nunca se auto-corrige, aceitar
-e revisitar se a taxa de falha for alta". **Isso estava errado sob o scheduler**, e o achado é
-convergente com o do product review:
+**Consequências da simplificação:**
 
-- A change ativa `intervals-icu-activity-sync-scheduler` aborta o lote do atleta em rate-limit/timeout
-  justamente para **não avançar o cursor** sobre uma janela mal processada.
-- Com o D3 original, um 429 **só na chamada de laps** vira um import bem-sucedido (200). O cursor
-  avança, o dedup do passo 0 bloqueia o re-import, e o treino fica **permanentemente sem etapas** —
-  exatamente no caminho automático que esta change existe para proteger.
-- Uma falha transitória de segundos viraria perda de dado definitiva. Troca inaceitável.
+- **`lapsStatus` deixa de existir.** Não há o que classificar: ou a chamada deu certo (e os
+  intervalos vieram, ou genuinamente não existem), ou o import falhou. Nada a gravar em
+  `metadadosSincronizacao`.
+- **A métrica de falha de laps deixa de existir.** As falhas da chamada já são as falhas de import,
+  que a change anterior já instrumenta.
+- **CA3 do proposal perde o objeto** e é reescrito.
 
-**Decisão revisada:** o best-effort continua (não derrubar o import é certo), mas deixa de ser
-terminal. A falha passa a ser **registrada e recuperável** — ver D9. Classificação da falha:
-
-| Resposta da chamada de laps | `lapsStatus` | Recuperável? |
-|---|---|---|
-| 200 com laps | `OK` | — |
-| 200 com lista vazia, ou 404 | `EMPTY` | Não — a activity genuinamente não tem laps |
-| 429, 5xx, timeout | `FAILED` | **Sim** — transitório, entra na fila de recuperação |
-| 200 com corpo que não desserializa | `FAILED` + ERROR | Sim, mas é quebra de contrato — alarme |
-
-`lapsStatus` é gravado como mais uma chave do `metadadosSincronizacao` (coluna
-`metadados_sincronizacao TEXT`, já existente desde V13, já escrita pelo mapper via Jackson).
-**Sem migration.**
-
-**Não confundir com mascarar erro sistemático:** o WARN e a métrica por status são obrigatórios. Uma
-quebra de contrato (o endpoint mudou, todo mundo dá 404) tem de ser visível no Prometheus, não
-descoberta pelo coach.
-
-**Deserialização quebrada NÃO é best-effort silencioso.** Se o corpo chega mas o Jackson falha, é
-bug de contrato, não indisponibilidade: logar em ERROR (não WARN) e seguir sem etapas.
+**Deserialização quebrada** continua sendo bug de contrato, não indisponibilidade — mas agora
+derruba o import inteiro (o Jackson falha ao ler a activity), o que é o comportamento correto e já
+existente.
 
 ---
 
@@ -201,33 +195,32 @@ uma activity vinda de treino estruturado, não só de corrida livre.
 
 ## D6 — Attach e persistência
 
-`persistir` ganha o parâmetro das etapas já mapeadas:
+**A assinatura de `persistir` não muda.** Como os intervalos chegam dentro do `IcuActivityDto` (D1),
+o mapper — que já recebe o dto inteiro — passa a montar o treino **com** as etapas. Nada precisa
+atravessar o orquestrador:
 
 ```java
-@Transactional
-public TreinoRealizado persistir(IcuActivityDto dto, List<EtapaRealizada> etapas,
-                                 Atleta atleta, UUID tenantId, String externalId) {
-    // ... recheck TOCTOU de conexão (inalterado)
-    TreinoRealizado treino = intervalsIcuActivityMapper.map(dto, atleta);
-
-    for (EtapaRealizada etapa : etapas) {
-        etapa.setTreinoRealizado(treino);
-    }
-    treino.getEtapasRealizadas().addAll(etapas);
-
-    TreinoDedupHelper.SaveResult resultado = treinoDedupHelper.saveIdempotent(treino, externalId, atleta.getId());
-    // ... TSS, TSB, reconciliação, evento (inalterado)
+// IntervalsIcuActivityMapper.map(dto, atleta) — passa a terminar com:
+List<EtapaRealizada> etapas = mapEtapas(dto.intervalos());   // null → List.of()
+for (EtapaRealizada etapa : etapas) {
+    etapa.setTreinoRealizado(treino);
 }
+treino.getEtapasRealizadas().addAll(etapas);
+return treino;
 ```
+
+`IntervalsIcuActivityPersister.persistir` fica **inalterado** — o `treino` que ele recebe do mapper
+já vem completo, e o `saveIdempotent` persiste as filhas por cascade. Isso também elimina o risco de
+anexar etapas ao registro vencedor no ramo `inserted == false`: não há attach fora do mapper.
 
 **Sem save explícito de etapa:** `TreinoRealizado.etapasRealizadas` tem
 `cascade = CascadeType.ALL, orphanRemoval = true` (`TreinoRealizado.java:107`) — o `save` do treino
 persiste as filhas. Nenhum `EtapaRealizadaRepository` novo.
 
-**O attach acontece antes do `saveIdempotent`, sobre um `treino` recém-construído** — nunca sobre o
-registro devolvido pelo ramo `inserted == false` (corrida de concorrência). Nesse ramo o vencedor da
-corrida já persistiu as próprias etapas; anexar de novo duplicaria linhas. O código acima satisfaz
-isso por construção, mas o teste tem de fixar a garantia.
+**O attach acontece dentro do mapper, sobre um `treino` recém-construído** — nunca sobre o registro
+devolvido pelo ramo `inserted == false` (corrida de concorrência). Nesse ramo o vencedor da corrida
+já persistiu as próprias etapas; anexar de novo duplicaria linhas. Isso é garantido por construção
+(o persister não manipula etapas), mas o teste fixa a garantia.
 
 **Ordem dos side effects inalterada.** TSS, TSB, reconciliação e evento continuam iguais: nenhum
 deles lê `etapasRealizadas` hoje. Se algum passar a ler, é outra change.
@@ -249,56 +242,63 @@ própria.
 
 ---
 
-## D9 — Recuperação: backfill de etapas (fecha os dois achados HIGH do pre-mortem)
+## D9 — Backfill: só a lacuna histórica
 
-Um único mecanismo resolve as duas lacunas que o Codex e o product review apontaram por portas
-diferentes — o treino que falhou o lap fetch (D3) e o treino histórico importado antes desta change.
-Ambos têm a **mesma assinatura em banco**: `fonteDados = INTERVALS_ICU` e `etapasRealizadas` vazio.
+**Escopo reduzido pela correção do D1.** O D9 nasceu para cobrir dois casos; com uma chamada só,
+**um deles deixou de existir** (o treino cuja busca de laps falhou — ver D3). Resta um:
+
+> Treinos intervals.icu importados **antes** desta change, que nunca tiveram etapas porque o
+> pipeline não as buscava. O guard de dedup impede que um re-import os corrija.
 
 **Operação:** `POST /api/v1/intervals-icu/atletas/{atletaId}/activities/backfill-laps` — ação do
 coach (coach-in-the-loop), mesma autorização do import manual.
 
 ```
-Para cada TreinoRealizado do atleta com fonteDados=INTERVALS_ICU e etapasRealizadas vazio,
-excluindo os marcados lapsStatus=EMPTY:
-  1. buscarIntervalos(apiKey, externalId)         ← fora de transação, igual ao D1
-  2. mapEtapas(...)
-  3. attach + save                                 ← UPDATE, não INSERT
+Para cada TreinoRealizado do atleta com fonteDados=INTERVALS_ICU e etapasRealizadas vazio:
+  1. buscarAtividade(apiKey, externalId, comIntervalos=true)   ← fora de transação
+  2. mapEtapas(dto.intervalos())
+  3. attach + save                                              ← UPDATE, não INSERT
 ```
 
-**Por que isto contorna o dedup:** o guard do passo 0 protege contra **inserir** um treino
-duplicado. O backfill não insere nada — ele completa um registro existente. O dedup nunca é
-consultado, então a barreira que tornava a falha permanente simplesmente não se aplica.
+**Por que isto contorna o dedup:** o guard do passo 0 protege contra **inserir** um treino duplicado.
+O backfill não insere nada — completa um registro existente. O dedup nunca é consultado.
 
-**Por que não retentar dentro do import:** um retry inline paga o pior caso duas vezes exatamente
-quando o intervals.icu já está sob pressão — é a regra de External Call Resilience do módulo
-("nunca retentar um timeout"). A recuperação é assíncrona e deliberada, disparada quando o serviço
-já se recuperou.
+**Só o summary é ignorado.** O backfill relê a activity inteira mas grava **apenas** as etapas — não
+sobrescreve distância, pace, FC nem nada que o coach possa ter editado desde o import.
 
-**Por que ação do coach e não job automático:** volume de pilot é pequeno, o coach sabe qual atleta
-importa, e um job cross-tenant repetindo chamadas ao intervals.icu recria o problema de rate limit
-que o D3 tenta contornar. Promover a job agendado é decisão para depois de medir — não antes.
+**Por que ação do coach e não job automático:** é uma operação de uma vez só, sobre um passivo
+finito. Um job agendado ficaria varrendo para sempre um conjunto que tende a zero. Se o volume do
+pilot tornar o disparo manual incômodo, promover depois.
 
-**Filtro `lapsStatus=EMPTY`:** sem ele, toda activity que genuinamente não tem laps seria consultada
-de novo a cada backfill, para sempre. O filtro roda em memória (`metadados_sincronizacao` é `TEXT`,
-não `jsonb`) — aceitável no volume do pilot. Se crescer, promover a coluna própria com migration, em
-change própria.
+**Activities genuinamente sem laps são reconsultadas a cada execução** — não há marcador que as
+distinga de "ainda não corrigidas". Aceitável: o backfill é manual, o passivo é pequeno e finito, e
+cada reconsulta é uma chamada. Não vale um campo de estado novo para isso.
 
-**Idempotência:** rodar o backfill duas vezes é seguro — na segunda passada os treinos corrigidos já
-têm etapas e saem do conjunto de candidatos.
+**Idempotência:** rodar duas vezes é seguro — na segunda passada os treinos corrigidos já têm etapas
+e saem do conjunto.
 
 ---
 
 ## D7 — Assinatura do client
 
+Nenhum método novo. `buscarAtividade` ganha o parâmetro que liga os intervalos:
+
 ```java
-/** GET /api/v1/activity/{id}/intervals — erro HTTP vira IntervalsIcuApiException(status, mensagem). */
-List<IcuActivityIntervalDto> buscarIntervalos(String apiKey, String activityId);
+/** GET /api/v1/activity/{id}?intervals={comIntervalos} — erro HTTP vira IntervalsIcuApiException. */
+IcuActivityDto buscarAtividade(String apiKey, String activityId, boolean comIntervalos);
 ```
 
-Mesma convenção de erro dos métodos existentes: erro HTTP → `IntervalsIcuApiException` com status,
-tratamento de política fica na camada de serviço (D3). Timeouts vêm do `IntervalsIcuWebClientConfig`
-já existente (5s/10s) — nenhuma configuração nova.
+Implementação em `IntervalsIcuClientImpl:135-142`, acrescentando o query param ao `uri(...)` e
+mantendo o helper `executa(...)` e o `basic(h, apiKey)` intactos.
+
+**Todos os chamadores atuais passam `true`** — não há caso de uso para importar sem os intervalos, e
+manter uma sobrecarga de dois braços só cria a chance de alguém chamar o braço errado e reintroduzir
+o bug que esta change conserta. Trocar a assinatura em vez de sobrecarregar força o compilador a
+apontar cada ponto de chamada.
+
+Timeouts vêm do `IntervalsIcuWebClientConfig` já existente (5s/10s) — nenhuma configuração nova. O
+payload fica maior (activity + intervalos num corpo só), o que é argumento para **conferir** se o
+read timeout de 10s continua folgado no smoke, não para mexer nele preventivamente.
 
 ---
 
@@ -307,9 +307,10 @@ já existente (5s/10s) — nenhuma configuração nova.
 | Camada | Cobertura |
 |---|---|
 | `IntervalsIcuActivityMapperTest` | mapeamento campo a campo; unidades (m/s→km/h, cadência dobrada, metros→km scale 3); lista vazia; intervalo sem métricas descartado; `tipoEtapa` desconhecido → null |
-| `IntervalsIcuClientImplTest` | endpoint chamado; envelope desembrulhado; erro HTTP → `IntervalsIcuApiException` |
-| `IntervalsIcuActivityIngestionServiceImplTest` | laps buscados só depois dos guards 4 e 5; falha de laps não derruba o import (CA3); dedup do passo 0 não faz nenhuma chamada (CA5); guard cross-atleta aborta antes da 2ª chamada (CA6) |
-| `IntervalsIcuActivityPersisterTest` | attach com back-reference e cascade; ramo `inserted == false` não anexa etapas |
+| `IntervalsIcuClientImplTest` | query param `intervals=true` presente na URI; erro HTTP → `IntervalsIcuApiException` |
+| `IntervalsIcuActivityIngestionServiceImplTest` | dedup do passo 0 não faz nenhuma chamada (CA5); comportamento de erro do import inalterado |
+| `IntervalsIcuActivityPersisterTest` | etapas persistidas por cascade; ramo `inserted == false` não duplica etapas |
+| `IntervalsIcuBackfillServiceTest` | conjunto de candidatos tenant-scoped; UPDATE sem insert; idempotência; falha em um treino não aborta os demais; summary não é sobrescrito |
 | `IntervalsIcuActivityImportIntegrationTest` | etapas realmente persistidas em `tb_etapa_realizada` com `ordem` correta; re-import (passo 0) serializa o output com etapas sem `LazyInitializationException` |
 
 Regra de sempre: strict stubbing, sem `LENIENT`. Skills não entram — elas já consomem
@@ -324,11 +325,14 @@ Regra de sempre: strict stubbing, sem `LENIENT`. Skills não entram — elas já
 - **[HIGH, aceito] Best-effort transformava 429 transitório em perda permanente sob o scheduler.**
   O achado mais afiado das duas revisões: o D3 original conflitava com o design do scheduler, que
   aborta o lote para não avançar o cursor. Um 429 só nos laps virava import 200, cursor avançava,
-  dedup bloqueava o conserto. **Corrigido:** D3 revisado com classificação de falha
-  (`EMPTY` vs `FAILED`) + D9 (backfill).
+  dedup bloqueava o conserto. **Resolvido — e não pela mitigação que eu tinha escrito.** A correção
+  de premissa do D1 (uma chamada só, `?intervals=true`) elimina a classe inteira do problema: não
+  existe "falha só nos laps". O achado estava certo sobre o design que leu; o design que ele leu
+  partia de uma premissa minha errada.
 - **[HIGH, aceito] Backfill deixado como open question no início da implementação.** Convergente com
   o achado #2 do product review, mas mais duro: exige mecanismo concreto de recuperação como
-  requisito de DoR, não decisão adiada. **Corrigido:** D9 vira escopo desta change, não non-goal.
+  requisito de DoR, não decisão adiada. **Corrigido:** D9 vira escopo desta change, agora reduzido à
+  lacuna histórica (o caso "lap fetch falhou" deixou de existir).
 - **[MEDIUM, rejeitado] "A premissa de sem-migration não se sustenta — `tb_etapa_realizada` não tem
   `split_index` nem colunas de elevação."** **Falso positivo por checkout errado.** O Codex rodou a
   partir de `menthoros-product/` e leu `infra/scripts/flyway/` — uma cópia legada com 9 migrations,
@@ -341,8 +345,13 @@ Regra de sempre: strict stubbing, sem `LENIENT`. Skills não entram — elas já
 
 ### Hipóteses ainda em aberto (para a rodada 2, pós-smoke)
 
-1. **O endpoint presumido não existe** ou devolve outra forma → toda a D2 cai. É por isso que o
-   smoke é gate de DoR.
+0. **Correção de premissa (founder, 2026-08-02) — a mais barata das três rodadas.** O design inteiro
+   presumia um endpoint separado de laps, por simetria com o Strava. É `?intervals=true` no endpoint
+   que já usamos. Duas revisões e um pre-mortem atacaram consequências de uma premissa que uma frase
+   do founder derrubou. Lição para a rodada 2: **confirmar o contrato externo antes de desenhar em
+   cima dele**, não depois — exatamente o que o bloco 0 existe para forçar.
+1. **O nome do campo dos intervalos no corpo** (`icu_intervals`?) e a forma de cada item continuam
+   não verificados → a D2 ainda depende do smoke.
 2. **`ordem` colide com o índice `idx_etapa_realizada_ordem`** se o payload trouxer índices
    repetidos (grupos de repetição). A ordem 1-based da posição na lista protege, mas `splitIndex`
    pode repetir — confirmar que nada depende de `splitIndex` ser único.

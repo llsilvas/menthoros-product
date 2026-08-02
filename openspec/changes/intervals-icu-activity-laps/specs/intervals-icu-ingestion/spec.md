@@ -47,52 +47,45 @@ atividade e persistir um `EtapaRealizada` por intervalo, vinculado ao `TreinoRea
 - **Then** esse lap não vira `EtapaRealizada`
 - **And** a numeração de `ordem` das etapas restantes permanece sequencial e sem buracos
 
-## Requirement: A falha ao buscar laps não derruba o import
+## Requirement: As etapas não custam uma chamada externa a mais
 
-A busca de intervalos é uma chamada complementar. Falha nessa chamada DEVE degradar o resultado
-(treino sem etapas), NUNCA falhar o import de um summary que teria sido importado com sucesso.
+Os intervalos DEVEM ser obtidos na mesma requisição que já busca a atividade. O import NÃO DEVE
+ganhar um modo de falha parcial em que o treino é criado com sucesso mas sem etapas por
+indisponibilidade.
 
-#### Scenario: intervals.icu indisponível apenas para os intervalos
-- **Given** a chamada de summary responde 200
-- **And** a chamada de intervalos responde 429, 5xx ou estoura o timeout
+#### Scenario: Uma requisição por import
+- **Given** um import de atividade
+- **When** o fluxo executa
+- **Then** exatamente uma requisição é feita ao intervals.icu, como antes desta capability mudar
+
+#### Scenario: Comportamento de erro preservado
+- **Given** o intervals.icu responde com erro (credencial inválida, não encontrado, rate limit,
+  indisponibilidade ou timeout)
 - **When** o coach importa a atividade
-- **Then** o `TreinoRealizado` é criado com o summary e sem etapas
-- **And** a resposta é 200
-- **And** um WARN e uma métrica de falha, com o status, registram a degradação
+- **Then** a resposta é a mesma já especificada para cada um desses casos
+- **And** nenhum `TreinoRealizado` parcial — criado com summary e sem etapas por falha — é
+  persistido
 
-#### Scenario: Payload de intervalos com formato inesperado
-- **Given** a chamada de intervalos responde 200 com um corpo que não desserializa
-- **When** o coach importa a atividade
-- **Then** o treino é criado sem etapas
-- **And** a ocorrência é registrada em ERROR — quebra de contrato não é tratada como
-  indisponibilidade
+## Requirement: A lacuna histórica é recuperável
 
-#### Scenario: O resultado da busca de laps é classificado e registrado
-- **Given** um import cuja chamada de intervalos teve algum desfecho
-- **When** o treino é persistido
-- **Then** o desfecho fica registrado nos metadados de sincronização, distinguindo
-  "tem laps", "genuinamente não tem laps" e "falhou e pode ser recuperado"
-- **And** apenas o último caso torna o treino elegível para recuperação posterior
-
-## Requirement: Etapas ausentes são recuperáveis
-
-Um treino intervals.icu sem etapas — seja porque foi importado antes desta capability existir, seja
-porque a busca de laps falhou — DEVE poder ser completado depois, sem depender de reimportar a
-atividade.
+Um treino intervals.icu importado **antes** desta capability existir DEVE poder ser completado
+depois, sem depender de reimportar a atividade — o guard de idempotência de import impede a correção
+por essa via.
 
 #### Scenario: Coach recupera as etapas de um atleta
-- **Given** um atleta com treinos intervals.icu sem etapas, entre eles alguns cuja busca de laps
-  falhou e outros importados antes desta capability
+- **Given** um atleta com treinos intervals.icu importados antes desta capability, portanto sem
+  etapas
 - **When** o coach dispara a recuperação de etapas para esse atleta
 - **Then** cada treino do conjunto tem suas etapas buscadas e persistidas, atualizando o registro
   existente
 - **And** nenhum `TreinoRealizado` novo é criado
 - **And** o guard de idempotência de import não impede a operação
 
-#### Scenario: Treino genuinamente sem laps não é reconsultado
-- **Given** um treino cujo desfecho registrado é "genuinamente não tem laps"
-- **When** a recuperação é disparada
-- **Then** esse treino é pulado sem nenhuma chamada externa
+#### Scenario: A recuperação não sobrescreve o treino
+- **Given** um treino cuja recuperação é disparada
+- **When** as etapas são gravadas
+- **Then** apenas as etapas mudam — distância, pace, FC, descrição e demais campos do treino
+  permanecem como estavam, inclusive edições feitas pelo coach desde o import
 
 #### Scenario: Recuperação é idempotente e tolerante a falha parcial
 - **Given** uma recuperação em que a busca de laps de um dos treinos falha

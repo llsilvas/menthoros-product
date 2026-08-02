@@ -19,18 +19,20 @@ qualquer código.
 Nada abaixo pode começar antes deste bloco fechar. É o gate que pegou os dois bugs de unidade da
 change anterior (cadência de perna única, `average_speed` em m/s).
 
-- [ ] 0.1 Confirmar o **path real** do endpoint de intervalos de uma activity no intervals.icu
-      (presumido `GET /api/v1/activity/{id}/intervals`), usando a API key de um atleta de teste.
-- [ ] 0.2 Capturar o **payload real** de duas activities distintas: uma corrida contínua com auto-lap
-      e uma vinda de treino estruturado (com blocos). Salvar os dois JSONs como fixtures de teste.
-- [ ] 0.3 Preencher a tabela de contrato: para cada campo de D2, registrar **existe? nome exato?
-      unidade?**. Corrigir `design.md` D2/D4 com o que for divergente.
-- [ ] 0.4 Responder as premissas 2, 3 e 4 do proposal: cadência é de perna única? distância em
+Endpoint **já confirmado** pelo founder: `GET /api/v1/activity/{id}?intervals=true` — mesmo endpoint
+do import de hoje, um query param. Falta o contrato do corpo.
+
+- [x] 0.1 ~~Confirmar o path real~~ — resolvido: `?intervals=true`, sem chamada separada.
+- [ ] 0.2 Capturar o **payload real** de duas activities: uma corrida contínua com auto-lap e uma
+      vinda de treino estruturado (com blocos). Salvar os dois JSONs como fixtures de teste.
+- [ ] 0.3 Registrar o **nome do campo** que carrega a lista no corpo da activity (`icu_intervals`?) e
+      se ele vem ausente ou nulo quando não há intervalos.
+- [ ] 0.4 Preencher a tabela de contrato: para cada campo de D2, **existe? nome exato? unidade?**.
+      Corrigir `design.md` D2/D4 com o que divergir.
+- [ ] 0.5 Responder as premissas 2, 3 e 4 do proposal: cadência é de perna única? distância em
       metros? o payload classifica o tipo do intervalo?
-- [ ] 0.5 Registrar a **forma do envelope** (lista nua vs objeto com `icu_intervals`).
-- [ ] 0.6 Medir a **taxa de falha** da chamada numa amostra. **Gatilho:** > 5% obriga a revisitar o
-      design antes de fechar o DoR (retry na segunda chamada, ou re-sync forçado dentro desta
-      change). ≤ 5% segue como risco aceito e observado.
+- [ ] 0.6 Medir o **tamanho do corpo e a latência** com `intervals=true` — confirmar que o read
+      timeout de 10s do `IntervalsIcuWebClientConfig` continua folgado.
 - **Validação:** `design.md` D2/D4 atualizados com dados reais; fixtures commitadas.
 
 ## 1. DTO do intervalo
@@ -41,17 +43,22 @@ change anterior (cadência de perna única, `average_speed` em m/s).
       `@JsonIgnoreProperties(ignoreUnknown = true)` e `@JsonProperty` conforme 0.3.
 - **Validação:** `./mvnw clean test`
 
-## 2. Client — busca de intervalos
+## 2. Client — query param `intervals=true`
 
-- [ ] 2.1 Teste primeiro (`IntervalsIcuClientImplTest`): chamada ao path correto com a API key;
-      envelope desembrulhado em `List<IcuActivityIntervalDto>`.
-- [ ] 2.2 Teste primeiro: corpo vazio / lista ausente → lista vazia, sem NPE.
+- [ ] 2.1 Teste primeiro (`IntervalsIcuClientImplTest`): a URI da chamada inclui `intervals=true`
+      quando `comIntervalos` é verdadeiro, e não inclui quando falso.
+- [ ] 2.2 Teste primeiro: desserialização da activity com intervalos preenche o novo campo; activity
+      sem o campo → nulo, sem NPE.
 - [ ] 2.3 Teste primeiro: erro HTTP (404, 429, 500) → `IntervalsIcuApiException` com o status
-      preservado.
-- [ ] 2.4 Adicionar `buscarIntervalos(String apiKey, String activityId)` a `IntervalsIcuClient` e
-      implementar em `IntervalsIcuClientImpl` espelhando `buscarAtividade` (`:135-142`): mesmo
-      helper `executa(...)` para tradução de erro e mesmo `basic(h, apiKey)` para a auth. Sem timeout
-      novo — reusa `IntervalsIcuWebClientConfig`.
+      preservado (comportamento atual, não pode regredir).
+- [ ] 2.4 Alterar `buscarAtividade` em `IntervalsIcuClient` para
+      `buscarAtividade(apiKey, activityId, comIntervalos)` e implementar em `IntervalsIcuClientImpl`
+      (`:135-142`), acrescentando o query param ao `uri(...)` e mantendo `executa(...)` e
+      `basic(h, apiKey)`. **Trocar a assinatura, não sobrecarregar** (D7) — o compilador aponta cada
+      chamador.
+- [ ] 2.5 Acrescentar o campo de lista de intervalos a `IcuActivityDto` e atualizar todos os pontos
+      que constroem o record à mão (o construtor canônico muda) — fixtures e
+      `IntervalsIcuActivityMapperTest`.
 - **Validação:** `./mvnw clean test`
 
 ## 3. Mapper — intervalo → EtapaRealizada
@@ -68,57 +75,57 @@ change anterior (cadência de perna única, `average_speed` em m/s).
       distância nem duração → descartado.
 - [ ] 3.6 Teste primeiro: `tipoEtapa` normalizado quando o payload classifica; valor desconhecido →
       null; payload sem classificação → null em todas as etapas (D5).
-- [ ] 3.7 Implementar `mapEtapas(List<IcuActivityIntervalDto>)` em `IntervalsIcuActivityMapper`,
-      reusando os helpers privados do próprio mapper — **sem** chamar `StravaActivityServiceImpl`.
+- [ ] 3.7 Teste primeiro: `map(dto, atleta)` devolve o treino **já com** as etapas anexadas e com o
+      back-reference `treinoRealizado` setado em cada uma (D6).
+- [ ] 3.8 Implementar `mapEtapas(...)` em `IntervalsIcuActivityMapper` e chamá-lo de dentro de
+      `map(dto, atleta)`, reusando os helpers privados do próprio mapper — **sem** chamar
+      `StravaActivityServiceImpl`.
 - **Validação:** `./mvnw clean test`
 
-## 4. Persister — attach com cascade
+## 4. Persister — persistência por cascade (assinatura inalterada)
 
-- [ ] 4.1 Teste primeiro (`IntervalsIcuActivityPersisterTest`): etapas recebidas ficam com
-      `treinoRealizado` back-referenciado e entram em `treino.getEtapasRealizadas()` antes do
-      `saveIdempotent`.
-- [ ] 4.2 Teste primeiro: ramo `inserted == false` (corrida de concorrência) **não** anexa etapas ao
+- [ ] 4.1 Teste primeiro (`IntervalsIcuActivityPersisterTest`): as etapas que vêm do mapper são
+      persistidas junto com o treino, sem `EtapaRealizadaRepository` — `cascade = CascadeType.ALL`
+      (`TreinoRealizado.java:107`).
+- [ ] 4.2 Teste primeiro: ramo `inserted == false` (corrida de concorrência) não duplica etapas no
       registro vencedor (D6).
-- [ ] 4.3 Teste primeiro: lista de etapas vazia preserva exatamente o comportamento atual — treino
+- [ ] 4.3 Teste primeiro: activity sem intervalos preserva exatamente o comportamento atual — treino
       salvo, nenhum side effect novo.
-- [ ] 4.4 Alterar a assinatura de `persistir` para receber `List<EtapaRealizada> etapas` e fazer o
-      attach. Sem repositório novo — `cascade = CascadeType.ALL` persiste as filhas.
+- [ ] 4.4 Confirmar que **nenhuma alteração** foi necessária em `IntervalsIcuActivityPersister`. Se
+      alguma for, é sinal de que o mapper não está completando o treino como o D6 prevê.
 - **Validação:** `./mvnw clean test`
 
-## 5. Orquestrador — segunda chamada fora de transação
+## 5. Orquestrador — atualizar o ponto de chamada
 
-- [ ] 5.1 Teste primeiro (`IntervalsIcuActivityIngestionServiceImplTest`): a busca de intervalos
-      ocorre **depois** dos guards de cross-atleta e de modalidade — activity de outro atleta ou de
-      modalidade não suportada aborta **sem** chamar `buscarIntervalos` (CA6).
-- [ ] 5.2 Teste primeiro: dedup do passo 0 retorna o registro existente sem fazer **nenhuma** das
-      duas chamadas HTTP (CA5).
-- [ ] 5.3 Teste primeiro (CA3): `buscarIntervalos` lança `IntervalsIcuApiException` (429 e timeout)
-      → import prossegue, treino salvo sem etapas, resposta 200, WARN registrado.
-- [ ] 5.4 Teste primeiro: falha de desserialização é logada em ERROR, não WARN (D3), e também não
-      derruba o import.
-- [ ] 5.5 Teste primeiro: `lapsStatus` gravado em `metadadosSincronizacao` conforme a tabela de
-      classificação do D3 — `OK` com laps, `EMPTY` em 404 ou lista vazia, `FAILED` em 429/5xx/timeout
-      e em falha de desserialização.
-- [ ] 5.6 Implementar o passo 3b e `buscarIntervalosBestEffort` no orquestrador, passando as etapas
-      mapeadas e o `lapsStatus` ao persister (D1, D3).
-- [ ] 5.7 Verificar que nenhuma anotação `@Transactional` foi introduzida no caminho da chamada
-      externa (CA4).
+Bloco pequeno de propósito: com uma chamada só, o orquestrador quase não muda.
+
+- [ ] 5.1 Teste primeiro: dedup do passo 0 retorna o registro existente **sem nenhuma** chamada HTTP
+      (CA5).
+- [ ] 5.2 Teste primeiro (CA4): exatamente **uma** chamada ao intervals.icu por import — nenhuma
+      requisição extra foi introduzida.
+- [ ] 5.3 Teste primeiro (CA3): o comportamento de erro do import não regride — 401/403, 404, 422 e
+      429 continuam mapeados como hoje (`IntervalsIcuActivityIngestionServiceImpl:128-150`).
+- [ ] 5.4 Atualizar a chamada a `buscarAtividade` para passar `comIntervalos=true`.
+- [ ] 5.5 Verificar que nenhuma anotação `@Transactional` foi introduzida no caminho da chamada
+      externa.
 - **Validação:** `./mvnw clean test`
 
-## 5b. Backfill de etapas (D9 — fecha os dois achados HIGH do pre-mortem)
+## 5b. Backfill de etapas (D9 — lacuna histórica)
 
-Sem este bloco, um 429 de segundos vira perda permanente de etapas sob o scheduler. Não é opcional.
+Cobre os treinos intervals.icu importados **antes** desta change, que o guard de dedup impede de
+corrigir por re-import. O caso "lap fetch falhou" deixou de existir com a correção de premissa.
 
 - [ ] 5b.1 Teste primeiro: o conjunto de candidatos é `fonteDados=INTERVALS_ICU` **e**
       `etapasRealizadas` vazio, do atleta e tenant informados — treinos de outro tenant nunca entram.
-- [ ] 5b.2 Teste primeiro: treinos marcados `lapsStatus=EMPTY` são pulados **sem chamada de rede**.
-- [ ] 5b.3 Teste primeiro (CA8): treino candidato recebe as etapas via UPDATE, sem passar pelo guard
+- [ ] 5b.2 Teste primeiro (CA8): treino candidato recebe as etapas via UPDATE, sem passar pelo guard
       de dedup e sem criar um `TreinoRealizado` novo.
+- [ ] 5b.3 Teste primeiro: o **summary não é sobrescrito** — distância, pace, FC e descrição do
+      treino permanecem como estavam, mesmo que o payload traga valores diferentes.
 - [ ] 5b.4 Teste primeiro: idempotência — segunda execução é no-op para os já corrigidos.
-- [ ] 5b.5 Teste primeiro: falha de laps durante o backfill de um treino não aborta os demais; o
-      `lapsStatus` daquele treino permanece `FAILED` e ele segue elegível na próxima execução.
-- [ ] 5b.6 Teste primeiro: as chamadas de rede do backfill ocorrem **fora de transação**, mesmo
-      princípio do D1 — a persistência de cada treino é sua própria transação curta.
+- [ ] 5b.5 Teste primeiro: falha na chamada de um treino não aborta os demais; aquele treino segue
+      elegível na próxima execução.
+- [ ] 5b.6 Teste primeiro: as chamadas de rede do backfill ocorrem **fora de transação** — a
+      persistência de cada treino é sua própria transação curta.
 - [ ] 5b.7 Nova query em `TreinoRealizadoRepository` para os candidatos — o repositório hoje só tem
       lookup por `externalId` (`:33`, `:49`), nada por atleta + fonte + ausência de etapas. Query
       tenant-scoped, com `LEFT JOIN`/`NOT EXISTS` sobre `tb_etapa_realizada`.
@@ -131,13 +138,12 @@ Sem este bloco, um 429 de segundos vira perda permanente de etapas sob o schedul
 
 ## 6. Observabilidade
 
-- [ ] 6.1 Teste primeiro: contador `intervals_icu_laps_fetch_failure` incrementado com tag de status
-      em cada falha da segunda chamada.
-- [ ] 6.2 Registrar a métrica no registry Micrometer já existente — sem dependência nova, sem
-      circuit breaker (ADR-0008).
-- [ ] 6.3 Expor a **cobertura de etapas segmentada por tenant/assessoria** (métrica de sucesso do
-      proposal) — é o instrumento que torna a lacuna do Open Question #5 observável em vez de
-      dependente de reclamação do coach.
+A métrica de falha de laps foi **deletada** com a correção de premissa — não há falha de laps
+independente para contar. Resta o instrumento de cobertura.
+
+- [ ] 6.1 Expor a **cobertura de etapas segmentada por tenant/assessoria** (métrica de sucesso do
+      proposal) no registry Micrometer já existente — é o que torna a lacuna histórica observável em
+      vez de dependente de reclamação do coach. Sem dependência nova, sem circuit breaker (ADR-0008).
 - **Validação:** `./mvnw clean test`
 
 ## 7. Integração
@@ -157,9 +163,8 @@ Sem este bloco, um 429 de segundos vira perda permanente de etapas sob o schedul
 - [ ] 8.1 `/qa` — `code-reviewer` + `security-reviewer` + `test-master` (trilha Full).
 - [ ] 8.2 Atualizar `design.md` com o que o smoke e a implementação revelaram (a change anterior
       registra que achados críticos só apareceram ao implementar, não ao revisar a spec).
-- [ ] 8.3 Com o dado real de 0.6 e a cobertura por assessoria em mãos, decidir se o backfill manual
-      do coach (D9) basta ou se o volume de falhas exige promovê-lo a job agendado — e registrar a
-      decisão no proposal (Open Question #6).
+- [ ] 8.3 Com a cobertura por assessoria em mãos, confirmar que o backfill manual do coach dá conta
+      do passivo histórico e registrar a decisão no proposal.
 - [ ] 8.4 `/pr intervals-icu-activity-laps` — PR para `develop`, sem merge local.
-- **Validação:** CI verde e `./mvnw clean verify` local com as 14 falhas conhecidas de
-  `Task5p1ControllerIT` como únicas — nenhuma falha nova.
+- **Validação:** CI verde e `./mvnw clean verify` local **sem nenhuma falha** — o gate está verde em
+  `develop`, então qualquer vermelho é desta change.

@@ -29,6 +29,13 @@ os campos necessários)
   como falso positivo (ver design.md, Pre-mortem): o Codex leu a cópia legada de migrations em
   `menthoros-product/infra/scripts/flyway/` em vez da cadeia real do backend — a premissa de
   sem-migration se sustenta.
+- **Correção de premissa do founder (2026-08-02), durante o `/implement init`:** não existe endpoint
+  separado de laps — é `GET /api/v1/activity/{id}?intervals=true`, o mesmo endpoint já usado. A
+  segunda chamada HTTP, em torno da qual boa parte do design e das duas revisões girava, **nunca
+  existiu**. Consequências: custo de rede zero em vez de +100%; o achado HIGH #1 do Codex resolvido
+  por construção e não por mitigação; `lapsStatus` e a métrica de falha de laps deletados; D9
+  reduzido à lacuna histórica; assinaturas de `persistir` e do orquestrador inalteradas. **A change
+  ficou menor e mais segura.** Registro da lição em design.md, Pre-mortem, hipótese 0.
 
 ## Prioridade no roadmap
 
@@ -74,29 +81,24 @@ nova de IA é exposta ao atleta; o coach-in-the-loop fica inalterado.
 
 Fatia vertical fina sobre o pipeline de ingestão que já existe:
 
-- **`IntervalsIcuClient`**: novo método `buscarIntervalos(apiKey, activityId)` sobre o endpoint de
-  intervalos da activity (path exato a confirmar no smoke — ver Open Questions).
-- **`IcuActivityIntervalDto`** (novo record, `dto/intervalsicu/`): contrato de um lap/intervalo, com
+> **Correção de premissa (founder, 2026-08-02):** a versão anterior deste documento presumia um
+> endpoint separado de laps, por simetria com o Strava. **Não existe.** Os intervalos vêm no mesmo
+> payload da activity: `GET /api/v1/activity/{id}?intervals=true`. Isso derruba metade do que estava
+> desenhado aqui — e derruba junto os problemas que esse desenho criava.
+
+- **`IntervalsIcuClient.buscarAtividade`**: ganha o parâmetro `comIntervalos`. **Nenhum método novo,
+  nenhuma chamada HTTP a mais.**
+- **`IcuActivityIntervalDto`** (novo record, `dto/intervalsicu/`): contrato de um intervalo, com
   `@JsonIgnoreProperties(ignoreUnknown = true)`, seguindo o padrão de `IcuActivityDto`.
-- **`IntervalsIcuActivityMapper`**: novo `mapEtapas(List<IcuActivityIntervalDto>)` →
-  `List<EtapaRealizada>`, com sanitização isolada da do Strava (mesma regra da cadência: fórmula
-  pode coincidir, o código não acopla).
-- **`IntervalsIcuActivityIngestionServiceImpl`**: a busca de laps é uma **segunda chamada HTTP** e
-  fica no passo 3 do orquestrador, **fora de qualquer transação** — não dentro do persister
-  (`@Transactional`). Isso corrige, para o caminho novo, a dívida que o caminho Strava carrega
-  (`attachLaps` roda dentro de `@Transactional`, segurando conexão de banco durante IO externo).
-- **`IntervalsIcuActivityPersister`**: recebe as etapas já mapeadas e faz o attach antes do
-  `saveIdempotent`. Não precisa de save explícito das etapas — `TreinoRealizado.etapasRealizadas`
-  tem `cascade = CascadeType.ALL` (`TreinoRealizado.java:107`).
-- **Falha de laps é não-fatal, mas recuperável**: se a segunda chamada falhar, o import do summary
-  prossegue e o treino é salvo sem etapas — o comportamento de hoje. A falha é **classificada** e
-  gravada em `metadadosSincronizacao` (`lapsStatus`: `OK` / `EMPTY` / `FAILED`), além de log e
-  métrica.
+- **`IcuActivityDto`**: ganha o campo de lista dos intervalos (nome a confirmar no smoke).
+- **`IntervalsIcuActivityMapper`**: novo `mapEtapas(...)` chamado de dentro de `map(dto, atleta)` —
+  o treino já sai do mapper com as etapas anexadas. Sanitização isolada da do Strava (mesma regra da
+  cadência: a fórmula pode coincidir, o código não acopla).
+- **`IntervalsIcuActivityIngestionServiceImpl` e `IntervalsIcuActivityPersister`**: praticamente
+  inalterados. As etapas persistem por `cascade = CascadeType.ALL` (`TreinoRealizado.java:107`).
 - **Backfill de etapas** (`POST .../activities/backfill-laps`): ação do coach que completa os treinos
-  intervals.icu sem etapas — tanto os que falharam o lap fetch quanto os importados antes desta
-  change. É um **UPDATE**, não um insert, então o guard de dedup não se aplica. Entrou no escopo por
-  achado HIGH do pre-mortem: sem ele, um 429 de segundos vira perda de dado permanente sob o
-  scheduler.
+  intervals.icu importados **antes** desta change, que o guard de dedup impede de corrigir por
+  re-import. É um **UPDATE** que grava só as etapas — não sobrescreve o summary.
 
 ## Capabilities
 
@@ -118,9 +120,9 @@ Fatia vertical fina sobre o pipeline de ingestão que já existe:
 — nenhum campo novo. O front passa a **receber conteúdo** onde hoje recebe lista vazia. Nenhuma
 mudança no cliente gerado.
 
-**Custo de rede:** +1 chamada HTTP por atividade importada. Sob a change ativa
-`intervals-icu-activity-sync-scheduler` isso vira +1 por atividade × N atletas por ciclo — o dobro
-de chamadas ao intervals.icu. Ver Riscos.
+**Custo de rede:** **zero chamadas adicionais** — mesmo endpoint, mesmo número de requisições de
+hoje, um query param a mais. O corpo da resposta fica maior; confirmar no smoke que o read timeout
+de 10s continua folgado.
 
 ## Critérios de aceite
 
@@ -135,35 +137,32 @@ de chamadas ao intervals.icu. Ver Riscos.
   - **When** o coach importa a atividade
   - **Then** o treino é criado normalmente com `etapasRealizadas` vazio, sem erro
 
-- **CA3 — Falha na busca de laps não derruba o import**
-  - **Given** o intervals.icu responde 429 ou timeout **apenas** à chamada de intervalos
+- **CA3 — Comportamento de erro do import inalterado**
+  - **Given** o intervals.icu responde com erro (401, 404, 429, 5xx, timeout)
   - **When** o coach importa a atividade
-  - **Then** o treino é criado com o summary e sem etapas, a resposta é 200, e um WARN + métrica
-    registram a degradação
+  - **Then** a resposta é exatamente a de hoje — os intervalos virem no mesmo payload não introduz
+    nenhum modo de falha parcial
 
-- **CA4 — A chamada de laps acontece fora de transação**
-  - **Given** o fluxo de import
-  - **When** a busca de intervalos é executada
-  - **Then** ela ocorre no orquestrador não-transacional, antes de `persister.persistir` — nenhuma
-    conexão de banco é mantida durante o IO externo
+- **CA4 — Custo de rede inalterado**
+  - **Given** um import de atividade
+  - **When** o fluxo executa
+  - **Then** exatamente **uma** chamada ao intervals.icu é feita, como hoje
 
 - **CA5 — Dedup preservado**
   - **Given** uma atividade já importada
   - **When** o coach importa de novo
-  - **Then** o guard de idempotência (passo 0) retorna o registro existente **sem** fazer nenhuma
-    das duas chamadas HTTP
+  - **Then** o guard de idempotência (passo 0) retorna o registro existente **sem** chamada HTTP
 
 - **CA6 — Isolamento cross-atleta preservado**
   - **Given** uma atividade cujo `athleteId` não bate com o `externalAthleteId` da conexão
   - **When** o import é tentado
-  - **Then** a resposta é 404 e a chamada de intervalos **não** é feita
+  - **Then** a resposta é 404 e nada é persistido
 
 - **CA8 — Backfill completa treinos sem etapas**
-  - **Given** um atleta com treinos intervals.icu sem etapas — uns importados antes desta change,
-    outros cujo lap fetch falhou com `lapsStatus=FAILED`
+  - **Given** um atleta com treinos intervals.icu importados antes desta change, portanto sem etapas
   - **When** o coach dispara o backfill de etapas para esse atleta
   - **Then** cada treino do conjunto recebe suas etapas via UPDATE, sem passar pelo guard de dedup
-  - **And** treinos marcados `lapsStatus=EMPTY` são pulados, sem chamada de rede
+  - **And** o summary do treino não é sobrescrito
   - **And** rodar o backfill de novo é no-op para os já corrigidos
 
 - **CA7 — As skills de análise deixam de degradar**
@@ -190,13 +189,13 @@ do produto, e não vale construir uma só para isto).
 
 **Premissas assumidas (a validar no DoR / smoke):**
 
-1. **O intervals.icu expõe laps por activity numa chamada separada.** Presumido
-   `GET /api/v1/activity/{id}/intervals`, com o corpo trazendo a lista de intervalos (e possivelmente
-   grupos). **NÃO VERIFICADO** — a doc pública é Swagger UI renderizada por JS e não foi possível
-   ler o schema. É o mesmo tipo de incerteza que a change anterior resolveu com smoke contra payload
-   real (gate 3.0, 2026-07-16, atleta `i641775`, activity `i166338796`) e que produziu dois bugs
-   reais (cadência de perna única, `average_speed` em m/s). **Bloqueador de DoR: o path e os nomes
-   de campo têm de ser confirmados contra um payload real antes de escrever o DTO.**
+1. ~~**O intervals.icu expõe laps numa chamada separada.**~~ **PREMISSA DERRUBADA** pelo founder
+   (2026-08-02): é `GET /api/v1/activity/{id}?intervals=true` — mesmo endpoint, um query param. Toda
+   a estrutura de "segunda chamada" que estava desenhada aqui caiu junto. **O que resta não
+   verificado:** o nome do campo que carrega a lista no corpo (`icu_intervals`?) e a forma de cada
+   item. **Bloqueador de DoR mantido: os nomes de campo e as unidades têm de ser confirmados contra
+   um payload real antes de escrever o DTO** — é o gate que pegou os dois bugs de unidade da change
+   anterior (cadência de perna única, `average_speed` em m/s).
 2. **Cadência do lap segue a mesma convenção do summary** (passos/min de uma perna, dobrar). Mesma
    fonte, mas a confirmar no mesmo smoke — não assumir por simetria.
 3. **Distância do lap vem em metros e duração em segundos**, como no summary.
@@ -208,34 +207,31 @@ do produto, e não vale construir uma só para isto).
 **Em aberto:**
 
 5. ~~**Backfill dos treinos já importados.**~~ **RESOLVIDO** (pre-mortem HIGH + product review #2):
-   deixou de ser open question e virou escopo — o endpoint de backfill do D9 cobre tanto o histórico
-   quanto as falhas, porque os dois casos têm a mesma assinatura em banco (`INTERVALS_ICU` +
-   `etapasRealizadas` vazio). A métrica de cobertura por assessoria continua sendo o instrumento que
-   diz **quando** rodar.
-6. ~~**Uma atividade cuja busca de laps falhou fica permanentemente sem etapas.**~~ **RESOLVIDO**
-   pelo mesmo D9 — "permanente" era a premissa errada. O gatilho de **> 5%** de falha na amostra
-   (task 0.6) permanece, mas agora decide outra coisa: se o backfill manual do coach basta, ou se o
-   volume de falhas exige promovê-lo a job agendado.
-7. **`lapsStatus` em `metadadosSincronizacao` (TEXT) é filtrado em memória**, não em SQL. Aceitável
-   no volume do pilot; se crescer, promover a coluna própria com migration. Change própria.
+   deixou de ser open question e virou escopo — o endpoint de backfill do D9. A métrica de cobertura
+   por assessoria continua sendo o instrumento que diz **quando** rodar.
+6. ~~**Uma atividade cuja busca de laps falhou fica permanentemente sem etapas.**~~ **DEIXOU DE
+   EXISTIR** com a correção de premissa: com uma chamada só, ou o import inteiro falha (e é
+   reprocessado), ou vem completo. Não há estado parcial. O gatilho de >5% de falha some junto — não
+   há falha de laps para medir.
+7. **O backfill reconsulta, a cada execução, as activities que genuinamente não têm intervalos** —
+   não há marcador que as distinga das ainda não corrigidas. Aceito: operação manual, passivo finito,
+   uma chamada por treino. Não vale um campo de estado novo.
 
 ## Riscos e mitigações
 
 - **Contrato externo não verificado** (ALTO): o DTO pode ser escrito contra um schema imaginado.
   Mitigação: smoke contra payload real é gate de DoR, não de QA — o mesmo protocolo que pegou os
   dois bugs de unidade da change anterior.
-- **Dobro de chamadas ao intervals.icu** (MÉDIO): sob o scheduler em lote, o consumo de rate limit
-  dobra. Mitigação: quantificar no design a partir do custo por ciclo já estimado na change do
-  scheduler; a falha não-fatal (CA3) garante que estourar o limite degrada, não quebra.
+- ~~**Dobro de chamadas ao intervals.icu**~~ (ELIMINADO pela correção de premissa): o número de
+  requisições não muda. Resta conferir no smoke se o corpo maior cabe folgado no read timeout de 10s.
 - **Regressão no caminho que hoje funciona** (MÉDIO): o import de summary está em produção e não
   pode quebrar. Mitigação: CA2 e CA3 são testes explícitos de que a ausência ou falha de laps
   preserva exatamente o comportamento atual.
-- **Interferência com `intervals-icu-activity-sync-scheduler`** (MÉDIO→ALTO após o pre-mortem): além
-  de tocarem o mesmo pipeline, as duas agora compartilham **semântica de falha**. O scheduler aborta
-  o lote em rate-limit para não avançar o cursor; esta change deixa um 429 de laps passar como
-  sucesso. Sem o D9, essa combinação produzia perda permanente de etapas. Mitigação: D9 + declarar a
-  ordem de merge no `/implement init`; quem chegar depois resolve o conflito em
-  `IntervalsIcuActivityPersister`.
+- **Interferência com `intervals-icu-activity-sync-scheduler`** (MÉDIO): as duas tocam o mesmo
+  pipeline. O conflito de **semântica de falha** que o pre-mortem levantou desapareceu com a correção
+  de premissa — com uma chamada só, o scheduler continua abortando o lote e não avançando o cursor,
+  sem estado parcial possível. Resta o conflito textual: declarar a ordem de merge no
+  `/implement init`; quem chegar depois resolve em `IntervalsIcuActivityMapper`.
 - **`LazyInitializationException` em `etapasRealizadas`** (MÉDIO): a coleção é `FetchType.LAZY` e já
   causou falha real nesta mesma capability (ver `archive/.../intervals-icu-activity-ingestion/tasks.md:438`
   — o passo 0 de dedup retorna um treino e o `TreinoMapper.toOutputDto` acessa a coleção lazy).
@@ -248,7 +244,8 @@ do produto, e não vale construir uma só para isto).
 - Streams/samples por segundo.
 - **Job agendado** de backfill — o D9 entrega a ação manual do coach; automatizar depende de medir o
   volume de falhas primeiro (Open Question #6).
-- Promover `lapsStatus` a coluna própria com migration (Open Question #7).
+- Marcar em banco quais activities genuinamente não têm intervalos, para o backfill pulá-las
+  (Open Question #7).
 - Qualquer mudança no caminho Strava — incluindo mover o `attachLaps` dele para fora da transação.
   A dívida fica documentada, não é corrigida aqui.
 - Mudança no contrato de API consumido pelo front.
