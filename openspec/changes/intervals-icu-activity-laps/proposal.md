@@ -122,14 +122,14 @@ Fatia vertical fina sobre o pipeline de ingestão que já existe:
 `IntervalsIcuActivityMapper`, `IntervalsIcuActivityIngestionServiceImpl`,
 `IntervalsIcuActivityPersister`, `IntervalsIcuActivityController` (+1 endpoint de backfill).
 
-**Migration:** `V74__add_zone_intensity_gradient_to_tb_etapa_realizada.sql` — aditiva, três colunas
+**Migration:** `V74__add_zona_intensidade_inclinacao_tb_etapa_realizada.sql` — aditiva, três colunas
 nullable, rollback documentado. Os demais campos já existem: `split_index`, `distancia_km`,
 `pace_media`, `fc_media`, `fc_max`, `cadencia_media`, `potencia_media`, `elevacao_ganho_metros`,
 `tipo_etapa` (V14) e os running dynamics (V53).
 
 **Contrato de API (front):** `TreinoRealizadoOutputDto.etapasRealizadas` já existe e já é
 serializado; o front passa a **receber conteúdo** onde hoje recebe lista vazia.
-`EtapaRealizadaOutputDto` ganha três campos aditivos (`zone`, `intensityPct`, `avgGradientPct`) com
+`EtapaRealizadaOutputDto` ganha três campos aditivos (`zona`, `intensidadePct`, `inclinacaoMediaPct`) com
 `@JsonInclude(NON_NULL)` — nada quebra no cliente gerado. Exibi-los na UI é trabalho separado.
 
 **Custo de rede:** **zero chamadas adicionais** — mesmo endpoint, mesmo número de requisições de
@@ -180,8 +180,8 @@ de 10s continua folgado.
 - **CA9 — Zona, intensidade e inclinação persistidas por volta**
   - **Given** uma atividade cujos intervalos trazem `zone`, `intensity` e `average_gradient`
   - **When** o coach importa a atividade
-  - **Then** cada etapa grava `zone` e `intensityPct` diretos
-  - **And** `avgGradientPct` é gravado em **percentual**, convertido da fração da origem
+  - **Then** cada etapa grava `zona` e `intensidadePct` diretos
+  - **And** `inclinacaoMediaPct` é gravado em **percentual**, convertido da fração da origem
     (`0.0011977` → `0.1`)
   - **And** os três campos aparecem no `EtapaRealizadaOutputDto`
 

@@ -190,9 +190,9 @@ Fica em `IntervalsIcuActivityMapper` (componente puro, sem IO — coerente com o
 | `oscilacaoVerticalCm` | `averageVerticalOscillation / 10`, scale 1 | **mm → cm.** 107,69 mm = 10,8 cm; gravar 107,69 num campo `precision 4 scale 1` estoura o range e mente na análise |
 | `proporcaoVerticalPct` | `averageVerticalRatio`, scale 1 | % direto |
 | `temperaturaMediaC` | `averageTemp`, scale 1 | °C direto |
-| `zone` | `zone` | direto (V74, ver D10) |
-| `intensityPct` | `intensity`, scale 2 | direto — % do limiar |
-| `avgGradientPct` | `averageGradient * 100`, scale 1 | **fração → %**, terceira armadilha de unidade |
+| `zona` | `zone` | direto (V74, ver D10) |
+| `intensidadePct` | `intensity`, scale 2 | direto — % do limiar |
+| `inclinacaoMediaPct` | `averageGradient * 100`, scale 1 | **fração → %**, terceira armadilha de unidade |
 | `treinoRealizado` | setado dentro do mapper (D6) | |
 | `etapaPlanejada` | **null** | pareamento etapa-a-etapa é non-goal |
 
@@ -240,20 +240,31 @@ do treino para o treinador (zona e intensidade dizem *o que aquela volta foi*, a
 isolados não dizem), o dado chega de graça no payload que a change já passa a buscar, e adiar
 significaria uma segunda passada por todo o pipeline que estamos tocando agora.
 
-**Migration:** `V74__add_zone_intensity_gradient_to_tb_etapa_realizada.sql` — aditiva, três colunas
+**Migration:** `V74__add_zona_intensidade_inclinacao_tb_etapa_realizada.sql` — aditiva, três colunas
 nullable, `ADD COLUMN IF NOT EXISTS`, rollback documentado no cabeçalho. Só em
 `tb_etapa_realizada`; a V53 replicou running dynamics em `tb_treino_realizado` também, mas aqui não
 há caso de uso a nível de sessão.
 
-**Nomes em inglês, tabela em português.** ADR-0007 manda código novo nascer em inglês; as colunas
-legadas desta tabela são PT (`distancia_km`, `fc_media`). A tabela fica bilíngue — consequência
-aceita e explícita da ADR, não descuido. Renomear as antigas está fora de escopo.
+### Nomes em português: desvio deliberado do ADR-0007
+
+A primeira versão desta migration usava `zone` / `intensity_pct` / `avg_gradient_pct`, seguindo o
+ADR-0007 ("código novo — campos, enums, DTOs, colunas, tipos — nasce em inglês"). **Revertido por
+decisão do founder (2026-08-02):** numa tabela cujas 25 colunas são todas PT (`distancia_km`,
+`fc_media`, `cadencia_media`, `elevacao_ganho_metros`), três colunas isoladas em inglês custam mais
+em legibilidade do que ganham em convergência para o alvo do ADR.
+
+Isto é um **desvio explícito de uma decisão registrada**, não um descuido. Vale dizer o que ele
+implica: o ADR previa convergência gradual, com as entidades tocadas com frequência migrando
+primeiro. Se a exceção "coluna nova em tabela 100% PT segue a tabela" for a regra prática, o ADR
+deveria registrá-la — senão a próxima pessoa reabre a discussão do zero, ou aplica o inglês e cria
+a inconsistência que esta decisão evitou. **Sugestão de follow-up:** emendar o ADR-0007 com a
+exceção, ou reavaliá-lo. Fora do escopo desta change.
 
 | Coluna | Tipo | Origem | Conversão |
 |---|---|---|---|
-| `zone` | `INTEGER` | `zone` | direta |
-| `intensity_pct` | `NUMERIC(5,2)` | `intensity` | direta — a fonte entrega inteiro (75, 82, 93); o tipo aceita fracionário caso mude |
-| `avg_gradient_pct` | `NUMERIC(4,1)` | `average_gradient` | **fração → percentual (× 100).** `0.0011977` = 0,1%. Sem isso, toda inclinação vira 0,0 |
+| `zona` | `INTEGER` | `zone` | direta |
+| `intensidade_pct` | `NUMERIC(5,2)` | `intensity` | direta — a fonte entrega inteiro (75, 82, 93); o tipo aceita fracionário caso mude |
+| `inclinacao_media_pct` | `NUMERIC(4,1)` | `average_gradient` | **fração → percentual (× 100).** `0.0011977` = 0,1%. Sem isso, toda inclinação vira 0,0 |
 
 **A conversão da inclinação é a terceira armadilha de unidade desta change** — junto com a cadência
 de perna única e a oscilação vertical em mm. As três só apareceram com o payload real na mão.

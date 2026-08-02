@@ -40,10 +40,11 @@ do import de hoje, um query param. Falta o contrato do corpo.
 
 ## 0b. Migration V74 — zona, intensidade e inclinação (D10)
 
-- [x] 0b.1 `V74__add_zone_intensity_gradient_to_tb_etapa_realizada.sql` — aditiva, três colunas
-      nullable (`zone INTEGER`, `intensity_pct NUMERIC(5,2)`, `avg_gradient_pct NUMERIC(4,1)`),
-      `ADD COLUMN IF NOT EXISTS`, rollback no cabeçalho. Nomes em inglês por ADR-0007.
-- [x] 0b.2 Campos correspondentes em `EtapaRealizada` (`zone`, `intensityPct`, `avgGradientPct`).
+- [x] 0b.1 `V74__add_zona_intensidade_inclinacao_tb_etapa_realizada.sql` — aditiva, três colunas
+      nullable (`zona INTEGER`, `intensidade_pct NUMERIC(5,2)`, `inclinacao_media_pct NUMERIC(4,1)`),
+      `ADD COLUMN IF NOT EXISTS`, rollback no cabeçalho. Nomes em PT seguindo a tabela (desvio
+      deliberado do ADR-0007, ver D10).
+- [x] 0b.2 Campos correspondentes em `EtapaRealizada` (`zona`, `intensidadePct`, `inclinacaoMediaPct`).
 - [x] 0b.3 Campos aditivos em `EtapaRealizadaOutputDto` — MapStruct casa por nome, sem `@Mapping`.
 - [x] 0b.4 `./mvnw clean compile` — verde.
 - [ ] 0b.5 Aplicar a V74 no banco local de dev e confirmar que o Flyway sobe sem checksum mismatch.
@@ -101,8 +102,8 @@ do import de hoje, um query param. Falta o contrato do corpo.
       armadilha do tempo decorrido"): usar a volta real da fixture com moving 397 / elapsed 614 e
       assertar 397. Gravar elapsed injetaria 217 s de atleta parado no TSS, no tempo em zona e no
       decoupling.
-- [ ] 3.8c Teste primeiro (CA9) — **zona, intensidade e inclinação** (D10): `zone` e `intensityPct`
-      diretos; `avgGradientPct` com a **conversão fração → percentual** (`0.0011977` → `0.1`;
+- [ ] 3.8c Teste primeiro (CA9) — **zona, intensidade e inclinação** (D10): `zona` e `intensidadePct`
+      diretos; `inclinacaoMediaPct` com a **conversão fração → percentual** (`0.0011977` → `0.1`;
       `-0.008186669` → `-0.8`). Sem o ×100, toda inclinação vira 0,0 — terceira armadilha de unidade
       desta change.
 - [ ] 3.9 Teste primeiro: `map(dto, atleta)` devolve o treino **já com** as etapas anexadas e com o
