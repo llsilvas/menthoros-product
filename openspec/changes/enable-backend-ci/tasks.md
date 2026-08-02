@@ -1,4 +1,4 @@
-# Tasks — enable-backend-ci (S · Full · backend · 15 tasks)
+# Tasks — enable-backend-ci (S · Full · backend · 14 tasks)
 
 > Escopo: **zero diff em `src/`**. Um workflow, configuração de repositório e correção de doc.
 > Qualquer alteração em código de produção ou teste aqui é sinal de que algo saiu do escopo.
