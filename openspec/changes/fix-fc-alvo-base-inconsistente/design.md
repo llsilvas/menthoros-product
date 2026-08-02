@@ -1,91 +1,99 @@
 # Design — fix-fc-alvo-base-inconsistente
 
+**Refinado em 2026-08-02:** escopo reduzido ao **formato de alvo** (padrão Garmin). O modelo de zonas
+permanece Friel %LTHR, intocado.
+
+## O padrão Garmin, e por que ele fecha a decisão
+
+Alvo de FC numa etapa de treino estruturado (FIT):
+
+| Forma | Codificação | Quem resolve |
+|---|---|---|
+| Relativa | valor **1–100** ⇒ % da **FC máxima** | o relógio |
+| Absoluta | valor **> 100** ⇒ **bpm + 100** | ninguém — é o número final |
+| Zona | número da zona | o relógio, pela config dele |
+
+O canal relativo é **%FCmax por definição do formato**. O domínio do Menthoros é **%LTHR**. Logo:
+
+> Não existe percentual que o Menthoros possa enviar por esse canal e que chegue certo.
+
+Isso não é preferência de design — é propriedade do formato. Resolver para bpm absoluto é o único
+caminho compatível, e é robusto **independentemente** de como o intervals.icu interpreta `%hr` no meio
+do caminho (que eu não verifiquei, e que deixa de importar).
+
+Enviar zona tem o mesmo defeito: delega ao relógio, cuja config de zonas o Menthoros não escreve.
+
 ## Estado verificado (2026-08-02)
 
-| Onde | O que faz | Base |
-|---|---|---|
-| `ZonaTreinoService:89-90` | calcula as 5 zonas de FC | **%LTHR** (`fcMaxima` explicitamente não usado) |
-| `PlanoTreinoPromptBuilder:503` | entrega as zonas ao LLM | **bpm absoluto**, derivado do LTHR |
-| `PlanoTreinoPromptBuilder:493` | instrui o LLM | "Use EXATAMENTE as zonas listadas. NÃO invente outros valores de BPM" |
-| `plano-treino-prompt.txt:34-45` | exemplifica a saída | **`"90-95% FCmax"`** — percentual, base FCmax |
-| `IntervalsIcuTargetParser:52` | interpreta o percentual | agnóstico de base — só extrai os números |
-| `IntervalsIcuAdapter:272` | monta o payload | `units: "%hr"`, números crus |
-| `IntervalsIcuAdapter:277` | monta o payload de zona | `units: "hr_zone"`, número da zona |
-| `IntervalsIcuClientImpl:44,67,83` | fala com a API | **lê** `/athlete/0`, **escreve** eventos — nunca grava perfil de FC |
-| `IntervalsIcuAdapterTest:117,133` | testa o payload | afirma a **string da unidade**, nunca um bpm |
+| Onde | O que faz |
+|---|---|
+| `ZonaTreinoService:43-49` | 5 zonas, **Friel %LTHR** — Z1 75-85%, Z2 85-89%, Z3 89-94%, Z4 94-100%, Z5 100-106%. LTHR na fronteira Z4/Z5 |
+| `ZonaTreinoService:89-90` | explícito: `fcMaxima` **não é usado** |
+| `PlanoTreinoPromptBuilder:503` | entrega as zonas ao LLM em **bpm absoluto** |
+| `PlanoTreinoPromptBuilder:493` | "Use EXATAMENTE as zonas listadas. NÃO invente outros valores de BPM" |
+| `plano-treino-prompt.txt:34-45` | exemplifica a saída como **`"90-95% FCmax"`** |
+| `IntervalsIcuTargetParser:52` | extrai os números do percentual — agnóstico de base |
+| `IntervalsIcuAdapter:272,277` | emite `%hr` (cru) e `hr_zone` (número da zona) |
+| `IntervalsIcuAdapter:267` | **já emite `units: "bpm"`** no caminho BPM — formato não é novo |
+| `IntervalsIcuClientImpl:44,67,83` | lê `/athlete/0`, escreve eventos — **nunca grava perfil de FC** |
+| `IntervalsIcuAdapterTest:117,133` | afirma a **string da unidade**, nunca um bpm |
 
-## A aritmética do sintoma
-
-LTHR ≈ 0,85 × FCmax (é o próprio fallback do domínio, `Atleta:235`).
-
-Um alvo que o modelo de zonas produziu como *90% do LTHR*, se lido como *90% da FCmax*:
+## O desenho
 
 ```
-intenção:  0,90 × LTHR        = 0,90 × 0,85 × FCmax = 0,765 × FCmax
-leitura:   0,90 × FCmax       = 0,900 × FCmax
-inflação:  0,900 / 0,765      ≈ 1,18  →  ~18% acima
+hoje:   plano (%LTHR) → rótulo "% FCmax" → payload "%hr"/"hr_zone" → o relógio resolve → bpm errado
+                 ↑ base A        ↑ base B          ↑ base C (deles)
+
+alvo:   plano (%LTHR) → resolvido para bpm onde o dado do atleta vive → payload "bpm" → relógio
+                 ↑ base única
 ```
 
-Para um atleta com FCmax 190: intenção ≈ 145 bpm, exibido ≈ 171 bpm. Um treino de base aeróbica vira
-esforço de limiar. **Bate com o sintoma relatado** ("bem acima do especificado"), e o erro é
-silencioso: nenhuma das duas pontas está obviamente errada olhando isolada.
+### Onde resolver
 
-## A correção: resolver no Menthoros, não na borda
+No **`IntervalsIcuWorkoutConverter`**, não no adapter. O adapter hoje não tem nenhuma referência a
+`Atleta`, e o papel dele é traduzir modelo canônico → JSON. Levar o atleta até lá misturaria
+responsabilidades; o converter já recebe o treino.
 
-O princípio é o mesmo do BUG-CONF-001: **uma grandeza, uma expressão**. Enquanto o alvo trafegar
-relativo, alguém do outro lado escolhe a base — e essa escolha não é observável daqui.
+Consequência: `HrTarget` chega ao adapter **sempre** em `BPM`. `PERCENT` e `ZONE` passam a ser
+representação intermediária do parser, consumida pela resolução — nunca atravessam a fronteira.
 
-```
-hoje:   plano (%LTHR) → rótulo "% FCmax" → payload "%hr" → intervals.icu resolve → bpm no relógio
-                 ↑ base A        ↑ base B        ↑ base C (deles)
+### A resolução de zona reusa o que já existe
 
-alvo:   plano (%LTHR) → resolvido para bpm no Menthoros → payload "bpm" → relógio
-                 ↑ base única, resolvida onde o dado do atleta vive
-```
+`ZonaTreinoService.calcularZonas(atleta)` já devolve `ZonaFC(numero, nome, fcMin, fcMax)`. A zona N
+resolve para `fcMin`–`fcMax` da zona N. **Não reimplementar a conta** — reimplementar é como o
+BUG-CONF-001 nasceu.
 
-Resolver para bpm absoluto é robusto **independentemente** de qual base o intervals.icu usa para
-`%hr` — que é justamente a incógnita bloqueante. Por isso é a escolha certa mesmo antes de
-respondê-la.
-
-### Onde a resolução acontece
-
-O `IntervalsIcuAdapter` hoje **não tem acesso ao `Atleta`** (nenhuma referência no arquivo). O dado
-de FC precisa chegar até ele, ou a resolução precisa acontecer antes, no
-`IntervalsIcuWorkoutConverter`, que já recebe o treino. A segunda opção mantém o adapter como
-tradutor puro de modelo canônico → JSON, que é o papel dele hoje — preferível.
-
-Isso significa que `HrTarget` chega ao adapter **sempre** em `BPM`, e as unidades `PERCENT` e `ZONE`
-deixam de existir na fronteira. Se elas continuarem no `record`, é porque o parser ainda as produz
-como representação intermediária — a resolução as consome.
+Para percentual legado (`"90-95% FCmax"`), interpretar na base do domínio (%LTHR) e registrar. Não
+reinterpretar em silêncio: o mesmo texto passa a significar outro bpm.
 
 ## Alternativas consideradas
 
 | Opção | A favor | Contra | Veredito |
 |---|---|---|---|
-| **Resolver para bpm no Menthoros** | uma base só; independe da semântica do intervals.icu; o dado já existe em `Atleta` | precisa levar o atleta até a conversão | **escolhida** |
-| Sincronizar o perfil de FC para o intervals.icu | mantém alvo relativo, que é mais legível no app deles | duas fontes de verdade; editável do outro lado; não corrige as camadas 1 e 2 | rejeitada |
-| Só corrigir o rótulo do prompt (`FCmax` → `LTHR`) | mínimo | deixa a camada 3 de pé: a base do `%hr` continua sendo deles | rejeitada — corrige um terço |
-| Só corrigir o push | fecha o sintoma no relógio | obriga a escolher uma base para ler `"% FCmax"` — que é a decisão que a camada 2 deveria tomar | rejeitada — fixa a ambiguidade e chama de correção |
+| **Resolver para bpm no converter** | única compatível com o padrão; independe do intervals.icu; dado já existe | precisa do atleta no converter | **escolhida** |
+| Corrigir a base do percentual e seguir enviando `%hr` | menor diff | **impossível estar certo**: o canal relativo é %FCmax por definição | rejeitada pelo padrão |
+| Continuar enviando `hr_zone` | legível no app deles | delega à config de zonas do relógio, que não escrevemos | rejeitada |
+| Sincronizar o perfil de FC para o intervals.icu | mantém alvo relativo | duas fontes de verdade; editável do outro lado; não corrige o prompt | rejeitada |
+| Adotar o modelo %FCmax do Garmin | alinharia o rótulo "% FCmax" já emitido | muda todas as faixas (Z2: ~138-144 → 114-133 bpm em FCmax 190) e a intensidade de toda prescrição | rejeitada — decisão de produto, não correção de bug |
 
-## Atleta sem dados de FC
+## Atleta sem FC medida
 
-`Atleta:209` e `:235` têm fallbacks: FCmax cai para `220 - idade` (ou 180 sem idade) e LTHR para
-`0,85 × FCmax`. Para **exibir** uma estimativa isso é aceitável. Para **mandar ao relógio um número
-que o atleta vai perseguir**, é diferente: uma estimativa por idade pode errar dezenas de bpm.
+`Atleta:209,235` têm fallback: FCmax = `220 - idade` (ou 180), LTHR = 0,85 × FCmax. Para **exibir**
+estimativa, aceitável. Para **mandar ao relógio um número que o atleta vai perseguir**, não: a fórmula
+etária erra dezenas de bpm entre indivíduos.
 
-Recomendação: **omitir o alvo de FC** quando não há dado medido, em vez de enviar um número derivado
-de fallback. Um treino sem alvo de FC é executável; um treino com alvo errado induz o atleta a
-treinar na intensidade errada acreditando estar certo. O prompt já pede "teste de limiar urgente"
-nesse caso (`PlanoTreinoPromptBuilder:494`) — coerente com não fingir precisão.
+Recomendação: **omitir o alvo de FC**. Treino sem alvo é executável; treino com alvo errado induz o
+atleta a treinar na intensidade errada acreditando estar certo. Coerente com o próprio prompt, que já
+pede "teste de limiar urgente" nesse cenário (`:494`).
 
-Decisão a confirmar com o produto, porque muda o que o atleta vê.
+Decisão de produto — muda o que o atleta vê.
 
 ## Riscos
 
 | Risco | Mitigação |
 |---|---|
-| **Mudar o payload quebra o canal** que foi validado em 2026-07-14 | `units: "bpm"` já é suportado e já é emitido no caminho BPM (`IntervalsIcuAdapter:267`) — não é formato novo. Validar ponta a ponta com conta real antes de fechar |
-| **Planos legados** com `"% FCmax"` gravado em `fcAlvoEtapa` | CA5: interpretar na base decidida e registrar. Não reinterpretar em silêncio |
-| Corrigir três camadas sem saber qual disparou | Os números do caso real (Open Question) dizem qual. Corrigir as três é defensável porque as três estão erradas independentemente — mas o registro deve dizer o que foi observado e o que foi inferido |
-| A base do `%hr` do intervals.icu ser diferente do que suponho | A correção escolhida não depende disso. A **descrição** do defeito depende — verificar antes de afirmar na doc |
-| Testes continuarem afirmando string de unidade | CA2 e CA6 exigem afirmação de valor absoluto e um teste que reproduza o bug |
+| Mudar o payload quebra o canal validado em 2026-07-14 | `units: "bpm"` já é emitido hoje (`:267`) — não é formato novo. Validar ponta a ponta com conta real antes de fechar |
+| Reimplementar a conta de zona em vez de reusar `ZonaTreinoService` | CA2 exige que o bpm enviado **coincida** com a faixa do serviço, e fixa valores absolutos junto |
+| Planos legados com `"% FCmax"` gravado | CA5: interpretar na base do domínio e registrar |
+| Testes seguirem afirmando string de unidade | CA1/CA2/CA6 exigem valor absoluto e um teste que reproduza o bug |
+| Atribuir ao código o que pode ser config do atleta | Task 0.1: os números do caso real dizem se a inflação bate com os ~18% previstos. Separar observado de inferido |

@@ -1,87 +1,83 @@
-# Tasks — fix-fc-alvo-base-inconsistente (M · Full · backend · 14 tasks)
+# Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend · 12 tasks)
 
-> **Anchors verificados em 2026-08-02** contra `develop` @ `fb58e0c`.
+> **Refinada em 2026-08-02:** escopo reduzido ao **formato de alvo** (padrão Garmin). O
+> `ZonaTreinoService` **não é tocado** — nenhuma faixa muda. Diff em `ZonaTreinoService.java` é sinal
+> de escopo estourado.
 >
+> **Anchors verificados em 2026-08-02** contra `develop` @ `fb58e0c`.
 > Validação: `./mvnw clean verify` (é o gate; `test` não roda os `*IT`).
 
-## 0. Discovery — responder antes de escrever código
+## 0. Discovery
 
-- [ ] **0.1 Obter os números do caso real** relatado: alvo prescrito na etapa (texto), bpm exibido no
-  relógio, `fcMaxima` e `fcLimiar` do atleta no Menthoros
-  - ⚠️ Sem isso, corrige-se três camadas por precaução sem saber qual disparou. Com isso, dá para
-    dizer **o que foi observado** e separar do **que foi inferido**
-  - `verify:` a conta fecha com uma das camadas — ex. inflação ≈18% aponta base LTHR lida como FCmax
+- [ ] **0.1 Obter os números do caso real:** alvo prescrito na etapa (texto), bpm exibido no relógio,
+  `fcMaxima` e `fcLimiar` do atleta
+  - `verify:` a inflação observada bate com os ~18% previstos (base LTHR lida como FCmax)? Se bater,
+    é confirmação; se não, há outra coisa e a hipótese precisa ser revista **antes** de codificar
+  - ⚠️ Separar o que foi **observado** do que foi **inferido** no registro final
 
-- [ ] **0.2 Confirmar a base do `%hr` no intervals.icu** — documentação ou teste contra a API real
-  - ⚠️ **Hoje é inferência**, não fato verificado. A correção escolhida (resolver para bpm) não
-    depende da resposta, mas a **descrição do defeito** depende. Não afirmar na doc o que não foi
-    verificado
-  - `verify:` fonte citada (doc oficial ou resposta da API), anexada à task
+- [ ] **0.2 Decidir o comportamento sem FC medida** — omitir o alvo ou usar o fallback etário — [CA3]
+  - ⚠️ Decisão de produto: muda o que o atleta vê. Recomendação do `design.md`: **omitir**, porque
+    alvo errado induz a treinar na intensidade errada acreditando estar certo
+  - `verify:` decisão confirmada e registrada
 
-- [ ] **0.3 Decidir a base canônica do domínio** — `%LTHR` (o que o `ZonaTreinoService` já faz) ou
-  `%FCmax`. Uma só, nomeada em código
-  - Recomendação do `design.md`: `%LTHR`, alinhando o resto ao que já existe
-  - `verify:` decisão registrada com o motivo; nenhum ponto do pipeline usando a outra
-
-- [ ] **0.4 Decidir o comportamento sem dado de FC medido** — omitir o alvo ou usar o fallback por
-  idade — [CA3]
-  - ⚠️ Muda o que o atleta vê; decisão de produto, não técnica. Recomendação do `design.md`: **omitir**,
-    porque alvo errado induz o atleta a treinar na intensidade errada acreditando estar certo
-  - `verify:` decisão confirmada com o produto
-
-## 1. Rede de segurança antes de mexer
+## 1. Rede de segurança
 
 - [ ] **1.1 Teste que reproduz o bug** — alvo prescrito para uma zona, bpm enviado bem acima — [CA6]
   - ⚠️ Deve **falhar** antes da correção. Se passar de primeira, não está reproduzindo o defeito
-  - `verify:` red, por divergência numérica
-
-- [ ] **1.2 Caracterizar o payload atual** dos três caminhos (`BPM`, `PERCENT`, `ZONE`) para provar
+- [ ] **1.2 Caracterizar o payload atual** dos três caminhos (`BPM`, `PERCENT`, `ZONE`), para provar
   depois que só o pretendido mudou
-  - `verify:` `./mvnw clean verify` verde antes de qualquer alteração em `src/main`
+  - `verify:` `./mvnw clean verify` verde antes de alterar `src/main`
 
-## 2. Base única
+## 2. Resolver para bpm absoluto
 
-- [ ] **2.1 Alinhar o prompt** — entrega bpm e exige bpm na saída; remover o exemplo em
-  `"% FCmax"` de `plano-treino-prompt.txt:34-45` — [CA4]
-  - ⚠️ Hoje o prompt entrega bpm absoluto (`PlanoTreinoPromptBuilder:503`) e proíbe inventar valores
-    (`:493`), mas exemplifica percentual. Modelo segue exemplo — é a origem do rótulo ambíguo
-  - Conferir os dois prompts: `plano-treino-prompt.txt` e `plano-treino-otimizado-claude.txt`
-- [ ] **2.2 Nomear a base no código.** Se `HrTarget.PERCENT` sobreviver como representação
-  intermediária, o javadoc precisa dizer percentual **de quê** — hoje diz "percentual de FC máxima",
-  que contradiz o `ZonaTreinoService`
-- [ ] **2.3 Tratamento do legado:** `fcAlvoEtapa` já gravado como `"90-95% FCmax"` — interpretar na
-  base decidida e registrar a interpretação — [CA5]
+- [ ] **2.1 Resolver `HrTarget` para bpm no `IntervalsIcuWorkoutConverter`**, usando o atleta — [CA1]
+  - ⚠️ No converter, **não** no adapter: o adapter não tem referência a `Atleta` e seu papel é
+    traduzir modelo canônico → JSON
+  - Consequência: `HrTarget` chega ao adapter sempre em `BPM`; `PERCENT`/`ZONE` viram representação
+    intermediária do parser e não atravessam mais a fronteira
+- [ ] **2.2 Zona resolve reusando `ZonaTreinoService.calcularZonas`** — a zona N vira o
+  `fcMin`–`fcMax` da zona N — [CA2]
+  - ⚠️ **Não reimplementar a conta.** Reimplementar a mesma grandeza em dois lugares é exatamente
+    como o BUG-CONF-001 nasceu
+- [ ] **2.3 Percentual legado** (`"90-95% FCmax"` já gravado em `fcAlvoEtapa`): interpretar na base do
+  domínio (%LTHR) e **registrar a interpretação** — [CA5]
   - ⚠️ Não reinterpretar em silêncio: o mesmo texto passa a significar outro bpm
+- [ ] **2.4 Remover a emissão de `%hr` e `hr_zone`** do `IntervalsIcuAdapter:272,277` — [CA1]
+  - `verify:` nenhum alvo relativo trafega; `grep` por `"%hr"`/`"hr_zone"` em `src/main` ⇒ 0
 
-## 3. Resolver para absoluto antes de enviar
+## 3. Prompt coerente
 
-- [ ] **3.1 Resolver `HrTarget` para bpm no `IntervalsIcuWorkoutConverter`**, usando `fcLimiar` do
-  atleta — [CA1]
-  - ⚠️ Preferir o converter ao adapter: o adapter hoje **não tem acesso ao `Atleta`** e seu papel é
-    traduzir modelo canônico → JSON. Levar o atleta até lá misturaria as responsabilidades
-  - Consequência: o adapter passa a receber `HrTarget` sempre em `BPM`
-- [ ] **3.2 Afirmar a igualdade com o `ZonaTreinoService`** — o bpm enviado para a zona N coincide com
-  a faixa que o serviço calcula para a zona N — [CA2]
-  - ⚠️ É a costura que quebrou: duas partes derivando bpm da mesma zona sem nada afirmando que
-    concordam. Só a igualdade não basta — fixar também valores absolutos, senão as duas quebram juntas
-    e o teste segue verde (lição do BUG-CONF-001)
-- [ ] **3.3 Substituir as asserções de string de unidade por valor absoluto** em
+- [ ] **3.1 Alinhar o prompt** — entregar bpm e exigir bpm na saída; remover o exemplo
+  `"90-95% FCmax"` de `plano-treino-prompt.txt:34-45` — [CA4]
+  - ⚠️ Hoje o prompt entrega bpm (`PlanoTreinoPromptBuilder:503`) e proíbe inventar valores (`:493`),
+    mas exemplifica percentual. Modelo segue exemplo — é a origem do rótulo ambíguo
+  - Conferir **os dois** prompts: `plano-treino-prompt.txt` e `plano-treino-otimizado-claude.txt`
+
+## 4. Testes que afirmam valor
+
+- [ ] **4.1 Substituir as asserções de string de unidade por valor absoluto** em
   `IntervalsIcuAdapterTest:117,133`
-  - ⚠️ Afirmar `units == "bpm"` não prova nada sobre o número. Foi por isso que a suíte não pegou
+  - ⚠️ Afirmar `units == "bpm"` não prova nada sobre o número — foi por isso que a suíte não pegou
+- [ ] **4.2 Afirmar a igualdade com o `ZonaTreinoService`** e **fixar valores absolutos** — [CA2]
+  - ⚠️ Só a igualdade não basta: se as duas pontas quebrarem juntas, o teste segue verde. Lição
+    explícita do BUG-CONF-001
 
-## 4. Verificação
+## 5. Verificação
 
-- [ ] **4.1** O teste de 1.1 passa a verde, e a correção explica a diferença — [CA6]
-- [ ] **4.2 Validar ponta a ponta com conta real** de intervals.icu: o bpm no relógio é o mesmo da
+- [ ] **5.1** O teste de 1.1 passa a verde e a correção explica a diferença — [CA6]
+- [ ] **5.2 Guardrail de escopo:** `git diff develop -- '*ZonaTreinoService.java'` ⇒ **vazio**
+- [ ] **5.3 Validar ponta a ponta com conta real** de intervals.icu: o bpm no relógio é o mesmo da
   tela do plano
-  - ⚠️ É contrato externo. O canal foi validado em 2026-07-14; a mudança de payload
-    (relativo → absoluto) precisa ser confirmada contra a API real, não só contra teste
-- [ ] **4.3** `./mvnw clean verify` verde
+  - ⚠️ Contrato externo. `units: "bpm"` já é emitido hoje (`IntervalsIcuAdapter:267`), então não é
+    formato novo — mas confirmar contra a API real, não só contra teste
+- [ ] **5.4** `./mvnw clean verify` verde
 
 ## Fora de escopo — abrir como change própria
 
+- **Adotar o modelo %FCmax do Garmin** (50-60 / 60-70 / 70-80 / 80-90 / 90-100). Avaliado no refino e
+  rejeitado: mudaria todas as faixas — Z2 de ~138-144 para 114-133 bpm num atleta de FCmax 190 —
+  alterando a intensidade de toda prescrição existente. Decisão de produto, não correção de bug.
 - **Sincronizar o perfil de FC do atleta para o intervals.icu.** Resolvido o push para absoluto, o
   perfil remoto deixa de importar neste fluxo.
-- **Revisar as faixas do modelo de zonas** (75–85%, 85–89%, …). Esta change alinha bases, não
-  redefine zonas.
+- **Revisar as faixas do modelo de zonas.** Alinhar transporte ≠ redefinir zonas.
 - **Pace.** Já trafega em `secs/km`, absoluto — não sofre do mesmo problema.
