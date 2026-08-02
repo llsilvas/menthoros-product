@@ -78,43 +78,26 @@ do import de hoje, um query param. Falta o contrato do corpo.
 
 ## 3. Mapper — intervalo → EtapaRealizada
 
-- [ ] 3.1 Teste primeiro: mapeamento campo a campo do fixture real conforme a tabela de D4.
-- [ ] 3.2 Teste primeiro — **unidades** (o bloco que pega os bugs históricos): `velocidadeMedia` em
-      km/h a partir de m/s; `cadenciaMedia` dobrada e sanitizada em 60–200 (fora da faixa → null);
-      `distanciaKm` = metros/1000 com scale 3.
-- [ ] 3.3 Teste primeiro: `ordem` **e** `splitIndex` vêm da posição 1-based na lista — nunca do `id`,
-      que é opaco (`7130765`). Um payload com `id` fora de ordem não altera a ordenação.
-- [ ] 3.4 Teste primeiro: `paceMedia` por `movingTime/distância`, com `averageSpeed` só como
-      fallback (mesma prioridade de `calculatePace` — não inverter).
-- [ ] 3.5 Teste primeiro — **descarte de intervalo degenerado** (D4): o intervalo real de 1 s / 2,4 m
-      da fixture é descartado; `movingTimeSeg < 5` **ou** `distance < 20` cai; 5 s e 20 m exatos
-      passam (BVA). Lista vazia e lista null → lista vazia.
-- [ ] 3.6 Teste primeiro: `tipoEtapa` mapeado pela tabela do D5 — `WORK`→`PRINCIPAL`,
-      `RECOVERY`→`RECUPERACAO`, `WARMUP`→`AQUECIMENTO`, `COOLDOWN`→`DESAQUECIMENTO`; valor
-      desconhecido e `type` ausente → null.
-- [ ] 3.7 Teste primeiro — **running dynamics** (ganho não previsto, ver D4): `passadaMediaM`,
-      `gctMedioMs`, `gctEquilibrioPct`, `proporcaoVerticalPct` e `temperaturaMediaC` diretos; e
-      `oscilacaoVerticalCm` com a **conversão mm → cm** (107,69 mm → 10,8 cm). Sem a divisão, o valor
-      estoura `precision 4 scale 1`.
-- [ ] 3.8 Teste primeiro: `elevacaoPerdaMetros` fica **null** — a fonte não expõe perda por intervalo.
-      Não zerar nem derivar do ganho.
-- [ ] 3.8b Teste primeiro — **`duracao` vem de `moving_time`, nunca de `elapsed_time`** (D4, "A
-      armadilha do tempo decorrido"): usar a volta real da fixture com moving 397 / elapsed 614 e
-      assertar 397. Gravar elapsed injetaria 217 s de atleta parado no TSS, no tempo em zona e no
-      decoupling.
-- [ ] 3.8c Teste primeiro (CA9) — **zona, intensidade e inclinação** (D10): `zona` e `intensidadePct`
-      diretos; `inclinacaoMediaPct` com a **conversão fração → percentual** (`0.0011977` → `0.1`;
-      `-0.008186669` → `-0.8`). Sem o ×100, toda inclinação vira 0,0 — terceira armadilha de unidade
-      desta change.
-- [ ] 3.9 Teste primeiro: `map(dto, atleta)` devolve o treino **já com** as etapas anexadas e com o
-      back-reference `treinoRealizado` setado em cada uma (D6).
-- [ ] 3.10 Teste primeiro — **contagem de sanidade**: a fixture real tem 17 intervalos e
-      `icu_lap_count = 16`; após o descarte devem sobrar 16, e a divergência (se houver) é logada em
-      DEBUG, não lançada.
-- [ ] 3.11 Implementar `mapEtapas(...)` em `IntervalsIcuActivityMapper` e chamá-lo de dentro de
-      `map(dto, atleta)`, reusando os helpers privados do próprio mapper — **sem** chamar
-      `StravaActivityServiceImpl`.
-- **Validação:** `./mvnw clean test`
+- [x] 3.1 Métricas básicas da primeira volta do payload real (distância, duração, FC, tipo, descrição).
+- [x] 3.2 Unidades: velocidade m/s → km/h (9,30) e cadência de perna única dobrada (163), com
+      sanitização 60–200.
+- [x] 3.3 `ordem` e `splitIndex` da posição 1-based, nunca do `id` opaco.
+- [x] 3.4 Pace de `movingTime/distância`. **Achado:** o fallback por `average_speed` é
+      **inalcançável** para etapas — o filtro de descarte já exige distância ≥ 20 m e duração ≥ 5 s,
+      então o caminho primário nunca falha. O teste passou a cobrir a volta com parada (397 s de
+      movimento → 6:38), que bate com a coluna Ritmo do CSV; com `elapsed` daria 10:15.
+- [x] 3.5 BVA do descarte: 5 s e 20 m exatos passam; 4 s, 19,9 m e o intervalo real de 1 s/2,4 m caem.
+      Lista nula e vazia não quebram.
+- [x] 3.6 `tipoEtapa` pela tabela do D5, com desconhecido/ausente/vazio → null.
+- [x] 3.7 Running dynamics, com a conversão mm → cm da oscilação vertical (113,24 mm → 11,3 cm).
+- [x] 3.8 `elevacaoPerdaMetros` null — a fonte não expõe perda por intervalo.
+- [x] 3.8b `duracao` de `moving_time` (397, não 614) e `tempoMovimento` idem.
+- [x] 3.8c Zona e intensidade diretas; inclinação de fração para percentual (0,0011977 → 0,1;
+      −0,008186669 → −0,8).
+- [x] 3.9 Back-reference: toda etapa aponta para o treino que a contém.
+- [x] 3.10 Sanidade contra `icu_lap_count`: 17 intervalos → 16 etapas; divergência vai para DEBUG.
+- [x] 3.11 `mapEtapas` implementado dentro de `map(dto, atleta)`, com helpers próprios do mapper.
+- **Validação:** `./mvnw clean test` — 2344 testes, 0 falhas.
 
 ## 4. Persister — persistência por cascade (assinatura inalterada)
 
