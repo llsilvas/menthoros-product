@@ -86,6 +86,10 @@ do import de hoje, um query param. Falta o contrato do corpo.
       estoura `precision 4 scale 1`.
 - [ ] 3.8 Teste primeiro: `elevacaoPerdaMetros` fica **null** — a fonte não expõe perda por intervalo.
       Não zerar nem derivar do ganho.
+- [ ] 3.8b Teste primeiro — **`duracao` vem de `moving_time`, nunca de `elapsed_time`** (D4, "A
+      armadilha do tempo decorrido"): usar a volta real da fixture com moving 397 / elapsed 614 e
+      assertar 397. Gravar elapsed injetaria 217 s de atleta parado no TSS, no tempo em zona e no
+      decoupling.
 - [ ] 3.9 Teste primeiro: `map(dto, atleta)` devolve o treino **já com** as etapas anexadas e com o
       back-reference `treinoRealizado` setado em cada uma (D6).
 - [ ] 3.10 Teste primeiro — **contagem de sanidade**: a fixture real tem 17 intervalos e

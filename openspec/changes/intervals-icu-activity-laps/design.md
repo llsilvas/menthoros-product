@@ -172,7 +172,7 @@ Fica em `IntervalsIcuActivityMapper` (componente puro, sem IO — coerente com o
 | `splitIndex` | **posição**, não o `id` | `id` é opaco (D2) — usar ele quebraria a semântica que o Strava dá ao campo |
 | `tipoEtapa` | `type` normalizado | `WORK`/`RECOVERY` confirmados — ver D5 |
 | `descricao` | `label` se presente; senão `"Lap " + ordem` | `label` veio null na activity de corrida livre |
-| `duracao` / `tempoMovimento` | `Duration.ofSeconds(movingTimeSeg)` | |
+| `duracao` / `tempoMovimento` | `Duration.ofSeconds(movingTimeSeg)` | **moving, nunca elapsed** — ver "A armadilha do tempo decorrido" abaixo |
 | `distanciaKm` | `distance / 1000`, scale 3 | scale 3 igual ao Strava (`toKm(..., 3)`) |
 | `fcMedia` / `fcMax` | arredondamento de `averageHeartrate` / `maxHeartrate` | |
 | `velocidadeMedia` | `averageSpeed * 3.6`, scale 2 | **m/s → km/h**, o bug que a change anterior cometeu |
@@ -189,6 +189,48 @@ Fica em `IntervalsIcuActivityMapper` (componente puro, sem IO — coerente com o
 | `temperaturaMediaC` | `averageTemp`, scale 1 | °C direto |
 | `treinoRealizado` | setado dentro do mapper (D6) | |
 | `etapaPlanejada` | **null** | pareamento etapa-a-etapa é non-goal |
+
+### A armadilha do tempo decorrido (validação cruzada com o CSV, 2026-08-02)
+
+O CSV que o intervals.icu exporta para esta mesma activity tem uma coluna **"Tempo Decorrido"** — e
+ela é `elapsed_time`, não `moving_time`. Duas linhas provam: a volta 3 mostra 382 (moving 362) e a
+volta 8 mostra 614 (moving 397, o atleta parou 217 s).
+
+A leitura ingênua seria alinhar `duracao` com o que o treinador vê na tela. **Seria um bug grave.**
+`EtapaRealizada.getDuracao()` não é um campo de exibição — é consumido por:
+
+- `TssCalculatorService:361,494-506` — cálculo de TSS por etapa
+- `AtletaProgressServiceImpl:116-119` — tempo em zona
+- `DecouplingCalculatorService:357` — decoupling
+
+Gravar `elapsed` ali injetaria 217 segundos de atleta **parado** dentro da carga de treino. O TSS
+sobe, alimenta o TSB/PMC, e a decisão do treinador sobre a semana seguinte passa a se apoiar num
+número inflado — o dano se propaga muito além da tela da etapa.
+
+**Decisão: `duracao` = `moving_time`**, igual à convenção que o Strava já usa
+(`StravaActivityServiceImpl:109`). O `elapsed_time` por intervalo **não é persistido** — não há
+coluna que o comporte sem migration, e ele não vale o risco de ser confundido com tempo de treino.
+A divergência visual contra a tela do intervals.icu (397 vs 614 naquela volta) é deliberada e
+correta.
+
+### Validação cruzada: 16 = 16 = 16
+
+O CSV traz **16 linhas**. O payload traz 17 intervalos. Após a regra de descarte do D4, sobram
+**16** — e `icu_lap_count` também é 16. A fonte de verdade que o treinador enxerga confirma que o
+intervalo de 1 s / 2,4 m é lixo, e que o limiar escolhido corta exatamente ele.
+
+O ritmo do CSV bate com `moving_time / distance` volta a volta (6:27, 6:29, 6:03…), confirmando a
+prioridade de `calculatePace` do D4 — `average_speed` só como fallback.
+
+### Três colunas que o treinador vê e nós não guardamos
+
+O CSV mostra, por volta, além do que mapeamos: **Zona** (1/2/3), **Intensidade** (75–93%) e
+**Inclinação média**. Os três existem no payload (`zone`, `intensity`, `average_gradient` — este em
+fração: `0.0011977` = 0,1%). **`EtapaRealizada` não tem coluna para nenhum deles.**
+
+Fora do escopo desta change: exigiria migration, e a change se define como sem migration. Mas é a
+melhor candidata a uma change seguinte — são exatamente as colunas que contam a história do treino
+para o treinador, e o dado já vem de graça no payload que passaremos a buscar.
 
 **Running dynamics são um ganho não previsto.** O design original nem os considerava; o payload
 traz os seis preenchidos e o `EtapaRealizada` já tem as colunas desde V53. Mapeá-los é quase de
