@@ -101,31 +101,25 @@ do import de hoje, um query param. Falta o contrato do corpo.
 
 ## 4. Persister — persistência por cascade (assinatura inalterada)
 
-- [ ] 4.1 Teste primeiro (`IntervalsIcuActivityPersisterTest`): as etapas que vêm do mapper são
-      persistidas junto com o treino, sem `EtapaRealizadaRepository` — `cascade = CascadeType.ALL`
-      (`TreinoRealizado.java:107`).
-- [ ] 4.2 Teste primeiro: ramo `inserted == false` (corrida de concorrência) não duplica etapas no
-      registro vencedor (D6).
-- [ ] 4.3 Teste primeiro: activity sem intervalos preserva exatamente o comportamento atual — treino
-      salvo, nenhum side effect novo.
-- [ ] 4.4 Confirmar que **nenhuma alteração** foi necessária em `IntervalsIcuActivityPersister`. Se
-      alguma for, é sinal de que o mapper não está completando o treino como o D6 prevê.
+- [x] 4.1 Etapas vindas do mapper chegam intactas ao `saveIdempotent` e persistem por
+      `cascade = CascadeType.ALL`. Nenhum `EtapaRealizadaRepository`.
+- [x] 4.2 Ramo `inserted == false` não duplica etapas no registro vencedor.
+- [x] 4.3 Activity sem intervalos preserva o comportamento anterior.
+- [x] 4.4 **Confirmado: `IntervalsIcuActivityPersister` não precisou de nenhuma alteração.** Os três
+      testes passaram de primeira — são guardas de regressão, não TDD vermelho-primeiro, e existem
+      para o caso de alguém adicionar attach ali depois.
 - **Validação:** `./mvnw clean test`
 
 ## 5. Orquestrador — atualizar o ponto de chamada
 
-Bloco pequeno de propósito: com uma chamada só, o orquestrador quase não muda.
-
-- [ ] 5.1 Teste primeiro: dedup do passo 0 retorna o registro existente **sem nenhuma** chamada HTTP
-      (CA5).
-- [ ] 5.2 Teste primeiro (CA4): exatamente **uma** chamada ao intervals.icu por import — nenhuma
-      requisição extra foi introduzida.
-- [ ] 5.3 Teste primeiro (CA3): o comportamento de erro do import não regride — 401/403, 404, 422 e
-      429 continuam mapeados como hoje (`IntervalsIcuActivityIngestionServiceImpl:128-150`).
-- [ ] 5.4 Atualizar a chamada a `buscarAtividade` para passar `comIntervalos=true`.
-- [ ] 5.5 Verificar que nenhuma anotação `@Transactional` foi introduzida no caminho da chamada
-      externa.
-- **Validação:** `./mvnw clean test`
+- [x] 5.1 Dedup do passo 0 sem chamada HTTP — já coberto desde a change anterior.
+- [x] 5.2 UMA chamada externa por import, com `comIntervalos=true`. **Validado por mutação:** trocar
+      `true` por `false` na produção mata o teste.
+- [x] 5.3 Erros do client (401/403, 404, 422, 429, 5xx, transporte) mapeados como antes — 7 testes
+      existentes seguem verdes.
+- [x] 5.4 Chamada atualizada em `IntervalsIcuActivityIngestionServiceImpl:130`.
+- [x] 5.5 Nenhuma anotação `@Transactional` nova no caminho da chamada externa.
+- **Validação:** `./mvnw clean test` — 2348 testes, 0 falhas.
 
 ## 5b. Backfill de etapas (D9 — lacuna histórica)
 
