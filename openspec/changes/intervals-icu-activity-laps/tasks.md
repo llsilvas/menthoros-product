@@ -23,17 +23,20 @@ Endpoint **já confirmado** pelo founder: `GET /api/v1/activity/{id}?intervals=t
 do import de hoje, um query param. Falta o contrato do corpo.
 
 - [x] 0.1 ~~Confirmar o path real~~ — resolvido: `?intervals=true`, sem chamada separada.
-- [ ] 0.2 Capturar o **payload real** de duas activities: uma corrida contínua com auto-lap e uma
-      vinda de treino estruturado (com blocos). Salvar os dois JSONs como fixtures de teste.
-- [ ] 0.3 Registrar o **nome do campo** que carrega a lista no corpo da activity (`icu_intervals`?) e
-      se ele vem ausente ou nulo quando não há intervalos.
-- [ ] 0.4 Preencher a tabela de contrato: para cada campo de D2, **existe? nome exato? unidade?**.
-      Corrigir `design.md` D2/D4 com o que divergir.
-- [ ] 0.5 Responder as premissas 2, 3 e 4 do proposal: cadência é de perna única? distância em
-      metros? o payload classifica o tipo do intervalo?
-- [ ] 0.6 Medir o **tamanho do corpo e a latência** com `intervals=true` — confirmar que o read
-      timeout de 10s do `IntervalsIcuWebClientConfig` continua folgado.
-- **Validação:** `design.md` D2/D4 atualizados com dados reais; fixtures commitadas.
+- [x] 0.2 Payload real capturado (atleta `i641775`, activity `i171415754`, 17 intervalos). Fixture
+      enxuta em `src/test/resources/fixtures/intervalsicu/activity-com-intervalos.json`.
+- [x] 0.3 Campo confirmado: **`icu_intervals`**, lista nua dentro da activity. Sem o query param a
+      chave **nem existe** no corpo.
+- [x] 0.4 Tabela de contrato preenchida — ver `design.md` D2. Correções relevantes: `id` é opaco (não
+      ordena), `total_elevation_loss` não existe, running dynamics vêm preenchidos, oscilação
+      vertical em **mm** (converter para cm).
+- [x] 0.5 Premissas 2, 3 e 4 confirmadas: cadência de perna única, distância em metros, `type`
+      classifica o intervalo (`WORK`/`RECOVERY`).
+- [x] 0.6 Medido: 4.649 → 44.072 bytes (9,5×) e 0,69 s. Read timeout de 10 s com folga larga.
+- [ ] 0.7 **Pendente, não bloqueante:** capturar uma activity vinda de treino estruturado para
+      confirmar se `label` vem preenchido e se `WARMUP`/`COOLDOWN` existem (D5). O ramo
+      "desconhecido → null" cobre a ausência.
+- **Validação:** `design.md` D2/D4/D5 atualizados com dados reais; fixture commitada.
 
 ## 1. DTO do intervalo
 
@@ -67,17 +70,28 @@ do import de hoje, um query param. Falta o contrato do corpo.
 - [ ] 3.2 Teste primeiro — **unidades** (o bloco que pega os bugs históricos): `velocidadeMedia` em
       km/h a partir de m/s; `cadenciaMedia` dobrada e sanitizada em 60–200 (fora da faixa → null);
       `distanciaKm` = metros/1000 com scale 3.
-- [ ] 3.3 Teste primeiro: `ordem` sequencial 1-based independente do `id` do payload; `splitIndex`
-      vindo do `id` quando presente, do índice quando ausente.
+- [ ] 3.3 Teste primeiro: `ordem` **e** `splitIndex` vêm da posição 1-based na lista — nunca do `id`,
+      que é opaco (`7130765`). Um payload com `id` fora de ordem não altera a ordenação.
 - [ ] 3.4 Teste primeiro: `paceMedia` por `movingTime/distância`, com `averageSpeed` só como
       fallback (mesma prioridade de `calculatePace` — não inverter).
-- [ ] 3.5 Teste primeiro: lista vazia → lista vazia; lista null → lista vazia; intervalo sem
-      distância nem duração → descartado.
-- [ ] 3.6 Teste primeiro: `tipoEtapa` normalizado quando o payload classifica; valor desconhecido →
-      null; payload sem classificação → null em todas as etapas (D5).
-- [ ] 3.7 Teste primeiro: `map(dto, atleta)` devolve o treino **já com** as etapas anexadas e com o
+- [ ] 3.5 Teste primeiro — **descarte de intervalo degenerado** (D4): o intervalo real de 1 s / 2,4 m
+      da fixture é descartado; `movingTimeSeg < 5` **ou** `distance < 20` cai; 5 s e 20 m exatos
+      passam (BVA). Lista vazia e lista null → lista vazia.
+- [ ] 3.6 Teste primeiro: `tipoEtapa` mapeado pela tabela do D5 — `WORK`→`PRINCIPAL`,
+      `RECOVERY`→`RECUPERACAO`, `WARMUP`→`AQUECIMENTO`, `COOLDOWN`→`DESAQUECIMENTO`; valor
+      desconhecido e `type` ausente → null.
+- [ ] 3.7 Teste primeiro — **running dynamics** (ganho não previsto, ver D4): `passadaMediaM`,
+      `gctMedioMs`, `gctEquilibrioPct`, `proporcaoVerticalPct` e `temperaturaMediaC` diretos; e
+      `oscilacaoVerticalCm` com a **conversão mm → cm** (107,69 mm → 10,8 cm). Sem a divisão, o valor
+      estoura `precision 4 scale 1`.
+- [ ] 3.8 Teste primeiro: `elevacaoPerdaMetros` fica **null** — a fonte não expõe perda por intervalo.
+      Não zerar nem derivar do ganho.
+- [ ] 3.9 Teste primeiro: `map(dto, atleta)` devolve o treino **já com** as etapas anexadas e com o
       back-reference `treinoRealizado` setado em cada uma (D6).
-- [ ] 3.8 Implementar `mapEtapas(...)` em `IntervalsIcuActivityMapper` e chamá-lo de dentro de
+- [ ] 3.10 Teste primeiro — **contagem de sanidade**: a fixture real tem 17 intervalos e
+      `icu_lap_count = 16`; após o descarte devem sobrar 16, e a divergência (se houver) é logada em
+      DEBUG, não lançada.
+- [ ] 3.11 Implementar `mapEtapas(...)` em `IntervalsIcuActivityMapper` e chamá-lo de dentro de
       `map(dto, atleta)`, reusando os helpers privados do próprio mapper — **sem** chamar
       `StravaActivityServiceImpl`.
 - **Validação:** `./mvnw clean test`

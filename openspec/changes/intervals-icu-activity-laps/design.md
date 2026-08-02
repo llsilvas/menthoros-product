@@ -63,37 +63,54 @@ fonte, não do nosso código: o Strava exige a chamada extra, o intervals.icu n�
 
 ## D2 — Contrato do DTO de intervalo
 
-**Presumido, a confirmar no smoke (bloqueador de DoR — ver proposal, Open Questions #1):**
+**VERIFICADO contra payload real** (smoke 2026-08-02, atleta `i641775`, activity `i171415754` —
+"São Paulo - 15.5 Km - LONGO", 17 intervalos). O bloco 0 está fechado para este contrato.
 
 ```java
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record IcuActivityIntervalDto(
-        Integer id,                                            // ordem/índice do intervalo
-        String type,                                           // WARMUP / WORK / RECOVERY / COOLDOWN ?
-        String label,                                           // rótulo textual, quando houver
-        Double distance,                                        // metros (presumido)
-        @JsonProperty("moving_time") Integer movingTimeSeg,
-        @JsonProperty("elapsed_time") Integer elapsedTimeSeg,
-        @JsonProperty("average_speed") Double averageSpeed,     // m/s (presumido)
-        @JsonProperty("average_heartrate") Double averageHeartrate,
-        @JsonProperty("max_heartrate") Double maxHeartrate,
-        @JsonProperty("average_cadence") Double averageCadence, // perna única (presumido)
-        @JsonProperty("average_watts") Double averageWatts,
-        @JsonProperty("total_elevation_gain") Double totalElevationGain,
-        @JsonProperty("total_elevation_loss") Double totalElevationLoss
+        Long id,                                                // opaco (ex. 7130765) — NÃO é índice
+        String type,                                            // WORK, RECOVERY (ver D5)
+        String label,                                           // null nesta activity
+        @JsonProperty("start_index") Integer startIndex,        // índice de sample — confere a ordem
+        Double distance,                                        // metros            (1001.92)
+        @JsonProperty("moving_time") Integer movingTimeSeg,     // segundos          (388)
+        @JsonProperty("elapsed_time") Integer elapsedTimeSeg,   // segundos          (388)
+        @JsonProperty("average_speed") Double averageSpeed,     // m/s               (2.582268)
+        @JsonProperty("average_heartrate") Double averageHeartrate,  //              (127)
+        @JsonProperty("max_heartrate") Double maxHeartrate,          //              (145)
+        @JsonProperty("average_cadence") Double averageCadence, // perna única       (81.3866)
+        @JsonProperty("average_watts") Double averageWatts,     // null em corrida
+        @JsonProperty("total_elevation_gain") Double totalElevationGain,  // metros  (2.4000244)
+        @JsonProperty("average_stride") Double averageStride,   // metros            (0.95185256)
+        @JsonProperty("average_stance_time") Double averageStanceTime,               // ms  (263.24)
+        @JsonProperty("average_stance_time_balance") Double averageStanceTimeBalance,// %   (50.82)
+        @JsonProperty("average_vertical_oscillation") Double averageVerticalOscillation, // mm (107.69)
+        @JsonProperty("average_vertical_ratio") Double averageVerticalRatio,         // %   (10.85)
+        @JsonProperty("average_temp") Double averageTemp                             // °C  (19.25)
 ) {}
 ```
 
-`@JsonIgnoreProperties(ignoreUnknown = true)` é obrigatório, mesmo padrão de `IcuActivityDto` — o
-payload de terceiro pode ganhar campos a qualquer momento.
+### O que o smoke derrubou do design anterior
 
-**O smoke tem de responder, por campo:** existe? qual o nome exato? qual a unidade? Não assumir
-simetria com o summary — foi exatamente essa suposição que produziu os dois bugs de unidade da
-change anterior (cadência de perna única não dobrada; `average_speed` em m/s atribuído direto a
-km/h).
+| Presumido | Real |
+|---|---|
+| `id` serve como `splitIndex` | **Opaco** (`7130765`, `6086337`, …) — não ordena nada. Ordem vem da posição na lista, confirmada por `start_index` crescente |
+| `total_elevation_loss` existe | **Não existe.** Só `total_elevation_gain` — `elevacaoPerdaMetros` fica null |
+| Envelope separado com `icu_groups` a desembrulhar | `icu_intervals` é lista nua dentro da activity; `icu_groups` é agregação de repetições, **não usada** |
+| Running dynamics provavelmente ausentes | **Presentes e preenchidos** nos 17 intervalos — GCT, oscilação, razão vertical, balanço, temperatura, passada |
+| Cadência de perna única (premissa 2) | **Confirmado**: 81.39 → 162.8 spm total, coerente com 6:27/km |
+| Distância em metros (premissa 3) | **Confirmado**: 1001.92 por volta; summary 15004.61 para 15,5 km |
+| O payload classifica o tipo (premissa 4) | **Confirmado**: `type` = `WORK` / `RECOVERY` (ver D5) |
 
-**Onde a lista mora:** os intervalos vêm **dentro** do corpo da activity (D1), então
-`IcuActivityDto` ganha um campo — provavelmente `icu_intervals`, a confirmar no smoke:
+### O query param não é opcional
+
+Sem `?intervals=true`, `icu_intervals` **nem vem no corpo** (verificado: chave ausente, valor nulo).
+Custo real medido: **4.649 → 44.072 bytes** (9,5×) e 0,69 s de latência total — folga larga contra o
+read timeout de 10 s do `IntervalsIcuWebClientConfig`. Task 0.6 fechada.
+
+**Onde a lista mora:** os intervalos vêm **dentro** do corpo da activity (D1), no campo
+`icu_intervals`:
 
 ```java
 public record IcuActivityDto(
@@ -151,45 +168,85 @@ Fica em `IntervalsIcuActivityMapper` (componente puro, sem IO — coerente com o
 
 | `EtapaRealizada` | Origem | Nota |
 |---|---|---|
-| `ordem` | índice na lista, 1-based | fonte de verdade da ordenação (`@OrderBy("ordem ASC")`) |
-| `splitIndex` | `id` do intervalo, se presente; senão o índice | espelha o uso de `lapIndex` no Strava |
-| `tipoEtapa` | `type` normalizado | **null se o payload não trouxer** — ver D5 |
-| `descricao` | `label` se presente; senão `"Lap " + ordem` | fallback igual ao do Strava |
-| `duracao` | `Duration.ofSeconds(movingTimeSeg)` | |
+| `ordem` | posição na lista, 1-based | fonte de verdade da ordenação (`@OrderBy("ordem ASC")`); `start_index` crescente confirma que a lista já vem cronológica |
+| `splitIndex` | **posição**, não o `id` | `id` é opaco (D2) — usar ele quebraria a semântica que o Strava dá ao campo |
+| `tipoEtapa` | `type` normalizado | `WORK`/`RECOVERY` confirmados — ver D5 |
+| `descricao` | `label` se presente; senão `"Lap " + ordem` | `label` veio null na activity de corrida livre |
+| `duracao` / `tempoMovimento` | `Duration.ofSeconds(movingTimeSeg)` | |
 | `distanciaKm` | `distance / 1000`, scale 3 | scale 3 igual ao Strava (`toKm(..., 3)`) |
 | `fcMedia` / `fcMax` | arredondamento de `averageHeartrate` / `maxHeartrate` | |
 | `velocidadeMedia` | `averageSpeed * 3.6`, scale 2 | **m/s → km/h**, o bug que a change anterior cometeu |
 | `paceMedia` | `movingTime / distanceKm`, fallback `1000 / averageSpeed` | mesma prioridade de `calculatePace` |
-| `cadenciaMedia` | `averageCadence * 2`, sanitizado 60–200 | mesma regra de `sanitizeCadenciaIntervalsIcu` |
-| `potenciaMedia` | arredondamento de `averageWatts` | |
-| `elevacaoGanhoMetros` / `elevacaoPerdaMetros` | campos dedicados quando existirem | se só houver diferença líquida, aplicar a lógica de sinal do Strava |
-| `tempoMovimento` | `Duration.ofSeconds(movingTimeSeg)` | |
-| `treinoRealizado` | setado no attach (D6) | |
+| `cadenciaMedia` | `averageCadence * 2`, sanitizado 60–200 | perna única **confirmada** no smoke |
+| `potenciaMedia` | arredondamento de `averageWatts` | sempre null em corrida |
+| `elevacaoGanhoMetros` | arredondamento de `totalElevationGain` | |
+| `elevacaoPerdaMetros` | **null** | a fonte não expõe perda por intervalo (D2) — **não** derivar nem zerar |
+| `passadaMediaM` | `averageStride`, scale 2 | metros, direto |
+| `gctMedioMs` | arredondamento de `averageStanceTime` | ms, direto |
+| `gctEquilibrioPct` | `averageStanceTimeBalance`, scale 1 | % do pé esquerdo, convenção Garmin — mesma do campo |
+| `oscilacaoVerticalCm` | `averageVerticalOscillation / 10`, scale 1 | **mm → cm.** 107,69 mm = 10,8 cm; gravar 107,69 num campo `precision 4 scale 1` estoura o range e mente na análise |
+| `proporcaoVerticalPct` | `averageVerticalRatio`, scale 1 | % direto |
+| `temperaturaMediaC` | `averageTemp`, scale 1 | °C direto |
+| `treinoRealizado` | setado dentro do mapper (D6) | |
 | `etapaPlanejada` | **null** | pareamento etapa-a-etapa é non-goal |
+
+**Running dynamics são um ganho não previsto.** O design original nem os considerava; o payload
+traz os seis preenchidos e o `EtapaRealizada` já tem as colunas desde V53. Mapeá-los é quase de
+graça e dá ao treinador, por volta, dados que hoje ele não tem em fonte nenhuma. **A única conversão
+de unidade é a oscilação vertical (mm → cm)** — as demais entram diretas.
 
 **Regra de acoplamento (mesma da change anterior):** não chamar helpers de
 `StravaActivityServiceImpl`. As fórmulas coincidem; as fontes são independentes e podem divergir. Os
 helpers privados do `IntervalsIcuActivityMapper` (`toKmh`, `sanitizeCadenciaIntervalsIcu`,
 `calculatePace`) são reusados **dentro do próprio mapper**.
 
-**Intervalo sem métricas úteis** (distância e duração ambas nulas/zero) é descartado, não persistido
-como etapa vazia — evita poluir a análise com linhas sem sinal.
+### Intervalo degenerado: descartar (regra ajustada pelo smoke)
+
+O payload real trouxe **17 intervalos, mas `icu_lap_count = 16`**. O excedente é lixo:
+
+```
+id=6086337  type=RECOVERY  distance=2.4 m  moving_time=1 s  average_speed=2.4
+```
+
+Um "intervalo" de 1 segundo e 2,4 metros. A regra que eu tinha escrito — descartar quando distância
+**e** duração forem nulas ou zero — **não pegaria este caso**, porque ambos têm valor. Persistido,
+ele entra nos cálculos de drift de FC e progressão de pace das skills como se fosse uma volta.
+
+**Regra corrigida:** descartar o intervalo quando `movingTimeSeg < 5` **ou** `distance < 20`. Os
+limiares são conservadores de propósito — o tiro legítimo mais curto que um treinador prescreve
+(strides de 15–20 s) fica com folga acima, e nada plausível como etapa de corrida cai abaixo deles.
+
+**Sanidade:** após o filtro, a contagem deve bater com `icu_lap_count`. Divergência não é erro
+fatal (o campo pode ter outra semântica em outras activities), mas vira log em DEBUG — é o sinal
+barato de que a regra de descarte descolou da fonte.
 
 ---
 
-## D5 — `tipoEtapa`: mapear o que vier, não inventar
+## D5 — `tipoEtapa`: o intervals.icu classifica (confirmado)
 
-Se o payload trouxer classificação do intervalo, normalizar para o vocabulário que
-`EtapaRealizada.tipoEtapa` já documenta (`AQUECIMENTO`, `PRINCIPAL`, `INTERVALADO`, `RECUPERACAO`,
-`DESAQUECIMENTO`). Valor desconhecido → null, nunca chute.
+O smoke confirmou a premissa 4: cada intervalo traz `type`. Na activity de corrida livre apareceram
+`WORK` e `RECOVERY`. Mapeamento:
 
-Se o payload **não** classificar, `tipoEtapa` fica null em todas as etapas — mesmo patamar do
-Strava. **Não** inferir tipo por duração/FC nesta change: seria uma heurística nova e não testada
-num lugar onde o dado da fonte pode simplesmente existir. Fica para uma change própria, se o
-treinador sentir falta.
+| `type` da fonte | `tipoEtapa` |
+|---|---|
+| `WORK` | `PRINCIPAL` |
+| `RECOVERY` | `RECUPERACAO` |
+| `WARMUP` | `AQUECIMENTO` |
+| `COOLDOWN` | `DESAQUECIMENTO` |
+| qualquer outro / ausente | **null** |
 
-Este é o ponto onde o intervals.icu pode ficar **melhor** que o Strava — vale confirmar no smoke com
-uma activity vinda de treino estruturado, não só de corrida livre.
+`WARMUP` e `COOLDOWN` **não foram observados** — são extrapolação do vocabulário. Se não existirem,
+caem no ramo "desconhecido → null" sem quebrar nada. Valor desconhecido nunca vira chute: é null.
+
+**Isto é uma vantagem real sobre o Strava**, que só numera laps. Um treino intervalado importado do
+intervals.icu chega com a estrutura de esforço/recuperação explícita.
+
+**Não** inferir tipo por duração/FC quando a fonte não classificar — seria heurística nova e não
+testada num lugar onde o dado da fonte existe. Fica para change própria, se o treinador sentir falta.
+
+**Ainda não verificado:** uma activity vinda de **treino estruturado** (com blocos prescritos). É ela
+que responde se `label` vem preenchido e se `WARMUP`/`COOLDOWN` existem de fato. Não bloqueia a
+implementação — o ramo null cobre —, mas vale capturar quando houver uma à mão.
 
 ---
 
