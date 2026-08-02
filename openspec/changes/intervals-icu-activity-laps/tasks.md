@@ -38,6 +38,17 @@ do import de hoje, um query param. Falta o contrato do corpo.
       "desconhecido → null" cobre a ausência.
 - **Validação:** `design.md` D2/D4/D5 atualizados com dados reais; fixture commitada.
 
+## 0b. Migration V74 — zona, intensidade e inclinação (D10)
+
+- [x] 0b.1 `V74__add_zone_intensity_gradient_to_tb_etapa_realizada.sql` — aditiva, três colunas
+      nullable (`zone INTEGER`, `intensity_pct NUMERIC(5,2)`, `avg_gradient_pct NUMERIC(4,1)`),
+      `ADD COLUMN IF NOT EXISTS`, rollback no cabeçalho. Nomes em inglês por ADR-0007.
+- [x] 0b.2 Campos correspondentes em `EtapaRealizada` (`zone`, `intensityPct`, `avgGradientPct`).
+- [x] 0b.3 Campos aditivos em `EtapaRealizadaOutputDto` — MapStruct casa por nome, sem `@Mapping`.
+- [x] 0b.4 `./mvnw clean compile` — verde.
+- [ ] 0b.5 Aplicar a V74 no banco local de dev e confirmar que o Flyway sobe sem checksum mismatch.
+- **Validação:** `./mvnw clean compile` e Flyway aplicando a V74 limpo.
+
 ## 1. DTO do intervalo
 
 - [ ] 1.1 Teste primeiro: desserialização do fixture real (0.2) em `IcuActivityIntervalDto` — todos
@@ -90,6 +101,10 @@ do import de hoje, um query param. Falta o contrato do corpo.
       armadilha do tempo decorrido"): usar a volta real da fixture com moving 397 / elapsed 614 e
       assertar 397. Gravar elapsed injetaria 217 s de atleta parado no TSS, no tempo em zona e no
       decoupling.
+- [ ] 3.8c Teste primeiro (CA9) — **zona, intensidade e inclinação** (D10): `zone` e `intensityPct`
+      diretos; `avgGradientPct` com a **conversão fração → percentual** (`0.0011977` → `0.1`;
+      `-0.008186669` → `-0.8`). Sem o ×100, toda inclinação vira 0,0 — terceira armadilha de unidade
+      desta change.
 - [ ] 3.9 Teste primeiro: `map(dto, atleta)` devolve o treino **já com** as etapas anexadas e com o
       back-reference `treinoRealizado` setado em cada uma (D6).
 - [ ] 3.10 Teste primeiro — **contagem de sanidade**: a fixture real tem 17 intervalos e
@@ -173,6 +188,8 @@ independente para contar. Resta o instrumento de cobertura.
       `LazyInitializationException` (risco identificado no proposal; já falhou nesta capability).
 - [ ] 7.3 Teste primeiro (CA7): treino longo importado com laps faz `LongRunAnalysisSkill` usar o
       caminho de `EtapaRealizadaResumo`, não o fallback de agregado.
+- [ ] 7.4 Teste primeiro (CA9): as colunas da V74 chegam gravadas em `tb_etapa_realizada` e voltam
+      serializadas no `EtapaRealizadaOutputDto`.
 - **Validação:** `./mvnw clean verify` — `IntervalsIcuActivityImportIntegrationTest` é `*Test`
   (Surefire), mas qualquer teste novo criado como `*IT` só roda em `verify`.
 

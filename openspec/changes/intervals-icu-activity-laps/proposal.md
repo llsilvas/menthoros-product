@@ -1,9 +1,9 @@
 # Proposal: intervals-icu-activity-laps
 
-**Tamanho:** M · **Trilha:** Full (incerteza de design real — o contrato de laps do intervals.icu
-NÃO está verificado contra payload real; decisão de resiliência sobre falha parcial da segunda
-chamada HTTP. Backend-only, **sem migration** — `tb_etapa_realizada` já existe desde V14 com todos
-os campos necessários)
+**Tamanho:** M · **Trilha:** Full (backend-only, **uma migration aditiva** — `V74`, três colunas
+nullable em `tb_etapa_realizada` para zona, intensidade e inclinação por volta. O contrato de laps
+já está verificado contra payload real, mas a mudança de schema mantém a trilha Full pelo critério
+do `config.yaml`)
 
 ## Status
 
@@ -36,6 +36,12 @@ os campos necessários)
   por construção e não por mitigação; `lapsStatus` e a métrica de falha de laps deletados; D9
   reduzido à lacuna histórica; assinaturas de `persistir` e do orquestrador inalteradas. **A change
   ficou menor e mais segura.** Registro da lição em design.md, Pre-mortem, hipótese 0.
+- **Bloco 0 fechado (2026-08-02)** com payload real (atleta `i641775`, activity `i171415754`) e
+  validação cruzada contra o export CSV da mesma activity. Quatro correções de contrato e uma
+  armadilha de carga de treino evitada — ver design.md D2/D4.
+- **Escopo ampliado por decisão do founder (2026-08-02):** zona, intensidade e inclinação por volta
+  entram na change, com a migration `V74`. A change deixa de ser "sem migration"; a trilha continua
+  Full (agora também pelo critério de mudança de schema). Ver design D10.
 
 ## Prioridade no roadmap
 
@@ -99,6 +105,10 @@ Fatia vertical fina sobre o pipeline de ingestão que já existe:
 - **Backfill de etapas** (`POST .../activities/backfill-laps`): ação do coach que completa os treinos
   intervals.icu importados **antes** desta change, que o guard de dedup impede de corrigir por
   re-import. É um **UPDATE** que grava só as etapas — não sobrescreve o summary.
+- **Zona, intensidade e inclinação por volta** (decisão do founder, 2026-08-02): migration `V74` com
+  três colunas nullable em `tb_etapa_realizada`, mais os campos no `EtapaRealizada`, no mapper e no
+  `EtapaRealizadaOutputDto`. São as colunas que dizem *o que aquela volta foi* — o treinador já as vê
+  no intervals.icu, e o dado chega de graça no payload que a change passa a buscar. Ver design D10.
 
 ## Capabilities
 
@@ -112,13 +122,15 @@ Fatia vertical fina sobre o pipeline de ingestão que já existe:
 `IntervalsIcuActivityMapper`, `IntervalsIcuActivityIngestionServiceImpl`,
 `IntervalsIcuActivityPersister`, `IntervalsIcuActivityController` (+1 endpoint de backfill).
 
-**Migration:** NENHUMA. `tb_etapa_realizada` existe desde V14 e já tem `split_index`,
-`distancia_km`, `pace_media`, `fc_media`, `fc_max`, `cadencia_media`, `potencia_media`,
-`elevacao_ganho_metros`, `elevacao_perda_metros`, `tipo_etapa`.
+**Migration:** `V74__add_zone_intensity_gradient_to_tb_etapa_realizada.sql` — aditiva, três colunas
+nullable, rollback documentado. Os demais campos já existem: `split_index`, `distancia_km`,
+`pace_media`, `fc_media`, `fc_max`, `cadencia_media`, `potencia_media`, `elevacao_ganho_metros`,
+`tipo_etapa` (V14) e os running dynamics (V53).
 
-**Contrato de API (front):** `TreinoRealizadoOutputDto.etapasRealizadas` já existe e já é serializado
-— nenhum campo novo. O front passa a **receber conteúdo** onde hoje recebe lista vazia. Nenhuma
-mudança no cliente gerado.
+**Contrato de API (front):** `TreinoRealizadoOutputDto.etapasRealizadas` já existe e já é
+serializado; o front passa a **receber conteúdo** onde hoje recebe lista vazia.
+`EtapaRealizadaOutputDto` ganha três campos aditivos (`zone`, `intensityPct`, `avgGradientPct`) com
+`@JsonInclude(NON_NULL)` — nada quebra no cliente gerado. Exibi-los na UI é trabalho separado.
 
 **Custo de rede:** **zero chamadas adicionais** — mesmo endpoint, mesmo número de requisições de
 hoje, um query param a mais. O corpo da resposta fica maior; confirmar no smoke que o read timeout
@@ -164,6 +176,14 @@ de 10s continua folgado.
   - **Then** cada treino do conjunto recebe suas etapas via UPDATE, sem passar pelo guard de dedup
   - **And** o summary do treino não é sobrescrito
   - **And** rodar o backfill de novo é no-op para os já corrigidos
+
+- **CA9 — Zona, intensidade e inclinação persistidas por volta**
+  - **Given** uma atividade cujos intervalos trazem `zone`, `intensity` e `average_gradient`
+  - **When** o coach importa a atividade
+  - **Then** cada etapa grava `zone` e `intensityPct` diretos
+  - **And** `avgGradientPct` é gravado em **percentual**, convertido da fração da origem
+    (`0.0011977` → `0.1`)
+  - **And** os três campos aparecem no `EtapaRealizadaOutputDto`
 
 - **CA7 — As skills de análise deixam de degradar**
   - **Given** um treino longo importado do intervals.icu com laps
@@ -246,6 +266,9 @@ do produto, e não vale construir uma só para isto).
   volume de falhas primeiro (Open Question #6).
 - Marcar em banco quais activities genuinamente não têm intervalos, para o backfill pulá-las
   (Open Question #7).
+- **Exibir zona, intensidade e inclinação na UI** — a V74 e o DTO entregam o dado; o front é change
+  própria.
+- Replicar zona/intensidade/inclinação em `tb_treino_realizado` (nível de sessão) — sem caso de uso.
 - Qualquer mudança no caminho Strava — incluindo mover o `attachLaps` dele para fora da transação.
   A dívida fica documentada, não é corrigida aqui.
 - Mudança no contrato de API consumido pelo front.

@@ -87,7 +87,10 @@ public record IcuActivityIntervalDto(
         @JsonProperty("average_stance_time_balance") Double averageStanceTimeBalance,// %   (50.82)
         @JsonProperty("average_vertical_oscillation") Double averageVerticalOscillation, // mm (107.69)
         @JsonProperty("average_vertical_ratio") Double averageVerticalRatio,         // %   (10.85)
-        @JsonProperty("average_temp") Double averageTemp                             // °C  (19.25)
+        @JsonProperty("average_temp") Double averageTemp,                            // °C  (19.25)
+        Integer zone,                                           // zona de FC        (1, 2, 3)
+        Double intensity,                                       // % do limiar       (75, 82, 93)
+        @JsonProperty("average_gradient") Double averageGradient // FRAÇÃO           (0.0011977 = 0,1%)
 ) {}
 ```
 
@@ -187,6 +190,9 @@ Fica em `IntervalsIcuActivityMapper` (componente puro, sem IO — coerente com o
 | `oscilacaoVerticalCm` | `averageVerticalOscillation / 10`, scale 1 | **mm → cm.** 107,69 mm = 10,8 cm; gravar 107,69 num campo `precision 4 scale 1` estoura o range e mente na análise |
 | `proporcaoVerticalPct` | `averageVerticalRatio`, scale 1 | % direto |
 | `temperaturaMediaC` | `averageTemp`, scale 1 | °C direto |
+| `zone` | `zone` | direto (V74, ver D10) |
+| `intensityPct` | `intensity`, scale 2 | direto — % do limiar |
+| `avgGradientPct` | `averageGradient * 100`, scale 1 | **fração → %**, terceira armadilha de unidade |
 | `treinoRealizado` | setado dentro do mapper (D6) | |
 | `etapaPlanejada` | **null** | pareamento etapa-a-etapa é non-goal |
 
@@ -222,15 +228,42 @@ intervalo de 1 s / 2,4 m é lixo, e que o limiar escolhido corta exatamente ele.
 O ritmo do CSV bate com `moving_time / distance` volta a volta (6:27, 6:29, 6:03…), confirmando a
 prioridade de `calculatePace` do D4 — `average_speed` só como fallback.
 
-### Três colunas que o treinador vê e nós não guardamos
+### D10 — Zona, intensidade e inclinação: migration V74 (decisão do founder, 2026-08-02)
 
-O CSV mostra, por volta, além do que mapeamos: **Zona** (1/2/3), **Intensidade** (75–93%) e
-**Inclinação média**. Os três existem no payload (`zone`, `intensity`, `average_gradient` — este em
-fração: `0.0011977` = 0,1%). **`EtapaRealizada` não tem coluna para nenhum deles.**
+O CSV mostra, por volta, além do que mapeávamos: **Zona** (1/2/3), **Intensidade** (75–93%) e
+**Inclinação média**. Os três estão no payload (`zone`, `intensity`, `average_gradient`) e
+`EtapaRealizada` não tinha coluna para nenhum.
 
-Fora do escopo desta change: exigiria migration, e a change se define como sem migration. Mas é a
-melhor candidata a uma change seguinte — são exatamente as colunas que contam a história do treino
-para o treinador, e o dado já vem de graça no payload que passaremos a buscar.
+Isso estava registrado como fora de escopo — "exigiria migration, e a change se define como sem
+migration". **O founder decidiu incluir.** É a decisão certa: são as colunas que contam a história
+do treino para o treinador (zona e intensidade dizem *o que aquela volta foi*, algo que pace e FC
+isolados não dizem), o dado chega de graça no payload que a change já passa a buscar, e adiar
+significaria uma segunda passada por todo o pipeline que estamos tocando agora.
+
+**Migration:** `V74__add_zone_intensity_gradient_to_tb_etapa_realizada.sql` — aditiva, três colunas
+nullable, `ADD COLUMN IF NOT EXISTS`, rollback documentado no cabeçalho. Só em
+`tb_etapa_realizada`; a V53 replicou running dynamics em `tb_treino_realizado` também, mas aqui não
+há caso de uso a nível de sessão.
+
+**Nomes em inglês, tabela em português.** ADR-0007 manda código novo nascer em inglês; as colunas
+legadas desta tabela são PT (`distancia_km`, `fc_media`). A tabela fica bilíngue — consequência
+aceita e explícita da ADR, não descuido. Renomear as antigas está fora de escopo.
+
+| Coluna | Tipo | Origem | Conversão |
+|---|---|---|---|
+| `zone` | `INTEGER` | `zone` | direta |
+| `intensity_pct` | `NUMERIC(5,2)` | `intensity` | direta — a fonte entrega inteiro (75, 82, 93); o tipo aceita fracionário caso mude |
+| `avg_gradient_pct` | `NUMERIC(4,1)` | `average_gradient` | **fração → percentual (× 100).** `0.0011977` = 0,1%. Sem isso, toda inclinação vira 0,0 |
+
+**A conversão da inclinação é a terceira armadilha de unidade desta change** — junto com a cadência
+de perna única e a oscilação vertical em mm. As três só apareceram com o payload real na mão.
+
+**`EtapaRealizadaOutputDto` ganha os três campos** (aditivo, `@JsonInclude(NON_NULL)`). Sem isso o
+dado seria write-only. O front consumi-los é trabalho separado, fora desta change.
+
+**`intensity` em outras modalidades:** no intervals.icu, para esportes de potência, `intensity` é
+fração (IF ~0,85) e não percentual. Não normalizamos com heurística — o filtro de modalidade
+(`Run`, `TrailRun`, `VirtualRun`, `Treadmill`) garante que só entra o caso verificado.
 
 **Running dynamics são um ganho não previsto.** O design original nem os considerava; o payload
 traz os seis preenchidos e o `EtapaRealizada` já tem as colunas desde V53. Mapeá-los é quase de

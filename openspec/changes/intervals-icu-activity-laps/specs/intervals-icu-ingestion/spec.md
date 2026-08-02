@@ -29,6 +29,13 @@ atividade e persistir um `EtapaRealizada` por intervalo, vinculado ao `TreinoRea
   60–200
 - **And** `distanciaKm` é gravada em quilômetros
 
+#### Scenario: Zona, intensidade e inclinação da volta
+- **Given** um lap cujo payload traz zona de FC, intensidade e inclinação média
+- **When** a etapa é criada
+- **Then** a zona e a intensidade (% do limiar) são gravadas como vieram
+- **And** a inclinação é gravada em **percentual**, convertida da fração da origem
+- **And** os três ficam disponíveis na representação de saída da etapa
+
 #### Scenario: Tipo do intervalo preenchido quando a origem classifica
 - **Given** uma atividade originada de um treino estruturado, cujo payload classifica cada intervalo
 - **When** as etapas são criadas
