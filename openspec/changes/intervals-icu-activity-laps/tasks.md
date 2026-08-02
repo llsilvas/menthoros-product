@@ -47,15 +47,19 @@ do import de hoje, um query param. Falta o contrato do corpo.
 - [x] 0b.2 Campos correspondentes em `EtapaRealizada` (`zona`, `intensidadePct`, `inclinacaoMediaPct`).
 - [x] 0b.3 Campos aditivos em `EtapaRealizadaOutputDto` — MapStruct casa por nome, sem `@Mapping`.
 - [x] 0b.4 `./mvnw clean compile` — verde.
-- [ ] 0b.5 Aplicar a V74 no banco local de dev e confirmar que o Flyway sobe sem checksum mismatch.
+- [x] 0b.5 V74 aplicada no banco local (o banco estava na V72; o Flyway subiu V73 e V74 limpo).
+      Tipos conferidos: `zona` integer, `intensidade_pct` numeric(5,2), `inclinacao_media_pct` numeric(4,1).
 - **Validação:** `./mvnw clean compile` e Flyway aplicando a V74 limpo.
 
 ## 1. DTO do intervalo
 
-- [ ] 1.1 Teste primeiro: desserialização do fixture real (0.2) em `IcuActivityIntervalDto` — todos
-      os campos esperados preenchidos, campo desconhecido no JSON não quebra.
-- [ ] 1.2 Criar `dto/intervalsicu/IcuActivityIntervalDto.java` como `record` com
-      `@JsonIgnoreProperties(ignoreUnknown = true)` e `@JsonProperty` conforme 0.3.
+- [x] 1.1 `IcuActivityIntervalDtoTest` — 5 testes contra o payload real: campos do intervalo,
+      running dynamics, zona/intensidade/inclinação (fração), campo desconhecido ignorado, e os 17
+      intervalos com o degenerado no índice 1.
+- [x] 1.2 `IcuActivityIntervalDto` criado como `record` com `@JsonIgnoreProperties(ignoreUnknown = true)`.
+      As três conversões de unidade estão documentadas no javadoc do record, não só no design.
+- [x] 1.3 `IcuActivityDto` ganhou `icu_intervals` e `icu_lap_count` (antecipa a task 2.5 — o teste do
+      bloco 1 já exige o campo). Os 21 pontos de construção posicional nos testes foram atualizados.
 - **Validação:** `./mvnw clean test`
 
 ## 2. Client — query param `intervals=true`
@@ -71,9 +75,7 @@ do import de hoje, um query param. Falta o contrato do corpo.
       (`:135-142`), acrescentando o query param ao `uri(...)` e mantendo `executa(...)` e
       `basic(h, apiKey)`. **Trocar a assinatura, não sobrecarregar** (D7) — o compilador aponta cada
       chamador.
-- [ ] 2.5 Acrescentar o campo de lista de intervalos a `IcuActivityDto` e atualizar todos os pontos
-      que constroem o record à mão (o construtor canônico muda) — fixtures e
-      `IntervalsIcuActivityMapperTest`.
+- [x] 2.5 ~~Acrescentar o campo de lista a `IcuActivityDto`~~ — feito no bloco 1 (task 1.3).
 - **Validação:** `./mvnw clean test`
 
 ## 3. Mapper — intervalo → EtapaRealizada
