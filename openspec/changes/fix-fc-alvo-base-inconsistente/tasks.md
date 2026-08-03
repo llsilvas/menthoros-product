@@ -9,13 +9,41 @@
 
 ## 0. Discovery
 
-- [ ] **0.1 Obter os números do caso real:** alvo prescrito na etapa (texto), bpm exibido no relógio,
-  `fcMaxima` e `fcLimiar` do atleta
-  - `verify:` a inflação observada bate com os ~18% previstos (base LTHR lida como FCmax)? Se bater,
-    é confirmação; se não, há outra coisa e a hipótese precisa ser revista **antes** de codificar
-  - ⚠️ Separar o que foi **observado** do que foi **inferido** no registro final
+- [x] **0.1 Números do caso real — MEDIDO em 2026-08-02** contra o banco de dev (`.env`,
+  `192.168.15.24`), 633 etapas / 133 treinos planejados / 6 atletas.
+
+  **A contradição do prompt é visível nos dados.** Das 629 etapas com alvo de FC:
+
+  | Formato | Etapas | % | Origem |
+  |---|---:|---:|---|
+  | `NN-NN bpm` | 446 | 70,5% | seguiu a **instrução** do prompt ("use EXATAMENTE as zonas em bpm") |
+  | `NN-NN% FCmax` | 183 | 28,9% | seguiu o **exemplo** do prompt |
+  | vazio | 4 | 0,6% | — |
+  | zona (`z1`–`z5`) | **0** | 0% | formato nunca usado |
+  | não reconhecido | **0** | 0% | — |
+
+  **Raio de alcance do bug: as 183 etapas percentuais** (28,9%). As 446 em bpm já trafegam absolutas
+  e chegam certas.
+
+  **A inflação é por atleta, não constante.** A previsão de "~18%" vinha de assumir LTHR ≈ 0,85 ×
+  FCmax; a razão real varia:
+
+  | Atleta (fmax / flim) | `60-70% FCmax` intenção → lido | Inflação |
+  |---|---|---:|
+  | 195 / 170 | 102 → 117 bpm | **+14,7%** |
+  | 172 / 142 | 85 → 103 bpm | **+21,1%** |
+  | 165 / 150 | 90 → 99 bpm | **+10,0%** |
+
+  Direção confirmada, magnitude corrigida: **+10% a +21%**, conforme o LTHR/FCmax do atleta.
+
+  - ⏳ **Ainda útil ter o caso concreto que você observou** para confirmar que é este o mecanismo, e
+    não um quarto fator. Mas a hipótese já está sustentada por dado, não só por inferência.
 
 - [x] **0.2 Comportamento sem FC medida — DECIDIDO em 2026-08-02: omitir a meta.**
+  **Medido:** **165 das 629** etapas com alvo de FC (26%) pertencem a atletas **sem `fc_limiar`** — 3
+  dos 6 atletas não têm FC cadastrada. Não é caso de borda: é um quarto da base. Reforça o CA10 — se
+  essas etapas passarem a ir sem meta silenciosamente, o treinador perde a prescrição em 26% dos casos
+  sem saber.
   "Sem objetivo" é prescrição que o treinador já pode fazer deliberadamente, então cair nela por
   falta de dado usa um estado que o produto suporta, em vez de criar caminho de exceção. O fallback
   etário (`220 - idade`) erra dezenas de bpm e não vira meta que o atleta persegue — [CA3]

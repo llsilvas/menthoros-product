@@ -35,13 +35,26 @@ contra entradas plausíveis:
 | **`Z2 (140-150 bpm)`** | **nenhuma meta** |
 | **`Zona 2`** · `Z2 a Z3` · `moderado` | **nenhuma meta** |
 
-A metade de baixo é o problema. Não são entradas absurdas — `"150 bpm"` e `"Z2 (140-150 bpm)"` são
-formas naturais e informativas de prescrever, e **um espaço a mais em volta do hífen basta** para a
-prescrição desaparecer. O treinador escreve, o parser não reconhece, a etapa vai sem meta, e **nada
-avisa**. Ele acredita ter prescrito uma intensidade que o relógio nunca vai cobrar.
+A metade de baixo é o problema **em tese**: não são entradas absurdas — `"150 bpm"` e
+`"Z2 (140-150 bpm)"` são formas naturais e informativas de prescrever, e **um espaço a mais em volta
+do hífen basta** para a prescrição desaparecer, sem aviso. Nenhum formato aceito está documentado na
+tela; o treinador teria de acertar por adivinhação três regexes que não pode ver.
 
-Nenhum formato aceito está documentado na tela. O treinador teria de acertar por adivinhação três
-regexes que ele não pode ver.
+### Mas os dados não sustentam que isso esteja acontecendo hoje
+
+**Medido em 2026-08-02** contra o banco de dev (633 etapas): das 629 com alvo de FC,
+**zero** caem em "não reconhecido" e **zero** usam o formato de zona. A distribuição real é
+446 (70,5%) em `NN-NN bpm` e 183 (28,9%) em `NN-NN% FCmax` — dois formatos, ambos reconhecidos.
+
+A explicação provável: **as etapas são majoritariamente geradas pelo LLM**, que segue o prompt e
+produz formato consistente. A fragilidade do texto livre é real, mas o caminho que a expõe — o
+treinador digitando à mão — ou é raro na base atual, ou não deixou rastro.
+
+**Consequência honesta para esta change:** o argumento "hoje o treinador perde prescrições em
+silêncio" **não está evidenciado**. O que sustenta a change é prevenção e clareza — um campo de texto
+livre sem formato documentado é uma armadilha esperando alguém digitar, e o produto que integramos já
+resolveu isso com um seletor. É motivo suficiente, mas é um motivo diferente, e menos urgente que a
+change A, que corrige um bug medido em 183 etapas.
 
 **O Garmin já resolveu isso** — validado na UI do Garmin Connect em 2026-08-02. A etapa tem dois
 eixos, e a meta é um **seletor de escolha única**:

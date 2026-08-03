@@ -16,9 +16,12 @@
     **Viram nenhuma meta:** `140 - 150 bpm` (espaços no hífen), `150 bpm` (valor único),
     `140-150` (sem unidade), `Z2 (140-150 bpm)`, `Zona 2`, `Z2 a Z3`, texto descritivo.
     Um espaço a mais basta para a prescrição sumir
-  - ⏳ **Falta a contagem contra dados reais** — o Postgres de dev estava fora do ar em 2026-08-02.
-    As que não casam são as que **hoje já vão sem meta em silêncio**; o número dimensiona o problema
-    e decide a estratégia do CA6
+  - ✅ **Contagem feita em 2026-08-02** (banco de dev do `.env`, 633 etapas): das 629 com alvo de FC,
+    **446 (70,5%) em `NN-NN bpm`**, **183 (28,9%) em `NN-NN% FCmax`**, 4 vazias.
+    **Zero** não reconhecidas e **zero** usando o formato de zona.
+    ⚠️ **Isso refuta a premissa de urgência desta change:** ninguém está perdendo prescrição em
+    silêncio hoje. As etapas são majoritariamente geradas pelo LLM, que segue o prompt e produz
+    formato consistente. A change se justifica por prevenção e clareza, não por dano medido
   - **Sem `head`/truncagem no levantamento** — contar antes de olhar linha a linha
 - [ ] **0.2 Decidir a estratégia para o legado** — migrar, interpretar na leitura ou pedir revisão —
   [CA6]
