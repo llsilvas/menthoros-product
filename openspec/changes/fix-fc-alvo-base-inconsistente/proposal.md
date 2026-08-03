@@ -141,9 +141,9 @@ Nenhuma nova. Corrige comportamento de uma existente (envio de treino estruturad
   `ZonaTreinoService` calcula para a zona N do mesmo atleta. Hoje nada afirma essa igualdade, e é a
   costura que quebrou. Fixar **também valores absolutos** — só a igualdade não basta, senão as duas
   pontas quebram juntas e o teste segue verde (lição do BUG-CONF-001).
-- **CA3** — Dado um atleta **sem** FC medida, quando o treino é enviado, então o comportamento é
-  explícito e seguro — nunca um bpm derivado de fallback por idade apresentado como alvo. Ver Open
-  Questions.
+- **CA3** — Dado um atleta **sem** FC medida, quando o treino é enviado, então **não** vai bpm
+  derivado de fallback por idade apresentado como meta. A etapa cai em "sem objetivo" — estado que o
+  produto já suporta como escolha do treinador (ver CA9/CA10).
 - **CA4** — Dado o prompt, quando o LLM responde, então o formato de `fcAlvo` é um só e coerente com
   o que o prompt entrega. Exemplo e instrução não podem discordar.
 - **CA5** — Dado um `fcAlvoEtapa` legado no formato `"90-95% FCmax"`, quando o treino é enviado, então
@@ -156,8 +156,13 @@ Nenhuma nova. Corrige comportamento de uma existente (envio de treino estruturad
 - **CA8** — Dada uma etapa prescrita por FC que também tenha ritmo informado, quando é enviada, então
   a FC **permanece a meta** — não é rebaixada a texto descritivo. Hoje pace ganha sempre, e a etapa
   perde o controle de intensidade que o treinador pretendia.
-- **CA9** — Dada uma etapa sem meta válida, quando é enviada, então vai **sem meta** (o "sem meta" do
-  Garmin), nunca com uma meta inventada ou herdada de outro campo.
+- **CA9** — **"Sem objetivo" é escolha de primeira classe.** Dado que o treinador não informou meta,
+  quando o treino é enviado, então vai sem meta — e isso é prescrição válida, não falha. Nunca uma
+  meta inventada ou herdada de outro campo.
+- **CA10** — Dada uma etapa em que o treinador **informou** meta de FC mas o atleta não tem FC
+  confiável, quando o treino é enviado, então vai sem meta **e o treinador é informado**. Sem isso,
+  "o treinador escolheu não prescrever" e "a prescrição do treinador foi descartada em silêncio"
+  ficam indistinguíveis — e são coisas opostas.
 
 ## Métrica de sucesso
 
@@ -166,21 +171,25 @@ atleta. Verificável ponta a ponta com conta real — o canal já foi validado e
 
 ## Open Questions & Assumptions
 
-**Resolvida no refino (2026-08-02):** *qual base usar?* O padrão Garmin define o canal relativo como
-%FCmax, e o domínio é %LTHR. Não há percentual correto a enviar — resolver para absoluto é o único
-caminho compatível, e vale independentemente de como o intervals.icu interpreta `%hr`.
+**Resolvidas no refino (2026-08-02):**
+
+- *Qual base usar?* O padrão Garmin define o canal relativo como %FCmax, e o domínio é %LTHR. Não há
+  percentual correto a enviar — resolver para absoluto é o único caminho compatível, e vale
+  independentemente de como o intervals.icu interpreta `%hr`.
+- *O que fazer sem FC medida?* **Omitir a meta.** "Sem objetivo" não é degradação inventada para este
+  caso: é prescrição que o treinador já pode fazer deliberadamente. Cair nela quando falta dado
+  confiável usa um estado que o produto suporta, em vez de criar um caminho de exceção. O fallback
+  etário (`220 - idade`) erra dezenas de bpm entre indivíduos e não deve virar meta que o atleta
+  persegue — e o próprio prompt já pede "teste de limiar urgente" nesse cenário (`:494`).
 
 **Em aberto:**
 
 - **Os números do caso real.** O relato não veio com valores. Confirmar alvo prescrito, bpm exibido e
   FCmax do atleta permite dizer se a inflação observada bate com os ~18% previstos — separando o que
   foi **observado** do que foi **inferido**.
-- **Atleta sem FC medida** (CA3). `Atleta:209,235` têm fallback (`220 - idade`; LTHR = 0,85 × FCmax).
-  Para *exibir* estimativa é aceitável; para mandar ao relógio um número que o atleta vai perseguir, é
-  diferente — pode errar dezenas de bpm. Recomendação: **omitir o alvo de FC**. Treino sem alvo é
-  executável; treino com alvo errado induz a treinar na intensidade errada acreditando estar certo. O
-  próprio prompt já pede "teste de limiar urgente" nesse caso (`:494`). Decisão de produto, porque
-  muda o que o atleta vê.
+- **Como avisar o treinador** quando a meta que ele prescreveu não pôde ser honrada (CA10). Que a
+  etapa vá sem objetivo já está decidido; falta definir **onde** ele vê isso — aviso na tela do
+  plano, no resultado do envio, ou ambos.
 
 **Premissas:**
 

@@ -101,17 +101,31 @@ reinterpretar em silêncio: o mesmo texto passa a significar outro bpm.
 | Sincronizar o perfil de FC para o intervals.icu | mantém alvo relativo | duas fontes de verdade; editável do outro lado; não corrige o prompt | rejeitada |
 | Adotar o modelo %FCmax do Garmin | alinharia o rótulo "% FCmax" já emitido | muda todas as faixas (Z2: ~138-144 → 114-133 bpm em FCmax 190) e a intensidade de toda prescrição | rejeitada — decisão de produto, não correção de bug |
 
-## Atleta sem FC medida
+## "Sem objetivo" é estado de primeira classe
 
-`Atleta:209,235` têm fallback: FCmax = `220 - idade` (ou 180), LTHR = 0,85 × FCmax. Para **exibir**
-estimativa, aceitável. Para **mandar ao relógio um número que o atleta vai perseguir**, não: a fórmula
-etária erra dezenas de bpm entre indivíduos.
+O treinador pode deliberadamente não informar meta e manter o treino sem objetivo. Isso muda como o
+caso "atleta sem FC medida" deve ser tratado: **não é exceção a inventar, é um estado que o produto
+já suporta**.
 
-Recomendação: **omitir o alvo de FC**. Treino sem alvo é executável; treino com alvo errado induz o
-atleta a treinar na intensidade errada acreditando estar certo. Coerente com o próprio prompt, que já
-pede "teste de limiar urgente" nesse cenário (`:494`).
+`Atleta:209,235` têm fallback (FCmax = `220 - idade` ou 180; LTHR = 0,85 × FCmax). Para **exibir**
+estimativa, aceitável. Para **mandar ao relógio um número que o atleta vai perseguir**, não — a
+fórmula etária erra dezenas de bpm entre indivíduos. Sem dado confiável, a etapa cai em "sem
+objetivo".
 
-Decisão de produto — muda o que o atleta vê.
+### Mas os dois caminhos até "sem objetivo" não são a mesma coisa
+
+| Caminho | O que significa | O treinador precisa saber? |
+|---|---|---|
+| Treinador não informou meta | prescrição intencional | não — foi ele quem escolheu |
+| Treinador informou FC, mas falta dado do atleta | **prescrição descartada** | **sim** |
+
+No payload os dois são idênticos: etapa sem meta. Se o segundo caso não avisar, o treinador prescreve
+uma zona, o atleta recebe um treino livre, e **nada na tela diferencia isso de uma decisão dele**. O
+treino sai errado de um jeito que se parece com estar certo — é a assinatura de todos os defeitos
+desta change.
+
+Daí o CA10: cair em "sem objetivo" por falta de dado precisa ser **visível**. Onde exibir é a única
+questão de produto que resta em aberto.
 
 ## Riscos
 

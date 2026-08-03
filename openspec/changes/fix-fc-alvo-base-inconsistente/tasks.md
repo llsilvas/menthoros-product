@@ -1,4 +1,4 @@
-# Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend · 19 tasks)
+# Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend · 20 tasks + 1 decidida)
 
 > **Refinada em 2026-08-02:** escopo reduzido ao **formato de alvo** (padrão Garmin). O
 > `ZonaTreinoService` **não é tocado** — nenhuma faixa muda. Diff em `ZonaTreinoService.java` é sinal
@@ -15,10 +15,17 @@
     é confirmação; se não, há outra coisa e a hipótese precisa ser revista **antes** de codificar
   - ⚠️ Separar o que foi **observado** do que foi **inferido** no registro final
 
-- [ ] **0.2 Decidir o comportamento sem FC medida** — omitir o alvo ou usar o fallback etário — [CA3]
-  - ⚠️ Decisão de produto: muda o que o atleta vê. Recomendação do `design.md`: **omitir**, porque
-    alvo errado induz a treinar na intensidade errada acreditando estar certo
-  - `verify:` decisão confirmada e registrada
+- [x] **0.2 Comportamento sem FC medida — DECIDIDO em 2026-08-02: omitir a meta.**
+  "Sem objetivo" é prescrição que o treinador já pode fazer deliberadamente, então cair nela por
+  falta de dado usa um estado que o produto suporta, em vez de criar caminho de exceção. O fallback
+  etário (`220 - idade`) erra dezenas de bpm e não vira meta que o atleta persegue — [CA3]
+
+- [ ] **0.3 Definir ONDE o treinador é avisado** quando a meta que ele prescreveu foi descartada por
+  falta de dado do atleta — tela do plano, retorno do envio, ou ambos — [CA10]
+  - ⚠️ No payload, "treinador escolheu sem objetivo" e "prescrição descartada" são **idênticos**: etapa
+    sem meta. Sem aviso, o treinador prescreve uma zona, o atleta recebe treino livre, e nada na tela
+    diferencia isso de uma decisão dele
+  - Única questão de produto que resta em aberto nesta change
 
 ## 1. Rede de segurança
 
@@ -56,7 +63,12 @@
   - ⚠️ Hoje `pace` ganha sempre e a FC é rebaixada a texto por `anexarFc`: o atleta lê `"(140-150
     bpm)"` na descrição e o relógio não controla nada. Para uma etapa prescrita por FC, é perder em
     silêncio o que o treinador pediu
-- [ ] **2b.3 Sem meta válida ⇒ etapa sem meta** (o "sem meta" do Garmin), nunca meta inventada — [CA9]
+- [ ] **2b.3 "Sem objetivo" como escolha de primeira classe** — o treinador pode não informar meta, e
+  o treino vai sem meta. É prescrição válida, não falha; nunca substituir por meta inventada — [CA9]
+- [ ] **2b.4 Distinguir os dois caminhos até "sem objetivo"** — [CA10]
+  - ⚠️ No payload são idênticos. "Treinador escolheu não prescrever" e "prescrição do treinador foi
+    descartada por falta de dado" são opostos, e sem sinalização o segundo se disfarça do primeiro
+  - `verify:` existe teste para os dois casos, afirmando que o **aviso** só ocorre no segundo
 
 ## 3. Prompt coerente
 
