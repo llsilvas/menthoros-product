@@ -23,6 +23,33 @@ do caminho (que eu não verifiquei, e que deixa de importar).
 
 Enviar zona tem o mesmo defeito: delega ao relógio, cuja config de zonas o Menthoros não escreve.
 
+## Validado na UI do Garmin Connect (2026-08-02)
+
+Verificado no criador de treinos, não inferido. A etapa tem dois eixos independentes:
+
+- **Duração → Tipo:** Distância, Tempo, Pressionar botão Lap…
+- **Meta de intensidade → Tipo:** um **dropdown de escolha única** com
+  `Sem objetivo` (default) · `Ritmo` · `Cadência` · **`Zona de frequência cardíaca`** ·
+  **`Frequência cardíaca personalizada`** · `Zona de potência` · `Potência personalizada`
+
+Três consequências diretas para esta change:
+
+1. **A meta é escolha única, por construção do produto.** Não são campos acumuláveis. Modelar como
+   dois opcionais resolvidos por precedência (o que fazemos hoje) diverge do domínio que estamos
+   integrando.
+2. **`Sem objetivo` é o default e tem nome próprio.** Não é "campo não preenchido" — é opção, e a
+   primeira da lista.
+3. **FC tem duas formas, e a distinção é exatamente o bug:**
+
+   | Forma Garmin | Quem resolve o bpm | Serve para nós? |
+   |---|---|---|
+   | `Zona de frequência cardíaca` | as zonas configuradas **no relógio** | **não** — nossas zonas vêm do LTHR que só o Menthoros conhece |
+   | `Frequência cardíaca personalizada` | ninguém: é faixa de bpm | **sim** — é a forma nativa para alvo absoluto |
+
+   Ou seja: **o alvo que a correção vai emitir é a forma nativa do Garmin**, não um contorno. A
+   correção deixa de ser "contornar o formato" e passa a ser "usar o formato certo dos dois que
+   existem".
+
 ## Meta de intensidade: modelar o que o Garmin modela
 
 No padrão Garmin a etapa tem **uma** meta de intensidade: sem meta, ritmo, FC, cadência ou potência.

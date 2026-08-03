@@ -45,8 +45,20 @@ relógio, que o Menthoros não escreve nem controla.
 
 ### Meta de intensidade: uma por etapa, e ela precisa ser escolhida
 
-No padrão Garmin, cada etapa tem **uma** meta de intensidade — sem meta, ritmo, FC, cadência ou
-potência. Não são acumuláveis: a etapa é prescrita *por* FC **ou** *por* pace.
+**Validado na UI do Garmin Connect em 2026-08-02** (não inferido). A etapa tem *Duração → Tipo* e
+*Meta de intensidade → Tipo*, esta última um **dropdown de escolha única**:
+
+`Sem objetivo` (default) · `Ritmo` · `Cadência` · `Zona de frequência cardíaca` ·
+`Frequência cardíaca personalizada` · `Zona de potência` · `Potência personalizada`
+
+Duas leituras importam aqui:
+
+- **`Sem objetivo` é opção nomeada e default** — confirma que "sem meta" é estado de primeira classe.
+- **FC tem duas formas.** `Zona de frequência cardíaca` é resolvida pelas zonas configuradas **no
+  relógio**; `Frequência cardíaca personalizada` é faixa de **bpm absoluta**. A correção desta change
+  usa a segunda — ou seja, **a forma nativa do Garmin para alvo absoluto**, não um contorno.
+
+Não são acumuláveis: a etapa é prescrita *por* FC **ou** *por* ritmo.
 
 O código já respeita a exclusividade, mas por **precedência implícita**, não por escolha
 (`IntervalsIcuWorkoutConverter:222-228`):

@@ -54,11 +54,16 @@
 
 ## 2b. Meta de intensidade explícita
 
-- [ ] **2b.1 Tornar a meta de intensidade uma escolha declarada** no `WorkoutStep`: sem meta, pace ou
+- [ ] **2b.1 Tornar a meta de intensidade uma escolha declarada** no `WorkoutStep`: sem meta, ritmo ou
   FC — em vez de dois campos opcionais resolvidos por precedência — [CA7]
+  - ✅ **Validado na UI do Garmin (2026-08-02):** "Meta de intensidade → Tipo" é dropdown de escolha
+    única (`Sem objetivo` · `Ritmo` · `Cadência` · `Zona de frequência cardíaca` ·
+    `Frequência cardíaca personalizada` · `Zona de potência` · `Potência personalizada`). O produto
+    que integramos modela como escolha; nosso modelo diverge disso
   - ⚠️ Hoje a exclusividade vem de um `if/else` no converter (`:222-228`), enquanto
     `IntervalsIcuAdapter:243-249` emitiria **os dois** se os dois viessem. Nada estrutural impede;
     uma mudança futura no converter vaza direto para o payload
+  - Usar o vocabulário do produto nos nomes: "meta de intensidade", "sem objetivo"
 - [ ] **2b.2 Etapa prescrita por FC mantém a FC como meta**, mesmo havendo ritmo informado — [CA8]
   - ⚠️ Hoje `pace` ganha sempre e a FC é rebaixada a texto por `anexarFc`: o atleta lê `"(140-150
     bpm)"` na descrição e o relógio não controla nada. Para uma etapa prescrita por FC, é perder em
