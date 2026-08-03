@@ -11,8 +11,14 @@
 
 - [ ] **0.1 Levantar o `fcAlvoEtapa` legado** — quantas etapas existem, quantas casam com cada padrão
   do parser (`bpm`, `%`, `z1-z5`) e quantas não casam com nenhum
-  - ⚠️ As que não casam são as que **hoje já vão sem meta em silêncio**. O número dimensiona o
-    problema e decide a estratégia do CA6
+  - ✅ **Parte estrutural feita em 2026-08-02** (executando os regexes contra entradas plausíveis):
+    aceitos são `140-150 bpm`, `140-150bpm`, `60-70%`, `60-70% FCmax`, `Z2`, `z2-z3`, `Z2-3`.
+    **Viram nenhuma meta:** `140 - 150 bpm` (espaços no hífen), `150 bpm` (valor único),
+    `140-150` (sem unidade), `Z2 (140-150 bpm)`, `Zona 2`, `Z2 a Z3`, texto descritivo.
+    Um espaço a mais basta para a prescrição sumir
+  - ⏳ **Falta a contagem contra dados reais** — o Postgres de dev estava fora do ar em 2026-08-02.
+    As que não casam são as que **hoje já vão sem meta em silêncio**; o número dimensiona o problema
+    e decide a estratégia do CA6
   - **Sem `head`/truncagem no levantamento** — contar antes de olhar linha a linha
 - [ ] **0.2 Decidir a estratégia para o legado** — migrar, interpretar na leitura ou pedir revisão —
   [CA6]

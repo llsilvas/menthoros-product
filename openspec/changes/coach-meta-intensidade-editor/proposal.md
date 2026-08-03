@@ -21,15 +21,27 @@ dado é alvo de frequência cardíaca; e o input é `TextField` sem restrição.
 **A consequência é que o treinador não tem como saber o que vai acontecer.** O que ele digita cai em
 três caminhos diferentes no `IntervalsIcuTargetParser`, sem nada na tela indicando qual:
 
+**Verificado em 2026-08-02** executando os três regexes do parser (`FC_BPM`, `FC_PERCENT`, `ZONA`)
+contra entradas plausíveis:
+
 | O que o treinador digita | O que acontece |
 |---|---|
-| `Z2` | vira alvo de **zona** — resolvido pela configuração do relógio |
-| `140-150 bpm` | vira alvo de **bpm** |
-| `70-80% FCmax` | vira alvo **percentual** — resolvido na base do destino |
-| `zona 2`, `moderado`, `Z2-Z3 forte` | **nenhuma meta**, silenciosamente |
+| `140-150 bpm` · `140-150bpm` | alvo de **bpm** |
+| `60-70% FCmax` · `60-70%` | alvo **percentual** — resolvido na base do destino |
+| `Z2` · `z2-z3` · `Z2-3` | alvo de **zona** — resolvido pela config do relógio |
+| **`140 - 150 bpm`** (espaços no hífen) | **nenhuma meta** |
+| **`150 bpm`** (valor único, não faixa) | **nenhuma meta** |
+| **`140-150`** (sem unidade) | **nenhuma meta** |
+| **`Z2 (140-150 bpm)`** | **nenhuma meta** |
+| **`Zona 2`** · `Z2 a Z3` · `moderado` | **nenhuma meta** |
 
-A última linha é a pior: o treinador prescreve, o parser não reconhece, a etapa vai sem meta e nada
-avisa. O treinador acredita ter prescrito intensidade que o relógio nunca vai controlar.
+A metade de baixo é o problema. Não são entradas absurdas — `"150 bpm"` e `"Z2 (140-150 bpm)"` são
+formas naturais e informativas de prescrever, e **um espaço a mais em volta do hífen basta** para a
+prescrição desaparecer. O treinador escreve, o parser não reconhece, a etapa vai sem meta, e **nada
+avisa**. Ele acredita ter prescrito uma intensidade que o relógio nunca vai cobrar.
+
+Nenhum formato aceito está documentado na tela. O treinador teria de acertar por adivinhação três
+regexes que ele não pode ver.
 
 **O Garmin já resolveu isso** — validado na UI do Garmin Connect em 2026-08-02. A etapa tem dois
 eixos, e a meta é um **seletor de escolha única**:
