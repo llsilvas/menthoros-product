@@ -1,4 +1,4 @@
-# Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend · 15 tasks)
+# Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend · 19 tasks)
 
 > **Refinada em 2026-08-02:** escopo reduzido ao **formato de alvo** (padrão Garmin). O
 > `ZonaTreinoService` **não é tocado** — nenhuma faixa muda. Diff em `ZonaTreinoService.java` é sinal
@@ -45,6 +45,19 @@
 - [ ] **2.4 Remover a emissão de `%hr` e `hr_zone`** do `IntervalsIcuAdapter:272,277` — [CA1]
   - `verify:` nenhum alvo relativo trafega; `grep` por `"%hr"`/`"hr_zone"` em `src/main` ⇒ 0
 
+## 2b. Meta de intensidade explícita
+
+- [ ] **2b.1 Tornar a meta de intensidade uma escolha declarada** no `WorkoutStep`: sem meta, pace ou
+  FC — em vez de dois campos opcionais resolvidos por precedência — [CA7]
+  - ⚠️ Hoje a exclusividade vem de um `if/else` no converter (`:222-228`), enquanto
+    `IntervalsIcuAdapter:243-249` emitiria **os dois** se os dois viessem. Nada estrutural impede;
+    uma mudança futura no converter vaza direto para o payload
+- [ ] **2b.2 Etapa prescrita por FC mantém a FC como meta**, mesmo havendo ritmo informado — [CA8]
+  - ⚠️ Hoje `pace` ganha sempre e a FC é rebaixada a texto por `anexarFc`: o atleta lê `"(140-150
+    bpm)"` na descrição e o relógio não controla nada. Para uma etapa prescrita por FC, é perder em
+    silêncio o que o treinador pediu
+- [ ] **2b.3 Sem meta válida ⇒ etapa sem meta** (o "sem meta" do Garmin), nunca meta inventada — [CA9]
+
 ## 3. Prompt coerente
 
 - [ ] **3.1 Alinhar o prompt** — entregar bpm e exigir bpm na saída; remover o exemplo
@@ -52,6 +65,14 @@
   - ⚠️ Hoje o prompt entrega bpm (`PlanoTreinoPromptBuilder:503`) e proíbe inventar valores (`:493`),
     mas exemplifica percentual. Modelo segue exemplo — é a origem do rótulo ambíguo
   - Conferir **os dois** prompts: `plano-treino-prompt.txt` e `plano-treino-otimizado-claude.txt`
+- [ ] **3.2 Declarar a meta de intensidade no schema de etapa** — [CA7]
+  - ⚠️ Achado que muda o quadro: `ritmoAlvo` é campo do **treino** (`plano-treino-prompt.txt:80`),
+    não da etapa, e o schema de etapa só tem `fcAlvo`. Por isso `etapa.ritmoAlvo` nunca é preenchido
+    em plano gerado, `pace` é sempre nulo e **100% das etapas caem no ramo de FC** — o quebrado. O
+    ramo de pace é código morto no fluxo principal
+  - Decidir: a etapa passa a declarar a meta (e opcionalmente aceitar ritmo por etapa), ou assume-se
+    que etapa é sempre por FC e o ramo de pace é removido. **Não deixar código morto se passando por
+    funcionalidade**
 
 ## 4. Testes que afirmam valor
 

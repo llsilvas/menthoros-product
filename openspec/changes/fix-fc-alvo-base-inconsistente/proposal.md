@@ -43,6 +43,37 @@ Para FCmax 190: intenção ≈ 145 bpm, exibido ≈ 171. Base aeróbica vira esf
 Enviar **zona** tem o mesmo defeito por outro caminho: delega a conversão à configuração de zonas do
 relógio, que o Menthoros não escreve nem controla.
 
+### Meta de intensidade: uma por etapa, e ela precisa ser escolhida
+
+No padrão Garmin, cada etapa tem **uma** meta de intensidade — sem meta, ritmo, FC, cadência ou
+potência. Não são acumuláveis: a etapa é prescrita *por* FC **ou** *por* pace.
+
+O código já respeita a exclusividade, mas por **precedência implícita**, não por escolha
+(`IntervalsIcuWorkoutConverter:222-228`):
+
+```java
+PaceTarget pace = parsePace(etapa.getRitmoAlvo());
+if (pace != null) {
+    if (isPresente(etapa.getFcAlvoEtapa())) {
+        text = anexarFc(text, etapa.getFcAlvoEtapa());   // FC vira TEXTO, deixa de ser meta
+    }
+} else {
+    hr = parseFc(etapa.getFcAlvoEtapa());
+}
+```
+
+Duas consequências que ninguém decidiu:
+
+1. **Pace sempre ganha.** Se a etapa tem os dois, a FC é rebaixada a texto descritivo — o relógio
+   deixa de controlá-la. Para uma etapa prescrita *por FC*, isso é perder a meta em silêncio.
+2. **O ramo de pace está morto para planos gerados por IA.** `ritmoAlvo` é campo do **treino**, não
+   da etapa (`plano-treino-prompt.txt:80`), e o schema de etapa do prompt só tem `fcAlvo`. O planner
+   nunca popula `etapa.ritmoAlvo`, então `pace` é sempre nulo e **toda etapa cai no caminho de FC** —
+   o caminho quebrado.
+
+A meta de intensidade deve ser **explícita na prescrição**, não subproduto de qual campo o modelo
+preencheu.
+
 ### O que o código faz hoje
 
 `IntervalsIcuAdapter.montarHr:264` envia sempre alvo **relativo**:
@@ -79,8 +110,12 @@ número significa o que o plano quis dizer — estruturalmente incapaz de detect
    passa a receber `HrTarget` sempre em `BPM` e emite `units: "bpm"`.
 2. **Zona também vira bpm.** `hr_zone` deixa de ser emitido: delegar ao relógio é a mesma falha por
    outro caminho.
-3. **Prompt coerente:** entrega bpm e exige bpm na saída, sem o exemplo em `"% FCmax"`.
-4. **Testes que afirmam valor absoluto**, não string de unidade — incluindo um que reproduz o bug.
+3. **Meta de intensidade explícita por etapa.** A etapa declara *qual* é a meta — FC, pace ou
+   nenhuma — em vez de a resposta emergir de precedência entre campos. Quando a meta é FC, a FC é a
+   meta; não é rebaixada a texto porque havia pace.
+4. **Prompt coerente:** entrega bpm, exige bpm na saída, sem o exemplo em `"% FCmax"`, e deixa claro
+   que a etapa tem **uma** meta de intensidade.
+5. **Testes que afirmam valor absoluto**, não string de unidade — incluindo um que reproduz o bug.
 
 **O modelo de zonas não é tocado.** `ZonaTreinoService` continua Friel %LTHR, com as mesmas faixas.
 Esta change alinha o **transporte** ao padrão Garmin; refinar o modelo é outra discussão.
@@ -116,6 +151,13 @@ Nenhuma nova. Corrige comportamento de uma existente (envio de treino estruturad
   silêncio.
 - **CA6** — Existe teste que **reproduz o bug**: alvo prescrito X, valor enviado bem acima. Deve
   falhar antes da correção.
+- **CA7** — Dada uma etapa, quando é convertida, então leva **exatamente uma** meta de intensidade
+  (FC, pace ou nenhuma), e qual delas é **declarado**, não resultado de precedência entre campos.
+- **CA8** — Dada uma etapa prescrita por FC que também tenha ritmo informado, quando é enviada, então
+  a FC **permanece a meta** — não é rebaixada a texto descritivo. Hoje pace ganha sempre, e a etapa
+  perde o controle de intensidade que o treinador pretendia.
+- **CA9** — Dada uma etapa sem meta válida, quando é enviada, então vai **sem meta** (o "sem meta" do
+  Garmin), nunca com uma meta inventada ou herdada de outro campo.
 
 ## Métrica de sucesso
 

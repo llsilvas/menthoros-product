@@ -23,6 +23,31 @@ do caminho (que eu não verifiquei, e que deixa de importar).
 
 Enviar zona tem o mesmo defeito: delega ao relógio, cuja config de zonas o Menthoros não escreve.
 
+## Meta de intensidade: modelar o que o Garmin modela
+
+No padrão Garmin a etapa tem **uma** meta de intensidade: sem meta, ritmo, FC, cadência ou potência.
+O modelo canônico do Menthoros carrega `pace` e `hr` como campos independentes no `WorkoutStep`, e a
+exclusividade é obtida por um `if/else` no converter — não pelo tipo.
+
+Isso funciona hoje, mas é frágil por três motivos:
+
+- **`montarStep` (`IntervalsIcuAdapter:243-249`) emite os dois se os dois vierem.** Nada estrutural
+  impede; só o converter é que nunca produz o par. Uma mudança futura no converter vaza direto para o
+  payload.
+- **A precedência é implícita.** `pace != null ? pace : hr` é uma decisão de produto escrita como
+  detalhe de controle de fluxo. Ninguém a declarou; ela emergiu.
+- **Rebaixar FC a texto perde a meta.** `anexarFc` transforma o alvo em `"(140-150 bpm)"` dentro da
+  descrição. O atleta lê, o relógio não controla. Para uma etapa prescrita por FC, é perder
+  silenciosamente o que o treinador pediu.
+
+**Consequência hoje, verificada:** `ritmoAlvo` é campo do **treino** (`plano-treino-prompt.txt:80`),
+não da etapa; o schema de etapa do prompt só tem `fcAlvo`. Logo `etapa.ritmoAlvo` nunca é preenchido
+por plano gerado, `pace` é sempre nulo, e **100% das etapas caem no ramo de FC** — o que está
+quebrado. O ramo de pace é código morto para o fluxo principal.
+
+Direção: tornar a meta um **tipo com uma escolha** (sem meta | pace | FC), em vez de dois campos
+opcionais cuja combinação é resolvida por precedência. O adapter então não tem como emitir dois.
+
 ## Estado verificado (2026-08-02)
 
 | Onde | O que faz |
