@@ -210,6 +210,14 @@ atleta. Verificável ponta a ponta com conta real — o canal já foi validado e
 
 ## Fora de escopo
 
+- **O editor do treinador.** Trazer os campos do Garmin (`Meta de intensidade → Tipo`) para a tela de
+  edição é a change **`coach-meta-intensidade-editor`**, que depende do modelo de meta declarada que
+  esta estabelece. Separadas porque esta corrige um bug ativo — hoje o atleta treina em FC errada — e
+  é mergeável sozinha, enquanto a do editor cruza backend e frontend.
+  **Achado que originou a separação:** em `TreinoEditDialog.tsx:106` o campo rotulado "Zona alvo" está
+  ligado a `fcAlvoEtapa` e é **texto livre**. O treinador digita `"Z2"`, `"140-150 bpm"` ou
+  `"70-80% FCmax"` no mesmo campo; cada um vira um caminho diferente no parser, e o que não é
+  reconhecido vira **nenhuma meta**, em silêncio.
 - **Mudar o modelo de zonas** para o default %FCmax do Garmin (50-60 / 60-70 / 70-80 / 80-90 /
   90-100). Avaliado no refino e **rejeitado para esta change**: mudaria todas as faixas — a Z2 sairia
   de ~138-144 para 114-133 bpm num atleta de FCmax 190 — alterando a intensidade de toda prescrição
