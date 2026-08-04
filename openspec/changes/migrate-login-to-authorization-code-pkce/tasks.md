@@ -167,5 +167,11 @@ Nenhum destes é substituível por teste automatizado (D4/testes).
       *verify:* `grant_type=password` recusado para `menthoros-web`; **e** o gateway admin
       (`KeycloakOrganizationGatewayImpl:129`, que usa password grant em outro client) segue criando
       organização normalmente — regressão aqui quebraria o signup do Bloco 3.
+- [ ] 5.3b **Decidir como a API passa a ser testada sem o direct grant.** Hoje o Apidog (e qualquer
+      teste manual de API) obtém token pelo endpoint `/token` com usuário e senha — que é o próprio
+      ROPC cortado na 5.3. Depois do corte, esse caminho **para de funcionar** no `menthoros-web`.
+      Opções: client separado só para teste, mantendo direct grant nele; ou o Apidog fazendo o fluxo
+      de código. Decidir **antes** do corte evita descobrir no dia.
+      *verify:* caminho de obtenção de token documentado e testado uma vez.
 - [ ] 5.4 Remover `AuthService.ts` (login por senha) e os tipos que só ele usava.
 - [ ] 5.5 Validação final: `npm run lint && npm run build && npm run test:run`.
