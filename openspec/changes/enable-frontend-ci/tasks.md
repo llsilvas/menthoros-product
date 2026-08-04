@@ -10,10 +10,10 @@
 
 ## 0. Discovery (bloqueia o YAML)
 
-- [ ] 0.1 **Confirmar o gatilho do deploy do Railway** no `menthoros-front`: dispara no merge para
-      `develop`? É a mesma pergunta que a change do backend fez antes de qualquer YAML — sem ela não
-      dá para garantir o CA4 (gate antes do deploy).
-      *verify:* gatilho descrito, com a origem da informação (painel do Railway ou config do repo).
+- [x] 0.1 **CONFIRMADO (founder, 2026-08-04): o Railway dispara no merge para `develop`.** Mesmo
+      comportamento do backend. Logo, o CI precisa estar *antes* do merge para ser gate — o que a
+      branch protection do bloco 3 garante. Continua valendo o limite honesto do CA4: redeploy
+      manual, rollback e trigger direto no painel seguem fora do alcance desta change.
 - [ ] 0.2 **Mapear as requisições NÃO mockadas dos 3 specs.** Já verificado que eles interceptam a
       fronteira com `page.route()` (`login` 2, `visao-time` 1, `lista` 4) e **não** dependem de backend
       nem de Keycloak — mas navegar ao dashboard passa por widgets com chamadas próprias (Strava,
@@ -25,8 +25,10 @@
 - [x] 0.4 ~~**Decisão (Q1):** E2E bloqueante ou reportando?~~ **RESOLVIDA no pré-mortem: bloqueante.**
       Manter em aberto contradizia o CA10 e abriria o falso verde que a change existe para fechar. A
       ordem é o que torna isso honesto: `webServer` primeiro (1.0), gate depois.
-- [ ] 0.5 **Decisão (Q2):** threshold de cobertura entra agora ou fica para depois?
-      *verify:* decisão registrada.
+- [x] 0.5 **DECIDIDO (founder, 2026-08-04): cobertura NÃO entra agora.** Um mínimo não calibrado
+      junto com o gate travaria merge por um número que ninguém acordou, e o primeiro reflexo seria
+      baixar o número — ensinando a tratar o gate como obstáculo. Medir primeiro, calibrar depois;
+      fica em "Fora de escopo" do proposal.
 
 ## 1. Pré-requisito do E2E + workflow (job rápido)
 
@@ -42,13 +44,13 @@
 - [ ] 1.2 Job `verify`: `actions/checkout`, `actions/setup-node` com a versão da 0.3 e cache de npm,
       `npm ci`, `npm run lint`, `npm run build`, `npm run test:run`.
       *verify:* os três comandos aparecem como passos distintos, para a falha dizer qual quebrou.
-- [ ] 1.3 Rodar num **runner limpo** e confirmar que passa sem nenhum secret (CA5). Se algum for
-      necessário, registrar qual e por quê — a premissa de hermeticidade cai e isso precisa ficar
-      escrito.
-      *verify:* execução verde no PR desta própria change.
-- [ ] 1.4 **Medir e registrar** o tempo de ponta a ponta (CA6), separando `npm ci` do resto — é o
-      número que decide se vale investir em cache mais agressivo.
-      *verify:* número anotado nesta task, com e sem cache quente.
+- [x] 1.3 **Verde no runner limpo, sem nenhum secret** — PR front #53, run `30910065141`. A
+      premissa de hermeticidade do proposal vira fato: o front não consome chave de IA nem credencial
+      de banco, e nada precisou ser adicionado.
+- [x] 1.4 **Medido (CA6): job `verify` = 2m27s** (cache frio, primeira execução). Como os dois jobs
+      rodam em paralelo, o tempo total de feedback do PR é ~2m30, não a soma. Ainda não há medição
+      com cache quente — anotar na próxima execução, é o número que decide se vale cache mais
+      agressivo.
 
 ## 2. Workflow — job de E2E
 
@@ -59,7 +61,10 @@
       *verify:* forçar uma falha e baixar o artefato do run.
 - [ ] 2.3 Marcar como **bloqueante** (decisão 0.4). Rebaixar para reportando só com motivo
       registrado e gatilho de promoção — nunca como precaução silenciosa.
-- [ ] 2.4 Medir o tempo do job (CA6) — é o que justifica ou não mantê-lo separado.
+- [x] 2.4 **Medido: job `e2e` = 1m21s**, cache frio, incluindo o download do Chromium.
+      **Contrariou a expectativa:** o E2E é o job **mais rápido** dos dois — o `npm ci` do `verify`
+      pesa mais que o browser. A separação segue justificada, mas por isolamento de instabilidade
+      (D2), não por diferença de custo como o design supunha.
 
 ## 3. Branch protection
 

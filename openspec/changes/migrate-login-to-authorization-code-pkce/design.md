@@ -21,7 +21,22 @@ no Keycloak só faltam duas linhas de atributo.
 
 ## D1 — Biblioteca OIDC
 
-Adotar **`oidc-client-ts` + `react-oidc-context`**, não implementação própria nem `keycloak-js`.
+Adotar **`oidc-client-ts` apenas**, não implementação própria nem `keycloak-js`.
+
+> **Revisado em 2026-08-04, durante a implementação (decisão do founder).** O design original previa
+> `oidc-client-ts` **+ `react-oidc-context`**. O segundo foi instalado e **removido**: o projeto já
+> tem um `useAuth` próprio (`context/auth/useAuth.ts`), consumido em vários pontos, e a biblioteca
+> traz o seu. Dois `useAuth` no mesmo projeto é confusão que **compila** — alguém importa o errado e
+> o erro só aparece em runtime.
+>
+> Em vez disso, o `AuthContext`/`useAuth` existente vira a **fachada**: nenhum consumidor muda, e o
+> `AuthProvider` é o único arquivo que sabe que existe OIDC. O custo é implementar à mão o estado de
+> carregamento e o processamento do callback — que o D3b e o D4 já exigiam de qualquer forma, porque
+> nenhum dos dois é comportamento default da biblioteca.
+>
+> Alternativa descartada: migrar todos os consumidores para o `useAuth` da lib. Mais alinhado ao
+> ecossistema, mas produziria um diff grande em toda a superfície de auth **dentro** da change que já
+> troca o mecanismo de login — dois riscos no mesmo PR.
 
 - Contra implementação própria: `code_verifier`/`challenge` S256, `state`, `nonce`, validação de
   token e renovação são código de segurança sensível; errar é silencioso.
