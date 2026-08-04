@@ -82,8 +82,11 @@ para ganhar cliente.
   novo prompt de credenciais.
 - **Dado** um usuário autenticado, **quando** faz logout, **então** a sessão no Keycloak é encerrada e
   um novo acesso a rota protegida exige autenticação de novo (não basta ter limpado estado local).
-- **Dado** o token expirado durante uso, **quando** uma chamada de API é feita, **então** o token é
-  renovado silenciosamente e a chamada conclui, sem derrubar o usuário para o login.
+- **Dado** o token expirado durante uso, **quando** uma chamada de API é feita, **então** a sessão é
+  renovada sem exigir credenciais. O aceite é **condicional à decisão da task 0.2** (D6): com renew
+  por iframe, a chamada original conclui sem interrupção; com renew por redirect — plano B se os
+  ambientes forem cross-site —, o retorno preserva o destino e o estado, sem laço. Redigido assim
+  porque a forma absoluta ("a chamada conclui") seria infalsificável no plano B.
 - **Dado** o silent renew falhando (sessão do Keycloak encerrada), **então** o usuário é levado ao
   login sem laço de redirecionamento.
 - **Quando** o coach entra pelo fluxo novo, **então** o JWT carrega `tenant_id` e role, e o gate de
@@ -137,11 +140,12 @@ de entrar aqui — nenhum é hipotético.
 
 **Em aberto:**
 
-- **Q1 — A mudança de armazenamento do token exige bump de versão da Política de Privacidade?**
-  `politicaPrivacidadeConteudo.ts:281` afirma que "o token de autenticação JWT é armazenado em
-  localStorage (não em cookie)". Depois desta change isso deixa de ser verdade. Como
-  `add-coach-lgpd-consent` versiona por data de vigência, um bump força **re-consentimento de todos os
-  coaches**. Decisão do founder, com insumo jurídico: correção editorial ou alteração material?
+- ~~**Q1 — A mudança de armazenamento do token exige bump da Política?**~~ **RESOLVIDA em 2026-08-04**,
+  fora desta change (front PR #51). O trecho que afirmava "armazenado em localStorage (não em cookie)"
+  foi reescrito de forma **neutra quanto ao mecanismo**: o token "é mantido no navegador do usuário
+  durante a sessão e trafega exclusivamente no cabeçalho Authorization". A frase é verdadeira com
+  `localStorage` e continua verdadeira com token em memória — então **esta change não precisa mexer na
+  Política nem disparar re-consentimento**. A vigência já foi para `2026-08-03` naquele PR.
 - **Q2 — O realm de produção é o mesmo `menthoros` do arquivo versionado?** O `env.ts` usa
   `menthoros` como default e a entidade `Assessoria` carrega `keycloakRealm = "menthoros-app"`.
   A divergência precisa ser resolvida antes de mexer em config de client, ou a mudança é aplicada no
