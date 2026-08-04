@@ -138,17 +138,23 @@ o risco do bloco 2.
 
 Nenhum destes é substituível por teste automatizado (D4/testes).
 
-- [ ] 4.1 Login real como coach: redirect ao Keycloak, retorno, dashboard.
-- [ ] 4.2 Reload da página mantém a sessão, sem novo prompt.
-- [ ] 4.3 Aba nova autentica por silent renew, sem pedir credenciais.
+- [x] 4.1 **OK** — login real pela tela do Keycloak, retorno ao app autenticado (2026-08-04).
+- [x] 4.2 **OK, depois de corrigir um bug real.** Na primeira passada a tela piscava e voltava ao
+      login: sem token persistido, o `getUser()` volta `null` no reload e o bootstrap **desistia**,
+      concluindo "anônimo" — o design previa a sessão vir do cookie do Keycloak, mas nada no código
+      perguntava a ele. Corrigido com `prompt=none` **por redirect** (o iframe não serve por ser
+      cross-site; navegação de topo é first-party), com guarda contra laço. Commit `9c04d86`.
+- [x] 4.3 **OK** — aba nova autentica sozinha, pelo mesmo mecanismo da 4.2.
 - [ ] 4.4 Logout encerra a sessão no Keycloak: novo acesso exige credenciais de novo.
 - [ ] 4.5 Expiração durante uso renova sem derrubar o usuário.
 - [ ] 4.6 Gate de consentimento LGPD e roteamento coach/atleta seguem funcionando. **Não basta abrir
       `/me`:** o `LgpdConsentInterceptor` age sobre escrita, então exercitar uma escrita real de coach
       e, se aplicável, o próprio aceite — é lá que um `tenant_id` ausente aparece como 403/503.
-- [ ] 4.6b Inspecionar o JWT emitido: `tenant_id` presente e `realm_access.roles` populado. O backend
-      só lê `realm_access.roles` (`CoreSecurityConfig`), enquanto o front aceita `roles` flat — um
-      token com formato diferente rotearia no front e seria negado no backend.
+- [x] 4.6b **OK, verificado no token real** (2026-08-04): `iss` do HomeLab, `azp: menthoros-web`,
+      `scope` com `organization`, `realm_access.roles` com `TECNICO`/`ADMIN`, e **o `X-Tenant-ID` do
+      header idêntico ao `tenant_id` do token** — o risco 🔴 do pré-mortem (header e token saindo de
+      leituras paralelas) fica desarmado com evidência, não por argumento. `auth_time` presente
+      confirma autenticação real, não refresh; token com 300s, batendo com o realm.
 - [ ] 4.7 Login como **atleta**: redirect para `/athlete/home` como hoje.
 - [ ] 4.8 `localStorage` inspecionado no browser: sem token, sem `@Menthoros:token`.
 - [ ] 4.9 Limpeza de `@Menthoros:token` no bootstrap, derrubando quem ainda tiver sessão antiga
