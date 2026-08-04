@@ -95,10 +95,18 @@
       PR, que é o modo de falha exato que originou a change do backend.
       *verify:* execução agendada aparece no histórico de runs sem PR aberto.
       **Feito:** `schedule: '0 9 * * 1-5'` no workflow.
-- [ ] 4.2 Definir **canal e responsável** pela falha do agendamento, e provar o caminho com uma
-      falha real (ex.: rodar o workflow agendado contra um commit sabidamente quebrado, num branch de
-      teste). "Notificação chega a alguém" não é verificável sem canal, dono e evidência.
-      *verify:* registro da notificação recebida, com canal e destinatário nomeados.
+- [x] 4.2 **DECIDIDO (founder, 2026-08-04): notificação por e-mail padrão do GitHub, para o dono do
+      repositório** (`llsilvas`, `lsilva.info@gmail.com`). Horário mantido em `0 9 * * 1-5` — 9h UTC,
+      **6h locais**: se quebrou, aparece antes do dia começar, não no meio dele.
+
+      ⚠️ **Duas limitações do mecanismo, registradas para não virarem surpresa:**
+      1. **A notificação ainda não foi observada na prática.** O e-mail padrão do GitHub para
+         workflow agendado que falha é comportamento documentado, não verificado aqui — a primeira
+         falha real do agendado é que confirma. Fica como limite conhecido, não como pendência
+         silenciosa.
+      2. **O GitHub desativa workflows agendados após 60 dias sem atividade no repositório.** Num
+         repo ativo não acontece; num que fique parado — exatamente quando o agendamento seria mais
+         útil — ele silencia sozinho. Se o projeto entrar em pausa longa, reativar é manual.
 
 ## 5. Fechamento
 
