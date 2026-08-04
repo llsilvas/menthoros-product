@@ -96,6 +96,14 @@ o risco do bloco 2.
 
 ## 2. Fluxo Authorization Code + PKCE
 
+> ⏸️ **BLOQUEADO por `enable-frontend-ci`** (decisão do founder, 2026-08-04). O `CLAUDE.md` do front
+> (PR #52) tornou E2E obrigatório em fluxo crítico e **autenticação encabeça a lista** — então este
+> bloco precisa de E2E. Só que o E2E não roda em runner limpo hoje: falta `webServer` no
+> `playwright.config.ts`, e consertar isso é a task 1.0 da `enable-frontend-ci`. Escrever o E2E de
+> autenticação antes seria produzir um teste sem onde rodá-lo de forma confiável.
+>
+> O bloco 1 já entregue não depende disso e segue commitado na branch.
+
 - [ ] 2.1 Adicionar `oidc-client-ts` + `react-oidc-context` (D1). Registrar a justificativa da
       dependência no PR — exigência do `CLAUDE.md`.
 - [ ] 2.2 Configurar o provider: `authority` (realm da 0.1), `client_id: menthoros-web`,

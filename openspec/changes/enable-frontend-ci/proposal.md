@@ -41,6 +41,23 @@ tempo que justifique a ausência — só falta o automatismo.
 - **Ordenar CI antes do deploy** — o Railway publica no merge, como no backend.
 - **Execução agendada**, para que a suíte não apodreça em períodos sem PR.
 
+## Dependências e ordem
+
+**Esta change vem antes do bloco 2 de `migrate-login-to-authorization-code-pkce`** (decisão do
+founder, 2026-08-04). O encadeamento:
+
+1. O `CLAUDE.md` do front (PR #52) tornou E2E obrigatório em fluxo crítico, e **autenticação é o
+   primeiro item da lista**.
+2. Logo, o bloco 2 do PKCE — que troca o mecanismo de login — precisa de E2E.
+3. Mas o E2E **não roda em runner limpo hoje** (falta `webServer`, ver Riscos), e é esta change que
+   conserta isso.
+
+Fazer o PKCE primeiro significaria escrever o E2E de autenticação sem ter onde executá-lo de forma
+confiável — ou puxar a correção do `webServer` para dentro de uma change de auth, misturando dois
+escopos.
+
+O bloco 1 do PKCE já está entregue (fonte única de token e claims) e não depende disto.
+
 ## Capabilities
 
 Nenhuma. Não toca código de produção, contrato de API nem schema.
@@ -76,11 +93,18 @@ Nenhuma. Não toca código de produção, contrato de API nem schema.
 - **CA8** — Dado que ninguém abre PR por vários dias, quando a suíte apodrece por causa externa
   (dependência, browser do Playwright, mudança de runtime), então a execução **agendada** revela isso
   sem depender de atividade.
-- **CA9** — O workflow usa `pull_request` (nunca `pull_request_target`) e declara permissões mínimas.
-- **CA10** — Dado um PR que altera um fluxo crítico, quando o job de E2E roda, então ele executa os
-  specs de E2E e o resultado é status check. **Limite honesto:** o CI garante que os specs
-  existentes rodam; garantir que o spec *cobre* o fluxo alterado continua sendo revisão humana — o
-  `CLAUDE.md` é quem carrega essa regra.
+- **CA9** — Dado o workflow, então usa `pull_request` (nunca `pull_request_target`), declara
+  `permissions: contents: read`, **fixa as actions de terceiros por versão** e **não expõe secret a
+  PR de fork**. Idêntico ao CA9 do backend, e por isso mesmo: o front usa `actions/checkout`,
+  `actions/setup-node` e a instalação do Playwright — o mesmo vetor de supply-chain. Um primeiro CI
+  que amplia a superfície de ataque troca um problema por outro.
+- **CA10** — Dado qualquer PR para `develop`, quando o job de E2E roda, então executa os specs, o
+  resultado aparece como status check e **um spec vermelho bloqueia o merge**. Verificável por
+  construção: abrir um PR com spec quebrado e confirmar que o merge não é oferecido.
+- **CA10b (não é critério de aceite — é limite declarado):** o CI **não** garante que exista spec
+  cobrindo o fluxo que o PR alterou. Isso é revisão humana, sustentada pelo `CLAUDE.md` do front
+  (PR #52). Fica escrito para ninguém confundir "E2E verde" com "o fluxo novo foi testado" — a
+  confusão que faria esta change produzir o falso conforto que ela quer eliminar.
 
 ## Métrica de sucesso
 
@@ -101,6 +125,21 @@ qualquer quebra apareça no PR que a introduz.
 | **Mock parcial nos specs** — os 3 specs já interceptam a fronteira com `page.route()` (2, 1 e 4 rotas), então **não** dependem de backend nem de Keycloak. Mas navegar até o dashboard passa por widgets com chamadas próprias (Strava, provas, aderência): rota não interceptada deixa o resultado dependente de rede. | Discovery mapeia as requisições **não** mockadas — constatar que existe `route()` no arquivo não basta. |
 | **CI verde vira falso conforto** — lint e testes passam e a tela quebra no navegador. | Já endereçado fora desta change: o `CLAUDE.md` (PR #52) exige E2E em fluxo crítico. O CI executa; a regra define o que precisa existir. |
 | Gate que o dono do repositório atravessa | CA7: sem bypass. Uma proteção contornável é sugestão. |
+| 🔴 **O gate trava trabalho legítimo e não há saída** — consequência direta do CA7: proteção sem bypass mais um workflow quebrado por **causa externa** (rate-limit no download do Playwright, action de terceiro fora do ar, runner com runtime novo) bloqueia **todo** merge, inclusive o hotfix que consertaria a situação. | **Rollback declarado antes de ligar:** desligar o status check obrigatório via `gh api` é a saída de emergência, e a `enable-backend-ci` já terá o mesmo procedimento. Registrar **quem** tem essa permissão e **em que condição** usá-la — sem isso, a saída existe mas ninguém sabe acionar sob pressão. O job de E2E, mais sujeito a causa externa, é o candidato natural a ser desobrigado primeiro. |
+
+## Fora de escopo — abrir como change própria
+
+- **Threshold de cobertura** (Q2). Ligar um mínimo não calibrado junto com o gate trava merge por um
+  número que ninguém acordou, e o primeiro reflexo seria baixar o número — o que ensina a tratar o
+  gate como obstáculo.
+- **CI para `menthoros-product` e `menthoros-infra`.** São repositórios de documento e configuração;
+  o custo/benefício é outro e as decisões seriam diferentes (o que verificar num repo de Markdown?).
+- **Governança além do gate**: CODEOWNERS, approvals obrigatórios, commits assinados.
+- **Deploy contínuo governado por CI** — inclui os caminhos que o CA4 não alcança (redeploy manual,
+  rollback e trigger direto no Railway).
+- **`eslint-plugin-jsx-a11y` e `manualChunks`** — levantados na mesma conversa que originou esta
+  change (2026-08-04) e igualmente válidos, mas são qualidade de código e de bundle, não automação.
+  Misturá-los aqui faria o PR do CI carregar mudança de lint e de build.
 
 ## Open Questions & Assumptions
 
@@ -110,6 +149,10 @@ qualquer quebra apareça no PR que a introduz.
    defaults. *Parcialmente verificado: `npm run build` roda local sem `.env` especial.*
 2. O Railway do front dispara no merge, como no backend. **Não verificado** — confirmar o gatilho
    antes de qualquer YAML, mesma exigência que a change do backend fez.
+3. **O custo em minutos de Actions cabe no plano.** O repositório é público, o que hoje significa
+   runners gratuitos; o job rápido é leve e o de E2E roda um `chromium`. Premissa de baixo risco,
+   mas registrada — se o repositório virar privado (como o `menthoros-infra` nasceu), o cálculo
+   muda, sobretudo com a execução agendada.
 
 **Em aberto:**
 

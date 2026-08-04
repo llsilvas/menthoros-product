@@ -36,15 +36,19 @@
       *verify:* `npm run test:e2e` passa numa shell **sem** `npm run dev` rodando.
 
 - [ ] 1.1 Criar `.github/workflows/ci.yml` com gatilho em `pull_request` para `develop` e `push` para
-      `develop`. **Nunca `pull_request_target`** (CA9) e com `permissions` mínimas declaradas.
+      `develop`. **Nunca `pull_request_target`** (CA9), `permissions: contents: read`, **actions de
+      terceiros fixadas por versão** e nenhum secret exposto a PR de fork.
+      *verify:* revisão do YAML contra os quatro itens do CA9, um a um.
 - [ ] 1.2 Job `verify`: `actions/checkout`, `actions/setup-node` com a versão da 0.3 e cache de npm,
       `npm ci`, `npm run lint`, `npm run build`, `npm run test:run`.
+      *verify:* os três comandos aparecem como passos distintos, para a falha dizer qual quebrou.
 - [ ] 1.3 Rodar num **runner limpo** e confirmar que passa sem nenhum secret (CA5). Se algum for
       necessário, registrar qual e por quê — a premissa de hermeticidade cai e isso precisa ficar
       escrito.
       *verify:* execução verde no PR desta própria change.
 - [ ] 1.4 **Medir e registrar** o tempo de ponta a ponta (CA6), separando `npm ci` do resto — é o
       número que decide se vale investir em cache mais agressivo.
+      *verify:* número anotado nesta task, com e sem cache quente.
 
 ## 2. Workflow — job de E2E
 
@@ -52,6 +56,7 @@
       (`playwright install --with-deps chromium` — o config declara só `chromium`).
 - [ ] 2.2 Rodar `npm run test:e2e` e publicar o relatório como artefato em caso de falha. Sem o
       relatório, uma falha de E2E no CI é quase indepurável.
+      *verify:* forçar uma falha e baixar o artefato do run.
 - [ ] 2.3 Marcar como **bloqueante** (decisão 0.4). Rebaixar para reportando só com motivo
       registrado e gatilho de promoção — nunca como precaução silenciosa.
 - [ ] 2.4 Medir o tempo do job (CA6) — é o que justifica ou não mantê-lo separado.
@@ -70,6 +75,7 @@
 
 - [ ] 4.1 Adicionar `schedule` ao workflow (CA8) — CI só-em-PR tem a mesma cegueira em períodos sem
       PR, que é o modo de falha exato que originou a change do backend.
+      *verify:* execução agendada aparece no histórico de runs sem PR aberto.
 - [ ] 4.2 Definir **canal e responsável** pela falha do agendamento, e provar o caminho com uma
       falha real (ex.: rodar o workflow agendado contra um commit sabidamente quebrado, num branch de
       teste). "Notificação chega a alguém" não é verificável sem canal, dono e evidência.
@@ -79,6 +85,10 @@
 
 - [ ] 5.1 Se a 0.3 apontar, prover `localStorage` no `src/test/setup.ts` para remover a dependência da
       versão do Node (D3). **Único diff permitido em `src/`.**
+- [ ] 5.1b **Registrar o procedimento de rollback do gate** (risco 🔴): como desobrigar o status
+      check via `gh api`, quem tem a permissão e em que condição usar. Sem isso, uma quebra por causa
+      externa trava todo merge — inclusive o hotfix que consertaria.
+      *verify:* procedimento escrito e testado uma vez em ambiente controlado.
 - [ ] 5.2 Atualizar o `CLAUDE.md` da raiz: dizer onde "CI verde + branch protection" passa a valer, e
       parar de citar `main`, que não existe em nenhum dos dois repositórios.
 - [ ] 5.3 Registrar no `SPRINTS.md` — junto com `enable-backend-ci`, já que as duas fecham o mesmo
