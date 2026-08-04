@@ -52,10 +52,16 @@
       bootstrap limpa `@Menthoros:token` de quem ainda o tiver, em vez de deixar expirar. Mais
       previsível: ninguém fica num estado híbrido — token velho em storage com o app já esperando
       sessão em memória. Implementado na task 4.9, que deixa de ser condicional.
-- [ ] 0.7 Registrar `post.logout.redirect.uris` no client `menthoros-web` (hoje ausente no realm).
-      **Fica no bloco 0, não no 3:** é pré-requisito do logout RP-initiated da task 2.8 — na ordem
-      inversa a task fica sem como ser validada. É aditivo e não afeta o fluxo atual.
-      *verify:* atributo presente no client do realm efetivo (0.1); login por senha segue funcionando.
+- [x] 0.7 **`post.logout.redirect.uris = +` aplicado** no client `menthoros-web` (2026-08-04), via
+      `sync-realm.sh` contra o HomeLab, e confirmado pela Admin API. O valor `+` reaproveita os
+      próprios `redirectUris` em vez de manter uma segunda lista — duas listas divergem com o tempo,
+      que é exatamente como o drift abaixo nasceu.
+      **Drift encontrado e corrigido de quebra:** o HomeLab tinha só `http://localhost:5174/*` em
+      `redirectUris`/`webOrigins`, enquanto o arquivo versionado listava também Railway e produção. O
+      D4 afirmava que "os `redirectUris` já cobrem produção" — verdade para o arquivo, **não** para o
+      servidor. O sync alinhou os dois (só adiciona; `no-delete` em todas as categorias).
+      Inalterados de propósito, porque pertencem à task 5.3: `directAccessGrantsEnabled` segue `true`
+      e o `pkce.code.challenge.method` segue ausente.
 - [ ] 0.6 **Linha de base da métrica (Q4) — DESPRIORIZADA (founder, 2026-08-04): não bloqueia o
       bloco 0.** A telemetria de login não existe hoje e é métrica nova; entra por último, junto com o
       corte, em vez de segurar a implementação. **Consequência aceita:** enquanto não existir, a
