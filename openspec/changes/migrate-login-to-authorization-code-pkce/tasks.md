@@ -16,13 +16,23 @@
       `menthoros-realm.json` (`"realm": "menthoros"`). O `menthoros-app` de `Assessoria.keycloakRealm`
       é **default de campo legado**, não o realm em uso — não há realm `menthoros-app` configurado em
       lugar nenhum. `KEYCLOAK_ADMIN_TOKEN_REALM=master` é do gateway admin, esperado.
-      ⚠️ *Verificação documental, não consulta ao Keycloak ao vivo — confirmar no console antes do
-      corte da 5.3, que é o passo irreversível.*
+      **Confirmado ao vivo em 2026-08-04** contra `http://192.168.15.24:8080` (HomeLab): o
+      `.well-known/openid-configuration` do realm `menthoros` responde `200`, e o discovery já
+      valida três premissas da change — `code_challenge_methods_supported: [plain, S256]` (PKCE
+      disponível), `end_session_endpoint` presente (logout RP-initiated do D5 é viável) e
+      `grant_types_supported` incluindo `password` (o ROPC que a 5.3 vai cortar) e
+      `authorization_code`.
+
+      ⚠️ **Armadilha de ambiente:** existe um container `menthoros-keycloak` rodando em
+      `localhost:8080` na máquina do dev que **não tem o realm** (`404 Realm does not exist`, só
+      `master`). São Keycloaks diferentes; o de trabalho é o do HomeLab, para onde o `.env:4` do front
+      aponta. Consultar `localhost` dá diagnóstico errado — foi o que aconteceu na primeira passada
+      desta task. Antes do corte da 5.3, confirmar o alvo pelo `issuer`, não pela porta.
 - [x] 0.2 **CROSS-SITE em todos os ambientes ⇒ renew por REDIRECT (plano B do D6).** A premissa 3 do
       proposal está **refutada**. Domínios levantados:
       | Ambiente | Frontend | Keycloak | Relação |
       |---|---|---|---|
-      | Local | `localhost:5174` | `192.168.15.24:8080` (`.env:4`) | hosts distintos |
+      | Dev local | `localhost:5174` (máquina do dev) | `192.168.15.24:8080` — **HomeLab, outra máquina** | hosts distintos |
       | Dev/Railway | `menthoros-front-develop.up.railway.app` | `menthoros-keycloak-develop.up.railway.app` | subdomínios irmãos |
       | Produção | `menthoros.com` | `*.up.railway.app` | sites distintos, inequívoco |
       Em produção o cookie de sessão do Keycloak é **third-party** dentro do iframe: bloqueado por
@@ -38,15 +48,19 @@
 - [x] 0.4 ~~**Decisão do founder (Q1)** sobre bump da Política.~~ **RESOLVIDA fora desta change** em
       2026-08-04 (front PR #51): a frase do token foi reescrita de forma neutra quanto ao mecanismo,
       válida antes e depois desta migração. Não há bump a fazer aqui.
-- [ ] 0.5 **Decisão (Q3):** sessões vigentes na virada são invalidadas explicitamente ou expiram sozinhas?
-      *verify:* decisão registrada; se invalidar, vira task no bloco 4.
+- [x] 0.5 **DECIDIDO (founder, 2026-08-04): derrubar todas as sessões vigentes.** Na virada, o
+      bootstrap limpa `@Menthoros:token` de quem ainda o tiver, em vez de deixar expirar. Mais
+      previsível: ninguém fica num estado híbrido — token velho em storage com o app já esperando
+      sessão em memória. Implementado na task 4.9, que deixa de ser condicional.
 - [ ] 0.7 Registrar `post.logout.redirect.uris` no client `menthoros-web` (hoje ausente no realm).
       **Fica no bloco 0, não no 3:** é pré-requisito do logout RP-initiated da task 2.8 — na ordem
       inversa a task fica sem como ser validada. É aditivo e não afeta o fluxo atual.
       *verify:* atributo presente no client do realm efetivo (0.1); login por senha segue funcionando.
-- [ ] 0.6 **Linha de base da métrica (Q4):** confirmar se existe telemetria de taxa de sucesso de
-      login e tempo até dashboard. Se não existir, decidir entre instrumentar antes do corte ou trocar
-      a métrica por algo observável — sem isso, "não piorou" não é verificável.
+- [ ] 0.6 **Linha de base da métrica (Q4) — DESPRIORIZADA (founder, 2026-08-04): não bloqueia o
+      bloco 0.** A telemetria de login não existe hoje e é métrica nova; entra por último, junto com o
+      corte, em vez de segurar a implementação. **Consequência aceita:** enquanto não existir, a
+      métrica primária do proposal não é falsificável — "não piorou" fica sendo julgamento, não
+      medição. Fechar antes da 5.3 (o corte), não antes do bloco 1.
       *verify:* fonte da linha de base nomeada, ou métrica substituída no proposal.
 
 ## 1. Fonte única do token (sem trocar o mecanismo)
@@ -122,7 +136,8 @@ Nenhum destes é substituível por teste automatizado (D4/testes).
       token com formato diferente rotearia no front e seria negado no backend.
 - [ ] 4.7 Login como **atleta**: redirect para `/athlete/home` como hoje.
 - [ ] 4.8 `localStorage` inspecionado no browser: sem token, sem `@Menthoros:token`.
-- [ ] 4.9 Se a 0.5 decidiu invalidar sessões vigentes: limpeza da chave antiga no bootstrap.
+- [ ] 4.9 Limpeza de `@Menthoros:token` no bootstrap, derrubando quem ainda tiver sessão antiga
+      (decisão 0.5 — não é mais condicional). Verificar com um token velho plantado no storage.
 
 ## 5. Documento e corte do grant antigo
 
