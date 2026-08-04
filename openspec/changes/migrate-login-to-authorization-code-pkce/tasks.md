@@ -9,15 +9,32 @@
 
 ## 0. Discovery e decisões (bloqueia o resto)
 
-- [ ] 0.1 Confirmar o **realm efetivo** em dev e produção (Q2): `env.ts:23` usa `menthoros` como
-      default e `Assessoria.keycloakRealm` traz `menthoros-app`. Registrar qual é a verdade antes de
-      alterar qualquer config de client.
-      *verify:* realm confirmado por consulta ao Keycloak real, não por leitura de arquivo.
-- [ ] 0.2 Determinar se Keycloak e frontend são **same-site** em cada ambiente (premissa 3 / D6).
-      Decide silent renew por iframe vs. por redirect.
-      *verify:* decisão registrada no design com a evidência (domínios de cada ambiente).
-- [ ] 0.3 Confirmar que nenhum teste de integração do backend depende de password grant.
-      *verify:* busca por `grant_type`/`password` em `apps/menthoros-backend/src/test` sem ocorrência relevante.
+- [x] 0.1 **Realm efetivo = `menthoros`, em todos os ambientes.** Evidência convergente em quatro
+      fontes independentes: `application.yml:30` (local, `localhost:9999/realms/menthoros`),
+      `application-dev.yml:62` e `application-cloud.yml:60` (ambos
+      `menthoros-keycloak-develop.up.railway.app/realms/menthoros`), `env.ts:23` e o próprio
+      `menthoros-realm.json` (`"realm": "menthoros"`). O `menthoros-app` de `Assessoria.keycloakRealm`
+      é **default de campo legado**, não o realm em uso — não há realm `menthoros-app` configurado em
+      lugar nenhum. `KEYCLOAK_ADMIN_TOKEN_REALM=master` é do gateway admin, esperado.
+      ⚠️ *Verificação documental, não consulta ao Keycloak ao vivo — confirmar no console antes do
+      corte da 5.3, que é o passo irreversível.*
+- [x] 0.2 **CROSS-SITE em todos os ambientes ⇒ renew por REDIRECT (plano B do D6).** A premissa 3 do
+      proposal está **refutada**. Domínios levantados:
+      | Ambiente | Frontend | Keycloak | Relação |
+      |---|---|---|---|
+      | Local | `localhost:5174` | `192.168.15.24:8080` (`.env:4`) | hosts distintos |
+      | Dev/Railway | `menthoros-front-develop.up.railway.app` | `menthoros-keycloak-develop.up.railway.app` | subdomínios irmãos |
+      | Produção | `menthoros.com` | `*.up.railway.app` | sites distintos, inequívoco |
+      Em produção o cookie de sessão do Keycloak é **third-party** dentro do iframe: bloqueado por
+      padrão em Safari e Firefox, e em Chrome com bloqueio de terceiros. O renew silencioso falharia
+      **em silêncio** — o usuário cairia no login sem motivo aparente, que é o pior modo de falha
+      possível para esta change. Decisão: **renovação por redirect**, com preservação de destino e
+      estado (o critério de aceite já foi redigido de forma condicional para isso).
+- [x] 0.3 **Nenhum teste depende do password grant do login** — e o único que existe protege
+      justamente o que **não** pode ser desligado. `KeycloakOrganizationGatewayImplTest.java:60`
+      afirma `grant_type=password`, mas para o **gateway admin**, outro client. Ele funciona como
+      sentinela do risco ⚠️ já registrado: se alguém aplicar o corte da 5.3 de forma ampla em vez de
+      no client `menthoros-web`, este teste fica vermelho — o que é o comportamento desejado.
 - [x] 0.4 ~~**Decisão do founder (Q1)** sobre bump da Política.~~ **RESOLVIDA fora desta change** em
       2026-08-04 (front PR #51): a frase do token foi reescrita de forma neutra quanto ao mecanismo,
       válida antes e depois desta migração. Não há bump a fazer aqui.

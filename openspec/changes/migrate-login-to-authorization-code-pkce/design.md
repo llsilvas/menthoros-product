@@ -110,14 +110,31 @@ login não pede credenciais — o usuário acha que saiu e não saiu. Passa a se
 (`end_session_endpoint` com `id_token_hint` e `post_logout_redirect_uri`), o que exige registrar
 `post.logout.redirect.uris` no client — atributo que hoje não existe no realm versionado.
 
-## D6 — Silent renew e o plano B
+## D6 — Renovação por REDIRECT (decidido na task 0.2 — o plano B virou o plano)
 
 Renew por iframe com `prompt=none` depende de o browser enviar o cookie de sessão do Keycloak dentro
-do iframe. Se Keycloak e app forem **cross-site**, os navegadores bloqueiam por padrão e o renew
-falha silenciosamente — o usuário cai no login sem motivo aparente.
+do iframe. A discovery mediu os domínios e **todos os ambientes são cross-site** — em produção,
+`menthoros.com` contra Keycloak em `*.up.railway.app`. O cookie é third-party ali: bloqueado por
+padrão em Safari e Firefox, e em Chrome com bloqueio de terceiros.
 
-Se a discovery mostrar cross-site, o plano B é renovação **por redirect** no expiry (perde-se a
-suavidade, mantém-se a segurança). A decisão é da discovery, não do implementador no meio da task.
+Ou seja, o iframe **não é uma opção com degradação aceitável** — ele falha em silêncio, e o sintoma
+(usuário jogado no login sem motivo) é indistinguível de um bug de sessão. Decisão: **renovação por
+redirect** no expiry.
+
+Consequências que o resto do design precisa absorver:
+
+- A renovação **interrompe a navegação**, então o destino e o estado da rota precisam sobreviver ao
+  round-trip — é o mesmo mecanismo do D4 (destino no `state`), agora exercitado com muito mais
+  frequência, não só no primeiro login.
+- Uma chamada de API em curso no momento do expiry **não conclui sozinha**. A UX aceitável é
+  redirecionar antes de a chamada falhar (renovar proativamente, com folga sobre o expiry) em vez de
+  reagir a um 401.
+- Some a dependência de cookie de terceiro, o que torna o fluxo mais previsível entre navegadores —
+  é o lado bom da troca.
+
+Se um dia Keycloak e app passarem a ser same-site (domínio próprio para o IdP, ex.:
+`auth.menthoros.com`), o iframe volta a ser viável e vale reavaliar — mas isso é mudança de infra,
+não desta change.
 
 ## D7 — Sequência de corte
 
