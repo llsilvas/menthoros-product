@@ -47,5 +47,10 @@ Pelo menos 90% dos cadastros válidos concluem a criação em até 2 minutos, co
 
 - **Bloqueante:** confirmar se o deployment usa Keycloak Organizations ou grupos/atributos para representar tenant; os documentos usam “container de tenant” até essa decisão.
 - **Bloqueante:** definir política de verificação de e-mail: bloquear o primeiro login ou permitir acesso limitado. A premissa recomendada é `verifyEmail=true` antes do acesso protegido.
+  **Dado novo (2026-08-04, achado no walking skeleton do PKCE):** já existe usuário no realm com
+  `email_verified: false` — o `leandro`. Hoje é inofensivo, porque nada no fluxo lê esse claim. Mas a
+  política precisa dizer o que fazer com quem **já está lá**: exigir verificação retroativamente
+  quebra acesso existente; não exigir cria duas classes de conta, e a diferença fica invisível até
+  alguém depender dela.
 - **Bloqueante:** escolher proteção anti-abuso (rate limit distribuído e CAPTCHA/Turnstile) e limites por IP/e-mail.
 - **Premissa:** o slug é o campo hoje chamado `dominio` na entidade; a UI o chama “endereço da assessoria” para não sugerir domínio DNS.
