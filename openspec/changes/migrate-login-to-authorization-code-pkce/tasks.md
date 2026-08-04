@@ -1,6 +1,6 @@
 # Tasks — migrate-login-to-authorization-code-pkce (M · Full · frontend + infra)
 
-> Escopo: `apps/menthoros-front` e `infra/keycloak/menthoros-realm.json`. **Qualquer diff em
+> Escopo: `apps/menthoros-front` e `menthoros-infra/keycloak/menthoros-realm.json`. **Qualquer diff em
 > `apps/menthoros-backend/src/main` é sinal de que algo saiu do escopo** — investigar antes de seguir.
 >
 > Validação padrão do frontend: `npm run lint && npm run build && npm run test:run`.

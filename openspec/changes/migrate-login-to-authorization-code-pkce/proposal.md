@@ -45,7 +45,7 @@ para ganhar cliente.
 3. Migrar os **8 pontos de leitura direta** de `localStorage` para uma única fonte de token, e
    remover a chave `@Menthoros:token`.
 4. Logout passa a encerrar a sessão no Keycloak (RP-initiated logout), não só limpar estado local.
-5. Configuração do client `menthoros-web` em `infra/keycloak/menthoros-realm.json`:
+5. Configuração do client `menthoros-web` em `menthoros-infra/keycloak/menthoros-realm.json`:
    `pkce.code.challenge.method = S256` e, como **última etapa**, `directAccessGrantsEnabled = false`.
 6. Atualizar a Política de Privacidade, que hoje afirma que o token é guardado em `localStorage`.
 
@@ -133,7 +133,7 @@ de entrar aqui — nenhum é hipotético.
    grant não altera claims. *Verificado em parte — `JwtTenantFilter` lê o token, não o fluxo que o
    emitiu; confirmar que nenhum teste de integração depende de password grant.*
 2. O client `menthoros-web` é público e já aceita Authorization Code — **verificado** em
-   `infra/keycloak/menthoros-realm.json`.
+   `menthoros-infra/keycloak/menthoros-realm.json`.
 3. Keycloak e frontend estão em domínios que permitem silent renew por iframe. **Não verificado** — se
    forem cross-site, o navegador bloqueia o cookie e o renew silencioso não funciona; nesse caso o
    desenho muda para renew por redirect.

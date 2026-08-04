@@ -14,7 +14,7 @@ premissa 3), e se algum teste de integração do backend depende de password gra
 | `src/context/auth/AuthProvider.tsx:5,25-33` | `@Menthoros:token` em `localStorage`; `login(token)` grava, `logout()` remove e joga para `#/auth/login` |
 | `src/main.tsx:13,17` | `OpenAPI.TOKEN = async () => localStorage.getItem(...)` |
 | `useUserInfo.ts:15`, `MetricasService.ts:5`, `StravaService.ts:5`, `useCalibracao`, `CoachSidebar`, `LoginPage.tsx:12` | leem a chave direto |
-| `infra/keycloak/menthoros-realm.json` | client `menthoros-web`: `publicClient: true`, `standardFlowEnabled: true`, **`directAccessGrantsEnabled: true`**, `redirectUris` já cobrindo localhost:5174, Railway e menthoros.com, **sem** `pkce.code.challenge.method` |
+| `menthoros-infra/keycloak/menthoros-realm.json` | client `menthoros-web`: `publicClient: true`, `standardFlowEnabled: true`, **`directAccessGrantsEnabled: true`**, `redirectUris` já cobrindo localhost:5174, Railway e menthoros.com, **sem** `pkce.code.challenge.method` |
 
 O ponto relevante: **o Authorization Code já está habilitado**. A change é de cliente, não de infra —
 no Keycloak só faltam duas linhas de atributo.
