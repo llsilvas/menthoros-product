@@ -45,6 +45,26 @@ npm run dev
 
 ---
 
+## ⚠️ Acesso por IP na rede local não funciona (verificado 2026-08-04)
+
+Tentar abrir o app de outro dispositivo por `http://<ip-da-lan>:5174` **falha no clique de entrar**,
+com erro de *secure context*. A causa não é configuração do Keycloak:
+
+**PKCE S256 depende de `crypto.subtle`, que o navegador só expõe em contexto seguro** — HTTPS ou
+`localhost`. Um IP de LAN não é considerado seguro, então o `code_challenge` não chega a ser gerado.
+Registrar o IP nos `redirectUris` é necessário mas **não suficiente**, e foi revertido justamente
+para não sugerir que o caminho funciona.
+
+Alternativas, se o teste em dispositivo real for necessário:
+
+- **Android:** port forwarding do Chrome (`chrome://inspect` → Port forwarding, `5174`). O celular
+  passa a ver `localhost:5174`, que **é** contexto seguro, e o `redirect_uri` já registrado continua
+  valendo. É o caminho mais curto.
+- **HTTPS ponta a ponta:** exige certificado no Vite **e no Keycloak**. Só o app em HTTPS não
+  resolve: a troca do código por token é um `fetch` para o Keycloak, e HTTPS→HTTP vira mixed content
+  bloqueado — troca-se um erro por outro, mais difícil de diagnosticar.
+- **Layout apenas:** DevTools em 375px responde sem nenhum setup.
+
 ## Roteiro
 
 ### 1. Login do coach (task 4.1)
