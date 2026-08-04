@@ -74,24 +74,24 @@
 Etapa deliberadamente neutra: comportamento idêntico, `localStorage` ainda em uso. Serve para isolar
 o risco do bloco 2.
 
-- [ ] 1.1 Criar a fonte única — `getAccessToken()` **e as claims derivadas** `getTenantId()` /
+- [x] 1.1 Criar a fonte única — `getAccessToken()` **e as claims derivadas** `getTenantId()` /
       `getRoles()` (D3), ainda lendo a chave atual. As três saem da mesma leitura.
       **A API de claims precisa ter forma síncrona (snapshot).** `LoginPage.tsx:41` chama
       `destinoPorRoles(rolesDoTokenAtual())` **no corpo do render**, e `AuthProvider.tsx:10` inicializa
       estado com leitura síncrona. Tornar as claims `Promise`-only quebraria render e navegação —
       o token continua assíncrono, as claims do usuário já carregado não.
       *verify:* `LoginPage` e `AuthProvider` compilam sem `await` no caminho de render.
-- [ ] 1.2 Migrar os consumidores reais para os getters: `main.tsx:13` (`OpenAPI.TOKEN`),
+- [x] 1.2 Migrar os consumidores reais para os getters: `main.tsx:13` (`OpenAPI.TOKEN`),
       **`main.tsx:16-28` (`OpenAPI.HEADERS` / `X-Tenant-ID`)**, `useUserInfo.ts:15`,
       `MetricasService.ts:5`, `StravaService.ts:5`, `useCalibracao`, `AuthProvider.tsx` e
       **`LoginPage.tsx:41,53` (`rolesDoTokenAtual`)**.
       *(Lista corrigida no DoR: `CoachSidebar` usa `localStorage` para o estado colapsado da sidebar,
       não para token — não entra. `ProvaService.ts:149` já consome via `OpenAPI.TOKEN`, então é
       coberto pela troca de `main.tsx`, sem edição própria.)*
-- [ ] 1.3 Teste de guarda **por padrão, não por lista**: nenhuma leitura de `@Menthoros:token` e
+- [x] 1.3 Teste de guarda **por padrão, não por lista**: nenhuma leitura de `@Menthoros:token` e
       nenhum decode de JWT fora do módulo de auth (no espírito do `forbidden-uses.ts` já usado no
       repo). Lista manual envelhece; padrão pega o consumidor novo que alguém adicionar depois.
-- [ ] 1.4 Validação: `npm run lint && npm run build && npm run test:run` — suíte verde, zero mudança
+- [x] 1.4 Validação: `npm run lint && npm run build && npm run test:run` — suíte verde, zero mudança
       de comportamento observável.
 
 ## 2. Fluxo Authorization Code + PKCE
