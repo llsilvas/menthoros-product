@@ -155,7 +155,11 @@ Nenhum destes é substituível por teste automatizado (D4/testes).
       header idêntico ao `tenant_id` do token** — o risco 🔴 do pré-mortem (header e token saindo de
       leituras paralelas) fica desarmado com evidência, não por argumento. `auth_time` presente
       confirma autenticação real, não refresh; token com 300s, batendo com o realm.
-- [ ] 4.7 Login como **atleta**: redirect para `/athlete/home` como hoje.
+- [x] 4.7 **OK** (2026-08-04) — `leandro` autentica e cai em `#/athlete/home`. Token verificado:
+      papel `ATLETA` **isolado** (sem `TECNICO`/`ADMIN`), `X-Tenant-ID` coerente com o claim, e
+      `/users/me` respondendo `200`. Confirma que o `destinoPorRoles` continua correto lendo as roles
+      da fonte única — era o ponto que o comentário do código original alertava, sobre roles lidas
+      cedo demais mandarem o atleta para `/inicio`.
 - [ ] 4.8 `localStorage` inspecionado no browser: sem token, sem `@Menthoros:token`.
 - [ ] 4.9 Limpeza de `@Menthoros:token` no bootstrap, derrubando quem ainda tiver sessão antiga
       (decisão 0.5 — não é mais condicional). Verificar com um token velho plantado no storage.
