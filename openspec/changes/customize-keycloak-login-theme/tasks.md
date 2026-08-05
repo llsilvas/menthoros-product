@@ -1,33 +1,49 @@
-# Tasks — customize-keycloak-login-theme (S · Fast · infra)
+# Tasks — customize-keycloak-login-theme (S · **Full** · infra)
 
 > Escopo: `menthoros-infra` (tema, `Dockerfile.keycloak`, `menthoros-realm.json`).
 > **Zero diff em `apps/`** — nenhuma linha de aplicação muda; o app já redireciona ao Keycloak.
 >
 > Validação: o próprio login, exercitado no navegador. Não há suíte automatizada aqui.
 >
-> Estado verificado em 2026-08-04: nenhum tema configurado no realm.
+> Estado reverificado em 2026-08-05: nenhum `*Theme` no `menthoros-realm.json`, `docker-compose.yml:59`
+> ainda usando `image:`, `Dockerfile.keycloak` órfão em `26.2.5`, `keycloak-config-cli` em `:latest`.
+>
+> **Discovery encerrada em 2026-08-05.** Entrega por `build:` no compose (0.1), PT-BR dentro desta
+> change (0.3), e o Keycloak de dev confirmado rodando imagem pública no Railway (0.4) — o que
+> escalou a change para Full e produziu o `design.md` (0.5). Resta só a 0.2, que agora bloqueia a
+> seção 4 de verdade.
 
-## 0. Discovery (bloqueia o resto)
+## 0. Discovery
 
-- [ ] 0.1 **Definir COMO o tema chega ao container — hoje não há caminho nenhum.** Verificado no
-      passe adversarial: o `Dockerfile.keycloak` é **órfão**; o `docker-compose.yml:59` usa `image:`
-      direto e nunca o constrói. Decidir entre: (a) compose com `build:` apontando para o Dockerfile;
-      (b) volume montado; (c) provider/extensão. E confirmar **separadamente** como o Railway constrói
-      o Keycloak de dev/produção — o mecanismo local pode não servir lá.
-      *verify:* mecanismo escolhido, e evidência de que o tema aparece dentro do container
-      (`/opt/keycloak/themes/menthoros`).
-- [ ] 0.2 **Alinhar a versão do `Dockerfile.keycloak`** (`26.2.5`) com a que roda de fato (**26.6.0**,
-      do `KC_VERSION` no compose). Temas herdam do tema base **daquela** versão; testar contra uma e
-      servir sobre outra é um bug esperando acontecer.
-      *verify:* Dockerfile e compose apontando a mesma versão; container sobe.
-- [ ] 0.3 **Decidir Q1 (PT-BR).** O tema traduz as telas agora ou fica para depois? Hoje aparece
-      "Sign in to menthoros" num produto inteiramente em português.
-      *verify:* decisão registrada no proposal.
+- [x] 0.1 **Definir COMO o tema chega ao container.** **Decidido em 2026-08-05: compose com `build:`**
+      apontando para `docker/Dockerfile.keycloak`, que copia o tema para
+      `/opt/keycloak/themes/menthoros`. Volume foi descartado por resolver só o ambiente local.
+      A execução virou a task 2.1.
+- [x] 0.2 **Pinar a versão exata do Keycloak — local/HomeLab.** Feito em 2026-08-05: `Dockerfile.keycloak`
+      (era `26.2.5`) e `docker-compose.yml` (era a tag móvel `26.6`) agora em **`26.7.0`**, a mais
+      recente. O HomeLab foi recriado nessa versão, com dump do banco antes; a migração de schema
+      subiu os realms `master` e `menthoros` para 26.7.0 sem erro e a tela de login voltou em `200`.
+      Nenhum ambiente estava pinado em versão exata — `26.6` flutuava entre patches a cada redeploy.
+      **O Railway continua em `26.6`**; alinhá-lo faz parte da task 4.1.
+- [x] 0.3 **Decidir Q1 (PT-BR).** **Decidido em 2026-08-05: traduz nesta change**, via
+      `messages_pt_BR.properties`. Registrado no proposal como CA7. Execução na task 1.5.
+- [x] 0.4 **Descobrir como o Keycloak de dev é construído no Railway (Q3).** **Respondido em
+      2026-08-05 via Railway CLI/API:** o serviço `menthoros-keycloak` (projeto `robust-expression`,
+      env `develop`) roda a **imagem pública** `quay.io/keycloak/keycloak:26.6` — `source.repo: null`,
+      sem `rootDirectory`, sem `railwayConfigFile`, com `startCommand` fixado no serviço
+      (`/opt/keycloak/bin/kc.sh start-dev`). **Não existe caminho para o tema chegar em dev**;
+      entregá-lo exige trocar a origem do serviço. A change **escala para trilha Full**.
+- [x] 0.5 **Escrever o `design.md`.** Feito em 2026-08-05. Decisão: **um único `Dockerfile.keycloak`
+      alimenta os dois ambientes** — compose com `build:` e o serviço do Railway apontando para o repo
+      `menthoros-infra`. GHCR foi descartado por exigir uma esteira de CI que o repo não tem.
 
 ## 1. Tema
 
-- [ ] 1.1 Criar `themes/menthoros/login/theme.properties` com `parent=keycloak`, declarando os CSS e
-      recursos próprios. **Herdar, não substituir** — estrutura e acessibilidade vêm do base.
+- [ ] 1.1 Criar `themes/menthoros/login/theme.properties` com **`parent=keycloak.v2`**, declarando os
+      CSS e recursos próprios. **Herdar, não substituir** — estrutura e acessibilidade vêm do base.
+      ⚠️ **Não é `parent=keycloak`.** Verificado na 26.7.0: os dois temas coexistem, mas o servido por
+      padrão é o `keycloak.v2` (PatternFly v5). Herdar do `keycloak` traria o **layout legado**, não
+      o tema atual repaginado.
 - [ ] 1.2 CSS com os tokens de marca já definidos no produto: lime `#BDDE5A` (primária), off-white
       `#F8FAFC` (texto), superfícies navy e o fundo dark-first, de
       `apps/menthoros-front/src/shared/design-tokens`. **A tipografia NÃO está lá** — a família real é
@@ -39,10 +55,19 @@
       (CA3/CA6) — é o texto que mais some num tema escuro, e é justamente o que o usuário precisa ler
       quando erra a senha.
       *verify:* medição de contraste registrada, no espírito do `contrastMatrix.test.ts` do front.
+- [ ] 1.5 **`messages/messages_pt_BR.properties`** com os textos das telas de login (CA7, decisão
+      0.3): título, rótulos, botão de entrar e — sobretudo — **as mensagens de erro**, que são as que
+      escapam da tradução e denunciam o remendo. Traduzir apenas as chaves que aparecem nas telas em
+      escopo; o resto herda do `parent`.
+      *verify:* tela de login e tela de credencial inválida sem nenhum texto em inglês.
 
-## 2. Aplicação
+## 2. Aplicação local
 
-- [ ] 2.1 Copiar o tema para a imagem no `Dockerfile.keycloak` (`/opt/keycloak/themes/menthoros`).
+- [ ] 2.1 **Trocar `image:` por `build:` no `docker-compose.yml:59`** (decisão 0.1), apontando para
+      `docker/Dockerfile.keycloak`, e copiar o tema para `/opt/keycloak/themes/menthoros` no
+      Dockerfile. Manter `command: start-dev` — o Dockerfile hoje define `CMD ["start"]`, que é modo
+      de produção; o compose precisa continuar sobrescrevendo.
+      *verify:* tema presente dentro do container em `/opt/keycloak/themes/menthoros`.
 - [ ] 2.2 Subir o Keycloak local com a imagem nova e confirmar que o tema **aparece na lista** de
       temas do realm antes de aplicá-lo.
       *verify:* tema selecionável no console de administração.
@@ -51,10 +76,14 @@
       protege clients, groups, roles e users — **não** atributos de realm. Sem o preflight, um sync
       contra alvo sem o tema derruba a tela de login (CA5).
       *verify:* tema listado no alvo; só então o JSON com `loginTheme` é aplicado.
-- [ ] 2.4 Definir `loginTheme: menthoros` no `menthoros-realm.json` e aplicar com `sync-realm.sh`.
-      ⚠️ **Nesta ordem:** tema no container primeiro, `loginTheme` depois — e o inverso vale para
-      **cada ambiente**, porque deploy de imagem e sync de realm são planos separados, sem ordenação
-      transacional entre si.
+- [ ] 2.4 Definir `loginTheme: menthoros` no `menthoros-realm.json` e aplicar com `sync-realm.sh`
+      **contra o Keycloak local**. ⚠️ **Nesta ordem:** tema no container primeiro, `loginTheme`
+      depois — e o inverso vale para **cada ambiente**, porque deploy de imagem e sync de realm são
+      planos separados, sem ordenação transacional entre si.
+      ⚠️ **Conferir o alvo antes de rodar.** O `sync-realm.sh` não pede confirmação: aplica em quem
+      estiver no `.env.sync`, que hoje é o HomeLab (`http://192.168.15.24:8080`) — enquanto o
+      `.env.sync.example` traz o **Railway de dev**. Rodar contra um alvo sem o tema instalado é
+      exatamente o cenário do CA5.
 - [ ] 2.5 **Pinar o `keycloak-config-cli`** no `sync-realm.sh` (hoje `:latest`). É a ferramenta que
       aplica a configuração de autenticação; deixá-la flutuando é drift num caminho cuja falha
       bloqueia login.
@@ -71,9 +100,33 @@
       senha**, que compartilha o CSS e ninguém costuma abrir ao testar login. Confirmar que responde
       a tela, não `500`.
 
-## 4. Fechamento
+## 4. Ambiente de dev (Railway) — só depois da seção 3 fechada no local
 
-- [ ] 4.1 Registrar o **rollback** no README do `menthoros-infra`: remover `loginTheme` do realm e
+> Serviço `menthoros-keycloak`, projeto `robust-expression` (`4f4f3290-…`), env `develop`
+> (`76759ba8-…`). Este serviço autentica **todo** o ambiente de desenvolvimento: uma imagem que não
+> sobe deixa backend e front sem login.
+>
+> **As seções 1–3 são mergeáveis sem esta.** Se a seção 4 travar, ela sai para change própria em vez
+> de segurar o tema e a tradução (decisão registrada no proposal, Revisão de produto).
+
+- [ ] 4.1 **Trocar a origem do serviço** de `image: quay.io/keycloak/keycloak:26.6` para o repo
+      `llsilvas/menthoros-infra`, construindo por `docker/Dockerfile.keycloak`.
+      ⚠️ A 0.2 (versão 26.6 no Dockerfile) tem de estar **feita e mergeada** antes: a partir daqui é o
+      Dockerfile que define a versão do Keycloak, e um pin esquecido em `26.2.5` vira downgrade
+      silencioso em dev.
+      *verify:* deploy `SUCCESS` e Keycloak respondendo; tema presente em `/opt/keycloak/themes/menthoros`.
+- [ ] 4.2 **Restringir o gatilho de build** (`rootDirectory` e/ou watch patterns) ao que compõe a
+      imagem. Sem isso, editar um `.md` no `menthoros-infra` redeploya o provedor de identidade de dev.
+      *verify:* commit que toca só `docs/` não dispara deploy.
+- [ ] 4.3 Conferir que o `startCommand` do serviço (`/opt/keycloak/bin/kc.sh start-dev`) sobreviveu à
+      troca de origem e continua sendo o comando efetivo — ele sobrescreve o `CMD` do Dockerfile.
+- [ ] 4.4 Repetir o preflight da 2.3 **contra o Railway** e só então sincronizar o `loginTheme`
+      (CA5). Deploy de imagem e sync de realm são planos separados.
+- [ ] 4.5 Refazer a validação da seção 3 no fluxo real de dev — não basta ter passado no local.
+
+## 5. Fechamento
+
+- [ ] 5.1 Registrar o **rollback** no README do `menthoros-infra`: remover `loginTheme` do realm e
       rodar o `sync-realm.sh` devolve o tema padrão. É o procedimento de emergência da porta de
       entrada do produto — precisa estar onde se procura sob pressão.
-- [ ] 4.2 Registrar no `SPRINTS.md`.
+- [ ] 5.2 Registrar no `SPRINTS.md`.
