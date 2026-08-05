@@ -22,10 +22,16 @@ O que falta, e por que nesta ordem:
 | 3.1 (Railway/prod) | 5.2 | o sync do realm só rodou no HomeLab |
 | 5.2 | 5.3 | deploy + repetição do bloco 4 em produção |
 | 5.3 | — | ponto sem retorno barato; daqui em diante o rollback deixa de ser reverter o front |
-| 5.4, 5.5, 0.6 | arquivamento | remover `AuthService.ts`, validação final, métrica |
+| 5.5, 0.6 | arquivamento | validação final e métrica |
 
-**O gargalo é infraestrutura, não código.** Tudo que depende do frontend está entregue e validado; o
-que resta exige acesso admin aos Keycloaks de dev/produção.
+**O código está inteiro entregue** (blocos 1–4 e a 5.4, PRs #54 e #55). **O gargalo é
+infraestrutura:** o que resta exige acesso admin aos Keycloaks de dev/produção.
+
+⚠️ **A 0.6 é pré-condição para arquivar alegando sucesso.** A métrica foi despriorizada com uma
+consequência aceita por escrito: sem linha de base, a métrica primária do proposal **não é
+falsificável** — "não piorou" vira julgamento, não medição. Ou ela entra antes do corte, ou o
+proposal troca por algo mensurável. Arquivar sem resolver isso registra um sucesso que ninguém
+verificou.
 
 O E2E, ao ser levado ao CI, encontrou **dois defeitos que a validação local não pegaria**: a suíte
 dependia do `.env` da máquina do autor (issuer do IdP falso escrito à mão) e uma corrida entre
@@ -228,5 +234,10 @@ Nenhum destes é substituível por teste automatizado (D4/testes).
       `menthoros-test`.
       ⚠️ **Limite:** o client existe **no HomeLab**. Aplicá-lo em dev/produção depende de rodar o
       `sync-realm.sh` contra aqueles alvos, o que ainda não foi feito.
-- [ ] 5.4 Remover `AuthService.ts` (login por senha) e os tipos que só ele usava.
+- [x] 5.4 **Feito** — PR #55, mergeado em 2026-08-05. Saíram o `AuthService.ts`, o
+      `types/auth/LoginTypes.ts` (os três tipos eram exclusivos dele) e duas fixtures órfãs do mesmo
+      fluxo (`EXPIRED_JWT`, `MOCK_KEYCLOAK_TOKEN_RESPONSE`). 72 linhas a menos.
+      ⚠️ **Isto tirou o ROPC do código, não do Keycloak.** O `menthoros-web` segue aceitando
+      `grant_type=password` — quem tiver credenciais ainda obtém token por ali. O ganho é impedir que
+      o caminho volte pelo código por descuido; o corte de verdade é a 5.3.
 - [ ] 5.5 Validação final: `npm run lint && npm run build && npm run test:run`.
