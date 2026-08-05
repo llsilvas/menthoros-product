@@ -7,6 +7,34 @@
 >
 > Anchors verificados em 2026-08-03 contra `develop`.
 
+## ⚠️ ARQUIVADA INCOMPLETA em 2026-08-05
+
+**Decisão do founder.** A change vai ao arquivo com **4 tasks abertas**, e a mais importante delas é
+o próprio objetivo de segurança: **o corte do ROPC (5.3) não foi feito.** Hoje o client
+`menthoros-web` ainda aceita `grant_type=password` — quem tiver credenciais obtém token por ali, e o
+grant que a change existia para eliminar continua de pé em todos os ambientes.
+
+O que **foi** entregue e é real: o login da aplicação usa Authorization Code + PKCE, a senha não
+passa mais pelo frontend, o token não é persistido e o caminho ROPC saiu do código (#54, #55).
+O que **não** foi: o provedor nunca deixou de aceitar o grant antigo.
+
+**Por que isto está escrito aqui, no topo:** arquivar tira a change da fila. Sem este registro, a
+próxima leitura encontra uma change arquivada e conclui que o ROPC morreu — que é exatamente o tipo
+de lacuna que o `add-coach-lgpd-consent` deixou (um gate anotado como pendência administrativa era,
+na verdade, um defeito ativo em produção) e que custou caro para descobrir depois.
+
+**As 4 pendências seguem rastreadas no `SPRINTS.md`**, em item próprio. Se elas forem retomadas,
+merecem change nova — reabrir uma change arquivada é pior do que abrir uma pequena e específica.
+
+| Task | O que falta | Depende de |
+|---|---|---|
+| 3.1 | sync do realm no Railway (dev) e produção | acesso admin |
+| 5.2 | deploy do front + repetir o bloco 4 em produção | 3.1 |
+| **5.3** | **`directAccessGrantsEnabled: false` + `pkce.code.challenge.method: S256`** | 5.2 |
+| 0.6 | linha de base da métrica — sem ela a métrica primária não é falsificável | — |
+
+---
+
 ## Estado em 2026-08-05
 
 **O código está em `develop`** (PR #54, merge `6f0a060`) e o **bloco 4 está fechado** — walking
