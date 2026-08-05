@@ -7,6 +7,25 @@
 >
 > Anchors verificados em 2026-08-03 contra `develop`.
 
+## Estado em 2026-08-05
+
+**O código está em `develop`** (PR #54, merge `6f0a060`) — blocos 1, 2 e 3 fechados, com E2E de
+autenticação verde no CI. **A change não está concluída:** o grant antigo continua ligado e o
+`AuthService.ts` continua no repositório, então os dois mecanismos coexistem hoje.
+
+O que falta, e por que nesta ordem:
+
+| Pendência | Bloqueia | Observação |
+|---|---|---|
+| 4.4, 4.5, 4.6 | o corte | logout, renovação e escrita real — o E2E usa IdP falso e não os cobre |
+| 3.1 (Railway/prod), 5.2 | 5.3 | o sync do realm ainda não rodou fora do HomeLab |
+| 5.3 | — | ponto sem retorno barato; só depois do acima |
+| 5.4, 5.5, 0.6 | arquivamento | limpeza e métrica |
+
+O E2E, ao ser levado ao CI, encontrou **dois defeitos que a validação local não pegaria**: a suíte
+dependia do `.env` da máquina do autor (issuer do IdP falso escrito à mão) e uma corrida entre
+`toHaveURL` e os redirects do fluxo. Corrigidos em `dcc5d2e`.
+
 ## 0. Discovery e decisões (bloqueia o resto)
 
 - [x] 0.1 **Realm efetivo = `menthoros`, em todos os ambientes.** Evidência convergente em quatro
@@ -96,6 +115,10 @@ o risco do bloco 2.
 
 ## 2. Fluxo Authorization Code + PKCE
 
+> ✅ **RESOLVIDO em 2026-08-05** — `enable-frontend-ci` mergeada, o E2E de autenticação existe e passa
+> no CI (1m45), e o PR #54 foi mergeado. A condição abaixo está satisfeita; fica registrada porque
+> descreve corretamente a regra que a governou.
+>
 > ⚠️ **Implementável agora; a ENTREGA é que depende de `enable-frontend-ci`** (refinado 2026-08-04).
 > O `CLAUDE.md` do front (PR #52) tornou E2E obrigatório em fluxo crítico e **autenticação encabeça a
 > lista** — mas isso condiciona o *fechamento* da change, não a escrita do código. Os testes deste
@@ -105,34 +128,41 @@ o risco do bloco 2.
 > Consequência prática: o bloco 2 anda, e o PR só é aberto quando o E2E puder rodar de verdade.
 > Registrado assim para ninguém confundir "código pronto" com "pronto para mergear".
 
-- [ ] 2.1 Adicionar `oidc-client-ts` + `react-oidc-context` (D1). Registrar a justificativa da
-      dependência no PR — exigência do `CLAUDE.md`.
-- [ ] 2.2 Configurar o provider: `authority` (realm da 0.1), `client_id: menthoros-web`,
+- [x] 2.1 **Só `oidc-client-ts` (`^3.5.0`) — `react-oidc-context` foi descartado.** O D1 previa as
+      duas; a segunda traria um **segundo `useAuth`** ao projeto, e importar o errado é um engano que
+      compila e só aparece em runtime. O `AuthProvider` próprio virou fachada sobre a lib e continua
+      sendo a interface pública, então nenhum consumidor mudou. Justificativa registrada no PR #54.
+- [x] 2.2 Configurar o provider: `authority` (realm da 0.1), `client_id: menthoros-web`,
       `response_type: code`, PKCE S256, **store em memória** (D2). **`scope` deve incluir
       `organization` explicitamente** — é `optionalClientScope` no client (D3c); sem ele o token sai
       sem `tenant_id` e o `JwtTenantFilter` derruba o app inteiro com 403.
-- [ ] 2.3 Processar o retorno no bootstrap, antes do render das rotas, com `redirect_uri` na raiz, e
+- [x] 2.3 Processar o retorno no bootstrap, antes do render das rotas, com `redirect_uri` na raiz, e
       **restaurar o destino original a partir do `state`** — voltar para `/` não pode cair na
       `LandingPage` (D4).
-- [ ] 2.4 Estado de "carregando autenticação" que suspende `ProtectedRoute` enquanto callback ou renew
+- [x] 2.4 Estado de "carregando autenticação" que suspende `ProtectedRoute` enquanto callback ou renew
       estão pendentes (D3b) — ausência de resposta não pode ser tratada como não-autenticado.
-- [ ] 2.5 `getAccessToken`/`getTenantId`/`getRoles` passam a resolver da lib, aguardando renovação
+- [x] 2.5 `getAccessToken`/`getTenantId`/`getRoles` passam a resolver da lib, aguardando renovação
       pendente. Consumidores do bloco 1 não mudam.
-- [ ] 2.6 `LoginPage` deixa de coletar senha e passa a disparar o redirect de autorização; o destino
+- [x] 2.6 `LoginPage` deixa de coletar senha e passa a disparar o redirect de autorização; o destino
       pós-login sai do estado de usuário da lib, não de token em storage.
-- [ ] 2.7 Silent renew conforme a decisão da 0.2; renew falhando leva ao login **sem laço**.
-- [ ] 2.8 Logout RP-initiated com `end_session_endpoint` + `post_logout_redirect_uri` (D5).
-- [ ] 2.9 Testes (mockando o provider, cobrindo decisões e não a biblioteca): `code_challenge_method=S256`
+- [x] 2.7 Silent renew conforme a decisão da 0.2; renew falhando leva ao login **sem laço**.
+- [x] 2.8 Logout RP-initiated com `end_session_endpoint` + `post_logout_redirect_uri` (D5).
+- [x] 2.9 Testes (mockando o provider, cobrindo decisões e não a biblioteca): `code_challenge_method=S256`
       **e `scope` contendo `organization`** na URL de autorização e no renew; `localStorage` sem token
       após autenticar; renew pendente não dispara o guard nem gera laço; destino restaurado do `state`;
       `X-Tenant-ID` coerente com o `Authorization` durante renovação; logout chama `end_session_endpoint`.
-- [ ] 2.10 Validação: `npm run lint && npm run build && npm run test:run`.
+- [x] 2.10 Validação: `npm run lint && npm run build && npm run test:run`.
 
 ## 3. Configuração do Keycloak
 
-- [ ] 3.1 Aplicar em dev e confirmar que o realm versionado bate com o realm real (0.1).
-      *(O `post.logout.redirect.uris` já foi registrado na 0.7 — era pré-requisito da 2.8.)*
-- [ ] 3.2 Validação: login completo em dev pelo fluxo novo, com o grant antigo **ainda ligado**.
+- [x] 3.1 **Aplicado e conferido no HomeLab** (2026-08-04, via `sync-realm.sh` + Admin API) — ver 0.7,
+      que corrigiu de quebra o drift de `redirectUris`/`webOrigins`.
+      ⚠️ **Limite deliberado:** "dev" aqui é o **HomeLab**, o alvo do `.env` do front. O Keycloak de
+      dev no Railway e o de produção **não receberam o sync** — mesma pendência registrada na 5.3b
+      para o client `menthoros-test`. Rodar o sync nesses alvos é pré-requisito da 5.2.
+- [x] 3.2 **OK** — login completo pelo fluxo novo com o grant antigo ainda ligado (walking skeleton
+      4.1, 2026-08-04). Convivência dos dois mecanismos confirmada, que é o ponto: o corte da 5.3 é
+      uma decisão separada e reversível até lá.
 
 ## 4. Walking skeleton manual (P0 — a prova de que funciona)
 
@@ -160,9 +190,14 @@ Nenhum destes é substituível por teste automatizado (D4/testes).
       `/users/me` respondendo `200`. Confirma que o `destinoPorRoles` continua correto lendo as roles
       da fonte única — era o ponto que o comentário do código original alertava, sobre roles lidas
       cedo demais mandarem o atleta para `/inicio`.
-- [ ] 4.8 `localStorage` inspecionado no browser: sem token, sem `@Menthoros:token`.
-- [ ] 4.9 Limpeza de `@Menthoros:token` no bootstrap, derrubando quem ainda tiver sessão antiga
-      (decisão 0.5 — não é mais condicional). Verificar com um token velho plantado no storage.
+- [x] 4.8 **Coberto por E2E, que é mais forte que a inspeção manual prevista aqui.** O spec
+      "nenhum token fica no localStorage" (`tests/e2e/auth/login.spec.ts`) percorre o fluxo PKCE
+      inteiro e afirma `localStorage.length === 0` — não só a ausência da chave conhecida, mas a de
+      **qualquer** chave, que é o que protege contra um token reaparecer sob outro nome. Roda a cada
+      PR; a inspeção manual valeria uma vez.
+- [x] 4.9 **Coberto por E2E** — o spec "token do mecanismo antigo é descartado no bootstrap" planta
+      `@Menthoros:token` via `addInitScript` antes do carregamento e afirma que some, que é exatamente
+      o "token velho plantado no storage" pedido aqui (decisão 0.5).
 
 ## 5. Documento e corte do grant antigo
 
