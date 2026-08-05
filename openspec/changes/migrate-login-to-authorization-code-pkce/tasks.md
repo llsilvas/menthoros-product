@@ -9,18 +9,23 @@
 
 ## Estado em 2026-08-05
 
-**O código está em `develop`** (PR #54, merge `6f0a060`) — blocos 1, 2 e 3 fechados, com E2E de
-autenticação verde no CI. **A change não está concluída:** o grant antigo continua ligado e o
-`AuthService.ts` continua no repositório, então os dois mecanismos coexistem hoje.
+**O código está em `develop`** (PR #54, merge `6f0a060`) e o **bloco 4 está fechado** — walking
+skeleton executado ponta a ponta contra o HomeLab, registro em `walking-skeleton.md`.
+
+**A change não está concluída:** o grant antigo continua ligado e o `AuthService.ts` continua no
+repositório, então **os dois mecanismos coexistem hoje**. O ROPC segue aceito pelo `menthoros-web`.
 
 O que falta, e por que nesta ordem:
 
 | Pendência | Bloqueia | Observação |
 |---|---|---|
-| 4.4, 4.5, 4.6 | o corte | logout, renovação e escrita real — o E2E usa IdP falso e não os cobre |
-| 3.1 (Railway/prod), 5.2 | 5.3 | o sync do realm ainda não rodou fora do HomeLab |
-| 5.3 | — | ponto sem retorno barato; só depois do acima |
-| 5.4, 5.5, 0.6 | arquivamento | limpeza e métrica |
+| 3.1 (Railway/prod) | 5.2 | o sync do realm só rodou no HomeLab |
+| 5.2 | 5.3 | deploy + repetição do bloco 4 em produção |
+| 5.3 | — | ponto sem retorno barato; daqui em diante o rollback deixa de ser reverter o front |
+| 5.4, 5.5, 0.6 | arquivamento | remover `AuthService.ts`, validação final, métrica |
+
+**O gargalo é infraestrutura, não código.** Tudo que depende do frontend está entregue e validado; o
+que resta exige acesso admin aos Keycloaks de dev/produção.
 
 O E2E, ao ser levado ao CI, encontrou **dois defeitos que a validação local não pegaria**: a suíte
 dependia do `.env` da máquina do autor (issuer do IdP falso escrito à mão) e uma corrida entre
@@ -175,11 +180,12 @@ Nenhum destes é substituível por teste automatizado (D4/testes).
       perguntava a ele. Corrigido com `prompt=none` **por redirect** (o iframe não serve por ser
       cross-site; navegação de topo é first-party), com guarda contra laço. Commit `9c04d86`.
 - [x] 4.3 **OK** — aba nova autentica sozinha, pelo mesmo mecanismo da 4.2.
-- [ ] 4.4 Logout encerra a sessão no Keycloak: novo acesso exige credenciais de novo.
-- [ ] 4.5 Expiração durante uso renova sem derrubar o usuário.
-- [ ] 4.6 Gate de consentimento LGPD e roteamento coach/atleta seguem funcionando. **Não basta abrir
+- [x] 4.4 **OK** — validado pelo founder em 2026-08-05, contra o Keycloak do HomeLab.
+- [x] 4.5 **OK** — validado pelo founder em 2026-08-05, contra o Keycloak do HomeLab.
+- [x] 4.6 Gate de consentimento LGPD e roteamento coach/atleta seguem funcionando. **Não basta abrir
       `/me`:** o `LgpdConsentInterceptor` age sobre escrita, então exercitar uma escrita real de coach
       e, se aplicável, o próprio aceite — é lá que um `tenant_id` ausente aparece como 403/503.
+      **OK** — validado pelo founder em 2026-08-05, contra o Keycloak do HomeLab.
 - [x] 4.6b **OK, verificado no token real** (2026-08-04): `iss` do HomeLab, `azp: menthoros-web`,
       `scope` com `organization`, `realm_access.roles` com `TECNICO`/`ADMIN`, e **o `X-Tenant-ID` do
       header idêntico ao `tenant_id` do token** — o risco 🔴 do pré-mortem (header e token saindo de

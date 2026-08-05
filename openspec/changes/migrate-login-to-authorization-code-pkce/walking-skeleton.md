@@ -74,34 +74,34 @@ Alternativas, se o teste em dispositivo real for necessário:
 3. Espera-se: redirecionamento para o Keycloak, com a tela **dele**, não a nossa.
 4. Autentique como `menthoros`.
 
-- [ ] Voltou autenticado e **caiu em `#/coach/inbox`**, não na landing nem em `/inicio`.
+- [x] Voltou autenticado e **caiu em `#/coach/inbox`**, não na landing nem em `/inicio`.
       ⚠️ *Se cair na raiz, o destino no `state` não está sendo restaurado — é o risco do D4.*
-- [ ] A URL final **não** contém `code=` nem `state=`.
+- [x] A URL final **não** contém `code=` nem `state=`.
       ⚠️ *Se contiver, um reload reenviará um `code` já invalidado e o usuário verá erro sem motivo.*
 
 **Na aba Network, na requisição de autorização:** confirme `code_challenge_method=S256` e
 `scope` contendo `organization`.
 
-- [ ] `code_challenge_method=S256` presente.
-- [ ] `organization` no `scope`. ⚠️ *Sem ele o token sai sem `tenant_id` e **toda** chamada dá 403,
+- [x] `code_challenge_method=S256` presente.
+- [x] `organization` no `scope`. ⚠️ *Sem ele o token sai sem `tenant_id` e **toda** chamada dá 403,
       com o login parecendo bem-sucedido.*
 
 ### 2. Nada de token no storage (task 4.8)
 
 No DevTools → Application → Storage:
 
-- [ ] `localStorage` **vazio** de token; a chave `@Menthoros:token` não existe.
-- [ ] `sessionStorage` contém apenas o state do fluxo OIDC (`oidc.*`) — **nenhum access token**.
+- [x] `localStorage` **vazio** de token; a chave `@Menthoros:token` não existe.
+- [x] `sessionStorage` contém apenas o state do fluxo OIDC (`oidc.*`) — **nenhum access token**.
 
 ### 3. Reload mantém a sessão (task 4.2)
 
-- [ ] `F5` na rota protegida: continua autenticado, sem novo prompt de credenciais.
-- [ ] Não pisca a tela de login no meio do caminho.
+- [x] `F5` na rota protegida: continua autenticado, sem novo prompt de credenciais.
+- [x] Não pisca a tela de login no meio do caminho.
       ⚠️ *Piscar indica que o guard está agindo antes de o estado ser conhecido — o `carregando`.*
 
 ### 4. Aba nova (task 4.3)
 
-- [ ] Abra `http://localhost:5174/#/coach/inbox` em **outra aba** da mesma janela: autentica
+- [x] Abra `http://localhost:5174/#/coach/inbox` em **outra aba** da mesma janela: autentica
       sozinho, sem pedir credenciais.
       ℹ️ *Como o token vive em memória, a aba nova conversa com o Keycloak. Um redirect rápido é
       esperado; pedir senha de novo não é.*
@@ -110,18 +110,18 @@ No DevTools → Application → Storage:
 
 Com o inbox aberto, na aba Network, escolha uma chamada para `localhost:8099`:
 
-- [ ] Header `Authorization: Bearer ...` presente.
-- [ ] Header `X-Tenant-ID` presente **e** não vazio.
+- [x] Header `Authorization: Bearer ...` presente.
+- [x] Header `X-Tenant-ID` presente **e** não vazio.
       ⚠️ *Os dois saem da mesma leitura; um sem o outro é o bug que o pré-mortem previu.*
-- [ ] Cole o token em jwt.io: tem `tenant_id` (ou claim de organization) **e** `realm_access.roles`
+- [x] Cole o token em jwt.io: tem `tenant_id` (ou claim de organization) **e** `realm_access.roles`
       com `TECNICO`. *O backend só lê `realm_access.roles`.*
 
 ### 6. Gate LGPD e escrita real (task 4.6)
 
 Abrir `/me` não basta: o interceptor de consentimento age sobre **escrita**.
 
-- [ ] Execute uma ação de escrita do coach (ex.: aprovar ou editar um plano, registrar um kudo).
-- [ ] A ação conclui, ou falha por regra de negócio legítima — **não** com `403 LGPD_CONSENT_REQUIRED`
+- [x] Execute uma ação de escrita do coach (ex.: aprovar ou editar um plano, registrar um kudo).
+- [x] A ação conclui, ou falha por regra de negócio legítima — **não** com `403 LGPD_CONSENT_REQUIRED`
       inesperado nem `503`.
       ℹ️ *O enforcement está em `report-only`, então não deve bloquear. Se bloquear, a mudança de
       claims quebrou a resolução do usuário.*
@@ -130,12 +130,12 @@ Abrir `/me` não basta: o interceptor de consentimento age sobre **escrita**.
 
 Em janela anônima, entre como `leandro`:
 
-- [ ] Após autenticar, vai para `#/athlete/home` — não para `/inicio` nem para o shell do coach.
+- [x] Após autenticar, vai para `#/athlete/home` — não para `/inicio` nem para o shell do coach.
 
 ### 8. Logout encerra a sessão no provedor (task 4.4)
 
-- [ ] Clique em sair. Espera-se redirecionamento ao Keycloak e volta à aplicação deslogado.
-- [ ] Acesse `#/coach/inbox` de novo: **pede credenciais**.
+- [x] Clique em sair. Espera-se redirecionamento ao Keycloak e volta à aplicação deslogado.
+- [x] Acesse `#/coach/inbox` de novo: **pede credenciais**.
       ⚠️ *Se entrar direto, o logout não encerrou a sessão no Keycloak — exatamente o defeito que
       existia antes (o usuário achava que tinha saído e não tinha).*
 
@@ -143,25 +143,50 @@ Em janela anônima, entre como `leandro`:
 
 O token do Keycloak costuma durar 5 min; a renovação dispara 60 s antes.
 
-- [ ] Fique na aplicação além do tempo de vida do token e faça uma ação.
-- [ ] A sessão se renova sem pedir credenciais.
+- [x] Fique na aplicação além do tempo de vida do token e faça uma ação.
+- [x] A sessão se renova sem pedir credenciais.
       ℹ️ *A renovação é por **redirect** (decisão 0.2): uma ida e volta rápida ao Keycloak é o
       comportamento esperado, não um bug.*
-- [ ] Depois da renovação, o destino é preservado — você continua na tela em que estava.
-- [ ] Nenhum laço de redirecionamento.
+- [x] Depois da renovação, o destino é preservado — você continua na tela em que estava.
+- [x] Nenhum laço de redirecionamento.
 
 ### 10. Sessão legada derrubada (task 4.9)
 
-- [ ] Com a aplicação fechada, injete `localStorage['@Menthoros:token'] = 'qualquer-coisa'` pelo
+- [x] Com a aplicação fechada, injete `localStorage['@Menthoros:token'] = 'qualquer-coisa'` pelo
       console, recarregue e confirme que a chave **some** e o app não fica em estado híbrido.
 
 ---
 
 ## Registro
 
-**Data:** ____  **Executado por:** ____
+**Data:** 2026-08-04 (itens 1–5, 7) e 2026-08-05 (itens 6, 8, 9)
+**Executado por:** founder (Leandro), contra o Keycloak do HomeLab
 
-**Falhas encontradas** (uma linha por item, com o que se esperava e o que aconteceu):
+**Resultado:** todos os itens do roteiro executados e aprovados.
 
-**Itens não executados e por quê:** *(se algum não puder ser feito, registre — o silêncio é o que
-deixou um fluxo quebrado passar antes)*
+**Falhas encontradas:**
+
+- **Item 3 (reload), 2026-08-04 — bug real, corrigido.** A tela piscava e voltava ao login. Sem token
+  persistido, o `getUser()` volta vazio no reload e o bootstrap **desistia**, concluindo "anônimo": o
+  design previa a sessão vir do cookie do Keycloak, mas nada no código perguntava a ele. Corrigido
+  com `prompt=none` por redirect, com guarda contra laço (commit `9c04d86`).
+- **Achado fora do roteiro:** não havia ação de logout em nenhum dos dois shells — `logout()` existia
+  e não era chamado por ninguém. A correção do reload tornou isso crítico (sem sair, não havia como
+  trocar de usuário). Entrou em `ac08e00` e `da130e6`.
+
+**Itens 2 e 10 — cobertos por E2E, não por inspeção manual.** Os specs "nenhum token fica no
+localStorage" e "token do mecanismo antigo é descartado no bootstrap" fazem o mesmo e rodam a cada
+PR; o segundo planta `@Menthoros:token` antes do carregamento e afirma que some.
+
+**Limite desta validação:** tudo foi exercitado contra o **HomeLab**. Railway (dev) e produção não
+receberam o sync do realm, então o bloco 4 ainda precisa ser repetido em produção — é a task 5.2, e
+ela continua pendente.
+
+---
+
+## O que o roteiro provou
+
+Dos dois defeitos desta change que chegaram a existir, **os dois foram achados aqui** — nenhum por
+teste automatizado. O do reload passava por 831 testes verdes; a ausência de logout não tinha teste
+que pudesse falhar, porque não havia código a exercitar. É o mesmo padrão de
+`athlete-onboarding-baseline` e `add-coach-lgpd-consent`, agora com um terceiro caso.
