@@ -27,13 +27,59 @@ if (!args.forceIframeAuth && user?.refresh_token) {
 }
 ```
 
-**Consequência no `AuthProvider`:** o handler `aoExpirar` **não pode continuar chamando
-`signinRedirect`**. Se ficar, os dois disparam no mesmo evento e a piscada continua — a mudança de
-config sozinha não resolve. O handler passa a existir só para o caminho de falha.
+**Quem renova é a biblioteca, e só ela.** O `SilentRenewService` interno se inscreve em
+`accessTokenExpiring` e chama `signinSilent()` sozinho. O app **não intercepta** essa chamada.
 
-`definirRenovacaoPendente` continua tendo função: o `session.ts` usa essa promessa para segurar
-requisições durante a renovação. Ela passa a receber a promessa do `signinSilent`, não a do
-`signinRedirect`.
+⚠️ **Correção de 2026-08-06, após o gate de DoR — a versão anterior deste documento estava errada e
+teria virado bug de produção.** Ela dizia que `definirRenovacaoPendente` "passa a receber a promessa
+do `signinSilent`", o que implica o `AuthProvider` chamar `signinSilent` também. Seriam **duas
+renovações concorrentes no mesmo evento** — e com a rotação que esta própria change liga
+(`refreshTokenMaxReuse: 0`), a segunda reapresenta um refresh token já rotacionado pela primeira. O
+Keycloak trata como replay e derruba a sessão. O CA4, que existe para provar proteção contra ataque,
+dispararia em **toda renovação normal**. Os dois revisores do DoR apontaram isso independentemente.
+
+### O ponto de integração correto: três eventos, nenhuma chamada
+
+O app deixa de **chamar** a renovação e passa a **observá-la**:
+
+| Evento | O que o app faz |
+|---|---|
+| `addAccessTokenExpiring` | cria um *deferred* e o registra em `definirRenovacaoPendente` |
+| `addUserLoaded` | resolve o deferred e limpa o pendente — renovação concluída |
+| `addSilentRenewError` | limpa o pendente **e** dispara o fallback de login |
+
+É isso que reconstrói o contrato do `session.ts` sem chamar a lib duas vezes. O `getAccessToken()`
+aguarda `renovacaoPendente` antes de devolver o token (`session.ts:72`), e esse comportamento
+**precisa continuar valendo** — sem ele, uma requisição disparada durante a renovação sai com o token
+velho e toma `401`, exatamente o que a folga de 60s existe para evitar.
+
+**`addSilentRenewError` é a peça que faltava.** O `catch` de hoje está pendurado no `signinRedirect`
+manual do `aoExpirar`; erro da renovação automática é publicado por `_raiseSilentRenewError` e **não
+passa por aquele `catch`**. Dizer que "o `catch` atual já faz" — como a versão anterior dizia —
+deixaria o CA3 sem implementação nenhuma.
+
+### A condição que o `signinSilent` impõe
+
+O caminho de refresh token é **condicional**: sem `user.refresh_token`, a lib cai no **iframe** — o
+caminho que esta change existe para evitar — e este ainda exige `silent_redirect_uri`, lançando se
+não houver.
+
+Como o `userStore` é em memória, "sem refresh token" não é hipótese remota: é o estado normal de toda
+aba nova e de todo reload.
+
+**Proteção implementável:** **não** configurar `silent_redirect_uri`. Sem ele a tentativa de iframe
+falha explicitamente, em vez de abrir um iframe que morreria em silêncio cross-site — e a falha cai
+no `addSilentRenewError`, que leva ao fallback. Falhar alto é o comportamento desejado aqui.
+
+### O que esta change NÃO resolve
+
+**O reload (F5) continua navegando.** Sem token em memória, o bootstrap faz
+`signinRedirect({ prompt: 'none' })` (`AuthProvider.tsx:92-110`) para perguntar ao Keycloak se ainda
+há sessão. Isso é por design e independe desta change.
+
+A distinção importa para não prometer o que não se entrega: some a piscada **periódica**, a cada ~4
+minutos, que é a que interrompe o treinador no meio do trabalho. A do reload continua, uma vez, e só
+quando ele mesmo recarrega.
 
 ## Decisão 2 — Rotação é parte da mesma entrega
 

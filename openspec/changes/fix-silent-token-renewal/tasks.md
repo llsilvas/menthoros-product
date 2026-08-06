@@ -26,10 +26,17 @@
 
 ## 1. Realm — rotação de refresh token (`menthoros-infra`)
 
-- [ ] 1.1 Declarar no `menthoros-realm.json`: `revokeRefreshToken: true` e `refreshTokenMaxReuse: 0`.
+- [ ] 1.1 Declarar no `menthoros-realm.json`, como propriedades de topo do `RealmRepresentation`:
+      `revokeRefreshToken: true` e `refreshTokenMaxReuse: 0`.
       ⚠️ Declarar **apenas** esses dois atributos de realm. Cada atributo a mais é uma configuração
       viva que o sync passa a sobrescrever (ver 0.1).
-      *verify:* diff do arquivo com exatamente duas linhas de atributo novas.
+      ⚠️ **"Duas linhas no diff" não significa "duas mudanças no servidor".** O `sync-realm.sh`
+      reconcilia o **arquivo inteiro** — clients e roles junto. Hoje isso é inofensivo porque o
+      conteúdo de clients já foi aplicado nos dois alvos pela `disable-ropc-direct-grant`, então o
+      sync é idempotente ali; mas quem executar precisa saber que está reaplicando tudo, não só o
+      atributo novo.
+      *verify:* diff do arquivo com exatamente duas linhas novas **e** confirmação, pela Admin API,
+      de que nenhum client mudou depois do sync.
 - [ ] 1.2 PR no `menthoros-infra`, revisado antes de qualquer sync.
 - [ ] 1.3 `sync-realm.sh` no **HomeLab** e confirmação pela Admin API.
       *verify:* `revokeRefreshToken: true` no realm do HomeLab.
@@ -41,22 +48,39 @@
 ## 2. Frontend — renovação silenciosa (`menthoros-front`)
 
 > Só depois da seção 1 aplicada nos dois alvos.
+>
+> ⚠️ **O app não chama a renovação — ele a observa.** Com `automaticSilentRenew: true`, quem chama
+> `signinSilent()` é o `SilentRenewService` da lib. Uma segunda chamada pelo app produz renovações
+> concorrentes e, com a rotação ligada na seção 1, a segunda vira replay e derruba a sessão.
 
 - [ ] 2.1 **TDD:** teste que falha hoje — ao disparar `accessTokenExpiring`, o app **não** deve
       chamar `signinRedirect`. Hoje chama; é o teste que descreve o defeito.
       *verify:* teste vermelho antes da mudança.
-- [ ] 2.2 `automaticSilentRenew: true` no `oidcConfig.ts`, **substituindo o comentário que justifica
+- [ ] 2.2 **Atualizar `oidcConfig.test.ts:28-30`**, que hoje afirma `automaticSilentRenew === false`
+      com o comentário "a renovação é por redirect". Ele **vai quebrar** — e reescrever o teste é
+      parte da mudança, não conserto de fricção: o novo deve afirmar `true` e explicar por que o
+      refresh token não é o caso que o iframe quebrava.
+- [ ] 2.3 `automaticSilentRenew: true` no `oidcConfig.ts`, **substituindo o comentário que justifica
       o `false`** — ele está correto sobre iframe e errado sobre refresh token, e deixá-lo lá faria a
       próxima pessoa reverter isto por engano. Explicar os três mecanismos, não só o escolhido.
-- [ ] 2.3 No `AuthProvider.tsx`, o `aoExpirar` **deixa de chamar `signinRedirect`**.
-      ⚠️ Se ficar, os dois disparam no mesmo evento e a piscada continua — a mudança de config
-      sozinha não resolve.
-      `definirRenovacaoPendente` passa a receber a promessa da renovação silenciosa, mantendo o
-      comportamento do `session.ts` de segurar requisições durante a renovação.
-- [ ] 2.4 Manter o **fallback**: falha na renovação silenciosa leva ao login por redirect, uma vez,
-      sem laço. O `catch` atual já faz — garantir que continua coberto por teste.
-- [ ] 2.5 **CA5:** teste de que `localStorage` segue sem access token e sem refresh token.
-- [ ] 2.6 Gate do stack: `npm run lint && npm run build && npm run test:run`.
+- [ ] 2.4 **NÃO configurar `silent_redirect_uri`.** Sem refresh token em memória a lib tenta o
+      iframe; sem essa URL ela falha explicitamente em vez de abrir um iframe que morreria calado
+      cross-site. Falhar alto é o desejado — a falha vira `addSilentRenewError` e cai no fallback.
+      *verify:* teste afirmando que `silent_redirect_uri` está ausente, com o porquê no comentário.
+- [ ] 2.5 **Reescrever a renovação pendente no `AuthProvider.tsx` como deferred, sem chamar a lib:**
+      - `addAccessTokenExpiring` → cria o deferred e registra em `definirRenovacaoPendente`
+      - `addUserLoaded` → resolve e limpa o pendente
+      - `addSilentRenewError` → limpa o pendente **e** dispara o fallback
+      O `aoExpirar` **deixa de chamar `signinRedirect`**. Se ficar, a piscada continua — mudar a
+      config sozinha não resolve.
+      *verify:* teste de que `getAccessToken()` aguarda a renovação em curso e devolve o token novo,
+      não o velho (é o contrato de `session.ts:64-75`).
+- [ ] 2.6 **Fallback via `addSilentRenewError`** — login por redirect, uma vez, sem laço.
+      ⚠️ O `catch` atual está no `signinRedirect` manual e **não** captura erro da renovação
+      automática (publicado por `_raiseSilentRenewError`). Sem assinar este evento, o CA3 fica sem
+      implementação.
+- [ ] 2.7 **CA5:** teste de que `localStorage` segue sem access token e sem refresh token.
+- [ ] 2.8 Gate do stack: `npm run lint && npm run build && npm run test:run`.
 
 ## 3. Validação no navegador (P0 — nenhum teste automatizado prova ausência de navegação)
 

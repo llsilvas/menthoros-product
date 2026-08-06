@@ -69,6 +69,10 @@ HomeLab e Railway (`refresh_token: True` nos dois).
   Passa a valer se o modelo de ameaça mudar, não agora.
 - **Persistir o token entre abas.** O `userStore` continua em memória; abrir aba nova continua
   fazendo um redirect. É uma vez por aba, não a cada 4 minutos — ver Open Questions.
+- **O redirect do reload (F5).** Sem token em memória, o bootstrap faz `signinRedirect({prompt:'none'})`
+  (`AuthProvider.tsx:92-110`) para perguntar ao Keycloak se ainda há sessão. **Continua existindo** —
+  esta change elimina a piscada *periódica*, não a do reload. Dito aqui para não prometer o que não
+  entrega.
 - **Mudar o `accessTokenLifespan`.** Aumentá-lo reduziria a piscada e enfraqueceria a revogação;
   com renovação silenciosa a duração deixa de incomodar.
 
@@ -81,7 +85,9 @@ HomeLab e Railway (`refresh_token: True` nos dois).
   **nenhum** `document` request no mesmo intervalo. Captura de tela não serve — a piscada some, mas o
   que interessa é não haver navegação.
 - **CA2** — Dado que a renovação acontece, então nenhuma requisição do app toma `401` no intervalo.
-  A folga de 60s existe para isso.
+  A folga de 60s existe para isso, e o `getAccessToken()` segura chamadas enquanto há renovação
+  pendente (`session.ts:72`) — esse contrato precisa sobreviver à mudança.
+  *Evidência exigida:* exercitar chamadas **durante** a janela de renovação, não só antes e depois.
 - **CA3** — Dado que a renovação silenciosa **falha** (refresh expirado ou sessão encerrada no
   Keycloak), então o app cai para o login por redirect **uma vez, sem laço**.
   *Evidência exigida:* exercitar a falha de verdade — encerrar a sessão no Keycloak e esperar a
@@ -89,6 +95,10 @@ HomeLab e Railway (`refresh_token: True` nos dois).
 - **CA4** — Dado `revokeRefreshToken: true`, quando um refresh token já usado é reapresentado, então
   o Keycloak recusa **e invalida a sessão**.
   *Evidência exigida:* replay real do token anterior devolvendo erro.
+  ⚠️ **Tratar como descoberta, não como certeza de design.** Que o Keycloak *recuse* o token
+  rotacionado é garantido; que ele **invalide a sessão inteira** depende do comportamento efetivo da
+  versão e da config. Se recusar sem invalidar, o critério é reescrito para o comportamento real —
+  não se declara cumprido pela metade.
 - **CA5** — `localStorage` continua **sem access token e sem refresh token**. O critério da change de
   PKCE não pode regredir aqui.
 - **CA6** — O fluxo funciona em **Safari e Firefox**. É o motivo de a decisão original ter ido para o
@@ -105,7 +115,7 @@ completo. O alvo é zero recarregamentos não solicitados numa sessão de 30 min
 
 | Risco | Mitigação |
 |---|---|
-| 🔴 **O refresh token passa a viver na memória da aba.** Um XSS que hoje rouba um access token de 5 minutos passaria a roubar algo de alcance bem maior — hoje até 10h (`ssoSessionMaxLifespan`). | **A rotação não é opcional nesta change, é o que limita a janela.** `revokeRefreshToken: true` faz cada renovação invalidar a anterior, e um replay derruba a sessão. Sem o item de realm, o item de frontend **não deve ser mergeado**. |
+| 🔴 **O refresh token passa a ser usado periodicamente no navegador.** Um XSS que hoje rouba um access token de 5 minutos passaria a roubar algo com alcance de até 10h (`ssoSessionMaxLifespan`). ⚠️ **Calibragem, após o DoR:** o refresh token **já vive na memória** hoje — o `userStore` guarda o objeto OIDC inteiro. O frontend não cria o segredo, passa a **usá-lo com regularidade**. O aumento de exposição é real, mas menor do que a versão anterior deste texto sugeria. | **A rotação não é opcional nesta change, é o que limita a janela.** `revokeRefreshToken: true` faz cada renovação invalidar a anterior, e um replay derruba a sessão. Sem o item de realm, o item de frontend **não deve ser mergeado**. |
 | 🟠 **O `menthoros-realm.json` não versiona atributos de realm.** Ele declara apenas `realm` e `enabled`; `revokeRefreshToken` nunca passou por PR. Adicionar o primeiro atributo abre a porta para o `sync-realm.sh` sobrescrever configuração de realm que hoje vive só no servidor. | Antes de aplicar, **fotografar os atributos de realm dos dois alvos** pela Admin API e declarar no arquivo apenas o que for igual nos dois mais o que se quer mudar. Mesmo cuidado que a `disable-ropc-direct-grant` teve com clients. |
 | **Renovação falha em silêncio e o coach é jogado no login** | Foi exatamente o medo que motivou o redirect. Coberto pelo CA3, com falha exercitada de verdade, e pelo CA6 nos dois navegadores em que o iframe falharia. |
 | **Regressão do CA de `localStorage`** da change de PKCE | CA5, com teste. O `userStore` em memória não muda. |
