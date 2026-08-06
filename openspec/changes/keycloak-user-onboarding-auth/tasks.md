@@ -1,5 +1,29 @@
 # Tasks — keycloak-user-onboarding-auth
 
+## 0. Pré-condição herdada — o gateway admin não funciona hoje
+
+> Achado em 2026-08-06 durante a `disable-ropc-direct-grant`, roteado para cá porque **o signup
+> desta change depende inteiramente dele** para provisionar organização e usuário no Keycloak.
+
+- [ ] 0.1 **Provisionar as credenciais de admin do Keycloak no backend — hoje ausentes em TODOS os
+      ambientes.** `KeycloakOrganizationGatewayImpl:129` obtém token de admin com
+      `grant_type=password` usando `admin-cli` no realm `master`, mas:
+
+      | Alvo | `KEYCLOAK_SERVER_URL` | `KC_ADMIN_PASSWORD` |
+      |---|---|---|
+      | Railway `develop` | ausente → default `http://localhost:8080` | ausente → **vazia** |
+      | Local / HomeLab | `.env` do `menthoros-infra` vazio; o serviço `app` do compose não define nenhuma das duas | idem |
+
+      Em dev o backend tentaria autenticar **em si mesmo**, com senha vazia. **O gateway não obtém
+      token de admin em ambiente nenhum** — é defeito pré-existente, anterior e alheio ao corte do
+      ROPC, e foi por isso que a `disable-ropc-direct-grant` teve de reescrever o CA3 dela: exigir
+      "criação real de organização" era inverificável.
+      ⚠️ **Bloqueia o signup desta change**, não apenas o teste dele.
+      *verify:* criação real de organização no Keycloak exercitada com sucesso, em cada alvo.
+- [ ] 0.2 **Conferir se o `menthoros-test` precisa ser ligado** para algum teste desta change. Ele
+      nasce `enabled: false` desde 2026-08-06 (mantém direct grant, e deixá-lo ligado devolveria o
+      vetor que o corte eliminou). Procedimento em `menthoros-infra/keycloak/README.md`.
+
 ## 1. Discovery e decisões
 
 - [ ] 1.1 Mapear OIDC/PKCE, claims de role/tenant, modelo Keycloak, serviços/repositórios e contratos de erro existentes; registrar caminhos reais e decisões.

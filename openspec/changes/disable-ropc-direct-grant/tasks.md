@@ -273,14 +273,19 @@
 > **A change só pode ser arquivada depois disso.** O código está entregue; o controle de segurança
 > passa a valer quando o provedor recusar o grant.
 
-- [ ] 6.1 Registrar o **rollback** no README do `menthoros-infra`: `directAccessGrantsEnabled: true` +
+- [x] 6.1 **Feito no PR #3** — `menthoros-infra/keycloak/README.md`, seção "Rollback do corte do
+      ROPC", com os dois componentes separados (grant e PKCE) e o aviso de garantir acesso admin
+      antes, não durante uma queda de login. Registrar o **rollback** no README do `menthoros-infra`: `directAccessGrantsEnabled: true` +
       sync devolve o grant; remover `pkce.code.challenge.method` reverte só o PKCE. São reversíveis
       de forma independente.
 - [ ] 6.2 Atualizar o `SPRINTS.md`: a linha "🔴 Corte do ROPC" do Bloco 3 passa a apontar para esta
       change, e a pendência herdada da `migrate-login-to-authorization-code-pkce` fica encerrada.
-- [ ] 6.3 Registrar que **produção não requer ação** — quando a infra nascer, aplica o realm
+- [x] 6.3 **Registrado no `proposal.md`** (seção "Correção de escopo — produção não existe"):
+      quando a infra nascer, aplica o realm versionado já com o corte. Registrar que **produção não requer ação** — quando a infra nascer, aplica o realm
       versionado já com o corte.
-- [ ] 6.4 **Levar o achado do gateway admin para o `keycloak-user-onboarding-auth`:** as credenciais
+- [x] 6.4 **Roteado em 2026-08-06** — nova seção 0 no `tasks.md` do `keycloak-user-onboarding-auth`,
+      com a tabela por ambiente e o aviso de que **bloqueia o signup**, não só o teste dele.
+      **Levar o achado do gateway admin para o `keycloak-user-onboarding-auth`:** as credenciais
       (`KEYCLOAK_SERVER_URL`, `KC_ADMIN_PASSWORD`) não estão provisionadas em nenhum ambiente, e o
       signup daquela change depende inteiramente delas. Registrar como pré-condição lá — não corrigir
       aqui.
