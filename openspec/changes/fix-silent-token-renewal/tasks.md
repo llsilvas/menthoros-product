@@ -36,13 +36,14 @@
       com o painel de rede aberto.
       *verify:* um `POST` ao endpoint de token, sem requisição de `document` e sem iframe no DOM.
       **Se aparecer iframe, PARE** — a premissa da change está errada e o design muda.
-- [x] 0.3 **Q2 — a observar durante a 1.3, não antes.** A pergunta (ligar rotação invalida sessões
+- [x] 0.3 **Q2 RESPONDIDA na 1.5: ligar a rotação NÃO derruba sessões ativas.** Verificado com
+      sessão aberta antes do sync, que renovou normalmente depois. *(Registro original: a observar durante a 1.3, não antes.)* A pergunta (ligar rotação invalida sessões
       ativas?) só é respondível aplicando. Registrado como observação obrigatória no momento do sync
       no HomeLab, não como decisão prévia. Irrelevante em dev; importa quando existir produção.
 
 ## 1. Realm — rotação de refresh token (`menthoros-infra`)
 
-- [ ] 1.1 Declarar no `menthoros-realm.json`, como propriedades de topo do `RealmRepresentation`:
+- [x] 1.1 **FEITO** — duas propriedades de topo, clients intactos. Declarar no `menthoros-realm.json`, como propriedades de topo do `RealmRepresentation`:
       `revokeRefreshToken: true` e `refreshTokenMaxReuse: 0`.
       ⚠️ Declarar **apenas** esses dois atributos de realm. Cada atributo a mais é uma configuração
       viva que o sync passa a sobrescrever (ver 0.1).
@@ -53,13 +54,24 @@
       atributo novo.
       *verify:* diff do arquivo com exatamente duas linhas novas **e** confirmação, pela Admin API,
       de que nenhum client mudou depois do sync.
-- [ ] 1.2 PR no `menthoros-infra`, revisado antes de qualquer sync.
-- [ ] 1.3 `sync-realm.sh` no **HomeLab** e confirmação pela Admin API.
-      *verify:* `revokeRefreshToken: true` no realm do HomeLab.
-- [ ] 1.4 **CA4:** exercitar o replay — renovar uma vez, guardar o refresh token antigo, renovar de
-      novo, e reapresentar o antigo.
-      *verify:* o Keycloak recusa **e** a sessão é invalidada. Recusar sem invalidar não cumpre o CA4.
-- [ ] 1.5 Repetir 1.3 e 1.4 no **Railway `develop`**.
+- [x] 1.2 **PR `menthoros-infra` #6 mergeado** (`ec664a8`), antes de qualquer sync.
+- [x] 1.3 **APLICADO no HomeLab** em 2026-08-06, sync limpo em 3s. `revokeRefreshToken: true` e
+      `refreshTokenMaxReuse: 0` confirmados pela Admin API. **Clients conferidos após o sync e
+      inalterados** — o alerta da 1.1 (o sync reconcilia o arquivo inteiro) não produziu efeito
+      colateral.
+- [x] 1.4 **CA4 ✅ CUMPRIDO NA VERSÃO FORTE — HomeLab.**
+      ```
+      reuso do refresh antigo → invalid_grant: "Maximum allowed refresh token reuse exceeded"
+      token novo depois disso → invalid_grant  ← a sessão inteira caiu
+      ```
+      O proposal tratava a invalidação da sessão como descoberta, não certeza. **Está confirmada:**
+      recusa o replay **e** derruba a sessão. Antes desta mudança o token antigo era aceito (0.2).
+- [x] 1.5 **Railway `develop` — aplicado e validado**, mesmo resultado do HomeLab: replay recusado
+      com `Maximum allowed refresh token reuse exceeded` e sessão invalidada em seguida.
+      📌 **Q2 RESPONDIDA (0.3), com experimento desenhado para isso:** abri uma sessão **antes** do
+      sync e testei depois — **ela sobreviveu e renovou normalmente**. Ligar a rotação **não derruba
+      sessões ativas**; a regra passa a valer da próxima renovação em diante. Importa quando existir
+      produção: dá para ligar sem janela de manutenção.
 
 ## 2. Frontend — renovação silenciosa (`menthoros-front`)
 
