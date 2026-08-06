@@ -23,9 +23,10 @@
         `menthoros-web`, `menthoros-test`). Já estão quebrados hoje, por motivo alheio a esta change.
       ⚠️ **Limite do levantamento:** ele cobre o que está versionado. Script local, coleção de outro
       dev ou job fora dos repos não aparecem aqui — só o time sabe.
-- [ ] 0.2 **Decidir Q2: o `menthoros-api` recebe `pkce.code.challenge.method: S256` junto?** Ele já
-      está com `directAccessGrants: false`, mas sem o atributo de PKCE — mesma lacuna, client vizinho.
-      *verify:* decisão registrada no proposal; se entrar, vira parte da task 3.1.
+- [x] 0.2 **Q2 decidida em 2026-08-05: SIM, o `menthoros-api` recebe o `S256` junto.** Ele já está com
+      `directAccessGrants: false` nos dois alvos, mas sem o atributo de PKCE — mesma lacuna, client
+      vizinho. Fechar os dois na mesma janela evita uma segunda rodada de sync e validação num
+      provedor de identidade. **A task 3.1 passa a tocar dois clients.**
 - [x] 0.3 **Acesso admin confirmado nos dois** em 2026-08-05: token obtido no realm `master` do
       HomeLab e do Railway. A **mesma senha** funcionou nos dois, confirmando o efeito previsto do
       espelhamento do `keycloak-db` — o admin do Railway passou a ser o do HomeLab.
@@ -79,7 +80,25 @@
       `keycloak-db` feito em 2026-08-05. A validação das tasks 1.2/1.4 continua obrigatória — a foto
       vale para hoje, não para o momento do sync.
 
-## 1. Sync do realm — sem o corte
+## 1. Sync do realm — sem o corte · ⏭️ DISPENSADA em 2026-08-05
+
+> **Os dois propósitos desta seção já estavam satisfeitos quando ela chegou a vez**, e a evidência é
+> a própria task 0.5:
+>
+> 1. **Reconciliar drift** — não há drift. Os dois alvos batem com o arquivo versionado campo a
+>    campo, incluindo scopes e o optional `organization`.
+> 2. **Levar o `menthoros-test` ao Railway** — já está lá, chegou pelo espelhamento do `keycloak-db`
+>    em 2026-08-05.
+>
+> Rodar o sync seria escrever num provedor de identidade compartilhado para produzir zero mudança.
+> O ensaio do mecanismo (provar script e credenciais) acontece de qualquer forma no primeiro sync
+> **com** o corte, no HomeLab — o alvo mais seguro, e antes do Railway.
+>
+> **A validação de login não foi dispensada, só realocada:** as tasks 4.3 e 5.2 continuam exigindo
+> login completo do app após cada sync. O que sumiu foi a rodada extra de validação de um sync que
+> não mudava nada.
+>
+> Decisão do CTO. Tasks 1.1 a 1.4 encerradas sem execução.
 
 > Separado de propósito: o sync de 2026-08-04 revelou drift real entre arquivo e servidor. Misturar
 > "o realm mudou" com "a segurança mudou" torna qualquer quebra ambígua.
@@ -120,11 +139,15 @@
 
 ## 3. O corte
 
-- [ ] 3.1 No `menthoros-realm.json`, client `menthoros-web` **e só nele**:
-      `directAccessGrantsEnabled: false` + `attributes["pkce.code.challenge.method"] = "S256"`.
-      ⚠️ **Não tocar no `menthoros-test`** (o direct grant dele é proposital) nem no `menthoros-api`,
-      salvo decisão da 0.2.
-      *verify:* diff do arquivo mostrando exatamente dois clients afetados — ou um, conforme a 0.2.
+- [x] 3.1 **Aplicado em 2026-08-05** — `menthoros-web` com `directAccessGrantsEnabled: false` +
+      `S256`; `menthoros-api` só com o `S256`; `menthoros-test` intacto. JSON validado, diff de
+      3 inserções e 1 remoção. No `menthoros-realm.json`:
+      - `menthoros-web`: `directAccessGrantsEnabled: false` **+** `attributes["pkce.code.challenge.method"] = "S256"`
+      - `menthoros-api`: **só** o `attributes["pkce.code.challenge.method"] = "S256"` (decisão 0.2 —
+        o `directAccessGrants` dele já é `false`)
+      ⚠️ **Não tocar no `menthoros-test`** — o direct grant dele é proposital, é a porta do teste
+      manual depois que o `menthoros-web` fechar a sua.
+      *verify:* diff do arquivo afetando exatamente dois clients, e o `menthoros-test` intacto.
 - [ ] 3.2 Abrir PR no `menthoros-infra` e revisar **antes que qualquer servidor receba o corte**. O
       `sync-realm.sh` aplica o JSON cegamente; o PR é a única revisão que existe entre o arquivo e o
       provedor de identidade.
