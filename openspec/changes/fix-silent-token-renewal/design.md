@@ -98,9 +98,16 @@ primeiro é entregar o risco sem a mitigação — **a ordem é realm primeiro, 
 Renovação silenciosa falha em casos legítimos: refresh expirado, sessão encerrada no Keycloak, logout
 em outra aba. O caminho tem de terminar no login por redirect, **uma vez, sem laço**.
 
-O `catch` atual já faz isso (`aplicarUsuario(null)` e o guard leva ao login) e continua valendo —
-mas passa a ser exercitado de verdade, não só em teste (CA3). Era esse o medo que motivou o redirect
-permanente; a resposta não é evitar o silencioso, é garantir que a falha dele seja visível.
+**O que se reaproveita é o efeito, não o gatilho.** O corpo do tratamento de hoje — `aplicarUsuario(null)`,
+deixando o guard levar ao login — continua correto e é o que se quer executar. O que **não** serve é
+o gatilho: aquele `catch` está pendurado no `signinRedirect` manual do `aoExpirar`, e o erro da
+renovação automática é publicado por `_raiseSilentRenewError`, que **nunca passa por ele**.
+
+Concretamente: o efeito passa a ser chamado a partir de `addSilentRenewError`. Manter o `catch` onde
+está, sem esse gatilho, deixaria o CA3 sem implementação — a falha aconteceria e nada reagiria.
+
+Era esse o medo que motivou o redirect permanente; a resposta não é evitar o silencioso, é garantir
+que a falha dele seja **visível e tratada**.
 
 ## O que não muda
 
