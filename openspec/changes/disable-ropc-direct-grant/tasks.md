@@ -13,16 +13,22 @@
 
 ## 0. Pré-corte — levantamento
 
-- [ ] 0.1 **Responder Q1: alguém usa o password grant do `menthoros-web` fora do Apidog?** Script,
-      job agendado, integração antiga, coleção de outro dev. O corte é o momento em que isso aparece,
-      e aparece quebrando.
-      *verify:* levantamento registrado no proposal, ainda que a resposta seja "ninguém".
+- [x] 0.1 **Q1 — levantamento feito em 2026-08-05. Nada no código depende do password grant do
+      `menthoros-web`.** Varredura nos cinco repos por `grant_type` + `password`:
+      - `KeycloakOrganizationGatewayImpl:129` — o gateway admin, em `admin-cli`/`master`. Não é
+        alcançado pelo corte (CA3).
+      - `KeycloakOrganizationGatewayImplTest:60` — asserção sobre o form do gateway acima.
+      - **6 arquivos de documentação** do backend com exemplos `curl` de password grant. Todos usam
+        `client_id=menthoros-backend`, **um client que não existe** no realm atual (`menthoros-api`,
+        `menthoros-web`, `menthoros-test`). Já estão quebrados hoje, por motivo alheio a esta change.
+      ⚠️ **Limite do levantamento:** ele cobre o que está versionado. Script local, coleção de outro
+      dev ou job fora dos repos não aparecem aqui — só o time sabe.
 - [ ] 0.2 **Decidir Q2: o `menthoros-api` recebe `pkce.code.challenge.method: S256` junto?** Ele já
       está com `directAccessGrants: false`, mas sem o atributo de PKCE — mesma lacuna, client vizinho.
       *verify:* decisão registrada no proposal; se entrar, vira parte da task 3.1.
-- [ ] 0.3 **Confirmar acesso admin aos dois Keycloaks** antes de tocar em qualquer coisa. O acesso ao
-      Railway foi exercitado em 2026-08-05 (upgrade para 26.7.0); o do HomeLab, pelo `sync-realm.sh`.
-      *verify:* login admin bem-sucedido nos dois.
+- [x] 0.3 **Acesso admin confirmado nos dois** em 2026-08-05: token obtido no realm `master` do
+      HomeLab e do Railway. A **mesma senha** funcionou nos dois, confirmando o efeito previsto do
+      espelhamento do `keycloak-db` — o admin do Railway passou a ser o do HomeLab.
 - [ ] 0.4 **Capturar os valores EFETIVOS de `KEYCLOAK_ADMIN_TOKEN_REALM` e `KEYCLOAK_ADMIN_CLIENT_ID`
       em cada alvo** (CA3). Os defaults do `application.yml` são `master`/`admin-cli`, mas qualquer
       variável de ambiente os sobrescreve — e é o valor efetivo, não o default, que determina se o
@@ -33,6 +39,16 @@
       `application.yml`**, não "não configurado" — registrar como o default, explicitamente.
       *verify:* os dois valores registrados por ambiente. Se algum apontar para o realm `menthoros`,
       **PARE** — o corte alcançaria o gateway e o plano muda.
+
+      **Capturado em 2026-08-05 — nenhum alvo sobrescreve, os dois usam os defaults:**
+
+      | Alvo | `KEYCLOAK_ADMIN_TOKEN_REALM` | `KEYCLOAK_ADMIN_CLIENT_ID` |
+      |---|---|---|
+      | Railway `develop` | ausente → **`master`** | ausente → **`admin-cli`** |
+      | Local / HomeLab | `.env` vazio e o serviço `app` do compose não define nenhuma das duas → **`master`** | → **`admin-cli`** |
+
+      **Nenhum aponta para o realm `menthoros`. CA3 satisfeito:** o corte no `menthoros-web` não
+      alcança o gateway admin em nenhum ambiente.
 - [ ] 0.5 **Fotografar a representação COMPLETA do `menthoros-web` em cada alvo, pela Admin API,
       ANTES do primeiro sync** — `redirectUris`, `webOrigins`, scopes (default e opcional),
       **protocol mappers**, **flags de fluxo** (`standardFlow`, `directAccessGrants`,
@@ -41,6 +57,27 @@
       ⚠️ Capturar o **client inteiro**, não uma lista de campos escolhidos: o campo esquecido é
       exatamente o que ninguém vai notar sumindo.
       *verify:* JSON completo do client salvo por ambiente, comparável com o arquivo versionado.
+
+      **Capturado em 2026-08-05. Os dois alvos estão idênticos entre si e batem com o arquivo
+      versionado — zero drift:**
+
+      | Campo | HomeLab e Railway | Arquivo versionado |
+      |---|---|---|
+      | `redirectUris` | 3 (front dev, menthoros.com, localhost:5174) | iguais |
+      | `webOrigins` | 3 (mesmas origens) | iguais |
+      | `defaultClientScopes` | `acr, basic, email, profile, roles, web-origins` | iguais |
+      | `optionalClientScopes` | inclui **`organization`** | inclui |
+      | `protocolMappers` | nenhum | — |
+      | `directAccessGrants` / `standardFlow` | `true` / `true` | iguais |
+      | `pkce.code.challenge.method` | ausente | ausente |
+
+      **Consequência: o risco do sync pré-corte é hoje nulo** — não há nada no servidor que o arquivo
+      possa sobrescrever. O `organization` está declarado como optional scope no arquivo, então o
+      sync não o remove — e ele é justamente o que o front pede explicitamente
+      (`oidcConfig.ts:38`), sem o qual o token nasce sem `tenant_id`.
+      ⚠️ **Ressalva honesta:** os dois alvos estarem idênticos é em parte artefato do espelhamento do
+      `keycloak-db` feito em 2026-08-05. A validação das tasks 1.2/1.4 continua obrigatória — a foto
+      vale para hoje, não para o momento do sync.
 
 ## 1. Sync do realm — sem o corte
 
