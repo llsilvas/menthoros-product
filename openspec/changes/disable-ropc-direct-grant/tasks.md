@@ -30,7 +30,7 @@
 - [x] 0.3 **Acesso admin confirmado nos dois** em 2026-08-05: token obtido no realm `master` do
       HomeLab e do Railway. A **mesma senha** funcionou nos dois, confirmando o efeito previsto do
       espelhamento do `keycloak-db` — o admin do Railway passou a ser o do HomeLab.
-- [ ] 0.4 **Capturar os valores EFETIVOS de `KEYCLOAK_ADMIN_TOKEN_REALM` e `KEYCLOAK_ADMIN_CLIENT_ID`
+- [x] 0.4 **Capturar os valores EFETIVOS de `KEYCLOAK_ADMIN_TOKEN_REALM` e `KEYCLOAK_ADMIN_CLIENT_ID`
       em cada alvo** (CA3). Os defaults do `application.yml` são `master`/`admin-cli`, mas qualquer
       variável de ambiente os sobrescreve — e é o valor efetivo, não o default, que determina se o
       corte alcança o gateway admin.
@@ -50,7 +50,7 @@
 
       **Nenhum aponta para o realm `menthoros`. CA3 satisfeito:** o corte no `menthoros-web` não
       alcança o gateway admin em nenhum ambiente.
-- [ ] 0.5 **Fotografar a representação COMPLETA do `menthoros-web` em cada alvo, pela Admin API,
+- [x] 0.5 **Fotografar a representação COMPLETA do `menthoros-web` em cada alvo, pela Admin API,
       ANTES do primeiro sync** — `redirectUris`, `webOrigins`, scopes (default e opcional),
       **protocol mappers**, **flags de fluxo** (`standardFlow`, `directAccessGrants`,
       `serviceAccounts`, `implicitFlow`) e `attributes`. É a única forma de saber o que o sync
@@ -131,6 +131,12 @@
 - [ ] 2.1 Obter token pelo `menthoros-test` **nos dois alvos** e confirmar que o token nasce com
       `tenant_id` (o scope `organization` é DEFAULT nesse client, justamente para isso).
       *verify:* token emitido e claim de tenant presente, nos dois ambientes.
+      **Parcial em 2026-08-05:** ✅ **HomeLab OK** — token com `tenant_id`
+      `1b5ce37e-1ba1-415d-b19a-70cd2b30fe1e` (`assessoria-demo`), roles `ADMIN`/`TECNICO`.
+      ❌ **Railway falhou** com `unknown_error`, **por defeito alheio a esta change**: colisão do
+      client scope `organization` com a feature Organizations do Keycloak (ver 3.3). Enquanto isso
+      não for resolvido, a saída de emergência não está provada no Railway — **e a seção 5 não pode
+      começar**.
 - [ ] 2.2 Trocar o `client_id` na configuração do Apidog para `menthoros-test` e exercitar uma
       requisição autenticada de verdade.
       *verify:* requisição autenticada respondendo `200`, não `403` — o erro mais caro deste ambiente
@@ -148,12 +154,35 @@
       ⚠️ **Não tocar no `menthoros-test`** — o direct grant dele é proposital, é a porta do teste
       manual depois que o `menthoros-web` fechar a sua.
       *verify:* diff do arquivo afetando exatamente dois clients, e o `menthoros-test` intacto.
-- [ ] 3.2 Abrir PR no `menthoros-infra` e revisar **antes que qualquer servidor receba o corte**. O
+- [x] 3.2 **PR `menthoros-infra` #1 aberto em 2026-08-05** — `MERGEABLE`/`CLEAN`, aguardando merge.
+      Revisado pelo `security-reviewer`: nenhum Critical, um High (o `menthoros-test`, ver 3.3).
+      Abrir PR no `menthoros-infra` e revisar **antes que qualquer servidor receba o corte**. O
       `sync-realm.sh` aplica o JSON cegamente; o PR é a única revisão que existe entre o arquivo e o
       provedor de identidade.
       *(Redação corrigida em 2026-08-05: dizia "antes de qualquer servidor mudar", o que contradizia
       a seção 1 — os syncs pré-corte já mudam servidor de propósito. O que o PR precisa preceder é o
       corte, não toda mudança.)*
+
+## 3.3 Bloqueadores abertos antes da seção 4
+
+- [ ] 3.3a **`enabled: false` no `menthoros-test`** — decidido em 2026-08-05 após a auditoria de
+      segurança (achado High) e **ainda não aplicado**. O `standardFlow: false` não impede o ROPC:
+      o client é `publicClient`, com `organization` como scope DEFAULT e `fullScopeAllowed`, num
+      Keycloak exposto à internet. Sem isso, o corte fecha o ROPC no `menthoros-web` e o mantém
+      aberto sob outro `client_id`. Entra no PR #1 antes do merge.
+- [ ] 3.3b **Colisão do client scope `organization`** — investigada e **não resolvida** em
+      2026-08-06. Causa: com `organizationsEnabled: true`, o Keycloak decora o scope persistido
+      `organization` e depois colide consigo mesmo ao coletar por nome
+      (`IllegalStateException: Duplicate key organization`), devolvendo `unknown_error` de forma
+      intermitente na emissão de token.
+      ⚠️ **A correção pontual foi testada no HomeLab e NÃO funciona:** removido o scope persistido,
+      o nativo **não** assume o nome — `organization` deixa de existir e o token passa a ser recusado
+      com `invalid_scope`. Restaurado do backup e validado (3 tentativas com `tenant_id` correto).
+      Saídas possíveis, todas de escopo próprio: renomear o scope (toca `oidcConfig.ts:38` + realm),
+      desligar `organizationsEnabled` (provavelmente inviável — o `tenant_id` vem do
+      `oidc-organization-membership-mapper`), ou conviver com o erro intermitente.
+      **Bloqueia a validação confiável das seções 4 e 5:** um erro genérico durante o teste do corte
+      seria indistinguível de regressão causada por ele.
 
 ## 4. Aplicação no HomeLab
 
