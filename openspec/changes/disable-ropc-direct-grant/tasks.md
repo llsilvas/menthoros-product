@@ -165,7 +165,9 @@
 
 ## 3.3 Bloqueadores abertos antes da seção 4
 
-- [ ] 3.3a **`enabled: false` no `menthoros-test`** — decidido em 2026-08-05 após a auditoria de
+- [x] 3.3a **APLICADO em 2026-08-06** (`2a80a1b`, no PR #1). `enabled: false` no `menthoros-test`,
+      com a justificativa gravada na `description` do próprio client, para quem for ligá-lo entender
+      por que ele nasce desligado. — decidido em 2026-08-05 após a auditoria de
       segurança (achado High) e **ainda não aplicado**. O `standardFlow: false` não impede o ROPC:
       o client é `publicClient`, com `organization` como scope DEFAULT e `fullScopeAllowed`, num
       Keycloak exposto à internet. Sem isso, o corte fecha o ROPC no `menthoros-web` e o mantém
@@ -213,6 +215,14 @@
       são servidores diferentes, e o drift entre eles já apareceu antes.
 
 ## 6. Fechamento
+
+> **Estado em 2026-08-06: o corte está em `main` (`dba238a`), mas NÃO está em nenhum servidor.**
+> O `sync-realm.sh` é manual e não foi executado com o corte. As seções 4 e 5 seguem bloqueadas pela
+> 3.3b — enquanto o `unknown_error` intermitente existir, um erro durante a validação do corte é
+> indistinguível de regressão causada por ele, que é exatamente o que os CAs existem para descartar.
+>
+> **Consequência: a change não pode ser arquivada.** O código está entregue; o controle de segurança
+> só passa a valer quando o sync rodar nos dois alvos e os CAs forem verificados.
 
 - [ ] 6.1 Registrar o **rollback** no README do `menthoros-infra`: `directAccessGrantsEnabled: true` +
       sync devolve o grant; remover `pkce.code.challenge.method` reverte só o PKCE. São reversíveis
