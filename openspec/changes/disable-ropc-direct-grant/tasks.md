@@ -212,7 +212,19 @@
       antes.
       *verify:* Keycloak **recusa**. Ler a configuração no console não vale — o que importa é o
       provedor recusando.
-- [ ] 4.3 **CA2:** login completo pelo app — mesmo redirect, mesma sessão, mesmo destino.
+- [x] 4.3 **CA2 ✅ VERIFICADO em 2026-08-06** — fluxo Authorization Code + PKCE exercitado ponta a
+      ponta contra o HomeLab: etapa 1 (username) `200` → etapa 2 (password) `302` para
+      `http://localhost:5174/` com o `state` preservado → troca do `code` com `code_verifier`
+      devolvendo token `azp=menthoros-web`, `tenant_id` `1b5ce37e-…`, roles `ADMIN`/`TECNICO` e
+      `refresh_token`. Idêntico ao comportamento de antes do corte.
+      ⚠️ **Ressalva:** validado no nível do protocolo, contra o provedor — **não** é o app no
+      navegador. O código do front está mergeado e inalterado e a change só mexeu no IdP, então o
+      risco residual é baixo; a validação pela interface fica para quando o backend subir.
+      📌 **Achado não documentado antes:** o realm usa **login identity-first** — o primeiro
+      formulário só tem `username`, a senha vem numa segunda página. Enviar os dois juntos devolve
+      a própria página de login, sem erro visível. É o tipo de detalhe que faz teste de login
+      falhar sem explicar por quê.
+      **CA2:** login completo pelo app — mesmo redirect, mesma sessão, mesmo destino.
 - [x] 4.4 **CA4 ✅ VERIFICADO** — sem `code_challenge`: `302` com
       `error=invalid_request&error_description=Missing+parameter:+code_challenge_method`; com
       `code_challenge`: `200`. **CA4:** tentar autorizar sem `code_challenge`.
