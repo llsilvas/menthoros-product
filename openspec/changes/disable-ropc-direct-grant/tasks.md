@@ -244,8 +244,21 @@
 
 ## 5. Aplicação no Railway `develop`
 
-- [ ] 5.1 `sync-realm.sh` contra o Railway, com o corte. Só depois da seção 4 inteira verde.
-- [ ] 5.2 Repetir 4.2 a 4.5 contra o Railway. Ter passado no HomeLab não é evidência para o Railway —
+- [x] 5.1 **APLICADO no Railway `develop` em 2026-08-06.**
+      ⚠️ **A primeira execução devolveu `HTTP 500`** — o Postgres do Railway reiniciou **no meio do
+      sync** (`Connection refused` no log do Keycloak). Os clients já estavam no estado alvo, mas
+      "configuração lida" não é prova de sync completo: **reexecutado**, e a segunda passou limpa
+      em 20s. Idempotência do `keycloak-config-cli` confirmada na prática.
+- [x] 5.2 **CA1, CA2 e CA4 ✅ VERIFICADOS no Railway** em 2026-08-06:
+      - **CA1** — password grant: `unauthorized_client` ("Client not allowed for direct access
+        grants"), em duas tentativas.
+      - **CA4** — sem `code_challenge`: `302` com `Missing parameter: code_challenge_method`; com
+        `code_challenge`: `200`.
+      - **CA2** — fluxo PKCE completo: `302` para `https://menthoros-front-develop.up.railway.app/`
+        com `state` preservado, token `azp=menthoros-web`, `tenant_id` `1b5ce37e-…`, roles
+        `ADMIN`/`TECNICO`, `refresh_token` presente.
+      - **CA3** — os valores efetivos capturados na 0.4 não mudaram.
+      Repetir 4.2 a 4.5 contra o Railway. Ter passado no HomeLab não é evidência para o Railway —
       são servidores diferentes, e o drift entre eles já apareceu antes.
 
 ## 6. Fechamento
