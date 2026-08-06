@@ -89,6 +89,14 @@ não existir.
 servidor (`redirectUris`/`webOrigins`). Rodar o sync junto com o corte misturaria "o realm mudou" com
 "a segurança mudou" — e se algo quebrar, não se sabe qual dos dois foi.
 
+**E o passo 1 não é seguro só por não conter o corte.** Corrigido em 2026-08-05, após o passe
+adversarial: `no-delete` impede **apagar entidades** que só existam no alvo; não impede **sobrescrever
+o conteúdo** de entidades que existem nos dois lados. Um `redirectUri`, um `webOrigin`, um scope ou um
+protocol mapper presente no servidor e ausente do arquivo **é substituído**. O `menthoros-web`
+versionado tem três origins — se um alvo tiver mais, o sync os remove e o login quebra **sem que o
+corte tenha sido aplicado**. Por isso cada sync, inclusive o pré-corte, é seguido de validação do
+login do app, não só do `menthoros-test`.
+
 **O passo 2 vem antes do 4** porque é a saída de emergência. Validar o `menthoros-test` *depois* do
 corte é descobrir que a alternativa não funciona quando a original já morreu.
 

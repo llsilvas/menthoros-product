@@ -74,16 +74,42 @@ haverá corte a fazer, só um realm correto a aplicar.
   provedor recusando.
 - **CA2** — Dado o corte aplicado, quando o login normal é feito pelo app, então **funciona igual**:
   mesmo redirect, mesma sessão, mesmo destino.
-- **CA3** — Dado o corte aplicado, quando o backend cria organização no Keycloak durante o signup,
-  então **continua funcionando**. Regressão aqui quebraria o Bloco 3 inteiro.
-  *Evidência exigida:* `KeycloakOrganizationGatewayImplTest` verde **e** uma criação real de
-  organização exercitada contra o Keycloak, porque o teste é unitário e não prova o provedor.
+- **CA3** — Dado o corte aplicado, então o client e o realm que o gateway admin usa **não são os que
+  o corte toca**.
+  *Evidência exigida:* os valores **efetivos** de `KEYCLOAK_ADMIN_TOKEN_REALM` e
+  `KEYCLOAK_ADMIN_CLIENT_ID` capturados **em cada alvo** — não os defaults do `application.yml`, que
+  qualquer variável de ambiente sobrescreve — mais `KeycloakOrganizationGatewayImplTest` verde.
+  ⚠️ **Este critério é mais estreito que o original, e a diferença importa.** A redação anterior
+  exigia "uma criação real de organização", o que provaria o gateway *funcionando*; esta prova apenas
+  que o corte **não o alcança**. Não é a mesma garantia. A prova forte não é impossível em princípio
+  — é inalcançável **enquanto as credenciais do gateway não forem provisionadas**, o que é defeito
+  pré-existente e alheio a esta change (ver achado abaixo). Quando aquilo for corrigido, este
+  critério pode e deve voltar a ser o forte.
 - **CA4** — Dado o `pkce.code.challenge.method: S256`, quando um cliente tenta autorizar **sem**
   `code_challenge`, então o Keycloak recusa. Sem isso o PKCE segue opcional do lado do servidor e a
   garantia continua sendo do frontend, não do provedor.
 - **CA5** — Dado o teste manual de API (Apidog), quando o corte é aplicado, então ele **continua
   funcionando** trocando apenas o `client_id` para `menthoros-test`. Não é aceitável fechar esta
   change deixando o teste manual quebrado.
+
+## Achado do gate de DoR — o gateway admin já está quebrado, e não é culpa desta change
+
+Levantado em 2026-08-05, no passe adversarial do Codex e confirmado contra os ambientes. **As
+credenciais que o gateway admin usa não estão provisionadas em nenhum lugar:**
+
+| Alvo | `KEYCLOAK_SERVER_URL` | `KC_ADMIN_PASSWORD` | Efeito |
+|---|---|---|---|
+| Railway `develop` | ausente → `http://localhost:8080` | ausente → vazia | aponta para si mesmo, sem senha |
+| Local / HomeLab | `.env` do `menthoros-infra` vazio; o compose não passa nenhuma das duas ao serviço `app` | idem | o Keycloak sobe com `admin123`, o backend tenta com senha vazia |
+
+Ou seja: `KeycloakOrganizationGatewayImpl` não consegue obter token de admin em ambiente algum hoje.
+**É defeito pré-existente**, anterior a esta change e independente dela — mas ele torna a redação
+original do CA3 impossível de satisfazer, e é por isso que o critério foi reescrito.
+
+**A quem pertence:** ao `keycloak-user-onboarding-auth`, a próxima do Bloco 3, cujo signup depende
+inteiramente desse gateway para provisionar organização e usuário. Corrigir aqui seria feature creep
+numa change de duas linhas de configuração; **descobrir e não registrar seria pior.** Fica anotado
+para entrar como pré-condição daquela change.
 
 ## Métrica de sucesso
 
@@ -105,7 +131,7 @@ não medição — mas o CA1 não depende dela.
 |---|---|
 | 🔴 **Aplicar o corte de forma ampla derruba o signup.** O gateway admin (`KeycloakOrganizationGatewayImpl:129`) autentica por password grant para criar organização. Um corte largo, ou aplicado no client errado, quebra o Bloco 3 inteiro. | **Verificado em 2026-08-05 e o risco é menor do que o registrado:** o gateway usa `admin-cli` no realm **`master`** (`application.yml:344-345`), não um client do realm `menthoros`. O corte no `menthoros-web` **não tem como alcançá-lo**. Ainda assim, CA3 exige a verificação — a proteção é a evidência, não o raciocínio. |
 | 🔴 **Depois do corte, o rollback deixa de ser barato.** Até aqui bastava reverter o frontend. A partir daqui o rollback é reverter configuração de provedor de identidade, com acesso admin necessário. | Aplicar com janela e acesso admin garantidos aos dois alvos **antes** de começar. O rollback é `directAccessGrantsEnabled: true` no client e novo sync — anotar o comando na própria change, não descobrir sob pressão. |
-| **O `sync-realm.sh` aplica o JSON cegamente.** A política `no-delete` protege clients, groups, roles e users — não impede que um atributo errado no arquivo vire configuração errada no servidor. | O corte entra no arquivo versionado e é revisado em PR antes de qualquer sync. Sync contra HomeLab primeiro, validação completa, e só então o Railway. |
+| 🔴 **O sync pré-corte pode derrubar o login sozinho, antes de qualquer corte.** A política `no-delete` protege contra **apagar entidades** que só existam no alvo — ela **não protege nada dentro** de entidades existentes. `redirectUris`, `webOrigins`, scopes, protocol mappers e flags de fluxo de um client que já existe são **sobrescritos** pelo arquivo. O `menthoros-web` versionado lista três origins; se um alvo tiver origin ou redirect a mais, ele some no sync. E o drift não é hipótese: em 2026-08-04 o sync revelou exatamente essa divergência. | Validar o login do app **logo após cada sync**, incluindo o pré-corte (tasks 1.2 e 1.4). O erro que se quer pegar cedo é o `tenant_id` ausente — login parece bem-sucedido e a API devolve 403. Antes desta correção, as tasks validavam só o `menthoros-test` após o sync, e o app ficava sem cobertura justo na janela em que o servidor mudou. |
 | **O teste manual de API quebra silenciosamente.** Quem usa o Apidog com `menthoros-web` perde o acesso no instante do corte, sem aviso. | O client `menthoros-test` já resolve isso e **já está no arquivo versionado**, então o sync o cria nos dois alvos. Resta comunicar a troca de `client_id` (CA5). |
 | **Drift entre o realm versionado e o servidor.** Já aconteceu: em 2026-08-04 o sync revelou que `redirectUris`/`webOrigins` do servidor divergiam do arquivo. | O sync é justamente o que reconcilia. Rodar o sync **antes** do corte, como task separada, para que qualquer surpresa apareça sem estar misturada à mudança de segurança. |
 
