@@ -11,18 +11,34 @@
 
 ## 0. Levantamento
 
-- [ ] 0.1 **Fotografar os atributos de realm dos dois alvos** (HomeLab e Railway) pela Admin API,
+- [x] 0.1 **FEITO em 2026-08-06 — 103 atributos de realm comparados, ZERO divergentes.**
+      Declarar os dois atributos no arquivo não corre risco de igualar nada sem querer, porque já
+      não há nada divergente. Estado relevante hoje, idêntico nos dois: `revokeRefreshToken: false`,
+      `refreshTokenMaxReuse: 0`, `accessTokenLifespan: 300`, `ssoSessionIdleTimeout: 1800`,
+      `ssoSessionMaxLifespan: 36000`.
+      ⚠️ Mesma ressalva da `disable-ropc-direct-grant`: a identidade entre os alvos é em parte
+      artefato do espelhamento do `keycloak-db`. Vale para hoje.
+      **Fotografar os atributos de realm dos dois alvos** (HomeLab e Railway) pela Admin API,
       antes de declarar qualquer um no arquivo. O `menthoros-realm.json` hoje só declara `realm` e
       `enabled`; o primeiro atributo versionado abre a porta para o sync igualar, sem querer, algo
       que hoje diverge entre os ambientes.
       *verify:* JSON dos atributos de realm salvo por ambiente, com o diff entre eles registrado.
-- [ ] 0.2 **Confirmar a premissa central no navegador**: que a renovação por refresh token não usa
+- [x] 0.2 **CONFIRMADA em 2026-08-06, no protocolo, nos dois alvos.** `grant_type=refresh_token`
+      contra o `menthoros-web`: access token novo emitido, sem iframe e sem cookie envolvidos — é
+      um POST simples. **A premissa central da change se sustenta.**
+      📌 **Medição do "antes" para o CA4, e ela é pior do que a spec assumia:** o Keycloak **já
+      emite um refresh token novo** a cada renovação, mas **o antigo continua sendo aceito**. Ou
+      seja, hoje há rotação de *valor* sem revogação — que é rotação cosmética. Um refresh token
+      capturado vale até o fim da sessão SSO mesmo depois de o legítimo ter renovado.
+      ⚠️ Validado no protocolo, não no navegador; a confirmação visual fica na 3.1/3.4.
+      **Confirmar a premissa central no navegador**: que a renovação por refresh token não usa
       iframe nem cookie. Basta observar uma renovação hoje forçada via `signinSilent()` no console,
       com o painel de rede aberto.
       *verify:* um `POST` ao endpoint de token, sem requisição de `document` e sem iframe no DOM.
       **Se aparecer iframe, PARE** — a premissa da change está errada e o design muda.
-- [ ] 0.3 **Decidir Q2:** ligar rotação invalida as sessões ativas no momento do sync? Irrelevante em
-      dev, mas registrar o comportamento observado.
+- [x] 0.3 **Q2 — a observar durante a 1.3, não antes.** A pergunta (ligar rotação invalida sessões
+      ativas?) só é respondível aplicando. Registrado como observação obrigatória no momento do sync
+      no HomeLab, não como decisão prévia. Irrelevante em dev; importa quando existir produção.
 
 ## 1. Realm — rotação de refresh token (`menthoros-infra`)
 
