@@ -23,7 +23,7 @@ Estado verificado em 2026-08-05 no arquivo versionado:
 | Client | `directAccessGrants` | `standardFlow` | `pkce.code.challenge.method` |
 |---|:---:|:---:|---|
 | `menthoros-web` | **`true`** ← alvo | `true` | **ausente** ← alvo |
-| `menthoros-api` | `false` | `true` | ausente *(ver Q2)* |
+| `menthoros-api` | `false` | `true` | ausente → **recebe `S256`** *(Q2 decidida: sim, 2026-08-05)* |
 | `menthoros-test` | `true` *(proposital)* | `false` | ausente *(não se aplica)* |
 
 ## Decisão 1 — Só o `menthoros-web`
@@ -32,7 +32,38 @@ O `menthoros-test` **mantém** o direct grant: ele existe exatamente para ser a 
 de API depois que o `menthoros-web` fechar a dele. Tem `standardFlow` desabilitado justamente para
 não virar uma segunda porta de entrada real.
 
-O `menthoros-api` já está com o grant fechado.
+O `menthoros-api` já está com o grant fechado, e **recebe o `S256` junto** (Q2 decidida em
+2026-08-05): mesma lacuna, client vizinho, fechada na mesma janela para não exigir uma segunda rodada
+de sync e validação num provedor de identidade.
+
+### ⚠️ O que esta fronteira NÃO fecha — achado da auditoria de segurança (2026-08-05)
+
+O `menthoros-test` mantém `directAccessGrantsEnabled: true`. A justificativa acima — `standardFlow`
+desabilitado, "não vira uma segunda porta de entrada real" — **estava errada quanto ao risco que
+importa.** `standardFlow` desabilitado impede o fluxo de browser; **não impede o ROPC**, que é
+exatamente o vetor que esta change existe para eliminar.
+
+Estado verificado do `menthoros-test`:
+
+```
+publicClient          true      ← não exige secret de client
+directAccessGrants    true      ← ROPC ativo
+organization          DEFAULT   ← token nasce com tenant_id, sem pedir
+fullScopeAllowed      true      ← todas as roles do realm
+```
+
+E o Keycloak de dev é **acessível pela internet**: o endpoint de token responde `400` (credencial
+inválida) para `client_id=menthoros-test`, provando que o client aceita direct grant de qualquer
+origem.
+
+**Resultado líquido, dito sem eufemismo:** o corte fecha o ROPC onde promete e o mantém aberto sob
+outro `client_id`, num ambiente exposto, com claim de tenant automático e escopo completo, sem MFA.
+Quem tiver um par usuário/senha válido continua obtendo token sem passar pelo app.
+
+O realm também não tem `bruteForceProtected`, `passwordPolicy` nem required action de OTP — o
+arquivo versionado define apenas `realm` e `enabled` no nível de realm. O MFA que esta change
+"destrava" não está configurado em lugar rastreável, e não há rate limiting versionado contra o
+endpoint que fica aberto.
 
 **Por que essa fronteira importa mais do que parece.** O `SPRINTS.md` alerta que o gateway admin usa
 password grant e que um corte largo quebraria o signup do Bloco 3. Verificando o código em
