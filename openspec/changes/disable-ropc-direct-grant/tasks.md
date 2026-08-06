@@ -199,17 +199,28 @@
 
 ## 4. Aplicação no HomeLab
 
-- [ ] 4.1 `sync-realm.sh` contra o HomeLab, agora com o corte.
+- [x] 4.1 **APLICADO no HomeLab em 2026-08-06.** `keycloak-config-cli` 6.5.1 contra Keycloak 26.7.0,
+      sem erro. ⚠️ **A primeira tentativa falhou** com `HTTP 500` -> `value too long for type character
+      varying(255)`: a `description` do `menthoros-test` tinha 442 caracteres desde o PR #1, o que
+      tornava o corte **insincronizável desde o merge**. Corrigido no PR #3 (descrição em 251 chars,
+      detalhe movido para `keycloak/README.md`). `sync-realm.sh` contra o HomeLab, agora com o corte.
       ⚠️ **A partir daqui o rollback deixa de ser barato** — deixa de ser reverter o frontend e passa
       a ser reverter configuração de IdP, com acesso admin, sob pressão.
-- [ ] 4.2 **CA1:** tentar `grant_type=password` no `menthoros-web` com credenciais que funcionavam
+- [x] 4.2 **CA1 ✅ VERIFICADO** — `{"error":"unauthorized_client","error_description":"Client not
+      allowed for direct access grants"}`. A mesma chamada devolvia token com `ADMIN`/`TECNICO` e
+      `tenant_id` horas antes. **CA1:** tentar `grant_type=password` no `menthoros-web` com credenciais que funcionavam
       antes.
       *verify:* Keycloak **recusa**. Ler a configuração no console não vale — o que importa é o
       provedor recusando.
 - [ ] 4.3 **CA2:** login completo pelo app — mesmo redirect, mesma sessão, mesmo destino.
-- [ ] 4.4 **CA4:** tentar autorizar sem `code_challenge`.
+- [x] 4.4 **CA4 ✅ VERIFICADO** — sem `code_challenge`: `302` com
+      `error=invalid_request&error_description=Missing+parameter:+code_challenge_method`; com
+      `code_challenge`: `200`. **CA4:** tentar autorizar sem `code_challenge`.
       *verify:* Keycloak recusa. Sem isso o PKCE segue opcional no servidor.
-- [ ] 4.5 **CA3:** confirmar que o gateway admin segue apontando para outro realm/client (valores da
+- [x] 4.5 **CA3 ✅ VERIFICADO** — `token-realm: master` e `client-id: admin-cli` inalterados; o corte
+      não os alcança. Também conferido pós-sync: `redirectUris`, `webOrigins` e o optional scope
+      `organization` do `menthoros-web` **preservados** — o `no-delete` não sobrescreveu nada.
+      **CA3:** confirmar que o gateway admin segue apontando para outro realm/client (valores da
       0.4 inalterados após o sync) e rodar `KeycloakOrganizationGatewayImplTest`.
       *verify:* `token-realm` e `client-id` efetivos inalterados; teste verde.
       ⚠️ **Não exigir criação real de organização.** O gate de DoR de 2026-08-05 descobriu que o
