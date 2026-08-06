@@ -172,19 +172,30 @@
       o client é `publicClient`, com `organization` como scope DEFAULT e `fullScopeAllowed`, num
       Keycloak exposto à internet. Sem isso, o corte fecha o ROPC no `menthoros-web` e o mantém
       aberto sob outro `client_id`. Entra no PR #1 antes do merge.
-- [ ] 3.3b **Colisão do client scope `organization`** — investigada e **não resolvida** em
-      2026-08-06. Causa: com `organizationsEnabled: true`, o Keycloak decora o scope persistido
-      `organization` e depois colide consigo mesmo ao coletar por nome
-      (`IllegalStateException: Duplicate key organization`), devolvendo `unknown_error` de forma
-      intermitente na emissão de token.
-      ⚠️ **A correção pontual foi testada no HomeLab e NÃO funciona:** removido o scope persistido,
-      o nativo **não** assume o nome — `organization` deixa de existir e o token passa a ser recusado
-      com `invalid_scope`. Restaurado do backup e validado (3 tentativas com `tenant_id` correto).
-      Saídas possíveis, todas de escopo próprio: renomear o scope (toca `oidcConfig.ts:38` + realm),
-      desligar `organizationsEnabled` (provavelmente inviável — o `tenant_id` vem do
-      `oidc-organization-membership-mapper`), ou conviver com o erro intermitente.
-      **Bloqueia a validação confiável das seções 4 e 5:** um erro genérico durante o teste do corte
-      seria indistinguível de regressão causada por ele.
+- [x] 3.3b **RESOLVIDO em 2026-08-06 — causa raiz reproduzida em laboratório.** O gatilho é o client
+      ter `organization` como scope **DEFAULT** *e* a requisição também pedir `scope=organization`:
+      o Keycloak coloca no mesmo mapa, chaveado por nome, o scope atribuído e o `ClientScopeDecorator`
+      que cria para o scope pedido → `IllegalStateException: Duplicate key organization`.
+
+      Realm descartável na 26.7, 40 chamadas por bateria (criado e removido; o `menthoros` não foi
+      alterado):
+
+      | Bateria | Configuração | Resultado |
+      |---|---|---|
+      | A | mapper nativo · optional · pedindo | 40 ok · 0 erros |
+      | B | nossa config do mapper · optional · pedindo | 40 ok · 0 erros |
+      | C | nossa config · **DEFAULT · pedindo** | **0 ok · 40 erros** |
+      | D | nossa config · DEFAULT · sem pedir | 40 ok · 0 erros, claim presente |
+
+      **Só o `menthoros-test` tem o scope como DEFAULT.** `menthoros-web` e `menthoros-api` o têm
+      como optional e por isso nunca falharam — **a colisão nunca afetou o corte do ROPC.**
+      Correção documentada na `description` do client (PR `menthoros-infra` **#2**).
+
+      Hipóteses descartadas por experimento: não é bug genérico da 26.7 (A e D limpas); não é a nossa
+      customização do mapper (B limpa); apagar o scope ou remover a atribuição do client fazem o
+      `organization` deixar de existir (`invalid_scope`), ambas testadas e revertidas.
+
+      ✅ **As seções 4 e 5 estão destravadas.**
 
 ## 4. Aplicação no HomeLab
 
@@ -217,12 +228,14 @@
 ## 6. Fechamento
 
 > **Estado em 2026-08-06: o corte está em `main` (`dba238a`), mas NÃO está em nenhum servidor.**
-> O `sync-realm.sh` é manual e não foi executado com o corte. As seções 4 e 5 seguem bloqueadas pela
-> 3.3b — enquanto o `unknown_error` intermitente existir, um erro durante a validação do corte é
-> indistinguível de regressão causada por ele, que é exatamente o que os CAs existem para descartar.
+> O `sync-realm.sh` é manual e não foi executado com o corte — o `menthoros-web` **segue aceitando
+> `grant_type=password`** nos dois alvos.
 >
-> **Consequência: a change não pode ser arquivada.** O código está entregue; o controle de segurança
-> só passa a valer quando o sync rodar nos dois alvos e os CAs forem verificados.
+> A 3.3b foi resolvida e **as seções 4 e 5 estão liberadas**. O que falta é operação: rodar o sync no
+> HomeLab, validar os CAs, e só então o Railway.
+>
+> **A change só pode ser arquivada depois disso.** O código está entregue; o controle de segurança
+> passa a valer quando o provedor recusar o grant.
 
 - [ ] 6.1 Registrar o **rollback** no README do `menthoros-infra`: `directAccessGrantsEnabled: true` +
       sync devolve o grant; remover `pkce.code.challenge.method` reverte só o PKCE. São reversíveis
