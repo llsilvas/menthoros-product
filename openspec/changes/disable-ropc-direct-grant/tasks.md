@@ -108,19 +108,19 @@
 > nos dois lados. Um `redirectUri` ou `webOrigin` presente no servidor e ausente do arquivo **some
 > aqui** — e o login quebra antes de qualquer corte. Daí a validação do app após cada sync.
 
-- [ ] 1.1 Rodar `sync-realm.sh` contra o **HomeLab**, com o realm **ainda sem o corte**, e registrar
+- [x] ⏭️ 1.1 *(dispensada — ver cabeçalho da seção)* Rodar `sync-realm.sh` contra o **HomeLab**, com o realm **ainda sem o corte**, e registrar
       o que mudou (comparando com a foto da 0.5). Isso reconcilia drift e leva o client
       `menthoros-test`, que já está no arquivo versionado.
       ⚠️ **Conferir o alvo no `.env.sync` antes de rodar** — o script aplica em quem estiver lá, sem
       pedir confirmação.
       *verify:* sync sem erro; diff do que mudou registrado.
-- [ ] 1.2 **Login completo do app contra o HomeLab, imediatamente após o sync.**
+- [x] ⏭️ 1.2 *(dispensada; a validação equivalente foi feita na 4.3)* **Login completo do app contra o HomeLab, imediatamente após o sync.**
       *verify:* login conclui **e** uma chamada autenticada à API responde `200`. O `403` é o modo de
       falha caro aqui: sem o scope `organization`, o token nasce sem `tenant_id`, o login parece ter
       dado certo e tudo devolve 403.
-- [ ] 1.3 Mesmo sync contra o **Railway `develop`**.
+- [x] ⏭️ 1.3 *(dispensada)* Mesmo sync contra o **Railway `develop`**.
       *verify:* `menthoros-test` presente no realm do Railway, confirmado pela Admin API.
-- [ ] 1.4 **Repetir a 1.2 contra o Railway.** Ter passado no HomeLab não é evidência para o Railway —
+- [x] ⏭️ 1.4 *(dispensada; equivalente feito na 5.2)* **Repetir a 1.2 contra o Railway.** Ter passado no HomeLab não é evidência para o Railway —
       são servidores diferentes, e o drift entre eles já apareceu antes.
 
 ## 2. Saída de emergência — antes de fechar a porta
@@ -128,7 +128,13 @@
 > Validar a alternativa **depois** do corte é descobrir que ela não funciona quando a original já
 > morreu.
 
-- [ ] 2.1 Obter token pelo `menthoros-test` **nos dois alvos** e confirmar que o token nasce com
+- [x] 2.1 **ENCERRADA em 2026-08-06 com o resultado invertido pela auditoria de segurança.**
+      ✅ HomeLab validado em 2026-08-05: token com `tenant_id` `1b5ce37e-…` e roles `ADMIN`/`TECNICO`.
+      ❌ Railway falhou à época pela colisão do scope `organization` (resolvida depois, task 3.3b).
+      ⚠️ **A premissa mudou:** o `menthoros-test` agora nasce `enabled: false` (achado High), e hoje
+      responde `invalid_client` nos dois alvos — **por decisão, não por defeito**. A saída de
+      emergência existe, mas exige ligar o client conscientemente no alvo onde se vai testar.
+      Obter token pelo `menthoros-test` **nos dois alvos** e confirmar que o token nasce com
       `tenant_id` (o scope `organization` é DEFAULT nesse client, justamente para isso).
       *verify:* token emitido e claim de tenant presente, nos dois ambientes.
       **Parcial em 2026-08-05:** ✅ **HomeLab OK** — token com `tenant_id`
@@ -137,11 +143,17 @@
       client scope `organization` com a feature Organizations do Keycloak (ver 3.3). Enquanto isso
       não for resolvido, a saída de emergência não está provada no Railway — **e a seção 5 não pode
       começar**.
-- [ ] 2.2 Trocar o `client_id` na configuração do Apidog para `menthoros-test` e exercitar uma
+- [ ] 2.2 **AÇÃO DO TIME, não bloqueante.** Trocar o `client_id` no Apidog para `menthoros-test`,
+      **ligar o client** no alvo (nasce desligado) e **não passar `organization` no `scope`** (é
+      DEFAULT ali e pedir quebra). Procedimento em `menthoros-infra/keycloak/README.md`. Trocar o `client_id` na configuração do Apidog para `menthoros-test` e exercitar uma
       requisição autenticada de verdade.
       *verify:* requisição autenticada respondendo `200`, não `403` — o erro mais caro deste ambiente
       é o login parecer bem-sucedido e tudo devolver 403.
-- [ ] 2.3 Comunicar a troca de `client_id` a quem usa o teste manual (CA5).
+- [ ] 2.3 **AÇÃO DO TIME.** Comunicar a troca de `client_id` a quem usa o teste manual (CA5).
+      ⚠️ **CA5 foi parcialmente superado:** ele exigia que o teste manual "continuasse funcionando"
+      trocando só o `client_id`. Com o `menthoros-test` desligado por padrão, passou a exigir também
+      ligar o client. É custo aceito conscientemente em troca de não deixar o vetor ROPC aberto na
+      internet — registrado aqui para não parecer regressão silenciosa.
 
 ## 3. O corte
 
@@ -278,7 +290,9 @@
       antes, não durante uma queda de login. Registrar o **rollback** no README do `menthoros-infra`: `directAccessGrantsEnabled: true` +
       sync devolve o grant; remover `pkce.code.challenge.method` reverte só o PKCE. São reversíveis
       de forma independente.
-- [ ] 6.2 Atualizar o `SPRINTS.md`: a linha "🔴 Corte do ROPC" do Bloco 3 passa a apontar para esta
+- [x] 6.2 **Feito em 2026-08-06.** A linha do Bloco 3 passa a **APLICADO E VALIDADO**, com as três
+      armadilhas que só o sync real revelou e a pendência do gateway admin roteada.
+      Atualizar o `SPRINTS.md`: a linha "🔴 Corte do ROPC" do Bloco 3 passa a apontar para esta
       change, e a pendência herdada da `migrate-login-to-authorization-code-pkce` fica encerrada.
 - [x] 6.3 **Registrado no `proposal.md`** (seção "Correção de escopo — produção não existe"):
       quando a infra nascer, aplica o realm versionado já com o corte. Registrar que **produção não requer ação** — quando a infra nascer, aplica o realm
