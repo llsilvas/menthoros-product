@@ -129,3 +129,51 @@ zone`. O padrão do módulo pede `TIMESTAMPTZ` em tabela nova; não replicar a d
 
 **Versão:** a última migration é a `V74`; esta é a **`V75`** — conferir antes de escrever, o número
 anda.
+
+
+## Decisões de arquitetura (task 1.2), tomadas em 2026-08-07
+
+### Tenant no Keycloak: **Organizations**, não grupo/atributo
+
+Não é escolha de opinião — é o caminho já implementado:
+
+```
+gateway   POST /admin/realms/{realm}/organizations
+          POST /admin/realms/{realm}/organizations/{orgId}/members/invite-user
+realm     organizationsEnabled: true
+token     organization: { <alias>: { tenant_id: [...], id: ... } }
+```
+
+Organization é primitiva de multi-tenancy: membros, convites, casamento por domínio, IdP por
+organização. Grupo é hierarquia genérica de autorização — escolhê-lo significaria reconstruir à mão
+o que a feature entrega pronta, e o `SPRINTS.md` registra a migração Groups→Organizations como
+pendente (ou seja, andar para trás).
+
+**Três restrições que vêm junto, registradas para não virarem surpresa:**
+
+1. **Um usuário, uma organização.** Há bugs conhecidos do Keycloak quando o usuário pertence a mais
+   de uma (a claim `organization` some — keycloak#43635, #35830). O modelo do produto é um coach por
+   assessoria, então não morde; **modelar usuário em duas assessorias exige revisitar isto**.
+2. **`organization` é optional client scope.** Se o cliente não pedir, o token sai sem `tenant_id`, o
+   login conclui normalmente e **tudo responde 403**. Coberto por teste no front; manter assim.
+3. **A feature é nova (KC 26) e tem arestas.** Em 2026-08-07 uma colisão do client scope
+   `organization` produzia `unknown_error` intermitente na emissão de token.
+
+📌 **A coluna `keycloak_group_id` (UNIQUE) em `tb_assessoria` é dívida legada.** Não usar em código
+novo. E, verificado no mesmo dia: a única assessoria de dev está com `keycloak_organization_id` **e**
+`keycloak_group_id` vazios — o vínculo nunca foi persistido, o que confirma que **o provisionamento
+jamais rodou ponta a ponta em dados reais**.
+
+### Verificação de e-mail: `verifyEmail: true` no realm
+
+**Decisão do CTO: desconsiderar os cadastros existentes.** Isso remove o que tornava a questão
+espinhosa — a política retroativa sobre usuários já criados com `email_verified: false`.
+
+Com isso, `verifyEmail: true` passa a ser configuração de realm, versionada no
+`menthoros-realm.json` como os demais atributos, e o fluxo nativo do Keycloak dispara a verificação.
+A pré-condição de SMTP foi resolvida em 2026-08-07.
+
+⚠️ **Ligar `verifyEmail` é retroativo por natureza** — vale para todos os usuários do realm, não só
+para os novos. A decisão de desconsiderar os existentes é o que torna isso aceitável; se algum
+usuário legado precisar continuar entrando, ele terá de verificar o e-mail ou ser marcado como
+verificado à mão.

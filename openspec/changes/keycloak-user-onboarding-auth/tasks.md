@@ -50,7 +50,15 @@
 ## 1. Discovery e decisões
 
 - [ ] 1.1 Mapear OIDC/PKCE, claims de role/tenant, modelo Keycloak, serviços/repositórios e contratos de erro existentes; registrar caminhos reais e decisões.
-- [ ] 1.2 Decidir e documentar em ADR curto: container de tenant, verificação de e-mail, estado de provisionamento, compensação/reconciliação e proteção anti-abuso.
+- [ ] 1.2 Decidir e documentar em ADR curto: ~~container de tenant~~, ~~verificação de e-mail~~,
+      ~~estado de provisionamento~~, compensação/reconciliação e proteção anti-abuso.
+      **Três já decididas em 2026-08-07 e registradas no `design.md`:**
+      - **tenant = Organizations** (não grupo/atributo) — é o caminho já implementado no gateway;
+        vêm juntas as restrições de um-usuário-uma-organização e do scope optional.
+      - **`verifyEmail: true` no realm**, desconsiderando os cadastros existentes (decisão do CTO).
+      - **estado de provisionamento** = tabela `tb_signup_provisioning` (V75), esboçada no design.
+      Restam **compensação/reconciliação** (detalhe operacional do runbook) e **anti-abuso**
+      (ligado à 2.6: generalizar o `WaitlistRateLimitFilter` ou criar outro).
 - [x] 1.3 **FEITO em 2026-08-07 — `spec.md` reescrito.** A versão anterior especificava
       `POST /api/public/auth/login` com `username`/`password` devolvendo `accessToken`, e
       `POST /api/admin/usuarios` — ou seja, **ROPC**, o grant desligado no realm em 2026-08-06.
