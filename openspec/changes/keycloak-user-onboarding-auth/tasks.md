@@ -51,7 +51,13 @@
 
 - [ ] 1.1 Mapear OIDC/PKCE, claims de role/tenant, modelo Keycloak, serviços/repositórios e contratos de erro existentes; registrar caminhos reais e decisões.
 - [ ] 1.2 Decidir e documentar em ADR curto: container de tenant, verificação de e-mail, estado de provisionamento, compensação/reconciliação e proteção anti-abuso.
-- [ ] 1.3 Revisar o arquivo `specs/keycloak-user-onboarding-auth/spec.md`, que atualmente descreve login público por senha e provisionamento administrativo, e alinhá-lo ao signup público desta change antes de implementar.
+- [x] 1.3 **FEITO em 2026-08-07 — `spec.md` reescrito.** A versão anterior especificava
+      `POST /api/public/auth/login` com `username`/`password` devolvendo `accessToken`, e
+      `POST /api/admin/usuarios` — ou seja, **ROPC**, o grant desligado no realm em 2026-08-06.
+      Como `specs/` vira contrato canônico ao arquivar, aquilo consagraria de volta o que a
+      `disable-ropc-direct-grant` eliminou. Agora especifica o signup público, PKCE para o login,
+      a travessia dos filtros, a compensação em ordem inversa, a verificação de e-mail nativa e
+      o anti-abuso.
 
 ## 2. Backend
 
@@ -59,8 +65,22 @@
 - [ ] 2.2 Criar constraints/migração e, conforme ADR, estado/tabela de provisionamento e idempotência; validar com dados concorrentes.
 - [ ] 2.3 Adaptar o gateway Keycloak existente para criar, consultar, habilitar/desabilitar e remover tenant/usuário, atribuir role/claim e enviar verify-email.
 - [ ] 2.4 Implementar orquestrador idempotente, plano BASIC (`maxAtletas=10`, `maxTecnicos=1`), compensações e registro para reconciliação; não confiar em `@Transactional` para Keycloak.
+- [ ] 2.4b **Isentar `/api/public/**` no `JwtTenantFilter`** — hoje ele isenta apenas
+      `/api/admin/**` e o caminho **exato** `/api/v1/waitlist` (`JwtTenantFilter:69`). O front
+      injeta `Authorization` globalmente, então um token residual **sem `tenant_id`** derruba o
+      cadastro com 403 — e o sintoma não aponta para o filtro.
+      ⚠️ Seguir o padrão do waitlist: match **exato** ou prefixo deliberado, com comentário
+      explicando por que a rota é tenant-less. O `LgpdConsentInterceptor` **não** precisa mudar:
+      ele já libera requisição sem JWT/sem tenant — mas depende deste filtro não rejeitar antes.
+      *verify:* cadastro com `Authorization` residual de outra sessão responde normalmente.
 - [ ] 2.5 Implementar `POST /api/public/coach-signups` com respostas `201/400/409/429/502/503`, feature flag, limite de corpo e sem tokens na resposta.
-- [ ] 2.6 Implementar rate limit distribuído e a proteção anti-bot decidida; configurar CORS/CSRF e service account de menor privilégio.
+- [ ] 2.6 **Rate limit — decidir ANTES de implementar: generalizar o `WaitlistRateLimitFilter`
+      ou criar outro.** Já existe proteção por IP em `/api/v1/waitlist`, contando por
+      `getRemoteAddr()` e não pelo XFF cru (que é falsificável) — a correção veio da
+      `harden-waitlist-rate-limit`. Criar um segundo mecanismo sem decidir produz **duas
+      políticas divergentes** para o mesmo tipo de rota pública.
+      Implementar a proteção anti-bot decidida; configurar CORS/CSRF e service account de menor
+      privilégio.
 - [ ] 2.7 Adicionar logs estruturados por correlation ID, métricas sem senha/token e alerta/runbook para `RECONCILIATION_REQUIRED`.
 - [ ] 2.8 Testar validação, idempotência, corridas, cada ponto de falha/compensação e ausência de segredos em logs/respostas.
 - [ ] 2.9 Executar `./mvnw clean test`, migrações e testes de integração com Keycloak efêmero; registrar resultados.

@@ -1,72 +1,153 @@
+# Capability — keycloak-user-onboarding-auth
+
+> **Reescrita em 2026-08-07.** A versão anterior especificava
+> `POST /api/public/auth/login` recebendo `username`/`password` e devolvendo `accessToken`, além de
+> `POST /api/admin/usuarios` para provisionamento administrativo. Isso é **Resource Owner Password
+> Credentials** — o grant que a `disable-ropc-direct-grant` desligou no realm em 2026-08-06, e que a
+> própria proposal desta change proíbe.
+>
+> Como `specs/` vira contrato canônico no arquivamento, manter aquele texto consagraria de volta o
+> que acabamos de eliminar. O gate de DoR reprovou por isso, em dois revisores independentes.
+
 ## ADDED Requirements
 
-### Requirement: Backend MUST expor endpoint de login público integrado ao Keycloak
-O sistema SHALL aceitar credenciais de login via endpoint público backend e autenticar o usuário no Keycloak, retornando token de acesso no contrato padrão do Menthoros.
+### Requirement: Backend MUST expor endpoint público de auto-cadastro de assessoria
 
-#### Scenario: Login com credenciais válidas
-- **WHEN** `POST /api/public/auth/login` recebe `username` e `password` válidos
-- **THEN** o backend autentica no Keycloak e retorna `200` com `accessToken`, `tokenType` e `expiresIn`
+O sistema SHALL aceitar o cadastro público de um coach e sua assessoria em uma única requisição, e
+MUST provisionar, de forma coordenada, a `Assessoria` local, a organização e o usuário no Keycloak, e
+o `Usuario` local.
 
-#### Scenario: Login com credenciais inválidas
-- **WHEN** `POST /api/public/auth/login` recebe credenciais inválidas
-- **THEN** o backend retorna `401` com mensagem funcional de credenciais inválidas
+O endpoint MUST NOT retornar token de acesso, refresh token ou senha. A autenticação subsequente
+acontece **exclusivamente** pelo fluxo Authorization Code + PKCE já existente no frontend.
 
-#### Scenario: Falha de integração com Keycloak no login
-- **WHEN** o Keycloak está indisponível ou falha durante autenticação
-- **THEN** o backend retorna erro de upstream (`502` ou `503`) sem expor detalhes internos sensíveis
+#### Scenario: Cadastro com dados válidos
+- **WHEN** `POST /api/public/coach-signups` recebe nome, e-mail, senha, nome da assessoria e slug válidos e disponíveis
+- **THEN** o sistema cria a `Assessoria` no plano BASIC (`maxAtletas=10`, `maxTecnicos=1`), provisiona organização/usuário/role no Keycloak, cria o `Usuario` local e retorna `201` **sem token algum no corpo**
 
----
+#### Scenario: Slug já em uso
+- **WHEN** o slug informado já pertence a outra assessoria
+- **THEN** o sistema retorna `409` e **não** cria nada — nem local, nem no Keycloak
 
-### Requirement: Backend MUST provisionar usuário no Keycloak vinculado ao tenant correto
-O sistema SHALL permitir criação administrativa de usuário e MUST refletir o vínculo de tenant para que o JWT emitido contenha `tenant_id` compatível com o enforcement multi-tenant.
+#### Scenario: E-mail já cadastrado
+- **WHEN** o e-mail já existe como usuário
+- **THEN** o sistema retorna `409` sem criar duplicidade e **sem revelar** se o e-mail existe por outro canal que não a própria resposta do cadastro
 
-#### Scenario: Criação de usuário com sucesso
-- **WHEN** `POST /api/admin/usuarios` recebe payload válido com `tenantId` existente
-- **THEN** o backend cria usuário no Keycloak, configura senha/roles, sincroniza `tb_usuario` e retorna `201`
-
-#### Scenario: Conflito de usuário já existente
-- **WHEN** o email ou username já existe no Keycloak
-- **THEN** o backend retorna `409` com mensagem de conflito sem criar duplicidade local
-
-#### Scenario: Tenant inexistente
-- **WHEN** `POST /api/admin/usuarios` recebe `tenantId` inexistente
-- **THEN** o backend retorna `404` e não cria usuário no Keycloak
+#### Scenario: Reenvio da mesma requisição (idempotência)
+- **WHEN** a mesma requisição é submetida duas vezes (duplo clique, retry de rede) com a mesma chave de idempotência
+- **THEN** o sistema retorna o mesmo resultado da primeira, **sem** criar segunda assessoria, segunda organização ou segundo usuário
 
 ---
 
-### Requirement: Endpoint de provisionamento MUST ser restrito a administradores
-O sistema SHALL exigir perfil administrativo para criação de usuários, bloqueando usuários sem permissão.
+### Requirement: O login após o cadastro MUST usar Authorization Code + PKCE
 
-#### Scenario: Admin cria usuário
-- **WHEN** um usuário autenticado com role administrativa chama `POST /api/admin/usuarios`
-- **THEN** a operação é autorizada e processada normalmente
+O sistema SHALL NOT expor endpoint de login por senha no backend. O backend **não** intermedeia
+credenciais: quem autentica é o Keycloak, pelo fluxo de redirecionamento que o frontend já
+implementa.
 
-#### Scenario: Usuário sem permissão tenta criar usuário
-- **WHEN** um usuário sem role administrativa chama `POST /api/admin/usuarios`
-- **THEN** o backend retorna `403`
+#### Scenario: Usuário conclui o cadastro e entra
+- **WHEN** o cadastro retorna `201` e o usuário decide entrar
+- **THEN** o frontend inicia o fluxo Authorization Code + PKCE contra o Keycloak, **por ação do usuário**, e nenhuma senha trafega pelo backend
 
----
-
-### Requirement: Sistema MUST evitar inconsistência entre Keycloak e base local em falhas parciais
-O sistema SHALL aplicar estratégia de compensação quando a criação no Keycloak ocorre mas a persistência local falha.
-
-#### Scenario: Falha local após criação no Keycloak
-- **WHEN** o usuário é criado no Keycloak, mas ocorre erro ao salvar em `tb_usuario`
-- **THEN** o backend tenta rollback no Keycloak e retorna erro controlado sem deixar estado inconsistente silencioso
-
-#### Scenario: Falha de rollback no Keycloak
-- **WHEN** a compensação falha
-- **THEN** o backend registra log estruturado com `tenantId`, `email` e `keycloakUserId` para intervenção operacional
+#### Scenario: Tentativa de login por senha no backend
+- **WHEN** qualquer cliente tenta obter token enviando senha a um endpoint do backend
+- **THEN** esse endpoint **não existe** — é requisito ausente por decisão, não lacuna de implementação
 
 ---
 
-### Requirement: Sistema MUST proteger dados sensíveis de autenticação
-O sistema SHALL não registrar em logs o conteúdo de senha, access token ou refresh token.
+### Requirement: A rota pública MUST atravessar os filtros de tenant e consentimento
 
-#### Scenario: Erro durante login
-- **WHEN** ocorre falha de autenticação no endpoint de login
-- **THEN** logs registram contexto técnico mínimo sem incluir senha/token em texto puro
+O sistema SHALL garantir que o cadastro funcione **sem** JWT e **sem** tenant, mesmo quando o cliente
+envia um `Authorization` residual — o frontend injeta o header globalmente.
 
-#### Scenario: Erro durante provisionamento
-- **WHEN** ocorre falha na integração com Keycloak para criar usuário
-- **THEN** logs registram identificadores operacionais (tenant, email, actor) sem segredo sensível
+> Verificado em 2026-08-07: o `JwtTenantFilter` isenta apenas `/api/admin/**` e o caminho **exato**
+> `/api/v1/waitlist`. Sem isentar a rota nova, um token sem `tenant_id` a derruba. O
+> `LgpdConsentInterceptor` já libera requisição sem JWT/sem tenant, então ele **não** precisa de
+> mudança — mas depende do filtro anterior não rejeitar antes.
+
+#### Scenario: Cadastro sem nenhum header de autorização
+- **WHEN** `POST /api/public/coach-signups` chega sem `Authorization`
+- **THEN** a requisição é processada normalmente
+
+#### Scenario: Cadastro com Authorization residual de outra sessão
+- **WHEN** a requisição chega com um `Authorization` cujo token não tem `tenant_id`
+- **THEN** a requisição é processada normalmente — o filtro de tenant **não** a rejeita
+
+#### Scenario: Cadastro não é bloqueado pelo gate de consentimento
+- **WHEN** o enforcement LGPD está em `on` e o cadastro cria `Usuario` **antes** de qualquer aceite
+- **THEN** a criação não é bloqueada — o aceite acontece na primeira sessão autenticada, não no formulário público
+
+---
+
+### Requirement: O provisionamento MUST compensar em ordem inversa e registrar o que não compensar
+
+Não há transação entre Postgres e Keycloak. O sistema SHALL desfazer, na ordem inversa da criação, os
+recursos já criados quando uma etapa falha — e, quando a própria compensação falhar, MUST registrar
+`RECONCILIATION_REQUIRED` com correlation ID e os identificadores externos.
+
+**Nenhuma falha pode deixar conta utilizável sem tenant local.** É pior que falhar: o usuário
+consegue entrar e encontra um produto quebrado.
+
+#### Scenario: Falha ao criar o usuário no Keycloak, após a organização
+- **WHEN** a organização é criada e a criação do usuário falha
+- **THEN** o sistema remove a organização, não persiste `Usuario`, e retorna erro controlado
+
+#### Scenario: Falha ao persistir o `Usuario` local, após o Keycloak
+- **WHEN** organização e usuário existem no Keycloak e a persistência local falha
+- **THEN** o sistema remove usuário e organização no Keycloak, nessa ordem, e retorna erro controlado
+
+#### Scenario: A compensação falha
+- **WHEN** a remoção no Keycloak falha durante a compensação
+- **THEN** o sistema registra uma operação `RECONCILIATION_REQUIRED` com correlation ID, `tenantId`, e os IDs externos — **sem senha e sem token** — e retorna erro controlado
+
+#### Scenario: Estado residual nunca é utilizável
+- **WHEN** qualquer falha parcial ocorre
+- **THEN** não existe caminho em que o usuário autentique com sucesso e opere sem `Assessoria`/tenant local
+
+---
+
+### Requirement: A verificação de e-mail MUST usar o fluxo nativo do Keycloak
+
+O sistema SHALL disparar a verificação pelo próprio Keycloak, sem construir e-mail próprio.
+
+> Pré-condição de infraestrutura, resolvida em 2026-08-07: o realm passou a ter SMTP configurado e
+> versionado, com envio validado em HomeLab e Railway. Antes disso, o cadastro terminaria em conta
+> que nunca se confirma.
+
+#### Scenario: Cadastro dispara a verificação
+- **WHEN** o provisionamento conclui com sucesso
+- **THEN** o Keycloak envia o e-mail de verificação ao endereço informado
+
+#### Scenario: Envio de e-mail falha
+- **WHEN** o SMTP está indisponível no momento do cadastro
+- **THEN** a conta **não** fica em estado utilizável sem verificação: o sistema trata como falha da etapa e aplica a política de compensação/reconciliação
+
+---
+
+### Requirement: O cadastro público MUST resistir a abuso
+
+Endpoint público, anônimo e que cria recursos em dois sistemas — é alvo natural de automação.
+
+> Já existe precedente no módulo: o `WaitlistRateLimitFilter` protege `/api/v1/waitlist` com contagem
+> por IP a partir de `getRemoteAddr()` (não do XFF cru, que é falsificável). A decisão de generalizar
+> esse filtro ou criar outro é da discovery — mas **não** pode resultar em dois mecanismos com
+> políticas divergentes.
+
+#### Scenario: Excesso de tentativas do mesmo IP
+- **WHEN** um mesmo IP excede o limite configurado em uma janela
+- **THEN** o sistema retorna `429` sem criar recurso algum
+
+#### Scenario: Payload acima do limite
+- **WHEN** o corpo da requisição excede o tamanho máximo
+- **THEN** o sistema rejeita antes de processar
+
+---
+
+### Requirement: Segredos MUST NOT aparecer em log ou resposta
+
+#### Scenario: Falha durante o provisionamento
+- **WHEN** qualquer etapa falha
+- **THEN** os logs registram correlation ID, tenant, e-mail e IDs externos — **nunca** senha, access token ou refresh token
+
+#### Scenario: Resposta de sucesso
+- **WHEN** o cadastro conclui
+- **THEN** o corpo da resposta não contém senha nem token de espécie alguma
