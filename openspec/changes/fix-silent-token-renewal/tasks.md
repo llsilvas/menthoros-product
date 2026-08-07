@@ -163,26 +163,37 @@
       carregamento; com a correção → zero, com `StrictMode` ligado.
       *Correção:* `trocarCodigoUmaVez()` memoiza a **promessa** (não um booleano), para a segunda
       chamada aguardar o mesmo resultado em vez de seguir como se não houvesse sessão.
-- [x] 3b.2 **Multi-aba com rotação ligada derruba a renovação.** Duas abas do app na mesma sessão SSO
-      fazem `prompt=none` independentes; a client session é recriada e o refresh token da outra aba
-      passa a ser recusado com `refresh token issued before the client session started`.
-      Confirmado por eliminação: com uma aba só, 351s sem um único erro; com duas, falha em todo ciclo.
-      ⚠️ **Consequência para produção, não endereçada aqui:** o coach que abrir o app em duas abas cai
-      no login. Precisa de decisão própria — persistir o token entre abas mudaria o modelo de ameaça
-      (ver Q1), e desligar a rotação anularia a mitigação da seção 1.
+- [x] 3b.2 ~~**Multi-aba com rotação ligada derruba a renovação.**~~ **AFIRMAÇÃO FALSIFICADA em
+      2026-08-06, por teste controlado. O problema não existe.**
+
+      Eu havia registrado, aqui e no `SPRINTS.md` e no corpo do PR #57, que abrir o app em duas abas
+      derrubaria o coach para o login — e classifiquei como consequência aberta desta change. Errado.
+
+      **A/B com a rotação como única variável, duas abas em ambos:**
+
+      | `revokeRefreshToken` | Aba A | Aba B | Erros no Keycloak |
+      |---|---|---|---|
+      | `false` | 363s, 1 navegação, autenticada | 360s, 1 navegação, autenticada | nenhum |
+      | `true` | 364s, 1 navegação, autenticada | 370s, 1 navegação, autenticada | nenhum |
+
+      **A causa real das falhas que eu vi era a troca dupla do código (3b.1), ainda não corrigida na
+      época.** Com duas abas, o dobro de carregamentos e o dobro de client sessions destruídas — o
+      que fez o sintoma parecer específico de multi-aba. Depois do `trocarCodigoUmaVez`, some nos
+      dois cenários.
+
+      **Lição de método:** eu chamei aquilo de "confirmado por eliminação" — fechei a segunda aba, o
+      erro sumiu, e concluí a causa. Mas entre as duas observações eu também havia corrigido o bug do
+      `StrictMode`. A variável que mudou não era a que eu pensava. Correlação com duas variáveis
+      mexendo ao mesmo tempo não é eliminação.
 
 ## 4. Fechamento
 
 - [x] 4.1 **Registrado no `SPRINTS.md`** em 2026-08-06, com os dois achados do navegador e a
       consequência aberta da multi-aba.
-- [ ] 4.2 **Q1 mudou de natureza e ficou mais urgente.** A pergunta original era de conforto — o
-      redirect ao abrir aba nova incomoda? Agora é de **funcionamento**: com a rotação ligada, duas
-      abas abertas **derrubam o coach para o login**, porque cada uma faz `prompt=none` independente,
-      a client session é recriada e o refresh token da outra é recusado
-      (`refresh token issued before the client session started`).
-      Reproduzido e confirmado por eliminação (uma aba só: 351s sem um único erro).
-      **Saídas, nenhuma óbvia:**
-      - persistir o token entre abas — muda o modelo de ameaça e contraria o CA5;
-      - desligar a rotação — anula a mitigação que justifica a seção 1;
-      - aceitar e documentar — o coach que abrir duas abas cai no login.
-      **Decisão do CTO, pendente.** Bloqueia o arquivamento da change.
+- [ ] 4.2 **Q1 volta à pergunta original, e é de conforto — não de funcionamento.** A escalada que
+      eu havia registrado (multi-aba derrubando o coach) foi **falsificada** na 3b.2: duas abas
+      funcionam, com e sem rotação.
+      O que resta é a pergunta que a change sempre teve: **o redirect ao abrir uma aba nova incomoda
+      o suficiente para justificar persistir o token?** É uma vez por aba, não a cada 4 minutos.
+      Persistir mudaria o modelo de ameaça e contraria o CA5, então só vale se o incômodo for real.
+      **Decidir depois de conviver com a mudança**, não agora.
