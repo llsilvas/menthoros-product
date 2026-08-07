@@ -173,6 +173,16 @@
 
 ## 4. Fechamento
 
-- [ ] 4.1 Registrar no `SPRINTS.md`.
-- [ ] 4.2 Responder Q1 no proposal: o redirect ao abrir aba nova incomoda o suficiente para
-      justificar persistir token? Só decidir **depois** de conviver com a mudança.
+- [x] 4.1 **Registrado no `SPRINTS.md`** em 2026-08-06, com os dois achados do navegador e a
+      consequência aberta da multi-aba.
+- [ ] 4.2 **Q1 mudou de natureza e ficou mais urgente.** A pergunta original era de conforto — o
+      redirect ao abrir aba nova incomoda? Agora é de **funcionamento**: com a rotação ligada, duas
+      abas abertas **derrubam o coach para o login**, porque cada uma faz `prompt=none` independente,
+      a client session é recriada e o refresh token da outra é recusado
+      (`refresh token issued before the client session started`).
+      Reproduzido e confirmado por eliminação (uma aba só: 351s sem um único erro).
+      **Saídas, nenhuma óbvia:**
+      - persistir o token entre abas — muda o modelo de ameaça e contraria o CA5;
+      - desligar a rotação — anula a mitigação que justifica a seção 1;
+      - aceitar e documentar — o coach que abrir duas abas cai no login.
+      **Decisão do CTO, pendente.** Bloqueia o arquivamento da change.

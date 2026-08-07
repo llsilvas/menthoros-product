@@ -530,6 +530,39 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
+### `fix-silent-token-renewal` — renovação de token sem recarregar a página (2026-08-06)
+
+**S · Full · front + infra.** A tela recarregava inteira a cada ~4 minutos: `accessTokenLifespan` de
+300s com notificação 60s antes, e o handler de `accessTokenExpiring` fazia `signinRedirect`. Não era
+glitch de render — era navegação, com perda de estado e de scroll no meio do trabalho do treinador.
+
+**Entregue:** `menthoros-infra` **#6** (rotação de refresh token no realm, aplicada nos dois
+ambientes) e `menthoros-front` **#57** (`fd37fc1`).
+
+**A decisão anterior estava meio certa.** O `oidcConfig.ts` desligava o `automaticSilentRenew`
+alegando cookie third-party em iframe — verdade sobre o iframe. O erro foi generalizar para "nenhuma
+renovação silenciosa serve": `signinSilent()` usa o refresh token quando existe, e um POST com token
+no corpo não depende de cookie.
+
+**Dois achados que só o navegador revelou:**
+
+1. **Bug pré-existente do `StrictMode`.** O `signinCallback()` trocava o mesmo `code` duas vezes; o
+   Keycloak trata como replay e **remove a client session**. O desenho antigo escondia isso — com
+   redirect a cada 4 min, o app ganhava sessão nova antes de precisar da antiga. Ao depender do
+   refresh token, ela vira a única que existe. Causalidade provada por experimento (`StrictMode` off:
+   zero; on: uma por carregamento; com a correção: zero).
+2. **Multi-aba com rotação ligada derruba o coach para o login.** ⚠️ **Consequência aberta, não
+   endereçada** — ver Q1 da change. As saídas (persistir token entre abas, ou desligar a rotação)
+   mexem no modelo de ameaça ou anulam a mitigação.
+
+**Também descoberto e corrigido no realm (`disable-ropc-direct-grant` e follow-ups):** rotação de
+valor sem revogação era cosmética — o refresh antigo seguia aceito. Agora replay é recusado **e**
+invalida a sessão, nos dois ambientes.
+
+**CA1, CA2, CA3, CA4 e CA5 verificados.** CA6 parcial: **Safari OK** (o mais restritivo — o ITP é o
+que quebraria o iframe), **Firefox pendente**.
+
+
 > ⚠️ **Duas changes entregues seguem em `changes/` sem arquivar** (achado da auditoria 2026-08-03).
 > Enquanto não forem movidas, contam como ativas em qualquer varredura e reaparecem como "zumbis":
 >
