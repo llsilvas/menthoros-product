@@ -177,3 +177,75 @@ A pré-condição de SMTP foi resolvida em 2026-08-07.
 para os novos. A decisão de desconsiderar os existentes é o que torna isso aceitável; se algum
 usuário legado precisar continuar entrando, ele terá de verificar o e-mail ou ser marcado como
 verificado à mão.
+
+
+## Restrições de código que a orquestração TEM de respeitar (2026-08-07)
+
+Levantadas no segundo gate de DoR, verificadas no código. Nenhuma estava no design, e as três mudam
+o que a implementação pode fazer.
+
+### 1. `Usuario.id` **é** o subject do Keycloak — a ordem de criação não é livre
+
+```java
+// Usuario.java:38-44
+/** ID do usuário - MESMO UUID do subject (sub) do JWT do Keycloak */
+@Id private UUID id;
+
+// UsuarioSyncServiceImpl:115-119
+.id(UUID.fromString(keycloakId))   // ID = subject do JWT
+```
+
+**Consequência:** o `Usuario` local **não pode existir antes** do usuário no Keycloak — sua chave
+primária é o `sub`. A ordem é obrigatória:
+
+```
+1. Assessoria (local)          → obtém tenant
+2. Organization (Keycloak)     → obtém orgId
+3. Usuário (Keycloak)          → obtém o sub
+4. Usuario (local, id = sub)   → só agora é possível
+```
+
+E a compensação desfaz exatamente na inversa: `4 → 3 → 2 → 1`.
+
+⚠️ Se o Keycloak um dia emitir id não-UUID, `UUID.fromString` estoura. Hoje ele emite UUID; a
+implementação deve **falhar alto** nesse caso, não improvisar um id local.
+
+### 2. Nunca habilitar o usuário antes de o verify-email ter saído
+
+A versão anterior deste design dizia "marca ACTIVE, habilita usuário e dispara verify-email" — e
+mandava compensar genericamente se algo falhasse. **Não serve:** se o envio falha depois de
+habilitar, sobra usuário habilitado no Keycloak e assessoria ativa, com conta que ninguém confirma.
+
+**Regra inequívoca:** o usuário nasce **desabilitado**. Só é habilitado **depois** de o envio do
+verify-email retornar sucesso. Falha no envio ⇒ compensa (remove usuário e organização) ⇒ o cadastro
+falha inteiro, e o coach tenta de novo — em vez de ficar com conta que não entra e não avisa por quê.
+
+### 3. `AssessoriaServiceImpl.criarAssessoria` **não** serve para o signup público
+
+```java
+// AssessoriaServiceImpl:53-59 — cria a Organization e depois salva o orgId,
+// SEM compensar a Organization se o save seguinte falhar.
+```
+
+É aceitável no cadastro administrativo, feito por alguém que percebe e corrige. **Não é aceitável no
+cadastro público**, onde ninguém está olhando e o resíduo fica órfão no Keycloak.
+
+**O orquestrador novo não deve chamar esse método.** Se houver reuso, é da parte de montagem da
+entidade — nunca do fluxo que cria a Organization.
+
+### 4. `RECONCILIATION_REQUIRED` e o `tenantId`
+
+A spec exige registrar `tenantId` no evento; a `tb_signup_provisioning` deliberadamente não tem
+`tenant_id` (a tabela existe antes do tenant). **Não é contradição, é ordem:** o campo a registrar é
+o `assessoria_id`, que existe a partir do passo 1. Falha antes disso não tem tenant a registrar — e
+o `correlation_id` é o que amarra o rastro nesse caso.
+
+### 5. Billing: o signup **não** cria `Assinatura`
+
+`Assinatura` é 1:1 com `Assessoria` e é ela que controla plano e status quando a cobrança existe
+(`V68`, `V70`; `AssinaturaServiceImpl` grava plano só ao confirmar cobrança). O signup cria a
+`Assessoria` em BASIC com `ativo = true` e **nenhuma** `Assinatura` — esse é o estado pré-cobrança.
+
+⚠️ **Quando a cobrança entrar**, quem a implementar precisa tratar assessoria sem assinatura como
+"plano gratuito vigente", não como inadimplente. Registrado aqui porque é exatamente o tipo de
+suposição que se perde entre duas changes.

@@ -58,12 +58,20 @@ rotina do treinador. Ela mede se o mecanismo funciona, não se serviu para algum
 
 ## Open Questions & Assumptions
 
-- **Bloqueante:** confirmar se o deployment usa Keycloak Organizations ou grupos/atributos para representar tenant; os documentos usam “container de tenant” até essa decisão.
-- **Bloqueante:** definir política de verificação de e-mail: bloquear o primeiro login ou permitir acesso limitado. A premissa recomendada é `verifyEmail=true` antes do acesso protegido.
-  **Dado novo (2026-08-04, achado no walking skeleton do PKCE):** já existe usuário no realm com
-  `email_verified: false` — o `leandro`. Hoje é inofensivo, porque nada no fluxo lê esse claim. Mas a
-  política precisa dizer o que fazer com quem **já está lá**: exigir verificação retroativamente
-  quebra acesso existente; não exigir cria duas classes de conta, e a diferença fica invisível até
-  alguém depender dela.
-- **Bloqueante:** escolher proteção anti-abuso (rate limit distribuído e CAPTCHA/Turnstile) e limites por IP/e-mail.
-- **Premissa:** o slug é o campo hoje chamado `dominio` na entidade; a UI o chama “endereço da assessoria” para não sugerir domínio DNS.
+**Resolvidas em 2026-08-07 — registradas no `design.md`:**
+
+- ~~Container de tenant no Keycloak~~ → **Organizations**, não grupo/atributo. É o caminho já
+  implementado no gateway. Vêm junto duas restrições: um usuário por organização, e o scope
+  `organization` é optional (sem ele o token sai sem `tenant_id` e tudo responde 403).
+- ~~Política de verificação de e-mail~~ → **`verifyEmail: true` no realm**, desconsiderando os
+  cadastros existentes (decisão do CTO). A pré-condição de SMTP foi resolvida no mesmo dia.
+- ~~Estado de provisionamento~~ → tabela **`tb_signup_provisioning`** (V75), esboçada no `design.md`.
+- ~~Billing~~ → o signup **não** cria `Assinatura`; `Assessoria` em BASIC com `ativo = true` é o
+  estado pré-cobrança.
+
+**Em aberto — decisão necessária antes da task 2.6:**
+
+- **Proteção anti-abuso.** O rate limit por IP tem precedente (`WaitlistRateLimitFilter`, contando
+  por `getRemoteAddr()` e não pelo XFF cru) e a 2.6 decide se generaliza ou duplica. Falta decidir o
+  resto: **CAPTCHA/Turnstile sim ou não**, e os limites concretos por IP e por e-mail. Sem isso, a
+  decisão vaza para dentro da implementação, que é onde ela costuma virar "o que der".
