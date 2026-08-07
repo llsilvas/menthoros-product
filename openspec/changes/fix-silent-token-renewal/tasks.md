@@ -112,16 +112,49 @@
 
 ## 3. Validação no navegador (P0 — nenhum teste automatizado prova ausência de navegação)
 
-- [ ] 3.1 **CA1:** sessão aberta por mais de 5 minutos com o painel de rede aberto.
+- [x] 3.1 **CA1 ✅ VERIFICADO no navegador em 2026-08-06.** Sessão de 351s (além dos 300s de vida do
+      token), `performance.getEntriesByType('navigation').length === 1`, `history` inalterado
+      (26→26), título, variável de módulo e estado JS preservados, URL intacta em `#/coach/inbox`.
+      **Zero `REFRESH_TOKEN_ERROR` no Keycloak na janela** — antes, cada ciclo produzia um.
+      **CA1:** sessão aberta por mais de 5 minutos com o painel de rede aberto.
       *verify:* `POST` ao endpoint de token no momento da renovação **e nenhum** request de
       `document`; histórico sem entrada nova; estado de componente e scroll preservados.
-- [ ] 3.2 **CA2:** nenhuma requisição do app toma `401` durante o intervalo de renovação.
-- [ ] 3.3 **CA3:** encerrar a sessão no Keycloak pelo console e esperar a próxima renovação.
+- [ ] 3.2 **CA2 — NÃO verificado: o backend não estava no ar.** As chamadas que apareceram no
+      painel eram módulos do Vite (`src/api/services/...`), não requisições reais. Sem backend não
+      há como exercitar `401`. **Pendente, não dispensado.**
+      **CA2:** nenhuma requisição do app toma `401` durante o intervalo de renovação.
+- [x] 3.3 **CA3 ✅ VERIFICADO, por acidente e de forma mais convincente que o roteiro previa.**
+      Nas rodadas em que a renovação falhava de verdade (`Session doesn't have required client`),
+      o app caiu para `#/auth/login` **uma vez, sem laço**, e o `console.warn` do
+      `addSilentRenewError` registrou a causa. O fallback foi exercitado em falha real, não simulada.
+      **CA3:** encerrar a sessão no Keycloak pelo console e esperar a próxima renovação.
       *verify:* app cai no login **uma vez**, sem laço de redirect.
 - [ ] 3.4 **CA6:** repetir 3.1 em **Safari e Firefox**. É onde o iframe falharia — se falhar aqui, a
       premissa da change está errada.
 - [ ] 3.5 **Métrica:** sessão de 30 minutos de uso contínuo com **zero** recarregamentos não
       solicitados. Hoje seriam ~7.
+
+
+## 3b. Achado da validação — bug pré-existente corrigido
+
+- [x] 3b.1 **Troca dupla do código de autorização (`CODE_TO_TOKEN_ERROR`).** O `StrictMode` monta os
+      efeitos duas vezes em dev e o `signinCallback()` trocava o mesmo `code` duas vezes; o Keycloak
+      trata como replay e **remove a client session**, o que fazia toda renovação seguinte falhar com
+      `Session doesn't have required client`.
+      **O desenho anterior escondia o defeito:** com renovação por redirect a cada ~4 min, o app
+      ganhava sessão nova antes de precisar da antiga. Ao depender do refresh token, a client session
+      morta passa a ser a única que existe. **A change não introduziu — revelou.**
+      Causalidade provada por experimento: `StrictMode` off → zero ocorrências; on → uma por
+      carregamento; com a correção → zero, com `StrictMode` ligado.
+      *Correção:* `trocarCodigoUmaVez()` memoiza a **promessa** (não um booleano), para a segunda
+      chamada aguardar o mesmo resultado em vez de seguir como se não houvesse sessão.
+- [x] 3b.2 **Multi-aba com rotação ligada derruba a renovação.** Duas abas do app na mesma sessão SSO
+      fazem `prompt=none` independentes; a client session é recriada e o refresh token da outra aba
+      passa a ser recusado com `refresh token issued before the client session started`.
+      Confirmado por eliminação: com uma aba só, 351s sem um único erro; com duas, falha em todo ciclo.
+      ⚠️ **Consequência para produção, não endereçada aqui:** o coach que abrir o app em duas abas cai
+      no login. Precisa de decisão própria — persistir o token entre abas mudaria o modelo de ameaça
+      (ver Q1), e desligar a rotação anularia a mitigação da seção 1.
 
 ## 4. Fechamento
 
