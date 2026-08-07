@@ -119,9 +119,19 @@
       **CA1:** sessão aberta por mais de 5 minutos com o painel de rede aberto.
       *verify:* `POST` ao endpoint de token no momento da renovação **e nenhum** request de
       `document`; histórico sem entrada nova; estado de componente e scroll preservados.
-- [ ] 3.2 **CA2 — NÃO verificado: o backend não estava no ar.** As chamadas que apareceram no
-      painel eram módulos do Vite (`src/api/services/...`), não requisições reais. Sem backend não
-      há como exercitar `401`. **Pendente, não dispensado.**
+- [x] 3.2 **CA2 ✅ VERIFICADO em 2026-08-06, com o backend no ar.** 54 chamadas ao backend ao longo
+      de ~400s — além dos 300s de vida do token, portanto atravessando pelo menos uma renovação —
+      exercitando o **shell do coach**: `users/me`, `coach/attention-queue`, `coach/planos/revisao`,
+      `coach/dashboard`, `coach/atletas`.
+      ```
+      401: nenhum
+      200: todas, inclusive as posteriores à janela de renovação
+      404: apenas strava/sync-status de atletas sem Strava — 404 de domínio, não de auth
+      ```
+      Página com **uma única navegação** em 556s de vida.
+      📌 **Correção de um erro meu:** eu havia afirmado que o inbox do coach era todo mock. Falso — o
+      instrumento é que estava cego: `performance.getEntriesByType('resource')` não devolvia os XHR
+      desta página. O log de rede mostra o inbox inteiramente ligado ao backend.
       **CA2:** nenhuma requisição do app toma `401` durante o intervalo de renovação.
 - [x] 3.3 **CA3 ✅ VERIFICADO, por acidente e de forma mais convincente que o roteiro previa.**
       Nas rodadas em que a renovação falhava de verdade (`Session doesn't have required client`),
