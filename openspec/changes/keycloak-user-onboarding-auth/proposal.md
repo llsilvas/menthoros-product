@@ -78,7 +78,9 @@ rotina do treinador. Ela mede se o mecanismo funciona, não se serviu para algum
 - **Rate limit em duas dimensões:** ~3/hora por IP e ~3/dia por e-mail, no filtro generalizado.
   A dimensão por e-mail existe porque **o recurso escasso é a cota de ~250 e-mails/dia** — rotacionar
   IP é barato, e esgotar a cota faz a verificação dos cadastros **legítimos** parar de sair.
-- **Teto diário global** (~150/dia) com alerta, protegendo a cota de envio.
+- **Teto diário global** (~20/dia) com alerta, protegendo a cota de envio. Começa baixo **de
+  propósito**: com volume real de zero a poucos por dia, um teto alto não alarmaria nada — o abuso
+  caberia embaixo dele. Sobe conforme o uso crescer.
 - **Honeypot** reusando o padrão do waitlist, com resposta indistinguível para o bot.
 
 **Nenhuma questão bloqueante em aberto.**

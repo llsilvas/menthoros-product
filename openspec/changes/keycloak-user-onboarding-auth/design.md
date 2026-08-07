@@ -272,9 +272,18 @@ sem erro visível para ninguém. Toda a política abaixo protege esse recurso.
 | **Por IP** | ~3/hora | primeira linha, barata |
 | **Por e-mail** | ~3/dia | **rotacionar IP é barato**; sem esta, um atacante distribuído esgota a cota de e-mail e ainda bombardeia a caixa de terceiro usando o domínio |
 | **Honeypot** | reusar o padrão, com resposta indistinguível | atrito zero, custo zero |
-| **Teto diário global** | ~150 cadastros/dia + alerta | protege a cota de envio e **avisa antes** de o sintoma chegar como "o coach não recebeu o e-mail" |
+| **Teto diário global** | **~20 cadastros/dia** + alerta | protege a cota de envio e **avisa antes** de o sintoma chegar como "o coach não recebeu o e-mail" |
 
 Os números são ponto de partida para calibrar, não verdades.
+
+⚠️ **O teto acompanha o volume real — e por isso começa baixo.** Decisão do CTO em 2026-08-07: o
+volume esperado no pré-piloto é de zero a poucos cadastros por dia. Um teto de 150 **não alarmaria
+nada** — um abuso caberia inteiro embaixo dele e esgotaria a cota de e-mail em silêncio. Teto útil é
+teto justo acima do volume real; com ~20/dia, qualquer coisa acima já é anomalia evidente. **Subir
+conforme o uso crescer** faz parte da operação, não é dívida.
+
+Os limites por IP e por e-mail não tocam usuário legítimo: um coach se cadastra **uma vez**. Três por
+hora e três por dia só são atingidos por engano ou por automação.
 
 ### CAPTCHA/Turnstile: **não agora** — decisão do CTO
 
