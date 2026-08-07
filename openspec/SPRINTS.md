@@ -551,9 +551,12 @@ no corpo não depende de cookie.
    redirect a cada 4 min, o app ganhava sessão nova antes de precisar da antiga. Ao depender do
    refresh token, ela vira a única que existe. Causalidade provada por experimento (`StrictMode` off:
    zero; on: uma por carregamento; com a correção: zero).
-2. **Multi-aba com rotação ligada derruba o coach para o login.** ⚠️ **Consequência aberta, não
-   endereçada** — ver Q1 da change. As saídas (persistir token entre abas, ou desligar a rotação)
-   mexem no modelo de ameaça ou anulam a mitigação.
+2. ~~**Multi-aba com rotação ligada derruba o coach para o login.**~~ **AFIRMAÇÃO FALSIFICADA por
+   teste controlado — o problema não existe.** A/B com a rotação como única variável, duas abas em
+   ambos: `false` → A 363s / B 360s ok; `true` → A 364s / B 370s ok; zero erros nos dois. A causa
+   real das falhas observadas era o achado 1 (troca dupla do código), ainda não corrigido na época —
+   com duas abas, o dobro de client sessions destruídas fazia o sintoma parecer de multi-aba.
+   **Registrado porque o erro chegou a constar aqui, no `tasks.md` e no corpo do PR #57.**
 
 **Também descoberto e corrigido no realm (`disable-ropc-direct-grant` e follow-ups):** rotação de
 valor sem revogação era cosmética — o refresh antigo seguia aceito. Agora replay é recusado **e**
