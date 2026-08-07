@@ -33,7 +33,9 @@ Keycloak não participa da transação PostgreSQL. `@Transactional` sozinho não
 3. Criar container de tenant no Keycloak.
 4. Criar usuário desabilitado/pendente de verificação, definir senha, role `TECNICO` e vínculo ao tenant.
 5. Criar `Usuario` local com `keycloakId` e assessoria.
-6. Marcar assessoria/operação `ACTIVE`, habilitar usuário e disparar verify-email.
+6. Disparar verify-email. **Só com o envio bem-sucedido:** habilitar o usuário e marcar
+   assessoria/operação `ACTIVE`. ⚠️ Habilitar antes deixaria conta habilitada que ninguém
+   confirma se o envio falhar — ver "Restrições de código", item 2.
 
 Em falha, excluir/desabilitar recursos externos criados e remover/marcar como falha os locais. Se compensação falhar, persistir uma operação `RECONCILIATION_REQUIRED` (sem senha) com correlation ID e IDs externos; uma rotina/admin runbook deve permitir retry idempotente. Nunca logar senha/tokens.
 
@@ -98,6 +100,8 @@ passo — que é justamente a que precisa de rastro.
 CREATE TABLE IF NOT EXISTS tb_signup_provisioning (
     id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     idempotency_key           VARCHAR(64)  NOT NULL,
+    request_hash              VARCHAR(64)  NOT NULL,   -- hash do payload SEM senha
+    resultado                 JSONB,                   -- resposta devolvida na 1a execucao
     email                     VARCHAR(255) NOT NULL,
     slug                      VARCHAR(120) NOT NULL,
     status                    VARCHAR(40)  NOT NULL,
@@ -114,6 +118,11 @@ CREATE TABLE IF NOT EXISTS tb_signup_provisioning (
 CREATE INDEX IF NOT EXISTS idx_signup_provisioning_status ON tb_signup_provisioning(status);
 CREATE INDEX IF NOT EXISTS idx_signup_provisioning_email  ON tb_signup_provisioning(email);
 ```
+
+⚠️ **`request_hash` e `resultado` não são enfeite — são o contrato de idempotência desta change.**
+A regra é "mesma chave + mesmo payload devolve o mesmo resultado; mesma chave + payload diferente
+devolve `409`". Sem guardar o hash não dá para distinguir os dois casos, e sem guardar o
+resultado a segunda chamada não tem o que devolver.
 
 `status` acompanha a ordem de criação, para a compensação saber o que desfazer:
 `PENDING` → `ASSESSORIA_CREATED` → `ORG_CREATED` → `USER_CREATED` → `COMPLETED`, mais `FAILED` e

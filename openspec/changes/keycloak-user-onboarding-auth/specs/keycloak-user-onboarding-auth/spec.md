@@ -97,7 +97,10 @@ consegue entrar e encontra um produto quebrado.
 
 #### Scenario: A compensação falha
 - **WHEN** a remoção no Keycloak falha durante a compensação
-- **THEN** o sistema registra uma operação `RECONCILIATION_REQUIRED` com correlation ID, `tenantId`, e os IDs externos — **sem senha e sem token** — e retorna erro controlado
+- **THEN** o sistema registra uma operação `RECONCILIATION_REQUIRED` com correlation ID e os IDs
+  externos — **sem senha e sem token** — e retorna erro controlado
+- **AND** registra o `assessoria_id` **quando ele já existir**; falha anterior à criação da
+  assessoria não tem tenant a registrar, e nesse caso o `correlation_id` é o que amarra o rastro
 
 #### Scenario: Estado residual nunca é utilizável
 - **WHEN** qualquer falha parcial ocorre
@@ -112,6 +115,11 @@ O sistema SHALL disparar a verificação pelo próprio Keycloak, sem construir e
 > Pré-condição de infraestrutura, resolvida em 2026-08-07: o realm passou a ter SMTP configurado e
 > versionado, com envio validado em HomeLab e Railway. Antes disso, o cadastro terminaria em conta
 > que nunca se confirma.
+
+#### Scenario: O usuário nasce desabilitado e só é habilitado após o envio
+- **WHEN** o usuário é criado no Keycloak
+- **THEN** ele é criado **desabilitado**, e só é habilitado **depois** de o envio do verify-email
+  retornar sucesso — nessa ordem, nunca antes
 
 #### Scenario: Cadastro dispara a verificação
 - **WHEN** o provisionamento conclui com sucesso
