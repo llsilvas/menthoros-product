@@ -5,21 +5,24 @@
 > Achado em 2026-08-06 durante a `disable-ropc-direct-grant`, roteado para cá porque **o signup
 > desta change depende inteiramente dele** para provisionar organização e usuário no Keycloak.
 
-- [ ] 0.1 **Provisionar as credenciais de admin do Keycloak no backend — hoje ausentes em TODOS os
-      ambientes.** `KeycloakOrganizationGatewayImpl:129` obtém token de admin com
-      `grant_type=password` usando `admin-cli` no realm `master`, mas:
+- [ ] 0.1 **Provisionar as credenciais de admin do Keycloak no backend do Railway `develop`.**
+      `KeycloakOrganizationGatewayImpl:129` obtém token de admin com `grant_type=password` usando
+      `admin-cli` no realm `master`.
 
-      | Alvo | `KEYCLOAK_SERVER_URL` | `KC_ADMIN_PASSWORD` |
-      |---|---|---|
-      | Railway `develop` | ausente → default `http://localhost:8080` | ausente → **vazia** |
-      | Local / HomeLab | `.env` do `menthoros-infra` vazio; o serviço `app` do compose não define nenhuma das duas | idem |
+      | Alvo | Estado (verificado 2026-08-06) |
+      |---|---|
+      | Local / HomeLab | ✅ **funciona** — `apps/menthoros-backend/.env` traz `KEYCLOAK_SERVER_URL`, `KC_ADMIN_USER` e `KC_ADMIN_PASSWORD`, e as credenciais foram exercitadas: token de admin obtido com sucesso |
+      | Railway `develop` | ❌ **as três ausentes** → cai nos defaults `http://localhost:8080` e senha vazia; o backend tentaria autenticar em si mesmo |
 
-      Em dev o backend tentaria autenticar **em si mesmo**, com senha vazia. **O gateway não obtém
-      token de admin em ambiente nenhum** — é defeito pré-existente, anterior e alheio ao corte do
-      ROPC, e foi por isso que a `disable-ropc-direct-grant` teve de reescrever o CA3 dela: exigir
-      "criação real de organização" era inverificável.
-      ⚠️ **Bloqueia o signup desta change**, não apenas o teste dele.
-      *verify:* criação real de organização no Keycloak exercitada com sucesso, em cada alvo.
+      ⚠️ **Correção de um registro anterior meu.** Eu havia escrito que as credenciais faltavam em
+      *todos* os ambientes — olhei o `.env` do `menthoros-infra`, que serve ao **compose**, enquanto o
+      backend roda como processo local e lê o `.env` do próprio repo. O defeito é real, mas **só no
+      Railway**.
+
+      *Valores para o Railway:* `KEYCLOAK_SERVER_URL=http://menthoros-keycloak.railway.internal:8080`
+      (domínio privado, sem sair para a internet), `KC_ADMIN_USER=admin` e a senha do admin do realm
+      `master` — que desde o espelhamento do `keycloak-db` é a mesma do HomeLab.
+      *verify:* criação real de organização no Keycloak exercitada com sucesso **no Railway**.
 - [ ] 0.2 **Conferir se o `menthoros-test` precisa ser ligado** para algum teste desta change. Ele
       nasce `enabled: false` desde 2026-08-06 (mantém direct grant, e deixá-lo ligado devolveria o
       vetor que o corte eliminou). Procedimento em `menthoros-infra/keycloak/README.md`.
