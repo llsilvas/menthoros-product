@@ -311,3 +311,30 @@ Duas razões, e a segunda é a que pesa:
 - cadastros não verificados passarem de ~50% numa janela de 24h.
 
 Quando qualquer um disparar, o atrito passa a se justificar porque o abuso deixou de ser hipótese.
+
+
+## Riscos e mitigações
+
+Consolidado em 2026-08-07 — o gate apontou duas vezes que os riscos estavam espalhados em callouts e
+não davam para auditar numa leitura só.
+
+| Risco | Mitigação |
+|---|---|
+| 🔴 **Identidade órfã: conta no Keycloak sem tenant local.** É pior que falhar — o coach entra e encontra um produto quebrado. | Ordem de criação fixa (`Usuario.id` **é** o `sub`, então o local vem por último) + compensação inversa + `RECONCILIATION_REQUIRED` quando a própria compensação falha. Cenário dedicado na spec. |
+| 🔴 **Conta habilitada que ninguém confirma.** Se o verify-email falhar depois de habilitar o usuário, ele existe, está habilitado e não recebe nada. | Usuário **nasce desabilitado**; habilita só após o envio retornar sucesso. Falha no envio compensa o cadastro inteiro. Cenário na spec, não só no design. |
+| 🔴 **Abuso esgota a cota de e-mail (~250/dia) e a verificação dos cadastros legítimos para de sair** — sem erro visível para ninguém. | Limite por IP **e por e-mail**, teto diário global (~20/dia) com alerta, honeypot. O teto começa baixo de propósito: com volume real perto de zero, teto alto não alarma. |
+| 🟠 **`verifyEmail: true` é retroativo** — vale para todos os usuários do realm, não só os novos. | Decisão do CTO de desconsiderar cadastros existentes. Consequência aceita: usuário legado precisa verificar ou ser marcado à mão. |
+| 🟠 **Bugs do Keycloak com usuário em múltiplas organizations** (claim some — keycloak#43635, #35830). | Modelo é um coach por assessoria. **Restrição registrada:** modelar usuário em duas assessorias exige revisitar isto. |
+| 🟠 **`organization` é optional client scope.** Sem ele o token sai sem `tenant_id`, o login conclui e **tudo responde 403** — o modo de falha mais caro de diagnosticar. | Já coberto por teste no front (`oidcConfig`/`authFlow`). Manter a cobertura; não remover o scope da requisição. |
+| 🟠 **Reuso indevido do `AssessoriaServiceImpl`**, que cria Organization sem compensar. | O orquestrador novo **não** o chama. Registrado nas restrições de código. |
+| 🟡 **Credencial admin do Keycloak no Railway não verificada ponta a ponta** — o domínio privado e a porta 8080 foram escolha minha, confirmada só pelo log de boot. | Task 0.1 aberta de propósito; fecha na primeira task que exercitar o gateway de verdade. |
+| 🟡 **Imaturidade da feature Organizations (KC 26).** Em 2026-08-07 uma colisão do client scope `organization` produzia `unknown_error` intermitente. | Conhecido e documentado em `menthoros-infra/keycloak/README.md`. Sem mitigação prévia — é risco aceito da versão. |
+| 🟡 **`keycloak_group_id` (UNIQUE) em `tb_assessoria`** é dívida legada de quando o tenant era grupo. | Não usar em código novo. Removê-la é change própria. |
+
+### Rollback
+
+O endpoint nasce atrás de **feature flag**. Desligar a flag interrompe novos cadastros sem tocar em
+nada já criado — é o botão de pânico, e não depende de deploy.
+
+Reverter o `verifyEmail` e a configuração de SMTP é mudança de realm + `sync-realm.sh`, independente
+do código.

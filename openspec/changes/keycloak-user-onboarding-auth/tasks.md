@@ -84,7 +84,7 @@
 - [ ] 2.5 Implementar `POST /api/public/coach-signups` com respostas `201/400/409/429/502/503`, feature flag, limite de corpo e sem tokens na resposta.
 - [ ] 2.6 **Rate limit — DECIDIDO em 2026-08-07 (ver `design.md`): generalizar o `WaitlistRateLimitFilter`,
       com duas dimensões (~3/h por IP e ~3/dia por e-mail), honeypot reusado e teto diário global
-      (~150/dia) com alerta. Sem CAPTCHA agora, com gatilho declarado. Isto é execução, não decisão.** Já existe proteção por IP em `/api/v1/waitlist`, contando por
+      (**~20/dia**) com alerta. Sem CAPTCHA agora, com gatilho declarado. Isto é execução, não decisão.** Já existe proteção por IP em `/api/v1/waitlist`, contando por
       `getRemoteAddr()` e não pelo XFF cru (que é falsificável) — a correção veio da
       `harden-waitlist-rate-limit`. Criar um segundo mecanismo sem decidir produz **duas
       políticas divergentes** para o mesmo tipo de rota pública.

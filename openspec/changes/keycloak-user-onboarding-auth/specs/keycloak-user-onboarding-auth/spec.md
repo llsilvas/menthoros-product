@@ -90,10 +90,18 @@ consegue entrar e encontra um produto quebrado.
 #### Scenario: Falha ao criar o usuário no Keycloak, após a organização
 - **WHEN** a organização é criada e a criação do usuário falha
 - **THEN** o sistema remove a organização, não persiste `Usuario`, e retorna erro controlado
+- **AND** a `Assessoria` criada no passo 1 **não fica `PROVISIONING` órfã**: é marcada como falha e
+  **não é contabilizada** como assessoria ativa em nenhuma consulta do produto
 
 #### Scenario: Falha ao persistir o `Usuario` local, após o Keycloak
 - **WHEN** organização e usuário existem no Keycloak e a persistência local falha
 - **THEN** o sistema remove usuário e organização no Keycloak, nessa ordem, e retorna erro controlado
+- **AND** a `Assessoria` recebe o mesmo tratamento: marcada como falha, nunca deixada em
+  `PROVISIONING` indefinidamente
+
+#### Scenario: O slug volta a ficar disponível após falha
+- **WHEN** um cadastro falha e a `Assessoria` é marcada como falha
+- **THEN** o slug daquela tentativa **não fica preso** — uma nova tentativa com o mesmo slug é aceita
 
 #### Scenario: A compensação falha
 - **WHEN** a remoção no Keycloak falha durante a compensação
