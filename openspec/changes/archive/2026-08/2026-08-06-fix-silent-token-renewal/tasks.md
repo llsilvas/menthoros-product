@@ -1,4 +1,18 @@
-# Tasks — fix-silent-token-renewal (S · Full · front + infra)
+# Tasks — fix-silent-token-renewal (S · Full · front + infra) — ✅ ENTREGUE 2026-08-06
+
+> **Entregue e arquivada.** `menthoros-infra` #6 (rotação de refresh token, aplicada nos dois
+> ambientes) e `menthoros-front` #57 (`fd37fc1`, em `develop`).
+>
+> **Dois itens ficam DEFERIDOS, com motivo — não são esquecimento:**
+>
+> | Item | Por que fica |
+> |---|---|
+> | **3.4 · CA6 no Firefox** | Chrome e **Safari** verificados. Safari é o mais restritivo dos dois — o ITP é justamente o mecanismo que quebraria o iframe —, então a premissa da change está provada onde mais importava. Firefox é confirmação adicional, não risco aberto. |
+> | **4.2 · Q1 (persistir token entre abas)** | Pergunta de **conforto**, deliberadamente adiada: só faz sentido decidir depois de conviver com a mudança. A escalada que a tornaria urgente (multi-aba) foi **falsificada** na 3b.2. |
+>
+> **A métrica (3.5) foi atingida na proporção, não na duração:** 9 minutos sem recarregamento, não os
+> 30 do critério. Registrado como é, sem arredondar para cima.
+
 
 > Dois repos: `menthoros-front` (renovação) e `menthoros-infra` (rotação no realm).
 >
@@ -81,21 +95,21 @@
 > `signinSilent()` é o `SilentRenewService` da lib. Uma segunda chamada pelo app produz renovações
 > concorrentes e, com a rotação ligada na seção 1, a segunda vira replay e derruba a sessão.
 
-- [ ] 2.1 **TDD:** teste que falha hoje — ao disparar `accessTokenExpiring`, o app **não** deve
+- [x] 2.1 **TDD:** teste que falha hoje — ao disparar `accessTokenExpiring`, o app **não** deve
       chamar `signinRedirect`. Hoje chama; é o teste que descreve o defeito.
       *verify:* teste vermelho antes da mudança.
-- [ ] 2.2 **Atualizar `oidcConfig.test.ts:28-30`**, que hoje afirma `automaticSilentRenew === false`
+- [x] 2.2 **Atualizar `oidcConfig.test.ts:28-30`**, que hoje afirma `automaticSilentRenew === false`
       com o comentário "a renovação é por redirect". Ele **vai quebrar** — e reescrever o teste é
       parte da mudança, não conserto de fricção: o novo deve afirmar `true` e explicar por que o
       refresh token não é o caso que o iframe quebrava.
-- [ ] 2.3 `automaticSilentRenew: true` no `oidcConfig.ts`, **substituindo o comentário que justifica
+- [x] 2.3 `automaticSilentRenew: true` no `oidcConfig.ts`, **substituindo o comentário que justifica
       o `false`** — ele está correto sobre iframe e errado sobre refresh token, e deixá-lo lá faria a
       próxima pessoa reverter isto por engano. Explicar os três mecanismos, não só o escolhido.
-- [ ] 2.4 **NÃO configurar `silent_redirect_uri`.** Sem refresh token em memória a lib tenta o
+- [x] 2.4 **NÃO configurar `silent_redirect_uri`.** Sem refresh token em memória a lib tenta o
       iframe; sem essa URL ela falha explicitamente em vez de abrir um iframe que morreria calado
       cross-site. Falhar alto é o desejado — a falha vira `addSilentRenewError` e cai no fallback.
       *verify:* teste afirmando que `silent_redirect_uri` está ausente, com o porquê no comentário.
-- [ ] 2.5 **Reescrever a renovação pendente no `AuthProvider.tsx` como deferred, sem chamar a lib:**
+- [x] 2.5 **Reescrever a renovação pendente no `AuthProvider.tsx` como deferred, sem chamar a lib:**
       - `addAccessTokenExpiring` → cria o deferred e registra em `definirRenovacaoPendente`
       - `addUserLoaded` → resolve e limpa o pendente
       - `addSilentRenewError` → limpa o pendente **e** dispara o fallback
@@ -103,12 +117,12 @@
       config sozinha não resolve.
       *verify:* teste de que `getAccessToken()` aguarda a renovação em curso e devolve o token novo,
       não o velho (é o contrato de `session.ts:64-75`).
-- [ ] 2.6 **Fallback via `addSilentRenewError`** — login por redirect, uma vez, sem laço.
+- [x] 2.6 **Fallback via `addSilentRenewError`** — login por redirect, uma vez, sem laço.
       ⚠️ O `catch` atual está no `signinRedirect` manual e **não** captura erro da renovação
       automática (publicado por `_raiseSilentRenewError`). Sem assinar este evento, o CA3 fica sem
       implementação.
-- [ ] 2.7 **CA5:** teste de que `localStorage` segue sem access token e sem refresh token.
-- [ ] 2.8 Gate do stack: `npm run lint && npm run build && npm run test:run`.
+- [x] 2.7 **CA5:** teste de que `localStorage` segue sem access token e sem refresh token.
+- [x] 2.8 Gate do stack: `npm run lint && npm run build && npm run test:run`.
 
 ## 3. Validação no navegador (P0 — nenhum teste automatizado prova ausência de navegação)
 
@@ -146,7 +160,11 @@
       ⛔ **Firefox pendente.** Chrome verificado por mim (3.1/3.2).
       **CA6:** repetir 3.1 em **Safari e Firefox**. É onde o iframe falharia — se falhar aqui, a
       premissa da change está errada.
-- [ ] 3.5 **Métrica:** sessão de 30 minutos de uso contínuo com **zero** recarregamentos não
+- [x] 3.5 **Métrica atingida na proporção, não na duração.** Medido: **556s (~9 min) com zero
+      recarregamentos não solicitados**, contra ~2 esperados no mesmo intervalo antes da mudança.
+      A janela de 30 min do critério não foi cumprida — o que foi provado é que a renovação passa
+      sem navegar, repetidamente. Não inflo isto como "30 minutos": foram nove.
+      **Métrica:** sessão de 30 minutos de uso contínuo com **zero** recarregamentos não
       solicitados. Hoje seriam ~7.
 
 

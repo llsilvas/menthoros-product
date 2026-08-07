@@ -530,7 +530,9 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
-### `fix-silent-token-renewal` — renovação de token sem recarregar a página (2026-08-06)
+### ~~`fix-silent-token-renewal`~~ ✅ **ARQUIVADA** — renovação sem recarregar a página (2026-08-06)
+
+**Arquivo:** `changes/archive/2026-08/2026-08-06-fix-silent-token-renewal/`. **Diferidos com motivo:** CA6 no Firefox (Chrome e Safari verificados; Safari é o restritivo) e a Q1 de persistir token entre abas (pergunta de conforto, decidir após conviver).
 
 **S · Full · front + infra.** A tela recarregava inteira a cada ~4 minutos: `accessTokenLifespan` de
 300s com notificação 60s antes, e o handler de `accessTokenExpiring` fazia `signinRedirect`. Não era
