@@ -69,9 +69,16 @@ rotina do treinador. Ela mede se o mecanismo funciona, não se serviu para algum
 - ~~Billing~~ → o signup **não** cria `Assinatura`; `Assessoria` em BASIC com `ativo = true` é o
   estado pré-cobrança.
 
-**Em aberto — decisão necessária antes da task 2.6:**
+**Resolvida em 2026-08-07 — anti-abuso** (detalhes no `design.md`):
 
-- **Proteção anti-abuso.** O rate limit por IP tem precedente (`WaitlistRateLimitFilter`, contando
-  por `getRemoteAddr()` e não pelo XFF cru) e a 2.6 decide se generaliza ou duplica. Falta decidir o
-  resto: **CAPTCHA/Turnstile sim ou não**, e os limites concretos por IP e por e-mail. Sem isso, a
-  decisão vaza para dentro da implementação, que é onde ela costuma virar "o que der".
+- **Sem CAPTCHA agora**, com gatilho declarado para revisar (teto diário atingido, ou >50% de
+  cadastros não verificados em 24h). A conta nasce desabilitada e só é habilitada após a verificação,
+  então o dano de um cadastro falso é pequeno — e CAPTCHA cobraria conversão no fluxo cuja métrica
+  primária é "assessorias que começam a usar".
+- **Rate limit em duas dimensões:** ~3/hora por IP e ~3/dia por e-mail, no filtro generalizado.
+  A dimensão por e-mail existe porque **o recurso escasso é a cota de ~250 e-mails/dia** — rotacionar
+  IP é barato, e esgotar a cota faz a verificação dos cadastros **legítimos** parar de sair.
+- **Teto diário global** (~150/dia) com alerta, protegendo a cota de envio.
+- **Honeypot** reusando o padrão do waitlist, com resposta indistinguível para o bot.
+
+**Nenhuma questão bloqueante em aberto.**

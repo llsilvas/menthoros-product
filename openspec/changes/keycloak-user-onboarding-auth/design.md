@@ -249,3 +249,47 @@ o `correlation_id` é o que amarra o rastro nesse caso.
 ⚠️ **Quando a cobrança entrar**, quem a implementar precisa tratar assessoria sem assinatura como
 "plano gratuito vigente", não como inadimplente. Registrado aqui porque é exatamente o tipo de
 suposição que se perde entre duas changes.
+
+
+## Anti-abuso — decidido em 2026-08-07
+
+Endpoint público, anônimo, que cria recursos em dois sistemas e **dispara e-mail**. O precedente do
+módulo já resolve metade: `WaitlistInputDto` tem campo honeypot e o `WaitlistController` responde
+**`CRIADO`** quando ele vem preenchido — indistinguível para o bot —, e o `WaitlistRateLimitFilter`
+limita por IP contando por `getRemoteAddr()`, não pelo `X-Forwarded-For` cru (falsificável).
+
+### O recurso escasso não é linha no banco — é a cota de e-mail
+
+O Workspace da GoDaddy entrega ~250 relays/dia. Um cadastro em massa **esgota a cota de envio**, e o
+efeito real não é banco cheio: é **o e-mail de verificação dos cadastros legítimos parar de sair**,
+sem erro visível para ninguém. Toda a política abaixo protege esse recurso.
+
+### Decisão
+
+| Camada | O quê | Por quê |
+|---|---|---|
+| **Filtro único** | generalizar o `WaitlistRateLimitFilter` para rota/limite configuráveis | dois mecanismos divergem no primeiro ajuste |
+| **Por IP** | ~3/hora | primeira linha, barata |
+| **Por e-mail** | ~3/dia | **rotacionar IP é barato**; sem esta, um atacante distribuído esgota a cota de e-mail e ainda bombardeia a caixa de terceiro usando o domínio |
+| **Honeypot** | reusar o padrão, com resposta indistinguível | atrito zero, custo zero |
+| **Teto diário global** | ~150 cadastros/dia + alerta | protege a cota de envio e **avisa antes** de o sintoma chegar como "o coach não recebeu o e-mail" |
+
+Os números são ponto de partida para calibrar, não verdades.
+
+### CAPTCHA/Turnstile: **não agora** — decisão do CTO
+
+Duas razões, e a segunda é a que pesa:
+
+1. **O dano de um cadastro falso é pequeno.** A conta nasce desabilitada e só é habilitada após a
+   verificação de e-mail — ela não opera. O que o abuso consome de verdade é cota de envio, e as
+   camadas acima atacam isso diretamente.
+2. **CAPTCHA adiciona atrito exatamente no fluxo cuja métrica primária é "assessorias que começam a
+   usar".** Pagar conversão para mitigar um risco que ainda é hipótese é o trade errado neste
+   estágio.
+
+**Gatilho declarado para reverter a decisão** — para não virar "nunca":
+
+- o teto diário global ser atingido; **ou**
+- cadastros não verificados passarem de ~50% numa janela de 24h.
+
+Quando qualquer um disparar, o atrito passa a se justificar porque o abuso deixou de ser hipótese.
