@@ -66,3 +66,66 @@ Jornada integrada:
 ## Rollout
 
 Publicar backend com endpoint protegido por feature flag, executar smoke/reconciliação, publicar frontend e abrir gradualmente. Desabilitar a flag interrompe novos cadastros sem afetar contas já criadas.
+
+
+## Esboço de migration (V75) — decidido, não adiado
+
+O DoR apontou que o impacto em dados estava só adiado ("a discovery decide"). Levantamento do schema
+real em 2026-08-07 resolve boa parte antes de começar.
+
+### O que JÁ existe em `tb_assessoria`
+
+```
+dominio                    varchar  UNIQUE   ← é o slug; a reserva não precisa de coluna nova
+keycloak_organization_id   varchar
+keycloak_group_id          varchar  UNIQUE
+keycloak_realm             varchar
+max_atletas, max_tecnicos, plano, ativo
+```
+
+📌 **Consequência para a task de slug:** "reservar o slug" não é criar campo — é usar a unique
+`tb_assessoria_dominio_key` que já existe. A corrida entre dois cadastros simultâneos com o mesmo
+slug resolve-se pela constraint, não por verificação prévia (que sempre tem janela).
+
+### O que FALTA: `tb_signup_provisioning` (tabela nova, V75)
+
+**Por que tabela separada e não coluna em `tb_assessoria`:** o cadastro começa **antes** de a
+assessoria existir, e precisa sobreviver ao caso em que ela nunca chega a ser criada. Estado de
+provisionamento pendurado na assessoria não consegue registrar a tentativa que falhou no primeiro
+passo — que é justamente a que precisa de rastro.
+
+```sql
+CREATE TABLE IF NOT EXISTS tb_signup_provisioning (
+    id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    idempotency_key           VARCHAR(64)  NOT NULL,
+    email                     VARCHAR(255) NOT NULL,
+    slug                      VARCHAR(120) NOT NULL,
+    status                    VARCHAR(40)  NOT NULL,
+    assessoria_id             UUID         REFERENCES tb_assessoria(id) ON DELETE SET NULL,
+    keycloak_organization_id  VARCHAR(64),
+    keycloak_user_id          VARCHAR(64),
+    correlation_id            VARCHAR(64)  NOT NULL,
+    error_detail              TEXT,
+    created_at                TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at                TIMESTAMPTZ,
+    CONSTRAINT uk_signup_provisioning_idempotency UNIQUE (idempotency_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_signup_provisioning_status ON tb_signup_provisioning(status);
+CREATE INDEX IF NOT EXISTS idx_signup_provisioning_email  ON tb_signup_provisioning(email);
+```
+
+`status` acompanha a ordem de criação, para a compensação saber o que desfazer:
+`PENDING` → `ASSESSORIA_CREATED` → `ORG_CREATED` → `USER_CREATED` → `COMPLETED`, mais `FAILED` e
+`RECONCILIATION_REQUIRED`.
+
+⚠️ **Desvio deliberado do padrão de tabela do módulo: não tem `tenant_id`.** O `CLAUDE.md` do backend
+exige `tenant_id UUID NOT NULL` em tabela tenant-scoped — mas esta registra o ato de **criar** um
+tenant, e existe antes de haver um. Documentar o desvio aqui evita que a próxima revisão o trate
+como esquecimento.
+
+⚠️ **`created_at`/`updated_at` em `TIMESTAMPTZ`**, embora `tb_assessoria` use `timestamp without time
+zone`. O padrão do módulo pede `TIMESTAMPTZ` em tabela nova; não replicar a dívida da tabela vizinha.
+
+**Versão:** a última migration é a `V74`; esta é a **`V75`** — conferir antes de escrever, o número
+anda.

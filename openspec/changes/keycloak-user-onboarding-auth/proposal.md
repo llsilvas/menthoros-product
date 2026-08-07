@@ -41,7 +41,20 @@ Cada nova assessoria exige criação manual de tenant, usuário e vínculos no K
 
 ## Métrica de sucesso
 
-Pelo menos 90% dos cadastros válidos concluem a criação em até 2 minutos, com menos de 1% de estados residuais que exijam reconciliação manual.
+**Primária — a que responde se a change cumpriu o objetivo:**
+**% de assessorias criadas pelo cadastro público que registram o primeiro atleta em até 7 dias.**
+
+O objetivo declarado não é "se cadastrar", é **começar a usar**. Uma assessoria que se cadastra e não
+cadastra atleta nenhum não virou cliente — virou linha no banco. Esta métrica é a única que
+distingue as duas coisas, e liga o cadastro à rotina do treinador.
+
+**Secundária — operacional, do provisionamento:**
+Pelo menos 90% dos cadastros válidos concluem a criação em até 2 minutos, com menos de 1% de estados
+residuais que exijam reconciliação manual.
+
+⚠️ **A secundária sozinha engana.** Ela pode ficar verde com 100% dos cadastros concluindo em 30
+segundos e ninguém usando o produto — foi por isso que o gate de DoR a apontou como não ligada à
+rotina do treinador. Ela mede se o mecanismo funciona, não se serviu para alguma coisa.
 
 ## Open Questions & Assumptions
 
