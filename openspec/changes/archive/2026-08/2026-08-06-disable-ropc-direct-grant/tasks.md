@@ -1,4 +1,32 @@
-# Tasks — disable-ropc-direct-grant (S · Full · infra)
+# Tasks — disable-ropc-direct-grant (S · Full · infra) — ✅ ENTREGUE 2026-08-06
+
+> **O ROPC está fechado nos dois ambientes.** `menthoros-web` recusa `grant_type=password`
+> (`unauthorized_client`) e o PKCE `S256` é exigido pelo servidor, em HomeLab e Railway `develop`.
+> CA1, CA2, CA3 e CA4 verificados em **cada** ambiente.
+>
+> **4 PRs no `menthoros-infra`,** e cada um nasceu de um problema que o anterior revelou:
+>
+> | PR | O que era |
+> |---|---|
+> | **#1** | o corte do ROPC + PKCE `S256` |
+> | **#2** | colisão do client scope `organization` com a feature Organizations |
+> | **#3** | `description` estourando `varchar(255)` — que tornava o **#1 insincronizável** |
+> | **#4** | serverless como causa das falhas intermitentes |
+>
+> **Três armadilhas que só o sync real revelou**, todas documentadas em `menthoros-infra/keycloak/README.md`:
+> a coluna `description` é `varchar(255)` e **não trunca** (o corte era insincronizável desde o #1, e
+> nenhuma revisão de diff pegaria); os serviços do Railway estavam **serverless** e o banco dormindo
+> derrubou um sync pela metade; e o realm usa **login identity-first**, detalhe não documentado que
+> faz teste de login falhar sem erro visível.
+>
+> **Duas tasks ficam abertas como AÇÃO DO TIME, não como pendência técnica:** trocar o `client_id` no
+> Apidog e comunicar a quem usa o teste manual. Nenhuma bloqueia o corte, que já está no ar.
+>
+> ⚠️ **CA5 foi parcialmente superado, e isso não é regressão silenciosa:** ele exigia que o teste
+> manual continuasse funcionando trocando só o `client_id`. Com o `menthoros-test` desligado por
+> padrão (achado High da auditoria de segurança), passou a exigir também **ligar o client**. Custo
+> aceito conscientemente para não deixar o mesmo vetor ROPC aberto na internet sob outro nome.
+
 
 > Escopo: `menthoros-infra` (`keycloak/menthoros-realm.json`). **Zero diff em `apps/`** — o código já
 > está migrado (PRs front #54 e #55). O que falta é provedor, não aplicação.
