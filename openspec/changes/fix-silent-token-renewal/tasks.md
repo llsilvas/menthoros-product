@@ -139,7 +139,12 @@
       `addSilentRenewError` registrou a causa. O fallback foi exercitado em falha real, não simulada.
       **CA3:** encerrar a sessão no Keycloak pelo console e esperar a próxima renovação.
       *verify:* app cai no login **uma vez**, sem laço de redirect.
-- [ ] 3.4 **CA6:** repetir 3.1 em **Safari e Firefox**. É onde o iframe falharia — se falhar aqui, a
+- [ ] 3.4 **CA6 — parcial.** ✅ **Safari verificado pelo CTO em 2026-08-06** (não por mim). É o
+      navegador mais restritivo dos dois — o ITP é justamente o mecanismo que quebraria o iframe —,
+      então é o sinal mais forte de que a premissa da change se sustenta: a renovação por refresh
+      token não depende de cookie e passa onde o iframe morreria.
+      ⛔ **Firefox pendente.** Chrome verificado por mim (3.1/3.2).
+      **CA6:** repetir 3.1 em **Safari e Firefox**. É onde o iframe falharia — se falhar aqui, a
       premissa da change está errada.
 - [ ] 3.5 **Métrica:** sessão de 30 minutos de uso contínuo com **zero** recarregamentos não
       solicitados. Hoje seriam ~7.
