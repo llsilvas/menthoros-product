@@ -19,9 +19,29 @@
       backend roda como processo local e lê o `.env` do próprio repo. O defeito é real, mas **só no
       Railway**.
 
-      *Valores para o Railway:* `KEYCLOAK_SERVER_URL=http://menthoros-keycloak.railway.internal:8080`
-      (domínio privado, sem sair para a internet), `KC_ADMIN_USER=admin` e a senha do admin do realm
-      `master` — que desde o espelhamento do `keycloak-db` é a mesma do HomeLab.
+      **PROVISIONADO no Railway em 2026-08-06** — as três variáveis gravadas, deploy `SUCCESS`:
+
+      ```
+      KEYCLOAK_SERVER_URL = http://menthoros-keycloak.railway.internal:8080
+      KC_ADMIN_USER       = admin
+      KC_ADMIN_PASSWORD   = definida
+      ```
+
+      Domínio **privado** de propósito: mantém o tráfego admin dentro da rede do Railway. A senha é a
+      do admin do realm `master`, a mesma do HomeLab desde o espelhamento do `keycloak-db`. As
+      credenciais foram exercitadas contra o Keycloak do Railway e **obtêm token de admin**.
+
+      ⚠️ **A task segue ABERTA de propósito — uma suposição minha não foi verificada.** Eu escolhi
+      `menthoros-keycloak.railway.internal:8080`, e ninguém provou que o backend alcança o Keycloak
+      por esse endereço e porta: o serviço do Keycloak **não declara `PORT` nem `KC_HTTP_PORT`**,
+      depende do default 8080 com `KC_HTTP_ENABLED=true`. Plausível, não verificado — e é a mesma
+      classe de erro que já custou tempo nesta trilha (config que parece certa e só falha quando
+      alguém a usa). `railway ssh` exigiria chaves configuradas e não estava disponível.
+
+      **Onde isso se resolve naturalmente:** `AssessoriaServiceImpl:56` (`criarOrganization`) e
+      `AtletaServiceImpl:270` (convite de atleta) exercitam o gateway ponta a ponta. A primeira task
+      desta change que tocar esse caminho fecha a verificação — **decisão do CTO (2026-08-06):** não
+      criar dado descartável em dev só para fechar a caixinha antes da hora.
       *verify:* criação real de organização no Keycloak exercitada com sucesso **no Railway**.
 - [ ] 0.2 **Conferir se o `menthoros-test` precisa ser ligado** para algum teste desta change. Ele
       nasce `enabled: false` desde 2026-08-06 (mantém direct grant, e deixá-lo ligado devolveria o
