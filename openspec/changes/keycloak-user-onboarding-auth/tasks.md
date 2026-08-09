@@ -98,16 +98,22 @@
 
 ## 2. Backend
 
-- [ ] 2.1 Criar DTO/validação/normalização para nome, e-mail, senha, nome e slug; adicionar lista de slugs reservados e limites de payload.
-- [ ] 2.2 Criar a migração **V75** com `tb_signup_provisioning` (esboço no `design.md`, incluindo
-      `request_hash` e `resultado` — sem eles a idempotência não distingue "mesmo payload" de
-      "payload diferente"); validar com dados concorrentes.
-      ⚠️ **O slug NÃO ganha campo nem índice novo:** reserva é a UNIQUE existente
-      `tb_assessoria_dominio_key`, e a corrida entre dois cadastros simultâneos resolve nela — não
-      em verificação prévia, que sempre tem janela.
-      ⚠️ **`tb_assessoria` NÃO ganha coluna de estado.** A compensação **apaga** a `Assessoria`;
-      é isso que libera o slug. Marcar como falha manteria o `dominio` e prenderia o nome para
-      sempre — foi a contradição que o quarto gate pegou.
+- [x] 2.1 `CoachSignupInputDto` + 35 testes. Normalização no construtor compacto roda **antes** da
+      validação, então ` ADMIN ` não escapa da reserva por caixa alta. A senha fica fora da
+      normalização de propósito — trim mudaria o segredo escolhido.
+      ⚠️ **`default` é slug reservado de fato**, não hipotético: é o tenant semeado pela V2.
+      ⚠️ **O realm não tem `passwordPolicy`** — o `@Size` da senha é hoje o *único* portão de
+      força. Ver 4.x.
+      *verify:* `./mvnw test -Dtest=CoachSignupInputDtoTest` → 35/35 verdes.
+- [x] 2.2 `V75__create_tb_signup_provisioning.sql` + `SignupProvisioningMigrationTest`.
+      Ajustes contra o esboço do `design.md`, por divergência com o banco real: `slug`
+      **varchar(100)** (não 120), acompanhando `tb_assessoria.dominio`; `email` **varchar(180)**,
+      espelhando o DTO. CHECK no `status` e índice parcial na varredura de reconciliação.
+      *verify:* validado contra **Postgres 17 descartável**, não só por leitura — os cinco
+      comportamentos passaram, incluindo o que sustenta a compensação: após o `DELETE` da
+      assessoria o rastro preserva `slug` e `correlation_id`, a referência vira `NULL` e o slug
+      é reaproveitado. O teste JUnit exige Testcontainers e roda no CI (sem Docker local).
+
 - [ ] 2.3 Adaptar o gateway Keycloak existente para criar, consultar, habilitar/desabilitar e remover tenant/usuário, atribuir role/claim e enviar verify-email.
 - [ ] 2.4 Implementar orquestrador idempotente, plano BASIC (`maxAtletas=10`, `maxTecnicos=1`), compensações e registro para reconciliação; não confiar em `@Transactional` para Keycloak.
 - [ ] 2.4b **Isentar `/api/public/**` no `JwtTenantFilter`** — hoje ele isenta apenas
