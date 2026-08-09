@@ -58,8 +58,28 @@
 
 ## 1. Discovery e decisões
 
-- [ ] 1.1 Mapear OIDC/PKCE, claims de role/tenant, modelo Keycloak, serviços/repositórios e contratos de erro existentes; registrar caminhos reais e decisões.
-- [ ] 1.2 Decidir e documentar em ADR curto: ~~container de tenant~~, ~~verificação de e-mail~~,
+- [x] 1.1 **Mapeado em 2026-08-09.** Caminhos reais, com o que se reaproveita:
+
+      | O que | Onde | Reaproveita? |
+      |---|---|---|
+      | Fluxo PKCE do front | `context/auth/{oidcConfig,userManager,AuthProvider}.ts(x)` | ✅ pronto — o cadastro só precisa iniciá-lo |
+      | Claim de tenant | scope **optional** `organization` → `tenant_id` no claim | ✅ já pedido em `oidcConfig.ts` |
+      | Tenant por request | `JwtTenantFilter` → `TenantContext` | ⚠️ precisa da isenção da 2.4b |
+      | Rota pública no Security | `CoreSecurityProperties.publicPaths` já tem `/api/public/**` | ✅ nada a fazer |
+      | Gate LGPD | `LgpdConsentInterceptor` já libera sem JWT/tenant | ✅ nada a fazer |
+      | Conflito (409) | `DuplicateResourceException` → `CONFLICT` | ✅ **não criar exceção nova** |
+      | Falha do Keycloak (502) | `KeycloakIntegrationException` → `BAD_GATEWAY` | ✅ **não criar exceção nova** |
+      | Gateway Keycloak | `KeycloakOrganizationGatewayImpl` | ⚠️ só `criarOrganization` e `enviarConviteAtleta` — o resto é a 2.3 |
+      | Rate limit | `WaitlistRateLimitFilter` (Caffeine, por `getRemoteAddr()`) | ⚠️ generalizar na 2.6 |
+      | Honeypot | `WaitlistInputDto` + resposta indistinguível no controller | ✅ copiar o padrão |
+      | Slug | `tb_assessoria.dominio` **UNIQUE** | ✅ **não criar campo** |
+
+      📌 **O reaproveitamento é maior do que a estimativa L sugere.** O que a change realmente
+      constrói é o **orquestrador** e a **tabela de provisionamento** — quase todo o resto já
+      existe e só precisa ser conectado.
+- [x] 1.2 **ADR 0009 escrito** — `apps/menthoros-backend/docs/adr/0009-provisionamento-de-signup-sem-transacao-entre-postgres-e-keycloak.md`,
+      com as cinco decisões e as consequências, para que sobrevivam ao arquivamento da change.
+      ~~Decidir e documentar em ADR curto:~~ ~~container de tenant~~, ~~verificação de e-mail~~,
       ~~estado de provisionamento~~, compensação/reconciliação e proteção anti-abuso.
       **Três já decididas em 2026-08-07 e registradas no `design.md`:**
       - **tenant = Organizations** (não grupo/atributo) — é o caminho já implementado no gateway;
