@@ -43,7 +43,16 @@
       desta change que tocar esse caminho fecha a verificação — **decisão do CTO (2026-08-06):** não
       criar dado descartável em dev só para fechar a caixinha antes da hora.
       *verify:* criação real de organização no Keycloak exercitada com sucesso **no Railway**.
-- [ ] 0.2 **Conferir se o `menthoros-test` precisa ser ligado** para algum teste desta change. Ele
+- [x] 0.2 **NÃO precisa.** Verificado em 2026-08-09:
+      - os `*IT` de controller autenticam com o post-processor `jwt()` (JWT sintético), não com
+        token real — nenhum direct grant envolvido;
+      - o endpoint desta change é público: `/api/public/**` **já consta** em
+        `CoreSecurityProperties.publicPaths` (`config/core/CoreSecurityProperties.java:22`).
+      O `menthoros-test` só seria ligado para exploração manual de API, temporariamente, pelo
+      procedimento do `menthoros-infra/keycloak/README.md`.
+      📌 **De quebra, confirma o escopo da 2.4b:** o Spring Security já libera a rota; o que
+      falta é a isenção no `JwtTenantFilter`, que é outro filtro, mais cedo na cadeia.
+      ~~Conferir se o `menthoros-test` precisa ser ligado~~ para algum teste desta change. Ele
       nasce `enabled: false` desde 2026-08-06 (mantém direct grant, e deixá-lo ligado devolveria o
       vetor que o corte eliminou). Procedimento em `menthoros-infra/keycloak/README.md`.
 
