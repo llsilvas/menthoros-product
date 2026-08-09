@@ -167,8 +167,20 @@
       criada". Quem decide é o `slug`, que permanece na linha.
       *verify:* 26 testes no serviço, incluindo varredura das tags de todos os meters contra
       e-mail/senha e checagem de que o MDC não vaza `tenantId`.
-- [ ] 2.8 Testar validação, idempotência, corridas, cada ponto de falha/compensação e ausência de segredos em logs/respostas.
-- [ ] 2.9 Executar `./mvnw clean test`, migrações e testes de integração com Keycloak efêmero; registrar resultados.
+- [x] 2.8 33 testes no serviço + 35 no DTO + 15 no gateway + 7 no controller.
+      A auditoria mostrou que a cobertura anterior tinha **dois** pontos de falha; faltavam quatro.
+      Cada etapa agora tem teste do que a compensação desfaz **e do que ela não toca**.
+      📌 **Segredos em log passaram a ser verificados de verdade** (`ListAppender` sobre o logger,
+      nos caminhos de sucesso e de compensação). Antes só a resposta HTTP e o `error_detail` eram
+      checados — o log, que é onde o vazamento costuma acontecer, não era.
+      📌 Um teste pegou assertiva minha forte demais: `verifyNoInteractions` no gateway falhava
+      porque a pré-checagem **consulta** o Keycloak. O que importa é que nada foi **criado**.
+      *verify:* `./mvnw clean test` → 2468 testes, 135 erros — **todos** de Testcontainers sem
+      Docker nesta máquina, mesma contagem de antes das 29 adições.
+- [ ] 2.9 **BLOQUEADA nesta máquina — exige Docker.** `./mvnw clean verify` é o gate real (o
+      `test` não roda os `*IT`), e tanto os `*IT` quanto o `SignupProvisioningMigrationTest`
+      dependem de Testcontainers. Sem Docker local, 135 testes não executam.
+      Roda no CI, ou localmente com o Docker Desktop ligado.
 
 ## 3. Frontend
 
