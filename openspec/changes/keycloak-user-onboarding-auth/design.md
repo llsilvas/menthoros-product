@@ -32,11 +32,10 @@ Keycloak não participa da transação PostgreSQL. `@Transactional` sozinho não
 2. Criar a `Assessoria` local e registrar `ASSESSORIA_CREATED` em `tb_signup_provisioning`.
    ⚠️ **Sem estado novo em `tb_assessoria`** — ver "Estados e o destino da `Assessoria` em falha".
 3. Criar container de tenant no Keycloak.
-4. Criar usuário desabilitado/pendente de verificação, definir senha, role `TECNICO` e vínculo ao tenant.
+4. Criar usuário **habilitado**, com `emailVerified: false` e required action `VERIFY_EMAIL`; definir senha, role `TECNICO` e vínculo ao tenant.
 5. Criar `Usuario` local com `keycloakId` e assessoria.
-6. Disparar verify-email. **Só com o envio bem-sucedido:** habilitar o usuário e marcar
-   assessoria/operação `ACTIVE`. ⚠️ Habilitar antes deixaria conta habilitada que ninguém
-   confirma se o envio falhar — ver "Restrições de código", item 2.
+6. Disparar verify-email. **Só com o envio bem-sucedido** marcar assessoria/operação `ACTIVE`.
+   Falha no envio ⇒ compensa o cadastro inteiro — ver "Restrições de código", item 2.
 
 Em falha, excluir os recursos externos criados e **apagar** a `Assessoria` local (ver "Estados e o destino da `Assessoria` em falha" — `DELETE`, nunca marcação, senão o slug fica preso pela UNIQUE). Se compensação falhar, persistir uma operação `RECONCILIATION_REQUIRED` (sem senha) com correlation ID e IDs externos; uma rotina/admin runbook deve permitir retry idempotente. Nunca logar senha/tokens.
 
@@ -220,15 +219,31 @@ E a compensação desfaz exatamente na inversa: `4 → 3 → 2 → 1`.
 ⚠️ Se o Keycloak um dia emitir id não-UUID, `UUID.fromString` estoura. Hoje ele emite UUID; a
 implementação deve **falhar alto** nesse caso, não improvisar um id local.
 
-### 2. Nunca habilitar o usuário antes de o verify-email ter saído
+### 2. Nenhuma conta utilizável sem verificação — pela required action, não pelo flag `enabled`
 
-A versão anterior deste design dizia "marca ACTIVE, habilita usuário e dispara verify-email" — e
-mandava compensar genericamente se algo falhasse. **Não serve:** se o envio falha depois de
-habilitar, sobra usuário habilitado no Keycloak e assessoria ativa, com conta que ninguém confirma.
+Duas versões anteriores erraram aqui. A primeira mandava "marcar ACTIVE, habilitar e disparar
+verify-email", o que deixaria conta habilitada e não confirmada se o envio falhasse. A segunda
+corrigiu para "nasce desabilitado, habilita só depois do envio" — **e essa ordem é impossível.**
 
-**Regra inequívoca:** o usuário nasce **desabilitado**. Só é habilitado **depois** de o envio do
-verify-email retornar sucesso. Falha no envio ⇒ compensa (remove usuário e organização) ⇒ o cadastro
-falha inteiro, e o coach tenta de novo — em vez de ficar com conta que não entra e não avisa por quê.
+Verificado contra o Keycloak 26.7 em 2026-08-09:
+
+```
+PUT send-verify-email (usuário desabilitado) → 400 {"errorMessage":"User is disabled"}
+PUT send-verify-email (usuário habilitado)   → 204
+```
+
+O Keycloak recusa **antes** de tentar enviar. Nenhum e-mail sai, e o passo nunca retorna sucesso —
+então a condição para habilitar nunca é satisfeita. O fluxo trava sempre, não em caso de borda.
+
+**Regra inequívoca:** o usuário nasce **habilitado**, com `emailVerified: false` e required action
+`VERIFY_EMAIL`. Quem impede a conta de operar é a required action, reforçada por `verifyEmail: true`
+no realm: o Keycloak barra o fluxo de login na tela de verificação até o e-mail ser confirmado.
+Falha no envio ⇒ compensa (remove usuário e organização) ⇒ o cadastro falha inteiro.
+
+⚠️ **O tradeoff, explícito:** `enabled=false` seria uma barreira mais dura — nem o admin API
+emitiria token. A required action barra o fluxo interativo de login, que é por onde o coach entra.
+É garantia do fluxo de autenticação, não do estado da conta. Aceito porque a alternativa não
+funciona.
 
 ### 3. `AssessoriaServiceImpl.criarAssessoria` **não** serve para o signup público
 
@@ -299,8 +314,8 @@ hora e três por dia só são atingidos por engano ou por automação.
 
 Duas razões, e a segunda é a que pesa:
 
-1. **O dano de um cadastro falso é pequeno.** A conta nasce desabilitada e só é habilitada após a
-   verificação de e-mail — ela não opera. O que o abuso consome de verdade é cota de envio, e as
+1. **O dano de um cadastro falso é pequeno.** A conta não conclui login enquanto o e-mail não for
+   verificado (required action `VERIFY_EMAIL`) — ela não opera. O que o abuso consome de verdade é cota de envio, e as
    camadas acima atacam isso diretamente.
 2. **CAPTCHA adiciona atrito exatamente no fluxo cuja métrica primária é "assessorias que começam a
    usar".** Pagar conversão para mitigar um risco que ainda é hipótese é o trade errado neste
@@ -322,7 +337,7 @@ não davam para auditar numa leitura só.
 | Risco | Mitigação |
 |---|---|
 | 🔴 **Identidade órfã: conta no Keycloak sem tenant local.** É pior que falhar — o coach entra e encontra um produto quebrado. | Ordem de criação fixa (`Usuario.id` **é** o `sub`, então o local vem por último) + compensação inversa + `RECONCILIATION_REQUIRED` quando a própria compensação falha. Cenário dedicado na spec. |
-| 🔴 **Conta habilitada que ninguém confirma.** Se o verify-email falhar depois de habilitar o usuário, ele existe, está habilitado e não recebe nada. | Usuário **nasce desabilitado**; habilita só após o envio retornar sucesso. Falha no envio compensa o cadastro inteiro. Cenário na spec, não só no design. |
+| 🔴 **Conta que ninguém confirma.** Se o verify-email falhar, o usuário existe e não recebe nada. | Required action `VERIFY_EMAIL` + `verifyEmail: true` no realm barram o login até a confirmação; falha no envio compensa o cadastro inteiro. Cenário na spec, não só no design. **Não** usar `enabled=false`: o Keycloak recusa enviar e-mail a usuário desabilitado (verificado 2026-08-09). |
 | 🔴 **Abuso esgota a cota de e-mail (~250/dia) e a verificação dos cadastros legítimos para de sair** — sem erro visível para ninguém. | Limite por IP **e por e-mail**, teto diário global (~20/dia) com alerta, honeypot. O teto começa baixo de propósito: com volume real perto de zero, teto alto não alarma. |
 | 🟠 **`verifyEmail: true` é retroativo** — vale para todos os usuários do realm, não só os novos. | Decisão do CTO de desconsiderar cadastros existentes. Consequência aceita: usuário legado precisa verificar ou ser marcado à mão. |
 | 🟠 **Bugs do Keycloak com usuário em múltiplas organizations** (claim some — keycloak#43635, #35830). | Modelo é um coach por assessoria. **Restrição registrada:** modelar usuário em duas assessorias exige revisitar isto. |

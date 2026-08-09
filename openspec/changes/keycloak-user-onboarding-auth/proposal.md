@@ -65,6 +65,9 @@ rotina do treinador. Ela mede se o mecanismo funciona, não se serviu para algum
   `organization` é optional (sem ele o token sai sem `tenant_id` e tudo responde 403).
 - ~~Política de verificação de e-mail~~ → **`verifyEmail: true` no realm**, desconsiderando os
   cadastros existentes (decisão do CTO). A pré-condição de SMTP foi resolvida no mesmo dia.
+  ⚠️ **Ajustado em 2026-08-09:** o usuário nasce **habilitado** com required action `VERIFY_EMAIL`,
+  não desabilitado — o Keycloak recusa enviar e-mail a usuário desabilitado. Ver `design.md`,
+  "Restrições de código", item 2.
 - ~~Estado de provisionamento~~ → tabela **`tb_signup_provisioning`** (V75), esboçada no `design.md`.
 - ~~Billing~~ → o signup **não** cria `Assinatura`; `Assessoria` em BASIC com `ativo = true` é o
   estado pré-cobrança.
@@ -72,7 +75,7 @@ rotina do treinador. Ela mede se o mecanismo funciona, não se serviu para algum
 **Resolvida em 2026-08-07 — anti-abuso** (detalhes no `design.md`):
 
 - **Sem CAPTCHA agora**, com gatilho declarado para revisar (teto diário atingido, ou >50% de
-  cadastros não verificados em 24h). A conta nasce desabilitada e só é habilitada após a verificação,
+  cadastros não verificados em 24h). A conta não conclui login enquanto o e-mail não for verificado,
   então o dano de um cadastro falso é pequeno — e CAPTCHA cobraria conversão no fluxo cuja métrica
   primária é "assessorias que começam a usar".
 - **Rate limit em duas dimensões:** ~3/hora por IP e ~3/dia por e-mail, no filtro generalizado.

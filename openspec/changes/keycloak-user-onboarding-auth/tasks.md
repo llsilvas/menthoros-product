@@ -118,10 +118,11 @@
       Keycloak 26.7 real**, não inferidos: busca exige `exact=true` (senão casa por prefixo);
       role-mapping exige a *representation* completa da role; `POST members` recebe o id como
       string JSON crua. `DELETE` tolera 404 — a compensação precisa convergir.
-      🚨 **BLOQUEIO CONFIRMADO — a ordem do `design.md` é impossível.** `send-verify-email` num
-      usuário desabilitado responde `400 {"errorMessage":"User is disabled"}` e **nenhum e-mail
-      sai**. A sequência "nasce desabilitado → envia e-mail → habilita" não fecha. Decisão
-      pendente antes da 2.4 — ver abaixo.
+      🚨 **Bloqueio encontrado e RESOLVIDO em 2026-08-09.** `send-verify-email` num usuário
+      desabilitado responde `400 {"errorMessage":"User is disabled"}` e **nenhum e-mail sai** —
+      a sequência "nasce desabilitado → envia → habilita" trava sempre. Spec, design e proposal
+      corrigidos: o usuário nasce **habilitado** com required action `VERIFY_EMAIL`, e a barreira
+      passa a ser ela + `verifyEmail: true` no realm (ver **4.0**).
       *verify:* `./mvnw test -Dtest='KeycloakOrganizationGatewayImpl*Test,CoachSignupInputDtoTest'` → 55/55.
 - [ ] 2.4 Implementar orquestrador idempotente, plano BASIC (`maxAtletas=10`, `maxTecnicos=1`), compensações e registro para reconciliação; não confiar em `@Transactional` para Keycloak.
 - [ ] 2.4b **Isentar `/api/public/**` no `JwtTenantFilter`** — hoje ele isenta apenas
@@ -155,6 +156,16 @@
 
 ## 4. Entrega
 
+- [ ] 4.0 **`menthoros-infra` — configuração do realm.** Aplicar no `menthoros-realm.json` e
+      sincronizar: **`verifyEmail: true`** e uma **`passwordPolicy`** mínima. Hoje o realm não tem
+      nenhuma das duas.
+      ⚠️ **Lacuna encontrada em 2026-08-09:** o `verifyEmail: true` estava decidido na `proposal.md`
+      desde 2026-08-07 mas **nunca virou task** — e depois da correção da ordem de habilitação ele
+      deixou de ser reforço e passou a ser **parte da barreira** que substitui o `enabled=false`.
+      Sem ele, a conta não verificada entra.
+      ⚠️ Sem `passwordPolicy`, o `@Size` do DTO é o *único* portão de força de senha (achado da 2.1).
+      *verify:* usuário com e-mail não verificado não conclui o login; senha fraca é recusada pelo
+      próprio Keycloak, não só pelo backend.
 - [ ] 4.1 E2E real: signup → e-mail → login → claims corretos → consentimento → wizard/dashboard.
 - [ ] 4.2 Testar falhas injetadas após cada recurso criado e comprovar que compensação/reconciliação não deixa conta utilizável sem tenant local.
 - [ ] 4.3 Habilitar por feature flag, observar métricas e executar o runbook de rollback/reconciliação.

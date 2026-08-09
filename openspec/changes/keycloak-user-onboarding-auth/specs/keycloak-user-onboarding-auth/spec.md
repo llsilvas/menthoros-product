@@ -121,14 +121,24 @@ consegue entrar e encontra um produto quebrado.
 
 O sistema SHALL disparar a verificação pelo próprio Keycloak, sem construir e-mail próprio.
 
+> **Corrigido em 2026-08-09, contra o Keycloak 26.7 real.** A versão anterior mandava criar o
+> usuário **desabilitado** e habilitá-lo só após o envio do verify-email. Essa ordem é
+> impossível: `PUT send-verify-email` num usuário desabilitado responde
+> `400 {"errorMessage":"User is disabled"}` e **nenhum e-mail sai**. A barreira passa a ser a
+> required action `VERIFY_EMAIL` somada a `verifyEmail: true` no realm — o Keycloak barra o
+> login na tela de verificação. O objetivo ("conta não utilizável sem verificação") é o mesmo;
+> o mecanismo é outro.
+>
 > Pré-condição de infraestrutura, resolvida em 2026-08-07: o realm passou a ter SMTP configurado e
 > versionado, com envio validado em HomeLab e Railway. Antes disso, o cadastro terminaria em conta
 > que nunca se confirma.
 
-#### Scenario: O usuário nasce desabilitado e só é habilitado após o envio
+#### Scenario: O usuário nasce impedido de operar até verificar o e-mail
 - **WHEN** o usuário é criado no Keycloak
-- **THEN** ele é criado **desabilitado**, e só é habilitado **depois** de o envio do verify-email
-  retornar sucesso — nessa ordem, nunca antes
+- **THEN** ele é criado com `emailVerified: false` e a required action `VERIFY_EMAIL`, e **não**
+  consegue concluir o login enquanto não verificar
+- **AND** a barreira é a required action somada a `verifyEmail: true` no realm — **não** o flag
+  `enabled`, que o Keycloak exige ligado para sequer aceitar enviar o e-mail
 
 #### Scenario: Cadastro dispara a verificação
 - **WHEN** o provisionamento conclui com sucesso
