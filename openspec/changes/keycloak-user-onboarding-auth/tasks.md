@@ -114,7 +114,15 @@
       assessoria o rastro preserva `slug` e `correlation_id`, a referência vira `NULL` e o slug
       é reaproveitado. O teste JUnit exige Testcontainers e roda no CI (sem Docker local).
 
-- [ ] 2.3 Adaptar o gateway Keycloak existente para criar, consultar, habilitar/desabilitar e remover tenant/usuário, atribuir role/claim e enviar verify-email.
+- [x] 2.3 Oito primitivas novas no `KeycloakOrganizationGateway`. Contratos **verificados contra um
+      Keycloak 26.7 real**, não inferidos: busca exige `exact=true` (senão casa por prefixo);
+      role-mapping exige a *representation* completa da role; `POST members` recebe o id como
+      string JSON crua. `DELETE` tolera 404 — a compensação precisa convergir.
+      🚨 **BLOQUEIO CONFIRMADO — a ordem do `design.md` é impossível.** `send-verify-email` num
+      usuário desabilitado responde `400 {"errorMessage":"User is disabled"}` e **nenhum e-mail
+      sai**. A sequência "nasce desabilitado → envia e-mail → habilita" não fecha. Decisão
+      pendente antes da 2.4 — ver abaixo.
+      *verify:* `./mvnw test -Dtest='KeycloakOrganizationGatewayImpl*Test,CoachSignupInputDtoTest'` → 55/55.
 - [ ] 2.4 Implementar orquestrador idempotente, plano BASIC (`maxAtletas=10`, `maxTecnicos=1`), compensações e registro para reconciliação; não confiar em `@Transactional` para Keycloak.
 - [ ] 2.4b **Isentar `/api/public/**` no `JwtTenantFilter`** — hoje ele isenta apenas
       `/api/admin/**` e o caminho **exato** `/api/v1/waitlist` (`JwtTenantFilter:69`). O front
