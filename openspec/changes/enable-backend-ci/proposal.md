@@ -56,18 +56,24 @@ Nenhuma. Não toca código de produção, contrato de API nem schema.
 
 - **Zero diff em `src/`.** A change é um arquivo de workflow, configuração de repositório e correção
   de documentação.
-- **Repositórios:** só `menthoros-backend`. O `menthoros-front` e o `menthoros-product` também não
-  têm CI, mas fazer os três de uma vez triplica a superfície de decisão sem melhorar nenhuma. Ver
-  "Fora de escopo".
+- **Repositórios:** só `menthoros-backend`. Ele é o último sem CI: o `menthoros-front` ganhou
+  workflow e branch protection em 2026-08-04 (`enable-frontend-ci`), e o `menthoros-product` guarda
+  specs, não build. Ver "Fora de escopo".
 - **Tempo de PR:** passa a existir uma espera que hoje não existe. `clean verify` local leva
   **1min55s** (cache quente, Docker quente). Num runner do GitHub — 2 vCPU, cache frio, pull da
   imagem `pgvector/pgvector:pg17` — a expectativa é maior; medir é task explícita, não estimativa.
 
 ## O que provavelmente torna isto barato
 
-Levantado em 2026-08-02. **Tratar como hipótese favorável, não como fato** — os dois primeiros itens
-só ficam provados num runner limpo (task 1.2).
+Levantado em 2026-08-02, revisado em 2026-08-09. O primeiro item abaixo deixou de ser hipótese; os
+dois seguintes continuam sendo, e só ficam provados num runner limpo (task 1.2).
 
+- **A metade genérica do workflow já roda em produção.** `enable-frontend-ci` entregou em 2026-08-04
+  o `menthoros-front/.github/workflows/ci.yml` com exatamente o desenho proposto aqui: gatilho
+  `pull_request` (nunca `pull_request_target`), `permissions: contents: read`, `concurrency` com
+  `cancel-in-progress`, `schedule` (dias úteis às 09:00 UTC), `timeout-minutes` por job e artefato
+  publicado em falha. Isso é **precedente validado**, não aposta — copiar a forma custa pouco e o
+  risco residual desta change se concentra no que o front não tem: Maven, Failsafe e Testcontainers.
 - **O build parece hermético.** O profile `integration` stuba as chaves de IA (`test-anthropic-key`,
   `test-openai-key`) e usa JWKS dummy; o profile `test` stuba as credenciais do Strava. Empiricamente:
   `ANTHROPIC_API_KEY` e `OPENAI_API_KEY` estão **ausentes** do ambiente local e `verify` passa.
@@ -108,14 +114,34 @@ só ficam provados num runner limpo (task 1.2).
   então uma execução **agendada** revela isso sem depender de atividade. É o modo de falha exato
   que originou esta change: um `*IT` vermelho por 2,5 meses porque nada o executava.
 - **CA9** — Dado o workflow, então usa `pull_request` (nunca `pull_request_target`), declara
-  `permissions: contents: read`, fixa as actions de terceiros por versão e não expõe secret a PR de
-  fork. Um primeiro CI que amplia a superfície de ataque troca um problema por outro.
+  `permissions: contents: read`, fixa **todas** as actions por **SHA de commit** (com a versão em
+  comentário ao lado) e não expõe secret a PR de fork. Um primeiro CI que amplia a superfície de
+  ataque troca um problema por outro.
+  **Por que SHA e não tag:** o front usa tag exata (`actions/checkout@v4.2.2`), que é melhor que
+  `@v4` mas continua **mutável** — quem controla o repositório da action pode reapontá-la. Um job
+  com `contents: read` num repo privado não é alvo óbvio, mas o custo de fixar por SHA é uma linha e
+  um comentário. Alinhar o front a esta decisão é follow-up, não pré-requisito (ver "Fora de
+  escopo").
 
 ## Métrica de sucesso
 
 Nenhum `*IT` consegue ficar vermelho por mais de um PR sem alguém ser notificado — contra os 2,5
-meses do incidente que originou esta change. Verificável: depois do rollout, um PR deliberadamente
-quebrando um `*IT` é bloqueado antes do merge.
+meses do incidente que originou esta change.
+
+**Por que isso importa para o coach, e não só para o build.** Os três endpoints que
+`Task5p1ControllerIT` cobre são os de **reconciliação manual** — o caminho pelo qual o coach corrige
+um treino que chegou errado do Strava/intervals.icu. Ficaram 2,5 meses sem cobertura de contrato,
+incluindo autorização e isolamento multi-tenant. Um `*IT` podre ali não é dívida abstrata: é a
+chance de o coach ver o dado de outro tenant, ou de a correção dele não persistir, sem que nada
+avise.
+
+**Como se verifica** (três checks concretos, não uma impressão):
+
+1. Um PR que quebra um `*IT` de propósito tem o merge **bloqueado** — task 2.2.
+2. Uma execução agendada que falha gera um run **vermelho e visível** na aba Actions — task 1.4.
+3. A falha do agendamento **chega ao dono do repositório** (notificação do GitHub confirmada como
+   recebida, não presumida). `enable-frontend-ci` registrou este item como **não observado ainda**;
+   aqui ele é explícito para não herdar o mesmo ponto cego.
 
 ## Open Questions & Assumptions
 
@@ -142,9 +168,12 @@ tolerado, e o hábito de tolerar ruído é o que esta change existe para acabar.
 
 ## Fora de escopo — abrir como change própria
 
-- **CI para `menthoros-front` e `menthoros-product`.** O front tem `lint`/`build`/`test:run` e nenhum
-  CI; a mesma lacuna, com decisões diferentes (sem Docker, sem Testcontainers). Merece change própria
-  para não misturar dois conjuntos de risco.
+- **CI para `menthoros-product`.** Guarda specs, não build — o gate útil ali seria outro
+  (`openspec validate`), com decisões próprias. O `menthoros-front` **saiu** desta lista: já tem CI
+  desde 2026-08-04.
+- **Alinhar o `menthoros-front` ao pin por SHA** (CA9). O workflow do front usa tag exata; migrar
+  para SHA é melhoria real e barata, mas mexer no CI já em produção de outro repositório dentro
+  desta change mistura dois raios de impacto.
 - **Deploy contínuo governado por CI** (promover para produção só com verify verde). Esta change
   garante o código verificado *antes* do merge; redesenhar o pipeline de deploy é outro assunto.
   Inclui os caminhos que a CA4 não alcança: redeploy manual, rollback e trigger direto no Railway.
