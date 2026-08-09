@@ -145,14 +145,17 @@
       ⚠️ **Ainda faltam desta task:** feature flag e limite de corpo. O `429` chega com a 2.6.
       *verify:* 7 testes — 201/400/409/502, repasse da chave, e o corpo da resposta conferido
       contra a senha enviada.
-- [ ] 2.6 **Rate limit — DECIDIDO em 2026-08-07 (ver `design.md`): generalizar o `WaitlistRateLimitFilter`,
-      com duas dimensões (~3/h por IP e ~3/dia por e-mail), honeypot reusado e teto diário global
-      (**~20/dia**) com alerta. Sem CAPTCHA agora, com gatilho declarado. Isto é execução, não decisão.** Já existe proteção por IP em `/api/v1/waitlist`, contando por
-      `getRemoteAddr()` e não pelo XFF cru (que é falsificável) — a correção veio da
-      `harden-waitlist-rate-limit`. Criar um segundo mecanismo sem decidir produz **duas
-      políticas divergentes** para o mesmo tipo de rota pública.
-      Implementar a proteção anti-bot decidida; configurar CORS/CSRF e service account de menor
-      privilégio.
+- [x] 2.6 `WaitlistRateLimitFilter` → **`PublicEndpointRateLimitFilter`**, atendendo as duas rotas
+      públicas com limites próprios — uma política só, como a decisão exigia.
+      📌 **A divisão entre filtro e serviço não é por preferência, é por visibilidade:** um filtro
+      de servlet **não enxerga o e-mail** sem consumir o corpo da requisição, e o teto global
+      precisa de contagem persistida (memória de processo zeraria a cada deploy e se
+      multiplicaria por instância). IP no filtro; e-mail/dia e teto global no serviço.
+      ⚠️ Propriedade `app.waitlist.rate-limit.per-minute` **preservada com o nome antigo** —
+      renomeá-la faria os ambientes que já a configuram voltarem em silêncio ao default.
+      ⚠️ **Ainda faltam desta task:** CORS/CSRF e service account de menor privilégio.
+      *verify:* 88 testes nas áreas tocadas; contadores das duas rotas independentes; limite
+      checado **antes** da disponibilidade, para não vazar se o e-mail existe.
 - [ ] 2.7 Adicionar logs estruturados por correlation ID, métricas sem senha/token e alerta/runbook para `RECONCILIATION_REQUIRED`.
 - [ ] 2.8 Testar validação, idempotência, corridas, cada ponto de falha/compensação e ausência de segredos em logs/respostas.
 - [ ] 2.9 Executar `./mvnw clean test`, migrações e testes de integração com Keycloak efêmero; registrar resultados.
