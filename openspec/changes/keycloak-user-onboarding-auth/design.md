@@ -38,7 +38,7 @@ Keycloak não participa da transação PostgreSQL. `@Transactional` sozinho não
    assessoria/operação `ACTIVE`. ⚠️ Habilitar antes deixaria conta habilitada que ninguém
    confirma se o envio falhar — ver "Restrições de código", item 2.
 
-Em falha, excluir/desabilitar recursos externos criados e remover/marcar como falha os locais. Se compensação falhar, persistir uma operação `RECONCILIATION_REQUIRED` (sem senha) com correlation ID e IDs externos; uma rotina/admin runbook deve permitir retry idempotente. Nunca logar senha/tokens.
+Em falha, excluir os recursos externos criados e **apagar** a `Assessoria` local (ver "Estados e o destino da `Assessoria` em falha" — `DELETE`, nunca marcação, senão o slug fica preso pela UNIQUE). Se compensação falhar, persistir uma operação `RECONCILIATION_REQUIRED` (sem senha) com correlation ID e IDs externos; uma rotina/admin runbook deve permitir retry idempotente. Nunca logar senha/tokens.
 
 Se a modelagem atual não tiver estado de provisionamento, a discovery decide entre adicionar esse estado ou uma tabela `signup_provisioning`. Essa decisão deve ocorrer antes de estimar migrations finais.
 

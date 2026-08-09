@@ -70,7 +70,15 @@
 ## 2. Backend
 
 - [ ] 2.1 Criar DTO/validação/normalização para nome, e-mail, senha, nome e slug; adicionar lista de slugs reservados e limites de payload.
-- [ ] 2.2 Criar constraints/migração e, conforme ADR, estado/tabela de provisionamento e idempotência; validar com dados concorrentes.
+- [ ] 2.2 Criar a migração **V75** com `tb_signup_provisioning` (esboço no `design.md`, incluindo
+      `request_hash` e `resultado` — sem eles a idempotência não distingue "mesmo payload" de
+      "payload diferente"); validar com dados concorrentes.
+      ⚠️ **O slug NÃO ganha campo nem índice novo:** reserva é a UNIQUE existente
+      `tb_assessoria_dominio_key`, e a corrida entre dois cadastros simultâneos resolve nela — não
+      em verificação prévia, que sempre tem janela.
+      ⚠️ **`tb_assessoria` NÃO ganha coluna de estado.** A compensação **apaga** a `Assessoria`;
+      é isso que libera o slug. Marcar como falha manteria o `dominio` e prenderia o nome para
+      sempre — foi a contradição que o quarto gate pegou.
 - [ ] 2.3 Adaptar o gateway Keycloak existente para criar, consultar, habilitar/desabilitar e remover tenant/usuário, atribuir role/claim e enviar verify-email.
 - [ ] 2.4 Implementar orquestrador idempotente, plano BASIC (`maxAtletas=10`, `maxTecnicos=1`), compensações e registro para reconciliação; não confiar em `@Transactional` para Keycloak.
 - [ ] 2.4b **Isentar `/api/public/**` no `JwtTenantFilter`** — hoje ele isenta apenas
