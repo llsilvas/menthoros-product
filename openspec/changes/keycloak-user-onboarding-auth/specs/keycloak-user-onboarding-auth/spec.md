@@ -90,18 +90,19 @@ consegue entrar e encontra um produto quebrado.
 #### Scenario: Falha ao criar o usuário no Keycloak, após a organização
 - **WHEN** a organização é criada e a criação do usuário falha
 - **THEN** o sistema remove a organização, não persiste `Usuario`, e retorna erro controlado
-- **AND** a `Assessoria` criada no passo 1 **não fica `PROVISIONING` órfã**: é marcada como falha e
-  **não é contabilizada** como assessoria ativa em nenhuma consulta do produto
+- **AND** a `Assessoria` criada no passo 1 é **removida** — não fica órfã nem é contabilizada como
+  assessoria ativa. O rastro da tentativa permanece em `tb_signup_provisioning`
 
 #### Scenario: Falha ao persistir o `Usuario` local, após o Keycloak
 - **WHEN** organização e usuário existem no Keycloak e a persistência local falha
 - **THEN** o sistema remove usuário e organização no Keycloak, nessa ordem, e retorna erro controlado
-- **AND** a `Assessoria` recebe o mesmo tratamento: marcada como falha, nunca deixada em
-  `PROVISIONING` indefinidamente
+- **AND** a `Assessoria` recebe o mesmo tratamento: **removida**, nunca deixada para trás
 
 #### Scenario: O slug volta a ficar disponível após falha
-- **WHEN** um cadastro falha e a `Assessoria` é marcada como falha
+- **WHEN** um cadastro falha e a `Assessoria` é removida pela compensação
 - **THEN** o slug daquela tentativa **não fica preso** — uma nova tentativa com o mesmo slug é aceita
+- **AND** isso decorre da remoção, não de índice parcial: linha mantida com o `dominio` prenderia o
+  slug pela UNIQUE existente
 
 #### Scenario: A compensação falha
 - **WHEN** a remoção no Keycloak falha durante a compensação

@@ -29,7 +29,8 @@ Antes da implementação, localizar e registrar no PR: fluxo OIDC do frontend, c
 Keycloak não participa da transação PostgreSQL. `@Transactional` sozinho não desfaz recursos externos. O serviço orquestrador mantém IDs de cada etapa e compensa em ordem inversa:
 
 1. Validar entrada, rate limit, disponibilidade aparente e configuração.
-2. Criar assessoria local como `PROVISIONING` (ou usar registro de operação equivalente).
+2. Criar a `Assessoria` local e registrar `ASSESSORIA_CREATED` em `tb_signup_provisioning`.
+   ⚠️ **Sem estado novo em `tb_assessoria`** — ver "Estados e o destino da `Assessoria` em falha".
 3. Criar container de tenant no Keycloak.
 4. Criar usuário desabilitado/pendente de verificação, definir senha, role `TECNICO` e vínculo ao tenant.
 5. Criar `Usuario` local com `keycloakId` e assessoria.
@@ -338,3 +339,45 @@ nada já criado — é o botão de pânico, e não depende de deploy.
 
 Reverter o `verifyEmail` e a configuração de SMTP é mudança de realm + `sync-realm.sh`, independente
 do código.
+
+
+## Estados e o destino da `Assessoria` em falha — resolvido em 2026-08-09
+
+O quarto gate achou uma contradição que **eu introduzi** ao fechar o gap anterior. Eu havia afirmado
+as três coisas juntas, e elas não coexistem:
+
+1. o slug usa a UNIQUE existente em `tb_assessoria.dominio`;
+2. a assessoria falhada é "marcada como falha";
+3. o slug volta a ficar disponível após a falha.
+
+**Uma linha marcada como falha mantém o `dominio` — e a UNIQUE continua prendendo o slug.** Uma
+segunda tentativa com o mesmo nome bateria em `409` para sempre.
+
+### Decisão: a compensação **apaga** a `Assessoria`, não a marca
+
+O passo 1 é desfeito por `DELETE`, não por mudança de estado. Três razões, e a primeira é a que
+fecha a contradição:
+
+- **libera o slug de verdade**, sem índice parcial, sem mutar `dominio` com sufixo, sem coluna nova;
+- **o rastro não se perde:** é exatamente para isso que `tb_signup_provisioning` existe como tabela
+  separada — ela guarda a tentativa, o `status`, o erro e os IDs externos, e sobrevive ao `DELETE`
+  (a FK é `ON DELETE SET NULL`);
+- mantém a compensação sendo o inverso literal da criação: o que o passo 1 criou, o passo 1 desfaz.
+
+### Vocabulário de estados — onde cada um vive
+
+O gate também apontou, com razão, que `PROVISIONING`/`ACTIVE`/`FAILED` apareciam misturados entre
+`tb_assessoria`, `tb_signup_provisioning` e linguagem conceitual. Fica assim:
+
+| Onde | Campo | Valores |
+|---|---|---|
+| `tb_signup_provisioning` | `status` | `PENDING`, `ASSESSORIA_CREATED`, `ORG_CREATED`, `USER_CREATED`, `COMPLETED`, `FAILED`, `RECONCILIATION_REQUIRED` |
+| `tb_assessoria` | `ativo` (booleano **já existente**) | `true` a partir da criação |
+
+⚠️ **`tb_assessoria` NÃO ganha coluna de estado.** Não há `PROVISIONING` nem `ACTIVE` nela — o ciclo
+de vida do cadastro vive inteiro em `tb_signup_provisioning`. Onde o texto anterior deste design dizia
+"criar assessoria local como `PROVISIONING`", leia-se: **criar a `Assessoria` e registrar
+`ASSESSORIA_CREATED` na tabela de provisionamento**.
+
+Isso evita schema novo em tabela madura e mantém um único lugar respondendo "em que pé está este
+cadastro".
