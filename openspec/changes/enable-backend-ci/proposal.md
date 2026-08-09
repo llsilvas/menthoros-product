@@ -54,8 +54,11 @@ Nenhuma. Não toca código de produção, contrato de API nem schema.
 
 ## Impact
 
-- **Zero diff em `src/`.** A change é um arquivo de workflow, configuração de repositório e correção
-  de documentação.
+- **Diff em `src/test` — escopo ampliado em 2026-08-09, por decisão do dono.** A intenção original
+  era zero diff em `src/`. O primeiro run do CI derrubou isso: três testes só passavam por
+  dependerem do ambiente do dev, e o gate não pode nascer sobre um check que nenhum PR satisfaz.
+  Consertá-los virou parte desta change em vez de virar change própria. **Nenhuma linha de código de
+  produção é tocada** — o diff é restrito a `src/test`, e nenhuma asserção foi enfraquecida.
 - **Repositórios:** só `menthoros-backend`. Ele é o último sem CI: o `menthoros-front` ganhou
   workflow e branch protection em 2026-08-04 (`enable-frontend-ci`), e o `menthoros-product` guarda
   specs, não build. Ver "Fora de escopo".

@@ -1,9 +1,9 @@
 # Tasks — enable-backend-ci (S · Full · backend · 16 tasks)
 
-> Escopo: **zero diff em `src/`**. Um workflow, configuração de repositório e correção de doc.
-> Exceção única e temporária: a task 2.2 quebra um `*IT` de propósito numa branch descartável, que
-> nunca entra em `develop`. Fora isso, alteração em código de produção ou teste é sinal de escopo
-> vazando.
+> Escopo: um workflow, configuração de repositório, correção de doc — e, **desde 2026-08-09**,
+> correção dos testes não-herméticos que o primeiro run expôs (`src/test` apenas).
+> **Zero diff em `src/main` continua valendo.** Exceção temporária: a task 2.2 quebra um `*IT` de
+> propósito numa branch descartável, que nunca entra em `develop`.
 >
 > **Anchors verificados em 2026-08-02** contra `develop` @ `fb58e0c`, com `verify` verde.
 > **Revisados em 2026-08-09** (DoR): backend segue sem `.github/` e sem branch protection; o
@@ -76,7 +76,7 @@
     **não quebra o build** — verificado com `./mvnw -o clean verify -DskipTests` ⇒ `BUILD SUCCESS`,
     exit 0. Num primeiro CI isso é exatamente o tipo de coisa que faz alguém diagnosticar a falha
     errada, então está explicado em comentário no `ci.yml`
-- [ ] **1.2 Provar a hermeticidade num runner limpo** — [CA5]
+- [x] **1.2 Provar a hermeticidade num runner limpo** — [CA5]
   - ⚠️ Hoje isso é **hipótese**, não fato: o verde local roda com cache do Maven, imagens Docker já
     baixadas e o ambiente do dev. "Passa aqui sem as chaves de IA" prova que os segredos de aplicação
     não são necessários, não que o build sobrevive do zero
@@ -86,6 +86,39 @@
     qualquer teste que dependa de fuso aflora aqui
   - `verify:` o workflow não referencia `secrets.*` para compilar/testar e o run passa. Se falhar,
     registrar **o que** faltou (qual das dimensões acima) e decidir explicitamente
+  - **Resultado (2026-08-09, run 31305617773): a hipótese CAIU — e por um motivo que nenhuma das
+    dimensões previstas cobria.** Não faltou secret, nem Docker, nem cache, nem bit de execução do
+    `mvnw`. O que faltou foi um **Postgres ambiente**: três testes da fase Surefire dependiam de um
+    banco que só existe na máquina do dev. O build morreu antes do Failsafe, então os 11 `*IT` nem
+    chegaram a rodar. 2368 testes, 1 failure, 6 errors
+  - A dimensão que faltava na lista acima era **"o que o ambiente do dev fornece de graça"** — mais
+    ampla que "segredos" e que "Docker". É a lição a levar para o próximo repositório
+
+- [x] **1.2b Consertar os testes não-herméticos que a 1.2 expôs** — [CA5]
+  - ⚠️ Esta task **não existia**. Foi criada em 2026-08-09 quando o dono decidiu consertar aqui em
+    vez de abrir change própria. É o motivo de o guardrail 3.2 ter mudado de `src/` para `src/main`
+  - **Defeito 1 — banco ambiente.** `OpenApiConfigTest` e `CoreSecurityConfigTest` são
+    `@SpringBootTest` que sobem o contexto inteiro (logo, Flyway e JPA) sem declarar datasource; o
+    default aponta para `localhost:5432`. `HealthConfigTest` e `AuditConfigTest`, no mesmo pacote,
+    **já** usavam H2 em memória com Flyway desligado — e passaram no runner. O conserto foi aplicar
+    o padrão que o repo já tinha, não inventar um novo
+  - **Defeito 2 — precisão de timestamp.** `UsuarioLgpdConsentRepositoryTest.versaoDiferentePreserva-
+    Historico` comparava o `Instant` em memória com o valor relido do Postgres. `TIMESTAMPTZ` guarda
+    **microssegundos**; o relógio do Linux entrega nanossegundos, então o round-trip trunca
+    (`...812516201Z` vs `...812516Z`). Em macOS a granularidade do clock esconde a diferença.
+    **Este bug é irreproduzível fora de Linux** — nem com Docker local — o que explica ele ter
+    sobrevivido invisível. Passou a comparar truncando a `MICROS`
+  - ⚠️ Nenhuma asserção foi enfraquecida para destravar o CI. Era o risco explícito de consertar
+    junto, e é o que precisa ser conferido em review
+  - ⚠️ **O conserto do defeito 2 saiu errado na primeira tentativa** (`6561b3f`): truncar a `MICROS`
+    assumia que o Postgres **trunca** ao gravar `TIMESTAMPTZ`. Ele **arredonda** — o run 31319187209
+    devolveu 1 microssegundo de diferença (`...846596Z` esperado vs `...846597Z` obtido). Corrigido
+    em `ca1e1d6`: o baseline passou a ser lido **do próprio banco** após o primeiro save, então os
+    dois lados da comparação têm a mesma precisão e a asserção não depende de palpite sobre
+    arredondamento. **Lição:** comparar memória com banco embute uma suposição sobre o storage;
+    comparar banco com banco não
+  - `verify:` `9f400d4`, `6561b3f` e a correção subsequente; run **31319411844** verde com os `*IT`
+    executando (62 testes de integração, 0 falhas)
 - [x] **1.3 Publicar os relatórios do Surefire/Failsafe como artefato, inclusive em falha**
   - Sem isso o primeiro CI é caixa preta: "falhou" não distingue quebra de Maven, de Docker, de
     Testcontainers ou de asserção — e a resposta natural de quem não conhece o log vira "roda de novo"
@@ -105,15 +138,31 @@
     um dashboard por cima. O front deixou este ponto em aberto — aqui ele é explícito
   - `verify:` notificação recebida (print/citação), ou a constatação registrada de que **não** chega
     e a decisão do que fazer a respeito
-- [ ] **1.5 Abrir um PR de teste e observar o run** — [CA1]
+- [x] **1.5 Abrir um PR de teste e observar o run** — [CA1]
   - `verify:` o status check aparece no PR e o log mostra a fase `integration-test` executando os
     `*IT` (não só Surefire)
-- [ ] **1.6 Medir o tempo de ponta a ponta e registrar** — [CA6]
+  - **Feito:** PR #63. Check `Build e testes (verify)` aparece no PR — nome idêntico ao exigido pela
+    2.1, confirmado do lado do GitHub e não só no YAML. Run **31319411844** ⇒ `BUILD SUCCESS`, com
+    `failsafe:3.5.5:integration-test` executando: **2368 unitários + 62 integração, 0 falhas**
+  - **Achado:** o PR já tinha um segundo check pré-existente, `GitGuardian Security Checks`, que o
+    levantamento de 2026-08-02 não viu (o `design.md` dizia "o único status check hoje é o Railway").
+    ⚠️ A 2.1 deve exigir **apenas** o contexto do CI — incluir o GitGuardian criaria dependência de
+    serviço externo para todo merge
+  - **Custou 3 runs.** O primeiro e o segundo são a evidência da 1.2/1.2b, não desperdício
+- [x] **1.6 Medir o tempo de ponta a ponta e registrar** — [CA6]
   - `verify:` o número real anotado aqui, comparado com o baseline local de **1min55s**. Se doer,
     dividir em jobs vira decisão consciente registrada, **não** reação automática
-  - Se o run falhar com erro de **pull do Docker Hub** (limite anônimo por IP, ordem de 100/6h em
-    runners compartilhados), reconhecer o sintoma: derruba todos os `*IT` de uma vez e **não** se
-    parece com falha de teste. Resposta é autenticar o pull ou espelhar a imagem
+  - **Medido (run 31319411844, verde): 4min18s ponta a ponta** (14:48:19 → 14:52:37); a parte Maven
+    é 4min04s. Contra o baseline local de 1min55s: **~2,2×**
+  - ⚠️ **Este número é de cache frio.** Os runs 1 e 2 falharam, e `setup-java` só salva o cache em
+    sucesso — então os três rodaram com `~/.m2` vazio (`Cache not found for keys:
+    setup-java-Linux-x64-maven-6af02cb…`). O run 3 gravou o cache; a partir do próximo PR o número
+    deve cair. **Remedir com cache quente antes de decidir qualquer coisa sobre dividir em jobs**
+  - **Decisão: não dividir.** 4min18s no pior caso não dói o suficiente para pagar o custo de rodar
+    os 2368 unitários duas vezes (ver `design.md`, "Um job só"). Revisitar se o número com cache
+    quente ficar acima de ~6min
+  - Nenhum sintoma de **limite de pull do Docker Hub** nos três runs — o risco previsto não se
+    materializou, mas continua válido para o futuro
 
 ## 2. O gate de verdade
 
@@ -167,7 +216,9 @@
   - ⚠️ Não descrever aspiração como se fosse estado: só marcar ✅ **depois** que a 2.1 e a 2.2
     passarem. Foi a divergência entre doc e realidade que deixou "CI verde + branch protection"
     parecer resolvido por meses
-- [ ] **3.2 Guardrail de escopo:** `git diff develop -- src/` ⇒ **vazio**
+- [ ] **3.2 Guardrail de escopo:** `git diff develop -- src/main` ⇒ **vazio**
+  - ⚠️ Alterado em 2026-08-09. Era `src/` inteiro; o escopo passou a incluir `src/test` (ver 1.2b).
+    `src/main` é o que não pode ser tocado — se aparecer diff lá, o escopo vazou de verdade
 - [ ] **3.3 Registrar o que ficou de fora** e por quê, para não virar dívida silenciosa: CI do
   `menthoros-product`, alinhamento do front ao pin por SHA, gate de cobertura, deploy governado por
   CI (incl. redeploy/rollback manual no Railway), governança de repositório (CODEOWNERS, commits
