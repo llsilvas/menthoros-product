@@ -134,15 +134,17 @@
       tabela nova segue o ADR-0007.
       *verify:* 17 testes — ordem do provisionamento, ordem inversa da compensação, os quatro
       pontos de falha, idempotência, chave reusada e honeypot. Sem `LENIENT`.
-- [ ] 2.4b **Isentar `/api/public/**` no `JwtTenantFilter`** — hoje ele isenta apenas
-      `/api/admin/**` e o caminho **exato** `/api/v1/waitlist` (`JwtTenantFilter:69`). O front
-      injeta `Authorization` globalmente, então um token residual **sem `tenant_id`** derruba o
-      cadastro com 403 — e o sintoma não aponta para o filtro.
-      ⚠️ Seguir o padrão do waitlist: match **exato** ou prefixo deliberado, com comentário
-      explicando por que a rota é tenant-less. O `LgpdConsentInterceptor` **não** precisa mudar:
-      ele já libera requisição sem JWT/sem tenant — mas depende deste filtro não rejeitar antes.
-      *verify:* cadastro com `Authorization` residual de outra sessão responde normalmente.
-- [ ] 2.5 Implementar `POST /api/public/coach-signups` com respostas `201/400/409/429/502/503`, feature flag, limite de corpo e sem tokens na resposta.
+- [x] 2.4b `JwtTenantFilter` isenta `/api/public/**` por **prefixo** — deliberado, porque o
+      namespace inteiro é tenant-less por definição, ao contrário do `/api/v1/waitlist`, que é uma
+      rota pública isolada dentro de um namespace com tenant (aquele segue com match exato).
+      *verify:* 6 testes, incluindo que o prefixo **não** vaza para `/api/publicidade`.
+- [x] 2.5 `CoachSignupController` — `201` sem token algum. **Não existe campo de token no output
+      DTO**, e isso é o requisito, não omissão. `Idempotency-Key` opcional; gerada quando ausente
+      (a gerada não protege do duplo clique — só o cliente sabe que dois envios são a mesma
+      intenção — mas mantém o rastro).
+      ⚠️ **Ainda faltam desta task:** feature flag e limite de corpo. O `429` chega com a 2.6.
+      *verify:* 7 testes — 201/400/409/502, repasse da chave, e o corpo da resposta conferido
+      contra a senha enviada.
 - [ ] 2.6 **Rate limit — DECIDIDO em 2026-08-07 (ver `design.md`): generalizar o `WaitlistRateLimitFilter`,
       com duas dimensões (~3/h por IP e ~3/dia por e-mail), honeypot reusado e teto diário global
       (**~20/dia**) com alerta. Sem CAPTCHA agora, com gatilho declarado. Isto é execução, não decisão.** Já existe proteção por IP em `/api/v1/waitlist`, contando por
