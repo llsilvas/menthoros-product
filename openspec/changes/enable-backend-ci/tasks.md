@@ -26,9 +26,24 @@
     precisa ser reprojetada — é lá que ela vira fato observado
   - `verify:` resposta registrada acima; verificação empírica fica na task 2.3
 
-- [ ] **0.2 Confirmar se minutos de Actions são restrição** (repositório privado com cota apertada?).
+- [x] **0.2 Confirmar se minutos de Actions são restrição** (repositório privado com cota apertada?).
   Decide se o workflow roda em push **e** PR ou só em PR
-  - `verify:` plano do GitHub registrado na task
+  - **Resposta (2026-08-09):** `llsilvas/menthoros-backend` é **público**. Actions em runner padrão é
+    gratuito e ilimitado em repositório público — **não há cota a proteger**. Os três gatilhos
+    (`pull_request` + `push` + `schedule`) ficam como o `design.md` previa
+  - **Descoberta colateral, mais importante que a pergunta original:** a conta está no plano **Free**,
+    e nele **repositório privado não tem branch protection nem rulesets**. Verificado sem mutação, no
+    `menthoros-infra` (privado):
+    `GET repos/llsilvas/menthoros-infra/branches/main/protection` ⇒ **403** *"Upgrade to GitHub Pro or
+    make this repository public to enable this feature."* — idem para `/rulesets`
+  - ⚠️ **Consequência para esta change:** tornar o backend privado no plano Free **remove o gate**.
+    CA2, CA3 e CA7 dependem da proteção; sem ela sobra o workflow reportando, que é exatamente o que
+    o `design.md` rejeita como "o problema atual com mais YAML". A task 2.1 não ficaria difícil,
+    ficaria **impossível**
+  - **Decisão do dono (2026-08-09):** manter **público agora**; privatizar é decisão separada, e se
+    acontecer exige GitHub Pro (~US$ 4/mês, que também sobe a cota privada para 3.000 min/mês) sob
+    pena de desmontar o gate sem querer
+  - `verify:` visibilidade e comportamento do plano registrados acima
 
 ## 1. Workflow
 

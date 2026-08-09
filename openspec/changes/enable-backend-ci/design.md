@@ -151,7 +151,8 @@ obrigatórios. Decisão a tomar com o número na mão, não por antecipação ne
 | **A hermeticidade é hipótese, não fato.** O verde local roda com cache do Maven, imagens já baixadas e ambiente do dev | Task 1.2 existe para provar num runner limpo. Se cair, o que for necessário vira decisão documentada — não secret adicionado no susto |
 | **Bypass da branch protection** por admin, app ou token, ou check verde em SHA desatualizado | CA7: bloquear bypass e exigir branch atualizada. Sem isso a proteção é sugestão |
 | Nome do check muda e a proteção passa a exigir algo que não chega | O nome do job é contrato; alterá-lo exige atualizar a proteção no mesmo PR |
-| Minutos de Actions em repositório privado | Premissa a confirmar antes de ligar em push, PR **e** agendamento |
+| Minutos de Actions | **Descartado (2026-08-09):** o repositório é público, e Actions em runner padrão é gratuito e ilimitado em repo público |
+| **O repositório virar privado.** No plano Free da conta, repo privado **não tem branch protection nem rulesets** (`403 "Upgrade to GitHub Pro or make this repository public"`, verificado no `menthoros-infra`). Privatizar sem Pro **desmonta o gate** — CA2, CA3 e CA7 caem juntas, e sobra o workflow reportando | Decisão registrada em 2026-08-09: **manter público**. Se a privatização voltar à mesa, ela exige GitHub Pro como pré-requisito, não como opcional — e o custo (~US$ 4/mês) é do gate, não do repositório |
 
 ## Documentação a atualizar junto
 
