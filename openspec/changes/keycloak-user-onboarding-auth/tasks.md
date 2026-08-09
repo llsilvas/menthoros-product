@@ -124,7 +124,16 @@
       corrigidos: o usuário nasce **habilitado** com required action `VERIFY_EMAIL`, e a barreira
       passa a ser ela + `verifyEmail: true` no realm (ver **4.0**).
       *verify:* `./mvnw test -Dtest='KeycloakOrganizationGatewayImpl*Test,CoachSignupInputDtoTest'` → 55/55.
-- [ ] 2.4 Implementar orquestrador idempotente, plano BASIC (`maxAtletas=10`, `maxTecnicos=1`), compensações e registro para reconciliação; não confiar em `@Transactional` para Keycloak.
+- [x] 2.4 `CoachSignupServiceImpl` + `SignupProvisioning` + repositório. Compensação em pilha
+      (LIFO); falha da própria compensação vira `RECONCILIATION_REQUIRED` e **não** é retentada.
+      A assessoria é criada **primeiro** de propósito: é o passo mais barato de desfazer e o único
+      que resolve a corrida de slug sem janela.
+      ⚠️ **Alinhamentos com o schema real, encontrados ao integrar:** `email` do DTO de 180 → **100**
+      (espelha `tb_usuario.email`; maior passaria na validação e estouraria a coluna); `Assessoria`
+      não tem mais campo `trial` (migrou para `Assinatura`); coluna `resultado` → `result`, já que
+      tabela nova segue o ADR-0007.
+      *verify:* 17 testes — ordem do provisionamento, ordem inversa da compensação, os quatro
+      pontos de falha, idempotência, chave reusada e honeypot. Sem `LENIENT`.
 - [ ] 2.4b **Isentar `/api/public/**` no `JwtTenantFilter`** — hoje ele isenta apenas
       `/api/admin/**` e o caminho **exato** `/api/v1/waitlist` (`JwtTenantFilter:69`). O front
       injeta `Authorization` globalmente, então um token residual **sem `tenant_id`** derruba o
