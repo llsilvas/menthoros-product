@@ -47,7 +47,7 @@
 
 ## 1. Workflow
 
-- [ ] **1.1 Criar `.github/workflows/ci.yml` na raiz do repo `apps/menthoros-backend`** —
+- [x] **1.1 Criar `.github/workflows/ci.yml` na raiz do repo `apps/menthoros-backend`** —
   `ubuntu-latest`, Java 21 (temurin), cache de `~/.m2` por hash de `pom.xml`, comando
   `./mvnw clean verify`
   - ⚠️ **Na raiz do repositório do backend**, não do workspace: a raiz do workspace não é um repo git,
@@ -64,6 +64,18 @@
     `concurrency` com `cancel-in-progress` por ref
   - ⚠️ O **nome do job é contrato**: a branch protection vai referenciá-lo. Renomear depois quebra o
     gate em silêncio
+  - **Feito:** job `verify`, nome `Build e testes (verify)` — é este o contexto que a task 2.1 vai
+    exigir. Actions pinadas por SHA nas mesmas majors do front (`checkout` v4.2.2,
+    `setup-java` v4.7.0, `upload-artifact` v4.4.3): as majors atuais são v7/v5/v7, mas divergir do
+    front nas mesmas actions cria dois conjuntos para manter — upgrade uniforme é trabalho do
+    Dependabot, já registrado como fora de escopo
+  - **Achado durante a implementação — ruído esperado no log, documentado no próprio YAML:** o
+    `springdoc-openapi-maven-plugin` está no build principal (não num profile), ligado à fase
+    `integration-test`, e tenta ler `http://localhost:<porta>/v3/api-docs` sem nenhuma app no ar.
+    Ele imprime `java.net.ConnectException: Connection refused` **com stack trace completo** e
+    **não quebra o build** — verificado com `./mvnw -o clean verify -DskipTests` ⇒ `BUILD SUCCESS`,
+    exit 0. Num primeiro CI isso é exatamente o tipo de coisa que faz alguém diagnosticar a falha
+    errada, então está explicado em comentário no `ci.yml`
 - [ ] **1.2 Provar a hermeticidade num runner limpo** — [CA5]
   - ⚠️ Hoje isso é **hipótese**, não fato: o verde local roda com cache do Maven, imagens Docker já
     baixadas e o ambiente do dev. "Passa aqui sem as chaves de IA" prova que os segredos de aplicação
@@ -74,10 +86,10 @@
     qualquer teste que dependa de fuso aflora aqui
   - `verify:` o workflow não referencia `secrets.*` para compilar/testar e o run passa. Se falhar,
     registrar **o que** faltou (qual das dimensões acima) e decidir explicitamente
-- [ ] **1.3 Publicar os relatórios do Surefire/Failsafe como artefato, inclusive em falha**
+- [x] **1.3 Publicar os relatórios do Surefire/Failsafe como artefato, inclusive em falha**
   - Sem isso o primeiro CI é caixa preta: "falhou" não distingue quebra de Maven, de Docker, de
     Testcontainers ou de asserção — e a resposta natural de quem não conhece o log vira "roda de novo"
-- [ ] **1.4 Adicionar execução agendada** — `cron: '0 9 * * 1-5'`, o mesmo do front — [CA8]
+- [x] **1.4 Adicionar execução agendada** — `cron: '0 9 * * 1-5'`, o mesmo do front — [CA8]
   - ⚠️ **Não é enfeite.** O defeito que originou a change foi um `*IT` vermelho por 2,5 meses porque
     nada o executava. CI só-em-PR tem a mesma cegueira em períodos sem PR, e falha por causa externa
     (imagem fora do ar, limite de pull) não gera sinal nenhum
