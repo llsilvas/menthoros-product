@@ -156,7 +156,17 @@
       ⚠️ **Ainda faltam desta task:** CORS/CSRF e service account de menor privilégio.
       *verify:* 88 testes nas áreas tocadas; contadores das duas rotas independentes; limite
       checado **antes** da disponibilidade, para não vazar se o e-mail existe.
-- [ ] 2.7 Adicionar logs estruturados por correlation ID, métricas sem senha/token e alerta/runbook para `RECONCILIATION_REQUIRED`.
+- [x] 2.7 Métrica única `signup.coach` com tag de desfecho; `tenantId` no MDC a partir do momento
+      em que existe, removido no `finally`. Runbook em
+      `apps/menthoros-backend/docs/coach-signup-reconciliation-runbook.md`.
+      📌 `falha_compensada` e `reconciliacao_necessaria` são desfechos **distintos**: o primeiro é
+      rotina e não pede ação; o segundo deixou órfão e exige gente. Somá-los esconderia o único
+      que importa.
+      📌 O runbook registra a armadilha do diagnóstico: **`assessoria_id` nulo não prova que a
+      assessoria foi apagada** — a FK é `ON DELETE SET NULL`, então nulo é "apagada **ou** nunca
+      criada". Quem decide é o `slug`, que permanece na linha.
+      *verify:* 26 testes no serviço, incluindo varredura das tags de todos os meters contra
+      e-mail/senha e checagem de que o MDC não vaza `tenantId`.
 - [ ] 2.8 Testar validação, idempotência, corridas, cada ponto de falha/compensação e ausência de segredos em logs/respostas.
 - [ ] 2.9 Executar `./mvnw clean test`, migrações e testes de integração com Keycloak efêmero; registrar resultados.
 
