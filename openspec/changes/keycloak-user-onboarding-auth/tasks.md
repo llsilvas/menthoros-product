@@ -111,7 +111,19 @@
       DTO**, e isso é o requisito, não omissão. `Idempotency-Key` opcional; gerada quando ausente
       (a gerada não protege do duplo clique — só o cliente sabe que dois envios são a mesma
       intenção — mas mantém o rastro).
-      ⚠️ **Ainda faltam desta task:** feature flag e limite de corpo. O `429` chega com a 2.6.
+      ✅ **Feature flag e limite de corpo entregues em 2026-08-09.**
+      `CoachSignupProperties` (`app.coach-signup`), no padrão do `LgpdProperties`: `@Validated` e
+      **default `enabled=false`** — o deploy nunca liga sozinho um endpoint anônimo que provisiona
+      no Keycloak e cria tenant. Flag desligada responde **404**, não 503: 503 anunciaria a um
+      scanner um endpoint ainda não lançado e convidaria a retry que nunca funciona.
+      📌 O `@Validated` aqui protege a direção oposta à do LGPD: lá um typo desligaria o
+      enforcement em silêncio; aqui **ligaria** a porta pública sem ninguém decidir.
+      📌 Limite de corpo é `PublicRequestSizeLimitFilter`, contando bytes na **leitura do stream**
+      — não no `Content-Length`, que o cliente declara e pode omitir com `Transfer-Encoding:
+      chunked`. Há teste que força `getContentLength() = -1`, senão ele passaria pelo corte
+      antecipado e ficaria verde sem exercitar a contagem.
+      📌 **Nada no frontend linka para `/cadastro`** (verificado) — a página existe e não é
+      anunciada, coerente com a flag desligada. **Lançar = ligar a flag + adicionar o link.**
       *verify:* 7 testes — 201/400/409/502, repasse da chave, e o corpo da resposta conferido
       contra a senha enviada.
 - [x] 2.6 `WaitlistRateLimitFilter` → **`PublicEndpointRateLimitFilter`**, atendendo as duas rotas
