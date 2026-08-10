@@ -166,7 +166,7 @@
 
 ## 2. O gate de verdade
 
-- [ ] **2.1 Ligar branch protection em `develop`**: exigir PR, exigir o status check do CI, proibir
+- [x] **2.1 Ligar branch protection em `develop`**: exigir PR, exigir o status check do CI, proibir
   push direto e force-push — [CA2] [CA3]
   - ⚠️ **Sem isto o workflow é decorativo.** É a task que transforma relatório em gate
   - ⚠️ **Bloquear bypass** (administradores, apps e tokens incluídos) — [CA7]. Num projeto solo isto é
@@ -186,7 +186,18 @@
     `DELETE .../protection` como último recurso)
   - `verify:` `GET /branches/develop/protection` deixa de responder 404, lista o check do CI como
     obrigatório e mostra `enforce_admins=true` e `strict=true`
-- [ ] **2.2 Provar que o gate bloqueia** — abrir um PR que quebra deliberadamente um `*IT` e
+  - **Aplicada em 2026-08-09**, copiando a configuração já em produção no `menthoros-front`:
+    `contexts: ["Build e testes (verify)"]`, `strict: true`, `enforce_admins: true`,
+    `required_approving_review_count: 0`, `required_conversation_resolution: true`,
+    `allow_force_pushes: false`, `allow_deletions: false`
+  - ⚠️ **Só o contexto do CI é exigido.** O repositório tem um segundo check pré-existente
+    (`GitGuardian Security Checks`) que **não** entrou: torná-lo obrigatório acoplaria todo merge à
+    disponibilidade de um serviço externo
+  - **Sobre `approvals: 0` num projeto solo:** o GitHub **não permite aprovar o próprio PR** (o botão
+    fica desabilitado para o autor), então exigir 1 travaria todo merge para sempre. O que sustenta a
+    autorrevisão é `required_conversation_resolution`, que funciona solo: comentário aberto no
+    próprio PR bloqueia o merge até ser resolvido
+- [x] **2.2 Provar que o gate bloqueia** — abrir um PR que quebra deliberadamente um `*IT` e
   confirmar que o merge fica indisponível — [CA2]
   - ⚠️ Este é o teste do teste. Um CI que reporta mas não bloqueia não resolve nada, e a única forma
     de saber é tentando mergear algo quebrado
@@ -202,6 +213,22 @@
     branch quebrada deve ser **rejeitado** pelo servidor
   - `verify:` botão de merge bloqueado; push direto rejeitado; PR fechado e branch remota apagada;
     `develop` inalterada
+  - **Feito em 2026-08-09 — PR #64**, branch descartável `test/ci-gate-proof` em worktree separado.
+    Resultado: check `Build e testes (verify)` **vermelho** por falha de asserção em
+    `WaitlistControllerIT.cadastroValidoSemAuth` (fase Failsafe), e `mergeStateStatus: BLOCKED`
+  - ⚠️ **O bloqueio foi conferido com o PR FORA de draft.** Draft bloqueia merge sozinho — provar o
+    gate com um draft não prova nada. Tirei o draft e o `BLOCKED` permaneceu
+  - ⚠️ **A primeira tentativa não valia:** quebrei com `status().isTeapot()`, que **não existe** (o
+    método é `isIAmATeapot()`), então o run falhou na **compilação**. O gate bloqueou, mas erro de
+    compilação também quebraria com `mvn test` — não provava que o `*IT` participa do gate. Refeito
+    com `status().isOk()` contra um endpoint que devolve 201
+  - **CA3 provada na mesma janela**, e não por inferência: `git push origin HEAD:develop` foi
+    **rejeitado pelo servidor** — `GH006: Protected branch update failed`, citando *"Changes must be
+    made through a pull request"* e o status check obrigatório
+  - **CA7 provada junto:** esse push foi feito pelo **dono** do repositório, com `enforce_admins:
+    true`. Recusado igual — não há bypass
+  - **Limpeza concluída:** PR #64 fechado sem merge, branch remota apagada, worktree removido,
+    branch local deletada, `origin/develop` conferida ainda em `85988e9`
 - [ ] **2.3 Confirmar a ordem CI → deploy** conforme respondido na 0.1 — [CA4]
   - `verify:` um merge real com CI verde, observando que o deploy ocorre depois do check
 
