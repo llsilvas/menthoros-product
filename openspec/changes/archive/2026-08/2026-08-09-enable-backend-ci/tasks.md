@@ -138,6 +138,18 @@
     um dashboard por cima. O front deixou este ponto em aberto — aqui ele é explícito
   - `verify:` notificação recebida (print/citação), ou a constatação registrada de que **não** chega
     e a decisão do que fazer a respeito
+  - 🟠 **ADIADA no arquivamento (2026-08-09).** Não é implementável agora: depende da primeira
+    execução agendada, que só ocorre em **2026-08-10 às 09:00 UTC**. Segurar a change aberta por
+    isso não acrescenta nada — o workflow, o gate e as provas estão entregues
+  - ⚠️ **O que fica em aberto, dito sem eufemismo:** a **CA8 está meio provada**. O agendamento
+    existe e vai rodar; o que **ninguém verificou** — nem aqui nem no front — é se um run vermelho
+    **chega a um humano**. Enquanto isso não for confirmado, o modo de falha original da change
+    (`*IT` podre por 2,5 meses porque nada avisava) está mitigado pelo gate no PR, **não** pelo
+    agendamento
+  - **Como retomar:** abrir a aba Actions após 2026-08-10 09:00 UTC e conferir se houve run
+    agendado; para testar a notificação sem esperar quebra real, um `workflow_dispatch` com quebra
+    proposital numa branch descartável. Se a notificação não chegar, decidir o canal (e-mail do
+    GitHub é o default e pode estar silenciado por filtro)
 - [x] **1.5 Abrir um PR de teste e observar o run** — [CA1]
   - `verify:` o status check aparece no PR e o log mostra a fase `integration-test` executando os
     `*IT` (não só Surefire)
@@ -298,3 +310,46 @@
   pipeline de deploy é outro assunto.
 - **Investigar a flakiness herdada** de `fix-tsb-recalculo-resiliente` (causa raiz não identificada).
   Se o runner de 2 vCPU fizer aparecer, abrir bug — **não** mascarar com retry.
+
+---
+
+## Fechamento (2026-08-09)
+
+**Entregue — 15 de 16 tasks.** PR backend **#63** (`f0b9911`), mergeado 2026-08-10T00:28:38Z.
+
+| | |
+|---|---|
+| Workflow | `.github/workflows/ci.yml`, 82 linhas, job `Build e testes (verify)` |
+| Gate | branch protection em `develop`, `enforce_admins` + `strict`, sem bypass |
+| Suíte no CI | 2368 unitários + **62 de integração** — os 11 `*IT` rodam automaticamente pela primeira vez |
+| Tempo | 4min18s / 4min14s (cache frio, quatro medições) |
+| Diff em `src/main` | **zero** |
+
+**CAs provadas empiricamente:** CA1, CA2, CA3, CA5, CA6, CA7, CA9 — e a CA4 com a ressalva abaixo.
+
+**Adiado, com motivo:**
+
+- **1.4b / CA8 — notificação do agendamento.** Depende da primeira execução agendada
+  (2026-08-10 09:00 UTC). O agendamento existe; o que ninguém verificou é se um run vermelho chega
+  a um humano. Mesmo ponto cego herdado de `enable-frontend-ci`.
+- **Número com cache quente.** As quatro medições rodaram com `~/.m2` vazio — cache criado numa
+  branch não é visível de outra, e só o run de `develop` gravou no escopo da base. Sai no próximo
+  PR, e é ele que deve decidir se vale dividir em jobs.
+
+**O que a change encontrou além do previsto** — vale mais que o YAML:
+
+1. **Três testes não-herméticos.** `OpenApiConfigTest` e `CoreSecurityConfigTest` exigiam Postgres
+   em `localhost:5432`; `UsuarioLgpdConsentRepositoryTest` comparava precisão de timestamp que o
+   `TIMESTAMPTZ` não guarda — **irreproduzível fora de Linux**. Escopo ampliado para `src/test` por
+   decisão do dono, em vez de virar change própria.
+2. **A CA4 é mais fraca do que parece.** O deploy do Railway **concluiu 2min41s antes** de o CI em
+   `develop` terminar: eles correm em paralelo, o Railway não espera verificação. A ordem vem
+   inteiramente do gate no PR — o que torna a CA3 (push direto proibido) estrutural, não acessória.
+3. **Privatizar o repositório desmontaria o gate.** No plano Free, repositório privado não tem
+   branch protection nem rulesets (403 "Upgrade to GitHub Pro"). Registrado antes de alguém virar a
+   chave sem saber.
+4. **`GitGuardian Security Checks` já existia** e ficou deliberadamente fora dos checks obrigatórios.
+
+**Métrica de sucesso — verificável a partir de agora:** um PR que quebre um `*IT` é bloqueado antes
+do merge. Provado uma vez (PR #64, fechado sem merge). O que ainda não se pode afirmar é o segundo
+elo — que uma quebra fora de PR gere sinal para um humano —; é exatamente a 1.4b.
