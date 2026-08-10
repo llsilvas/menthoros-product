@@ -230,7 +230,23 @@
       login dele passa pela tela de verificação e exige clicar no link do e-mail (o SMTP funciona,
       então o e-mail chega). Decisão de CTO já registrada na proposal foi "desconsiderar cadastros
       existentes" — isto é a consequência concreta dela.
-- [ ] 4.1 E2E real: signup → e-mail → login → claims corretos → consentimento → wizard/dashboard.
+- [~] 4.1 **Metade verificada contra ambiente real em 2026-08-09** (backend local + Keycloak do
+      HomeLab + Postgres com a V75 aplicada). Falta a perna de navegador.
+      ✅ `POST` real → **201**; `Assessoria` BASIC (10/1) criada; `Usuario` local com role `TECNICO`;
+      Organization no Keycloak com **`tenant_id` batendo exatamente** com o id da assessoria
+      (`88cc4801-…`); usuário **habilitado** com `requiredActions=[VERIFY_EMAIL]`; rastro em `ACTIVE`;
+      `result` guardado sem senha nem token.
+      ✅ Reenvio da mesma chave → **201 sem duplicar** (1 assessoria, 1 linha de rastro).
+      ✅ Mesma chave com payload diferente → **409**. Slug repetido → **409**. E-mail repetido → **409**.
+      ✅ Senha igual ao e-mail → **400**, não 502 — prova em ambiente real de que o alinhamento com a
+      `passwordPolicy` (commit `a5e55c1`) era necessário.
+      ✅ **Rate limit disparou sozinho** durante os testes (`429` na 4ª requisição do mesmo IP), o que
+      o validou sem que eu precisasse forçá-lo.
+      ⏳ **Falta, e exige humano:** clicar no link de verificação enviado a `contato@menthoros.com`,
+      entrar pelo fluxo PKCE e conferir claims → consentimento → dashboard. Não dá para automatizar
+      daqui: o ROPC está desligado (de propósito) e o link chega por e-mail.
+      📌 Ambiente deixado no ar: backend `:8099` (worktree `.worktrees/onboarding-backend`), front
+      `:5174`, Postgres no container `menthoros-4a1-db`.
 - [ ] 4.2 Testar falhas injetadas após cada recurso criado e comprovar que compensação/reconciliação não deixa conta utilizável sem tenant local.
 - [ ] 4.3 Habilitar por feature flag, observar métricas e executar o runbook de rollback/reconciliação.
 
