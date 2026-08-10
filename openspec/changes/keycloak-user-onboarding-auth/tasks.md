@@ -216,16 +216,20 @@
 
 ## 4. Entrega
 
-- [ ] 4.0 **`menthoros-infra` — configuração do realm.** Aplicar no `menthoros-realm.json` e
-      sincronizar: **`verifyEmail: true`** e uma **`passwordPolicy`** mínima. Hoje o realm não tem
-      nenhuma das duas.
-      ⚠️ **Lacuna encontrada em 2026-08-09:** o `verifyEmail: true` estava decidido na `proposal.md`
-      desde 2026-08-07 mas **nunca virou task** — e depois da correção da ordem de habilitação ele
-      deixou de ser reforço e passou a ser **parte da barreira** que substitui o `enabled=false`.
-      Sem ele, a conta não verificada entra.
-      ⚠️ Sem `passwordPolicy`, o `@Size` do DTO é o *único* portão de força de senha (achado da 2.1).
-      *verify:* usuário com e-mail não verificado não conclui o login; senha fraca é recusada pelo
-      próprio Keycloak, não só pelo backend.
+- [x] 4.0 **Aplicado no HomeLab em 2026-08-09** — `verifyEmail: true` e
+      `passwordPolicy: "length(12) and notUsername and notEmail"` no `menthoros-realm.json`
+      (`menthoros-infra`, branch `feature/keycloak-user-onboarding-auth`, commit `2b350ec`).
+      *verify:* **enforcement provado por experimento**, não por leitura do realm — criar usuário via
+      admin API com senha `curta123` → `400 invalidPasswordMinLengthMessage`; com senha igual ao
+      e-mail → `400 invalidPasswordNotUsernameMessage`. SMTP e `revokeRefreshToken` intactos.
+      📌 O `notUsername` confirmou a necessidade do ajuste no backend (`a5e55c1`): sem ele, esse
+      `400` chegaria ao usuário como **502** — "tente novamente em instantes" para um erro que só
+      ele pode corrigir.
+      ⚠️ **PENDENTE: aplicar no Railway.** Só o HomeLab foi sincronizado.
+      ⚠️ **Efeito colateral no dev:** o usuário `leandro` está com `emailVerified=false`. O próximo
+      login dele passa pela tela de verificação e exige clicar no link do e-mail (o SMTP funciona,
+      então o e-mail chega). Decisão de CTO já registrada na proposal foi "desconsiderar cadastros
+      existentes" — isto é a consequência concreta dela.
 - [ ] 4.1 E2E real: signup → e-mail → login → claims corretos → consentimento → wizard/dashboard.
 - [ ] 4.2 Testar falhas injetadas após cada recurso criado e comprovar que compensação/reconciliação não deixa conta utilizável sem tenant local.
 - [ ] 4.3 Habilitar por feature flag, observar métricas e executar o runbook de rollback/reconciliação.
