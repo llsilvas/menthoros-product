@@ -5,44 +5,13 @@
 > Achado em 2026-08-06 durante a `disable-ropc-direct-grant`, roteado para cá porque **o signup
 > desta change depende inteiramente dele** para provisionar organização e usuário no Keycloak.
 
-- [ ] 0.1 **Provisionar as credenciais de admin do Keycloak no backend do Railway `develop`.**
-      `KeycloakOrganizationGatewayImpl:129` obtém token de admin com `grant_type=password` usando
-      `admin-cli` no realm `master`.
-
-      | Alvo | Estado (verificado 2026-08-06) |
-      |---|---|
-      | Local / HomeLab | ✅ **funciona** — `apps/menthoros-backend/.env` traz `KEYCLOAK_SERVER_URL`, `KC_ADMIN_USER` e `KC_ADMIN_PASSWORD`, e as credenciais foram exercitadas: token de admin obtido com sucesso |
-      | Railway `develop` | ❌ **as três ausentes** → cai nos defaults `http://localhost:8080` e senha vazia; o backend tentaria autenticar em si mesmo |
-
-      ⚠️ **Correção de um registro anterior meu.** Eu havia escrito que as credenciais faltavam em
-      *todos* os ambientes — olhei o `.env` do `menthoros-infra`, que serve ao **compose**, enquanto o
-      backend roda como processo local e lê o `.env` do próprio repo. O defeito é real, mas **só no
-      Railway**.
-
-      **PROVISIONADO no Railway em 2026-08-06** — as três variáveis gravadas, deploy `SUCCESS`:
-
-      ```
-      KEYCLOAK_SERVER_URL = http://menthoros-keycloak.railway.internal:8080
-      KC_ADMIN_USER       = admin
-      KC_ADMIN_PASSWORD   = definida
-      ```
-
-      Domínio **privado** de propósito: mantém o tráfego admin dentro da rede do Railway. A senha é a
-      do admin do realm `master`, a mesma do HomeLab desde o espelhamento do `keycloak-db`. As
-      credenciais foram exercitadas contra o Keycloak do Railway e **obtêm token de admin**.
-
-      ⚠️ **A task segue ABERTA de propósito — uma suposição minha não foi verificada.** Eu escolhi
-      `menthoros-keycloak.railway.internal:8080`, e ninguém provou que o backend alcança o Keycloak
-      por esse endereço e porta: o serviço do Keycloak **não declara `PORT` nem `KC_HTTP_PORT`**,
-      depende do default 8080 com `KC_HTTP_ENABLED=true`. Plausível, não verificado — e é a mesma
-      classe de erro que já custou tempo nesta trilha (config que parece certa e só falha quando
-      alguém a usa). `railway ssh` exigiria chaves configuradas e não estava disponível.
-
-      **Onde isso se resolve naturalmente:** `AssessoriaServiceImpl:56` (`criarOrganization`) e
-      `AtletaServiceImpl:270` (convite de atleta) exercitam o gateway ponta a ponta. A primeira task
-      desta change que tocar esse caminho fecha a verificação — **decisão do CTO (2026-08-06):** não
-      criar dado descartável em dev só para fechar a caixinha antes da hora.
-      *verify:* criação real de organização no Keycloak exercitada com sucesso **no Railway**.
+- [x] 0.1 **Já provisionado — verificado no Railway em 2026-08-09.** `KC_ADMIN_USER`,
+      `KC_ADMIN_PASSWORD`, `KEYCLOAK_SERVER_URL` (domínio privado
+      `menthoros-keycloak.railway.internal:8080`), `KEYCLOAK_ISSUER_URI` e `KEYCLOAK_JWK_URI`
+      estão definidos no serviço `menthoros-backend`, ambiente `develop`.
+      📌 A task estava marcada como aberta por desatualização do documento, não por falta de
+      execução — o que muda a leitura do risco de merge: o endpoint **funcionaria** no Railway,
+      não falharia.
 - [x] 0.2 **NÃO precisa.** Verificado em 2026-08-09:
       - os `*IT` de controller autenticam com o post-processor `jwt()` (JWT sintético), não com
         token real — nenhum direct grant envolvido;
