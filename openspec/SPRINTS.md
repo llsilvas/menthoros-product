@@ -556,6 +556,52 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
+### `fix-tipo-treino-progressao` ✅ **ENTREGUE** — o longão que o sync não reconhecia travava a progressão (2026-08-10)
+
+**Sem change OpenSpec** — bug encontrado e corrigido direto na branch, sem passar por `changes/`.
+Registrado aqui porque o efeito é de produto, não de refactor: o atleta cumpria a prescrição e mesmo
+assim não recebia carga. Não há o que arquivar.
+
+**Entregue:** `menthoros-backend` **#66** (`d8fe656`), dois commits — o fix (`e9392e8`) e a cobertura
+dos consumidores (`f4ef83f`). Suíte **2390 unitários + 65 de integração**, verde no CI.
+
+**O tipo do treino tinha duas verdades e a errada era a que decidia carga.** Um realizado vindo de
+integração tem o `tipoTreino` inferido por heurística de duração e FC: um longão de menos de 90 min
+com FC acima do limiar vira `TEMPO_RUN`. A reconciliação vincula o realizado ao planejado mas **não
+corrige o tipo** — de propósito, porque a divergência é o insumo do `TipoTreinoConsistenciaValidator`.
+O resultado é que `contarLongoes` não via esses longões, `longoes21d` nunca alcançava o mínimo de 2, e
+`podeProgredir` ficava preso em `MANTER`/`PROGREDIR_LEVE`. O mesmo treino ainda entrava em
+`TREINOS_DUROS` (que inclui `TEMPO_RUN`) e inflava o RPE médio, podendo empurrar para `REDUZIR` —
+o atleta era penalizado pelo treino que deveria tê-lo promovido.
+
+**A correção é um acessor, não uma escrita.** `TreinoRealizado.getTipoTreinoEfetivo()`: onde a
+pergunta é "cumpriu a sessão prescrita?" (progressão, elegibilidade de intervalado, prompts do
+planejador, projeção de prova), a prescrição do coach prevalece. Onde a pergunta é "o que de fato foi
+feito" (TSS, decoupling, inferência de limiar, matching da reconciliação), continua valendo o tipo
+executado. O campo persistido não é sobrescrito.
+
+**O fix nasceu com metade da cobertura.** O primeiro commit aplicou o acessor em seis pontos e testou
+dois. Os outros quatro ficavam livres para regredir em silêncio — e regressão em prompt é a pior de
+achar, porque não quebra nada: só muda o texto que o modelo lê. O segundo commit fechou isso com um
+teste por consumidor, sempre com o caso **sem vínculo** como controle, mais um `*IT` provando que as
+duas queries trazem o planejado em fetch join (trocar o JPQL pelo método derivado não quebra nada
+funcionalmente — vira um SELECT por treino numa janela de 42 dias).
+
+**Cobertura verificada por contrafactual, não por contagem.** Neutralizando o acessor, **6 dos 7**
+novos testes unitários falham; o sétimo é o controle sem vínculo, que corretamente segue verde.
+Removendo o `LEFT JOIN FETCH`, **2 dos 3** ITs falham. O teste de progressão atravessa
+`calcularHistorico` → `calcularDecisao` de propósito: a contagem isolada já era coberta, mas o que o
+coach percebe é a decisão.
+
+**Dois follow-ups abertos, nenhum agendado:**
+
+1. **A heurística continua imprecisa para atleta sem plano.** O gate de `LONGO` é 90 min em
+   `StravaActivityServiceImpl:489` e `IntervalsIcuActivityMapper:337`, duplicado. Quem não tem
+   prescrição não tem vínculo, então o acessor não o socorre. Ajustar reclassifica histórico —
+   merece change própria.
+2. **Sem migration.** Treinos já vinculados passam a ser lidos corretamente; os órfãos permanecem com
+   o tipo inferido.
+
 ### ~~`enable-backend-ci`~~ ✅ **ARQUIVADA** — CI que executa `verify` antes do merge (2026-08-09)
 
 **Arquivo:** `changes/archive/2026-08/2026-08-09-enable-backend-ci/`. **Diferido com motivo:** a
