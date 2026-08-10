@@ -177,10 +177,16 @@
       porque a pré-checagem **consulta** o Keycloak. O que importa é que nada foi **criado**.
       *verify:* `./mvnw clean test` → 2468 testes, 135 erros — **todos** de Testcontainers sem
       Docker nesta máquina, mesma contagem de antes das 29 adições.
-- [ ] 2.9 **BLOQUEADA nesta máquina — exige Docker.** `./mvnw clean verify` é o gate real (o
-      `test` não roda os `*IT`), e tanto os `*IT` quanto o `SignupProvisioningMigrationTest`
-      dependem de Testcontainers. Sem Docker local, 135 testes não executam.
-      Roda no CI, ou localmente com o Docker Desktop ligado.
+- [x] 2.9 **`./mvnw clean verify` — BUILD SUCCESS** (2026-08-09, Docker local ligado pelo CTO).
+      **2469 testes Surefire + 62 Failsafe (`*IT`), 0 falhas, 0 erros**, 1min55.
+      🚨 **O `verify` pegou um bug que o `test` jamais pegaria:** o `SignupProvisioningMigrationTest`
+      falhava com `column "trial" of relation "tb_assessoria" does not exist`. A coluna existiu na
+      V45 e foi removida pela **V70**; escrevi o `INSERT` lendo a V45. O teste depende de
+      Testcontainers, então durante toda a seção 2 ele **nunca executou** — exatamente o buraco que
+      o `CLAUDE.md` do backend documenta.
+      📌 O compilador já havia dado essa mesma informação na 2.4 (`.trial(false)` não compilou no
+      builder). SQL cru em string não tem compilador para proteger — vale desconfiar de todo
+      `INSERT` escrito a partir de migration antiga.
 
 ## 3. Frontend
 
