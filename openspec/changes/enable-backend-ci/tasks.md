@@ -154,10 +154,16 @@
     dividir em jobs vira decisão consciente registrada, **não** reação automática
   - **Medido (run 31319411844, verde): 4min18s ponta a ponta** (14:48:19 → 14:52:37); a parte Maven
     é 4min04s. Contra o baseline local de 1min55s: **~2,2×**
-  - ⚠️ **Este número é de cache frio.** Os runs 1 e 2 falharam, e `setup-java` só salva o cache em
-    sucesso — então os três rodaram com `~/.m2` vazio (`Cache not found for keys:
-    setup-java-Linux-x64-maven-6af02cb…`). O run 3 gravou o cache; a partir do próximo PR o número
-    deve cair. **Remedir com cache quente antes de decidir qualquer coisa sobre dividir em jobs**
+  - ⚠️ **Este número é de cache frio, e continuou frio mais tempo do que eu previa.** `setup-java` só
+    salva o cache em run bem-sucedido, e os runs 1–2 falharam. O run 3 (verde, na feature branch)
+    gravou — mas **o run em `develop` após o merge ainda deu `Cache not found`**: cache criado numa
+    branch fica no escopo dela, não é visível a partir de outra. Só agora, com o run de `develop`
+    verde, existe cache no escopo da branch base — herdável por todas as outras
+  - **Quatro medições, todas com `~/.m2` vazio:** 3min20s e 3min26s (mortas na fase de unitários),
+    **4min18s** e **4min14s** (completas, com os `*IT`). A consistência entre as duas completas dá
+    confiança no número
+  - **O primeiro número com cache quente ainda não existe.** Sai no próximo PR. **Remedir antes de
+    reabrir a decisão de dividir em jobs**
   - **Decisão: não dividir.** 4min18s no pior caso não dói o suficiente para pagar o custo de rodar
     os 2368 unitários duas vezes (ver `design.md`, "Um job só"). Revisitar se o número com cache
     quente ficar acima de ~6min
@@ -229,12 +235,32 @@
     true`. Recusado igual — não há bypass
   - **Limpeza concluída:** PR #64 fechado sem merge, branch remota apagada, worktree removido,
     branch local deletada, `origin/develop` conferida ainda em `85988e9`
-- [ ] **2.3 Confirmar a ordem CI → deploy** conforme respondido na 0.1 — [CA4]
+- [x] **2.3 Confirmar a ordem CI → deploy** conforme respondido na 0.1 — [CA4]
   - `verify:` um merge real com CI verde, observando que o deploy ocorre depois do check
+  - **Observado no merge do PR #63** (`f0b9911`), 2026-08-10 UTC:
+
+    | evento | horário |
+    |---|---|
+    | merge do PR (com check verde exigido) | `00:28:38Z` |
+    | CI em `develop` (gatilho `push`) inicia | `00:28:40Z` |
+    | deploy Railway inicia | `00:28:42Z` |
+    | deploy Railway **conclui** (success) | `00:30:13Z` |
+    | CI em `develop` **conclui** (success) | `00:32:54Z` |
+
+  - A resposta verbal da 0.1 está **confirmada empiricamente**: o Railway dispara no push que o merge
+    produz — 4 segundos depois dele.
+  - ⚠️ **Precisão que a CA4 exige, e que os números tornam impossível ignorar:** o deploy **não
+    espera** o CI de `develop`. Ele terminou **2min41s antes** daquele run. Os dois correm em
+    paralelo. A garantia de ordem vem **inteiramente do gate no PR**, que impediu o merge sem verde —
+    não de o Railway aguardar verificação alguma.
+  - **Consequência prática:** se um dia um commit chegar a `develop` sem passar por PR, o deploy
+    acontece do mesmo jeito e o CI só relata depois. É a CA3 (push direto proibido) que fecha esse
+    caminho — e é por isso que ela não é acessória. Redeploy manual e rollback pelo painel continuam
+    fora de alcance, como o `proposal.md` já admitia.
 
 ## 3. Documentação e fechamento
 
-- [ ] **3.1 Atualizar a linha do backend na tabela de branch protection do `CLAUDE.md` da raiz** —
+- [x] **3.1 Atualizar a linha do backend na tabela de branch protection do `CLAUDE.md` da raiz** —
   virar ❌ para ✅ com a data e o nome exato do check obrigatório criado na 1.1
   - ⚠️ **Escopo é uma linha.** A redação original desta task mandava "corrigir" um texto que descrevia
     `main` e ≥1 approval — esse texto **não existe mais**: `enable-frontend-ci` já o substituiu pela
@@ -243,10 +269,16 @@
   - ⚠️ Não descrever aspiração como se fosse estado: só marcar ✅ **depois** que a 2.1 e a 2.2
     passarem. Foi a divergência entre doc e realidade que deixou "CI verde + branch protection"
     parecer resolvido por meses
-- [ ] **3.2 Guardrail de escopo:** `git diff develop -- src/main` ⇒ **vazio**
+- [x] **3.2 Guardrail de escopo:** `git diff develop -- src/main` ⇒ **vazio**
   - ⚠️ Alterado em 2026-08-09. Era `src/` inteiro; o escopo passou a incluir `src/test` (ver 1.2b).
     `src/main` é o que não pode ser tocado — se aparecer diff lá, o escopo vazou de verdade
-- [ ] **3.3 Registrar o que ficou de fora** e por quê, para não virar dívida silenciosa: CI do
+  - **Executado: vazio ✅.** O diff total da change em `src/` são **3 arquivos, todos em
+    `src/test`**: `CoreSecurityConfigTest`, `OpenApiConfigTest` e `UsuarioLgpdConsentRepositoryTest`.
+    Nenhuma linha de código de produção
+  - ⚠️ Nota operacional: rodar o guardrail como `git diff … | wc -l` **dá falso positivo** neste
+    ambiente — o proxy `rtk` imprime `ok` para resultado vazio e o `wc` conta essa linha. Conferir a
+    lista de arquivos, não a contagem
+- [x] **3.3 Registrar o que ficou de fora** e por quê, para não virar dívida silenciosa: CI do
   `menthoros-product`, alinhamento do front ao pin por SHA, gate de cobertura, deploy governado por
   CI (incl. redeploy/rollback manual no Railway), governança de repositório (CODEOWNERS, commits
   assinados, Dependabot para as actions) e manutenção do required check quando o job mudar de nome
