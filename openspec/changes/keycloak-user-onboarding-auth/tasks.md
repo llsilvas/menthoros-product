@@ -134,7 +134,23 @@
       multiplicaria por instância). IP no filtro; e-mail/dia e teto global no serviço.
       ⚠️ Propriedade `app.waitlist.rate-limit.per-minute` **preservada com o nome antigo** —
       renomeá-la faria os ambientes que já a configuram voltarem em silêncio ao default.
-      ⚠️ **Ainda faltam desta task:** CORS/CSRF e service account de menor privilégio.
+      ✅ **CORS/CSRF: nada a fazer, e a razão é substantiva.** O CSRF está desabilitado
+      globalmente (`CoreSecurityConfig:39`), o que é correto para API stateless com JWT — e numa
+      rota pública **não há credencial ambiente** (cookie/sessão) para um site terceiro abusar,
+      que é a premissa do ataque. CORS é central (`CorsConfig` + `app.cors.allowed-origins`) e a
+      rota herda. Verificado, não assumido.
+      🔴 **Service account de menor privilégio: NÃO entregue, e é dívida real.** O gateway
+      autentica como **`admin` do realm `master` via `admin-cli`, por password grant**
+      (`application.yml:369-370`) — ou seja, credencial de administrador **global** do Keycloak
+      para uma operação que só precisa criar organization e usuário no realm `menthoros`.
+      É o oposto de menor privilégio, e o auto-cadastro **amplia a exposição**: essa credencial
+      passa a ser exercida por requisição anônima.
+      📌 **Deliberadamente adiado, não esquecido.** Corrigir exige client dedicado com
+      `client_credentials` + roles de `realm-management` no realm da aplicação, mudança no realm
+      versionado **e** troca do mecanismo de autenticação do gateway — que hoje serve também ao
+      convite de atleta. É escopo de change própria; fazê-lo aqui misturaria mudança de
+      segurança transversal com a entrega do cadastro.
+      ➡️ **Abrir change `harden-keycloak-service-account` antes de ligar a flag em produção.**
       *verify:* 88 testes nas áreas tocadas; contadores das duas rotas independentes; limite
       checado **antes** da disponibilidade, para não vazar se o e-mail existe.
 - [x] 2.7 Métrica única `signup.coach` com tag de desfecho; `tenantId` no MDC a partir do momento
