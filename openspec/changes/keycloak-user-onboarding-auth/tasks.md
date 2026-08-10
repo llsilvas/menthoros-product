@@ -190,11 +190,29 @@
 
 ## 3. Frontend
 
-- [ ] 3.1 Criar rota pública `/cadastro`, formulário acessível e links informativos configurados para documentos legais, sem checkbox de aceite.
-- [ ] 3.2 Criar client/hook com estados loading, erros funcionais, `429`, indisponibilidade e chave de idempotência por tentativa.
-- [ ] 3.3 Após `201`, exibir confirmação de verificação de e-mail e iniciar o login OIDC/PKCE existente somente por ação do usuário; não usar `localStorage.setItem` manual.
-- [ ] 3.4 Testar validação, duplo clique/idempotência, conflito, rate limit, falha do provedor e redirecionamento.
-- [ ] 3.5 Executar `npm run lint && npm run build` e a suíte de testes configurada; registrar resultados.
+- [x] 3.1 Rota `/cadastro` fora do `ProtectedRoute`, formulário acessível, honeypot e links
+      informativos para Termos/Privacidade — **sem checkbox de aceite**.
+      🚨 **Defeito de contrato corrigido antes:** o `CoachSignupInputDto` exigia `aceiteLgpd`
+      (copiado do waitlist na 2.1). Contradizia a `proposal.md` ("fora do escopo"), o `design.md`
+      ("não contém checkbox") e a `spec.md` ("o aceite acontece na primeira sessão autenticada").
+      Passou pelo `verify` verde da 2.9 — **teste passando não detecta requisito errado**.
+- [x] 3.2 `CoachSignupService` + `useCoachSignup`, no padrão do `WaitlistService`/`useWaitlist`.
+      📌 A chave de idempotência vive num `ref` e **sobrevive ao retry**: falha de rede ou `502`
+      reusa a mesma chave. Chave nova por requisição derrotaria o mecanismo. Só é descartada quando
+      o usuário edita o formulário — aí a intenção mudou e reenviar devolveria `409`.
+- [x] 3.3 Após `201`, confirmação de verificação de e-mail e CTA. **O login não começa sozinho:**
+      redirecionar levaria a uma tela de verificação pendente que o usuário ainda não pode resolver.
+      Nada gravado em `localStorage` (há teste).
+- [x] 3.4 16 testes de componente + **4 E2E**.
+      🚨 **O E2E pegou um bug que nenhum teste de componente veria:** quem abria `/#/cadastro` sem
+      sessão era mandado para o **login** — a restauração silenciosa retorna na raiz e o
+      `AuthProvider` forçava `#/auth/login` para qualquer origem. Correto para rota protegida,
+      quebrado para o cadastro, já que quem vai criar conta é exatamente quem não tem uma. A origem
+      passou a ser guardada antes do redirect e restaurada quando é rota pública.
+      📌 Testes usam `createHashRouter` real, não `MemoryRouter` — regra do `CLAUDE.md`, que registra
+      um link perdido assim antes.
+- [x] 3.5 `npm run lint` limpo · `npm run build` OK · `npm run test:run` **852 testes, 111 arquivos**
+      · `npm run test:e2e` **19 passed**.
 
 ## 4. Entrega
 
