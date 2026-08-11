@@ -227,8 +227,8 @@
       login dele passa pela tela de verificação e exige clicar no link do e-mail (o SMTP funciona,
       então o e-mail chega). Decisão de CTO já registrada na proposal foi "desconsiderar cadastros
       existentes" — isto é a consequência concreta dela.
-- [~] 4.1 **Metade verificada contra ambiente real em 2026-08-09** (backend local + Keycloak do
-      HomeLab + Postgres com a V75 aplicada). Falta a perna de navegador.
+- [x] 4.1 **Verificada ponta a ponta contra ambiente real** — API em 2026-08-09, perna de navegador
+      em **2026-08-10** (backend local + Keycloak do HomeLab + Postgres com a V75 aplicada).
       ✅ `POST` real → **201**; `Assessoria` BASIC (10/1) criada; `Usuario` local com role `TECNICO`;
       Organization no Keycloak com **`tenant_id` batendo exatamente** com o id da assessoria
       (`88cc4801-…`); usuário **habilitado** com `requiredActions=[VERIFY_EMAIL]`; rastro em `ACTIVE`;
@@ -239,9 +239,14 @@
       `passwordPolicy` (commit `a5e55c1`) era necessário.
       ✅ **Rate limit disparou sozinho** durante os testes (`429` na 4ª requisição do mesmo IP), o que
       o validou sem que eu precisasse forçá-lo.
-      ⏳ **Falta, e exige humano:** clicar no link de verificação enviado a `contato@menthoros.com`,
-      entrar pelo fluxo PKCE e conferir claims → consentimento → dashboard. Não dá para automatizar
-      daqui: o ROPC está desligado (de propósito) e o link chega por e-mail.
+      ✅ **Perna de navegador fechada em 2026-08-10, pelo founder:** link de verificação recebido em
+      `contato@menthoros.com`, entrada pelo fluxo PKCE e a cadeia claims → consentimento → dashboard
+      percorrida com sucesso. Era a única etapa não automatizável da change — o ROPC está desligado
+      de propósito e o link chega por e-mail.
+      ⚠️ **Grau de evidência menor que o do resto da 4.1:** confirmação verbal do founder
+      ("funcionando"), sem captura de tela nem log anexado, e sem registro etapa a etapa como no
+      trecho de API acima. Suficiente para destravar a 4.2; **não** suficiente para ser a única
+      prova quando a 4.3 ligar a flag em ambiente com usuário real.
       📌 Ambiente deixado no ar: backend `:8099` (worktree `.worktrees/onboarding-backend`), front
       `:5174`, Postgres no container `menthoros-4a1-db`.
 - [ ] 4.2 Testar falhas injetadas após cada recurso criado e comprovar que compensação/reconciliação não deixa conta utilizável sem tenant local.
