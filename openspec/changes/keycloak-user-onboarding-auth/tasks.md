@@ -269,7 +269,30 @@
       mesma convenção de `tenant_id`. `SignupProvisioningMigrationTest` afirmava o comportamento
       anterior e foi atualizado.
       📌 Suíte na branch: **2476 unitários + 65 de integração**, `clean verify` verde.
-- [ ] 4.3 Habilitar por feature flag, observar métricas e executar o runbook de rollback/reconciliação.
+- [x] 4.3 **Feito em 2026-08-11 no HomeLab** (Railway deliberadamente de fora — ver ressalva).
+      ✅ **Flag ligada e desligada, com a V76 aplicada pelo Flyway no boot** contra o Postgres real.
+      ✅ **Kill switch validado nos dois sentidos** — e a sonda do runbook estava errada: `POST` com
+      corpo vazio devolve `400` com a flag ligada **ou** desligada, porque a validação do `@Valid`
+      roda antes do teste da flag. Num incidente, quem sondasse assim concluiria "não desligou"
+      quando desligou. Substituída por corpo válido com o honeypot preenchido (404 desligado, 201
+      ligado), que não cria nada — confirmado no banco.
+      ✅ **Runbook executado nos dois resíduos de QA** do HomeLab: `GET` de confirmação, `DELETE` do
+      usuário e da organização no Keycloak (204 nos quatro), ausência confirmada por consulta,
+      `DELETE` do `Usuario` local e da `Assessoria`, rastro anotado.
+      📌 **A V76 se provou no ambiente real:** o `assessoria_id` sobreviveu ao `DELETE` da
+      assessoria. Antes dela a FK teria zerado a coluna, e o rastro não diria qual tenant existiu.
+      🐞 **Lacuna encontrada:** o guard antes do `DELETE` manda **PARAR** quando há usuário vinculado
+      — correto para `RECONCILIATION_REQUIRED`, onde o `Usuario` local não deveria existir, mas não
+      cobre desfazer um cadastro que **deu certo**. É o mesmo caminho de uma exclusão a pedido do
+      titular (LGPD). Rascunho do procedimento ficou no runbook; formalizar é change própria.
+      ⚠️ **"Observar métricas" não é executável hoje.** `/actuator/prometheus` responde **401** (só
+      `/actuator/health` é público) e **não existe coletor** — não há Prometheus nem Grafana em
+      `menthoros-infra`. O contador `signup_coach_total{desfecho}` existe e está correto; o que não
+      existe é quem olhe. A regra PromQL sugerida no runbook pressupõe um Prometheus que ninguém
+      subiu. Mesmo ponto cego já registrado na `enable-backend-ci`.
+      ⚠️ **Railway não foi ligado, de propósito:** o endpoint é anônimo e provisiona tenant; a
+      proposal condiciona abrir `/cadastro` ao público ao enforcement LGPD estar `on`, e ele segue
+      em `report-only` com o gate jurídico e os Termos de Uso pendentes.
 
 ## Estimativa
 
