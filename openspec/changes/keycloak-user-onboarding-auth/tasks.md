@@ -249,7 +249,26 @@
       prova quando a 4.3 ligar a flag em ambiente com usuário real.
       📌 Ambiente deixado no ar: backend `:8099` (worktree `.worktrees/onboarding-backend`), front
       `:5174`, Postgres no container `menthoros-4a1-db`.
-- [ ] 4.2 Testar falhas injetadas após cada recurso criado e comprovar que compensação/reconciliação não deixa conta utilizável sem tenant local.
+- [x] 4.2 **Feito em 2026-08-10 contra Keycloak e Postgres reais** (Testcontainers —
+      `CoachSignupCompensacaoIT`; o HomeLab ficou de fora porque a injeção de falha exigiria mexer
+      no banco compartilhado).
+      ✅ Falha injetada no insert do `Usuario` local — o passo mais tardio que ainda tem organização,
+      usuário, role e vínculo de membro criados atrás dele, então exercita a pilha inteira de
+      compensação. Depois do desfazer: **usuário e organização não existem mais no Keycloak**
+      (consultado pela admin API) e a assessoria sumiu do banco. Nenhuma conta utilizável.
+      ✅ **Controle positivo** incluído: a mesma consulta encontra um usuário que existe. Sem ele os
+      `isEmpty()` provariam nada — query errada devolve lista vazia sempre.
+      🐞 **Achou um bug, e do tipo que teste unitário não alcança.** A V75 declarou
+      `assessoria_id` com `ON DELETE SET NULL` para a compensação poder apagar a assessoria. O
+      Postgres zera a coluna no delete, mas a entidade em memória segue com o id antigo: o UPDATE
+      que grava `FAILED` reescreve a referência pendurada e **viola a FK**. Toda falha compensada
+      terminava com (1) o rastro congelado no último passo bem-sucedido, invisível à varredura por
+      `RECONCILIATION_REQUIRED`; (2) um 500 sobre constraint de banco no lugar da causa real; (3)
+      métrica e rastro discordando, porque `contar("falha_compensada")` roda antes do UPDATE.
+      ✅ **Corrigido pela V76**, que derruba a FK — decisão do founder: preservar o id para perícia,
+      mesma convenção de `tenant_id`. `SignupProvisioningMigrationTest` afirmava o comportamento
+      anterior e foi atualizado.
+      📌 Suíte na branch: **2476 unitários + 65 de integração**, `clean verify` verde.
 - [ ] 4.3 Habilitar por feature flag, observar métricas e executar o runbook de rollback/reconciliação.
 
 ## Estimativa
