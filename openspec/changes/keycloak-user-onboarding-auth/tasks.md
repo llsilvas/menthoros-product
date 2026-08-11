@@ -290,9 +290,17 @@
       `menthoros-infra`. O contador `signup_coach_total{desfecho}` existe e está correto; o que não
       existe é quem olhe. A regra PromQL sugerida no runbook pressupõe um Prometheus que ninguém
       subiu. Mesmo ponto cego já registrado na `enable-backend-ci`.
-      ⚠️ **Railway não foi ligado, de propósito:** o endpoint é anônimo e provisiona tenant; a
-      proposal condiciona abrir `/cadastro` ao público ao enforcement LGPD estar `on`, e ele segue
-      em `report-only` com o gate jurídico e os Termos de Uso pendentes.
+      ✅ **Decisão do founder em 2026-08-11: manter o endpoint habilitado**, e a validação jurídica
+      da LGPD está feita — os dois pontos que este item listava como bloqueio caem.
+      ⚠️ **Duas ressalvas factuais, para o registro, nenhuma delas revoga a decisão:**
+      1. **"Ainda não foi divulgado" não é um controle.** `/v3/api-docs/**`, `/api-docs/**` e
+         `/swagger-ui/**` estão em `CoreSecurityProperties.publicPaths` — a especificação OpenAPI é
+         pública e lista `/api/public/coach-signups` com o schema inteiro. Quem varrer o host
+         encontra a rota sem precisar de divulgação. O que de fato protege é o anti-abuso, que
+         existe e é apertado: 3/hora por IP, 3/dia por e-mail, teto global de 20/dia.
+      2. **Validar o texto não liga o enforcement.** `LGPD_CONSENT_ENFORCEMENT` segue com default
+         `report-only`: hoje ele registra quem seria bloqueado e não bloqueia ninguém. Virar para
+         `on` é passo operacional separado, na `add-coach-lgpd-consent`.
 
 ## Estimativa
 
