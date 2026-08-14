@@ -27,25 +27,38 @@
 ## 1. Backend
 
 - [ ] 1.1 Migration Flyway: coluna `@Version` em `tb_assessoria` populada com `0` nas linhas existentes. Sem `DROP`, sem perda de dado.
+  `verify:` migration sobe limpa; um segundo `PATCH` com versão antiga dá `409`.
 - [ ] 1.2 Migration Flyway: tabela `tb_assessoria_logo` (PK/FK `assessoria_id` com `ON DELETE CASCADE`, `conteudo bytea`, `content_type`, `tamanho_bytes`, `etag`, `atualizado_em`).
+  `verify:` apagar uma assessoria em teste leva a logo junto (cascade).
 - [ ] 1.3 Mapear a entidade da logo em tabela separada e confirmar, por teste, que carregar `Assessoria` **não** traz os bytes.
+  `verify:` teste com contagem de SQL (ou log do Hibernate) provando que o `SELECT` da assessoria não toca `tb_assessoria_logo`.
 - [ ] 1.4 `GET /api/v1/assessorias/me` com identidade, `temLogo`/`logoUrl` derivada, plano, uso por queries agregadas tenant-scoped e `version`. Autorização `hasAnyRole('TECNICO','PROPRIETARIO','ADMIN')`.
+  `verify:` resposta bate com o JSON do `design.md`; `uso.tecnicos` conta o dono (ele continua `TECNICO`).
 - [ ] 1.5 `PATCH /api/v1/assessorias/me`: apenas `nome` editável (normalizado), `hasRole('PROPRIETARIO')`, `409` em versão obsoleta, e **rejeição explícita de campo desconhecido** — `@JsonIgnoreProperties(ignoreUnknown = false)` no DTO ou validação equivalente, já que o default do Spring Boot descartaria `corPrimaria` em silêncio.
   `verify:` teste enviando `corPrimaria` e esperando `400`.
-- [ ] 1.6 `POST /api/v1/assessorias/me/logo`: multipart, limite de 2 MiB, decode real da imagem (não confiar em extensão nem `Content-Type`), dimensões máximas, gravação transacional com bump de versão.
+- [ ] 1.6 `POST /api/v1/assessorias/me/logo`: multipart (habilitar `spring.servlet.multipart`, hoje ausente), limite de 2 MiB, decode real da imagem (não confiar em extensão nem `Content-Type`), dimensões máximas, gravação transacional com bump de versão.
+  `verify:` um `.png` renomeado a partir de um texto é rejeitado; um PNG válido de 2,1 MiB também.
 - [ ] 1.7 `GET /api/v1/assessorias/me/logo` com `Content-Type` persistido, `ETag`, `Cache-Control: private` e `304` em `If-None-Match`; e `DELETE` com **`version` obrigatória, `hasRole('PROPRIETARIO')`, bump de versão e `409` em versão obsoleta** — mesmo contrato do PATCH.
+  `verify:` segunda requisição com o `ETag` devolve `304` sem corpo; `DELETE` com versão velha devolve `409` e a imagem continua servível.
 - [ ] 1.8 Implementar o **gate de coerência** `usuario.assessoria.id == TenantContext.getRequiredTenantId()` nas três escritas (PATCH, upload, DELETE), com `403` em divergência.
+  `verify:` teste que monta o cenário divergente e espera `403` sem escrita na assessoria.
 - [ ] 1.9 Testes: campos omitidos/null, cor no payload rejeitada, concorrência (`409`), **upload-vs-delete e delete-vs-upload com versão obsoleta**, `TECNICO` sem `PROPRIETARIO` recebendo `403`, **JWT cujo tenant diverge de `usuario.assessoria` recebendo `403`**, tenant A não lendo/alterando B, arquivo falso/grande/corrompido, e reversão completa da transação em falha no meio do upload.
 - [ ] 1.10 Executar `./mvnw clean verify`; registrar resultados.
 
 ## 2. Frontend
 
 - [ ] 2.1 Criar client/tipos compartilhados de leitura, patch, upload e remoção — o wizard do `coach-first-login-wizard` reutiliza estes contratos.
+  `verify:` tipos batem com o contrato do `design.md`; `npm run build` limpo.
 - [ ] 2.2 Criar `/coach/settings/assessoria` e a navegação do grupo "Configurações", com loading/erro/empty states.
+  `verify:` rota alcançável a partir de `/coach/settings` e renderiza os três estados.
 - [ ] 2.3 Formulário de nome com dirty-state, confirmação ao sair e tratamento de `409`. **Sem seletor de cor e sem cálculo de contraste** (D3).
+  `verify:` sair com alteração pendente pede confirmação; `409` mostra opção de recarregar sem perder o rascunho.
 - [ ] 2.4 Upload de logo acessível: limites, progresso, retry, remoção e fallback de iniciais. Prévia apenas da imagem, na própria página. Não aceitar URL digitada.
+  `verify:` arquivo acima do limite é barrado antes do envio; falha do servidor mantém a logo anterior visível.
 - [ ] 2.5 Cards read-only de plano e uso.
+  `verify:` nenhum controle editável nesses cards.
 - [ ] 2.6 Testes: PATCH do nome, concorrência, upload e falha, remoção, saída com alterações pendentes, viewport móvel.
+  `verify:` `npm run test:run` verde.
 - [ ] 2.7 Instrumentar a duração "abrir a página → PATCH/upload concluído", sem a qual os "3 minutos" da métrica de sucesso não são auferíveis.
   `verify:` o evento aparece com a duração no canal de analytics já usado pelo front.
 - [ ] 2.8 Executar `npm run lint && npm run build` e os testes configurados; registrar resultados.
@@ -53,8 +66,11 @@
 ## 3. Entrega
 
 - [ ] 3.1 E2E com duas assessorias e roles diferentes, comprovando isolamento de tenant e o gate de `PROPRIETARIO`.
+  `verify:` técnico não-dono vê a página e não consegue salvar; dono do tenant A não alcança o B.
 - [ ] 3.2 Verificar fallback de logo, `304` do `ETag` e reversão em falha injetada no upload.
-- [ ] 3.3 Validar em staging: role sincronizada antes do deploy do backend, métricas de update/upload/falha e feature flag do upload.
+  `verify:` falha injetada deixa a logo anterior intacta e sem linha órfã em `tb_assessoria_logo`.
+- [ ] 3.3 Validar em staging: **role sincronizada e backfill executado antes do deploy do backend** (0.2 e 0.4), métricas de update/upload/falha e feature flag do upload.
+  `verify:` um coach existente de verdade abre a página e salva — se tomar `403`, o backfill não rodou.
 
 ## Fora desta change
 
