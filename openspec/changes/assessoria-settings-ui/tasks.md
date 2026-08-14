@@ -5,19 +5,19 @@
 
 ## 0. Propriedade da assessoria — role + flag (bloqueia 1.5 em diante)
 
-- [ ] 0.1 Declarar `PROPRIETARIO` em `menthoros-infra/keycloak/menthoros-realm.json` como role de realm **composite** incluindo `TECNICO`; PR no `menthoros-infra`.
-  `verify:` o JSON aplica sem erro e a role aparece com `composite: true`.
+- [x] 0.1 Declarar `PROPRIETARIO` em `menthoros-infra/keycloak/menthoros-realm.json` como role de realm **composite** incluindo `TECNICO`; PR no `menthoros-infra`.
+  `verify:` ✅ JSON válido, `composite: true` com `composites.realm = ["TECNICO"]`, description em 132/255 chars. Commit `35d882d`.
 - [ ] 0.2 Aplicar por `sync-realm.sh` no HomeLab e no Railway `develop`; conferir **no token emitido** que o composite traz `TECNICO` junto. Nunca pelo console.
   `verify:` decodificar um JWT real e ver `realm_access.roles` com as duas.
-- [ ] 0.3 Adicionar `PROPRIETARIO` ao enum `UserRole` **sem incluí-la em `mapToUserRole`** — a cadeia continua devolvendo `TECNICO`.
-  `verify:` teste que, dado um JWT com ambas as roles, `usuario.getRole() == TECNICO`.
-- [ ] 0.3b Migration: coluna booleana `proprietario` em `tb_usuario`, `NOT NULL DEFAULT false`.
-  `verify:` migration sobe limpa e usuários existentes ficam `false`.
-- [ ] 0.3c `UsuarioSyncServiceImpl` espelha `usuario.setProprietario(roles.contains("PROPRIETARIO"))` a cada sync.
-  `verify:` teste com JWT com e sem a role, conferindo a flag nos dois sentidos (liga e **desliga**).
+- [x] 0.3 Adicionar `PROPRIETARIO` ao enum `UserRole` **sem incluí-la em `mapToUserRole`** — a cadeia continua devolvendo `TECNICO`.
+  `verify:` ✅ `UsuarioSyncServiceImplRoleTest` 7/7 — JWT com `PROPRIETARIO`+`TECNICO` resolve `TECNICO`, e `isTecnico()`/`podeEscrever()` seguem `true`. Commit `422b378`.
+- [x] 0.3b Migration: coluna booleana `owner` em `tb_usuario`, `NOT NULL DEFAULT false`.
+  `verify:` ⚠️ `V77__add_owner_to_tb_usuario.sql` escrita e o backend compila, mas **a migration ainda não subiu contra um Postgres real** — Docker estava fora na máquina. Reconferir no `verify` da seção. Commit `9e5c8e3`.
+- [x] 0.3c `UsuarioSyncServiceImpl` espelha `usuario.setOwner(roles.contains("PROPRIETARIO"))` a cada sync.
+  `verify:` ✅ `UsuarioSyncServiceImplRoleTest` 10/10 — liga com a role, não liga sem ela, e **desliga** quando a role some do token. Commit `9e5c8e3`.
 - [ ] 0.3d `CoachSignupServiceImpl` atribui `PROPRIETARIO` ao fundador no Keycloak.
   `verify:` teste do signup conferindo a role atribuída; a flag liga no primeiro acesso, não no signup.
-- [ ] 0.3e Confirmar por teste que nenhum consumidor de `role` mudou: `countByTenantIdAndRoleAndAtivoTrue` ainda conta o dono como técnico, `isTecnico()` e `podeGerenciar()` seguem `true`.
+- [ ] 0.3e Confirmar por teste que nenhum consumidor de `role` mudou: `countByTenantIdAndRoleAndAtivoTrue` ainda conta o dono como técnico, `isTecnico()` e `podeEscrever()` seguem `true`.
   `verify:` os três casos verdes com um usuário dono.
 - [ ] 0.4 **Decidir e executar o backfill dos coaches existentes — gate de deploy, não de merge.** Rodar a consulta de diagnóstico primeiro e classificar cada assessoria: com um único `TECNICO`, com vários, sem nenhum, com empate de `createdAt`. Só o primeiro caso é automático; os demais viram **lista para atribuição manual**, nunca escolha silenciosa. O backfill tem **duas pernas**: atribuir a role no Keycloak (autoridade) e popular a flag por migration (para quem ainda não logou). **O backend não sobe exigindo `PROPRIETARIO` antes disso** — o coach existente não perde nada que já tinha (nenhum `@PreAuthorize` atual muda), mas ficaria sem acesso ao recurso novo da própria assessoria.
   `verify:` toda assessoria ativa tem exatamente um dono, ou está na lista de exceções registrada no PR.

@@ -4,7 +4,7 @@
 > `PROPRIETARIO`) e D3 (**cores fora do escopo por inteiro** — nem edição, nem aplicação).
 > Ver `proposal.md`.
 
-## Autorização — role `PROPRIETARIO` + flag `proprietario` (D2, revisado)
+## Autorização — role `PROPRIETARIO` + flag `owner` (D2, revisado)
 
 O enum atual (`enums/UserRole.java`) é `ADMIN, TECNICO, VISUALIZADOR, ATLETA`, e o `ADMIN` é usado
 como administrador de plataforma em `POST /api/admin/assessorias`. Não há como distinguir o dono da
@@ -29,10 +29,15 @@ sairia de:
 |---|---|
 | `UsuarioRepository.java:83` `countByTenantIdAndRoleAndAtivoTrue` | dono some da contagem de técnicos — e é a query do `uso.tecnicos` **desta change**, com `maxTecnicos=1` no BASIC |
 | `Usuario.java:167` `isTecnico()` | `false` para o dono |
-| `Usuario.java:174` `podeGerenciar()` | `false` para o dono |
+| `Usuario.java:174` `podeEscrever()` | `false` para o dono |
 
 **Decisão (2026-08-14, após DoR):** `role` permanece `TECNICO` e a propriedade vira uma coluna
-booleana `proprietario` em `tb_usuario`. Nada que hoje lê `role` muda de comportamento.
+booleana `owner` em `tb_usuario`. Nada que hoje lê `role` muda de comportamento.
+
+O campo nasce em **inglês** por força do ADR-0007 (`CLAUDE.md` do backend: código novo — campos,
+colunas, tipos — nasce em inglês), enquanto a constante do enum mantém `PROPRIETARIO` porque espelha
+o nome da role no realm. O par `PROPRIETARIO` (contrato do IdP) → `owner` (campo local) é
+deliberado, não descuido.
 
 **O Keycloak continua sendo a fonte única.** A flag é espelho, não segunda verdade: o sync a
 atualiza a cada requisição a partir das roles do JWT — exatamente a mecânica que já existe para
@@ -40,11 +45,11 @@ atualiza a cada requisição a partir das roles do JWT — exatamente a mecânic
 
 ```
 Keycloak (fonte)          →  JWT roles  →  sync espelha
-  PROPRIETARIO (composite)               usuario.role         = TECNICO   (inalterado)
-  └─ TECNICO                             usuario.proprietario = true      (derivado)
+  PROPRIETARIO (composite)               usuario.role  = TECNICO   (inalterado)
+  └─ TECNICO                             usuario.owner = true      (derivado)
 
 @PreAuthorize("hasRole('PROPRIETARIO')")   ← autorização, via JWT
-usuario.isProprietario()                    ← lógica de domínio, via banco
+usuario.isOwner()                          ← lógica de domínio, via banco
 ```
 
 - **Realm:** declarar em `menthoros-infra/keycloak/menthoros-realm.json` (bloco `roles.realm`, ao
@@ -54,7 +59,7 @@ usuario.isProprietario()                    ← lógica de domínio, via banco
 - **Backend:** acrescentar `PROPRIETARIO` ao `UserRole` (necessário para o mapeamento de
   authorities; `config/core/CoreSecurityConfig.java:63-70` já cobre a role nova sem mudança) e **não
   incluí-la em `mapToUserRole`** — a cadeia continua devolvendo `TECNICO`.
-- **Sync:** `UsuarioSyncServiceImpl` passa a espelhar `usuario.setProprietario(roles.contains("PROPRIETARIO"))`.
+- **Sync:** `UsuarioSyncServiceImpl` passa a espelhar `usuario.setOwner(roles.contains("PROPRIETARIO"))`.
 - **Signup:** `CoachSignupServiceImpl` atribui `PROPRIETARIO` ao fundador no Keycloak. Como é
   composite, o token continua trazendo `TECNICO`, e o sync liga a flag no primeiro acesso.
 - **Endpoints desta change:** `hasRole('PROPRIETARIO')` no PATCH, upload e DELETE; o GET aceita
