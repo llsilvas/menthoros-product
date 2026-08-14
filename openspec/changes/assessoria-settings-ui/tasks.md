@@ -3,13 +3,26 @@
 > Revisado em 2026-08-14 após as decisões D1/D2/D3 (ver `proposal.md`). A seção 0 é nova e
 > bloqueia o resto; as tasks de object storage saíram.
 
-## 0. Role `PROPRIETARIO` (bloqueia 1.5 em diante)
+## 0. Propriedade da assessoria — role + flag (bloqueia 1.5 em diante)
 
 - [ ] 0.1 Declarar `PROPRIETARIO` em `menthoros-infra/keycloak/menthoros-realm.json` como role de realm **composite** incluindo `TECNICO`; PR no `menthoros-infra`.
-- [ ] 0.2 Aplicar por `sync-realm.sh` no HomeLab e no Railway `develop`; conferir no token que o composite traz `TECNICO` junto. Nunca pelo console.
-- [ ] 0.3 Adicionar `PROPRIETARIO` ao enum `UserRole` e fazer o `CoachSignupServiceImpl` atribuí-la ao fundador; teste cobrindo que o signup passa a produzir as duas roles.
-- [ ] 0.4 **Decidir e executar o backfill dos coaches existentes — gate de deploy, não de merge.** Conferir contra os dados reais antes de escrever a migration e definir o comportamento de cada caso ambíguo: assessoria sem técnico, com empate de `createdAt`, com vários técnicos. Nenhuma assessoria pode ficar sem dono nem com dois. Ambíguo não vira escolha silenciosa: fica listado para atribuição manual. **O backend não sobe exigindo `PROPRIETARIO` antes do backfill rodar** — o coach existente não perde nada que já tinha (nenhum `@PreAuthorize` atual muda), mas ficaria sem acesso ao recurso novo da própria assessoria.
-- [ ] 0.5 Verificar que as 61 anotações `hasAnyRole('TECNICO','ADMIN')` seguem alcançáveis pelo fundador após a troca — um teste de integração com token real de `PROPRIETARIO` batendo num endpoint existente.
+  `verify:` o JSON aplica sem erro e a role aparece com `composite: true`.
+- [ ] 0.2 Aplicar por `sync-realm.sh` no HomeLab e no Railway `develop`; conferir **no token emitido** que o composite traz `TECNICO` junto. Nunca pelo console.
+  `verify:` decodificar um JWT real e ver `realm_access.roles` com as duas.
+- [ ] 0.3 Adicionar `PROPRIETARIO` ao enum `UserRole` **sem incluí-la em `mapToUserRole`** — a cadeia continua devolvendo `TECNICO`.
+  `verify:` teste que, dado um JWT com ambas as roles, `usuario.getRole() == TECNICO`.
+- [ ] 0.3b Migration: coluna booleana `proprietario` em `tb_usuario`, `NOT NULL DEFAULT false`.
+  `verify:` migration sobe limpa e usuários existentes ficam `false`.
+- [ ] 0.3c `UsuarioSyncServiceImpl` espelha `usuario.setProprietario(roles.contains("PROPRIETARIO"))` a cada sync.
+  `verify:` teste com JWT com e sem a role, conferindo a flag nos dois sentidos (liga e **desliga**).
+- [ ] 0.3d `CoachSignupServiceImpl` atribui `PROPRIETARIO` ao fundador no Keycloak.
+  `verify:` teste do signup conferindo a role atribuída; a flag liga no primeiro acesso, não no signup.
+- [ ] 0.3e Confirmar por teste que nenhum consumidor de `role` mudou: `countByTenantIdAndRoleAndAtivoTrue` ainda conta o dono como técnico, `isTecnico()` e `podeGerenciar()` seguem `true`.
+  `verify:` os três casos verdes com um usuário dono.
+- [ ] 0.4 **Decidir e executar o backfill dos coaches existentes — gate de deploy, não de merge.** Rodar a consulta de diagnóstico primeiro e classificar cada assessoria: com um único `TECNICO`, com vários, sem nenhum, com empate de `createdAt`. Só o primeiro caso é automático; os demais viram **lista para atribuição manual**, nunca escolha silenciosa. O backfill tem **duas pernas**: atribuir a role no Keycloak (autoridade) e popular a flag por migration (para quem ainda não logou). **O backend não sobe exigindo `PROPRIETARIO` antes disso** — o coach existente não perde nada que já tinha (nenhum `@PreAuthorize` atual muda), mas ficaria sem acesso ao recurso novo da própria assessoria.
+  `verify:` toda assessoria ativa tem exatamente um dono, ou está na lista de exceções registrada no PR.
+- [ ] 0.5 Verificar que as 61 anotações `hasAnyRole('TECNICO','ADMIN')` seguem alcançáveis pelo fundador — teste de integração com token real de `PROPRIETARIO` batendo num endpoint existente.
+  `verify:` `200`, não `403`.
 
 ## 1. Backend
 
@@ -17,7 +30,8 @@
 - [ ] 1.2 Migration Flyway: tabela `tb_assessoria_logo` (PK/FK `assessoria_id` com `ON DELETE CASCADE`, `conteudo bytea`, `content_type`, `tamanho_bytes`, `etag`, `atualizado_em`).
 - [ ] 1.3 Mapear a entidade da logo em tabela separada e confirmar, por teste, que carregar `Assessoria` **não** traz os bytes.
 - [ ] 1.4 `GET /api/v1/assessorias/me` com identidade, `temLogo`/`logoUrl` derivada, plano, uso por queries agregadas tenant-scoped e `version`. Autorização `hasAnyRole('TECNICO','PROPRIETARIO','ADMIN')`.
-- [ ] 1.5 `PATCH /api/v1/assessorias/me`: apenas `nome` editável (normalizado), `hasRole('PROPRIETARIO')`, `409` em versão obsoleta, e **rejeição explícita** de `corPrimaria`/`corSecundaria` no payload.
+- [ ] 1.5 `PATCH /api/v1/assessorias/me`: apenas `nome` editável (normalizado), `hasRole('PROPRIETARIO')`, `409` em versão obsoleta, e **rejeição explícita de campo desconhecido** — `@JsonIgnoreProperties(ignoreUnknown = false)` no DTO ou validação equivalente, já que o default do Spring Boot descartaria `corPrimaria` em silêncio.
+  `verify:` teste enviando `corPrimaria` e esperando `400`.
 - [ ] 1.6 `POST /api/v1/assessorias/me/logo`: multipart, limite de 2 MiB, decode real da imagem (não confiar em extensão nem `Content-Type`), dimensões máximas, gravação transacional com bump de versão.
 - [ ] 1.7 `GET /api/v1/assessorias/me/logo` com `Content-Type` persistido, `ETag`, `Cache-Control: private` e `304` em `If-None-Match`; e `DELETE` com **`version` obrigatória, `hasRole('PROPRIETARIO')`, bump de versão e `409` em versão obsoleta** — mesmo contrato do PATCH.
 - [ ] 1.8 Implementar o **gate de coerência** `usuario.assessoria.id == TenantContext.getRequiredTenantId()` nas três escritas (PATCH, upload, DELETE), com `403` em divergência.
@@ -32,7 +46,9 @@
 - [ ] 2.4 Upload de logo acessível: limites, progresso, retry, remoção e fallback de iniciais. Prévia apenas da imagem, na própria página. Não aceitar URL digitada.
 - [ ] 2.5 Cards read-only de plano e uso.
 - [ ] 2.6 Testes: PATCH do nome, concorrência, upload e falha, remoção, saída com alterações pendentes, viewport móvel.
-- [ ] 2.7 Executar `npm run lint && npm run build` e os testes configurados; registrar resultados.
+- [ ] 2.7 Instrumentar a duração "abrir a página → PATCH/upload concluído", sem a qual os "3 minutos" da métrica de sucesso não são auferíveis.
+  `verify:` o evento aparece com a duração no canal de analytics já usado pelo front.
+- [ ] 2.8 Executar `npm run lint && npm run build` e os testes configurados; registrar resultados.
 
 ## 3. Entrega
 

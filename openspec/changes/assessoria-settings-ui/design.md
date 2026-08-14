@@ -4,7 +4,7 @@
 > `PROPRIETARIO`) e D3 (**cores fora do escopo por inteiro** — nem edição, nem aplicação).
 > Ver `proposal.md`.
 
-## Autorização — role `PROPRIETARIO` (D2)
+## Autorização — role `PROPRIETARIO` + flag `proprietario` (D2, revisado)
 
 O enum atual (`enums/UserRole.java`) é `ADMIN, TECNICO, VISUALIZADOR, ATLETA`, e o `ADMIN` é usado
 como administrador de plataforma em `POST /api/admin/assessorias`. Não há como distinguir o dono da
@@ -15,19 +15,55 @@ assessoria de um técnico contratado — e o coach criado pelo auto-cadastro nas
 não é cosmética: existem 61 anotações `hasAnyRole('TECNICO','ADMIN')` no `src/main`, e sem a
 composição o fundador perderia acesso a tudo que já fazia no dia em que ganhasse a role nova.
 
+### Por que a role sozinha não basta — e por que existe uma flag no banco
+
+`Usuario.role` é **single-valued**, e `UsuarioSyncServiceImpl.mapToUserRole` (`:160-173`) colapsa a
+lista de roles do JWT numa cadeia `if/else` (`ADMIN` → `TECNICO` → `ATLETA` → `VISUALIZADOR`). Com a
+composite, o token traz `PROPRIETARIO` **e** `TECNICO`, e o banco grava `TECNICO`. O
+`@PreAuthorize` funciona (lê authorities do JWT), mas o espelho local nunca sabe quem é o dono.
+
+Priorizar `PROPRIETARIO` na cadeia seria pior, porque o campo não comporta os dois papéis. O dono
+sairia de:
+
+| Consumidor | Efeito |
+|---|---|
+| `UsuarioRepository.java:83` `countByTenantIdAndRoleAndAtivoTrue` | dono some da contagem de técnicos — e é a query do `uso.tecnicos` **desta change**, com `maxTecnicos=1` no BASIC |
+| `Usuario.java:167` `isTecnico()` | `false` para o dono |
+| `Usuario.java:174` `podeGerenciar()` | `false` para o dono |
+
+**Decisão (2026-08-14, após DoR):** `role` permanece `TECNICO` e a propriedade vira uma coluna
+booleana `proprietario` em `tb_usuario`. Nada que hoje lê `role` muda de comportamento.
+
+**O Keycloak continua sendo a fonte única.** A flag é espelho, não segunda verdade: o sync a
+atualiza a cada requisição a partir das roles do JWT — exatamente a mecânica que já existe para
+`role`. Se as duas divergirem, o token vence no próximo acesso.
+
+```
+Keycloak (fonte)          →  JWT roles  →  sync espelha
+  PROPRIETARIO (composite)               usuario.role         = TECNICO   (inalterado)
+  └─ TECNICO                             usuario.proprietario = true      (derivado)
+
+@PreAuthorize("hasRole('PROPRIETARIO')")   ← autorização, via JWT
+usuario.isProprietario()                    ← lógica de domínio, via banco
+```
+
 - **Realm:** declarar em `menthoros-infra/keycloak/menthoros-realm.json` (bloco `roles.realm`, ao
   lado das quatro existentes) com `"composite": true` e `TECNICO` como associada. Aplicar por
   `sync-realm.sh` nos dois ambientes — **nunca pelo console**, que não deixa rastro e faz o arquivo
   divergir em silêncio.
-- **Backend:** acrescentar `PROPRIETARIO` ao `UserRole`; o mapeamento `realm_access.roles → ROLE_*`
-  em `config/core/CoreSecurityConfig.java:63-70` já cobre a role nova sem mudança.
-- **Signup:** `CoachSignupServiceImpl` passa a atribuir `PROPRIETARIO` ao fundador. Como é
-  composite, o token continua trazendo `TECNICO`.
-- **Endpoints desta change:** `hasRole('PROPRIETARIO')` no PATCH e no upload; o GET aceita
+- **Backend:** acrescentar `PROPRIETARIO` ao `UserRole` (necessário para o mapeamento de
+  authorities; `config/core/CoreSecurityConfig.java:63-70` já cobre a role nova sem mudança) e **não
+  incluí-la em `mapToUserRole`** — a cadeia continua devolvendo `TECNICO`.
+- **Sync:** `UsuarioSyncServiceImpl` passa a espelhar `usuario.setProprietario(roles.contains("PROPRIETARIO"))`.
+- **Signup:** `CoachSignupServiceImpl` atribui `PROPRIETARIO` ao fundador no Keycloak. Como é
+  composite, o token continua trazendo `TECNICO`, e o sync liga a flag no primeiro acesso.
+- **Endpoints desta change:** `hasRole('PROPRIETARIO')` no PATCH, upload e DELETE; o GET aceita
   `hasAnyRole('TECNICO','PROPRIETARIO','ADMIN')` — consultar plano e uso não é privilégio de dono.
-- **Coaches existentes:** backfill decidido na task 0.4. A regra candidata é "primeiro `TECNICO` de
-  cada assessoria, por `createdAt`", mas ela precisa ser conferida contra os dados reais antes de
-  virar migration — assessoria sem técnico, ou com empate, não pode ficar sem dono nem ganhar dois.
+- **Coaches existentes:** backfill na task 0.4, em **duas pernas** — atribuir a role no Keycloak (a
+  autoridade) e popular a flag por migration (para quem não logou ainda). A regra candidata é
+  "primeiro `TECNICO` de cada assessoria, por `createdAt`", mas precisa ser conferida contra os
+  dados reais: assessoria sem técnico, com empate, ou com vários não pode ficar sem dono nem ganhar
+  dois. Caso ambíguo vira lista para atribuição manual, nunca escolha silenciosa.
 
 ## Contratos
 
@@ -67,6 +103,12 @@ cai no fallback de iniciais.
 `nome` é o único campo editável nesta change. `null` não apaga neste MVP. Respostas: `200`, `400`,
 `403`, `409` por versão obsoleta. `tenantId`, plano, limites, slug/domínio, `logoUrl` **e as cores**
 não são aceitos no patch — cor enviada é erro explícito, não campo ignorado.
+
+**Isso não acontece sozinho.** O default do Spring Boot é `FAIL_ON_UNKNOWN_PROPERTIES = false`, e o
+projeto não sobrescreve isso em lugar nenhum — um `corPrimaria` no payload seria descartado em
+silêncio, que é precisamente o contrato fantasma que a regra existe para evitar. O DTO do PATCH
+precisa de `@JsonIgnoreProperties(ignoreUnknown = false)` (ou validação equivalente) **e** um teste
+que envie `corPrimaria` e espere `400`. Sem o teste, a garantia é uma frase.
 
 O PATCH parece magro para uma change M, e é: o peso está no upload, na role e na concorrência. Ele
 existe agora com um campo só porque é o contrato que o `coach-first-login-wizard` vai reutilizar, e
@@ -148,6 +190,12 @@ primeira — daí o gate. Note que ele **não** conserta a resolução ambígua 
 que ela produza escrita no tenant errado; a correção da resolução é maior que esta change e deve
 virar item de segurança próprio.
 
+**Precisão sobre o alcance do gate:** ele roda no serviço, e o `JwtTenantFilter:120` já chamou o
+sync antes disso — ou seja, um JWT ambíguo ainda grava email/nome/role/último acesso no `Usuario`
+antes de tomar `403`. Isso é pré-existente e **não** é escrita cross-tenant (`assessoria` nunca é
+reatribuída, `UsuarioSyncServiceImpl:60-61`), mas convém não descrever o gate como se impedisse toda
+escrita: ele protege a assessoria, não a linha do usuário.
+
 Uma role tenant-scoped (client role por organization) resolveria isso na origem, mas exigiria
 reestruturar o modelo de roles no Keycloak — desproporcional enquanto o banco garante 1:1.
 
@@ -196,3 +244,31 @@ Ordem: role `PROPRIETARIO` no realm (dois ambientes) → migrations (`@Version` 
 Sem storage externo, o rollout perde os passos de bucket, CORS e lifecycle que a versão anterior
 previa — mas ganha um passo mais delicado: **a role no Keycloak precisa estar sincronizada antes de o
 backend subir exigindo-a**, ou o dono da assessoria toma `403` na própria configuração.
+
+## Rollback
+
+Flyway não desfaz migration, então o caminho de volta é por comportamento, não por schema:
+
+- **Desligar o recurso sem tocar no banco:** a feature flag oculta o upload; para neutralizar a
+  exigência de dono, o gate volta a `hasAnyRole('TECNICO','ADMIN')` por deploy. As duas tabelas
+  continuam de pé sem efeito — schema órfão não quebra nada.
+- **Role no realm:** não remover `PROPRIETARIO` do Keycloak em rollback. Removê-la invalida tokens
+  emitidos e derruba quem já a tinha; deixá-la inerte não causa dano, já que só esta change a
+  consulta.
+- **Backfill errado (task 0.4):** corrigir é `UPDATE` da flag + reatribuição da role no Keycloak.
+  Por isso a lista de casos ambíguos precisa ser registrada no PR — sem ela não há como saber quem
+  foi atribuído por regra e quem foi por engano.
+- **Logo já persistida com a flag desligada:** os bytes permanecem em `tb_assessoria_logo` e param
+  de ser servidos. Nada a limpar; religar a flag os traz de volta.
+
+## Orçamento operacional do BLOB
+
+Registrado porque D1 troca custo de infra por custo de banco, e o segundo é menos visível:
+
+- Teto de 2 MiB por logo, **uma linha por assessoria** (PK = `assessoria_id`), sem histórico — o
+  limite superior é `nº de assessorias × 2 MiB`. Substituição é `UPDATE`, não acúmulo.
+- Cada troca gera WAL do tamanho da imagem e entra nos backups. Na escala atual é irrelevante; o
+  gatilho para reavaliar é a tabela passar de ~1 GB ou o tempo de restore incomodar.
+- Sem quota por tenant e sem rate limit de troca neste MVP — a superfície é limitada a usuários
+  autenticados com `PROPRIETARIO`, um por assessoria. Se isso mudar, rate limit vem antes de storage
+  externo.
