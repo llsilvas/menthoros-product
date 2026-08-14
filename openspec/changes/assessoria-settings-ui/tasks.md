@@ -12,13 +12,13 @@
 - [x] 0.3 Adicionar `PROPRIETARIO` ao enum `UserRole` **sem incluí-la em `mapToUserRole`** — a cadeia continua devolvendo `TECNICO`.
   `verify:` ✅ `UsuarioSyncServiceImplRoleTest` 7/7 — JWT com `PROPRIETARIO`+`TECNICO` resolve `TECNICO`, e `isTecnico()`/`podeEscrever()` seguem `true`. Commit `422b378`.
 - [x] 0.3b Migration: coluna booleana `owner` em `tb_usuario`, `NOT NULL DEFAULT false`.
-  `verify:` ⚠️ `V77__add_owner_to_tb_usuario.sql` escrita e o backend compila, mas **a migration ainda não subiu contra um Postgres real** — Docker estava fora na máquina. Reconferir no `verify` da seção. Commit `9e5c8e3`.
+  `verify:` ✅ `./mvnw clean verify` com Docker no ar: **2511 unitários + 68 IT, 0 falhas, 0 erros**. Como o perfil de teste usa `ddl-auto: validate` sobre o schema do Flyway, os ITs só passam se a coluna existir — a V77 subiu contra Postgres real. Commit `9e5c8e3`.
 - [x] 0.3c `UsuarioSyncServiceImpl` espelha `usuario.setOwner(roles.contains("PROPRIETARIO"))` a cada sync.
   `verify:` ✅ `UsuarioSyncServiceImplRoleTest` 10/10 — liga com a role, não liga sem ela, e **desliga** quando a role some do token. Commit `9e5c8e3`.
-- [ ] 0.3d `CoachSignupServiceImpl` atribui `PROPRIETARIO` ao fundador no Keycloak.
-  `verify:` teste do signup conferindo a role atribuída; a flag liga no primeiro acesso, não no signup.
-- [ ] 0.3e Confirmar por teste que nenhum consumidor de `role` mudou: `countByTenantIdAndRoleAndAtivoTrue` ainda conta o dono como técnico, `isTecnico()` e `podeEscrever()` seguem `true`.
-  `verify:` os três casos verdes com um usuário dono.
+- [x] 0.3d `CoachSignupServiceImpl` atribui `PROPRIETARIO` ao fundador no Keycloak.
+  `verify:` ✅ `CoachSignupServiceImplTest` 35/35 — a role atribuída é `PROPRIETARIO` e o `Usuario` local nasce `TECNICO` + `owner=true`. **Desvio deliberado do plano:** a flag liga já no signup, não só no primeiro acesso, para fechar a janela entre cadastro e login na qual o dono não seria dono no banco. O sync reespelha a cada acesso de qualquer forma. Commit `3263208`.
+- [x] 0.3e Confirmar por teste que nenhum consumidor de `role` mudou: `countByTenantIdAndRoleAndAtivoTrue` ainda conta o dono como técnico, `isTecnico()` e `podeEscrever()` seguem `true`.
+  `verify:` ✅ `UsuarioOwnerRepositoryTest` 5/5 contra Postgres real. **Seção validada:** `./mvnw clean verify` → 2518 unitários + 68 IT, 0 falhas, 0 erros. Commit `c4306e0`.
 - [ ] 0.4 **Decidir e executar o backfill dos coaches existentes — gate de deploy, não de merge.** Rodar a consulta de diagnóstico primeiro e classificar cada assessoria: com um único `TECNICO`, com vários, sem nenhum, com empate de `createdAt`. Só o primeiro caso é automático; os demais viram **lista para atribuição manual**, nunca escolha silenciosa. O backfill tem **duas pernas**: atribuir a role no Keycloak (autoridade) e popular a flag por migration (para quem ainda não logou). **O backend não sobe exigindo `PROPRIETARIO` antes disso** — o coach existente não perde nada que já tinha (nenhum `@PreAuthorize` atual muda), mas ficaria sem acesso ao recurso novo da própria assessoria.
   `verify:` toda assessoria ativa tem exatamente um dono, ou está na lista de exceções registrada no PR.
 - [ ] 0.5 Verificar que as 61 anotações `hasAnyRole('TECNICO','ADMIN')` seguem alcançáveis pelo fundador — teste de integração com token real de `PROPRIETARIO` batendo num endpoint existente.
