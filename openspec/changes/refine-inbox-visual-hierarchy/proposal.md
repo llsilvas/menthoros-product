@@ -191,3 +191,9 @@ pode ser destacada em change própria se o PR crescer demais):
   (4) escopo da tipografia global vs. atleta (Q9); (5) modelo de ação estendido (Q10);
   (6) diferenciação não-cor para daltônicos (task 2.4). Recomendação de destacar a Fase 3
   reforçada: premissa "coach usa mobile" segue não validada com dado do pilot.
+- **UI/UX audit completo (persona "Menthoros UI/UX Design Reviewer", 2026-08-15):** UX Score 3,7/10.
+  Novos achados: (UX-002/003) insight da IA enterrado e sem estrutura → elevado ao topo (task 1.7) +
+  `AIInsightCard` de 4 seções (task 2.7); (UX-005) faixas "ideal" hardcoded → derivar/remover
+  (task 2.8); (UX-012) Attention Management System (agrupar fila por estado) → costura candidata a
+  change própria, fora do escopo desta (ver tasks, seção própria). Quick wins (UX-004, UX-007) e
+  opportunities de design system ficam registradas no audit, não entram nesta change.

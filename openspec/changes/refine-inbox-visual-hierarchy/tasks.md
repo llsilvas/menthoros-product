@@ -43,6 +43,10 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
 - [ ] 1.6 Racionar o accent: eyebrow, chips informativos ("No prazo", "Prioridade alta") e tabs
       migram para neutros; título da página reduz para ~16px; nome do atleta vira o maior texto.
       Validação: lint+build; inspeção manual em 1440×900 confirmando accent só em CTA + nav ativa.
+- [ ] 1.7 Elevar o insight da IA ao topo do painel de detalhe (UX-002): reordenar `DiagnosisTabPanel`
+      para que "Sinais de atenção" (motivo + ações sugeridas) venha antes das métricas/charts — o
+      coach decide pelo "porquê", não pelo número cru; métricas viram evidência do insight.
+      Validação: lint+build + snapshot do painel confirmando a ordem.
 
 ## Fase 2 — Design system e estados
 
@@ -66,6 +70,14 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       lint+build.
 - [ ] 2.6 Estados de lista vazia, carregamento e erro nas colunas do inbox (fila e painel).
       Validação: lint+build + testes de página.
+- [ ] 2.7 `AIInsightCard` (UX-003): componente com 4 seções fixas — Ocorrência / Por que importa /
+      Evidência / Ação sugerida — consumindo `rationale`, `sourceRules` e `suggestedAction` do DTO da
+      fila de atenção (já existem, só não são renderizados estruturados). Validação: lint+build +
+      teste do componente.
+- [ ] 2.8 Remover/derivar faixas "ideal" hardcoded (UX-005): "Ideal: 110-150 km" (carga aguda) e
+      "Ideal: < 2.0" (monotonia) em `DiagnosisTabPanel` são fixos e não-específicos ao atleta.
+      Derivar do baseline do atleta (`AthleteBaselineState`/nível de experiência) ou remover o
+      "ideal" até haver referência real. Validação: lint+build + teste do adapter.
 
 ## Fase 3 — Breakpoint mobile
 
@@ -83,6 +95,13 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
 - [ ] 3.4 Smoke visual das demais telas do coach (Atletas, Insights, Revisão de planos) em 390px —
       herdam o drawer; corrigir estouros óbvios introduzidos pela mudança de layout base (sem
       redesenho). Validação: inspeção manual + E2E existentes.
+
+## Attention Management (UX-012) — costura candidata a change própria
+
+> ⚠️ **Não implementar nesta change.** A fila hoje é uma lista flat ordenável; o alvo é um
+> "Attention Management System" com seções **Needs Attention / On Track / Upcoming** (ou header
+> "🔴 N precisam de ação") e sort default = prioridade. Registrar aqui como rastro do audit;
+> promover para change própria (`add-coach-inbox-attention-sections`) exige gate do founder.
 
 ## Encerramento
 
