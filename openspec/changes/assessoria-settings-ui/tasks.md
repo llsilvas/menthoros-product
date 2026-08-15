@@ -49,6 +49,22 @@
 - [x] 0.5 Verificar que as 61 anotações `hasAnyRole('TECNICO','ADMIN')` seguem alcançáveis pelo fundador — teste de integração com token real de `PROPRIETARIO` batendo num endpoint existente.
   `verify:` ✅ Com o JWT real do dono: `/api/v1/coach/atletas` **200**, `/api/v1/coach/dashboard` **200**, `/api/v1/atletas` **200**. A composição entrega o acesso que prometia — o fundador não perdeu nada ao ganhar a role nova.
 
+### Massa de teste deixada no HomeLab (2026-08-15)
+
+Mantida a pedido do founder — é exatamente o cenário que o E2E da seção 3 precisa, e recriá-la a cada
+execução custaria mais que preservá-la.
+
+| Usuário | Papel | Para quê |
+|---|---|---|
+| `coach.proprietario.teste@menthoros.dev` | `PROPRIETARIO` (+`TECNICO` por composição) | caminho feliz de escrita |
+| `tecnico.teste@menthoros.dev` | `TECNICO` | provar o `403` de quem não é dono |
+
+Ambos no tenant `Assessoria Teste Proprietario` (slug `assessoria-teste-prop`, plano BASIC), criado
+pelo signup real. A senha foi definida na criação e não é registrada aqui; redefinir pela admin API
+é trivial se for perdida. **Só existem no HomeLab** — não replicar em produção.
+
+O tenant seed `Menthoros Default` continua **sem dono**, por decisão registrada na 0.4.
+
 ## 1. Backend
 
 - [x] 1.1 Migration Flyway: coluna `@Version` em `tb_assessoria` populada com `0` nas linhas existentes. Sem `DROP`, sem perda de dado.
