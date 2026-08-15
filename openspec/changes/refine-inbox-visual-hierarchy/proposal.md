@@ -202,3 +202,6 @@ pode ser destacada em change própria se o PR crescer demais):
   (task 2.8); (UX-012) Attention Management System (agrupar fila por estado) → costura candidata a
   change própria, fora do escopo desta (ver tasks, seção própria). Quick wins (UX-004, UX-007) e
   opportunities de design system ficam registradas no audit, não entram nesta change.
+  Verificação de papel de botão (pós-audit): "Aprovar plano" era o único botão de ação com cor de
+  estado (`semantic.success`) — já coberto pela task 1.3a; `ConfirmDialog` reimplementa
+  PRIMARY/DANGER inline → task 2.9 (guard-rail de papel de botão).

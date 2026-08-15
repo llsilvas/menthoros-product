@@ -79,6 +79,12 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       "Ideal: < 2.0" (monotonia) em `DiagnosisTabPanel` são fixos e não-específicos ao atleta.
       Derivar do baseline do atleta (`AthleteBaselineState`/nível de experiência) ou remover o
       "ideal" até haver referência real. Validação: lint+build + teste do adapter.
+- [ ] 2.9 Guard-rail de papel de botão: ação nunca usa cor semântica inline — só via `PRIMARY_BTN_SX`/
+      `SUCCESS_BTN_SX`/`DANGER_BTN_SX`/`GHOST_BTN_SX` (`shared/components/actionButtonSx.ts`). Regra:
+      `semantic.*` = estado (chip/badge/dot); `_BTN_SX` = ação. Migrar o drift conhecido
+      (`ConfirmDialog.tsx` reimplementa PRIMARY/DANGER inline com hover divergente `primary[600]` vs
+      `primary[400]`). Validação: `grep -rn "bgcolor: semantic\." src` não casa com `Button`/
+      `variant="contained"`; lint+build.
 
 ## Fase 3 — Breakpoint mobile
 
