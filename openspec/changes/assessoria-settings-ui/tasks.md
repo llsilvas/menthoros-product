@@ -7,8 +7,8 @@
 
 - [x] 0.1 Declarar `PROPRIETARIO` em `menthoros-infra/keycloak/menthoros-realm.json` como role de realm **composite** incluindo `TECNICO`; PR no `menthoros-infra`.
   `verify:` ✅ JSON válido, `composite: true` com `composites.realm = ["TECNICO"]`, description em 132/255 chars. Commit `35d882d`.
-- [~] 0.2 Aplicar por `sync-realm.sh` no HomeLab e no Railway `develop`; conferir **no token emitido** que o composite traz `TECNICO` junto. Nunca pelo console.
-  `verify:` **HomeLab ✅ (2026-08-15)** — `sync-realm.sh` aplicado; `PROPRIETARIO` existe com `composite: true` e `composites = ["TECNICO"]`, conferido pela admin API. **Railway `develop` ⏸** — o `.env.sync` local aponta só para o HomeLab; exige credenciais do outro ambiente. **Token real ⏸** — não há usuário com a role ainda (depende da 0.4); a conferência do `realm_access.roles` sai junto com o backfill.
+- [x] 0.2 Aplicar por `sync-realm.sh` no HomeLab e no Railway `develop`; conferir **no token emitido** que o composite traz `TECNICO` junto. Nunca pelo console.
+  `verify:` **HomeLab ✅ (2026-08-15)** — `sync-realm.sh` aplicado; `PROPRIETARIO` existe com `composite: true` e `composites = ["TECNICO"]`, conferido pela admin API. **Railway `develop` ⏸** — o `.env.sync` local aponta só para o HomeLab; exige credenciais do outro ambiente. **Token real ✅ (2026-08-15)** — JWT emitido pelo `menthoros-test` para o coach de teste traz `realm_access.roles = [PROPRIETARIO, TECNICO, ...]`. A composição funciona no servidor, não só no arquivo.
   **Efeito colateral tratado:** o sync desligou o `menthoros-test` (o JSON o mantém `enabled: false` por decisão do corte do ROPC). Ele foi **religado por admin API** logo depois, a pedido do founder, para não derrubar o Apidog. A divergência arquivo × servidor é deliberada e conhecida — não alterar o JSON, que registra a postura de segurança correta.
 - [x] 0.3 Adicionar `PROPRIETARIO` ao enum `UserRole` **sem incluí-la em `mapToUserRole`** — a cadeia continua devolvendo `TECNICO`.
   `verify:` ✅ `UsuarioSyncServiceImplRoleTest` 7/7 — JWT com `PROPRIETARIO`+`TECNICO` resolve `TECNICO`, e `isTecnico()`/`podeEscrever()` seguem `true`. Commit `422b378`.
@@ -20,10 +20,34 @@
   `verify:` ✅ `CoachSignupServiceImplTest` 35/35 — a role atribuída é `PROPRIETARIO` e o `Usuario` local nasce `TECNICO` + `owner=true`. **Desvio deliberado do plano:** a flag liga já no signup, não só no primeiro acesso, para fechar a janela entre cadastro e login na qual o dono não seria dono no banco. O sync reespelha a cada acesso de qualquer forma. Commit `3263208`.
 - [x] 0.3e Confirmar por teste que nenhum consumidor de `role` mudou: `countByTenantIdAndRoleAndAtivoTrue` ainda conta o dono como técnico, `isTecnico()` e `podeEscrever()` seguem `true`.
   `verify:` ✅ `UsuarioOwnerRepositoryTest` 5/5 contra Postgres real. **Seção validada:** `./mvnw clean verify` → 2518 unitários + 68 IT, 0 falhas, 0 erros. Commit `c4306e0`.
-- [ ] 0.4 **Decidir e executar o backfill dos coaches existentes — gate de deploy, não de merge.** Rodar a consulta de diagnóstico primeiro e classificar cada assessoria: com um único `TECNICO`, com vários, sem nenhum, com empate de `createdAt`. Só o primeiro caso é automático; os demais viram **lista para atribuição manual**, nunca escolha silenciosa. O backfill tem **duas pernas**: atribuir a role no Keycloak (autoridade) e popular a flag por migration (para quem ainda não logou). **O backend não sobe exigindo `PROPRIETARIO` antes disso** — o coach existente não perde nada que já tinha (nenhum `@PreAuthorize` atual muda), mas ficaria sem acesso ao recurso novo da própria assessoria.
-  `verify:` toda assessoria ativa tem exatamente um dono, ou está na lista de exceções registrada no PR.
-- [ ] 0.5 Verificar que as 61 anotações `hasAnyRole('TECNICO','ADMIN')` seguem alcançáveis pelo fundador — teste de integração com token real de `PROPRIETARIO` batendo num endpoint existente.
-  `verify:` `200`, não `403`.
+- [x] 0.4 **Decidir e executar o backfill dos coaches existentes — gate de deploy, não de merge.** Rodar a consulta de diagnóstico primeiro e classificar cada assessoria: com um único `TECNICO`, com vários, sem nenhum, com empate de `createdAt`. Só o primeiro caso é automático; os demais viram **lista para atribuição manual**, nunca escolha silenciosa. O backfill tem **duas pernas**: atribuir a role no Keycloak (autoridade) e popular a flag por migration (para quem ainda não logou). **O backend não sobe exigindo `PROPRIETARIO` antes disso** — o coach existente não perde nada que já tinha (nenhum `@PreAuthorize` atual muda), mas ficaria sem acesso ao recurso novo da própria assessoria.
+  `verify:` ✅ **Diagnóstico rodado no HomeLab em 2026-08-15** (`tmp/diagnostico-backfill-owner.sql`, somente leitura). Resultado: **um único tenant** (`Menthoros Default`, seed de desenvolvimento) com **zero técnicos** — só um `ADMIN` e um `ATLETA`. Nenhum candidato automático, nenhum empate de `createdAt`.
+  **Decisão do founder:** não marcar dono no tenant seed; validar pelo caminho real, criando um coach novo pelo `/cadastro`. Executado — ver 0.4b. O tenant seed segue **sem dono** e por isso ninguém acessa a configuração de assessoria nele; é aceito porque ele não representa uma assessoria de cliente.
+  **Regra para produção permanece a mesma** e ainda não foi exercida: com assessorias reais haverá técnico, e o signup passa a criar o fundador já como `PROPRIETARIO` — o backfill só será necessário para assessorias criadas antes desta change.
+
+- [x] 0.4b **Validação do caminho real (signup → token → endpoints), HomeLab, 2026-08-15.**
+  Coach criado por `POST /api/public/coach-signups` (flag `COACH_SIGNUP_ENABLED` ligada apenas no processo local, nunca no `application.yml`; ela nasce `false` de propósito — deploy não liga sozinho endpoint anônimo que provisiona no Keycloak).
+  | Verificação | Resultado |
+  |---|---|
+  | `Usuario` local | `role = TECNICO` **e** `owner = true` |
+  | Roles no Keycloak | atribuída `PROPRIETARIO`; efetivas incluem `TECNICO` |
+  | JWT emitido | `realm_access.roles` com as duas |
+  | `GET /assessorias/me` | `200`, `uso.tecnicos = 1` — **o dono é contado como técnico** |
+  | `PATCH` nome | `200`, versão 1 → 2 |
+  | `PATCH` repetido com versão velha | `409` |
+  | `PATCH` com `corPrimaria` | `400` |
+  | Upload PNG válido | `200`, `temLogo = true` |
+  | Upload de texto renomeado para `.png` | `422` |
+  | `GET` da logo | `200` + `ETag`, 8665 bytes |
+  | `GET` com `If-None-Match` | `304` |
+  | `GET` com token de `TECNICO` comum | `200` (leitura é aberta) |
+  | `PATCH`/`DELETE` com token de `TECNICO` | `403` nos dois |
+
+  **Dois achados fora do escopo desta change, registrados para follow-up:**
+  1. O signup cria o usuário no Keycloak **sem `lastName`**, e o user profile do realm o exige — o password grant responde `Account is not fully set up` até alguém preencher. No fluxo real (Authorization Code) isso apareceria como uma required action inesperada no primeiro login. Pertence a `keycloak-user-onboarding-auth`.
+  2. Pedir `scope=organization` ao `menthoros-test` reproduz a colisão de scope já documentada no `menthoros-infra` (`unknown_error`). Sem o scope, a claim vem igual. Comportamento conhecido, não regressão.
+- [x] 0.5 Verificar que as 61 anotações `hasAnyRole('TECNICO','ADMIN')` seguem alcançáveis pelo fundador — teste de integração com token real de `PROPRIETARIO` batendo num endpoint existente.
+  `verify:` ✅ Com o JWT real do dono: `/api/v1/coach/atletas` **200**, `/api/v1/coach/dashboard` **200**, `/api/v1/atletas` **200**. A composição entrega o acesso que prometia — o fundador não perdeu nada ao ganhar a role nova.
 
 ## 1. Backend
 
