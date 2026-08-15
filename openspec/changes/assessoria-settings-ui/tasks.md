@@ -123,8 +123,10 @@ O tenant seed `Menthoros Default` continua **sem dono**, por decisão registrada
 
 ## 3. Entrega
 
-- [ ] 3.1 E2E com duas assessorias e roles diferentes, comprovando isolamento de tenant e o gate de `PROPRIETARIO`.
-  `verify:` técnico não-dono vê a página e não consegue salvar; dono do tenant A não alcança o B.
+- [x] 3.1 E2E com duas assessorias e roles diferentes, comprovando isolamento de tenant e o gate de `PROPRIETARIO`.
+  `verify:` ✅ `tests/e2e/coach/assessoria-settings.spec.ts` — **7 casos**, suíte completa **26/26**. Fluxo PKCE real contra o IdP falso; o técnico contratado vê a página e recebe erro ao salvar. Commit `9998407`.
+  **Counterfactual reprovou a primeira versão do teste:** a asserção do destaque da sidebar era "o texto `Configurações` está visível", e passava com e sem a correção do `CoachLayout` — o item existe na sidebar em qualquer rota. Trocada por `[aria-current="page"]`; agora reverter a correção faz o teste falhar.
+  **Limite honesto:** o E2E do módulo roda contra IdP falso e API mockada por `page.route` — ele prova o fluxo do front (roteamento hash, gate de consentimento, sessão PKCE, contrato consumido), não o backend. A validação contra Keycloak e Postgres reais é a da task 0.4b.
 - [ ] 3.2 Verificar fallback de logo, `304` do `ETag` e reversão em falha injetada no upload.
   `verify:` falha injetada deixa a logo anterior intacta e sem linha órfã em `tb_assessoria_logo`.
 - [ ] 3.3 Validar em staging: **role sincronizada e backfill executado antes do deploy do backend** (0.2 e 0.4), métricas de update/upload/falha e feature flag do upload.
