@@ -26,24 +26,33 @@
 
 ## 1. Backend
 
-- [ ] 1.1 Migration Flyway: coluna `@Version` em `tb_assessoria` populada com `0` nas linhas existentes. Sem `DROP`, sem perda de dado.
+- [x] 1.1 Migration Flyway: coluna `@Version` em `tb_assessoria` populada com `0` nas linhas existentes. Sem `DROP`, sem perda de dado.
   `verify:` migration sobe limpa; um segundo `PATCH` com versão antiga dá `409`.
-- [ ] 1.2 Migration Flyway: tabela `tb_assessoria_logo` (PK/FK `assessoria_id` com `ON DELETE CASCADE`, `conteudo bytea`, `content_type`, `tamanho_bytes`, `etag`, `atualizado_em`).
+- [x] 1.2 Migration Flyway: tabela `tb_assessoria_logo` (PK/FK `assessoria_id` com `ON DELETE CASCADE`, `conteudo bytea`, `content_type`, `tamanho_bytes`, `etag`, `atualizado_em`).
   `verify:` apagar uma assessoria em teste leva a logo junto (cascade).
-- [ ] 1.3 Mapear a entidade da logo em tabela separada e confirmar, por teste, que carregar `Assessoria` **não** traz os bytes.
+- [x] 1.3 Mapear a entidade da logo em tabela separada e confirmar, por teste, que carregar `Assessoria` **não** traz os bytes.
   `verify:` teste com contagem de SQL (ou log do Hibernate) provando que o `SELECT` da assessoria não toca `tb_assessoria_logo`.
-- [ ] 1.4 `GET /api/v1/assessorias/me` com identidade, `temLogo`/`logoUrl` derivada, plano, uso por queries agregadas tenant-scoped e `version`. Autorização `hasAnyRole('TECNICO','PROPRIETARIO','ADMIN')`.
+- [x] 1.4 `GET /api/v1/assessorias/me` com identidade, `temLogo`/`logoUrl` derivada, plano, uso por queries agregadas tenant-scoped e `version`. Autorização `hasAnyRole('TECNICO','PROPRIETARIO','ADMIN')`.
   `verify:` resposta bate com o JSON do `design.md`; `uso.tecnicos` conta o dono (ele continua `TECNICO`).
-- [ ] 1.5 `PATCH /api/v1/assessorias/me`: apenas `nome` editável (normalizado), `hasRole('PROPRIETARIO')`, `409` em versão obsoleta, e **rejeição explícita de campo desconhecido** — `@JsonIgnoreProperties(ignoreUnknown = false)` no DTO ou validação equivalente, já que o default do Spring Boot descartaria `corPrimaria` em silêncio.
+- [x] 1.5 `PATCH /api/v1/assessorias/me`: apenas `nome` editável (normalizado), `hasRole('PROPRIETARIO')`, `409` em versão obsoleta, e **rejeição explícita de campo desconhecido** — `@JsonIgnoreProperties(ignoreUnknown = false)` no DTO ou validação equivalente, já que o default do Spring Boot descartaria `corPrimaria` em silêncio.
   `verify:` teste enviando `corPrimaria` e esperando `400`.
-- [ ] 1.6 `POST /api/v1/assessorias/me/logo`: multipart (habilitar `spring.servlet.multipart`, hoje ausente), limite de 2 MiB, decode real da imagem (não confiar em extensão nem `Content-Type`), dimensões máximas, gravação transacional com bump de versão.
+- [x] 1.6 `POST /api/v1/assessorias/me/logo`: multipart (habilitar `spring.servlet.multipart`, hoje ausente), limite de 2 MiB, decode real da imagem (não confiar em extensão nem `Content-Type`), dimensões máximas, gravação transacional com bump de versão.
   `verify:` um `.png` renomeado a partir de um texto é rejeitado; um PNG válido de 2,1 MiB também.
-- [ ] 1.7 `GET /api/v1/assessorias/me/logo` com `Content-Type` persistido, `ETag`, `Cache-Control: private` e `304` em `If-None-Match`; e `DELETE` com **`version` obrigatória, `hasRole('PROPRIETARIO')`, bump de versão e `409` em versão obsoleta** — mesmo contrato do PATCH.
+- [x] 1.7 `GET /api/v1/assessorias/me/logo` com `Content-Type` persistido, `ETag`, `Cache-Control: private` e `304` em `If-None-Match`; e `DELETE` com **`version` obrigatória, `hasRole('PROPRIETARIO')`, bump de versão e `409` em versão obsoleta** — mesmo contrato do PATCH.
   `verify:` segunda requisição com o `ETag` devolve `304` sem corpo; `DELETE` com versão velha devolve `409` e a imagem continua servível.
-- [ ] 1.8 Implementar o **gate de coerência** `usuario.assessoria.id == TenantContext.getRequiredTenantId()` nas três escritas (PATCH, upload, DELETE), com `403` em divergência.
+- [x] 1.8 Implementar o **gate de coerência** `usuario.assessoria.id == TenantContext.getRequiredTenantId()` nas três escritas (PATCH, upload, DELETE), com `403` em divergência.
   `verify:` teste que monta o cenário divergente e espera `403` sem escrita na assessoria.
-- [ ] 1.9 Testes: campos omitidos/null, cor no payload rejeitada, concorrência (`409`), **upload-vs-delete e delete-vs-upload com versão obsoleta**, `TECNICO` sem `PROPRIETARIO` recebendo `403`, **JWT cujo tenant diverge de `usuario.assessoria` recebendo `403`**, tenant A não lendo/alterando B, arquivo falso/grande/corrompido, e reversão completa da transação em falha no meio do upload.
-- [ ] 1.10 Executar `./mvnw clean verify`; registrar resultados.
+- [x] 1.9 Testes: campos omitidos/null, cor no payload rejeitada, concorrência (`409`), **upload-vs-delete e delete-vs-upload com versão obsoleta**, `TECNICO` sem `PROPRIETARIO` recebendo `403`, **JWT cujo tenant diverge de `usuario.assessoria` recebendo `403`**, tenant A não lendo/alterando B, arquivo falso/grande/corrompido, e reversão completa da transação em falha no meio do upload.
+- [x] 1.10 Executar `./mvnw clean verify`; registrar resultados.
+  `verify:` ✅ **2584 unitários + 83 IT, 0 falhas, 0 erros** (commits `c972e68`, `74703f1`, `e8f7606`, `6a55d91`, `9672298`, `48a1c94`).
+
+### Divergências da spec registradas na seção 1
+
+- **WebP cortado** (task 1.6): o `ImageIO` do JDK não traz reader para WebP e suportá-lo exigiria dependência nova (TwelveMonkeys). Aceitos: PNG e JPEG. SVG segue fora por poder carregar script.
+- **`spring.servlet.multipart` já existia** (10MB) — a task dizia "hoje ausente" e estava errada. O limite de 2 MiB é da aplicação, não do servlet.
+- **Rejeição de campo desconhecido não veio de `@JsonIgnoreProperties`**: a anotação apenas deixa de ignorar, e quem decide é `FAIL_ON_UNKNOWN_PROPERTIES` (false por default, sem override no projeto). Provado por teste — com a anotação, `corPrimaria` respondia `200`. A validação ficou no `@JsonCreator` do DTO, sem afetar outros endpoints.
+- **`@Lob` trocado por `byte[]` puro** (task 1.3): no Postgres, `@Lob` mapeia para `oid`, e large objects sobrevivem ao `DELETE` da linha — o `ON DELETE CASCADE` deixaria bytes órfãos em `pg_largeobject`. Descoberto pelo schema-validation.
+- **Counterfactual do gate de coerência** (task 1.8): sem o guard, o PATCH com `sub` de A e `tenant_id` de B responde `200`. A brecha era real e explorável.
 
 ## 2. Frontend
 
