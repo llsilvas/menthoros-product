@@ -40,11 +40,12 @@ secundária (outline neutro) ao lado do CTA primário no cabeçalho. Aprovar e r
 decisão com dois sentidos; co-localizar mantém o rejeitar visível e próximo do motivo escrito
 (dialog). O menu "Mais ações" preserva apenas ações raras (marcar prioridade, abrir editor).
 
-**"Contato assistido" (contra o stub).** Quando `resolvePrimaryAction` resolve "Contatar atleta", o
-botão não dispara o toast vazio atual (`setFeedback('Mensagem preparada…')`). Gera um rascunho
-pré-composto (motivo + recência + ação sugerida — os mesmos campos do card) e abre o canal externo
-do atleta (`https://wa.me/<tel>?text=<rascunho>` ou cópia para a área de transferência quando não há
-telefone). Sem backend de mensagem novo — o coach ainda confirma o envio manualmente.
+**"Contato assistido" (contra o stub) — DECIDIDA (Q8).** Quando `resolvePrimaryAction` resolve
+"Contatar atleta", o botão não dispara o toast vazio atual (`setFeedback('Mensagem preparada…')`).
+Gera um rascunho pré-composto (motivo + recência + ação sugerida — os mesmos campos do card) e copia
+para a área de transferência. O `Atleta` não tem `telefone`/`email` no DTO coach, então não há
+`wa.me/`/`mailto:` hoje — ficam como follow-up quando o campo de contato for exposto. Sem backend de
+mensagem novo — o coach ainda cola/confirma o envio manualmente.
 
 ## Decisão 2 — Fusão dos módulos de atenção
 
@@ -81,11 +82,10 @@ No tema (não em `sx`):
   contraste AA sobre o fundo do card.
 - Adicionar teste de tema (padrão já existente em `theme.premium.test.ts`) que valide os tokens.
 
-**Cor do CTA — decisão explícita (não assumida).** "Aprovar plano" é um resultado positivo, não
-"ação de alerta": mantém `semantic.success` (verde) para preservar a affordance de aprovação. O
-`accent` (lime) fica para a ação de **engajamento** ("Contatar atleta") e para nav ativa. Regra:
-accent = iniciar uma ação nova; success = concluir/aprovar; warning/danger = estado de risco.
-(Q7.)
+**Cor do CTA — DECIDIDA (Q7).** "Aprovar plano" é um resultado positivo, não "ação de alerta":
+mantém `semantic.success` (verde) para preservar a affordance de aprovação. O `accent` (lime) fica
+para a ação de **engajamento** ("Contatar atleta") e para nav ativa. Regra: accent = iniciar uma
+ação nova; success = concluir/aprovar; warning/danger = estado de risco.
 
 ## Decisão 4 — Escala tipográfica via tema
 

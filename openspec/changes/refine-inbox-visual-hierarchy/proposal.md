@@ -53,8 +53,8 @@ pode ser destacada em change própria se o PR crescer demais):
   as duas faces da mesma decisão, e esconder o rejeitar enterra a ação que exige o motivo escrito.
 - **"Contato assistido" (fecha o stub):** o CTA "Contatar atleta" não dispara o toast vazio atual
   (`setFeedback('Mensagem preparada…')`); gera um rascunho pré-composto (motivo + recência + ação
-  sugerida — os mesmos campos do card) e abre o canal externo do atleta (deep-link `wa.me/` ou cópia
-  para a área de transferência). Sem mensageria completa — o coach ainda dispara manualmente.
+  sugerida — os mesmos campos do card) e copia para a área de transferência. Sem mensageria completa
+  — o coach ainda dispara manualmente.
 - **Cor do CTA decidida, não assumida:** "Aprovar plano" hoje é verde (`semantic.success`); a Fase 1
   propunha accent lime. Decisão explícita na Q7 (aprovar = verde; "Contatar atleta" = accent).
 
@@ -83,7 +83,7 @@ pode ser destacada em change própria se o PR crescer demais):
 - Não muda nenhum contrato de API nem o backend — só apresentação e navegação.
 - Não redesenha os dados/algoritmos de prioridade da fila (ordem vem do backend como hoje).
 - Não implementa mensageria completa nem envio in-app — "Contatar atleta" vira "Contato assistido"
-  (rascunho pré-composto + deep-link externo/cópia), sem backend de mensagem novo.
+  (rascunho pré-composto + cópia para a área de transferência), sem backend de mensagem novo.
 - Não migra a landing page nem telas do atleta — escopo é o funil do coach (inbox em primeiro
   lugar; outras telas do coach só herdam o que vier de graça via tema).
 - Não inclui teste com treinadores externos (camada 4 da auditoria — mérito de change futura).
@@ -159,12 +159,14 @@ pode ser destacada em change própria se o PR crescer demais):
   change própria e repriorizada sem custo (costura já prevista).
 - **Nota:** esta change vive em `menthoros-product` (specs) e implementa em `apps/menthoros-front`
   — padrão do workspace (repos irmãos). As validações das tasks rodam na raiz do repo frontend.
-- **Q7 (bloqueia Fase 1 — cor do CTA):** "Aprovar plano" hoje é `semantic.success` (verde); a Fase 1
-  propunha accent lime. Verde carrega affordance de aprovação/positivo. Proposta: aprovar = verde
-  (resultado positivo), "Contatar atleta" = accent lime (iniciar ação). Confirmar antes da task 1.3a.
-- **Q8 (bloqueia Fase 1 — "Contato assistido"):** o deep-link `wa.me/` depende de telefone no DTO do
-  atleta. Se não houver, fallback = cópia do rascunho para a área de transferência. Confirmar a
-  disponibilidade do campo antes da task 1.3b.
+- **Q7 — RESOLVIDA (cor do CTA):** "Aprovar plano" = `semantic.success` (verde, concluir/aprovar);
+  "Contatar atleta" = accent lime (iniciar ação). Verde preserva a affordance de aprovação; lime fica
+  reservado para ação de engajamento + nav ativa. Aplicado na task 1.3a e na Decisão 3.
+- **Q8 — RESOLVIDA ("Contato assistido"):** o `Atleta` não tem `telefone` nem `email` exposto no DTO
+  coach (só `Assessoria` e `Waitlist` têm telefone). Logo, sem deep-link externo viável. Mecanismo:
+  cópia do rascunho pré-composto para a área de transferência (sempre disponível). `wa.me/`/`mailto:`
+  ficam como follow-up quando o campo de contato for exposto (gancho de `add-athlete-coach-messaging`).
+  Aplicado na task 1.3b.
 - **Q9 (Fase 2 — escopo da tipografia):** consolidar `theme.typography` globalmente afeta as telas
   do atleta (tema compartilhado), contrariando o Non-Goal "não migra telas do atleta". Decidir:
   override de tema escopado ao coach, ou aceitar/documentar o impacto no atleta (task 2.1).
