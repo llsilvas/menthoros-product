@@ -7,8 +7,9 @@
 
 - [x] 0.1 Declarar `PROPRIETARIO` em `menthoros-infra/keycloak/menthoros-realm.json` como role de realm **composite** incluindo `TECNICO`; PR no `menthoros-infra`.
   `verify:` ✅ JSON válido, `composite: true` com `composites.realm = ["TECNICO"]`, description em 132/255 chars. Commit `35d882d`.
-- [ ] 0.2 Aplicar por `sync-realm.sh` no HomeLab e no Railway `develop`; conferir **no token emitido** que o composite traz `TECNICO` junto. Nunca pelo console.
-  `verify:` decodificar um JWT real e ver `realm_access.roles` com as duas.
+- [~] 0.2 Aplicar por `sync-realm.sh` no HomeLab e no Railway `develop`; conferir **no token emitido** que o composite traz `TECNICO` junto. Nunca pelo console.
+  `verify:` **HomeLab ✅ (2026-08-15)** — `sync-realm.sh` aplicado; `PROPRIETARIO` existe com `composite: true` e `composites = ["TECNICO"]`, conferido pela admin API. **Railway `develop` ⏸** — o `.env.sync` local aponta só para o HomeLab; exige credenciais do outro ambiente. **Token real ⏸** — não há usuário com a role ainda (depende da 0.4); a conferência do `realm_access.roles` sai junto com o backfill.
+  **Efeito colateral tratado:** o sync desligou o `menthoros-test` (o JSON o mantém `enabled: false` por decisão do corte do ROPC). Ele foi **religado por admin API** logo depois, a pedido do founder, para não derrubar o Apidog. A divergência arquivo × servidor é deliberada e conhecida — não alterar o JSON, que registra a postura de segurança correta.
 - [x] 0.3 Adicionar `PROPRIETARIO` ao enum `UserRole` **sem incluí-la em `mapToUserRole`** — a cadeia continua devolvendo `TECNICO`.
   `verify:` ✅ `UsuarioSyncServiceImplRoleTest` 7/7 — JWT com `PROPRIETARIO`+`TECNICO` resolve `TECNICO`, e `isTecnico()`/`podeEscrever()` seguem `true`. Commit `422b378`.
 - [x] 0.3b Migration: coluna booleana `owner` em `tb_usuario`, `NOT NULL DEFAULT false`.
