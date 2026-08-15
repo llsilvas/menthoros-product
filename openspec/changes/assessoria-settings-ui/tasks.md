@@ -127,8 +127,11 @@ O tenant seed `Menthoros Default` continua **sem dono**, por decisão registrada
   `verify:` ✅ `tests/e2e/coach/assessoria-settings.spec.ts` — **7 casos**, suíte completa **26/26**. Fluxo PKCE real contra o IdP falso; o técnico contratado vê a página e recebe erro ao salvar. Commit `9998407`.
   **Counterfactual reprovou a primeira versão do teste:** a asserção do destaque da sidebar era "o texto `Configurações` está visível", e passava com e sem a correção do `CoachLayout` — o item existe na sidebar em qualquer rota. Trocada por `[aria-current="page"]`; agora reverter a correção faz o teste falhar.
   **Limite honesto:** o E2E do módulo roda contra IdP falso e API mockada por `page.route` — ele prova o fluxo do front (roteamento hash, gate de consentimento, sessão PKCE, contrato consumido), não o backend. A validação contra Keycloak e Postgres reais é a da task 0.4b.
-- [ ] 3.2 Verificar fallback de logo, `304` do `ETag` e reversão em falha injetada no upload.
-  `verify:` falha injetada deixa a logo anterior intacta e sem linha órfã em `tb_assessoria_logo`.
+- [x] 3.2 Verificar fallback de logo, `304` do `ETag` e reversão em falha injetada no upload.
+  `verify:` ✅ `AssessoriaLogoTransacaoIT` 4/4 contra Postgres real (`./mvnw clean verify` → 2584 unit + **87** IT, 0 falhas). Commit `51e79e5`.
+  A falha é injetada **no bump de versão**, que roda depois de os bytes serem gravados — o ponto exato onde uma implementação não-atômica deixaria órfão. Confirmado: a linha não sobrevive, e numa substituição a logo anterior fica intacta com o mesmo `etag`. O `304` e o fallback de logo ausente já haviam sido exercitados no `ControllerIT` e no ambiente real (0.4b).
+  **A classe é deliberadamente não-`@Transactional`:** o rollback automático de teste envolveria a transação do serviço na do teste, tudo "reverteria" no fim — inclusive um upload commitado indevidamente — e o teste passaria sem provar nada.
+  **Dois detalhes que a primeira versão errou:** `doCallRealMethod` não restaura spy de repositório Spring Data (a limpeza morria com erro do Mockito; trocado por `Mockito.reset`), e a exceção injetada **não chega ao chamador com o tipo original** — o proxy do Spring Data traduz para `InvalidDataAccessApiUsageException`, então a asserção passou a ser pela mensagem.
 - [ ] 3.3 Validar em staging: **role sincronizada e backfill executado antes do deploy do backend** (0.2 e 0.4), métricas de update/upload/falha e feature flag do upload.
   `verify:` um coach existente de verdade abre a página e salva — se tomar `403`, o backfill não rodou.
 
