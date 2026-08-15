@@ -56,21 +56,29 @@
 
 ## 2. Frontend
 
-- [ ] 2.1 Criar client/tipos compartilhados de leitura, patch, upload e remoção — o wizard do `coach-first-login-wizard` reutiliza estes contratos.
+- [x] 2.1 Criar client/tipos compartilhados de leitura, patch, upload e remoção — o wizard do `coach-first-login-wizard` reutiliza estes contratos.
   `verify:` tipos batem com o contrato do `design.md`; `npm run build` limpo.
-- [ ] 2.2 Criar `/coach/settings/assessoria` e a navegação do grupo "Configurações", com loading/erro/empty states.
+- [x] 2.2 Criar `/coach/settings/assessoria` e a navegação do grupo "Configurações", com loading/erro/empty states.
   `verify:` rota alcançável a partir de `/coach/settings` e renderiza os três estados.
-- [ ] 2.3 Formulário de nome com dirty-state, confirmação ao sair e tratamento de `409`. **Sem seletor de cor e sem cálculo de contraste** (D3).
+- [x] 2.3 Formulário de nome com dirty-state, confirmação ao sair e tratamento de `409`. **Sem seletor de cor e sem cálculo de contraste** (D3).
   `verify:` sair com alteração pendente pede confirmação; `409` mostra opção de recarregar sem perder o rascunho.
-- [ ] 2.4 Upload de logo acessível: limites, progresso, retry, remoção e fallback de iniciais. Prévia apenas da imagem, na própria página. Não aceitar URL digitada.
+- [x] 2.4 Upload de logo acessível: limites, progresso, retry, remoção e fallback de iniciais. Prévia apenas da imagem, na própria página. Não aceitar URL digitada.
   `verify:` arquivo acima do limite é barrado antes do envio; falha do servidor mantém a logo anterior visível.
-- [ ] 2.5 Cards read-only de plano e uso.
+- [x] 2.5 Cards read-only de plano e uso.
   `verify:` nenhum controle editável nesses cards.
-- [ ] 2.6 Testes: PATCH do nome, concorrência, upload e falha, remoção, saída com alterações pendentes, viewport móvel.
+- [x] 2.6 Testes: PATCH do nome, concorrência, upload e falha, remoção, saída com alterações pendentes, viewport móvel.
   `verify:` `npm run test:run` verde.
-- [ ] 2.7 Instrumentar a duração "abrir a página → PATCH/upload concluído", sem a qual os "3 minutos" da métrica de sucesso não são auferíveis.
+- [x] 2.7 Instrumentar a duração "abrir a página → PATCH/upload concluído", sem a qual os "3 minutos" da métrica de sucesso não são auferíveis.
   `verify:` o evento aparece com a duração no canal de analytics já usado pelo front.
-- [ ] 2.8 Executar `npm run lint && npm run build` e os testes configurados; registrar resultados.
+- [x] 2.8 Executar `npm run lint && npm run build` e os testes configurados; registrar resultados.
+  `verify:` ✅ `npm run lint` limpo, `npm run build` ok, `npm run test:run` **867/867 em 112 arquivos**. Commits `e1042d0`, `5e8e0e0`.
+
+### Notas da seção 2
+
+- **Bug encontrado pelos próprios testes:** o campo de nome usava `''` para significar tanto "ainda não carregado" quanto "o coach apagou", então apagar o campo repunha o nome do servidor e o formulário voltava a "limpo" — o coach não conseguia trocar o nome. Corrigido com `null` vs `''`.
+- **`CoachLayout` ajustado:** `activeRoute` era comparação exata de `pathname`; com a sub-rota nenhum item da sidebar ficaria aceso. Agora vence o prefixo mais longo.
+- **Instrumentação da métrica (2.7):** a duração "abrir → salvar" é registrada via `console.info`, porque o front **não tem canal de analytics**. Suficiente para piloto; vira item próprio quando houver telemetria de verdade.
+- **E2E (task 3.1) bloqueado pela 0.2:** o `CLAUDE.md` do front exige E2E em fluxos que cruzam Keycloak e contrato de API — este cruza os dois. Não é executável enquanto a role `PROPRIETARIO` não estiver sincronizada em nenhum ambiente.
 
 ## 3. Entrega
 
