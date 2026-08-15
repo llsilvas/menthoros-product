@@ -48,6 +48,15 @@ pode ser destacada em change própria se o PR crescer demais):
   ("No prazo", "Prioridade alta"), tabs e eyebrow migram para neutros.
 - **Inversão chrome/conteúdo:** título da página reduz (~16px); o nome do atleta selecionado passa
   a ser o maior texto da tela.
+- **Par decisório co-localizado (aprovar/rejeitar):** "Rejeitar plano" sai do menu "Mais ações" e
+  renderiza como ação secundária (outline neutro) ao lado do CTA primário — aprovar e rejeitar são
+  as duas faces da mesma decisão, e esconder o rejeitar enterra a ação que exige o motivo escrito.
+- **"Contato assistido" (fecha o stub):** o CTA "Contatar atleta" não dispara o toast vazio atual
+  (`setFeedback('Mensagem preparada…')`); gera um rascunho pré-composto (motivo + recência + ação
+  sugerida — os mesmos campos do card) e abre o canal externo do atleta (deep-link `wa.me/` ou cópia
+  para a área de transferência). Sem mensageria completa — o coach ainda dispara manualmente.
+- **Cor do CTA decidida, não assumida:** "Aprovar plano" hoje é verde (`semantic.success`); a Fase 1
+  propunha accent lime. Decisão explícita na Q7 (aprovar = verde; "Contatar atleta" = accent).
 
 ### Fase 2 — Design system e estados (camada 2)
 
@@ -73,7 +82,8 @@ pode ser destacada em change própria se o PR crescer demais):
 
 - Não muda nenhum contrato de API nem o backend — só apresentação e navegação.
 - Não redesenha os dados/algoritmos de prioridade da fila (ordem vem do backend como hoje).
-- Não implementa envio de mensagem novo — "Contatar atleta" usa a ação de mensagem existente.
+- Não implementa mensageria completa nem envio in-app — "Contatar atleta" vira "Contato assistido"
+  (rascunho pré-composto + deep-link externo/cópia), sem backend de mensagem novo.
 - Não migra a landing page nem telas do atleta — escopo é o funil do coach (inbox em primeiro
   lugar; outras telas do coach só herdam o que vier de graça via tema).
 - Não inclui teste com treinadores externos (camada 4 da auditoria — mérito de change futura).
@@ -149,6 +159,19 @@ pode ser destacada em change própria se o PR crescer demais):
   change própria e repriorizada sem custo (costura já prevista).
 - **Nota:** esta change vive em `menthoros-product` (specs) e implementa em `apps/menthoros-front`
   — padrão do workspace (repos irmãos). As validações das tasks rodam na raiz do repo frontend.
+- **Q7 (bloqueia Fase 1 — cor do CTA):** "Aprovar plano" hoje é `semantic.success` (verde); a Fase 1
+  propunha accent lime. Verde carrega affordance de aprovação/positivo. Proposta: aprovar = verde
+  (resultado positivo), "Contatar atleta" = accent lime (iniciar ação). Confirmar antes da task 1.3a.
+- **Q8 (bloqueia Fase 1 — "Contato assistido"):** o deep-link `wa.me/` depende de telefone no DTO do
+  atleta. Se não houver, fallback = cópia do rascunho para a área de transferência. Confirmar a
+  disponibilidade do campo antes da task 1.3b.
+- **Q9 (Fase 2 — escopo da tipografia):** consolidar `theme.typography` globalmente afeta as telas
+  do atleta (tema compartilhado), contrariando o Non-Goal "não migra telas do atleta". Decidir:
+  override de tema escopado ao coach, ou aceitar/documentar o impacto no atleta (task 2.1).
+- **Q10 (Fase 1 — modelo de ação incompleto):** `resolvePrimaryAction` cobre plano pendente +
+  inatividade. Atleta com sugestão pendente (sem plano) ou prova próxima cai no default "Abrir
+  plano". Incluir "sugestão pendente" (→ "Revisar sugestão") e "prova próxima" (→ "Ver prova") na
+  precedência? Estende a task 1.2.
 
 ## Revisões (Full track)
 
@@ -161,3 +184,10 @@ pode ser destacada em change própria se o PR crescer demais):
 - **Pre-mortem cross-model (Codex, adversarial): needs-attention.** 2 achados high incorporados
   (contrato de dados da fila — critério 4b; guardas operacionais do CTA — critério 4c) e 1 medium
   respondido (path do repo — nota acima).
+- **UI/UX review (especialista, 2026-08-15):** diagnóstico da auditoria confirmado contra o código
+  real — fonte mínima efetiva é **4,8px** (`CoachInboxPage.tsx:541`, `0.30rem`), pior que os 7,2px
+  reportados. Achados incorporados: (1) "Contatar atleta" apontava para stub de mensagem →
+  "Contato assistido"; (2) par aprovar/rejeitar co-localizado; (3) cor do CTA vira decisão (Q7);
+  (4) escopo da tipografia global vs. atleta (Q9); (5) modelo de ação estendido (Q10);
+  (6) diferenciação não-cor para daltônicos (task 2.4). Recomendação de destacar a Fase 3
+  reforçada: premissa "coach usa mobile" segue não validada com dado do pilot.

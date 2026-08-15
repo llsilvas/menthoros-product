@@ -35,6 +35,17 @@ testes de página cobrindo mutação pendente, plano já processado e ação nã
 **Tradeoff:** mover o CTA para o topo tira a proximidade com o conteúdo do plano; aceito porque o
 job da tela é triagem (decidir rápido), não edição — e o rodapé a y=863 provou ser invisível.
 
+**Par decisório co-localizado.** "Rejeitar plano" deixa o menu "Mais ações" e renderiza como ação
+secundária (outline neutro) ao lado do CTA primário no cabeçalho. Aprovar e rejeitar são a mesma
+decisão com dois sentidos; co-localizar mantém o rejeitar visível e próximo do motivo escrito
+(dialog). O menu "Mais ações" preserva apenas ações raras (marcar prioridade, abrir editor).
+
+**"Contato assistido" (contra o stub).** Quando `resolvePrimaryAction` resolve "Contatar atleta", o
+botão não dispara o toast vazio atual (`setFeedback('Mensagem preparada…')`). Gera um rascunho
+pré-composto (motivo + recência + ação sugerida — os mesmos campos do card) e abre o canal externo
+do atleta (`https://wa.me/<tel>?text=<rascunho>` ou cópia para a área de transferência quando não há
+telefone). Sem backend de mensagem novo — o coach ainda confirma o envio manualmente.
+
 ## Decisão 2 — Fusão dos módulos de atenção
 
 Coluna 1 hoje: Resumo rápido (4 KPIs) + Fila de atenção + Roster do dashboard. Passa a:
@@ -70,6 +81,12 @@ No tema (não em `sx`):
   contraste AA sobre o fundo do card.
 - Adicionar teste de tema (padrão já existente em `theme.premium.test.ts`) que valide os tokens.
 
+**Cor do CTA — decisão explícita (não assumida).** "Aprovar plano" é um resultado positivo, não
+"ação de alerta": mantém `semantic.success` (verde) para preservar a affordance de aprovação. O
+`accent` (lime) fica para a ação de **engajamento** ("Contatar atleta") e para nav ativa. Regra:
+accent = iniciar uma ação nova; success = concluir/aprovar; warning/danger = estado de risco.
+(Q7.)
+
 ## Decisão 4 — Escala tipográfica via tema
 
 `theme.typography`: display (Syne) apenas em `h1–h4`; Inter em `body*`, `caption`, `overline`,
@@ -78,6 +95,11 @@ atleta, h4) · 24–28 (h3, uso raro). Título da página vira `h6`-equivalente 
 incorporado ou removido. Remoção mecânica de todos os `fontFamily: 'Syne'` em `sx` no escopo do
 coach; nenhum `fontSize` computado <11px (inclui os labels de 7,2px da strip de KPIs, que sobem
 para caption 11px ou são fundidos ao valor via tooltip).
+
+**Escopo do tema (Q9).** A consolidação de `theme.typography` é global no MUI e afetaria as telas
+do atleta, contrariando o Non-Goal. Dois caminhos: (a) override escopado ao coach (tema próprio do
+coach via `CoachLayout`), mantendo o atleta intacto; ou (b) aceitar o impacto no atleta e cobrir com
+smoke explícito. A remoção de `fontFamily: 'Syne'` hardcoded é sempre restrita a `src/features/coach/**`.
 
 ## Decisão 5 — Estados vazios como mensagem
 
@@ -102,6 +124,11 @@ mudança de API).
 **Alternativa rejeitada:** bottom-nav. Drawer é o caminho de menor mudança estrutural no MUI e
 não conflita com a barra de ações do detalhe; bottom-nav fica para quando houver métricas de uso
 mobile reais.
+
+**Consistência de breakpoint.** O grid do inbox colapsa em `lg` (1200px) hoje, mas o drawer da
+sidebar usa `md` (900px) — a faixa 900–1200px fica subprojetada (sidebar expandida 240px + conteúdo
+já empilhado). Decidir na task 3.1a se o empilhamento do grid desce para `md` (ou o drawer sobe para
+`lg`).
 
 ## Sequência e costura
 

@@ -15,13 +15,23 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       cenário "atleta com sinal e sem sugestão pendente" documentado.
 - [ ] 1.2 Confirmar com o founder a ação default do atleta saudável (proposta: "Abrir plano"
       neutro) e criar `resolvePrimaryAction` em `coachInboxHelpers.ts` (precedência: plano
-      pendente → inatividade → default) com testes unitários cobrindo os 3 estados + ausência de
-      dados. Validação: `npm run test -- coachInboxHelpers`.
+      pendente → inatividade → default; estender para "sugestão pendente" → "Revisar sugestão" e
+      "prova próxima" → "Ver prova" se o founder aprovar na Q10) com testes unitários cobrindo os
+      estados + ausência de dados. Validação: `npm run test -- coachInboxHelpers`.
 - [ ] 1.3 Renderizar o CTA contextual no cabeçalho do painel (`PlanoDetalhePanel` /
       `DiagnosisTabPanel`): `contained`, ≥40px, fonte ≥14px; remover o `Aprovar plano` disabled do
       rodapé; secundárias permanecem outline neutro no rodapé. **Guardas operacionais:** estados
       de loading (mutação em voo), plano já processado e ação não autorizada com testes de página
       dedicados. Validação: lint+build + testes de página.
+- [ ] 1.3a Co-localizar o par decisório: "Rejeitar plano" sai do menu "Mais ações" e renderiza como
+      ação secundária (outline neutro) ao lado do CTA primário; o menu preserva só ações raras
+      (marcar prioridade, abrir editor). Aplicar a cor do CTA decidida na Q7 (aprovar → `success`;
+      contatar → `accent`). Validação: lint+build + teste de página cobrindo aprovar+rejeitar
+      visíveis juntos no estado de plano pendente.
+- [ ] 1.3b "Contato assistido": quando o CTA resolve "Contatar atleta", gerar rascunho pré-composto
+      (motivo + recência + ação sugerida) e abrir `wa.me/` (ou copiar para a área de transferência
+      se não houver telefone — Q8). Sem toast vazio. Validação: `npm run test -- coachInboxHelpers`
+      + teste de página do fluxo de contato.
 - [ ] 1.4 Enriquecer `QueueRow` com motivo + recência ("Inatividade · 14d") e variante visual por
       status (borda/fundo `error` ~8% para Alerta, `warning` para Atenção); fonte mínima 11px.
       Validação: lint+build + testes do componente.
@@ -37,8 +47,9 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
 ## Fase 2 — Design system e estados
 
 - [ ] 2.1 Consolidar `theme.typography`: Syne apenas em headings; Inter em body/caption/button;
-      escala 11/13/16/20/28; teste de tema no padrão de `theme.premium.test.ts`. Validação:
-      `npm run test -- theme`.
+      escala 11/13/16/20/28; teste de tema no padrão de `theme.premium.test.ts`. **Escopo (Q9):**
+      aplicar via override do coach (não global) ou cobrir o impacto nas telas do atleta com smoke
+      explícito, conforme decidido. Validação: `npm run test -- theme`.
 - [ ] 2.2 Remover todo `fontFamily: 'Syne'` hardcoded em `src/features/coach/**` (usar variantes do
       tema). Validação: `grep -rn "fontFamily.*Syne" src/features/coach` vazio + lint+build.
 - [ ] 2.3 Elevar todo texto funcional do inbox para ≥11px (labels da strip de KPIs, badges,
@@ -46,7 +57,9 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       verificação de `font-size` computado na tela.
 - [ ] 2.4 Fixar semântica de cor (error=agir, warning=observar, success=ok) nos chips e badges do
       coach; remover usos ornamentais dessas cores; garantir contraste AA dos cinzas sobre o fundo.
-      Validação: lint+build + teste de tokens.
+      **Diferenciação não-cor:** estado de risco não pode depender só de cor — parear com ícone/forma
+      ou manter o label textual ("Alerta"/"Atenção") sempre visível, para daltônicos. Validação:
+      lint+build + teste de tokens.
 - [ ] 2.5 Estados vazios: criar/reusar `EmptyMetricState`; adapter (`coachInboxAdapters`) expõe flag
       "sem dados na janela" vs "zero legítimo"; grade de métricas zeradas vira mensagem única.
       Testes do adapter cobrindo os dois casos. Validação: `npm run test -- coachInboxAdapters` +
@@ -58,6 +71,9 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
 
 - [ ] 3.1 Sidebar colapsável: `Drawer` temporário abaixo de `md` com hambúrguer no header; badge do
       inbox replicado no ícone; largura fixa de 240px eliminada em <900px. Validação: lint+build.
+- [ ] 3.1a Alinhar breakpoints: o grid do inbox colapsa em `lg` (1200px) mas o drawer em `md` (900px);
+      decidir se o empilhamento do grid desce para `md` (ou o drawer sobe para `lg`) para não deixar
+      a faixa 900–1200px subprojetada. Validação: inspeção em ~1000px.
 - [ ] 3.2 Inbox em fluxo empilhado <md: tela de lista (resumo compacto + fila) e tela de detalhe
       com navegação de volta; tabs scrolláveis; ações secundárias em menu; CTA primário visível
       sem scroll no topo do detalhe. Validação: lint+build + testes de página.
