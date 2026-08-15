@@ -82,10 +82,12 @@ No tema (não em `sx`):
   contraste AA sobre o fundo do card.
 - Adicionar teste de tema (padrão já existente em `theme.premium.test.ts`) que valide os tokens.
 
-**Cor do CTA — DECIDIDA (Q7).** "Aprovar plano" é um resultado positivo, não "ação de alerta":
-mantém `semantic.success` (verde) para preservar a affordance de aprovação. O `accent` (lime) fica
-para a ação de **engajamento** ("Contatar atleta") e para nav ativa. Regra: accent = iniciar uma
-ação nova; success = concluir/aprovar; warning/danger = estado de risco.
+**Cor do CTA — DECIDIDA (Q7), padrão Premium.** A ação primária é sempre lime (`PRIMARY_BTN_SX`/
+`primary[500]`), seja "Aprovar plano" ou "Contatar atleta" — Lime Discipline do
+`refactor-color-system-premium-v2` (lime = marca + primary-action). Verde (`SUCCESS_BTN_SX`) é
+reservado a "confirmação de estado" (ex.: "marcar oficial") e a chips de estado — nunca ao CTA
+principal. Regra de papéis: PRIMARY=lime (ação), SUCCESS=verde (estado/confirmação),
+DANGER=vermelho (destrutivo), GHOST=neutro (secundário).
 
 ## Decisão 4 — Escala tipográfica via tema
 

@@ -25,9 +25,10 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       dedicados. Validação: lint+build + testes de página.
 - [ ] 1.3a Co-localizar o par decisório: "Rejeitar plano" sai do menu "Mais ações" e renderiza como
       ação secundária (outline neutro) ao lado do CTA primário; o menu preserva só ações raras
-      (marcar prioridade, abrir editor). Cor do CTA (Q7 resolvida): aprovar → `success` (verde);
-      contatar → `accent` (lime). Validação: lint+build + teste de página cobrindo aprovar+rejeitar
-      visíveis juntos no estado de plano pendente.
+      (marcar prioridade, abrir editor). Cor do CTA (Q7 resolvida, padrão Premium): ação primária →
+      `PRIMARY_BTN_SX` (lime), sempre — verde (`SUCCESS_BTN_SX`) é só confirmação de estado.
+      Validação: lint+build + teste de página cobrindo aprovar+rejeitar visíveis juntos no estado de
+      plano pendente.
 - [ ] 1.3b "Contato assistido" (Q8 resolvida): quando o CTA resolve "Contatar atleta", gerar
       rascunho pré-composto (motivo + recência + ação sugerida) e copiar para a área de
       transferência (sem `wa.me/` — o `Atleta` não tem telefone no DTO). Sem toast vazio. Validação:

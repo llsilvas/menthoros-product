@@ -55,8 +55,9 @@ pode ser destacada em change própria se o PR crescer demais):
   (`setFeedback('Mensagem preparada…')`); gera um rascunho pré-composto (motivo + recência + ação
   sugerida — os mesmos campos do card) e copia para a área de transferência. Sem mensageria completa
   — o coach ainda dispara manualmente.
-- **Cor do CTA decidida, não assumida:** "Aprovar plano" hoje é verde (`semantic.success`); a Fase 1
-  propunha accent lime. Decisão explícita na Q7 (aprovar = verde; "Contatar atleta" = accent).
+- **Cor do CTA segue o padrão Premium:** a ação primária — "Aprovar plano" ou "Contatar atleta" — é
+  sempre lime (`PRIMARY_BTN_SX`/`primary[500]`). Verde (`SUCCESS_BTN_SX`) é para "confirmação de
+  estado" (ex.: "marcar oficial"), não para o CTA principal. Ver Q7.
 
 ### Fase 2 — Design system e estados (camada 2)
 
@@ -159,9 +160,11 @@ pode ser destacada em change própria se o PR crescer demais):
   change própria e repriorizada sem custo (costura já prevista).
 - **Nota:** esta change vive em `menthoros-product` (specs) e implementa em `apps/menthoros-front`
   — padrão do workspace (repos irmãos). As validações das tasks rodam na raiz do repo frontend.
-- **Q7 — RESOLVIDA (cor do CTA):** "Aprovar plano" = `semantic.success` (verde, concluir/aprovar);
-  "Contatar atleta" = accent lime (iniciar ação). Verde preserva a affordance de aprovação; lime fica
-  reservado para ação de engajamento + nav ativa. Aplicado na task 1.3a e na Decisão 3.
+- **Q7 — RESOLVIDA (cor do CTA, padrão Premium):** ação primária = sempre lime (`PRIMARY_BTN_SX`/
+  `primary[500]`), seja "Aprovar plano" ou "Contatar atleta" — Lime Discipline do
+  `refactor-color-system-premium-v2` (lime = marca + primary-action). Verde (`SUCCESS_BTN_SX`) é só
+  para "confirmação de estado" (ex.: "marcar oficial") e chips de estado, não para o CTA principal.
+  Aplicado na task 1.3a e na Decisão 3.
 - **Q8 — RESOLVIDA ("Contato assistido"):** o `Atleta` não tem `telefone` nem `email` exposto no DTO
   coach (só `Assessoria` e `Waitlist` têm telefone). Logo, sem deep-link externo viável. Mecanismo:
   cópia do rascunho pré-composto para a área de transferência (sempre disponível). `wa.me/`/`mailto:`
