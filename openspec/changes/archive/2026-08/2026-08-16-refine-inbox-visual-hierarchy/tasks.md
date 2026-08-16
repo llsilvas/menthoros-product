@@ -263,7 +263,14 @@ medidas, e o insight estruturado.
 
 ## Encerramento
 
-- [ ] 4.1 **PENDENTE — depende do founder, e é a única métrica de sucesso da change.** Abrir o
+- [x] 4.1 **APROVADO pelo founder em 2026-08-16.** Olhando o inbox por 5 segundos, identificou o
+      atleta que precisa de atenção **e o motivo** — que é o que a auditoria dizia não ser possível
+      ("o motivo não está visível no card"). A mudança que carrega esse resultado é a linha
+      "Alerta · Inatividade · 14d" no próprio card, somada ao insight no topo do painel.
+      **Ressalva registrada desde o product review:** N=1 e o avaliador é o founder, que conhece a
+      base e o próprio produto. Isto é critério de **não-regressão**, não evidência de usabilidade;
+      a prova real exige coaches externos (camada 4 da auditoria, change futura).
+      Enunciado original: Abrir o
       inbox, olhar por 5 segundos e identificar qual atleta precisa de atenção **e por quê**. A
       auditoria registrou que o motivo não estava visível no card; agora está ("Alerta · Inatividade
       · 14d"), mas quem confirma se 5 segundos bastam é o uso, não o teste automatizado.
