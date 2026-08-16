@@ -164,13 +164,17 @@ legitimamente não tem botão em lime.
       `AttentionOnlyRow.tsx` e o órfão `DashboardAttentionQueueRow.tsx`); extrair para
       `coachInboxHelpers.ts` e apagar o componente órfão. Validação: `grep -rn "bgcolor: semantic\."`
       src não casa com `Button`/`variant="contained"`; lint+build.
-- [ ] 2.10 Quick wins de contexto (re-audit 2026-08-16): (a) **UX-004** — "Recuperação" em
+- [~] 2.10 Quick wins de contexto (re-audit 2026-08-16): (a) **UX-004** — "Recuperação" em
       `DiagnosisTabPanel` usa `subtitle="Boa"` fixo mesmo em tom de warning; derivar o rótulo do
       valor ("Atenção: abaixo de 80%" vs "Boa"); (b) **UX-007** — placeholder de busca em
       `CoachInboxPage` promete "atleta, treino ou prova" mas filtra só o roster; trocar para
       "Buscar atleta…" (ou implementar a busca por treino/prova). Validação: lint+build + teste
       do componente.
-- [ ] 2.11 Mover e consolidar os filtros da fila na coluna da lista (parecer UI/UX 2026-08-16): a
+      **Estado (2026-08-16):** (a) **feita na 2.8** — o `subtitle="Boa"` fixo foi removido junto das
+      faixas "ideal"; o `tone` continua sinalizando o estado, agora com ícone e rótulo acessível
+      (2.4). (b) **feita na 2.11** — placeholder passou a "Buscar atleta…", com teste que falha se
+      voltar a prometer treino/prova.
+- [x] 2.11 Mover e consolidar os filtros da fila na coluna da lista (parecer UI/UX 2026-08-16): a
       barra full-width de `Status` + `Ordenar` + "Limpar filtros" fica entre o header e os KPIs mas
       filtra **só** o roster — mover `Status` e `Ordenar` para o header da "Fila de revisão", ao
       lado do título/contagem; consolidar o `Select "Ordenar"` + o `Chip` de sort (display/controle
