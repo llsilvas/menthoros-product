@@ -75,10 +75,10 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       colunas. Atualizar E2E mapeados na 1.1 e adicionar E2E do critério 4b (atleta com sinal e
       sem sugestão pendente permanece visível com motivo/recência). Validação: lint+build + E2E
       do coach verdes.
-- [ ] 1.6 Racionar o accent: eyebrow, chips informativos ("No prazo", "Prioridade alta") e tabs
+- [x] 1.6 Racionar o accent: eyebrow, chips informativos ("No prazo", "Prioridade alta") e tabs
       migram para neutros; título da página reduz para ~16px; nome do atleta vira o maior texto.
       Validação: lint+build; inspeção manual em 1440×900 confirmando accent só em CTA + nav ativa.
-- [ ] 1.7 Elevar o insight da IA ao topo do painel de detalhe (UX-002): reordenar `DiagnosisTabPanel`
+- [x] 1.7 Elevar o insight da IA ao topo do painel de detalhe (UX-002): reordenar `DiagnosisTabPanel`
       para que "Sinais de atenção" (motivo + ações sugeridas) venha antes das métricas/charts — o
       coach decide pelo "porquê", não pelo número cru; métricas viram evidência do insight.
       Validação: lint+build + snapshot do painel confirmando a ordem.
