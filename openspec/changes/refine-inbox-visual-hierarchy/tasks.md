@@ -66,7 +66,7 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       **Fallback obrigatório:** `navigator.clipboard.writeText` rejeitado → dialog com o rascunho
       selecionável e erro visível; sem isso o botão só troca um stub por outro. Validação:
       `npm run test -- coachInboxHelpers` + teste de página do fluxo, **incluindo clipboard rejeitado**.
-- [ ] 1.4 Enriquecer `QueueRow` com motivo + recência ("Inatividade · 14d") e variante visual por
+- [x] 1.4 Enriquecer `QueueRow` com motivo + recência ("Inatividade · 14d") e variante visual por
       status (borda/fundo `error` ~8% para Alerta, `warning` para Atenção); fonte mínima 11px.
       Validação: lint+build + testes do componente.
 - [ ] 1.5 (após 1.1, 1.1b e 1.1c fechadas) Remover os previews "Fila de atenção" e "Roster do
