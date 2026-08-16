@@ -147,8 +147,10 @@ legitimamente não tem botão em lime.
       Validação: lint+build + testes de página.
 - [ ] 2.7 `AIInsightCard` (UX-003): componente com 4 seções fixas — Ocorrência / Por que importa /
       Evidência / Ação sugerida — consumindo `rationale`, `sourceRules` e `suggestedAction` do DTO da
-      fila de atenção (já existem, só não são renderizados estruturados). Validação: lint+build +
-      teste do componente.
+      fila de atenção (já existem, só não são renderizados estruturados). **Consumir o `AttentionInfo`
+      estruturado (motivo/recência), não o `notes` livre:** a lista já mostra "ADERENCIA · 14d" via
+      gate 1.1, mas o "Sinais de atenção" do detalhe ainda renderiza `notes` (texto livre) +
+      `suggestedActions`. Validação: lint+build + teste do componente.
 - [x] 2.8 Remover/derivar faixas "ideal" hardcoded (UX-005): "Ideal: 110-150 km" (carga aguda) e
       "Ideal: < 2.0" (monotonia) em `DiagnosisTabPanel` são fixos e não-específicos ao atleta.
       **Decisão do founder (2026-08-16): REMOVER**, em vez de derivar um número que pareceria mais
@@ -181,6 +183,12 @@ legitimamente não tem botão em lime.
       hoje separados) num **único controle** compacto (chip que abre menu — a coluna tem ~300px,
       não cabe dois Selects). Busca permanece no header. Some a barra full-width. Validação:
       lint+build + teste de página cobrindo sort por chip e filtro por status na coluna.
+- [ ] 2.12 Reordenar a aba Diagnóstico (parecer UI/UX 2026-08-16): seguir situação → evidência →
+      explicação → ação → detalhe. `Sinais de atenção` (1º) mantém; subir `Adesão` de 6º→3º (é a
+      evidência dos motivos de engajamento `ADERENCIA`/`INATIVIDADE`, hoje enterrada atrás de dois
+      charts de carga); descer `Próximo treino` de 2º→6º (contexto/ação vem depois da evidência).
+      Ordem final: Sinais de atenção → Métricas → Adesão → Tendência de carga → Tendência de forma
+      (PMC) → Próximo treino → Limiares inferidos. Validação: lint+build + snapshot do painel.
 
 ## Fase 3 — Breakpoint mobile
 
