@@ -2,7 +2,54 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-08-15 (**`assessoria-settings-ui` entregue e arquivada — 31/31.**
+**Última atualização:** 2026-08-16 (**`intervals-icu-oauth2-integration` reescrita e escalonada —
+a trilha intervals.icu ganha seção própria.** O founder confirmou que o app OAuth (client ID `663`)
+foi liberado pelo David, e a spec de 02/08 foi verificada contra a API real antes de qualquer código.
+
+**Três premissas da spec estavam erradas, e todas as três teriam compilado.** Ela foi escrita por
+analogia com o Strava, sem confirmar o contrato: (a) o token endpoint é `intervals.icu/**api**/oauth/token`,
+não `/oauth/token`; (b) a resposta **não traz `refresh_token` nem `expires_in`** — o token não expira
+e não há refresh flow, mas a spec mandava popular `tokenExpiraEm` a partir de um campo inexistente;
+(c) os escopos são **maiúsculos e separados por vírgula** (`ACTIVITY:READ,CALENDAR:WRITE`), não
+`activity:read`. Nenhuma das três quebra o build — as três quebram em runtime, contra um servidor
+de terceiro, que é o pior lugar para descobrir.
+
+**A lacuna mais cara não era um erro, era uma ausência: nada na spec trocava Basic por Bearer.**
+O client autentica com `setBasicAuth("API_KEY", apiKey)`; OAuth exige Bearer. Implementar a spec
+como estava entregaria um fluxo de autorização perfeito e um token que nenhuma chamada aceita.
+Investigar isso trouxe a boa notícia da change: os **seis** call sites já leem
+`conexao.getAccessToken()` e repassam, então a troca é de **uma linha** e nenhuma assinatura muda —
+a entidade sempre chamou o campo de `accessToken`, era o conteúdo que era uma API key.
+
+**Um escopo a mais, por evidência de produção.** A spec pedia só `ACTIVITY:READ`, pensando em
+ingestão. Mas o **push de treinos ao relógio já roda desde 2026-07-14** e é escrita no calendário:
+subir sem `CALENDAR:WRITE` quebraria o canal validado, e o sintoma só apareceria na primeira
+aprovação de plano depois do deploy.
+
+**E uma correção de segurança que o molde do Strava traria junto.** A spec copiava `state=atletaId`
+cru. Lá é tolerável (quem dispara é o técnico, superfície interna); aqui o fluxo é self-service e o
+callback é público — sem assinatura, quem descobrir um `atletaId` vincula a **própria** conta
+intervals.icu ao registro de outro atleta. Virou state assinado com HMAC, stateless, sem tabela nova.
+Corrigir o Strava ficou **fora de escopo de propósito**: é dívida pré-existente e misturaria changes.
+
+**Três decisões do founder mudaram o tamanho de S para M.** Quem conecta é o **atleta**
+(self-service `/me`; a spec exigia `ROLE_TECNICO`, herança do molde Strava que não se aplica — quem
+loga no intervals.icu é o dono da conta); a **API key é removida**, sem convivência; e o **pull
+automático diário entra no roadmap imediato**, na change própria que já existe. O front deixou de ser
+"change separada": remover a API key remove o campo de colar a key, então o botão novo é parte da
+entrega, não um follow-up.
+
+**A consequência foi aceita explicitamente, não descoberta depois:** no deploy, toda API key existente
+vira `Bearer <api key>` e o provedor devolve 401 — os atletas conectados param de sincronizar até
+reconectar. Não há caminho técnico para converter uma key em token OAuth; a reconexão seria manual em
+qualquer desenho. **Daí a regra operacional que virou parte da change:** backend e front sobem juntos,
+senão o atleta cuja key morreu não tem por onde reconectar.
+
+**Gate externo aberto:** a redirect URI de produção precisa estar registrada no app 663 — o provedor
+não aceita wildcard, e `http://localhost/` é sempre aceito, então o fluxo **passa em local e falha em
+produção** se ninguém confirmar. É a única dependência externa da change, e está como task 0.1.)
+
+Antes: 2026-08-15 (**`assessoria-settings-ui` entregue e arquivada — 31/31.**
 Configuração da assessoria (nome + logo) fecha o segundo passo do Bloco 3. Três decisões saíram
 diferentes do planejado, e todas por evidência, não por preferência.
 
@@ -465,6 +512,36 @@ BLOCO DE ENGENHARIA (agrupado, Sprint 24+):
 > **Fronteira do MVP (jornada completa coach-in-the-loop):** ao fim do Sprint 26, a jornada está entregue — identidade → casa do treinador → dado real (log manual 9d) → fila de atenção → sugestão IA explicável → **aprovação de plano pelo coach (9e)** → perfil completo do atleta (9f) → ingestion FIT completo → métricas + análise → debrief → revisão semanal → mensageria.
 >
 > **Mudança estratégica de ingestão:** o MVP passa a usar **ingestão first-party** (log manual 9d → FIT upload Sprint 23) em vez do Strava. O 9d desbloqueia dado real imediatamente; o Sprint 23 adiciona dado rico de GPS e FC. A família `strava-*` fica **deferida** (ver pós-MVP).
+
+---
+
+## Trilha intervals.icu — substituição gradual do Strava
+
+Seção aberta em **2026-08-16**. As três changes desta trilha existiam desde 2026-08-02, mas só em
+parágrafo de changelog — nenhuma aparecia em tabela de sprint, o que as tornava invisíveis a
+qualquer planejamento que lesse só as tabelas.
+
+**Por que é uma trilha e não três changes soltas:** o intervals.icu integra direto com Garmin e
+outras fontes, com menos limitações de API que o Strava (cuja família está **deferida atrás de
+clareza legal** — ver Pós-MVP). A intenção do founder é que ele se torne o caminho primário de
+sincronização automática. A descomissão do Strava é **non-goal explícito** de todas as três: ele
+continua funcionando, e o guard `autoSyncPausado` já pausa o Strava do atleta quando o intervals.icu
+conecta, evitando duplicação cross-fonte.
+
+**Já entregue e em produção:** push de treinos ao relógio (`intervals-icu-workout-push` +
+`-push-hardening`, canal validado 2026-07-14), import manual de atividade
+(`intervals-icu-activity-ingestion`) e backfill de laps (`intervals-icu-activity-laps`).
+**O que falta é o automático** — hoje o coach cola o id de cada atividade à mão.
+
+| Ordem | Change | Tam. | Tasks | Objetivo | Dependência |
+|:---:|---|:---:|:---:|---|---|
+| 1 | `intervals-icu-oauth2-integration` | **M · Full** | 0/23 | **Troca API key por OAuth2** (app `663`, aprovado por David em 2026-08-02). Atleta conecta por botão, sem gerar key manualmente; escopo limitado e revogável no provedor. Inclui a troca de Basic para **Bearer** no client, state assinado com HMAC, revogação remota no disconnect, e o front (o campo de colar a key deixa de existir). **Breaking change aceito:** conexões por API key param no deploy e exigem reconexão — backend e front sobem juntos. **Spec reescrita em 2026-08-16** após verificação contra a API real (3 premissas erradas + 1 lacuna crítica — ver changelog no topo). | Gate externo: redirect URI de produção registrada no app 663 (task 0.1) |
+| 2 | `intervals-icu-activity-sync-scheduler` | M · Full | 0/~30 | **Pull automático** — scheduler cross-tenant espelhando o `StravaActivitySyncScheduler`: cursor incremental via `ultimaSincronizacao`, guard `autoSyncPausado`, reuso do pipeline de ingestão individual. Fecha a metade "polling" do non-goal deixado por `intervals-icu-activity-ingestion`. Product review **GO** (6 achados incorporados) e pre-mortem Codex concluídos (**5 críticos** corrigidos no design: cursor condicional, reload-antes-do-save, gate de paginação, classificação retryable-vs-permanente). **Ajuste pendente na spec:** o item 1 do "What Changes" ainda diz *"Basic Auth com a API key do atleta, sem OAuth"* — com a API key removida, `listarAtividades` nasce com Bearer. Correção de uma linha, a fazer no `/implement init`. | `intervals-icu-oauth2-integration` |
+| 3 | `intervals-icu-webhook-ingestion` | — | **spec não escrita** | **Tempo real** — segunda metade do non-goal. O provedor passou a suportar webhook. Quando existir, o webhook vira o caminho primário e o scheduler (2) passa a ser fallback/reconciliação — mesmo par que `StravaWebhookServiceImpl` + `StravaActivitySyncScheduler` formam hoje. **A premissa registrada em 2026-08-02 de que esta change carregaria a migração para OAuth está superada:** a migração virou a change (1), que a antecede. Abrir com `/opsx:propose` depois que o scheduler estiver validado em produção. | (2) validada em produção |
+
+> **A ordem aqui é técnica, não de prioridade.** (1) precisa vir antes de (2) porque o método
+> `listarAtividades` do scheduler nasce autenticando de alguma forma — e nascer em Basic com uma API
+> key que a change (1) remove seria escrever código para apagar em seguida.
 
 ---
 
