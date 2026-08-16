@@ -76,7 +76,16 @@ pode ser destacada em change própria se o PR crescer demais):
   de "0 km / 0%" repetido; estados de lista vazia, carregamento e erro definidos para as três
   colunas.
 
-### Fase 3 — Breakpoint mobile (camada 3)
+### Fase 3 — Breakpoint mobile → DESTACADA (2026-08-16)
+
+**Movida para a change `refine-inbox-mobile-breakpoint`.** O founder decidiu que o coach não usará o
+inbox à beira de pista por enquanto, e essa premissa era a única razão para priorizar mobile junto
+das Fases 1 e 2. O diagnóstico segue válido (mobile 1/10 na auditoria); muda o momento.
+
+Risco aceito: até aquela change rodar, o inbox continua inutilizável em 390px e a faixa 900–1200px
+segue subprojetada. Nada disso é regressão desta change — é dívida que permanece onde estava.
+
+Escopo original, agora fora daqui:
 
 - Sidebar colapsa em drawer (hambúrguer) abaixo de `md`; largura fixa de 240px deixa de existir em
   viewport < 900px.
@@ -130,7 +139,8 @@ pode ser destacada em change própria se o PR crescer demais):
 7. **Estados vazios com mensagem** — Given um atleta sem dados de treino na janela, When o
    diagnóstico renderiza, Then métricas zeradas são substituídas por uma mensagem de estado única
    (não uma grade de "0 km / 0% / —").
-8. **Mobile navegável** — Given viewport 390×844, When o inbox carrega, Then não há scroll
+8. **Mobile navegável** — ⏸ **MOVIDO** para `refine-inbox-mobile-breakpoint` (critério 1–3 de lá).
+   Enunciado original: Given viewport 390×844, When o inbox carrega, Then não há scroll
    horizontal no documento nem em painéis internos, a sidebar está colapsada em drawer e a lista de
    atletas ocupa a largura útil; When um atleta é selecionado, Then o detalhe abre em tela própria
    com CTA visível sem scroll e navegação de volta.
@@ -183,9 +193,11 @@ pode ser destacada em change própria se o PR crescer demais):
   se algum deep-link ou teste E2E depende de `DashboardAttentionQueueRow` /
   `DashboardRosterPreviewRow` (mapeamento na task 1.1b).
 - **Premissa:** breakpoint `md` (900px) do MUI é o corte adequado para o colapso da sidebar.
-- **Premissa (product review):** o coach usa mobile à beira de pista — ainda não validada com dado
-  de uso do pilot. Se o uso real for majoritariamente desktop, a Fase 3 pode ser destacada em
-  change própria e repriorizada sem custo (costura já prevista).
+- **Premissa DERRUBADA por decisão (2026-08-16):** "o coach usa mobile à beira de pista". O founder
+  decidiu que isso não acontece por enquanto. A Fase 3 foi destacada em
+  `refine-inbox-mobile-breakpoint` — a costura estava prevista desde o product review, então foi
+  sequenciamento, não recorte de emergência. O gatilho para repriorizar é uso real de mobile no
+  piloto, não opinião.
 - **Nota:** esta change vive em `menthoros-product` (specs) e implementa em `apps/menthoros-front`
   — padrão do workspace (repos irmãos). As validações das tasks rodam na raiz do repo frontend.
 - **Q7 — RESOLVIDA (cor do CTA, padrão Premium):** ação primária = sempre lime (`PRIMARY_BTN_SX`/

@@ -193,33 +193,24 @@ legitimamente não tem botão em lime.
       Ordem final: Sinais de atenção → Métricas → Adesão → Tendência de carga → Tendência de forma
       (PMC) → Próximo treino → Limiares inferidos. Validação: lint+build + snapshot do painel.
 
-## Fase 3 — Breakpoint mobile
+## Fase 3 — Breakpoint mobile → DESTACADA em change própria (2026-08-16)
 
-- [ ] 3.1 Sidebar colapsável: `Drawer` temporário abaixo de `md` com hambúrguer no header; badge do
-      inbox replicado no ícone; largura fixa de 240px eliminada em <900px. Validação: lint+build.
-- [ ] 3.1a Alinhar breakpoints: o grid do inbox colapsa em `lg` (1200px) mas o drawer em `md` (900px);
-      decidir se o empilhamento do grid desce para `md` (ou o drawer sobe para `lg`) para não deixar
-      a faixa 900–1200px subprojetada. Validação: inspeção em ~1000px.
-- [ ] 3.2 Inbox em fluxo empilhado <md: tela de lista (resumo compacto + fila) e tela de detalhe
-      com navegação de volta; tabs scrolláveis; ações secundárias em menu; CTA primário visível
-      sem scroll no topo do detalhe. Validação: lint+build + testes de página.
-- [ ] 3.3 Teste Playwright viewport 390×844: sem scroll horizontal
-      (`scrollWidth === innerWidth` no documento e nos painéis), drawer funcional, seleção de
-      atleta abre detalhe com CTA visível. Validação: E2E verde.
-- [ ] 3.4 Smoke visual das demais telas do coach (Atletas, Insights, Revisão de planos) em 390px —
-      herdam o drawer; corrigir estouros óbvios introduzidos pela mudança de layout base (sem
-      redesenho). Validação: inspeção manual + E2E existentes.
-
-- [ ] 3.5 Teste mecânico de hierarquia (Playwright, no lugar de parte da inspeção manual): em
-      1440×900 e 390×844, medir via `getComputedStyle` que (a) existe **um** botão primário sólido no
-      painel quando há plano pendente, com altura ≥40px e fonte ≥14px; (b) nenhum texto funcional do
-      inbox tem `font-size` < 11px; (c) o card de alerta exibe motivo e recência;
-      (d) `document.documentElement.scrollWidth === innerWidth`. **Viewports: 1440×900, 1024×768 e
-      390×844** — a faixa 900–1200px é a que a própria spec identifica como subprojetada, e medir só
-      nos extremos a deixaria passar verde. Para (b), marcar o root do inbox com `data-testid` e
-      percorrer os nós de texto visíveis — verificar só alguns nós deixa fonte <11px escondida em
-      `Chip`/`Tab`. Sem isso, regressão de hierarquia passa com `npm run test` verde.
-      Validação: E2E verde.
+> **Decisão do founder:** o coach **não vai usar o inbox à beira de pista por enquanto**. A premissa
+> que sustentava esta fase ("o coach usa mobile em campo") era a única justificativa para priorizá-la
+> agora, e ela caiu — não por falta de dado, mas por decisão de uso.
+>
+> As seis tasks (3.1, 3.1a, 3.2, 3.3, 3.4 e a parte mobile da 3.5) foram para
+> `changes/refine-inbox-mobile-breakpoint/`. A costura já estava prevista no `proposal.md` desde o
+> product review, então isto é sequenciamento, não recorte de emergência.
+>
+> **Risco aceito e declarado:** enquanto a change nova não rodar, o inbox permanece **inutilizável
+> em 390px** (nota 1/10 na auditoria) e a faixa **900–1200px** segue subprojetada — sidebar de 240px
+> fixos somada ao grid já empilhado abaixo de `lg`. Nada disso é regressão introduzida aqui; é
+> dívida que continua onde estava.
+>
+> **A parte desktop da 3.5 foi entregue** dentro das Fases 1 e 2, em `tests/e2e/coach/inbox.spec.ts`:
+> CTA único com altura ≥40px e fonte ≥14px, nenhum texto abaixo de 11px (varrendo todos os nós
+> visíveis), card de alerta com motivo e recência, e ausência de scroll horizontal em 1440×900.
 
 ## Attention Management (UX-012) — costura candidata a change própria
 
