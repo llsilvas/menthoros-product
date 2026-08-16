@@ -139,7 +139,7 @@ legitimamente não tem botão em lime.
       **Diferenciação não-cor:** estado de risco não pode depender só de cor — parear com ícone/forma
       ou manter o label textual ("Alerta"/"Atenção") sempre visível, para daltônicos. Validação:
       lint+build + teste de tokens.
-- [ ] 2.5 Estados vazios: criar/reusar `EmptyMetricState`; adapter (`coachInboxAdapters`) expõe flag
+- [x] 2.5 Estados vazios: criar/reusar `EmptyMetricState`; adapter (`coachInboxAdapters`) expõe flag
       "sem dados na janela" vs "zero legítimo"; grade de métricas zeradas vira mensagem única.
       Testes do adapter cobrindo os dois casos. Validação: `npm run test -- coachInboxAdapters` +
       lint+build.
@@ -149,10 +149,13 @@ legitimamente não tem botão em lime.
       Evidência / Ação sugerida — consumindo `rationale`, `sourceRules` e `suggestedAction` do DTO da
       fila de atenção (já existem, só não são renderizados estruturados). Validação: lint+build +
       teste do componente.
-- [ ] 2.8 Remover/derivar faixas "ideal" hardcoded (UX-005): "Ideal: 110-150 km" (carga aguda) e
+- [x] 2.8 Remover/derivar faixas "ideal" hardcoded (UX-005): "Ideal: 110-150 km" (carga aguda) e
       "Ideal: < 2.0" (monotonia) em `DiagnosisTabPanel` são fixos e não-específicos ao atleta.
-      Derivar do baseline do atleta (`AthleteBaselineState`/nível de experiência) ou remover o
-      "ideal" até haver referência real. Validação: lint+build + teste do adapter.
+      **Decisão do founder (2026-08-16): REMOVER**, em vez de derivar um número que pareceria mais
+      preciso do que é. Junto saiu um caso pior encontrado na implementação: o subtítulo da métrica
+      "Recuperação" era a string fixa `"Boa"` — afirmada inclusive quando o próprio `tone` marcava
+      atenção. Rótulo que contradiz o dado ao lado é pior que rótulo nenhum.
+      Validação: lint+build + teste do painel.
 - [ ] 2.9 Guard-rail de papel de botão: ação nunca usa cor semântica inline — só via `PRIMARY_BTN_SX`/
       `SUCCESS_BTN_SX`/`DANGER_BTN_SX`/`GHOST_BTN_SX` (`shared/components/actionButtonSx.ts`). Regra:
       `semantic.*` = estado (chip/badge/dot); `_BTN_SX` = ação. Migrar o drift conhecido
