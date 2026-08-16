@@ -13,12 +13,15 @@ atletas precisam de atenção hoje" — e contra a tese do produto ("a IA propõ
    **nenhuma** ação primária, embora o diagnóstico já diga o que fazer ("Contatar o atleta").
 2. **O sinal de urgência é o menor texto da tela.** O badge "Alerta" (vermelho) mede 9,9px com fundo
    a 10% de alpha; o maior texto (23,2px) é o título estático da página. Chrome ganha de conteúdo.
-3. **Redundância dilui o foco:** o mesmo atleta em alerta aparece 4× acima da dobra (Fila de
-   atenção, Roster do dashboard, Fila de revisão, painel de detalhe) em módulos concorrentes.
+3. **Redundância dilui o foco:** o mesmo atleta em alerta aparece 3× acima da dobra — "Fila de
+   atenção" (preview de 3, `CoachInboxPage.tsx:375`), "Roster do dashboard" (preview de 3, mesma
+   tela) e a lista principal de atletas (`QueueRow`) — em módulos concorrentes na mesma coluna.
 4. **O accent lime aparece em 16 elementos acima da dobra** (brand, nav, eyebrow, chips
    informativos, tabs, botões) — a cor de ação não significa ação.
 5. **O design system declarado não está aplicado:** 100% da tela renderiza em Syne (hardcoded via
-   `sx` em ~10 componentes do coach — `CoachInboxPage`, `PlanoDetalhePanel`, `AthleteRow` etc. —
+   `sx` — **10 ocorrências em 7 arquivos** do coach: `CoachInboxPage` (×2), `PlanoDetalhePanel` (×3),
+   `CoachPlanReviewPage`, `CoachAttentionQueuePage`, `CoachInsightsPage`, `CoachAthletesPage`,
+   `PlanoPendenteItem` —
    apesar de `src/index.css` declarar Inter), com labels funcionais de 7,2–10px; a escala
    tipográfica real está comprimida (maioria entre 10–13px).
 6. **Mobile (390px) é inutilizável:** a sidebar mantém 240px fixos (64% do viewport), o conteúdo
@@ -40,10 +43,12 @@ pode ser destacada em change própria se o PR crescer demais):
   sólido, ≥40px de altura, texto ≥14px), que muda com o estado — "Aprovar plano" quando há plano
   pendente; "Contatar atleta" quando o diagnóstico dominante é inatividade; nunca renderizada
   `disabled` como estado default (sem ação aplicável → a ação contextual troca, não apaga).
-- **Fusão dos módulos de atenção:** remover "Fila de atenção" e "Roster do dashboard" da coluna 1
-  (a Fila de revisão já ordena por prioridade); cards em Alerta ganham tratamento visual (borda +
-  fundo vermelho ~8%) e carregam **motivo + recência** no próprio card ("Inatividade · 14d").
-  "Resumo rápido" vira linha horizontal compacta sob o cabeçalho.
+- **Fusão dos módulos de atenção:** remover os previews "Fila de atenção" e "Roster do dashboard"
+  da coluna 1; a informação migra para a **lista principal de atletas** (`QueueRow`), cujos cards em
+  Alerta ganham tratamento visual (borda + fundo vermelho ~8%) e carregam **motivo + recência**
+  ("Inatividade · 14d"). "Resumo rápido" vira linha horizontal compacta sob o cabeçalho.
+  **Condicionado ao gate 1.1** — ver "Correção de premissa" abaixo: a lista principal é paginada e a
+  fila de atenção não é.
 - **Ração do accent:** lime restrito a ação primária + item de navegação ativo. Chips informativos
   ("No prazo", "Prioridade alta"), tabs e eyebrow migram para neutros.
 - **Inversão chrome/conteúdo:** título da página reduz (~16px); o nome do atleta selecionado passa
@@ -75,7 +80,7 @@ pode ser destacada em change própria se o PR crescer demais):
 
 - Sidebar colapsa em drawer (hambúrguer) abaixo de `md`; largura fixa de 240px deixa de existir em
   viewport < 900px.
-- As 3 colunas viram fluxo de navegação empilhado: lista (fila de revisão) → detalhe do atleta, com
+- As 3 colunas viram fluxo de navegação empilhado: lista principal do inbox → detalhe do atleta, com
   volta explícita; sem scroll horizontal interno em 390px.
 - CTA contextual visível sem scroll no detalhe em 390×844.
 
@@ -97,22 +102,28 @@ pode ser destacada em change própria se o PR crescer demais):
 2. **CTA sem estado morto** — Given um atleta sem plano pendente e com sinal de inatividade, When o
    painel renderiza, Then a ação primária exibida é "Contatar atleta" (não um "Aprovar plano"
    desabilitado).
-3. **Alerta legível no card** — Given um atleta com status Alerta na fila de revisão, When a fila
-   renderiza, Then o card exibe motivo e recência (ex.: "Inatividade · 14d") com fonte ≥11px e o
+3. **Alerta legível no card** — Given um atleta com status Alerta na lista principal do inbox, When
+   a lista renderiza, Then o card exibe motivo e recência (ex.: "Inatividade · 14d") com fonte ≥11px e o
    card tem tratamento visual distinto (borda/fundo na cor de alerta).
 4. **Sem duplicação** — Given o inbox acima da dobra em 1440×900, When um atleta está em Alerta,
-   Then ele aparece em no máximo 2 lugares (fila de revisão + painel de detalhe).
-4b. **Sem perda de cobertura (gate do pre-mortem)** — Given um atleta com sinal ativo na
-   `CoachAttentionQueue` e **sem** sugestão/plano pendente, When a Fila de atenção é removida,
-   Then esse atleta continua visível na Fila de revisão com motivo e recência. A remoção dos
-   módulos (task 1.5) é **bloqueada** até a prova de contrato de dados da task 1.1.
+   Then ele aparece em no máximo 2 lugares (lista principal do inbox + painel de detalhe).
+4b. **Sem perda de cobertura (gate — reescrito em 2026-08-16 contra o código real)** — Given um
+   atleta presente em `dashboard.attentionQueue` que **não está na página corrente do roster**
+   (por paginação, filtro de status ou ordenação), When os previews "Fila de atenção" e "Roster do
+   dashboard" são removidos, Then esse atleta **continua alcançável no inbox** com motivo e
+   recência. A remoção (task 1.5) é **bloqueada** até a task 1.1 fechar com um mecanismo explícito
+   (fixar os itens de atenção no topo da lista, filtro "só atenção", ou fundir `attentionQueue` na
+   composição da lista antes de paginar).
 4c. **Guardas operacionais do CTA** — Given uma mutação em andamento (aprovação em voo), plano já
    processado ou falha de permissão, When o painel renderiza, Then o CTA exibe estado de
    loading/disabled/erro explícito — a regra "sem disabled" vale só para **aplicabilidade**
    (ação não aplicável → troca de ação), nunca para disponibilidade operacional.
-5. **Accent racionado** — Given o inbox acima da dobra, When se contam os elementos na cor de
-   accent, Then apenas ação primária e navegação ativa a utilizam (chips informativos, tabs e
-   eyebrow em neutros).
+5. **Accent racionado (verificação MANUAL, por natureza)** — Given o inbox acima da dobra, When se
+   contam **por inspeção visual** os elementos na cor de accent, Then apenas ação primária e
+   navegação ativa a utilizam (chips informativos, tabs e eyebrow em neutros).
+   Não há seletor programático confiável: `primary[500]` aparece em usos legítimos (gráfico, marca)
+   e ilegítimos (eyebrow, tabs) no mesmo arquivo. A parte **automatizável** deste critério é a task
+   2.9 (papel de botão via `_BTN_SX`), que cobre botões — não chips/eyebrow/tabs.
 6. **Tipografia mínima** — Given qualquer texto funcional do inbox (labels, valores, badges), When
    inspecionado, Then `font-size` computado ≥11px, e `grep -rn "fontFamily.*Syne" src/features/coach`
    retorna vazio (família vem do tema).
@@ -138,22 +149,39 @@ pode ser destacada em change própria se o PR crescer demais):
 
 - **Premissa:** o CTA primário do produto é "Aprovar plano" (tese coach-in-the-loop); na ausência de
   plano pendente, a melhor ação default é "Contatar atleta" quando há sinal de inatividade.
-  *Aberto (bloqueia o merge da Fase 1, por decisão do product review):* qual a ação default quando
-  não há nem plano nem sinal (atleta saudável)? Proposta: "Abrir plano" (navegação), sem cor de
-  accent — confirmar com o founder antes da task 1.3.
-- **Premissa DERRUBADA pelo pre-mortem:** "Fila de atenção e Fila de revisão vêm da mesma fonte".
-  Specs arquivadas indicam fontes distintas (`CoachAttentionQueue` = sinais; fila de revisão =
-  sugestões/planos pendentes via `/api/v1/coach/sugestoes`). Um atleta com sinal e sem sugestão
-  pendente poderia sumir do inbox. A task 1.1 vira **gate duro**: provar o contrato de dados (ou
-  mesclar as fontes na fila) antes de qualquer remoção — ver critério 4b.
+  *Aberto (bloqueia as tasks 1.2/1.3/1.3a/1.3b — **não** a Fase 1 inteira; reclassificado em
+  2026-08-16):* qual a ação default quando não há nem plano nem sinal (atleta saudável)? Proposta:
+  "Abrir plano" (navegação), sem cor de accent — confirmar com o founder antes da task 1.2.
+  As tasks 1.1, 1.4, 1.6 e 1.7 não dependem desta decisão e podem correr em paralelo à espera.
+- **CORREÇÃO DE PREMISSA (2026-08-16, verificada no código — invalida a "premissa derrubada" do
+  pre-mortem anterior).** O pre-mortem afirmou que a fila de atenção e a "fila de revisão" vinham de
+  fontes distintas, a segunda via `/api/v1/coach/sugestoes`. **As duas afirmações estão erradas**, e
+  a spec foi escrita sobre elas:
+
+  1. **Não existe "Fila de revisão" dentro do inbox.** Ela é uma tela separada
+     (`/coach/planos/revisao`, para onde `CoachInboxPage.tsx:648` navega). O que a spec vinha
+     chamando de "Fila de revisão" é a **lista principal de atletas**, renderizada com `QueueRow`
+     (`CoachInboxPage.tsx:449`) a partir de `rosterItems = dashboard.roster.items`.
+  2. **Fila de atenção e roster vêm da MESMA requisição.** `GET /api/v1/coach/dashboard` devolve
+     `{ roster: CoachDashboardRosterPage, attentionQueue: CoachAttentionItem[] }`
+     (`src/types/Coach.ts:72-73`), consumidos por `useCoachDashboard`. A premissa original ("mesma
+     fonte") estava certa; foi "derrubada" por engano.
+
+  **O risco real é outro, e é maior:** o roster é **paginado em 10** (`ROSTER_PAGE_SIZE`,
+  `useDashboardFilters.ts:9`) e responde a filtro de status e ordenação; `attentionQueue` não é
+  paginada. Os previews que a change remove mostram `.slice(0, 3)` de cada lista. Logo, **um atleta
+  em alerta que caia na página 2+ do roster — ou fora do filtro ativo — desaparece do inbox**, que é
+  exatamente a função que a Fila de atenção cumpre hoje. O gate 1.1 foi reescrito para responder a
+  essa pergunta, não à do contrato de endpoints.
 - **Premissa:** a identidade visual atual (accent lime #BDDE5A, fundo #0A1628, Syne como display) é
   a intencional e fica — a auditoria apontou divergência do DS declarado (Space Grotesk/Inter,
   petrol/amber/aqua), mas esta change **normaliza o uso**, não troca a marca. *Aberto:* confirmar
   com o founder se o DS declarado está obsoleto; se a intenção for migrar a paleta, é change
   separada.
-- **Premissa:** remover "Fila de atenção"/"Roster" da coluna 1 não quebra nenhum fluxo — são
-  visualizações redundantes da mesma fonte (`CoachAttentionQueue`). *Aberto:* verificar se algum
-  deep-link ou teste E2E depende desses módulos.
+- **Premissa:** remover os previews "Fila de atenção"/"Roster" da coluna 1 não quebra nenhum fluxo —
+  são recortes (`.slice(0, 3)`) da mesma resposta que alimenta a lista principal. *Aberto:* verificar
+  se algum deep-link ou teste E2E depende de `DashboardAttentionQueueRow` /
+  `DashboardRosterPreviewRow` (mapeamento na task 1.1b).
 - **Premissa:** breakpoint `md` (900px) do MUI é o corte adequado para o colapso da sidebar.
 - **Premissa (product review):** o coach usa mobile à beira de pista — ainda não validada com dado
   de uso do pilot. Se o uso real for majoritariamente desktop, a Fase 3 pode ser destacada em
@@ -173,10 +201,13 @@ pode ser destacada em change própria se o PR crescer demais):
 - **Q9 (Fase 2 — escopo da tipografia):** consolidar `theme.typography` globalmente afeta as telas
   do atleta (tema compartilhado), contrariando o Non-Goal "não migra telas do atleta". Decidir:
   override de tema escopado ao coach, ou aceitar/documentar o impacto no atleta (task 2.1).
-- **Q10 (Fase 1 — modelo de ação incompleto):** `resolvePrimaryAction` cobre plano pendente +
-  inatividade. Atleta com sugestão pendente (sem plano) ou prova próxima cai no default "Abrir
-  plano". Incluir "sugestão pendente" (→ "Revisar sugestão") e "prova próxima" (→ "Ver prova") na
-  precedência? Estende a task 1.2.
+- **Q10 — FECHADA (2026-08-16) como fora de escopo, com risco declarado.** `resolvePrimaryAction`
+  cobre plano pendente + inatividade; "sugestão pendente" e "prova próxima" **não entram** nesta
+  change. Deixá-la "aberta, se o founder aprovar" era pior dos dois mundos: mantinha uma decisão de
+  produto pendurada numa task de implementação. **Risco aceito e testado como tal:** atleta com
+  sugestão pendente e sem plano cai em "Abrir plano" neutro — a spec exige um teste que fixe esse
+  fallback explicitamente, para que a lacuna fique visível em vez de virar comportamento acidental.
+  Estender a precedência é change própria (gancho natural: `add-coach-inbox-attention-sections`).
 
 ## Revisões (Full track)
 
@@ -188,7 +219,38 @@ pode ser destacada em change própria se o PR crescer demais):
   sequenciamento — decisão do usuário foi manter as 3 camadas numa change.
 - **Pre-mortem cross-model (Codex, adversarial): needs-attention.** 2 achados high incorporados
   (contrato de dados da fila — critério 4b; guardas operacionais do CTA — critério 4c) e 1 medium
-  respondido (path do repo — nota acima).
+  respondido (path do repo — nota acima). **Um dos achados estava errado** — ver "Correção de
+  premissa" acima; a spec foi reescrita sobre ele e precisou ser corrigida na segunda rodada.
+- **DoR gate, 2ª rodada (2026-08-16 — `spec-reviewer` + pre-mortem Codex, independentes):** ambos
+  convergiram, por caminhos diferentes, no mesmo achado bloqueante: **a spec descrevia uma tela que
+  não existe** ("Fila de revisão" dentro do inbox). Incorporado nesta revisão:
+  (1) mapa real da tela no `design.md`, com arquivo:linha de cada módulo;
+  (2) Decisão 2 reescrita — o risco é **paginação/filtro**, não contrato de endpoints; gate 1.1 passa
+      a exigir `buildInboxQueue` com teste, não "nota documentada";
+  (3) tasks 1.1b (mapa nominal dos testes afetados) e 1.1c (E2E do inbox **antes** da remoção) —
+      os testes atuais ficam **verdes** com o inbox regredido, e os E2E de coach mockam
+      `**/api/v1/coach/**` como `[]`;
+  (4) CTA: `resolvePrimaryAction` (aplicabilidade) separada de `resolveActionAvailability`
+      (disponibilidade); o inbox não consome o `isActing` do layout e não trava duplo clique;
+  (5) task 1.3 corrigida — o CTA vive em `CoachInboxPage.tsx:662`, não em `PlanoDetalhePanel`;
+  (6) Q9 fechada: `ThemeProvider` aninhado no `CoachLayout`, proibido tocar `App.tsx`;
+  (7) fallback obrigatório de clipboard no "Contato assistido";
+  (8) task 3.5 — teste mecânico de hierarquia, cobrindo o que a inspeção manual não garante;
+  (9) escopo bloqueante de Q10/ação-default reduzido a 1.2/1.3/1.3a/1.3b.
+- **DoR gate, 3ª rodada (2026-08-16 — mesma dupla, sobre a spec já corrigida): NEEDS-WORK nos dois,
+  sem nenhum achado de arquitetura.** Os dois convergiram em buracos de **contrato**, não de decisão:
+  (1) a assinatura de `buildInboxQueue` não comportava a sinalização "N fora do filtro" que ela mesma
+      exigia — fechada como `{ rows, pinnedCount, hiddenAttentionCount }`;
+  (2) `InboxQueueRow` virou união `roster | attention-only`: `CoachAttentionItem` não tem as métricas
+      da linha de roster, e unificar os tipos produziria linha com dados falsos;
+  (3) fixar itens de atenção colidia com `TablePagination count={rosterTotal}` — resolvido: fixados
+      são seção fixa, fora da paginação, e o `count` não muda;
+  (4) o critério 4c (409/422 vs 403) exigia um status HTTP que a cadeia atual descarta em
+      `Promise<boolean>` — o replumbing virou escopo explícito da task 1.3;
+  (5) "recência" não estava definida (`lastActivity` vs `generatedAt`) — definida por motivo;
+  (6) matriz do E2E 1.1c ampliada de 1 para 5 cenários; viewport 1024 somado ao teste 3.5;
+  (7) Q9 continuava como "ou" na task 2.1, embora decidida no design — alinhada;
+  (8) citação `CoachInboxPage.tsx:387` estava trocada (é `:375` a Fila de atenção) — corrigida.
 - **UI/UX review (especialista, 2026-08-15):** diagnóstico da auditoria confirmado contra o código
   real — fonte mínima efetiva é **4,8px** (`CoachInboxPage.tsx:541`, `0.30rem`), pior que os 7,2px
   reportados. Achados incorporados: (1) "Contatar atleta" apontava para stub de mensagem →

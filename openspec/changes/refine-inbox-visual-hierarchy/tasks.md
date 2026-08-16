@@ -5,24 +5,55 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
 
 ## Fase 1 — Hierarquia de ação e foco
 
-- [ ] 1.1 **GATE — bloqueia 1.4/1.5.** (a) Provar o contrato de dados: todo atleta presente na
-      `CoachAttentionQueue` tem representação na fila de revisão? Verificar as fontes reais
-      (sinais vs. sugestões/planos pendentes em `/api/v1/coach/sugestoes`) no adapter e no
-      backend; se o contrato não fechar, incluir a fonte de sinais na composição da fila de
-      revisão nesta change. (b) Mapear grep/testes/deep-links que referenciam
-      `DashboardAttentionQueueRow`, `DashboardRosterPreviewRow` e a "Fila de atenção". Saída:
-      nota neste arquivo com a prova (ou o ajuste de escopo). Validação: nota revisada +
-      cenário "atleta com sinal e sem sugestão pendente" documentado.
-- [ ] 1.2 Confirmar com o founder a ação default do atleta saudável (proposta: "Abrir plano"
-      neutro) e criar `resolvePrimaryAction` em `coachInboxHelpers.ts` (precedência: plano
+> **Reescrita do gate em 2026-08-16.** A 1.1 anterior mandava provar um contrato entre endpoints que
+> não existe (ver "Correção de premissa" no proposal). O contrato já está provado: `roster` e
+> `attentionQueue` vêm da **mesma** resposta (`GET /api/v1/coach/dashboard`). O que não está
+> resolvido é **paginação e filtro** — e é isso que o gate passa a cobrar. Aceitar "nota + cenário
+> documentado" como saída era fraco demais para um gate: agora a saída é **código com teste**.
+
+- [ ] 1.1 **GATE — bloqueia 1.5.** Implementar `buildInboxQueue(roster, attentionQueue, filters)`
+      em `features/coach/adapters/coachInboxAdapters.ts` (função pura) com o **contrato fechado no
+      `design.md`**: retorna `{ rows, pinnedCount, hiddenAttentionCount }`, e `InboxQueueRow` é união
+      `{source:'roster'|'attention-only'}` — `CoachAttentionItem` não tem as métricas que a linha de
+      roster renderiza, então tratá-los como o mesmo tipo produz linha com dados falsos. Seleção
+      passa a ser por `atletaId`. Testes unitários: (a) fixado aparece no topo de **todas** as
+      páginas, inclusive quando o atleta não está em `roster.items` — caso explícito com 2 páginas;
+      (b) atleta nas duas fontes aparece **uma vez** (`source:'roster'` com `attention` preenchido);
+      (c) item de atenção fora do filtro **não** entra em `rows` e conta em `hiddenAttentionCount`;
+      (d) ordem = severidade/priorityScore, depois roster na ordem do backend; (e) `TablePagination`
+      `count` **não** soma `pinnedCount` (senão "1 de N páginas" mente); (f) `recencyDays` vem de
+      `lastActivity` para inatividade e de `generatedAt` nos demais, com clock fixo.
+      **Alternativas aceitáveis:** manter o preview da Fila de atenção, ou filtro "só atenção" com
+      contador — desde que (a) fique coberto. Validação: `npm run test -- coachInboxAdapters`.
+- [ ] 1.1b Mapear **nominalmente** os testes que a remoção afeta, antes de remover. Já identificados:
+      `CoachInboxPage.test.tsx:190` (espera o texto "Fila de atenção") e `:270` (abre rejeição pelo
+      menu "Mais ações" — quebra com a 1.3a). Verificar também deep-links para
+      `DashboardAttentionQueueRow` / `DashboardRosterPreviewRow`. **Atenção ao falso verde:**
+      `useCoachDashboard.test.ts` e `coachInboxAdapters.test.ts` continuam passando com o inbox
+      regredido, e os E2E de coach mockam `**/api/v1/coach/**` como `[]`
+      (`assessoria-settings.spec.ts:49`, `welcome-wizard.spec.ts:74`) — nenhum deles enxerga a perda.
+      Saída: lista nominal neste arquivo. Validação: lista revisada.
+- [ ] 1.1c Criar `tests/e2e/coach/inbox.spec.ts` **antes** da remoção (task 1.5), com dashboard
+      mockado de verdade (não `[]`). Matriz mínima — um cenário só não cobre o risco:
+      (1) atleta em `attentionQueue` fora da página 1 continua alcançável com motivo e recência;
+      (2) atleta em atenção fora do **filtro** ativo aparece no contador "N fora do filtro";
+      (3) atleta nas duas fontes não duplica; (4) navegar para a página 2 mantém o fixado e **não**
+      altera o total de páginas; (5) clicar numa linha `attention-only` abre o detalhe do atleta
+      certo. Validação: E2E verde antes e depois da 1.5.
+- [ ] 1.2 (bloqueada pela decisão do founder — **não bloqueia 1.1/1.4/1.6/1.7**) Confirmar a ação
+      default do atleta saudável (proposta: "Abrir plano" neutro, sem accent, que **não conta como
+      CTA primário**) e criar `resolvePrimaryAction` em `coachInboxHelpers.ts` (precedência: plano
       pendente → inatividade → default; estender para "sugestão pendente" → "Revisar sugestão" e
       "prova próxima" → "Ver prova" se o founder aprovar na Q10) com testes unitários cobrindo os
       estados + ausência de dados. Validação: `npm run test -- coachInboxHelpers`.
-- [ ] 1.3 Renderizar o CTA contextual no cabeçalho do painel (`PlanoDetalhePanel` /
-      `DiagnosisTabPanel`): `contained`, ≥40px, fonte ≥14px; remover o `Aprovar plano` disabled do
-      rodapé; secundárias permanecem outline neutro no rodapé. **Guardas operacionais:** estados
-      de loading (mutação em voo), plano já processado e ação não autorizada com testes de página
-      dedicados. Validação: lint+build + testes de página.
+- [ ] 1.3 Renderizar o CTA contextual no cabeçalho do painel **em `CoachInboxPage.tsx`** (o CTA vive
+      na linha 662 da própria página — `PlanoDetalhePanel`/`DiagnosisTabPanel` pertencem ao fluxo
+      `/coach/planos/revisao` e estão **fora** desta change): `contained`, ≥40px, fonte ≥14px; remover
+      o `Aprovar plano` disabled do rodapé (linha 691); secundárias permanecem outline neutro.
+      **Guardas operacionais** via `resolveActionAvailability` separada do seletor de ação — o inbox
+      hoje nem consome o `isActing` do `CoachLayout.tsx:35`, e `usePlanReview.ts:23` não tem trava
+      contra duplo clique. Testes de página obrigatórios: mutação em voo, **duplo clique = uma
+      chamada**, plano já processado (409/422), sem permissão (403). Validação: lint+build + testes.
 - [ ] 1.3a Co-localizar o par decisório: "Rejeitar plano" sai do menu "Mais ações" e renderiza como
       ação secundária (outline neutro) ao lado do CTA primário; o menu preserva só ações raras
       (marcar prioridade, abrir editor). Cor do CTA (Q7 resolvida, padrão Premium): ação primária →
@@ -31,12 +62,15 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       plano pendente.
 - [ ] 1.3b "Contato assistido" (Q8 resolvida): quando o CTA resolve "Contatar atleta", gerar
       rascunho pré-composto (motivo + recência + ação sugerida) e copiar para a área de
-      transferência (sem `wa.me/` — o `Atleta` não tem telefone no DTO). Sem toast vazio. Validação:
-      `npm run test -- coachInboxHelpers` + teste de página do fluxo de contato.
+      transferência (sem `wa.me/` — o `Atleta` não tem telefone no DTO). Sem toast vazio.
+      **Fallback obrigatório:** `navigator.clipboard.writeText` rejeitado → dialog com o rascunho
+      selecionável e erro visível; sem isso o botão só troca um stub por outro. Validação:
+      `npm run test -- coachInboxHelpers` + teste de página do fluxo, **incluindo clipboard rejeitado**.
 - [ ] 1.4 Enriquecer `QueueRow` com motivo + recência ("Inatividade · 14d") e variante visual por
       status (borda/fundo `error` ~8% para Alerta, `warning` para Atenção); fonte mínima 11px.
       Validação: lint+build + testes do componente.
-- [ ] 1.5 (após gate 1.1 fechado) Remover "Fila de atenção" e "Roster do dashboard" da coluna 1;
+- [ ] 1.5 (após 1.1, 1.1b e 1.1c fechadas) Remover os previews "Fila de atenção" e "Roster do
+      dashboard" da coluna 1;
       converter "Resumo rápido" em linha horizontal compacta sob o cabeçalho; layout passa a 2
       colunas. Atualizar E2E mapeados na 1.1 e adicionar E2E do critério 4b (atleta com sinal e
       sem sugestão pendente permanece visível com motivo/recência). Validação: lint+build + E2E
@@ -102,6 +136,17 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
 - [ ] 3.4 Smoke visual das demais telas do coach (Atletas, Insights, Revisão de planos) em 390px —
       herdam o drawer; corrigir estouros óbvios introduzidos pela mudança de layout base (sem
       redesenho). Validação: inspeção manual + E2E existentes.
+
+- [ ] 3.5 Teste mecânico de hierarquia (Playwright, no lugar de parte da inspeção manual): em
+      1440×900 e 390×844, medir via `getComputedStyle` que (a) existe **um** botão primário sólido no
+      painel quando há plano pendente, com altura ≥40px e fonte ≥14px; (b) nenhum texto funcional do
+      inbox tem `font-size` < 11px; (c) o card de alerta exibe motivo e recência;
+      (d) `document.documentElement.scrollWidth === innerWidth`. **Viewports: 1440×900, 1024×768 e
+      390×844** — a faixa 900–1200px é a que a própria spec identifica como subprojetada, e medir só
+      nos extremos a deixaria passar verde. Para (b), marcar o root do inbox com `data-testid` e
+      percorrer os nós de texto visíveis — verificar só alguns nós deixa fonte <11px escondida em
+      `Chip`/`Tab`. Sem isso, regressão de hierarquia passa com `npm run test` verde.
+      Validação: E2E verde.
 
 ## Attention Management (UX-012) — costura candidata a change própria
 
