@@ -20,6 +20,12 @@ pipeline hoje só individual; risco de multi-tenancy; backend-only, **sem migrat
   automáticos — **todos corrigidos no design.md** (D2, D3, D5, D7, D8) nesta revisão; ver design.md
   "Pre-mortem" para o detalhamento completo. 5 achados moderados e 1 menor também corrigidos.
 
+- Revisão 2026-08-16 (**dois ajustes vindos de fora da change**): (a) `listarAtividades` passa a
+  nascer com **Bearer**, não Basic — `intervals-icu-oauth2-integration` remove a API key e vira
+  **pré-requisito** desta change; (b) os **rate limits foram medidos** na tela do app 663 e fecham a
+  Open Question que estava aberta, mas revelam um **laço no primeiro ciclo** de atletas com
+  histórico denso (design.md D4.1). A CA7 precisa ser reescrita antes de implementar.
+
 ## Prioridade no roadmap
 
 Classificação: **durante o pilot, crítico para retenção quando a base de atletas intervals.icu
@@ -68,7 +74,9 @@ API que o Strava). A descomissão do Strava é **non-goal explícito** desta cha
 1. **Client:** novo método `listarAtividades(String apiKey, String externalAthleteId, LocalDate
    oldest, LocalDate newest)` em `IntervalsIcuClient`/`IntervalsIcuClientImpl`
    (`GET /api/v1/athlete/{id}/activities?oldest=&newest=`), no mesmo padrão de `listarEventos`
-   (`IntervalsIcuClientImpl.java:102-105`) — Basic Auth com a API key do atleta, sem OAuth.
+   (`IntervalsIcuClientImpl.java:102-105`) — **`Authorization: Bearer`, com o token OAuth do atleta**
+   (atualizado 2026-08-16: `intervals-icu-oauth2-integration` remove a API key e converte o client
+   para Bearer; nascer em Basic seria escrever código para apagar em seguida — ver design.md D1).
 2. **Scheduler:** nova classe `IntervalsIcuActivitySyncScheduler` (`services/`, sem sufixo `Impl`,
    espelhando `StravaActivitySyncScheduler`):
    - `@Scheduled(fixedDelayString = "PT2H", initialDelayString = "PT1M")` (mesma cadência do Strava;
@@ -195,10 +203,19 @@ API que o Strava). A descomissão do Strava é **non-goal explícito** desta cha
   correção da nota anterior). "Scheduler" no nome da change reflete automação contínua, não
   necessariamente diária; a cadência exata é um valor técnico, ajustável em design.md D2 se o
   founder preferir espaçar mais (ex.: 1x/dia) para reduzir chamadas ao provedor.
-- **Aberto: rate limit do intervals.icu não é documentado publicamente.** Mitigação proposta:
-  processamento sequencial por atleta (mesmo padrão do Strava, sem paralelismo), sem throttling
-  adicional nesta primeira versão; revisar se o provedor começar a devolver 429 com frequência em
-  produção. Ver estimativa de volume abaixo (achado #2 do product review).
+- ~~**Aberto: rate limit do intervals.icu não é documentado publicamente.**~~ **FECHADO em
+  2026-08-16 — e o número refuta a premissa de que dava para deixar para produção.** Os limites
+  estão na tela do app 663: **2500/15min · 8000/dia · 100 por usuário/dia · 10 chamadas/s por IP**.
+  O global sobra no pilot; o **per-user de 100/dia** é o que morde. Com `PT2H` (12 ciclos/dia) e o
+  desenho 1+N, o regime de cruzeiro custa ~12–15 req/dia por atleta — folgado —, mas o **primeiro
+  ciclo de um atleta que treina diariamente custa 91 requisições** e estoura a cota sozinho.
+  **Pior que estourar: o laço.** 429 é retryable, a CA10 manda não avançar o cursor, e o ciclo
+  seguinte repete a mesma janela de 90 dias — mesma falha, todo dia, sem nunca completar a carga
+  inicial. Direção de correção (fatiar a janela do primeiro ciclo e avançar o cursor por bloco) em
+  design.md **D4.1**; decidir no `/implement init`. **A CA7 precisa ser reescrita junto** — dizer
+  "usa o fallback de 90 dias" não basta se 90 dias não cabem na cota.
+- **Processamento sequencial por atleta** (mesmo padrão do Strava, sem paralelismo) continua sendo
+  a mitigação de base, e o teto de 10 chamadas/s por IP a confirma como correta.
 - **Estimativa de custo de chamadas HTTP (achado #2 do product review):** cenário de referência (100
   atletas ativos, ~3 atividades/semana cada): primeira sincronização (lookback de 90 dias) ≈ 1
   chamada de listagem + até 100 × 3 × ~13 semanas × 1 busca individual no pior caso (todo o

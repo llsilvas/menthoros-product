@@ -42,6 +42,36 @@ Repos: `menthoros-backend` (1.x) e `menthoros-front` (2.x). Tamanho XS.
       marca; erro de carga → fallback) + E2E "enviar logo na settings → aparece na sidebar".
       Validação: `npm run lint && npm run test:run && npm run build` + E2E.
 
+## Entrega
+
+**3 PRs mergeados em 2026-08-16:** `menthoros-backend#70` (campos no `me`), `menthoros-front#75`
+(propagação + revalidação) e `menthoros-front#76` (**a causa raiz**). Validado na tela pelo founder.
+
+**Validação:** backend `./mvnw clean verify` — 2542 unitários + 102 de integração, 0 falhas.
+Front — lint limpo, 976/976, build ok, E2E 46/46.
+
+### A causa raiz não estava na spec — nem no meu diagnóstico do `init`
+
+Depois dos dois primeiros PRs, a logo **continuava sem carregar**. O motivo:
+
+`GET /api/v1/assessorias/me/logo` tem `@PreAuthorize` e exige JWT, e **uma tag `<img src>` não envia
+o header `Authorization`** — o token é injetado pelo cliente HTTP, não pelo navegador em requisição
+de imagem. O `<img>` saía sem credencial e recebia **403**.
+
+Levar a URL até a shell, que era o escopo inteiro da change, **não bastava: a URL sozinha não é
+carregável**.
+
+**Alcance maior que o relatado:** a tela de configurações usa a mesma `<img src>`, então o preview de
+lá também nunca exibiu a imagem — o que se via era o fallback de iniciais, invisível como defeito
+porque logo após um upload ninguém questiona um placeholder. A logo nunca apareceu em lugar nenhum
+do produto desde que o upload existe.
+
+`useLogoAssessoria` busca os bytes com o token, devolve object URL e o revoga no cleanup.
+
+**Por que nenhum teste pegou antes:** os testes de componente injetavam a URL e afirmavam que ela
+chegava ao `src` — todos verdes, com a imagem quebrada no navegador. Só o uso real encontrou. O E2E
+agora responde 403 sem `Authorization`, como o backend, então a regressão volta a falhar.
+
 ## Achados da implementação (2026-08-16)
 
 - **O spinner do `CoachLayout` desmontava a página filha em toda revalidação.** Ele subia sempre que

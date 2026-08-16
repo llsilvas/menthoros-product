@@ -8,11 +8,26 @@ founder (atleta self-service, remoção da API key, scheduler em change própria
 > **Ordem de deploy é parte da entrega:** backend e front vão juntos. Sem o botão do front,
 > os atletas cujas API keys pararam de funcionar não têm como reconectar. Ver "Riscos" no proposal.
 
-## Bloco 0 — Pré-requisito externo (1 task, bloqueante)
+## Bloco 0 — Configuração do app 663 (3 tasks, self-service)
 
-- [ ] 0.1 Confirmar com David que a **redirect URI de produção** está registrada no app 663
-  (o provedor não aceita wildcard). Sem isso, o callback passa em local e falha em produção.
-  Registrar aqui a lista exata de URIs aceitas.
+> **Verificado em 2026-08-16 na tela do app:** não há gate externo. O card diz
+> *"You can send anyone to the oauth consent page but the app is not listed in /settings/apps"* —
+> o app já funciona para OAuth. O e-mail para o David serve para **listar publicamente**, não para
+> implementar nem testar. A configuração abaixo é toda editável na própria tela.
+
+- [ ] 0.1 **Registrar as redirect URLs** — o campo está **vazio** hoje, e o provedor não aceita
+  wildcard. Registrar as duas, para que a troca de domínio planejada não quebre o OAuth:
+  - `https://menthoros.up.railway.app/api/v1/integracoes/intervals-icu/callback`
+  - `https://api.menthoros.com/api/v1/integracoes/intervals-icu/callback` (DNS previsto no `PROJECT.md`)
+- [ ] 0.2 **Confirmar empiricamente se `http://localhost/*` cobre a porta.** A nota da tela diz que
+  localhost é sempre permitido, mas o dev roda em `localhost:**8099**`. Se a porta não entrar no
+  wildcard, o fluxo local falha e o sintoma parece bug de código, não de configuração. Se não
+  cobrir, registrar a URI de dev explicitamente.
+- [ ] 0.3 **Corrigir Site e Política de Privacidade**, hoje `https://www.example.com` e
+  `https://www.example.com/privacy`. As duas URLs aparecem **na tela de consentimento que o atleta
+  vê**: autorizar o "Menthoros" e ler `example.com` destrói a confiança no momento exato em que ela
+  é pedida, e a política de privacidade é requisito de LGPD. O texto real já existe no front
+  (`politicaPrivacidadeConteudo.ts`) — falta uma URL pública que o aponte.
 
 ## Bloco 1 — Config e Properties (2 tasks)
 

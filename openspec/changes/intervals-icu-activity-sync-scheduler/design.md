@@ -9,23 +9,29 @@ Novo método na interface (`services/IntervalsIcuClient.java`) e implementação
 (`services/impl/IntervalsIcuClientImpl.java`), no mesmo padrão de `listarEventos`
 (`IntervalsIcuClientImpl.java:102-105`):
 
+> **Atualizado 2026-08-16 — este método nasce com Bearer, não com Basic.**
+> `intervals-icu-oauth2-integration` remove a API key e troca a autenticação do client para
+> `Authorization: Bearer`. Escrever `listarAtividades` em Basic seria escrever código para apagar
+> na sequência. O parâmetro chama-se `token`, e vem do mesmo `conexao.getAccessToken()` que os
+> outros seis call sites já usam — nada mais muda neste design.
+
 ```java
 // IntervalsIcuClient
-List<IcuActivityDto> listarAtividades(String apiKey, String externalAthleteId,
+List<IcuActivityDto> listarAtividades(String token, String externalAthleteId,
                                        LocalDate oldest, LocalDate newest);
 ```
 
 ```java
 // IntervalsIcuClientImpl — mesmo padrão de listarEventos
 @Override
-public List<IcuActivityDto> listarAtividades(String apiKey, String externalAthleteId,
+public List<IcuActivityDto> listarAtividades(String token, String externalAthleteId,
                                               LocalDate oldest, LocalDate newest) {
     return executa(() -> webClient.get()
             .uri(uri -> uri.path("/api/v1/athlete/{id}/activities")
                     .queryParam("oldest", oldest.toString())
                     .queryParam("newest", newest.toString())
                     .build(externalAthleteId))
-            .headers(headers -> basic(headers, apiKey))
+            .headers(headers -> headers.setBearerAuth(token))
             .retrieve()
             .bodyToFlux(IcuActivityDto.class)
             .collectList()
@@ -259,8 +265,42 @@ rechama `buscarAtividade` internamente (não usa os dados já trazidos pela list
 lista + N chamadas individuais por atleta por ciclo. Alternativa descartada: adaptar
 `importarAtividade` para aceitar um `IcuActivityDto` já carregado, evitando o refetch — não feito
 nesta change para não modificar um serviço já validado/testado por
-`intervals-icu-activity-ingestion`; revisitar se rate limit se provar um problema real em produção
-(ver proposal.md "Open Questions").
+`intervals-icu-activity-ingestion`.
+
+### D4.1 — Os rate limits foram medidos, e o 1+N tem teto (2026-08-16)
+
+A Open Question original dizia que o rate limit *"não é documentado publicamente"*. Ele está
+documentado na tela do app 663:
+
+```
+2500 req / 15 min · 8000 req / dia · 100 req / usuário / dia · 10 chamadas/s por IP
+```
+
+O limite que morde é **100 requisições por usuário por dia** (default para até 500 usuários). O
+limite global (mín. 8000/dia) sobra folgado no pilot; o per-user, não. Com `PT2H` são **12 ciclos/dia**:
+
+| Cenário | Requisições no ciclo | Total no dia | Veredito |
+|---|---:|---:|---|
+| Regime de cruzeiro (poucas atividades novas/2h) | 1 lista + ~0 | ~12–15 | folgado |
+| Primeiro ciclo, atleta de 3 treinos/semana (~39 em 90d) | 1 + 39 = 40 | ~51 | passa |
+| Primeiro ciclo, atleta que treina todo dia (~90 em 90d) | 1 + 90 = 91 | **~102** | **estoura** |
+
+**O problema não é estourar uma vez — é o laço.** A CA10 (correta, do pre-mortem) manda **não
+avançar o cursor** quando há falha retryable, e 429 é retryable. Um atleta com histórico denso
+estoura a cota no primeiro ciclo, o cursor não avança, e o **próximo ciclo repete a mesma janela de
+90 dias** — mesmo custo, mesma falha, todo dia, consumindo a cota inteira daquele atleta sem nunca
+completar a carga inicial. A proteção contra perda de dado vira, nesse caso, uma proteção contra
+progresso.
+
+**Direção de correção (a decidir no `/implement init`, não fechada aqui):** fatiar a janela do
+primeiro ciclo em blocos (ex.: 7 dias por ciclo) e avançar o cursor **por bloco concluído**, em vez
+de tratar os 90 dias como uma transação tudo-ou-nada. Isso preserva a garantia da CA10 dentro de
+cada bloco e transforma a carga inicial em progresso incremental. Alternativa complementar: eliminar
+o refetch (usar o `IcuActivityDto` da listagem), que corta o custo do primeiro ciclo pela metade —
+mas mexe no serviço de ingestão, o que esta change vinha evitando de propósito.
+
+**Consequência para a CA7:** o critério atual ("a janela usa o fallback de 90 dias") passa a ser
+insuficiente sozinho — precisa dizer o que acontece quando 90 dias não cabem na cota.
 
 ## D5 — Exceções e classificação de erro (revisado pós pre-mortem)
 

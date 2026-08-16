@@ -165,6 +165,7 @@ falha, e o atleta refaz a autorização — que custa um clique, ao contrário d
 | Revogação | `DELETE https://intervals.icu/api/v1/disconnect-app` (Bearer) |
 | Athlete id | `0` referencia o atleta autenticado |
 | Client ID | `663` (app aprovado por David em 2026-08-02) |
+| Rate limits | 2500/15min · 8000/dia · **100/usuário/dia** · 10 chamadas/s por IP |
 
 **Três correções contra a versão anterior da spec:** `token-uri` tem `/api` no caminho; não há
 `refresh_token` nem `expires_in`; escopos são maiúsculos e separados por vírgula.
@@ -173,9 +174,14 @@ falha, e o atleta refaz a autorização — que custa um clique, ao contrário d
 
 ## Riscos residuais
 
-- **Redirect URI de produção não registrada** (Médio, **gate bloqueante — task 0.1**): o provedor
-  não aceita wildcard. `http://localhost/` é sempre aceito, então o fluxo passa em local e falha em
-  produção se a URI real não estiver no app 663. É a única dependência externa da change.
+- **Redirect URI de produção não registrada** (Médio, **confirmado vazio em 2026-08-16 — task 0.1**):
+  o campo "Redirect URLs" do app 663 está em branco e o provedor não aceita wildcard. `http://localhost/*`
+  é sempre aceito, então o fluxo **passa em local e falha em produção** se ninguém registrar. Deixou
+  de ser gate externo: é editável na própria tela do app, sem depender do David.
+- **`http://localhost/*` pode não cobrir a porta** (Baixo, task 0.2): o dev roda em `:8099`. Se o
+  wildcard for por host e não por origem, o fluxo local falha com sintoma de bug de código.
+- **Site e Política de Privacidade são placeholders `example.com`** (Médio, task 0.3): aparecem na
+  tela de consentimento do atleta. Não bloqueia o código, bloqueia o uso por gente real.
 - **Escopo insuficiente descoberto tarde** (Médio, mitigado por D4 + task 9.2): o smoke exercita
   push **e** import, nessa ordem, justamente porque cada um valida um escopo diferente.
 - **Rollback não é neutro** (Médio, aceito): ver D8.
