@@ -224,9 +224,52 @@ legitimamente não tem botão em lime.
 > fixados". O pinning resolve a *perda* (atleta não some), não a *percepção* (por que este card
 > está sempre aqui?). Reforça o caso do AMS como próxima change, não como tarefa desta.
 
+## Entrega
+
+**14 PRs, todos mergeados em `develop` (2026-08-16):** #61 (gate), #62, #63, #64, #65, #66,
+#67 (consolidação), #68, #69, #70, #71, #72, #73, #74.
+
+**Validação final em `develop`:** lint limpo · 962 testes unitários · build ok · 45 E2E.
+
+O `tests/e2e/coach/inbox.spec.ts` nasceu nesta change e cobre o que a suíte anterior não enxergava:
+atleta em atenção fora da página/filtro, deduplicação, paginação, clique em linha `attention-only`,
+fonte mínima varrendo todos os nós visíveis, ausência de scroll horizontal, CTA com altura e fonte
+medidas, e o insight estruturado.
+
+### O que mudou, em uma linha cada
+
+| Antes | Depois |
+|---|---|
+| CTA em 28px na borda da dobra, cinza no estado comum | Ação contextual no cabeçalho que **troca** conforme o estado |
+| Atleta em alerta sumia na página 2 do roster | Fixado no topo, em qualquer página ou filtro |
+| Badge "Alerta" sem dizer por quê | "Alerta · Inatividade · 14d" no próprio card |
+| Métrica sem dado exibida como métrica boa | Estado vazio explícito; zero medido ≠ zero por ausência |
+| Menor texto da tela: 4,8px | Nenhum texto funcional abaixo de 11px |
+| Insight da IA num parágrafo de texto livre | Quatro seções julgáveis, com evidência e regras |
+| Carregando, erro e vazio produziam a mesma tela | Cinco estados distintos, com ações diferentes |
+
+### Achados que não estavam na spec
+
+- **Seleção revertida** (encontrado pelo E2E do gate): clicar num atleta fixado abria o detalhe de
+  outro, porque o efeito comparava `selectedId` só com `rosterItems`.
+- **Duplo clique aprovava duas vezes**: `isActing` só sobe depois do primeiro `await`.
+- **Erro sem status HTTP**: `aprovar`/`rejeitar` devolviam `Promise<boolean>` e descartavam a causa;
+  409 e 403 chegavam como o mesmo erro genérico.
+- **`subtitle="Boa"` fixo** na Recuperação, afirmado inclusive quando o `tone` marcava atenção.
+- **O rótulo "Fila de revisão"** na coluna do roster — origem da confusão que derrubou a primeira
+  versão da spec e custou duas rodadas de DoR. Renomeado para "Atletas".
+- **O primeiro guard-rail da 2.9 não pegava o defeito que o motivou** (só varria JSX, e o
+  `ConfirmDialog` monta o estilo numa `const`). Corrigido e provado por contrafactual.
+
 ## Encerramento
 
-- [ ] 4.1 Rodar o teste dos 5 segundos com o founder-coach (identificar atleta em risco + motivo);
-      registrar resultado no proposal (métrica de sucesso). Validação: registro feito.
-- [ ] 4.2 Atualizar este `tasks.md` (entregue vs. adiado) e preparar PR único ou por fase conforme
+- [ ] 4.1 **PENDENTE — depende do founder, e é a única métrica de sucesso da change.** Abrir o
+      inbox, olhar por 5 segundos e identificar qual atleta precisa de atenção **e por quê**. A
+      auditoria registrou que o motivo não estava visível no card; agora está ("Alerta · Inatividade
+      · 14d"), mas quem confirma se 5 segundos bastam é o uso, não o teste automatizado.
+      O **proxy mecânico** desta métrica **está verde**: CTA visível sem scroll em 1440×900, com
+      altura ≥40px e fonte ≥14px, e motivo/recência no card — tudo coberto por E2E.
+      A change é arquivada com este item aberto **de propósito**: fechar a métrica sem rodá-la
+      seria declarar sucesso por decreto. Registrar o resultado aqui quando acontecer.
+- [x] 4.2 Atualizar este `tasks.md` (entregue vs. adiado) e preparar PR único ou por fase conforme
       decidido no `/implement init`.
