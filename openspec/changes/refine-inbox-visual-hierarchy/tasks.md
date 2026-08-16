@@ -170,6 +170,13 @@ legitimamente não tem botão em lime.
       `CoachInboxPage` promete "atleta, treino ou prova" mas filtra só o roster; trocar para
       "Buscar atleta…" (ou implementar a busca por treino/prova). Validação: lint+build + teste
       do componente.
+- [ ] 2.11 Mover e consolidar os filtros da fila na coluna da lista (parecer UI/UX 2026-08-16): a
+      barra full-width de `Status` + `Ordenar` + "Limpar filtros" fica entre o header e os KPIs mas
+      filtra **só** o roster — mover `Status` e `Ordenar` para o header da "Fila de revisão", ao
+      lado do título/contagem; consolidar o `Select "Ordenar"` + o `Chip` de sort (display/controle
+      hoje separados) num **único controle** compacto (chip que abre menu — a coluna tem ~300px,
+      não cabe dois Selects). Busca permanece no header. Some a barra full-width. Validação:
+      lint+build + teste de página cobrindo sort por chip e filtro por status na coluna.
 
 ## Fase 3 — Breakpoint mobile
 
