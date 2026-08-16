@@ -40,13 +40,13 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       (3) atleta nas duas fontes não duplica; (4) navegar para a página 2 mantém o fixado e **não**
       altera o total de páginas; (5) clicar numa linha `attention-only` abre o detalhe do atleta
       certo. Validação: E2E verde antes e depois da 1.5.
-- [ ] 1.2 (bloqueada pela decisão do founder — **não bloqueia 1.1/1.4/1.6/1.7**) Confirmar a ação
+- [x] 1.2 (bloqueada pela decisão do founder — **não bloqueia 1.1/1.4/1.6/1.7**) Confirmar a ação
       default do atleta saudável (proposta: "Abrir plano" neutro, sem accent, que **não conta como
       CTA primário**) e criar `resolvePrimaryAction` em `coachInboxHelpers.ts` (precedência: plano
       pendente → inatividade → default; estender para "sugestão pendente" → "Revisar sugestão" e
       "prova próxima" → "Ver prova" se o founder aprovar na Q10) com testes unitários cobrindo os
       estados + ausência de dados. Validação: `npm run test -- coachInboxHelpers`.
-- [ ] 1.3 Renderizar o CTA contextual no cabeçalho do painel **em `CoachInboxPage.tsx`** (o CTA vive
+- [x] 1.3 Renderizar o CTA contextual no cabeçalho do painel **em `CoachInboxPage.tsx`** (o CTA vive
       na linha 662 da própria página — `PlanoDetalhePanel`/`DiagnosisTabPanel` pertencem ao fluxo
       `/coach/planos/revisao` e estão **fora** desta change): `contained`, ≥40px, fonte ≥14px; remover
       o `Aprovar plano` disabled do rodapé (linha 691); secundárias permanecem outline neutro.
@@ -54,13 +54,13 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       hoje nem consome o `isActing` do `CoachLayout.tsx:35`, e `usePlanReview.ts:23` não tem trava
       contra duplo clique. Testes de página obrigatórios: mutação em voo, **duplo clique = uma
       chamada**, plano já processado (409/422), sem permissão (403). Validação: lint+build + testes.
-- [ ] 1.3a Co-localizar o par decisório: "Rejeitar plano" sai do menu "Mais ações" e renderiza como
+- [x] 1.3a Co-localizar o par decisório: "Rejeitar plano" sai do menu "Mais ações" e renderiza como
       ação secundária (outline neutro) ao lado do CTA primário; o menu preserva só ações raras
       (marcar prioridade, abrir editor). Cor do CTA (Q7 resolvida, padrão Premium): ação primária →
       `PRIMARY_BTN_SX` (lime), sempre — verde (`SUCCESS_BTN_SX`) é só confirmação de estado.
       Validação: lint+build + teste de página cobrindo aprovar+rejeitar visíveis juntos no estado de
       plano pendente.
-- [ ] 1.3b "Contato assistido" (Q8 resolvida): quando o CTA resolve "Contatar atleta", gerar
+- [x] 1.3b "Contato assistido" (Q8 resolvida): quando o CTA resolve "Contatar atleta", gerar
       rascunho pré-composto (motivo + recência + ação sugerida) e copiar para a área de
       transferência (sem `wa.me/` — o `Atleta` não tem telefone no DTO). Sem toast vazio.
       **Fallback obrigatório:** `navigator.clipboard.writeText` rejeitado → dialog com o rascunho
@@ -101,6 +101,12 @@ Nenhum deep-link depende dos módulos: eles não têm rota nem âncora própria.
 `useCoachDashboard.test.ts` (só popula payload), `coachInboxAdapters.test.ts` (só métricas, antes
 deste PR), `CoachLayout.test.tsx`, e todos os E2E de coach existentes, que mockam a rota coringa
 `coach/**` como lista vazia e portanto **nunca renderizam a lista**.
+
+### Decisão do founder (2026-08-16)
+
+Ação default do atleta saudável: **"Abrir plano"**, confirmada. Renderiza como navegação
+secundária, sem accent, e **não** conta como CTA primário — a tela do atleta sem pendência
+legitimamente não tem botão em lime.
 
 ### Achados do PR do gate (2026-08-16)
 
