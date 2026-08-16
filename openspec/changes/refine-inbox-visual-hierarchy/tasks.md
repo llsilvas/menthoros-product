@@ -158,13 +158,16 @@ legitimamente não tem botão em lime.
       "Recuperação" era a string fixa `"Boa"` — afirmada inclusive quando o próprio `tone` marcava
       atenção. Rótulo que contradiz o dado ao lado é pior que rótulo nenhum.
       Validação: lint+build + teste do painel.
-- [ ] 2.9 Guard-rail de papel de botão: ação nunca usa cor semântica inline — só via `PRIMARY_BTN_SX`/
+- [x] 2.9 Guard-rail de papel de botão: ação nunca usa cor semântica inline — só via `PRIMARY_BTN_SX`/
       `SUCCESS_BTN_SX`/`DANGER_BTN_SX`/`GHOST_BTN_SX` (`shared/components/actionButtonSx.ts`). Regra:
       `semantic.*` = estado (chip/badge/dot); `_BTN_SX` = ação. Migrar o drift conhecido
       (`ConfirmDialog.tsx` reimplementa PRIMARY/DANGER inline com hover divergente `primary[600]` vs
       `primary[400]`). **+ `REASON_LABEL`:** o mapa de label de motivo está triplicado (`QueueRow.tsx`,
       `AttentionOnlyRow.tsx` e o órfão `DashboardAttentionQueueRow.tsx`); extrair para
-      `coachInboxHelpers.ts` e apagar o componente órfão. Validação: `grep -rn "bgcolor: semantic\."`
+      `coachInboxHelpers.ts` e apagar o componente órfão. **Correção do enunciado (2026-08-16):** o
+      órfão `DashboardAttentionQueueRow` já havia sido apagado na task 1.5; a terceira cópia real do
+      `REASON_LABEL` estava em `CoachAttentionQueuePage.tsx`. As três foram para
+      `coachInboxHelpers.ts`. Validação: `grep -rn "bgcolor: semantic\."`
       src não casa com `Button`/`variant="contained"`; lint+build.
 - [~] 2.10 Quick wins de contexto (re-audit 2026-08-16): (a) **UX-004** — "Recuperação" em
       `DiagnosisTabPanel` usa `subtitle="Boa"` fixo mesmo em tom de warning; derivar o rótulo do
