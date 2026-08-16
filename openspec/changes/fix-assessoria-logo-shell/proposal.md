@@ -42,26 +42,51 @@ fixa**. Nenhum dos dois le a `logoUrl`.
 
 Diagnostico confirmado no codigo:
 - `UsuarioMeOutputDto.Assessoria` (backend) so tem `id`, `nome`, `dominio` — sem logo.
-- `UsuarioMapper.toAssessoria` nao mapeia `logoUrl` (a entidade `Assessoria.logoUrl` existe).
 - `useCurrentUser` constroi `CurrentTenant = { id, name, athleteCount }` — sem logo.
-- `CoachSidebar` (TenantSwitcher + header) nao referencia `logoUrl`.
+- `CoachSidebar` (TenantSwitcher + header) nao referencia logo algum.
 
-O logo so existe em `GET /assessorias/me` (→ `AssessoriaMe.logoUrl` + `temLogo`), que **so a pagina
-de settings chama**.
+**CORRECAO DE PREMISSA (2026-08-16, verificada no codigo — a versao anterior desta proposal levaria
+a uma correcao que nao corrige nada).** A spec dizia que bastava mapear `assessoria.getLogoUrl()`.
+Nao basta, porque essa **nao e a fonte do logo**:
+
+1. O logo do fluxo atual e **BLOB**, na tabela `tb_assessoria_logo` (entidade `AssessoriaLogo`),
+   como decidido em `assessoria-settings-ui`. A presenca vem de
+   `logoRepository.existsByAssessoriaId(tenantId)` (`AssessoriaSettingsServiceImpl:92`).
+2. O `logoUrl` do `AssessoriaMeOutputDto` **nao e o campo da entidade**: e a constante
+   `LOGO_PATH = "/api/v1/assessorias/me/logo"` (`AssessoriaSettingsServiceImpl:31`), devolvida
+   apenas quando `temLogo` (`:104`).
+3. `Assessoria.logoUrl` (coluna `logo_url`, 500 chars) e **legado do fluxo antigo** e esta `NULL`
+   para todo mundo que enviou logo pelo caminho atual.
+
+Mapear o campo legado devolveria `null` para todos, a sidebar continuaria sem logo — e a change
+seria fechada como concluida.
+
+O logo so aparece hoje em `GET /assessorias/me` (→ `temLogo` + `logoUrl`), que **so a pagina de
+settings chama**.
 
 ## What Changes
 
-- **Backend** (`menthoros-backend`): adicionar `logoUrl` (String, nullable) — e a flag de presenca, se
-  o `AssessoriaMeOutputDto` ja a computa — ao record interno `UsuarioMeOutputDto.Assessoria`, e
-  popular no `UsuarioMapper.toAssessoria` reusando a mesma resolucao do endpoint `GET /assessorias/me`
-  (rota `/api/v1/assessorias/me/logo`), sem duplicar a logica de streaming.
+- **Backend** (`menthoros-backend`): adicionar ao record interno `UsuarioMeOutputDto.Assessoria` os
+  campos `temLogo` (boolean), `logoUrl` (String, nullable) e `version` (Long) — espelhando o
+  `AssessoriaMeOutputDto` para os dois endpoints nao divergirem.
+  **Quem resolve a presenca e o `UsuarioServiceImpl`**, que ja orquestra o `me` e pode injetar o
+  `AssessoriaLogoRepository`; o `UsuarioMapper` continua so convertendo. Mapper com acesso a
+  repositorio contraria o `CLAUDE.md` do modulo ("repository: persistence access only" e mappers
+  como conversao pura), e e o tipo de atalho que depois ninguem consegue testar isolado.
+  A rota devolvida e a mesma constante ja usada (`/api/v1/assessorias/me/logo`) — sem duplicar
+  streaming nem inventar segunda URL para o mesmo recurso.
 - **Frontend** (`menthoros-front`):
   - `src/types/Usuario.ts` — adicionar `logoUrl?` (e `temLogo?`) em `UsuarioAssessoria`.
   - `src/hooks/useCurrentUser.ts` — adicionar `logoUrl?` em `CurrentTenant` e popular de
     `me.assessoria.logoUrl`.
   - `src/features/coach/layout/CoachSidebar.tsx` — no `TenantSwitcher`, trocar as iniciais por `<img>`
     quando houver logo; no header, trocar a marca Menthoros pelo logo da assessoria (fallback: marca).
-    Cache-bust com `?v=` (mesma convencao da settings); `referrerPolicy` se a URL for externa.
+    Cache-bust com `?v={version}` — **a mesma convencao da settings**, que usa
+    `${OpenAPI.BASE}${logoUrl}?v=${assessoria.version}` (`CoachAssessoriaSettingsPage.tsx:169`). Sem
+    a `version` no `me`, o CA4 nao teria como funcionar: o navegador serviria o logo antigo do cache.
+  - **Revalidar o `me` apos upload/remocao do logo** — sem isso o CA1 ("sem reload manual") e falso:
+    a sidebar le o `useCurrentUser`, que busca o `me` uma vez; o upload acontece na settings e nada
+    avisa o shell.
 
 ## Impact
 
