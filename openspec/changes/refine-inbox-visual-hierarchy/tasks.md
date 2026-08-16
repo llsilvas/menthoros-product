@@ -145,7 +145,7 @@ legitimamente não tem botão em lime.
       lint+build.
 - [ ] 2.6 Estados de lista vazia, carregamento e erro nas colunas do inbox (fila e painel).
       Validação: lint+build + testes de página.
-- [ ] 2.7 `AIInsightCard` (UX-003): componente com 4 seções fixas — Ocorrência / Por que importa /
+- [x] 2.7 `AIInsightCard` (UX-003): componente com 4 seções fixas — Ocorrência / Por que importa /
       Evidência / Ação sugerida — consumindo `rationale`, `sourceRules` e `suggestedAction` do DTO da
       fila de atenção (já existem, só não são renderizados estruturados). **Consumir o `AttentionInfo`
       estruturado (motivo/recência), não o `notes` livre:** a lista já mostra "ADERENCIA · 14d" via
@@ -186,7 +186,7 @@ legitimamente não tem botão em lime.
       hoje separados) num **único controle** compacto (chip que abre menu — a coluna tem ~300px,
       não cabe dois Selects). Busca permanece no header. Some a barra full-width. Validação:
       lint+build + teste de página cobrindo sort por chip e filtro por status na coluna.
-- [ ] 2.12 Reordenar a aba Diagnóstico (parecer UI/UX 2026-08-16): seguir situação → evidência →
+- [x] 2.12 Reordenar a aba Diagnóstico (parecer UI/UX 2026-08-16): seguir situação → evidência →
       explicação → ação → detalhe. `Sinais de atenção` (1º) mantém; subir `Adesão` de 6º→3º (é a
       evidência dos motivos de engajamento `ADERENCIA`/`INATIVIDADE`, hoje enterrada atrás de dois
       charts de carga); descer `Próximo treino` de 2º→6º (contexto/ação vem depois da evidência).
