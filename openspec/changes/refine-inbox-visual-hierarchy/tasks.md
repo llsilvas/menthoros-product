@@ -143,7 +143,7 @@ legitimamente não tem botão em lime.
       "sem dados na janela" vs "zero legítimo"; grade de métricas zeradas vira mensagem única.
       Testes do adapter cobrindo os dois casos. Validação: `npm run test -- coachInboxAdapters` +
       lint+build.
-- [ ] 2.6 Estados de lista vazia, carregamento e erro nas colunas do inbox (fila e painel).
+- [x] 2.6 Estados de lista vazia, carregamento e erro nas colunas do inbox (fila e painel).
       Validação: lint+build + testes de página.
 - [x] 2.7 `AIInsightCard` (UX-003): componente com 4 seções fixas — Ocorrência / Por que importa /
       Evidência / Ação sugerida — consumindo `rationale`, `sourceRules` e `suggestedAction` do DTO da
