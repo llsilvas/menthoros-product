@@ -69,7 +69,7 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
 - [x] 1.4 Enriquecer `QueueRow` com motivo + recência ("Inatividade · 14d") e variante visual por
       status (borda/fundo `error` ~8% para Alerta, `warning` para Atenção); fonte mínima 11px.
       Validação: lint+build + testes do componente.
-- [ ] 1.5 (após 1.1, 1.1b e 1.1c fechadas) Remover os previews "Fila de atenção" e "Roster do
+- [x] 1.5 (após 1.1, 1.1b e 1.1c fechadas) Remover os previews "Fila de atenção" e "Roster do
       dashboard" da coluna 1;
       converter "Resumo rápido" em linha horizontal compacta sob o cabeçalho; layout passa a 2
       colunas. Atualizar E2E mapeados na 1.1 e adicionar E2E do critério 4b (atleta com sinal e
