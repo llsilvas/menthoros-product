@@ -131,7 +131,7 @@ legitimamente não tem botão em lime.
       explícito, conforme decidido. Validação: `npm run test -- theme`.
 - [x] 2.2 Remover todo `fontFamily: 'Syne'` hardcoded em `src/features/coach/**` (usar variantes do
       tema). Validação: `grep -rn "fontFamily.*Syne" src/features/coach` vazio + lint+build.
-- [ ] 2.3 Elevar todo texto funcional do inbox para ≥11px (labels da strip de KPIs, badges,
+- [x] 2.3 Elevar todo texto funcional do inbox para ≥11px (labels da strip de KPIs, badges,
       captions); onde não couber, fundir label ao valor ou usar tooltip. Validação: lint+build +
       verificação de `font-size` computado na tela.
 - [ ] 2.4 Fixar semântica de cor (error=agir, warning=observar, success=ok) nos chips e badges do
