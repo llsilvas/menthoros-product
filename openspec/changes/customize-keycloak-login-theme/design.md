@@ -118,7 +118,7 @@ Inverter 2 e 4 derruba o login. Como local e dev são deploys independentes, a s
 | Falha | Reversão |
 |---|---|
 | Tema feio, quebrado ou ilegível | Remover `loginTheme` do `menthoros-realm.json` e rodar o `sync-realm.sh`. Volta ao tema padrão sem tocar na imagem. É o rollback rápido e cobre quase tudo. |
-| Imagem não sobe / Keycloak não inicia em dev | Voltar `source` do serviço para `image: quay.io/keycloak/keycloak:26.6`. As variáveis do serviço são preservadas na troca de origem — nenhuma delas depende do builder. |
+| Imagem não sobe / Keycloak não inicia em dev | Voltar `source` do serviço para `image: quay.io/keycloak/keycloak:26.7.0` — **não `26.6`**. O tema é validado contra a 26.7.0 no local; reverter para a tag móvel `26.6` não restaura o baseline testado, restaura outro Keycloak. As variáveis do serviço são preservadas na troca de origem — nenhuma delas depende do builder. |
 | Realm apontando para tema inexistente (login caiu) | Mesmo rollback da primeira linha. Este é o cenário que o preflight existe para evitar. |
 
 O primeiro procedimento vai no README do `menthoros-infra` (task 5.1): é a emergência da porta de

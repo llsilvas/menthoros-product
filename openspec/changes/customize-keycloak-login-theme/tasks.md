@@ -39,7 +39,7 @@
 
 ## 1. Tema
 
-- [ ] 1.1 Criar `themes/menthoros/login/theme.properties` com **`parent=keycloak.v2`**, declarando os
+- [ ] 1.1 Criar `keycloak/themes/menthoros/login/theme.properties` com **`parent=keycloak.v2`**, declarando os
       CSS e recursos próprios. **Herdar, não substituir** — estrutura e acessibilidade vêm do base.
       ⚠️ **Não é `parent=keycloak`.** Verificado na 26.7.0: os dois temas coexistem, mas o servido por
       padrão é o `keycloak.v2` (PatternFly v5). Herdar do `keycloak` traria o **layout legado**, não
@@ -54,7 +54,9 @@
 - [ ] 1.4 Verificar **contraste WCAG AA** do texto sobre o fundo, incluindo **a mensagem de erro**
       (CA3/CA6) — é o texto que mais some num tema escuro, e é justamente o que o usuário precisa ler
       quando erra a senha.
-      *verify:* medição de contraste registrada, no espírito do `contrastMatrix.test.ts` do front.
+      *verify:* medição de contraste (par de cores + razão calculada + veredito AA) registrada **como
+      comentário no topo do próprio CSS do tema** — fica junto do que ela mede e sobrevive ao
+      arquivamento da change, ao contrário de uma nota aqui.
 - [ ] 1.5 **`messages/messages_pt_BR.properties`** com os textos das telas de login (CA7, decisão
       0.3): título, rótulos, botão de entrar e — sobretudo — **as mensagens de erro**, que são as que
       escapam da tradução e denunciam o remendo. Traduzir apenas as chaves que aparecem nas telas em
@@ -71,11 +73,16 @@
 - [ ] 2.2 Subir o Keycloak local com a imagem nova e confirmar que o tema **aparece na lista** de
       temas do realm antes de aplicá-lo.
       *verify:* tema selecionável no console de administração.
-- [ ] 2.3 **Preflight antes de qualquer sync com `loginTheme`:** confirmar que `menthoros` consta na
-      lista de temas do alvo. O `sync-realm.sh` aplica o JSON **cegamente**, e a política `no-delete`
-      protege clients, groups, roles e users — **não** atributos de realm. Sem o preflight, um sync
-      contra alvo sem o tema derruba a tela de login (CA5).
-      *verify:* tema listado no alvo; só então o JSON com `loginTheme` é aplicado.
+- [ ] 2.3 **Preflight como guarda no `sync-realm.sh`, não como instrução.** O script aplica o JSON
+      **cegamente**, e a política `no-delete` protege clients, groups, roles e users — **não**
+      atributos de realm. Um sync contra alvo sem o tema derruba a tela de login (CA5).
+      **Decidido em 2026-08-16 (DoR):** o preflight vira código — o script lê `loginTheme` do
+      `menthoros-realm.json` e, se declarado, consulta os temas do alvo e **aborta** quando ausente.
+      "Lembre de conferir" é fraco demais para a porta de autenticação, e o achado veio dos dois
+      revisores do gate.
+      *verify:* rodar contra um alvo sem o tema instalado sai com código ≠ 0 e **sem** ter aplicado o
+      realm; rodar contra o alvo com o tema segue normalmente.
+      ⚠️ Tem de estar pronta **antes** da 2.4 — é ela que protege o primeiro sync com `loginTheme`.
 - [ ] 2.4 Definir `loginTheme: menthoros` no `menthoros-realm.json` e aplicar com `sync-realm.sh`
       **contra o Keycloak local**. ⚠️ **Nesta ordem:** tema no container primeiro, `loginTheme`
       depois — e o inverso vale para **cada ambiente**, porque deploy de imagem e sync de realm são
@@ -92,8 +99,14 @@
 
 - [ ] 3.1 Login completo pelo fluxo real: tela com a marca, autentica, volta ao destino correto
       (CA1/CA2). O fluxo tem de se comportar **exatamente** como antes — tema é aparência.
+      *verify:* três evidências, não uma captura de tela — (a) `GET` da tela de login retorna `200` e
+      o HTML referencia `resources/<hash>/login/menthoros/`, provando que é o CSS próprio e não cache;
+      (b) o `redirect_uri` final é idêntico ao registrado antes da mudança; (c) sessão estabelecida
+      (token emitido, app carrega autenticado).
 - [ ] 3.2 Credencial errada: mensagem de erro visível e legível, **e a resposta não é `500`** (CA3).
       Template quebrado costuma aparecer como erro de servidor, não como tela feia.
+      *verify:* status HTTP da tela de erro registrado (`200`, não `5xx`) e o texto da mensagem em
+      PT-BR (CA7) — a mensagem de erro é a que mais escapa da tradução.
 - [ ] 3.3 Viewport de celular: utilizável (CA4).
 - [ ] 3.4 Logout e novo login continuam funcionando.
 - [ ] 3.5 Conferir que as telas herdadas não ficaram quebradas — em especial a de **recuperação de
@@ -111,12 +124,17 @@
 
 - [ ] 4.1 **Trocar a origem do serviço** de `image: quay.io/keycloak/keycloak:26.6` para o repo
       `llsilvas/menthoros-infra`, construindo por `docker/Dockerfile.keycloak`.
-      ⚠️ A 0.2 (versão 26.6 no Dockerfile) tem de estar **feita e mergeada** antes: a partir daqui é o
-      Dockerfile que define a versão do Keycloak, e um pin esquecido em `26.2.5` vira downgrade
-      silencioso em dev.
+      ⚠️ A 0.2 (versão **`26.7.0`** no Dockerfile) tem de estar **feita e mergeada** antes: a partir
+      daqui é o Dockerfile que define a versão do Keycloak, e um pin esquecido em `26.2.5` vira
+      downgrade silencioso em dev. **O Railway sobe de `26.6` para `26.7.0` nesta task** — é a mesma
+      versão já validada no HomeLab, e é o baseline que o rollback tem de restaurar.
       *verify:* deploy `SUCCESS` e Keycloak respondendo; tema presente em `/opt/keycloak/themes/menthoros`.
-- [ ] 4.2 **Restringir o gatilho de build** (`rootDirectory` e/ou watch patterns) ao que compõe a
-      imagem. Sem isso, editar um `.md` no `menthoros-infra` redeploya o provedor de identidade de dev.
+- [ ] 4.2 **Restringir o gatilho de build por watch patterns** ao que compõe a imagem
+      (`docker/Dockerfile.keycloak`, `keycloak/themes/**`). Sem isso, editar um `.md` no
+      `menthoros-infra` redeploya o provedor de identidade de dev.
+      **Decidido em 2026-08-16 (DoR): watch patterns, não `rootDirectory`.** O `rootDirectory`
+      estreitaria o **contexto de build** para uma subpasta, e o Dockerfile precisa copiar de
+      `keycloak/themes/` — que ficaria fora dele. Watch pattern filtra o gatilho sem mexer no contexto.
       *verify:* commit que toca só `docs/` não dispara deploy.
 - [ ] 4.3 Conferir que o `startCommand` do serviço (`/opt/keycloak/bin/kc.sh start-dev`) sobreviveu à
       troca de origem e continua sendo o comando efetivo — ele sobrescreve o `CMD` do Dockerfile.

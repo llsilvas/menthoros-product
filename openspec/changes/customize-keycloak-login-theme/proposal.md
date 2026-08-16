@@ -25,9 +25,12 @@ Verificado em 2026-08-04: **nenhum tema está configurado** (`loginTheme`, `acco
 
 ## What Changes
 
-- **Tema `menthoros`** para as telas de login, com `parent=keycloak` — herda estrutura e
+- **Tema `menthoros`** para as telas de login, com **`parent=keycloak.v2`** — herda estrutura e
   acessibilidade do tema base e sobrescreve apenas identidade visual (paleta, tipografia, fundo,
   logo).
+  ⚠️ **Corrigido em 2026-08-16:** este item dizia `parent=keycloak`, contradizendo `design.md`
+  (Decisão 2) e a task 1.1. Verificado na 26.7.0: `keycloak` é o tema **legado** (PatternFly v4) e
+  `keycloak.v2` é o servido por padrão. Herdar do errado troca o layout, não a paleta.
 - **`loginTheme: menthoros`** no `menthoros-realm.json`, aplicado pelo `sync-realm.sh`.
 - **Criar o caminho de entrega do tema, que hoje não existe.** O `Dockerfile.keycloak` está no repo
   mas é **órfão**: o `docker-compose.yml:59` puxa `quay.io/keycloak/keycloak` direto por `image:` e
