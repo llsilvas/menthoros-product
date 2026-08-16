@@ -11,7 +11,7 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
 > resolvido é **paginação e filtro** — e é isso que o gate passa a cobrar. Aceitar "nota + cenário
 > documentado" como saída era fraco demais para um gate: agora a saída é **código com teste**.
 
-- [ ] 1.1 **GATE — bloqueia 1.5.** Implementar `buildInboxQueue(roster, attentionQueue, filters)`
+- [x] 1.1 **GATE — bloqueia 1.5.** Implementar `buildInboxQueue(roster, attentionQueue, filters)`
       em `features/coach/adapters/coachInboxAdapters.ts` (função pura) com o **contrato fechado no
       `design.md`**: retorna `{ rows, pinnedCount, hiddenAttentionCount }`, e `InboxQueueRow` é união
       `{source:'roster'|'attention-only'}` — `CoachAttentionItem` não tem as métricas que a linha de
@@ -25,7 +25,7 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       `lastActivity` para inatividade e de `generatedAt` nos demais, com clock fixo.
       **Alternativas aceitáveis:** manter o preview da Fila de atenção, ou filtro "só atenção" com
       contador — desde que (a) fique coberto. Validação: `npm run test -- coachInboxAdapters`.
-- [ ] 1.1b Mapear **nominalmente** os testes que a remoção afeta, antes de remover. Já identificados:
+- [x] 1.1b Mapear **nominalmente** os testes que a remoção afeta, antes de remover. Já identificados:
       `CoachInboxPage.test.tsx:190` (espera o texto "Fila de atenção") e `:270` (abre rejeição pelo
       menu "Mais ações" — quebra com a 1.3a). Verificar também deep-links para
       `DashboardAttentionQueueRow` / `DashboardRosterPreviewRow`. **Atenção ao falso verde:**
@@ -33,7 +33,7 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       regredido, e os E2E de coach mockam `**/api/v1/coach/**` como `[]`
       (`assessoria-settings.spec.ts:49`, `welcome-wizard.spec.ts:74`) — nenhum deles enxerga a perda.
       Saída: lista nominal neste arquivo. Validação: lista revisada.
-- [ ] 1.1c Criar `tests/e2e/coach/inbox.spec.ts` **antes** da remoção (task 1.5), com dashboard
+- [x] 1.1c Criar `tests/e2e/coach/inbox.spec.ts` **antes** da remoção (task 1.5), com dashboard
       mockado de verdade (não `[]`). Matriz mínima — um cenário só não cobre o risco:
       (1) atleta em `attentionQueue` fora da página 1 continua alcançável com motivo e recência;
       (2) atleta em atenção fora do **filtro** ativo aparece no contador "N fora do filtro";
@@ -82,6 +82,40 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       para que "Sinais de atenção" (motivo + ações sugeridas) venha antes das métricas/charts — o
       coach decide pelo "porquê", não pelo número cru; métricas viram evidência do insight.
       Validação: lint+build + snapshot do painel confirmando a ordem.
+
+### Nota da task 1.1b — mapa nominal (preenchido em 2026-08-16, PR do gate)
+
+**Referenciam os módulos que a task 1.5 vai remover:**
+
+| Arquivo | O que referencia | Ação na 1.5 |
+|---|---|---|
+| `CoachInboxPage.tsx:375` | `dashboardAttentionQueue.slice(0,3)` + `DashboardAttentionQueueRow` | remover o bloco |
+| `CoachInboxPage.tsx:387` | `dashboardRoster.slice(0,3)` + `DashboardRosterPreviewRow` | remover o bloco |
+| `CoachInboxPage.test.tsx:190` | `it('mostra a fila de atenção do dashboard no resumo')` | **quebra** — reescrever para a lista composta |
+| `CoachInboxPage.test.tsx:270` | abre rejeição pelo menu "Mais ações" | **quebra na 1.3a**, não na 1.5 |
+| `DashboardAttentionQueueRow.tsx`, `DashboardRosterPreviewRow.tsx` | componentes | apagar se ninguém mais usar |
+
+Nenhum deep-link depende dos módulos: eles não têm rota nem âncora própria.
+
+**Os que ficam VERDES com o inbox regredido** — o motivo de a 1.1c existir:
+`useCoachDashboard.test.ts` (só popula payload), `coachInboxAdapters.test.ts` (só métricas, antes
+deste PR), `CoachLayout.test.tsx`, e todos os E2E de coach existentes, que mockam a rota coringa
+`coach/**` como lista vazia e portanto **nunca renderizam a lista**.
+
+### Achados do PR do gate (2026-08-16)
+
+- **Bug real encontrado pelo E2E, não previsto na spec:** o efeito de seleção
+  (`CoachInboxPage.tsx`) comparava `selectedId` apenas com `rosterItems` e revertia para o primeiro
+  do roster quando o id não estava lá. Com o atleta fixado pela fila de atenção, o coach clicava
+  nele e abria o detalhe **de outro atleta**, no mesmo clique. Corrigido: a seleção acompanha a
+  lista composta. Isso valida a exigência do pre-mortem ("alterar seleção/fetch por `atletaId`") —
+  era defeito concreto, não hipótese.
+- `AttentionOnlyRow` renderiza deliberadamente **menos** que `QueueRow` (sem métricas), e diz por
+  quê na própria linha. O DTO da fila de atenção não traz aderência/volume/forma; preencher com zero
+  exibiria ausência de dado como medição.
+- O `Select` de status **não tem label associado** (o texto "Status" é um `Typography` solto), o que
+  forçou o E2E a buscar por `combobox`. Corrigir é escopo da fase 2 (a11y), registrado aqui.
+- `TablePagination` não é localizado: o rótulo sai em inglês ("1–10 of 15"). Fora do escopo deste PR.
 
 ## Fase 2 — Design system e estados
 
