@@ -125,11 +125,11 @@ legitimamente não tem botão em lime.
 
 ## Fase 2 — Design system e estados
 
-- [ ] 2.1 Consolidar `theme.typography`: Syne apenas em headings; Inter em body/caption/button;
+- [x] 2.1 Consolidar `theme.typography`: Syne apenas em headings; Inter em body/caption/button;
       escala 11/13/16/20/28; teste de tema no padrão de `theme.premium.test.ts`. **Escopo (Q9):**
       aplicar via override do coach (não global) ou cobrir o impacto nas telas do atleta com smoke
       explícito, conforme decidido. Validação: `npm run test -- theme`.
-- [ ] 2.2 Remover todo `fontFamily: 'Syne'` hardcoded em `src/features/coach/**` (usar variantes do
+- [x] 2.2 Remover todo `fontFamily: 'Syne'` hardcoded em `src/features/coach/**` (usar variantes do
       tema). Validação: `grep -rn "fontFamily.*Syne" src/features/coach` vazio + lint+build.
 - [ ] 2.3 Elevar todo texto funcional do inbox para ≥11px (labels da strip de KPIs, badges,
       captions); onde não couber, fundir label ao valor ou usar tooltip. Validação: lint+build +
