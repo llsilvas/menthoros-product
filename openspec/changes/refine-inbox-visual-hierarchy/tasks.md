@@ -160,8 +160,16 @@ legitimamente não tem botão em lime.
       `SUCCESS_BTN_SX`/`DANGER_BTN_SX`/`GHOST_BTN_SX` (`shared/components/actionButtonSx.ts`). Regra:
       `semantic.*` = estado (chip/badge/dot); `_BTN_SX` = ação. Migrar o drift conhecido
       (`ConfirmDialog.tsx` reimplementa PRIMARY/DANGER inline com hover divergente `primary[600]` vs
-      `primary[400]`). Validação: `grep -rn "bgcolor: semantic\." src` não casa com `Button`/
-      `variant="contained"`; lint+build.
+      `primary[400]`). **+ `REASON_LABEL`:** o mapa de label de motivo está triplicado (`QueueRow.tsx`,
+      `AttentionOnlyRow.tsx` e o órfão `DashboardAttentionQueueRow.tsx`); extrair para
+      `coachInboxHelpers.ts` e apagar o componente órfão. Validação: `grep -rn "bgcolor: semantic\."`
+      src não casa com `Button`/`variant="contained"`; lint+build.
+- [ ] 2.10 Quick wins de contexto (re-audit 2026-08-16): (a) **UX-004** — "Recuperação" em
+      `DiagnosisTabPanel` usa `subtitle="Boa"` fixo mesmo em tom de warning; derivar o rótulo do
+      valor ("Atenção: abaixo de 80%" vs "Boa"); (b) **UX-007** — placeholder de busca em
+      `CoachInboxPage` promete "atleta, treino ou prova" mas filtra só o roster; trocar para
+      "Buscar atleta…" (ou implementar a busca por treino/prova). Validação: lint+build + teste
+      do componente.
 
 ## Fase 3 — Breakpoint mobile
 
@@ -197,6 +205,11 @@ legitimamente não tem botão em lime.
 > "Attention Management System" com seções **Needs Attention / On Track / Upcoming** (ou header
 > "🔴 N precisam de ação") e sort default = prioridade. Registrar aqui como rastro do audit;
 > promover para change própria (`add-coach-inbox-attention-sections`) exige gate do founder.
+>
+> **Achado da re-audit (2026-08-16):** com o gate 1.1, os itens de atenção ficam **pinados** acima
+> da página, mas sem separador visual de seção — o coach não tem affordance de "estes N estão
+> fixados". O pinning resolve a *perda* (atleta não some), não a *percepção* (por que este card
+> está sempre aqui?). Reforça o caso do AMS como próxima change, não como tarefa desta.
 
 ## Encerramento
 
