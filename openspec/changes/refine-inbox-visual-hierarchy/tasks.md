@@ -134,7 +134,7 @@ legitimamente não tem botão em lime.
 - [x] 2.3 Elevar todo texto funcional do inbox para ≥11px (labels da strip de KPIs, badges,
       captions); onde não couber, fundir label ao valor ou usar tooltip. Validação: lint+build +
       verificação de `font-size` computado na tela.
-- [ ] 2.4 Fixar semântica de cor (error=agir, warning=observar, success=ok) nos chips e badges do
+- [x] 2.4 Fixar semântica de cor (error=agir, warning=observar, success=ok) nos chips e badges do
       coach; remover usos ornamentais dessas cores; garantir contraste AA dos cinzas sobre o fundo.
       **Diferenciação não-cor:** estado de risco não pode depender só de cor — parear com ícone/forma
       ou manter o label textual ("Alerta"/"Atenção") sempre visível, para daltônicos. Validação:
