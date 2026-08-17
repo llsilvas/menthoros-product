@@ -44,10 +44,19 @@ Repo afetado: `apps/menthoros-backend` · branch `feature/fix-fartlek-expansao-e
 
 ## 3. Fechamento
 
-- [ ] **3.1** `./mvnw clean verify` (gate — `test` não roda os `*IT`)
+- [x] **3.1** `./mvnw clean verify` → **2609 unitários + 103 IT, 0 falhas** · BUILD SUCCESS
+      (primeira execução falhou com 148 erros de `ApplicationContext`: daemon do Docker parado,
+      Testcontainers sem subir. `Failures: 0` em ambas — nenhum teste de lógica quebrou.)
 - [ ] **3.2** `/qa` — reviewers em paralelo
 - [ ] **3.3** PR `feature/fix-fartlek-expansao-etapas` → `develop`
-- [ ] **3.4** Registrar no `proposal.md` a decisão tomada na task 1.2 sobre o `REPETICOES_PATTERN`
+- [x] **3.4** Decisão da task 1.2 registrada no `proposal.md` (seção "Revisão da abordagem" e
+      Open Questions) e na própria task 1.2.
+
+## Commits
+
+- `30aba85` fix(ia): expande fartlek quando o LLM tipa a etapa como PRINCIPAL
+- `b8ab7ac` fix(intervals-icu): infere bloco de repetição em etapas sem blocoId
+- `9ff3bd2` docs(openspec): change fix-fartlek-expansao-etapas *(menthoros-product)*
 
 ## Follow-ups fora do escopo (não fazer aqui)
 
