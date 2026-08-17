@@ -147,12 +147,27 @@
 > **Pré-requisito:** o PR das seções 1–3 mergeado em `main`. Antes disso o compose da máquina ainda
 > tem `image:` e não constrói nada.
 
-- [ ] 3b.1 Na máquina do HomeLab: `git pull origin main` e `docker compose up -d --build keycloak`.
+- [ ] 3b.0 **Conferir o nome do projeto compose ANTES de subir qualquer coisa.** Bloqueia a 3b.1.
+      O Docker deriva o projeto do nome do **diretório** e o volume de `<projeto>_<volume>`. Se a
+      stack do HomeLab foi subida de uma pasta com outro nome, rodar da pasta `menthoros-infra`
+      monta um volume **vazio** e o Keycloak sobe sem o realm — sintoma idêntico a perda de dados.
+      Aconteceu na máquina de dev em 2026-08-16 (armadilha 5 do `design.md`).
+      ```bash
+      docker inspect menthoros-db --format '{{index .Config.Labels "com.docker.compose.project"}}'
+      docker volume ls | grep pg_data
+      ```
+      *verify:* saber o nome do projeto atual e qual volume tem os dados. Se o projeto **não** for
+      `menthoros-infra`, todos os comandos da 3b.1 levam `-p <nome-atual>`.
+- [ ] 3b.1 Na máquina do HomeLab: `git pull origin main` e `docker compose up -d --build keycloak`
+      (com `-p <nome-atual>` se a 3b.0 apontou outro projeto).
       ⚠️ **`--build` não é opcional** — sem ele o compose reusa a imagem já existente com aquela tag
       e nada muda, sem erro nenhum.
-      Só o serviço `keycloak` é recriado. Os dados não correm risco: o Keycloak usa `KC_DB: postgres`
-      e o estado vive no volume `pg_data`, que não é tocado.
-      *verify:* `docker exec menthoros-keycloak ls /opt/keycloak/themes/menthoros` lista os arquivos.
+      Só o serviço `keycloak` é recriado. O Keycloak usa `KC_DB: postgres` e o estado vive no volume
+      `pg_data` — que só é o mesmo de antes se o projeto for o mesmo (por isso a 3b.0).
+      *verify:* `docker exec menthoros-keycloak ls /opt/keycloak/themes/menthoros` lista os arquivos
+      **e** o realm `menthoros` continua respondendo (`curl -s -o /dev/null -w '%{http_code}'
+      http://192.168.15.24:8080/realms/menthoros` → `200`). O segundo não é zelo: é o que distingue
+      "subiu com o tema" de "subiu limpo contra um banco vazio".
 - [ ] 3b.2 Rodar `./keycloak/sync-realm.sh` da máquina de dev — o `.env.sync` já aponta para o
       HomeLab, então não passar nada. O preflight confirma o tema antes de aplicar.
       ⚠️ Não adianta passar `KEYCLOAK_URL=` na linha de comando: o `.env.sync` sobrescreve variáveis

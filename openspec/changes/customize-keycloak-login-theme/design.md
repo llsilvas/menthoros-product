@@ -19,7 +19,7 @@ Estado verificado em 2026-08-05, **com o HomeLab acrescentado em 2026-08-16** (v
 | Repo/Dockerfile | `docker/Dockerfile.keycloak` era **órfão** | idem — herda o compose | `source.repo: null` |
 | Comando | `command: start-dev` (compose) | `command: start-dev` (compose) | `startCommand: /opt/keycloak/bin/kc.sh start-dev` (serviço) |
 | Versão efetiva | `26.7.0` | **`26.7.0`** (verificado por `/admin/serverinfo`) | `26.6` (tag móvel) |
-| Estado dos dados | descartável | **Postgres com volume `pg_data`** — sobrevive à recriação do container | Postgres do serviço |
+| Estado dos dados | descartável | Postgres com volume `pg_data` — sobrevive à recriação do container **desde que o nome do projeto compose não mude** (ver armadilha 5) | Postgres do serviço |
 | Compartilhado? | não | **sim** | sim |
 
 ## O HomeLab é o terceiro ambiente, e faltava nesta tabela
@@ -45,7 +45,10 @@ Duas consequências:
 - **Como ele usa o `docker-compose.yml` deste repo**, o passo 2 é `git pull` + `docker compose up -d
   --build keycloak` na máquina. O `--build` não é opcional: sem ele o compose reusa a imagem já
   existente com aquela tag. Só o serviço `keycloak` é recriado; o Keycloak usa `KC_DB: postgres` e o
-  estado vive no volume `pg_data`, então realms, clients e usuários sobrevivem.
+  estado vive no volume `pg_data`.
+  ⚠️ **Com uma condição que só apareceu na execução — ver armadilha 5:** isso vale enquanto o
+  **nome do projeto compose** for o mesmo de antes. Se mudar, o compose aponta para outro volume e o
+  Keycloak sobe contra um banco vazio.
 
 **Atualizado em 2026-08-05.** O HomeLab foi para **26.7.0** (pin exato), e `docker-compose.yml` e
 `Dockerfile.keycloak` passaram a apontar para a mesma versão. Falta o Railway, que segue em `26.6`
@@ -128,6 +131,41 @@ Cada uma destas já custou uma premissa errada neste documento:
    realm. Um `loginTheme` apontando para tema inexistente derruba a tela de login. Daí o preflight
    obrigatório: o tema tem de constar na lista de temas do alvo **antes** do JSON ser aplicado.
 
+5. **O nome do projeto compose decide qual volume o Postgres monta — e ninguém escreve esse nome.**
+   Descoberto em 2026-08-16, na primeira tentativa real de `docker compose up -d --build keycloak`.
+
+   O Docker deriva o nome do projeto do **diretório**, e o volume de `<projeto>_<volume>`. O stack
+   local tinha sido subido de um caminho antigo (`workspace/menthoros/menthoros/`, hoje inexistente),
+   então os dados vivem em **`menthoros_pg_data`**. Rodar o compose da pasta nova, `menthoros-infra/`,
+   cria o projeto `menthoros-infra` e monta **`menthoros-infra_pg_data`** — outro volume, vazio.
+
+   ```
+   menthoros_pg_data         23 entradas   <- os dados reais
+   menthoros-infra_pg_data    0 entradas   <- o que o compose montaria
+   ```
+
+   **O sintoma é indistinguível de perda de dados:** o Keycloak sobe limpo, cria um `master` novo, e
+   o realm `menthoros` com clients e usuários simplesmente não está lá. Nada foi destruído — o volume
+   antigo continua intacto —, mas quem estiver olhando a tela não tem como saber disso.
+
+   Esta armadilha **invalidava uma afirmação anterior deste documento**: "o estado vive no volume
+   `pg_data`, então realms, clients e usuários sobrevivem à recriação do container". Sobrevivem
+   **dentro do mesmo projeto**. A frase estava certa sobre containers e errada sobre projetos, e a
+   diferença só aparece quando o diretório muda de nome — que é exatamente o que aconteceu quando o
+   repo virou `menthoros-infra/`.
+
+   **Mitigação:** antes de subir em qualquer máquina, conferir o projeto atual e o volume que ele usa.
+   Se o projeto de hoje não for `menthoros-infra`, subir com `-p <nome-atual>` para adotar o volume
+   existente em vez de criar um novo.
+
+   ```bash
+   docker inspect menthoros-db --format '{{index .Config.Labels "com.docker.compose.project"}}'
+   docker volume ls | grep pg_data
+   ```
+
+   Vale para o local e para o HomeLab pelo mesmo motivo. **Não vale para o Railway**, que não usa
+   compose — lá o banco é um serviço gerenciado e o risco não existe.
+
 ## Ordem de execução (não é negociável)
 
 Por ambiente, sempre:
@@ -174,7 +212,8 @@ descrevia como principal está, hoje, coberto por código.
 |---|---|
 | Tema feio, quebrado ou ilegível | Remover `loginTheme` do `menthoros-realm.json` e rodar o `sync-realm.sh`. Volta ao tema padrão sem tocar na imagem. É o rollback rápido e cobre quase tudo. |
 | Imagem não sobe / Keycloak não inicia em dev | Voltar `source` do serviço para `image: quay.io/keycloak/keycloak:26.7.0` — **não `26.6`**. O tema é validado contra a 26.7.0 no local; reverter para a tag móvel `26.6` não restaura o baseline testado, restaura outro Keycloak. As variáveis do serviço são preservadas na troca de origem — nenhuma delas depende do builder. |
-| **Keycloak não sobe no HomeLab** após o `--build` | Subir a imagem pública `quay.io/keycloak/keycloak:26.7.0` à mão, com as mesmas variáveis do compose, até investigar. Os dados **não** estão em risco: vivem no volume `pg_data` do Postgres, que não é recriado. Dump do banco antes deixou de ser necessário aqui — ele se justificava em 2026-08-05, quando havia migração de 26.6 para 26.7.0; agora as duas pontas já estão na mesma versão e o Keycloak não migra nada. |
+| **Keycloak não sobe no HomeLab** após o `--build` | Subir a imagem pública `quay.io/keycloak/keycloak:26.7.0` à mão, com as mesmas variáveis do compose, até investigar. Os dados não estão em risco: vivem no volume `pg_data` do Postgres, que não é recriado. Dump do banco antes deixou de ser necessário aqui — ele se justificava em 2026-08-05, quando havia migração de 26.6 para 26.7.0; agora as duas pontas já estão na mesma versão e o Keycloak não migra nada. |
+| **Keycloak sobe, mas o realm `menthoros` "sumiu"** | Não é perda de dados: é a armadilha 5 — o compose montou outro volume porque o nome do projeto mudou. `docker volume ls \| grep pg_data` mostra os dois; o que tem conteúdo é o antigo. Derrubar o stack e subir de novo com `-p <projeto-original>`. **Não** rodar o `sync-realm.sh` para "recriar" o realm: ele restauraria clients e roles num banco vazio e daria a impressão de que funcionou, deixando usuários e credenciais para trás. |
 | Realm apontando para tema inexistente (login caiu) | Mesmo rollback da primeira linha. Este é o cenário que o preflight existe para evitar. |
 
 O primeiro procedimento vai no README do `menthoros-infra` (task 5.1): é a emergência da porta de
