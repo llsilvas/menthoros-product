@@ -117,6 +117,29 @@ assume, registrado para quem revisitar:
 **Consequência prática:** a seção 4 só começa depois da seção 3 fechada no local. Se ela travar, as
 seções 1–3 são mergeáveis sozinhas — a change não vira refém do Railway.
 
+### Desfecho (2026-08-16): a seção 4 foi desmembrada, como a revisão de produto recomendava
+
+A change entregou o tema em **local** e, depois, no **HomeLab** — um terceiro ambiente que nem
+constava do `design.md` original e que, por ser o alvo do `.env.sync`, é onde os syncs acontecem no
+dia a dia. Com isso, os dois ambientes em que alguém de fato olha a tela hoje estão prontos.
+
+A seção 4 virou **`migrate-keycloak-dev-to-repo-build`** (S · Full). **Não travou** — foi destacada
+porque o resto ficou pronto e não havia motivo para segurá-lo.
+
+Vale registrar sem rodeio: **a revisão de produto tinha recomendado exatamente isso**, e a decisão do
+CTO de manter junto foi revertida pelos fatos, não por um argumento novo. O que a decisão original
+acertou é que o ensaio valia — e valeu mais do que previa: rodar o mecanismo em dois ambientes antes
+do Railway revelou o `menthoros-test` ligado havia sete dias contra um arquivo que dizia o contrário,
+e fez a armadilha do `varchar(255)` morder de novo num alvo descartável em vez de num compartilhado.
+
+O que mudou em relação a 05/08 e permitiu o corte agora:
+
+- o **HomeLab** entrou como ambiente próprio e foi entregue, o que não estava previsto;
+- o preflight virou **código** no `sync-realm.sh`, então o risco central ("sync derruba o login")
+  deixou de depender de disciplina;
+- o que sobrou é homogêneo: **trocar o modelo de deploy** de um serviço, sem ensaio possível — no
+  HomeLab a origem já era o compose deste repositório, no Railway é imagem pública.
+
 ## Riscos e mitigações
 
 | Risco | Mitigação |

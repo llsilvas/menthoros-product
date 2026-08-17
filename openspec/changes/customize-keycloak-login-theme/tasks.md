@@ -196,38 +196,24 @@
 > Ambas reforçam a decisão de ordem tomada em 2026-08-16: o HomeLab **antes** do Railway. O ensaio
 > pagou por si já na primeira execução.
 
-## 4. Ambiente de dev (Railway) — só depois do HomeLab (3b) validado
+## 4. ~~Ambiente de dev (Railway)~~ — **DESTACADA em 2026-08-16**
 
-> Serviço `menthoros-keycloak`, projeto `robust-expression` (`4f4f3290-…`), env `develop`
-> (`76759ba8-…`). Este serviço autentica **todo** o ambiente de desenvolvimento: uma imagem que não
-> sobe deixa backend e front sem login.
+> Virou change própria: **`migrate-keycloak-dev-to-repo-build`** (S · Full).
 >
-> **As seções 1–3 são mergeáveis sem esta.** Se a seção 4 travar, ela sai para change própria em vez
-> de segurar o tema e a tradução (decisão registrada no proposal, Revisão de produto).
+> Não travou — foi destacada porque o resto ficou pronto e não havia motivo para segurá-lo. O
+> proposal já autorizava: *"as seções 1–3 são mergeáveis sem a 4; se a seção 4 travar, ela sai para
+> change própria em vez de segurar o resto."*
 >
-> **O que o ensaio do HomeLab (3b) NÃO cobre:** lá a origem do serviço já é o `docker-compose.yml`
-> deste repo, então entregar o tema é um `--build`. Aqui a origem é **imagem pública**, e a 4.1 é
-> troca de modelo de deploy — o ensaio valida a imagem e o tema, não o mecanismo de origem.
-
-- [ ] 4.1 **Trocar a origem do serviço** de `image: quay.io/keycloak/keycloak:26.6` para o repo
-      `llsilvas/menthoros-infra`, construindo por `docker/Dockerfile.keycloak`.
-      ⚠️ A 0.2 (versão **`26.7.0`** no Dockerfile) tem de estar **feita e mergeada** antes: a partir
-      daqui é o Dockerfile que define a versão do Keycloak, e um pin esquecido em `26.2.5` vira
-      downgrade silencioso em dev. **O Railway sobe de `26.6` para `26.7.0` nesta task** — é a mesma
-      versão já validada no HomeLab, e é o baseline que o rollback tem de restaurar.
-      *verify:* deploy `SUCCESS` e Keycloak respondendo; tema presente em `/opt/keycloak/themes/menthoros`.
-- [ ] 4.2 **Restringir o gatilho de build por watch patterns** ao que compõe a imagem
-      (`docker/Dockerfile.keycloak`, `keycloak/themes/**`). Sem isso, editar um `.md` no
-      `menthoros-infra` redeploya o provedor de identidade de dev.
-      **Decidido em 2026-08-16 (DoR): watch patterns, não `rootDirectory`.** O `rootDirectory`
-      estreitaria o **contexto de build** para uma subpasta, e o Dockerfile precisa copiar de
-      `keycloak/themes/` — que ficaria fora dele. Watch pattern filtra o gatilho sem mexer no contexto.
-      *verify:* commit que toca só `docs/` não dispara deploy.
-- [ ] 4.3 Conferir que o `startCommand` do serviço (`/opt/keycloak/bin/kc.sh start-dev`) sobreviveu à
-      troca de origem e continua sendo o comando efetivo — ele sobrescreve o `CMD` do Dockerfile.
-- [ ] 4.4 Repetir o preflight da 2.3 **contra o Railway** e só então sincronizar o `loginTheme`
-      (CA5). Deploy de imagem e sync de realm são planos separados.
-- [ ] 4.5 Refazer a validação da seção 3 no fluxo real de dev — não basta ter passado no local.
+> **Por que o corte cai bem aqui.** As seções 1–3b entregam o tema em **local** e **HomeLab**, que são
+> os dois ambientes onde alguém de fato olha a tela hoje. O que sobra é a única parte que exige
+> **trocar o modelo de deploy** de um serviço que autentica todo o ambiente de dev — natureza
+> diferente do resto da change, risco diferente, e sem ensaio possível (no HomeLab a origem já era o
+> compose deste repo; no Railway é imagem pública).
+>
+> As cinco tasks originais (4.1–4.5) foram para lá, junto com as decisões que ainda valem — Dockerfile
+> único, watch patterns em vez de `rootDirectory`, e a ordem por ambiente. O `design.md` da nova
+> change carrega essas decisões adiante em vez de apontar para este, que será arquivado: depender de
+> documento arquivado é como decisão vira folclore.
 
 ## 5. Fechamento
 
