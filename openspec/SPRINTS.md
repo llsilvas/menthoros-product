@@ -684,6 +684,37 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
+### `fix-fartlek-expansao-etapas` ✅ **ARQUIVADA** — o fartlek chegava ao relógio como bloco único (2026-08-17)
+
+**Entregue:** `menthoros-backend` **#71** (`deb74b9`), quatro commits. Suíte **2614 unitários + 103
+de integração**, verde no CI. Arquivada em `changes/archive/2026-08/2026-08-17-fix-fartlek-expansao-etapas/`.
+
+**O `4x (1min forte + 2min leve)` ficava preso como texto na descrição.** Duas causas encadeadas. A
+expansão em `IaServiceImpl` só era tentada para `tipoEtapa=INTERVALADO`; o LLM tipa a série ora
+assim, ora como `PRINCIPAL` — ambos válidos no schema — e no segundo caso a etapa passava intacta,
+sem log e sem validação reclamando. O detector de fartlek estava correto e nunca era chamado.
+
+Corrigido o guard, restava a segunda: `IntervalsIcuWorkoutConverter` agrupa por `blocoId`, que só o
+caminho do treinador atribui. A série chegaria ao relógio como 8 steps soltos. Atribuir `blocoId` na
+expansão não era viável — `EtapaTreinoLlmDto` alimenta o JSON schema enviado ao modelo, e o campo
+obrigaria o LLM a inventar um UUID por etapa. O converter passou a **inferir** o bloco pela repetição
+observada, o que também corrige os treinos já persistidos, sem migration.
+
+**Quality gate pegou um falso positivo real:** a inferência agrupava qualquer par repetido, então um
+ondulado `10min Z2 / 5min Z3 / 10min Z2 / 5min Z3` virava `2x (...)` — uma série que o treinador não
+prescreveu. Levantado de forma independente pelo `code-reviewer` e pelo Codex (convergência
+cross-model). A janela passou a exigir uma etapa `INTERVALADO`.
+
+**Escopo ampliado por decisão do usuário:** entrou junto o **500 em `GET /api/v1/planos/{atletaId}`**
+depois de rejeitar um plano e gerar outro. `rejeitarPlano` mexe só em `reviewStatus` — o `status`
+continua `PLANEJADO` —, e a query filtrava apenas `status != CONCLUIDO`, devolvendo `Optional` sem
+ordenar: dois planos casavam e o Hibernate lançava `NonUniqueResultException`. O índice parcial
+`uk_plano_semanal_atleta_semana_ativo` (V52) já definia a semântica certa (`WHERE review_status <>
+'REJEITADO'`); a query passou a usar o mesmo predicado. Ordenar por semana não resolveria — os dois
+planos são da mesma semana.
+
+**Validado em ambiente real:** 12 blocos alternando Z4/Z1 no detalhe do plano, `5×` no editor.
+
 ### `fix-tipo-treino-progressao` ✅ **ENTREGUE** — o longão que o sync não reconhecia travava a progressão (2026-08-10)
 
 **Sem change OpenSpec** — bug encontrado e corrigido direto na branch, sem passar por `changes/`.

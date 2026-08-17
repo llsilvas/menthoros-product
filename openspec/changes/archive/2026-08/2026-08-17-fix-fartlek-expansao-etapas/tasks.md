@@ -69,7 +69,7 @@ Repo afetado: `apps/menthoros-backend` · branch `feature/fix-fartlek-expansao-e
         (`IaServiceImpl:387,405`), e a expansão ainda exige casar o padrão.
       - *Codex, Major — desempate `A A A A` → `4x A` vs `2x(A+A)`*: empate real, mas `4x A` é a
         leitura natural. Não acionável.
-- [ ] **3.3** PR `feature/fix-fartlek-expansao-etapas` → `develop`
+- [x] **3.3** PR **menthoros-backend #71** → `develop`, squash merge em `deb74b9` (2026-08-17)
 - [x] **3.4** Decisão da task 1.2 registrada no `proposal.md` (seção "Revisão da abordagem" e
       Open Questions) e na própria task 1.2.
 
@@ -104,6 +104,17 @@ Nota de diagnóstico: a primeira tentativa de fix ordenava por `semanaInicio des
 resolveria** — rejeitar e regerar produz dois planos da *mesma* semana. Só depois de o usuário
 informar o cenário exato ("rejeitando um plano e gerando novamente") ficou claro que o critério é o
 `reviewStatus`, não a ordenação.
+
+## Validação em ambiente real (2026-08-17)
+
+Confirmada pelo usuário após subir o backend na branch: o fartlek passou a chegar **expandido** —
+timeline do detalhe do plano mostra **12 blocos** com `Z4 Limiar 25%` / `Z1 Recuperação 75%`
+alternando, no lugar do bloco `PRINCIPAL` único. O `TreinoEditDialog` passou a contar as etapas
+`INTERVALADO` e exibir `5×`. O 500 do `GET /api/v1/planos` também sumiu.
+
+Ficou visível, na validação, que a timeline da tela de revisão desenha a série agregada enquanto a
+do detalhe desenha expandida — tratado na change própria `expandir-serie-timeline-revisao`
+(menthoros-front **#78**).
 
 ## Follow-ups fora do escopo (não fazer aqui)
 
