@@ -78,7 +78,32 @@ Repo afetado: `apps/menthoros-backend` · branch `feature/fix-fartlek-expansao-e
 - `30aba85` fix(ia): expande fartlek quando o LLM tipa a etapa como PRINCIPAL
 - `b8ab7ac` fix(intervals-icu): infere bloco de repetição em etapas sem blocoId
 - `5980357` fix(intervals-icu): só infere bloco quando a janela tem etapa INTERVALADO
+- `7062c58` fix(plano): 500 ao buscar plano depois de rejeitar e gerar de novo
 - `9ff3bd2` docs(openspec): change fix-fartlek-expansao-etapas *(menthoros-product)*
+
+## 4. Escopo ampliado — 500 ao buscar plano (fora da change original)
+
+> **Decisão do usuário, 2026-08-17:** corrigir dentro deste PR em vez de abrir change própria. Foi
+> sinalizado que isso junta dois bugs sem relação na mesma branch, contra a diretriz do `CLAUDE.md`
+> ("nunca misturar mudanças de changes diferentes"). Registrado aqui porque a alternativa —
+> descobrir isso depois pelo histórico — é pior.
+
+Sintoma: `GET /api/v1/planos/{atletaId}` respondia **500** (`NonUniqueResultException`) depois de
+**rejeitar um plano e gerar outro**. Bloqueava a própria validação do fix de fartlek.
+
+- [x] **4.1** Teste que falha: `PlanoSemanalBuscaAtualTest` reproduz com plano REJEITADO + plano novo
+      na mesma semana → falhou com a mesma exceção do log de produção.
+- [x] **4.2** `PlanoSemanalRepository.findAtivosPorAtleta` — a query passa a excluir `REJEITADO`,
+      alinhando-se ao predicado do índice parcial `uk_plano_semanal_atleta_semana_ativo` (V52), que
+      já definia rejeitado como não-ativo. Retorna `List` ordenada em vez de `Optional`.
+- [x] **4.3** `PlanoServiceImpl:853` usa o primeiro da lista; 5 stubs em `PlanoServiceImplTest`
+      atualizados.
+- [x] **Validação:** `./mvnw clean verify` → **2614 unitários + 103 IT, 0 falhas**
+
+Nota de diagnóstico: a primeira tentativa de fix ordenava por `semanaInicio desc`, o que **não
+resolveria** — rejeitar e regerar produz dois planos da *mesma* semana. Só depois de o usuário
+informar o cenário exato ("rejeitando um plano e gerando novamente") ficou claro que o critério é o
+`reviewStatus`, não a ordenação.
 
 ## Follow-ups fora do escopo (não fazer aqui)
 
