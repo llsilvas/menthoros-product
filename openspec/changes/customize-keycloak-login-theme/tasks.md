@@ -147,7 +147,7 @@
 > **Pré-requisito:** o PR das seções 1–3 mergeado em `main`. Antes disso o compose da máquina ainda
 > tem `image:` e não constrói nada.
 
-- [ ] 3b.0 **Conferir o nome do projeto compose ANTES de subir qualquer coisa.** Bloqueia a 3b.1.
+- [x] 3b.0 **Conferir o nome do projeto compose ANTES de subir qualquer coisa.** Bloqueia a 3b.1.
       O Docker deriva o projeto do nome do **diretório** e o volume de `<projeto>_<volume>`. Se a
       stack do HomeLab foi subida de uma pasta com outro nome, rodar da pasta `menthoros-infra`
       monta um volume **vazio** e o Keycloak sobe sem o realm — sintoma idêntico a perda de dados.
@@ -158,7 +158,7 @@
       ```
       *verify:* saber o nome do projeto atual e qual volume tem os dados. Se o projeto **não** for
       `menthoros-infra`, todos os comandos da 3b.1 levam `-p <nome-atual>`.
-- [ ] 3b.1 Na máquina do HomeLab: `git pull origin main` e `docker compose up -d --build keycloak`
+- [x] 3b.1 Na máquina do HomeLab: `git pull origin main` e `docker compose up -d --build keycloak`
       (com `-p <nome-atual>` se a 3b.0 apontou outro projeto).
       ⚠️ **`--build` não é opcional** — sem ele o compose reusa a imagem já existente com aquela tag
       e nada muda, sem erro nenhum.
@@ -168,13 +168,33 @@
       **e** o realm `menthoros` continua respondendo (`curl -s -o /dev/null -w '%{http_code}'
       http://192.168.15.24:8080/realms/menthoros` → `200`). O segundo não é zelo: é o que distingue
       "subiu com o tema" de "subiu limpo contra um banco vazio".
-- [ ] 3b.2 Rodar `./keycloak/sync-realm.sh` da máquina de dev — o `.env.sync` já aponta para o
+- [x] 3b.2 Rodar `./keycloak/sync-realm.sh` da máquina de dev — o `.env.sync` já aponta para o
       HomeLab, então não passar nada. O preflight confirma o tema antes de aplicar.
       ⚠️ Não adianta passar `KEYCLOAK_URL=` na linha de comando: o `.env.sync` sobrescreve variáveis
       exportadas (issue `menthoros-infra#12`).
       *verify:* `>> Preflight OK` seguido de `>> Sincronização concluída.`
-- [ ] 3b.3 Repetir a validação da seção 3 no HomeLab — login completo, credencial inválida, logout,
+- [x] 3b.3 Repetir a validação da seção 3 no HomeLab — login completo, credencial inválida, logout,
       celular. É ambiente compartilhado: é aqui que aparece o que a máquina do dev não reproduz.
+      *resultado (2026-08-16):* tela em `200` servindo o CSS próprio, `menthoros.css` (15.883 bytes) e
+      `logo.png` (122.515 bytes) respondendo `200`, título "Entrar no Menthoros", rótulos em PT-BR,
+      zero texto em inglês. Realm íntegro: **9 clients, 6 usuários**. Confirmado visualmente pelo
+      usuário.
+
+> **O que a seção 3b rendeu além do previsto.** Duas coisas apareceram só porque o HomeLab é um
+> ambiente de verdade, e nenhuma delas teria aparecido na máquina do dev:
+>
+> 1. **O `menthoros-test` estava ligado lá desde 2026-08-09** (para Apidog), enquanto o JSON declarava
+>    `enabled: false` — o sync do tema o desligaria sem aviso. Resolvido fora desta change, em PR
+>    próprio: o client passa a ligar por ambiente via `KC_TEST_CLIENT_ENABLED`, com default `false`.
+>    A instrução antiga do README ("ligar pelo console e desligar em seguida") dependia de alguém
+>    lembrar; não lembraram por 7 dias.
+> 2. **A armadilha do `varchar(255)` na descrição do client voltou a morder** ao reescrever aquele
+>    texto (397 caracteres). O sync falha com um `500` genérico e a causa só aparece no log do
+>    servidor. Já havia commit e seção de README sobre isso — não bastou. Pego no Keycloak
+>    descartável, antes do HomeLab.
+>
+> Ambas reforçam a decisão de ordem tomada em 2026-08-16: o HomeLab **antes** do Railway. O ensaio
+> pagou por si já na primeira execução.
 
 ## 4. Ambiente de dev (Railway) — só depois do HomeLab (3b) validado
 
