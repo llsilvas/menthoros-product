@@ -8,6 +8,12 @@ Repos afetados:
 > depender do front. O front (seções 1–2) depende só do contrato já existente. Os PRs são
 > independentes; nenhum quebra o outro se mergeado antes.
 
+## 0. Pré-requisito — conferir antes de criar a branch do front
+
+- [ ] **0.1** `expandir-serie-timeline-revisao` (menthoros-front **#78**) mergeada em `develop`.
+      A task 2.5 assume o laço de expansão do `liveBlocks`; sem ele a base é outra e o merge
+      conflita. `gh pr view 78 --json state -q .state` deve retornar `MERGED`.
+
 ## 1. Modelo de etapas compartilhado (front)
 
 - [ ] **1.1** Extrair `StepRow` / `BlockRow` / `SubStep` / `EtapaItem` e `serializarItens` de
@@ -24,14 +30,28 @@ Repos afetados:
       É o teste que mais protege este design.
 - [ ] **2.2** Testes de `itensFromEtapas`: agrupa por `blocoId` (CA2), infere sem `blocoId` (CA3),
       não inventa bloco em etapas heterogêneas (CA4), degrada para avulsos quando `reps` não divide
-      o grupo, e exige uma etapa `INTERVALADO` na janela.
-- [ ] **2.3** Implementar `itensFromEtapas`.
-- [ ] **2.4** `TreinoEditDialog`: quatro `BlocoState` → `EtapaItem[]`; adicionar, remover, reordenar;
-      `handleSalvar` emite `serializarItens(itens)`.
-- [ ] **2.5** `liveBlocks` e os totais derivam dos itens. Verificar que o laço de expansão criado em
+      o grupo, exige uma etapa `INTERVALADO` na janela, e **bloco com 1 repetição** vira sub-etapas
+      avulsas em vez de `BLOCO` degenerado.
+- [ ] **2.3** **Teste de paridade com o Java:** os fixtures de agrupamento de
+      `IntervalsIcuWorkoutConverterTest` reproduzidos em `itensFromEtapas.test.ts`, com comentário
+      cruzado em cada arquivo apontando para o outro. É o que faz a divergência aparecer como teste
+      vermelho em vez de chamado do treinador (ver "Dívida aceita" no `design.md`).
+- [ ] **2.4** Implementar `itensFromEtapas`.
+- [ ] **2.5** **Ajustar `TreinoPlanejadoPatch.etapas`** de `EtapaTreinoDto[]` para
+      `EtapaInputPayload[]` (`types/PlanoReview.ts:97`). Sem isso não compila: `serializarItens`
+      devolve `EtapaInputPayload[]`, e `EtapaTreinoDto` não tem `subEtapas`. Não é mudança de
+      contrato — o backend já aceita (`TreinoPlanejadoPatchDto.etapas` é `List<EtapaInputDto>`);
+      o tipo do cliente TS é que estava estreito. Conferir se há outro consumidor do campo.
+- [ ] **2.6** `TreinoEditDialog`: quatro `BlocoState` → `EtapaItem[]`; adicionar, remover, reordenar.
+- [ ] **2.7** **Preservar a guarda `blocosMudados`** (`:415`), agora rastreando a lista de itens:
+      `handleSalvar` só inclui `patch.etapas` se a lista mudou. Teste do CA7 — alterar apenas o TSS
+      e verificar que o patch **não** contém `etapas`.
+- [ ] **2.8** Soft-warning ao remover aquecimento ou desaquecimento de um treino que os tinha:
+      confirmação não-bloqueante antes de salvar. Não valida no backend.
+- [ ] **2.9** `liveBlocks` e os totais derivam dos itens. Verificar que o laço de expansão criado em
       `expandir-serie-timeline-revisao` **simplifica** em vez de duplicar.
-- [ ] **2.6** Teste de componente: abre série heterogênea, salva sem alterar, patch idêntico;
-      treino simples preservado (CA6).
+- [ ] **2.10** Teste de componente: abre série heterogênea, altera uma etapa, salva — as demais
+      preservam conteúdo e ordem (CA1); treino simples preservado (CA6).
 - [ ] **Validação:** `npm run lint && npm run build && npm run test:run`
 
 ## 3. `blocoId` preservado no patch (backend)
@@ -76,3 +96,13 @@ Repos afetados:
 ## Follow-ups
 
 - Unificar a inferência no backend e expor o agrupamento no `EtapaTreinoDto` (ver "Dívida aceita").
+- **Editar treino de plano aprovado não re-sincroniza o relógio.** Verificado: o push só reage a
+  `PlanoAprovadoEvent` (`IntervalsIcuPushListener:71-72`) e `TreinoPlanejadoServiceImpl` não publica
+  evento. Defeito pré-existente, mas esta change torna a edição de intervalados viável e portanto
+  mais frequente — o desalinhamento entre backend e relógio do atleta fica mais provável.
+- **Telemetria de "estrutura preservada"** em produção (sugestão do product-review). "Zero perda" é
+  hoje uma afirmação de teste, não um fato monitorado. Fora do escopo por não haver instrumentação
+  equivalente em nenhuma outra área do produto — introduzir a primeira é decisão própria.
+- **Sinal proposta-IA vs edição-do-coach** (sugestão do product-review): o patch corrigido é o lugar
+  natural para capturar o que o treinador muda em relação ao que a IA propôs. Não implementado aqui;
+  registrado para que a oportunidade não passe em silêncio.

@@ -58,7 +58,24 @@ Troca os quatro `useState<BlocoState>` por `useState<EtapaItem[]>`. `liveBlocks`
 itens — o que **simplifica** o laço introduzido em `expandir-serie-timeline-revisao`, porque a
 expansão deixa de ser um caso especial do intervalado e vira a leitura natural da lista.
 
-`handleSalvar` emite `patch.etapas = serializarItens(itens)`.
+`handleSalvar` emite `patch.etapas = serializarItens(itens)` **apenas quando a lista de itens mudou**
+— a guarda `blocosMudados` (`:415`) é preservada, agora rastreando a lista em vez dos quatro blocos.
+
+Sem ela, mudar só o TSS regravaria todas as etapas: a hidratação inferiu blocos, a serialização os
+reexpande, e o backend limpa e recria. O treino "não mudou" mas foi reescrito — o mesmo dano que esta
+change corrige, com aparência de feature correta. É a regressão mais fácil de introduzir aqui, e por
+isso virou critério de aceite próprio (CA7).
+
+### Ajuste de tipo necessário
+
+`TreinoPlanejadoPatch.etapas` é hoje `EtapaTreinoDto[]` (`types/PlanoReview.ts:97`), tipo que **não
+tem `subEtapas`** — enquanto `serializarItens` devolve `EtapaInputPayload[]`. O código não compila
+como está.
+
+Não é mudança de contrato: o backend já aceita, `TreinoPlanejadoPatchDto.etapas` é
+`List<EtapaInputDto>`, que tem `subEtapas` e passa por `expandirBlocos`. O tipo do cliente TS é que
+está mais estreito que o contrato real — resquício do cliente curado à mão. Corrigir para
+`EtapaInputPayload[]`, o mesmo tipo que `TreinoPlanejadoAddPayload.etapas` já usa (`:71`).
 
 Totais (`totalKm`/`totalMin`) passam a somar sobre os itens, com bloco contando `reps ×` suas
 sub-etapas. Hoje o cálculo já multiplica por repetições (`:291-313`); muda a fonte, não a semântica.
@@ -98,6 +115,23 @@ deixa de ser necessário no caminho de patch; `expandirRepeticoes` (que trata o 
 | Treino sem etapas | lista vazia; o editor mostra o estado de "adicionar etapa" |
 | Coach remove todas as etapas | patch com `etapas: []`; o backend limpa. Sem validação de estrutura, por decisão |
 | Bloco com 1 repetição | serializa como sub-etapas avulsas, não como `BLOCO` — evita bloco degenerado |
+| Coach remove aquecimento ou desaquecimento | **aviso não-bloqueante** antes de salvar (ver abaixo) |
+
+## Soft-warning ao remover aquecimento ou desaquecimento
+
+Adotado após convergência entre o product-review e o pre-mortem, que chegaram ao mesmo ponto por
+caminhos diferentes.
+
+O risco não é de dado, é fisiológico: um `8×400m Z5` sem aquecimento faz o atleta apertar start e ir
+direto para Z5. E o cenário provável não é o treinador decidindo remover — é remover **sem querer**
+durante uma edição rápida, que é exatamente a situação que originou esta change ("só mudei o TSS").
+
+Bloquear seria errado: o treinador é soberano sobre a estrutura, e há casos legítimos (o atleta
+aquece por conta, sessão emendada em outra). Um aviso confirmável preserva a soberania e elimina a
+remoção acidental — custo de uma caixa de diálogo, no mesmo componente que já está sendo reescrito.
+
+Dispara apenas quando o treino **tinha** a etapa e ela deixou de existir. Não valida no backend: o
+non-goal de não introduzir validação de estrutura no patch permanece.
 
 ## Testes
 
@@ -124,3 +158,22 @@ o relógio, o outro alimenta um editor) e nenhum depende do resultado do outro.
 **Gatilho para revisitar:** na primeira vez que a regra precisar mudar, unificar — mover o
 agrupamento para o backend e expor no DTO. Uma mudança que precise ser feita em dois lugares é o
 sinal de que a duplicação deixou de ser barata.
+
+**O sintoma de divergência, concretamente** (levantado no pre-mortem): um treino cuja janela o TS
+não agrupa e o Java sim. O treinador vê 16 itens avulsos no editor; o atleta recebe no relógio uma
+série `8×`. O treinador então "arruma" a lista na tela e o relógio muda de novo. Não é um
+desalinhamento silencioso — é chamado de suporte no formato "editei uma coisa e o Garmin mostrou
+outra", e o custo cai sobre quem menos tem contexto para diagnosticar.
+
+Mitigação dentro desta change: **teste de paridade**. Os mesmos fixtures de agrupamento rodam nos
+dois lados — `IntervalsIcuWorkoutConverterTest` (Java) e `itensFromEtapas.test.ts` (TS) — com os
+casos escritos lado a lado e um comentário cruzado em cada arquivo apontando para o outro. Não
+impede a divergência, mas faz com que ela apareça como teste vermelho em vez de chamado do coach.
+
+## Rollback
+
+`git revert` dos PRs. Sem migration, sem mudança de contrato de saída, sem dado novo que precise ser
+desfeito — os `blocoId` gravados pelo patch corrigido continuam válidos e legíveis pelo código
+anterior, que simplesmente os ignora. Os dois repos revertem de forma independente: reverter só o
+front devolve o editor colapsado sobre um backend que grava `blocoId` (inofensivo); reverter só o
+backend devolve o `blocoId` nulo, que a inferência do converter cobre.

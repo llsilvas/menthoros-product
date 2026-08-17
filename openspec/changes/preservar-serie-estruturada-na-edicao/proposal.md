@@ -1,7 +1,7 @@
 # preservar-serie-estruturada-na-edicao — editar um treino na revisão achata a série
 
 **Tamanho:** M · **Trilha:** Full
-**Status:** proposta
+**Status:** pronta para implementar (DoR revisado 2026-08-17)
 **Criado:** 2026-08-17
 
 > Origem: follow-ups registrados em `fix-fartlek-expansao-etapas` (arquivada 2026-08-17) e
@@ -61,13 +61,41 @@ aprende a não editar intervalados por ali, e o coach-in-the-loop perde justamen
   geração (`IaServiceImpl:421`). O treinador segue soberano sobre a estrutura — decisão consciente,
   coerente com coach-in-the-loop.
 - Sem migration. Treinos já gravados sem `blocoId` continuam legíveis pela inferência.
+- **Não re-sincronizar com o relógio.** Editar um treino não redispara o push — verificado:
+  `TreinoPlanejadoServiceImpl` não publica evento algum, e `IntervalsIcuPushListener:71-72` reage
+  apenas a `PlanoAprovadoEvent`. Consequência aceita e registrada: se o treinador editar um treino
+  de um plano já aprovado, o relógio do atleta segue com a versão anterior. É comportamento
+  **pré-existente**, não introduzido aqui, mas esta change torna a edição de intervalados viável —
+  e portanto mais frequente. Merece change própria.
+
+## Dependências
+
+- **`expandir-serie-timeline-revisao`** (menthoros-front **#78**) precisa estar em `develop` antes
+  de começar a seção 2. A task 2.5 assume o laço de expansão do `liveBlocks` já existente; sem ele,
+  a base é outra e o merge conflita. Estado em 2026-08-17: PR aberto, CI verde, `MERGEABLE`/`CLEAN`.
+  **Conferir o merge antes de criar a branch**, não depois.
 
 ## Critérios de aceite
 
 **CA1 — série heterogênea sobrevive ao round-trip**
 Given um treino com `INTERVALADO(1min Z4)+RECUPERACAO(2min Z1)` duas vezes e `INTERVALADO(2min Z5)+RECUPERACAO(3min Z1)` duas vezes
-When o treinador abre o editor e salva sem alterar nada
-Then as 8 etapas persistidas são idênticas às anteriores, na mesma ordem.
+When o treinador abre o editor, altera uma etapa e salva
+Then as 8 etapas persistidas preservam **conteúdo e ordem** — `tipoEtapa`, `duracaoMin`, `distanciaKm`, `fcAlvoEtapa`, `ordem` — exceto a que ele alterou.
+
+> Deliberadamente sobre **conteúdo observável**, não identidade de registro. `aplicarEtapasPatch`
+> faz `clear()` e recria as etapas, então o `id` de cada linha muda por construção, e o `blocoId`
+> passa a existir onde antes era nulo. Exigir "as mesmas linhas" seria um critério impossível de
+> satisfazer sem reescrever a estratégia de persistência — fora do escopo, e desnecessário: o que o
+> treinador percebe é o conteúdo.
+
+**CA7 — edição administrativa não toca nas etapas**
+Given qualquer treino
+When o treinador altera **apenas** TSS ou observação e salva
+Then o patch enviado **não contém** `etapas`, e nenhuma etapa é regravada.
+
+> A guarda `blocosMudados` (`TreinoEditDialog.tsx:415`) já existe hoje e é o que impede uma edição
+> administrativa de virar regravação estrutural. A reescrita **precisa preservá-la** — perdê-la
+> reintroduziria, com aparência de feature correta, exatamente o dano que esta change corrige.
 
 **CA2 — hidratação agrupa por `blocoId`**
 Given etapas com o mesmo `blocoId` e `blocoRepeticoes=4`
