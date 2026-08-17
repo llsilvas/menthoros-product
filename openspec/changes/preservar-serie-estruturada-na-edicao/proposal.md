@@ -88,15 +88,6 @@ Then as 8 etapas persistidas preservam **conteúdo e ordem** — `tipoEtapa`, `d
 > satisfazer sem reescrever a estratégia de persistência — fora do escopo, e desnecessário: o que o
 > treinador percebe é o conteúdo.
 
-**CA7 — edição administrativa não toca nas etapas**
-Given qualquer treino
-When o treinador altera **apenas** TSS ou observação e salva
-Then o patch enviado **não contém** `etapas`, e nenhuma etapa é regravada.
-
-> A guarda `blocosMudados` (`TreinoEditDialog.tsx:415`) já existe hoje e é o que impede uma edição
-> administrativa de virar regravação estrutural. A reescrita **precisa preservá-la** — perdê-la
-> reintroduziria, com aparência de feature correta, exatamente o dano que esta change corrige.
-
 **CA2 — hidratação agrupa por `blocoId`**
 Given etapas com o mesmo `blocoId` e `blocoRepeticoes=4`
 When o editor abre
@@ -122,11 +113,23 @@ Given um treino contínuo (aquecimento, principal, desaquecimento)
 When o treinador abre e salva
 Then as 3 etapas são preservadas e nenhum bloco é criado.
 
+**CA7 — edição administrativa não toca nas etapas**
+Given qualquer treino
+When o treinador altera **apenas** TSS ou observação e salva
+Then o patch enviado **não contém** `etapas`, e nenhuma etapa é regravada.
+
+> A guarda `blocosMudados` (`TreinoEditDialog.tsx:415`) já existe hoje e é o que impede uma edição
+> administrativa de virar regravação estrutural. A reescrita **precisa preservá-la** — perdê-la
+> reintroduziria, com aparência de feature correta, exatamente o dano que esta change corrige.
+
 ## Métrica de sucesso
 
-Zero perda de estrutura em edição: para qualquer treino, abrir o editor e salvar sem alterar nada
-produz exatamente as mesmas etapas. Hoje um intervalado de 4 pares heterogêneos vira 4 cópias do
-primeiro par.
+Zero perda de estrutura em edição: alterar **uma** etapa de um treino intervalado preserva todas as
+outras, em conteúdo e ordem. Hoje um intervalado de 4 pares heterogêneos vira 4 cópias do primeiro
+par — qualquer que tenha sido a edição.
+
+Complemento, mais forte porque não depende de comparar conteúdo: uma edição que **não toca nas
+etapas** (só TSS, só observação) não gera escrita de etapa nenhuma (CA7).
 
 Efeito na rotina do treinador: ajustar um campo de um treino intervalado deixa de exigir reconstruir
 a série à mão depois.
