@@ -47,7 +47,28 @@ Repo afetado: `apps/menthoros-backend` · branch `feature/fix-fartlek-expansao-e
 - [x] **3.1** `./mvnw clean verify` → **2609 unitários + 103 IT, 0 falhas** · BUILD SUCCESS
       (primeira execução falhou com 148 erros de `ApplicationContext`: daemon do Docker parado,
       Testcontainers sem subir. `Failures: 0` em ambas — nenhum teste de lógica quebrou.)
-- [ ] **3.2** `/qa` — reviewers em paralelo
+- [x] **3.2** `/qa` — `code-reviewer`, `clean-code-reviewer`, `security-reviewer` + camada cross-model
+      (Codex). Zero Critical. Dois findings aceitos e corrigidos em `5980357`:
+      - **Convergência cross-model** (code-reviewer + Codex, independentes): a inferência agrupava
+        qualquer par repetido, tratando repetição como sinônimo de série. Um ondulado
+        `10min Z2 / 5min Z3 / 10min Z2 / 5min Z3` virava `2x (...)`. Corrigido: a janela precisa
+        conter uma etapa `INTERVALADO`. Teste `naoInfereBlocoEmOnduladoSemIntervalado`.
+      - **clean-code**: `inferirBloco` devolvia resultado por dois canais (mutava a lista recebida e
+        retornava o consumo). Agora retorna `BlocoInferido`, alinhado ao `tentarMontarBloco`.
+
+      Findings rejeitados, com o motivo:
+      - *security-reviewer, Medium — "O(n³) em `inferirBloco`, DoS"*: **incorreto**. `janelaEquivalente`
+        faz short-circuit na primeira divergência, então o custo por posição é O(disponível), não
+        O(disponível²). Medido empiricamente em três cenários (todas distintas, todas iguais,
+        quase-periódico adversarial): crescimento quadrático em todos — n=500 → 62k–80k comparações,
+        592 µs. Para as dezenas de etapas de um treino real, irrelevante.
+      - *Codex — "não há change-id/tasks.md/OpenSpec" e "test evidence ausente"*: **falso**, o Codex
+        recebeu só o diff, sem o repositório.
+      - *Codex, Major — "`PRINCIPAL` amplia heurística frágil"*: o code-reviewer verificou que
+        `expandirEtapasAgregadas` só é chamado para `INTERVALADO`/`TIRO`/`FARTLEK`
+        (`IaServiceImpl:387,405`), e a expansão ainda exige casar o padrão.
+      - *Codex, Major — desempate `A A A A` → `4x A` vs `2x(A+A)`*: empate real, mas `4x A` é a
+        leitura natural. Não acionável.
 - [ ] **3.3** PR `feature/fix-fartlek-expansao-etapas` → `develop`
 - [x] **3.4** Decisão da task 1.2 registrada no `proposal.md` (seção "Revisão da abordagem" e
       Open Questions) e na própria task 1.2.
@@ -56,6 +77,7 @@ Repo afetado: `apps/menthoros-backend` · branch `feature/fix-fartlek-expansao-e
 
 - `30aba85` fix(ia): expande fartlek quando o LLM tipa a etapa como PRINCIPAL
 - `b8ab7ac` fix(intervals-icu): infere bloco de repetição em etapas sem blocoId
+- `5980357` fix(intervals-icu): só infere bloco quando a janela tem etapa INTERVALADO
 - `9ff3bd2` docs(openspec): change fix-fartlek-expansao-etapas *(menthoros-product)*
 
 ## Follow-ups fora do escopo (não fazer aqui)
