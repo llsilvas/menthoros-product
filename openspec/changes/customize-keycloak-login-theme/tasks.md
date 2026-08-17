@@ -126,8 +126,13 @@
       "Atualizar Informações da Conta"), erro de client inválido (`400`, página renderizada).
       ⚠️ **Pendência honesta:** a tela de **recuperação de senha não pôde ser exercitada** — o realm
       não tem `resetPasswordAllowed`, então a rota devolve `400` (recurso desligado), não a tela.
-      O mesmo vale para o cadastro. Quando `keycloak-user-onboarding-auth` ligar esses fluxos, eles
-      precisam de uma passada visual: compartilham este CSS e ninguém os abre ao testar login.
+      O mesmo vale para o cadastro.
+      **Corrigido o encaminhamento em 2026-08-16:** a versão anterior desta nota dizia "quando
+      `keycloak-user-onboarding-auth` ligar esses fluxos" — mas aquela change **declarou recuperação
+      de conta fora de escopo** (`proposal.md:21`) e foi **arquivada em 2026-08-11**. O item estava
+      órfão. Registrado no **Radar do `SPRINTS.md`** como item próprio (XS · Fast, só um atributo no
+      realm). Quem o executar fecha esta pendência junto: as telas compartilham este CSS e ninguém
+      as abre ao testar login.
 
 ## 4. Ambiente de dev (Railway) — só depois da seção 3 fechada no local
 
