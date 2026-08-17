@@ -220,4 +220,41 @@
 - [x] 5.1 Registrar o **rollback** no README do `menthoros-infra`: remover `loginTheme` do realm e
       rodar o `sync-realm.sh` devolve o tema padrão. É o procedimento de emergência da porta de
       entrada do produto — precisa estar onde se procura sob pressão.
-- [ ] 5.2 Registrar no `SPRINTS.md`.
+- [x] 5.2 Registrar no `SPRINTS.md`. Feito em 2026-08-16: a linha do Radar passa a ✅ entregue, com o
+      desmembramento da seção 4 e o HomeLab registrados; `migrate-keycloak-dev-to-repo-build` entrou
+      como linha própria.
+
+---
+
+## Resumo de entrega (2026-08-16)
+
+**Entregue e no ar:**
+
+| Ambiente | Tema |
+|---|---|
+| Local | ✅ |
+| HomeLab (`192.168.15.24`) | ✅ |
+| Dev (Railway) | ❌ — virou `migrate-keycloak-dev-to-repo-build` |
+
+Tema `menthoros` com `parent=keycloak.v2`, sem nenhum `.ftl` próprio. PT-BR ligado no realm
+(`internationalizationEnabled`, que era o que faltava — a tradução já vinha completa do tema base).
+Contraste medido e registrado no CSS, todos os pares em AA. Fontes auto-hospedadas, tirando o
+`fonts.googleapis.com` da tela pré-autenticação. Preflight virou guarda no `sync-realm.sh` e o
+`keycloak-config-cli` saiu de `:latest`. PRs `menthoros-infra` **#11** e **#13**.
+
+**Adiado, com destino:**
+
+- **Seção 4 (Railway)** → `migrate-keycloak-dev-to-repo-build` (S · Full), criada.
+- **Recuperação de senha** (task 3.5, parcial): o realm não tem `resetPasswordAllowed`, então as
+  telas do fluxo não puderam ser validadas no tema. Item estava órfão — a change de onboarding o
+  declarou fora de escopo e foi arquivada. → Radar do `SPRINTS.md`.
+- **`.env.sync` sobrescreve variáveis exportadas** → issue `menthoros-infra#12`.
+
+**O que a execução ensinou, além do escopo:**
+
+1. **Ter o tema na imagem não aplica nada.** Deploy e sync de realm são planos separados; foi
+   exatamente aí que o HomeLab pareceu "não ter funcionado".
+2. **Documentar armadilha não impede repetição.** A do `varchar(255)` tinha commit e seção de README
+   e mordeu de novo. O que impediu o estrago foi testar em alvo descartável, não a documentação.
+3. **Ambiente compartilhado revela o que a máquina do dev não revela.** O `menthoros-test` ligado
+   havia sete dias contra um arquivo que dizia o contrário só apareceu porque um sync ia desligá-lo.
