@@ -11,15 +11,41 @@ Um tema do Keycloak é um diretório dentro do container (`/opt/keycloak/themes/
 dos dois ambientes constrói uma imagem nossa: o local usa `image:` no compose, e o Railway usa a
 imagem pública. Não existe artefato onde colocar o tema.
 
-Estado verificado em 2026-08-05:
+Estado verificado em 2026-08-05, **com o HomeLab acrescentado em 2026-08-16** (ver abaixo):
 
-| | Local (`docker-compose.yml`) | Dev (Railway, `menthoros-keycloak`) |
-|---|---|---|
-| Origem | `image: quay.io/keycloak/keycloak:${KC_VERSION:-26.6}` | `source.image: quay.io/keycloak/keycloak:26.6` |
-| Repo/Dockerfile | `docker/Dockerfile.keycloak` existe mas é **órfão** | `source.repo: null` |
-| Comando | `command: start-dev` (compose) | `startCommand: /opt/keycloak/bin/kc.sh start-dev` (serviço) |
-| Versão efetiva | `26.6` (tag móvel) | `26.6` (tag móvel) |
-| Versão no Dockerfile | **26.2.5** — divergente | — |
+| | Local (máquina do dev) | **HomeLab** (`192.168.15.24:8080`) | Dev (Railway, `menthoros-keycloak`) |
+|---|---|---|---|
+| Origem | `docker-compose.yml` deste repo | **o mesmo `docker-compose.yml`**, clonado na máquina | `source.image: quay.io/keycloak/keycloak:26.6` |
+| Repo/Dockerfile | `docker/Dockerfile.keycloak` era **órfão** | idem — herda o compose | `source.repo: null` |
+| Comando | `command: start-dev` (compose) | `command: start-dev` (compose) | `startCommand: /opt/keycloak/bin/kc.sh start-dev` (serviço) |
+| Versão efetiva | `26.7.0` | **`26.7.0`** (verificado por `/admin/serverinfo`) | `26.6` (tag móvel) |
+| Estado dos dados | descartável | **Postgres com volume `pg_data`** — sobrevive à recriação do container | Postgres do serviço |
+| Compartilhado? | não | **sim** | sim |
+
+## O HomeLab é o terceiro ambiente, e faltava nesta tabela
+
+**Acrescentado em 2026-08-16.** As versões anteriores deste documento tinham só duas colunas, Local e
+Railway, como se o HomeLab fosse "o local". Não é, e a omissão importa por um motivo concreto: **é o
+HomeLab que está no `.env.sync`**, ou seja, é o alvo real dos syncs no dia a dia. A spec descrevia
+uma topologia de dois ambientes enquanto a operação acontecia num terceiro que ela não mencionava.
+
+O que a sondagem de 2026-08-16 mostrou:
+
+```
+versão do Keycloak:            26.7.0        (já igual à do Dockerfile)
+temas de login instalados:     keycloak, keycloak.v2   (sem `menthoros`)
+loginTheme / i18n no realm:    ausentes
+```
+
+Duas consequências:
+
+- **O passo 1 da ordem de execução já está satisfeito no HomeLab.** Não há migração de versão nem de
+  schema — diferente de agosto, quando ele subiu de 26.6 para 26.7.0 e o dump do banco antes era
+  necessário. Falta só o passo 2, fazer aquele Keycloak rodar a nossa imagem.
+- **Como ele usa o `docker-compose.yml` deste repo**, o passo 2 é `git pull` + `docker compose up -d
+  --build keycloak` na máquina. O `--build` não é opcional: sem ele o compose reusa a imagem já
+  existente com aquela tag. Só o serviço `keycloak` é recriado; o Keycloak usa `KC_DB: postgres` e o
+  estado vive no volume `pg_data`, então realms, clients e usuários sobrevivem.
 
 **Atualizado em 2026-08-05.** O HomeLab foi para **26.7.0** (pin exato), e `docker-compose.yml` e
 `Dockerfile.keycloak` passaram a apontar para a mesma versão. Falta o Railway, que segue em `26.6`
@@ -110,8 +136,37 @@ Por ambiente, sempre:
 1. versão alinhada  →  2. imagem com o tema no ar  →  3. preflight (tema listado)  →  4. loginTheme
 ```
 
-Inverter 2 e 4 derruba o login. Como local e dev são deploys independentes, a sequência roda
-**duas vezes**, inteira, e o local vai primeiro.
+Inverter 2 e 4 derruba o login. Como os três ambientes são deploys independentes, a sequência roda
+**três vezes**, inteira.
+
+**Ordem entre ambientes, revista em 2026-08-16:**
+
+```
+local  →  HomeLab  →  Railway
+```
+
+Antes eram dois passos (local → Railway), e o HomeLab entrava implicitamente como "o local". Passa a
+ser etapa própria, **entre** os dois, e não por simetria: o HomeLab é o ensaio mais próximo do
+Railway que existe. Mesma imagem, mesmo Dockerfile, ambiente **compartilhado de verdade** — com
+outras pessoas e outros serviços dependendo daquele login, que é justamente o que a máquina do dev
+não reproduz. Fazer o HomeLab antes derisca o Railway sem custo, porque ele já está na versão certa
+e o deploy é um comando.
+
+A diferença que resta entre HomeLab e Railway, e que o ensaio **não** cobre: lá a origem do serviço
+ainda é imagem pública, então a task 4.1 continua sendo uma troca de modelo de deploy, não um
+`--build`.
+
+**Estado por ambiente em 2026-08-16:**
+
+| Ambiente | 1. versão | 2. imagem com o tema | 3. preflight | 4. `loginTheme` |
+|---|:---:|:---:|:---:|:---:|
+| Local | ✅ 26.7.0 | ✅ | ✅ | ✅ |
+| HomeLab | ✅ 26.7.0 | ❌ | — | ❌ |
+| Railway | ❌ 26.6 | ❌ | — | ❌ |
+
+Nada quebra enquanto os ❌ existirem: o `loginTheme` está no realm versionado, mas o preflight do
+`sync-realm.sh` **aborta** antes de aplicá-lo em alvo sem o tema. O risco que este documento
+descrevia como principal está, hoje, coberto por código.
 
 ## Rollback
 
@@ -119,6 +174,7 @@ Inverter 2 e 4 derruba o login. Como local e dev são deploys independentes, a s
 |---|---|
 | Tema feio, quebrado ou ilegível | Remover `loginTheme` do `menthoros-realm.json` e rodar o `sync-realm.sh`. Volta ao tema padrão sem tocar na imagem. É o rollback rápido e cobre quase tudo. |
 | Imagem não sobe / Keycloak não inicia em dev | Voltar `source` do serviço para `image: quay.io/keycloak/keycloak:26.7.0` — **não `26.6`**. O tema é validado contra a 26.7.0 no local; reverter para a tag móvel `26.6` não restaura o baseline testado, restaura outro Keycloak. As variáveis do serviço são preservadas na troca de origem — nenhuma delas depende do builder. |
+| **Keycloak não sobe no HomeLab** após o `--build` | Subir a imagem pública `quay.io/keycloak/keycloak:26.7.0` à mão, com as mesmas variáveis do compose, até investigar. Os dados **não** estão em risco: vivem no volume `pg_data` do Postgres, que não é recriado. Dump do banco antes deixou de ser necessário aqui — ele se justificava em 2026-08-05, quando havia migração de 26.6 para 26.7.0; agora as duas pontas já estão na mesma versão e o Keycloak não migra nada. |
 | Realm apontando para tema inexistente (login caiu) | Mesmo rollback da primeira linha. Este é o cenário que o preflight existe para evitar. |
 
 O primeiro procedimento vai no README do `menthoros-infra` (task 5.1): é a emergência da porta de

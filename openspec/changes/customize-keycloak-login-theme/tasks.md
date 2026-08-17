@@ -134,7 +134,34 @@
       realm). Quem o executar fecha esta pendência junto: as telas compartilham este CSS e ninguém
       as abre ao testar login.
 
-## 4. Ambiente de dev (Railway) — só depois da seção 3 fechada no local
+## 3b. HomeLab — o ensaio do Railway (nova em 2026-08-16)
+
+> **Por que existe.** O HomeLab (`192.168.15.24:8080`) não estava em lugar nenhum da change, embora
+> seja **o alvo do `.env.sync`** — ou seja, o Keycloak que de fato recebe os syncs no dia a dia. A
+> spec descrevia dois ambientes enquanto a operação acontecia num terceiro.
+>
+> Entra **antes** da seção 4 de propósito: é o ensaio mais próximo do Railway que existe — mesma
+> imagem, mesmo Dockerfile, ambiente compartilhado de verdade — e sai quase de graça, porque já está
+> em 26.7.0 e usa o `docker-compose.yml` deste repo.
+>
+> **Pré-requisito:** o PR das seções 1–3 mergeado em `main`. Antes disso o compose da máquina ainda
+> tem `image:` e não constrói nada.
+
+- [ ] 3b.1 Na máquina do HomeLab: `git pull origin main` e `docker compose up -d --build keycloak`.
+      ⚠️ **`--build` não é opcional** — sem ele o compose reusa a imagem já existente com aquela tag
+      e nada muda, sem erro nenhum.
+      Só o serviço `keycloak` é recriado. Os dados não correm risco: o Keycloak usa `KC_DB: postgres`
+      e o estado vive no volume `pg_data`, que não é tocado.
+      *verify:* `docker exec menthoros-keycloak ls /opt/keycloak/themes/menthoros` lista os arquivos.
+- [ ] 3b.2 Rodar `./keycloak/sync-realm.sh` da máquina de dev — o `.env.sync` já aponta para o
+      HomeLab, então não passar nada. O preflight confirma o tema antes de aplicar.
+      ⚠️ Não adianta passar `KEYCLOAK_URL=` na linha de comando: o `.env.sync` sobrescreve variáveis
+      exportadas (issue `menthoros-infra#12`).
+      *verify:* `>> Preflight OK` seguido de `>> Sincronização concluída.`
+- [ ] 3b.3 Repetir a validação da seção 3 no HomeLab — login completo, credencial inválida, logout,
+      celular. É ambiente compartilhado: é aqui que aparece o que a máquina do dev não reproduz.
+
+## 4. Ambiente de dev (Railway) — só depois do HomeLab (3b) validado
 
 > Serviço `menthoros-keycloak`, projeto `robust-expression` (`4f4f3290-…`), env `develop`
 > (`76759ba8-…`). Este serviço autentica **todo** o ambiente de desenvolvimento: uma imagem que não
@@ -142,6 +169,10 @@
 >
 > **As seções 1–3 são mergeáveis sem esta.** Se a seção 4 travar, ela sai para change própria em vez
 > de segurar o tema e a tradução (decisão registrada no proposal, Revisão de produto).
+>
+> **O que o ensaio do HomeLab (3b) NÃO cobre:** lá a origem do serviço já é o `docker-compose.yml`
+> deste repo, então entregar o tema é um `--build`. Aqui a origem é **imagem pública**, e a 4.1 é
+> troca de modelo de deploy — o ensaio valida a imagem e o tema, não o mecanismo de origem.
 
 - [ ] 4.1 **Trocar a origem do serviço** de `image: quay.io/keycloak/keycloak:26.6` para o repo
       `llsilvas/menthoros-infra`, construindo por `docker/Dockerfile.keycloak`.
