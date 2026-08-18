@@ -211,12 +211,42 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
 
 ## Fase 5 — Fechamento
 
-- [ ] **5.1** `/qa` — `frontend-reviewer` + `clean-code-reviewer` em paralelo; consolidar e tratar.
+- [x] **5.1** `/qa` — `frontend-reviewer` + `clean-code-reviewer` em paralelo; consolidar e tratar.
 - [ ] **5.2** Avaliação qualitativa da v1 (decisão registrada no proposal, seção "Métrica de sucesso"):
       coletar o feedback do treinador após uma semana de uso sobre "dá para dizer que treino é esse
       sem ler texto?", e medir a **taxa de edição após aprovação** (`editadoPeloCoach` sobre treinos
       já aprovados) antes e depois — sai do banco, sem instrumentação nova.
       `verify:` as duas leituras registradas na change antes do arquivamento; a contra-métrica não piorou.
-- [ ] **5.3** Registrar como follow-up: **DEP-1** (intensidade estruturada em `EtapaTreinoDto`) e
-      **DEP-2** (limiares do atleta) como changes de backend; sem elas o modo degradado permanece o
-      caminho normal. Abrir também a change de migração `zone` → `workoutZone` nos demais gráficos (§11).
+- [x] **5.3** Follow-ups registrados (ver abaixo).
+
+---
+
+## Follow-ups desta change
+
+Nenhum é bloqueante para o merge; todos saíram de fatos verificados durante a implementação.
+
+**Backend**
+- **DEP-1** — intensidade estruturada em `EtapaTreinoDto` (`{tipo, min, max}`). Sem ela, a zona só é
+  confiável quando alguém escreve `Z4` no alvo em texto; o resto cai em `derived`/`unknown`.
+- **DEP-2** — limiares do atleta (`ftpWatts`, `paceLimiarSecPerKm`, `cssSecPer100m`, `fcMax`). Sem
+  eles a escala não sai de `rpe`/`hrPct`, e a altura dentro da faixa segue estimada.
+- **DEP-3** — esporte por treino. **Verificado:** nem `TreinoPlanejado` nem `TreinoPlanejadoDto`
+  carregam modalidade, então bike e natação são desenhados na escala de corrida. Marcado com
+  `TODO(DEP-3)` nos dois call-sites, para a lacuna não passar por decisão.
+- **DEP-5** — `intensidadePlanejada` no DTO da revisão. Enquanto não existir, o chip IF nunca
+  renderiza naquela tela.
+
+**Frontend**
+- **Unificar as três formas de etapa** — `EtapaTreino`, `EtapaTreinoDto` e `EtapaItem`. Os três
+  adaptadores em `input.ts` absorvem a divergência na borda, o que é certo enquanto ela existir; sem
+  uma change de consolidação, viram quatro na próxima tela que desenhar etapas.
+- **Migrar `zone` → `workoutZone` nos demais gráficos** (§11 da spec). O `DetalheTreinoDialog` já usa
+  a rampa nova nas suas listas, para não mostrar duas cores da mesma zona na mesma tela; os outros
+  gráficos seguem na paleta antiga.
+- **Card "Distribuição" do `DetalheTreinoDialog`** — percentual por bloco, ao lado da barra por zona
+  do perfil. Não é duplicação exata (recortes diferentes), mas as duas dizem coisa próxima no mesmo
+  diálogo. Decisão de layout, fora do escopo desta change.
+- **Extrair `Tooltip`, `DistributionBar` e `Skeleton`** de `WorkoutProfile.tsx` para `parts/`, que é
+  a convenção que o próprio módulo estabeleceu. Cosmético, sem mudança de comportamento.
+- **Task 2.14 não implementada** — corte de >200 blocos com caminho SVG agregado. O `design.md` §6
+  recomendava não construir o segundo renderizador, e nenhum treino real chega perto.
