@@ -19,16 +19,16 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
 
 ## Fase 0 — Tokens (nenhuma mudança visual)
 
-- [ ] **0.1** Adicionar `workoutZone` e `workoutZoneLabel` em `src/theme/theme.premium.ts` (§3.1).
+- [x] **0.1** Adicionar `workoutZone` e `workoutZoneLabel` em `src/theme/theme.premium.ts` (§3.1).
       `workoutZoneLabel` deve **reusar** os rótulos já existentes em `activeTheme.ts` (`ZONE_LABELS`),
       não duplicá-los. `zone` fica intocado.
       `verify:` `npm run test:run -- theme.premium` verde; `grep -n "export const zone" theme.premium.ts` inalterado.
-- [ ] **0.2** Adicionar `font` (`display`/`text`/`mono`) e os quatro grupos do componente —
+- [x] **0.2** Adicionar `font` (`display`/`text`/`mono`) e os quatro grupos do componente —
       `workoutProfileFill`, `workoutProfileChrome`, `workoutProfileType`, `workoutProfileSpace` (§3.2–3.5).
       `verify:` `npm run build` — tipos `as const` compilam sem `any`.
-- [ ] **0.3** Rotear os grupos novos por `src/theme/activeTheme.ts`. Nenhum componente consome ainda.
+- [x] **0.3** Rotear os grupos novos por `src/theme/activeTheme.ts`. Nenhum componente consome ainda.
       `verify:` `npm run lint && npm run build`; `git diff --stat` toca só `theme/`.
-- [ ] **0.4** Teste de token **AC-9**: monotonia de matiz Z1→Z5 no arco ciano→vermelho (≈199→160→51→25→0)
+- [x] **0.4** Teste de token **AC-9**: monotonia de matiz Z1→Z5 no arco ciano→vermelho (≈199→160→51→25→0)
       e contraste ≥ 3:1 de cada hex contra `elevation.panel` `#0E1B30`. Estender
       `src/theme/theme.premium.test.ts`, que já tem precedente de asserção de contraste.
       `verify:` `npm run test:run -- theme.premium` — AC-9 verde.
