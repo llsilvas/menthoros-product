@@ -159,7 +159,7 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
 
 > Dependência **resolvida**: `preservar-serie-estruturada-na-edicao` está em `develop` desde o
 > PR #79 (`bdba29b`). As tasks abaixo estão escritas contra o código pós-merge.
-- [ ] **3.1** `DetalheTreinoDialog.tsx`: trocar `toWorkoutBlocks` + `WorkoutTimelineChart` (`:213`, `:524`)
+- [x] **3.1** `DetalheTreinoDialog.tsx`: trocar `toWorkoutBlocks` + `WorkoutTimelineChart` (`:213`, `:524`)
       por `fromEtapaTreino` + `selectWorkoutProfile` + `WorkoutProfile`. **Remover** o eyebrow
       "Timeline do treino" (`:520`), a prop `title` (`:525`) e os cards "Leitura rápida" (`:549`) e
       "Resumo estrutural" (`:576`). A linha `:310` ("Leitura rápida do contexto…") **fica** — está fora
@@ -167,7 +167,7 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
       `verify:` **AC-10** em Vitest (busca por texto, com o escopo do query explícito na região do
       perfil). **AC-8 vai para a task 3.4** — `text-transform` vem de classe Emotion e o Vitest roda
       com `css: false`, então a asserção não enxerga o estilo computado.
-- [ ] **3.2** `TreinoEditDialog.tsx`: trocar o chart (`:719`) e **remover o `useMemo` `liveBlocks`
+- [x] **3.2** `TreinoEditDialog.tsx`: trocar o chart (`:719`) e **remover o `useMemo` `liveBlocks`
       inteiro** (`:380-442`) — é a segunda derivação independente de zona (`zoneFromString`,
       `blockTypeDe`), o D6 com outro nome. No lugar: `fromEtapaItens(itens)` → `selectWorkoutProfile`
       → `WorkoutProfile`, mantendo a atualização a cada edição. Passar `activeBlockId` sincronizado
@@ -176,11 +176,11 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
       `verify:` editar uma etapa destaca a barra correspondente, e o gráfico continua atualizando a
       cada tecla (teste de componente); `grep -n "zoneFromString\|blockTypeDe" TreinoEditDialog.tsx`
       retorna vazio.
-- [ ] **3.3** Atualizar os testes dos dois diálogos. Espera-se quebra em asserções de rótulo de bloco
+- [x] **3.3** Atualizar os testes dos dois diálogos. Espera-se quebra em asserções de rótulo de bloco
       (`'Esforço 1/3'`, `'3 min'`): a numeração de repetição migra para o bracket `5×` e para o tooltip
       (§10, "O que quebra"). Reescrever contra o bracket, não remover a asserção.
       `verify:` `npm run test:run` inteiro verde.
-- [ ] **3.4** E2E do fluxo de revisão com o perfil novo (obrigatório pelo `CLAUDE.md` do front — decisão
+- [x] **3.4** E2E do fluxo de revisão com o perfil novo (obrigatório pelo `CLAUDE.md` do front — decisão
       coach-in-the-loop): abrir a fila, abrir um treino, conferir badge/chips/bracket, editar e salvar.
       **Este é o único lugar onde os ACs de geometria são verificáveis** (§9.0 da spec) — os cinco
       abaixo são requisito de entrega desta task, não "nice to have":
@@ -202,9 +202,9 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
 
 ## Fase 4 — Remoção
 
-- [ ] **4.1** Deletar `src/components/features/planos/WorkoutTimelineChart/` inteiro (4 arquivos).
+- [x] **4.1** Deletar `src/components/features/planos/WorkoutTimelineChart/` inteiro (4 arquivos).
       `verify:` `grep -rn "WorkoutTimelineChart\|toWorkoutBlocks" src` retorna vazio.
-- [ ] **4.2** Remover a entrada em `src/index.md`.
+- [x] **4.2** Remover a entrada em `src/index.md`.
       `verify:` `npm run lint && npm run build && npm run test:run && npm run test:e2e`.
 
 ---
