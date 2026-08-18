@@ -10,60 +10,68 @@ Repos afetados:
 
 ## 0. Pré-requisito — conferir antes de criar a branch do front
 
-- [ ] **0.1** `expandir-serie-timeline-revisao` (menthoros-front **#78**) mergeada em `develop`.
+- [x] **0.1** `expandir-serie-timeline-revisao` (menthoros-front **#78**) mergeada em `develop`.
       A task 2.5 assume o laço de expansão do `liveBlocks`; sem ele a base é outra e o merge
       conflita. `gh pr view 78 --json state -q .state` deve retornar `MERGED`.
 
 ## 1. Modelo de etapas compartilhado (front)
 
-- [ ] **1.1** Extrair `StepRow` / `BlockRow` / `SubStep` / `EtapaItem` e `serializarItens` de
+- [x] **1.1** Extrair `StepRow` / `BlockRow` / `SubStep` / `EtapaItem` e `serializarItens` de
       `TreinoAddDialog.tsx:55-79,105-127` para `features/coach/components/etapas/`.
       Extração pura: `TreinoAddDialog` passa a importar, sem mudança de comportamento.
-- [ ] **1.2** Testes do `TreinoAddDialog` seguem verdes sem alteração — é a prova de que a extração
+- [x] **1.2** Testes do `TreinoAddDialog` seguem verdes sem alteração — é a prova de que a extração
       não mudou nada.
-- [ ] **Validação:** `npm run test:run`
+- [x] **Validação:** `npm run test:run` → 123 arquivos, 991 testes, 0 falhas
 
 ## 2. Hidratação inversa e editor por lista (front)
 
-- [ ] **2.1** Teste que falha — **round-trip** (CA1): `serializarItens(itensFromEtapas(etapas))`
+- [x] **2.1** Teste que falha — **round-trip** (CA1): `serializarItens(itensFromEtapas(etapas))`
       reproduz as etapas originais, para uma série heterogênea (2 pares Z4/Z1 + 2 pares Z5/Z1).
       É o teste que mais protege este design.
-- [ ] **2.2** Testes de `itensFromEtapas`: agrupa por `blocoId` (CA2), infere sem `blocoId` (CA3),
+- [x] **2.2** Testes de `itensFromEtapas`: agrupa por `blocoId` (CA2), infere sem `blocoId` (CA3),
       não inventa bloco em etapas heterogêneas (CA4), degrada para avulsos quando `reps` não divide
       o grupo, exige uma etapa `INTERVALADO` na janela, e **bloco com 1 repetição** vira sub-etapas
       avulsas em vez de `BLOCO` degenerado.
-- [ ] **2.3** **Teste de paridade com o Java:** os fixtures de agrupamento de
-      `IntervalsIcuWorkoutConverterTest` reproduzidos em `itensFromEtapas.test.ts`, com comentário
-      cruzado em cada arquivo apontando para o outro. É o que faz a divergência aparecer como teste
-      vermelho em vez de chamado do treinador (ver "Dívida aceita" no `design.md`).
-- [ ] **2.4** Implementar `itensFromEtapas`.
-- [ ] **2.5** **Ajustar `TreinoPlanejadoPatch.etapas`** de `EtapaTreinoDto[]` para
+- [x] **2.3** **Paridade com o Java:** comentário cruzado nos dois arquivos de teste
+      (`etapaItem.test.ts` ↔ `IntervalsIcuWorkoutConverterTest.java`) e os mesmos cenários de
+      agrupamento cobertos dos dois lados — bloco explícito, inferência sem `blocoId`, série
+      heterogênea, e a exigência de etapa `INTERVALADO` na janela.
+
+      **Entregue parcialmente, e vale registrar:** os fixtures são equivalentes em cenário, não
+      idênticos em dados — cada suíte usa os valores que fazem sentido no seu lado (o Java trabalha
+      com `EtapaTreino` e `Duration`, o TS com strings de formulário). Isso significa que a
+      divergência aparece como teste vermelho apenas se ela mudar o **comportamento** coberto; uma
+      divergência sutil em dado de borda pode escapar. Compartilhar fixtures de verdade exigiria um
+      arquivo de dados comum aos dois repos — desproporcional agora, e a alternativa real é o
+      follow-up de unificar a regra no backend.
+- [x] **2.4** Implementar `itensFromEtapas`.
+- [x] **2.5** **Ajustar `TreinoPlanejadoPatch.etapas`** de `EtapaTreinoDto[]` para
       `EtapaInputPayload[]` (`types/PlanoReview.ts:97`). Sem isso não compila: `serializarItens`
       devolve `EtapaInputPayload[]`, e `EtapaTreinoDto` não tem `subEtapas`. Não é mudança de
       contrato — o backend já aceita (`TreinoPlanejadoPatchDto.etapas` é `List<EtapaInputDto>`);
       o tipo do cliente TS é que estava estreito. Conferir se há outro consumidor do campo.
-- [ ] **2.6** `TreinoEditDialog`: quatro `BlocoState` → `EtapaItem[]`; adicionar, remover, reordenar.
-- [ ] **2.7** **Preservar a guarda `blocosMudados`** (`:415`), agora rastreando a lista de itens:
+- [x] **2.6** `TreinoEditDialog`: quatro `BlocoState` → `EtapaItem[]`; adicionar, remover, reordenar.
+- [x] **2.7** **Preservar a guarda `blocosMudados`** (`:415`), agora rastreando a lista de itens:
       `handleSalvar` só inclui `patch.etapas` se a lista mudou. Teste do CA7 — alterar apenas o TSS
       e verificar que o patch **não** contém `etapas`.
-- [ ] **2.8** Soft-warning ao remover aquecimento ou desaquecimento de um treino que os tinha:
+- [x] **2.8** Soft-warning ao remover aquecimento ou desaquecimento de um treino que os tinha:
       confirmação não-bloqueante antes de salvar. Não valida no backend.
-- [ ] **2.9** `liveBlocks` e os totais derivam dos itens. Verificar que o laço de expansão criado em
+- [x] **2.9** `liveBlocks` e os totais derivam dos itens. Verificar que o laço de expansão criado em
       `expandir-serie-timeline-revisao` **simplifica** em vez de duplicar.
-- [ ] **2.10** Teste de componente: abre série heterogênea, altera uma etapa, salva — as demais
+- [x] **2.10** Teste de componente: abre série heterogênea, altera uma etapa, salva — as demais
       preservam conteúdo e ordem (CA1); treino simples preservado (CA6).
-- [ ] **Validação:** `npm run lint && npm run build && npm run test:run`
+- [x] **Validação:** `npm run lint` sem issues · `npm run build` ok · `npm run test:run` → **991 testes, 0 falhas**
 
 ## 3. `blocoId` preservado no patch (backend)
 
-- [ ] **3.1** Teste que falha (CA5): patch com `BLOCO` de 4 repetições → 8 etapas com o mesmo
+- [x] **3.1** Teste que falha (CA5): patch com `BLOCO` de 4 repetições → 8 etapas com o mesmo
       `blocoId` e `blocoRepeticoes=4`.
-- [ ] **3.2** `aplicarEtapasPatch` expande os blocos gerando um `UUID` por `BLOCO` e construindo via
+- [x] **3.2** `aplicarEtapasPatch` expande os blocos gerando um `UUID` por `BLOCO` e construindo via
       `buildEtapaSimples` — o mesmo caminho da adição. Manter `expandirRepeticoes` para o payload
       legado `INTERVALADO(rep=N)`.
-- [ ] **3.3** Teste de não-regressão: patch de treino simples segue gravando 3 etapas sem `blocoId`
+- [x] **3.3** Teste de não-regressão: patch de treino simples segue gravando 3 etapas sem `blocoId`
       (CA6); payload legado continua expandindo.
-- [ ] **Validação:** `./mvnw clean verify` (gate — `test` não roda os `*IT`)
+- [x] **Validação:** `./mvnw clean verify` → **2617 unitários + 103 IT, 0 falhas**
 
 ## 4. Fechamento
 
@@ -75,7 +83,16 @@ Repos afetados:
 
 ## E2E
 
-- [ ] **E2E** O `CLAUDE.md` do front lista "editar um treino planejado" como fluxo crítico com E2E
+- [x] **E2E** `tests/e2e/coach/plan-review-edicao.spec.ts` — **2 casos, verdes**, com o corpo do
+      PATCH interceptado no browser: a série sai como `BLOCO(5)` e a edição de TSS não envia
+      `etapas`. Suíte E2E completa: **48 specs, 0 falhas**.
+
+      Armadilha encontrada ao escrever: o `CoachLayout` só busca os planos depois do gate de
+      consentimento e onboarding (`liberado`), então o mock de `/users/me` precisa vir completo.
+      Sem isso a tela carrega vazia e o teste passa por engano, sem nunca renderizar a lista — o
+      mesmo modo de falha que o `CLAUDE.md` descreve para os E2E de coach existentes.
+
+      Justificativa registrada quando a task foi escrita: o `CLAUDE.md` do front lista "editar um treino planejado" como fluxo crítico com E2E
       obrigatório, e **esta change muda o fluxo de escrita** — diferente de
       `expandir-serie-timeline-revisao`, que era só renderização e por isso pôde deferir.
       Aqui o E2E é devido: o round-trip grava no plano do atleta.
