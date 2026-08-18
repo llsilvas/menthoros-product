@@ -98,6 +98,28 @@ construindo as etapas via `buildEtapaSimples` — exatamente o que a adição j�
 deixa de ser necessário no caminho de patch; `expandirRepeticoes` (que trata o formato legado
 `INTERVALADO(rep=N)` + `RECUPERACAO`) permanece, porque o payload antigo ainda pode chegar.
 
+## Mudança de contrato no PATCH (efeito colateral da unificação)
+
+Unificar os dois caminhos traz junto as validações que só existiam na adição. Duas situações que o
+PATCH aceitava passam a responder **422**:
+
+| Payload | Antes | Depois |
+|---|---|---|
+| `BLOCO` com `subEtapas` vazio | bloco descartado **em silêncio** | `422` — "deve conter ao menos uma sub-etapa" |
+| `blocoRepeticoes > 20` | sem limite, expandia tudo | `422` — "não pode exceder 20" |
+| sub-etapa aninhada | já rejeitava | inalterado |
+
+Deliberado: perder uma etapa caladamente é pior que falhar explícito, e o limite de 20 já valia na
+adição — a assimetria é que era o defeito. Levantado no quality gate, que apontou corretamente que a
+mudança não tinha teste; coberta agora por três casos em `EditarTreino`.
+
+**Nota de ordem de expansão.** No caminho antigo, `expandirRepeticoes` rodava *depois* de achatar o
+`BLOCO`, então uma sub-etapa `INTERVALADO(repeticoes=N)` **dentro** de um bloco era expandida duas
+vezes — pela repetição do bloco e pela dela própria. Agora `expandirRepeticoes` roda antes e só no
+nível superior, então só `blocoRepeticoes` se aplica. É o resultado correto (contar duas vezes era
+bug), e a combinação — formato legado aninhado no formato de bloco — não é produzida por nenhum
+cliente atual. Registrado por ser mudança silenciosa.
+
 ## Compatibilidade
 
 - **Payload legado.** Um cliente que ainda envie `INTERVALADO(repeticoes=4)` continua funcionando via
