@@ -92,7 +92,7 @@ Repos afetados:
       olhava `patch.etapas` e ignorava os campos derivados.
 - [x] **4.2** PR backend → `develop` — menthoros-backend **#72**
 - [x] **4.3** PR front → `develop` — menthoros-front **#79**
-- [ ] **4.4** Validar em ambiente real — **o E2E não substitui isto**: ele mocka a API, então prova
+- [ ] **4.4** **Pendente — não bloqueia o arquivamento, mas não foi feito.** Validar em ambiente real — **o E2E não substitui isto**: ele mocka a API, então prova
       o payload que sai do browser, não o backend gravando o `blocoId`. Validar em ambiente real: abrir um fartlek na revisão, salvar sem alterar, conferir que
       as etapas não mudaram; depois editar uma repetição e conferir que só ela mudou.
 
@@ -115,6 +115,17 @@ Repos afetados:
       Não existe spec da tela de revisão hoje (`tests/e2e/` cobre auth, atletas, dashboard,
       coach/inbox), então esta change inclui criar a primeira — seed de plano + auth + edição.
       Se o ambiente inviabilizar, registrar aqui o motivo antes do PR, não depois.
+
+## Fechamento (2026-08-18)
+
+- PR backend **#72** e PR front **#79** mergeados em `develop`.
+- **Lapso corrigido depois do merge:** os três testes de contrato de erro do PATCH, escritos no
+  quality gate em resposta ao `code-reviewer`, ficaram sem commit — o #72 mergeou sem eles. Eles
+  existiam localmente e passavam; o `git add` do momento pegou só o outro arquivo. Recuperados no
+  PR **#73**, que é só teste. Sem impacto em produção, mas registra que o achado do gate ficou
+  temporariamente sem a cobertura que o motivou.
+- **Task 4.4 segue aberta.** O E2E mocka a API: prova o payload que sai do browser, não o backend
+  gravando o `blocoId`. Só a validação em ambiente real fecha essa lacuna.
 
 ## Riscos
 

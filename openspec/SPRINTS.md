@@ -684,6 +684,36 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
+### `preservar-serie-estruturada-na-edicao` ✅ **ARQUIVADA** — editar um treino na revisão achatava a série (2026-08-18)
+
+**Entregue:** `menthoros-backend` **#72** e `menthoros-front` **#79**. Backend **2620 unitários + 103
+de integração**; front **993 testes + 48 specs E2E**. Arquivada em
+`changes/archive/2026-08/2026-08-18-preservar-serie-estruturada-na-edicao/`.
+
+**O treinador mudava o TSS e a série virava esforço contínuo.** Sem aviso, com a duração total ainda
+correta. Dois mecanismos independentes, e por isso corrigir um só não resolvia: o `TreinoEditDialog`
+hidratava qualquer treino em quatro campos fixos e serializava de volta no máximo quatro etapas — uma
+série de 4 pares heterogêneos entrava como o primeiro par e saía como 4 cópias dele; e o
+`aplicarEtapasPatch` descartava o `blocoId`, que o caminho de adição já gravava certo.
+
+O editor passou a usar o modelo de itens do `TreinoAddDialog` (extraído para um módulo comum), com
+`itensFromEtapas` fazendo a hidratação inversa — agrupa por `blocoId` quando existe, infere a janela
+repetida quando não (treinos da IA nascem sem). No backend, os dois caminhos de escrita viraram um:
+o do patch expandia em DTO intermediário, e DTO não tem como carregar o agrupamento.
+
+**O processo pagou por si.** O pre-mortem pegou, antes da implementação, que o design perdia a guarda
+`blocosMudados` — sem ela toda edição administrativa viraria regravação estrutural, "o dano original
+com aparência de feature correta". O DoR pegou que o código não compilaria (`TreinoPlanejadoPatch.etapas`
+era mais estreito que o contrato real) e que a change dependia de um PR ainda aberto. O quality gate
+pegou dois bugs introduzidos na reescrita: **etapa adicionada nunca era salva** (não havia seletor de
+tipo, e `serializarItens` descartava item sem tipo em silêncio) e **a guarda valia pela metade**
+(`distanciaKm`/`duracaoMin` são derivadas das etapas e escapavam dela). Os dois passaram pela mesma
+brecha — testes que exercitavam o caminho sem verificar o resultado.
+
+**Aberto:** validação em ambiente real (task 4.4) — o E2E mocka a API, então prova o payload que sai
+do browser, não o backend gravando o `blocoId`. E o PR **#73**, que recupera três testes de contrato
+escritos no gate e não commitados a tempo.
+
 ### `fix-fartlek-expansao-etapas` ✅ **ARQUIVADA** — o fartlek chegava ao relógio como bloco único (2026-08-17)
 
 **Entregue:** `menthoros-backend` **#71** (`deb74b9`), quatro commits. Suíte **2614 unitários + 103
