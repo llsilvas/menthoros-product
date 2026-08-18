@@ -81,17 +81,17 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
 
 ## Fase 2 — Componente (ao lado do antigo, sem tocar em consumidor)
 
-- [ ] **2.1** Esqueleto de `WorkoutProfile.tsx` com a API da §8 e a resolução de variante por
+- [x] **2.1** Esqueleto de `WorkoutProfile.tsx` com a API da §8 e a resolução de variante por
       `ResizeObserver` sobre a largura do **container** (≥560 `full`, 280–559 `compact`, <280
       `sparkline`), com histerese de 24px (§5.1).
       `verify:` teste de variante com `ResizeObserver` mockado nos três limiares + histerese.
-- [ ] **2.2** Plot e blocos: escala X linear com piso de 3px e redistribuição proporcional; separador
+- [x] **2.2** Plot e blocos: escala X linear com piso de 3px e redistribuição proporcional; separador
       de 1px desenhado **sobre** a borda (sem gap); escala Y por teto fixo com piso de 12%; baseline reta;
       `borderRadius: 2px 2px 0 0` (§4.1, §4.2).
       `verify:` Vitest sobre a **fórmula** — a altura calculada e a redistribuição de piso são funções
       puras extraídas para `geometry.ts` e testadas sem DOM (`Σw === plotWidth`, piso respeitado,
       flag `overflowCompressed` acima de 8%). **AC-2 e AC-5 (medição em px) ficam para a task 3.4.**
-- [ ] **2.3** Preenchimento: gradiente 100%→55% da cor de zona, cap sólido de 2px e contorno de 1px,
+- [x] **2.3** Preenchimento: gradiente 100%→55% da cor de zona, cap sólido de 2px e contorno de 1px,
       ambos a 100% (§4.3). `trainingStage` deixa de pintar bloco.
       **Mecanismo obrigatório (§4.3.1):** a cor da zona entra como custom property **inline**
       (`style={{ '--zone-color': ... }}`) e o `sx` a consome via `var(--zone-color)`. Sem isso o AC-1
@@ -100,10 +100,10 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
       `verify:` **AC-1** — cada bloco declara `--zone-color` inline igual a `workoutZone[zone]`, e
       nenhum valor de `activeTheme.trainingStage` aparece em propriedade de cor (inline ou no `sx`).
       Confirmação do `background` computado vai junto na task 3.4.
-- [ ] **2.4** Rampas como trapézio via `polygon()`, cor da zona do ponto médio a 70%, cap acompanhando
+- [x] **2.4** Rampas como trapézio via `polygon()`, cor da zona do ponto médio a 70%, cap acompanhando
       a hipotenusa; descendente espelhada (§4.4).
       `verify:` render de aquecimento e desaquecimento; `clip-path` computado bate com a fórmula.
-- [ ] **2.5** Bracket de repetição na `bracketLane`: 1px, pernas de 4px, rótulo `{total}×`; só a
+- [x] **2.5** Bracket de repetição na `bracketLane`: 1px, pernas de 4px, rótulo `{total}×`; só a
       primeira repetição do grupo recebe rótulo de bloco; grupo < 48px perde as pernas (§4.5).
       **Desambiguação (§4.5):** "apenas a primeira repetição recebe rótulo" = todos os blocos com
       `repeat.index === 1`. Num 5×(3' + 2'), os **dois** blocos da primeira repetição são rotulados
@@ -111,17 +111,17 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
       `verify:` **AC-5, parte estrutural (Vitest)** — existe exatamente um bracket `5×`, e o número de
       blocos rotulados é igual ao número de blocos com `repeat.index === 1`. A extensão em px do
       bracket é da task 3.4.
-- [ ] **2.6** Eixo X com passo "bonito" por faixa de duração, tick final sempre igual à duração total,
+- [x] **2.6** Eixo X com passo "bonito" por faixa de duração, tick final sempre igual à duração total,
       supressão do penúltimo em colisão; eixo Y com gridlines nos quatro `zoneBreaks` e rótulos Z1–Z5
       centrados na faixa (§4.6).
       `verify:` **AC-4** — 40min rende `0,5,…,40`; 47min tem `47` como último tick.
-- [ ] **2.7** Cadeia de fallback de rótulo **medindo texto** (§4.7): `label` → `shortLabel` (≤5 chars,
+- [x] **2.7** Cadeia de fallback de rótulo **medindo texto** (§4.7): `label` → `shortLabel` (≤5 chars,
       vindo do dado) → ícone do `kind` → nada. Reticências proibidas.
       `verify:` **AC-7, parte de conteúdo (Vitest)** — nenhum `…`/`...` em nó de texto de bloco.
       A ausência de `text-overflow: ellipsis` **não** é verificável aqui se a propriedade vier de
       `sx` (mesma limitação do AC-8) e vai para a task 3.4, junto com a **escolha** do elo da cadeia,
       que depende de medir texto: em jsdom toda medida é zero e o teste passaria com a cadeia invertida.
-- [ ] **2.8** Header único (§4.8): título em display, badge `ALVO · Zn`, chips mono na ordem fixa
+- [x] **2.8** Header único (§4.8): título em display, badge `ALVO · Zn`, chips mono na ordem fixa
       (duração, blocos, tempo na zona-alvo, razão trabalho:recuperação como proporção inteira, IF, TSS),
       chip `⚠ n etapas sem duração` quando houver descartes, chip `⚠ intensidade estimada` quando `degraded`.
       Barra de distribuição empilhada de 4px derivada de `metrics.distribution`.
@@ -130,23 +130,23 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
       `intensidadePlanejada` (DEP-5). Nunca derivar IF da distribuição de zonas.
       `verify:` **AC-6** (badge = `metrics.targetZone`, distribuição soma 100%±0,5pp) e **AC-13**;
       mais um teste explícito de que o header da revisão renderiza TSS e **não** renderiza IF.
-- [ ] **2.9** Estados: skeleton com geometria real e alturas `[0.3,0.7,0.35,0.7,0.35,0.4]` sem layout
+- [x] **2.9** Estados: skeleton com geometria real e alturas `[0.3,0.7,0.35,0.7,0.35,0.4]` sem layout
       shift (§6.1); vazio com baseline e ação `onAddBlocks` (§6.2); parciais/ inválidos (§6.3).
       `verify:` os três renderizam com a mesma altura da variante final.
-- [ ] **2.10** Interação: hover/tap muda **só opacidade** (ativo 100%, demais 55%), zero mudança
+- [x] **2.10** Interação: hover/tap muda **só opacidade** (ativo 100%, demais 55%), zero mudança
       geométrica; tooltip com detecção de colisão e o conteúdo fixo da §7.1; `Esc` fecha.
       `verify:` **AC-3, complemento (Vitest)** — o estilo do bloco não declara `transform`/`scaleY` e
       só a opacidade muda entre estado normal e ativo. Necessário, não suficiente:
       `scrollHeight === clientHeight` durante o hover é da task 3.4.
-- [ ] **2.11** Teclado (§7.2): um único tab stop com roving focus; `←/→`, `Home/End`, `↑/↓` para a
+- [x] **2.11** Teclado (§7.2): um único tab stop com roving focus; `←/→`, `Home/End`, `↑/↓` para a
       próxima zona diferente; anel de foco por `outline` (não `border`); `aria-live="polite"`.
       `verify:` teste de teclado percorre 12 blocos com um só tab stop.
-- [ ] **2.12** Leitor de tela (§7.4): `role="img"` com `aria-label` gerado do mesmo `WorkoutProfile`,
+- [x] **2.12** Leitor de tela (§7.4): `role="img"` com `aria-label` gerado do mesmo `WorkoutProfile`,
       e `<table>` visualmente oculta com uma linha por bloco.
       `verify:` **AC-12** — a tabela tem exatamente `profile.blocks.length` linhas **e cada linha
       contém ordem, nome, duração, zona e alvo do bloco correspondente**. Contar linhas sozinho passa
       com uma tabela de N linhas vazias.
-- [ ] **2.13** `prefers-reduced-motion` (sem pulso, sem transição) e `prefers-contrast: more`
+- [x] **2.13** `prefers-reduced-motion` (sem pulso, sem transição) e `prefers-contrast: more`
       (contorno 2px, fill sólido) (§7.3).
       `verify:` teste com `matchMedia` mockado nas duas media queries.
 - [ ] **2.14** **[opcional — só se sobrar escopo]** Corte de > 200 blocos (§6.5). Design §6 recomenda

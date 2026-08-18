@@ -665,7 +665,12 @@ estilo, e o critério vai para o Playwright (§9.0).
 
 ### 4.6 Eixos
 
-**Eixo X.** Ticks em passo "bonito" escolhido para render 4–7 rótulos:
+**Eixo X.** Ticks em passo "bonito" por faixa de duração:
+
+> **Correção 2026-08-18.** Esta linha dizia "escolhido para render 4–7 rótulos", e a tabela abaixo
+> não faz isso: 40min com passo de 5 gera **nove** rótulos (`0, 5, …, 40`) — que é exatamente o que
+> o **AC-4 exige**. A tabela e o AC-4 concordam entre si; era a prosa que estava errada. A grade
+> fica entre 3 e 11 rótulos nas durações reais, e é isso que o teste garante.
 
 | Duração total | Passo |
 |---|---|
