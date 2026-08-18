@@ -269,9 +269,17 @@ export interface ProfileEtapaInput {
   observacao?: string;
 }
 
-export function fromEtapaTreino(e: EtapaTreino): ProfileEtapaInput;      // detalhe
-export function fromEtapaTreinoDto(e: EtapaTreinoDto): ProfileEtapaInput; // revisão
+export function fromEtapaTreino(e: EtapaTreino): ProfileEtapaInput;       // detalhe do treino
+export function fromEtapaTreinoDto(e: EtapaTreinoDto): ProfileEtapaInput;  // treino salvo na revisão
+export function fromEtapaItens(itens: EtapaItem[]): ProfileEtapaInput[];   // editor ao vivo
 ```
+
+**Terceiro adaptador, acrescentado 2026-08-18.** Desde `bdba29b` o gráfico do editor deriva do
+estado ao vivo `itens: EtapaItem[]` (`TreinoEditDialog.tsx:380-442`), não de `EtapaTreinoDto[]` —
+para atualizar a cada tecla. Adaptar do DTO ali desenharia o treino **salvo**, não o que o treinador
+está montando. `fromEtapaItens` recebe a **lista** porque a expansão de um bloco em `reps × steps`
+só existe nesse nível; o índice do bloco vira `repeat.groupId`, o `r` do laço vira `repeat.index` e
+`item.repeticoes` vira `repeat.total`.
 
 **Regra:** sem `blocoId`, o perfil não tem `repeat` — e portanto não tem bracket (§4.5). Não
 inferir grupo por igualdade de rótulo: seria adivinhação apresentada como estrutura, que é a

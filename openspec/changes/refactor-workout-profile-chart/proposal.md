@@ -1,7 +1,7 @@
 # refactor-workout-profile-chart — o perfil do treino passa a ser legível sem leitura
 
 **Tamanho:** L · **Trilha:** Full
-**Status:** criada 2026-08-18 — aguardando DoR
+**Status:** DoR aprovado 2026-08-18 (3 passadas: spec-reviewer + Codex) — pronta para implementar
 **Repos afetados:** `apps/menthoros-front` (somente)
 
 > **Fonte canônica de design:** `menthoros-product/artifacts/design-system/workout-profile-spec.md`
@@ -77,8 +77,9 @@ rastreado (D1–D10 + três de acessibilidade/degradado). Cada `tasks.md` refere
 a asserção passa nas duas versões. Esses cinco vão para Playwright (task 3.4), com a parte
 estrutural em Vitest onde existir. Resumo dos que governam o gate de entrega:
 
-- **AC-1** — o `background` computado de cada bloco contém `workoutZone[zone]` do próprio bloco, e
-  nenhum valor de `trainingStage` aparece em propriedade de cor de bloco.
+- **AC-1** — cada bloco declara `--zone-color` inline igual a `workoutZone[zone]` do próprio bloco
+  (§4.3.1 da spec) e nenhum valor de `trainingStage` aparece em propriedade de cor; o `background`
+  computado é confirmado em Playwright.
 - **AC-2** — num plot `full` de 176px, blocos com `intensityNormalized` 0.26 e 0.78 medem 46px e
   137px (±1px), com a razão a menos de 2% de 0.78/0.26.
 - **AC-3** — durante e depois do hover, `plot.scrollHeight === plot.clientHeight` e o
@@ -86,8 +87,8 @@ estrutural em Vitest onde existir. Resumo dos que governam o gate de entrega:
 - **AC-6** — a zona da badge é sempre `metrics.targetZone`, a distribuição soma 100% (±0,5pp) e a
   zona da badge tem share ≥ 15%. Verificado também por teste property-based sobre ≥200 perfis
   gerados: **nunca** existe perfil em que a badge mostre zona ausente da distribuição.
-- **AC-7** — nenhum nó de texto dentro de um bloco contém `…`/`...`, e nenhum bloco tem
-  `text-overflow: ellipsis`.
+- **AC-7** — nenhum nó de texto dentro de um bloco contém `…`/`...` (Vitest), e nenhum bloco tem
+  `text-overflow: ellipsis` computado (Playwright).
 - **AC-9** — `workoutZone` é monotônica em matiz no arco ciano→vermelho, e cada hex tem contraste
   ≥ 3:1 contra `elevation.panel` (`#0E1B30`).
 - **AC-12** — existe uma `<table>` oculta com exatamente `profile.blocks.length` linhas.
@@ -96,11 +97,28 @@ estrutural em Vitest onde existir. Resumo dos que governam o gate de entrega:
 
 ## Métrica de sucesso
 
-**Tempo de decisão do treinador na fila de revisão** — mediana de segundos entre abrir um treino e
-aprovar/editar/reprovar. **A instrumentação NÃO existe** (verificado 2026-08-18: não há canal de
-analytics no front; `CoachPlanReviewPage`/`useCoachPlanReview` só chamam a API e emitem toast, e
-`CoachAssessoriaSettingsPage` registra em comentário "sem canal de analytics no front ainda").
-Enquanto não houver, esta métrica é **inviável** — ver gap C2 no DoR.
+**Decisão 2026-08-18: a v1 é avaliada qualitativamente.** Isto é critério declarado, não pendência.
+
+A métrica que a change gostaria de ter é o **tempo de decisão do treinador na fila de revisão** —
+mediana de segundos entre abrir um treino e aprovar/editar/reprovar. **Ela não é coletável hoje:**
+não existe canal de analytics no front (verificado 2026-08-18 — `CoachPlanReviewPage` e
+`useCoachPlanReview` só chamam a API e emitem toast; `CoachAssessoriaSettingsPage` registra em
+comentário "sem canal de analytics no front ainda"). Construir esse canal é decisão de arquitetura
+que não pertence a uma change de gráfico, e foi conscientemente recusada aqui.
+
+Então a v1 é avaliada por:
+
+1. **Feedback direto do treinador** após uma semana de uso, sobre a pergunta que motivou a change:
+   *dá para dizer que treino é esse sem ler texto?* É qualitativo e é o que a change promete.
+2. **Taxa de edição após aprovação** — contra-métrica, extraível do banco sem instrumentação nova
+   (`editadoPeloCoach` sobre treinos já aprovados). Não pode piorar: se o perfil ficar rápido de ler
+   mas errado, o treinador aprova e volta atrás, e esse é o pior resultado possível.
+
+**Consequência aceita:** a change fecha sem número de tempo de decisão. A alternativa — instrumentar
+analytics dentro desta change — alargaria uma change já classificada como L e introduziria
+infraestrutura inexistente no front por um motivo lateral ao problema. Se o canal de analytics for
+construído depois, a métrica quantitativa passa a valer para a v2, e a linha de base será posterior
+a esta entrega.
 
 Contra-métrica (não pode piorar): **taxa de edição após aprovação** — se o perfil ficar rápido de
 ler mas errado, o treinador aprova e volta atrás. Se subir, a leitura ficou mais rápida e menos
@@ -117,13 +135,13 @@ assinatura foi **corrigida na própria spec** para `ProfileEtapaInput[]` com um 
 consumidor, junto com a regra de que sem `blocoId` não há `repeat` nem bracket. Não é mais desvio
 do documento canônico: é o documento canônico.
 
-**A2 — Conflito em voo com `preservar-serie-estruturada-na-edicao`.** Aquela change (branch
-`feature/preservar-serie-estruturada-na-edicao`, commit `fde9089`, **não mergeada**) reescreve o
-`TreinoEditDialog` inteiro para um modelo de lista `EtapaItem` e cria
-`features/coach/components/etapas/etapaItem.ts`. A Fase 3 desta change toca o mesmo arquivo.
-**Premissa:** esta change entra **depois** do merge daquela, e a task 4.2 é escrita contra o modelo
-`EtapaItem`, não contra os quatro campos fixos. Se a ordem inverter, a Fase 3 precisa ser
-replanejada — não resolvida no merge.
+**A2 — Conflito com `preservar-serie-estruturada-na-edicao`. `RESOLVIDA` (mergeada 2026-08-18).**
+Aquela change entrou em `develop` pelo PR #79 (`bdba29b`), reescrevendo o `TreinoEditDialog` para o
+modelo de lista `EtapaItem`. O bloqueio de sequenciamento acabou: todas as fases correm em sequência
+normal. **Duas consequências ficaram**, ambas absorvidas: o gráfico do editor passou a derivar de
+`EtapaItem[]` e não de `EtapaTreinoDto[]`, o que exigiu um **terceiro adaptador**
+(`fromEtapaItens`, design §2.1); e as referências de linha mudaram — `blocoFromEtapa` não existe
+mais, a derivação virou `liveBlocks` (`TreinoEditDialog.tsx:380-442`) e o chart está em `:719`.
 
 **A3 — "Leitura rápida" existe duas vezes no `DetalheTreinoDialog`.** Além do card em `:549`, a
 linha `:310` diz "Leitura rápida do contexto, intensidade e duração planejada", fora da região do
@@ -153,6 +171,6 @@ change espera.
 projeto. Adicionar dependência de dev precisa de aprovação explícita (CLAUDE.md). Alternativa sem
 dependência: gerador determinístico próprio com seed fixa. Decidir na task 3.4.
 
-**Q2 — a métrica de sucesso depende de instrumentação** do tempo de decisão na fila de revisão.
-Confirmar que o evento existe antes do merge; se não existir, a métrica vira qualitativa e isso
-precisa estar escrito, não presumido.
+**Q2 — métrica de sucesso. `RESOLVIDA` (decisão de 2026-08-18).** Não há instrumentação e ela não
+será construída aqui; a v1 é avaliada qualitativamente, com a taxa de edição após aprovação como
+contra-métrica. Está escrito na seção **Métrica de sucesso**, não presumido.

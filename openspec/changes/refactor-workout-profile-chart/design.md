@@ -13,10 +13,10 @@
 | Fato | Onde | Consequência |
 |---|---|---|
 | `WorkoutTimelineChart/` = 4 arquivos (`WorkoutTimelineChart.tsx` 13,1K, `toWorkoutBlocks.ts` 4,4K, `types.ts`, `index.ts`) | `src/components/features/planos/WorkoutTimelineChart/` | Superfície de remoção pequena e fechada. |
-| **Dois** tipos de etapa alimentam o gráfico | `src/types/TreinoPlanejado.ts` (`EtapaTreino`) e `src/types/PlanoReview.ts` (`EtapaTreinoDto`) | A assinatura do seletor na spec (§2.4) serve só um. Ver §2. |
+| **Três** formas de etapa alimentam o gráfico | `EtapaTreino` (`src/types/TreinoPlanejado.ts`), `EtapaTreinoDto` (`src/types/PlanoReview.ts`) e **`EtapaItem`** (`src/features/coach/components/etapas/etapaItem.ts`, desde `bdba29b`) | A assinatura do seletor na spec (§2.4) serve só uma. Ver §2. |
 | `blocoId`/`blocoRepeticoes` existem **só** em `EtapaTreinoDto` (PlanoReview) | `PlanoReview.ts:39-40` | Bracket de repetição (§4.5) é implementável na revisão; no detalhe do treino, não. |
 | `DetalheTreinoDialog` usa `toWorkoutBlocks(etapasOrdenadas)` | `DetalheTreinoDialog.tsx:213` | Um ponto de troca. |
-| `TreinoEditDialog` **não** usa `toWorkoutBlocks` — monta `WorkoutBlock[]` à mão | `TreinoEditDialog.tsx:102` (`blocoFromEtapa`), `:611` | Segunda derivação independente de zona. É o D6 com outro nome, e some junto. |
+| `TreinoEditDialog` **não** usa `toWorkoutBlocks` — monta `WorkoutBlock[]` à mão a partir de `EtapaItem[]` | `TreinoEditDialog.tsx:380-442` (`liveBlocks`), chart em `:719` | Segunda derivação independente de zona (`zoneFromString`, `blockTypeDe`). É o D6 com outro nome, e some junto. Referências atualizadas após o merge do PR #79 — `blocoFromEtapa` **não existe mais**. |
 | Refs de linha da spec conferem exatamente | `:520` eyebrow, `:524` chart, `:549` "Leitura rápida", `:576` "Resumo estrutural" | A spec foi escrita contra este código. |
 | `zone` = `Z1 #C8CDD4 · Z2 #34D399 · Z3 #3B82F6 · Z4 #F59E0B · Z5 #EF4444` | `theme.premium.ts:116` | Confirma o D9: azul no meio, cinza na base. Rampa nova é grupo separado. |
 | `activeTheme` já monta `zones` com shape `{color, fill, border, label}` e `ZONE_LABELS` idênticos a `workoutZoneLabel` | `activeTheme.ts` | `workoutZoneLabel` da spec **duplica** `ZONE_LABELS`. Reusar, não recriar. |
@@ -55,18 +55,54 @@ export interface ProfileEtapaInput {
 por igualdade de rótulo: seria adivinhação apresentada como estrutura, que é a classe de bug que
 esta change existe para matar.
 
+### 2.1 O terceiro adaptador — `EtapaItem` (acrescentado após o merge do PR #79)
+
+```ts
+export function fromEtapaTreino(e: EtapaTreino): ProfileEtapaInput;       // detalhe do treino
+export function fromEtapaTreinoDto(e: EtapaTreinoDto): ProfileEtapaInput;  // treino salvo na revisão
+export function fromEtapaItens(itens: EtapaItem[]): ProfileEtapaInput[];   // editor ao vivo
+```
+
+O merge de `preservar-serie-estruturada-na-edicao` (`bdba29b`) mudou o consumidor mais importante:
+o gráfico do editor **não deriva mais de `EtapaTreinoDto[]`**. Ele deriva do estado ao vivo
+`itens: EtapaItem[]` (`TreinoEditDialog.tsx:380-442`, `liveBlocks`), para atualizar a cada tecla — e
+é isso que dá ao perfil o valor de feedback imediato durante a edição. Adaptar de `EtapaTreinoDto`
+ali desenharia o treino **salvo**, não o que o treinador está montando.
+
+Por isso `fromEtapaItens` recebe a **lista**, não um item: um `BlocoRow` de `reps × steps` vira N
+blocos no eixo, e essa expansão só existe no nível da lista. O `liveBlocks` atual já faz exatamente
+essa expansão, e os ids que ele gera (`bloco-${idx}-${r}-${si}`) já carregam a estrutura de que o
+`RepeatSpec` precisa — o mapeamento é leitura, não invenção:
+
+| `EtapaItem` (editor) | `ProfileEtapaInput` / `RepeatSpec` |
+|---|---|
+| índice do `BlocoRow` na lista | `repeat.groupId` |
+| `r` (1..reps) do laço de expansão | `repeat.index` |
+| `item.repeticoes` | `repeat.total` |
+| `sub.duracaoMin`, `sub.tipoEtapa`, `sub.fcAlvoEtapa` | `duracaoMin`, `tipo`, `fcAlvo` |
+| `StepRow` avulso | sem `repeat` — etapa fora de série |
+
+**Ids estáveis:** `step-${item.id}` para avulsas, `bloco-${groupId}-${r}-${si}` para blocos — o
+mesmo esquema que o `liveBlocks` já usa. Estabilidade importa porque `activeBlockId` (§8 da spec)
+sincroniza o bloco destacado com a linha em edição: um id que muda a cada tecla faria o destaque
+piscar. `item.id` já é estável no modelo `EtapaItem`, e o índice do bloco só muda quando o treinador
+reordena — que é quando o destaque **deve** seguir.
+
+Com isso a Fase 3 deixa de exigir decisão de design no meio do código: o caminho
+`EtapaItem[] → ProfileEtapaInput[] → selectWorkoutProfile → WorkoutProfile` está fechado aqui.
+
 ## 3. Layout do módulo
 
 ```
 src/features/workout/profile/
   types.ts                    ← §2.2 da spec, literal
-  input.ts                    ← ProfileEtapaInput + adaptadores dos dois consumidores
+  input.ts                    ← ProfileEtapaInput + os TRÊS adaptadores (ver §2)
   selectWorkoutProfile.ts     ← seletor puro, sem React
   selectWorkoutProfile.test.ts
   scale.ts                    ← mapa esporte→escala, zoneBreaks, normalização (§2.3, §4.2)
   format.ts                   ← formatação de BlockTarget, duração, razão trabalho:recuperação
   WorkoutProfile.tsx          ← componente, §8
-  WorkoutProfile.test.tsx     ← AC-1..AC-13
+  WorkoutProfile.test.tsx     ← os ACs de Vitest (§5), NÃO AC-1..AC-13
   parts/                      ← Header, Plot, Block, Ramp, Bracket, Axes, Tooltip, Distribution, HiddenTable
   index.ts
 ```
@@ -76,19 +112,21 @@ coach hoje, mas o perfil é de domínio de treino e o atleta é o próximo consu
 armadilha documentada no `CLAUDE.md` do front: `@/features/*` resolve para `src/components/features/*`,
 não para `src/features/*`. Importar por caminho relativo explícito.
 
-## 4. Sequência e o conflito com `preservar-serie-estruturada-na-edicao` (A2)
+## 4. Sequência — a dependência foi resolvida (A2, fechada em 2026-08-18)
 
-Aquela change reescreve `TreinoEditDialog.tsx` inteiro (modelo `EtapaItem`, novo
-`components/etapas/etapaItem.ts`) e está **não mergeada**. As fases 0–2 desta change não tocam
-nenhum arquivo dela; a Fase 3 toca o mesmo arquivo, linha a linha.
+`preservar-serie-estruturada-na-edicao` **foi mergeada** em `develop` pelo PR #79 (`bdba29b`). Ela
+reescreveu o `TreinoEditDialog.tsx` para o modelo de lista `EtapaItem` e criou
+`components/etapas/etapaItem.ts`. Era o bloqueio de sequenciamento desta change, e não existe mais:
+**todas as fases podem correr em sequência normal**, sobre uma branch tirada de `develop` atualizada.
 
-**Sequência:** Fases 0–2 podem começar já. A Fase 3 **só começa depois** do merge de
-`preservar-serie-estruturada-na-edicao` em `develop` — e a branch desta change rebaseia antes.
-Resolver isso como conflito de merge seria escolher entre duas reescritas do mesmo arquivo sem
-entender nenhuma das duas, que é exatamente o que o `CLAUDE.md` proíbe.
+O merge mudou o alvo da Fase 3 e isso é ganho, não retrabalho:
 
-Ganho colateral: com o modelo `EtapaItem` já mergeado, o `activeBlockId` sincronizado com a etapa em
-edição (Fase 3, item 9 da spec) fica trivial — a lista de itens já é o eixo do diálogo.
+- O `activeBlockId` sincronizado com a etapa em edição (Fase 3, item 9 da spec) fica trivial — a
+  lista de itens já é o eixo do diálogo.
+- Em compensação, o gráfico passou a derivar de `EtapaItem[]`, o que exige o terceiro adaptador
+  (§2.1). Sem ele, a Fase 3 pararia para decidir design no meio da implementação.
+- As referências de linha mudaram: `blocoFromEtapa` **não existe mais**, a derivação virou
+  `liveBlocks` (`:380-442`) e o chart está em `:719`. A §1 e as tasks 3.0/3.2 já refletem isso.
 
 ## 5. Estratégia de teste
 

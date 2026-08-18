@@ -11,8 +11,9 @@ critérios de aceite da §9.
 > **Playwright** (task 3.4), com o complemento estrutural em Vitest onde existir. **Vitest prova
 > a regra, Playwright prova a geometria.**
 
-**Ordem obrigatória:** Fase 1 verde antes de qualquer componente (§10). Fase 3 **bloqueada** até
-`preservar-serie-estruturada-na-edicao` estar em `develop` (design §4).
+**Ordem obrigatória:** Fase 1 verde antes de qualquer componente (§10). A Fase 3 **não está mais
+bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop` pelo PR #79
+(`bdba29b`), e as tasks abaixo já estão escritas contra o código pós-merge (design §4).
 
 ---
 
@@ -40,11 +41,15 @@ critérios de aceite da §9.
       (`Sport`, `BlockKind`, `ZoneKey`, `BlockTarget`, `IntensityConfidence`, `RampSpec`, `RepeatSpec`,
       `ProfileBlock`, `ZoneShare`, `ProfileMetrics`, `IntensityScale`, `WorkoutProfile`).
       `verify:` `npm run build`.
-- [ ] **1.2** Criar `input.ts` com `ProfileEtapaInput` e os dois adaptadores (design §2):
-      `fromEtapaTreino` (`src/types/TreinoPlanejado.ts` — `tipoEtapa` pode ser objeto, **sem** `blocoId`)
-      e `fromEtapaTreinoDto` (`src/types/PlanoReview.ts` — string, **com** `blocoId`/`blocoRepeticoes`).
+- [ ] **1.2** Criar `input.ts` com `ProfileEtapaInput` e os **três** adaptadores (design §2 e §2.1):
+      `fromEtapaTreino` (`src/types/TreinoPlanejado.ts` — `tipoEtapa` pode ser objeto, **sem** `blocoId`),
+      `fromEtapaTreinoDto` (`src/types/PlanoReview.ts` — string, **com** `blocoId`/`blocoRepeticoes`)
+      e `fromEtapaItens(itens: EtapaItem[])` (`src/features/coach/components/etapas/etapaItem.ts` —
+      recebe a **lista**, porque a expansão de `BlocoRow` em `reps × steps` só existe nesse nível).
       Sem `blocoId`, o resultado não tem `repeat` — nunca inferir grupo por igualdade de rótulo.
-      `verify:` `input.test.ts` cobre as duas formas + a ausência de `repeat` no caminho sem `blocoId`.
+      `verify:` `input.test.ts` cobre as três formas, a ausência de `repeat` no caminho sem `blocoId`,
+      e — para `fromEtapaItens` — um `BlocoRow` de 5×2 produzindo 10 entradas com `repeat.index` de
+      1 a 5 e ids estáveis entre duas chamadas com o mesmo estado.
 - [ ] **1.3** Criar `scale.ts`: mapa esporte→métrica/teto (§2.3), `zoneBreaks` de 5 zonas Coggan
       normalizados sobre teto 150 (§4.2), e `normalize()` com `clamp`.
       `verify:` `scale.test.ts` — os quatro breaks batem com a tabela da §4.2.
@@ -150,10 +155,10 @@ critérios de aceite da §9.
 
 ---
 
-## Fase 3 — Troca de consumidores — **BLOQUEADA** até `preservar-serie-estruturada-na-edicao` em `develop`
+## Fase 3 — Troca de consumidores
 
-- [ ] **3.0** Confirmar merge da change dependente e rebasear esta branch sobre `develop`.
-      `verify:` `git log origin/develop --oneline | grep -i "preserva a estrutura da serie"` retorna o commit.
+> Dependência **resolvida**: `preservar-serie-estruturada-na-edicao` está em `develop` desde o
+> PR #79 (`bdba29b`). As tasks abaixo estão escritas contra o código pós-merge.
 - [ ] **3.1** `DetalheTreinoDialog.tsx`: trocar `toWorkoutBlocks` + `WorkoutTimelineChart` (`:213`, `:524`)
       por `fromEtapaTreino` + `selectWorkoutProfile` + `WorkoutProfile`. **Remover** o eyebrow
       "Timeline do treino" (`:520`), a prop `title` (`:525`) e os cards "Leitura rápida" (`:549`) e
@@ -162,10 +167,15 @@ critérios de aceite da §9.
       `verify:` **AC-10** em Vitest (busca por texto, com o escopo do query explícito na região do
       perfil). **AC-8 vai para a task 3.4** — `text-transform` vem de classe Emotion e o Vitest roda
       com `css: false`, então a asserção não enxerga o estilo computado.
-- [ ] **3.2** `TreinoEditDialog.tsx`: trocar o chart (`:611`) e **remover** `blocoFromEtapa` (`:102`) —
-      a segunda derivação independente de zona. Passar `activeBlockId` sincronizado com a etapa em
-      edição no modelo `EtapaItem` já mergeado.
-      `verify:` editar uma etapa destaca a barra correspondente (teste de componente).
+- [ ] **3.2** `TreinoEditDialog.tsx`: trocar o chart (`:719`) e **remover o `useMemo` `liveBlocks`
+      inteiro** (`:380-442`) — é a segunda derivação independente de zona (`zoneFromString`,
+      `blockTypeDe`), o D6 com outro nome. No lugar: `fromEtapaItens(itens)` → `selectWorkoutProfile`
+      → `WorkoutProfile`, mantendo a atualização a cada edição. Passar `activeBlockId` sincronizado
+      com a linha em edição (ids estáveis, design §2.1).
+      Atenção: `blocoFromEtapa` não existe mais — foi removida no PR #79.
+      `verify:` editar uma etapa destaca a barra correspondente, e o gráfico continua atualizando a
+      cada tecla (teste de componente); `grep -n "zoneFromString\|blockTypeDe" TreinoEditDialog.tsx`
+      retorna vazio.
 - [ ] **3.3** Atualizar os testes dos dois diálogos. Espera-se quebra em asserções de rótulo de bloco
       (`'Esforço 1/3'`, `'3 min'`): a numeração de repetição migra para o bracket `5×` e para o tooltip
       (§10, "O que quebra"). Reescrever contra o bracket, não remover a asserção.
@@ -202,8 +212,11 @@ critérios de aceite da §9.
 ## Fase 5 — Fechamento
 
 - [ ] **5.1** `/qa` — `frontend-reviewer` + `clean-code-reviewer` em paralelo; consolidar e tratar.
-- [ ] **5.2** Confirmar a instrumentação da métrica de sucesso (proposal Q2). Se o evento de tempo de
-      decisão não existir, registrar aqui que a métrica ficou qualitativa — não presumir.
+- [ ] **5.2** Avaliação qualitativa da v1 (decisão registrada no proposal, seção "Métrica de sucesso"):
+      coletar o feedback do treinador após uma semana de uso sobre "dá para dizer que treino é esse
+      sem ler texto?", e medir a **taxa de edição após aprovação** (`editadoPeloCoach` sobre treinos
+      já aprovados) antes e depois — sai do banco, sem instrumentação nova.
+      `verify:` as duas leituras registradas na change antes do arquivamento; a contra-métrica não piorou.
 - [ ] **5.3** Registrar como follow-up: **DEP-1** (intensidade estruturada em `EtapaTreinoDto`) e
       **DEP-2** (limiares do atleta) como changes de backend; sem elas o modo degradado permanece o
       caminho normal. Abrir também a change de migração `zone` → `workoutZone` nos demais gráficos (§11).
