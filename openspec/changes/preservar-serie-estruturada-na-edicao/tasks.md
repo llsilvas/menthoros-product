@@ -75,10 +75,25 @@ Repos afetados:
 
 ## 4. Fechamento
 
-- [ ] **4.1** `/qa` nos dois repos
-- [ ] **4.2** PR backend → `develop`
-- [ ] **4.3** PR front → `develop`
-- [ ] **4.4** Validar em ambiente real: abrir um fartlek na revisão, salvar sem alterar, conferir que
+- [x] **4.1** `/qa` nos dois repos — `code-reviewer` (backend) e `frontend-reviewer`. Zero Critical.
+      **Quatro achados Important, todos corrigidos:**
+      - *backend*: a unificação trouxe as validações da adição para o PATCH (`BLOCO` vazio e
+        `blocoRepeticoes > 20` passam a dar 422) sem teste nem registro. Três testes adicionados e
+        a tabela de contrato documentada no `design.md`.
+      - *front*: **etapa adicionada nunca era salva** — não havia seletor de tipo, então
+        `emptyStep()` nascia com `tipoEtapa: ''` e `serializarItens` descartava o item em silêncio.
+      - *front*: **a guarda `blocosMudados` valia pela metade** — `distanciaKm` e `duracaoMin` são
+        derivadas das etapas e ficavam fora dela. O reviewer provou com o próprio fixture do PR
+        (cabeçalho `PT50M`, etapas somando 30min): mudar só o TSS reescreveria a duração.
+      - *front*: `role="alertdialog"` sem captura de foco nem Escape → `role="alert"`.
+
+      Padrão comum aos dois bugs do front: **testes que exercitavam o caminho sem verificar o
+      resultado**. O de adicionar etapa só checava o contador aparecer; o de edição administrativa
+      olhava `patch.etapas` e ignorava os campos derivados.
+- [x] **4.2** PR backend → `develop` — menthoros-backend **#72**
+- [x] **4.3** PR front → `develop` — menthoros-front **#79**
+- [ ] **4.4** Validar em ambiente real — **o E2E não substitui isto**: ele mocka a API, então prova
+      o payload que sai do browser, não o backend gravando o `blocoId`. Validar em ambiente real: abrir um fartlek na revisão, salvar sem alterar, conferir que
       as etapas não mudaram; depois editar uma repetição e conferir que só ela mudou.
 
 ## E2E
