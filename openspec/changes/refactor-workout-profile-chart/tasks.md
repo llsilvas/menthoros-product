@@ -37,11 +37,11 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
 
 ## Fase 1 — Seletor puro (sem UI) — **gate**
 
-- [ ] **1.1** Criar `src/features/workout/profile/types.ts` com o contrato da §2.2 literal
+- [x] **1.1** Criar `src/features/workout/profile/types.ts` com o contrato da §2.2 literal
       (`Sport`, `BlockKind`, `ZoneKey`, `BlockTarget`, `IntensityConfidence`, `RampSpec`, `RepeatSpec`,
       `ProfileBlock`, `ZoneShare`, `ProfileMetrics`, `IntensityScale`, `WorkoutProfile`).
       `verify:` `npm run build`.
-- [ ] **1.2** Criar `input.ts` com `ProfileEtapaInput` e os **três** adaptadores (design §2 e §2.1):
+- [x] **1.2** Criar `input.ts` com `ProfileEtapaInput` e os **três** adaptadores (design §2 e §2.1):
       `fromEtapaTreino` (`src/types/TreinoPlanejado.ts` — `tipoEtapa` pode ser objeto, **sem** `blocoId`),
       `fromEtapaTreinoDto` (`src/types/PlanoReview.ts` — string, **com** `blocoId`/`blocoRepeticoes`)
       e `fromEtapaItens(itens: EtapaItem[])` (`src/features/coach/components/etapas/etapaItem.ts` —
@@ -50,27 +50,27 @@ bloqueada** — `preservar-serie-estruturada-na-edicao` foi mergeada em `develop
       `verify:` `input.test.ts` cobre as três formas, a ausência de `repeat` no caminho sem `blocoId`,
       e — para `fromEtapaItens` — um `BlocoRow` de 5×2 produzindo 10 entradas com `repeat.index` de
       1 a 5 e ids estáveis entre duas chamadas com o mesmo estado.
-- [ ] **1.3** Criar `scale.ts`: mapa esporte→métrica/teto (§2.3), `zoneBreaks` de 5 zonas Coggan
+- [x] **1.3** Criar `scale.ts`: mapa esporte→métrica/teto (§2.3), `zoneBreaks` de 5 zonas Coggan
       normalizados sobre teto 150 (§4.2), e `normalize()` com `clamp`.
       `verify:` `scale.test.ts` — os quatro breaks batem com a tabela da §4.2.
-- [ ] **1.4** Criar `selectWorkoutProfile.ts`. Portar a heurística de `toWorkoutBlocks.ts` para dentro
+- [x] **1.4** Criar `selectWorkoutProfile.ts`. Portar a heurística de `toWorkoutBlocks.ts` para dentro
       dele, marcando todo resultado inferido como `confidence: 'derived'` (§10, item 4). Trocar o
       `return 1` (default Z1) por `confidence: 'unknown'` — o default silencioso é uma afirmação falsa (§6.3).
       Blocos com `duracaoMin` ausente ou `≤ 0` são descartados do eixo e contados em `droppedBlocks`.
       `verify:` `npm run test:run -- selectWorkoutProfile`.
-- [ ] **1.5** Métricas: `targetZone` (maior zona com share ≥ 0,15, senão `null`), `distribution` sobre
+- [x] **1.5** Métricas: `targetZone` (maior zona com share ≥ 0,15, senão `null`), `distribution` sobre
       **todos** os blocos, `longestWorkBlockSec`, `workToRecoveryRatio` (dentro das séries quando há
       `repeat`; global caso contrário; `null` sem recuperação), `intensityFactor`/`tss` vindos do
       consumidor sem derivação.
       `verify:` teste com o exemplo da §2.6 (40min, 12 blocos) reproduzindo o JSON esperado campo a campo.
-- [ ] **1.6** Modo degradado (§6.4): sem intensidade estruturada ou sem limiar, `degraded: true`,
+- [x] **1.6** Modo degradado (§6.4): sem intensidade estruturada ou sem limiar, `degraded: true`,
       altura por `kind` em três níveis (`rest/recovery 0.25` · `warmup/cooldown/steady 0.50` · `work 0.85`),
       `targetZone: null`, distribuição por `kind`.
       `verify:` teste dedicado — hoje este é o **caminho normal** (proposal A5), não a exceção.
-- [ ] **1.7** Invariantes de **AC-6** como teste: `Σ share === 1 ± 0.005` e
+- [x] **1.7** Invariantes de **AC-6** como teste: `Σ share === 1 ± 0.005` e
       `targetZone === null || distribution.find(d => d.zone === targetZone).share >= 0.15`.
       `verify:` `npm run test:run -- selectWorkoutProfile` verde.
-- [ ] **1.8** **[decisão]** Teste property-based do AC-6 (≥200 perfis gerados). Escolher entre
+- [x] **1.8** **[decisão]** Teste property-based do AC-6 (≥200 perfis gerados). Escolher entre
       adicionar `fast-check` (dependência de dev — exige aprovação explícita, CLAUDE.md) e um gerador
       determinístico com seed fixa. **Pausar e perguntar** antes de instalar qualquer coisa.
       `verify:` 200 perfis gerados, zero em que a badge mostre zona ausente da distribuição.
