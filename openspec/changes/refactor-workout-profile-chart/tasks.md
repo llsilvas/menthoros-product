@@ -236,6 +236,14 @@ Nenhum é bloqueante para o merge; todos saíram de fatos verificados durante a 
 - **DEP-5** — `intensidadePlanejada` no DTO da revisão. Enquanto não existir, o chip IF nunca
   renderiza naquela tela.
 
+**Backend (acrescentado 2026-08-18, visto em treino real)**
+- **Zona alvo em bpm** — as etapas dos planos reais trazem `fcAlvoEtapa` como faixa de batimentos
+  ("165-175 bpm"), não como token `Z1`–`Z5`. O seletor só reconhece o token, então esses treinos
+  caem inteiros no modo degradado. Converter bpm → zona exige o `fcMax` do atleta (**DEP-2**); sem
+  ele dá, no máximo, para ordenar as etapas entre si pelo valor. É provavelmente o caminho de maior
+  retorno para tirar a tela do degradado, já que o dado de intensidade **existe** — só não está na
+  unidade que o front sabe ler.
+
 **Frontend**
 - **Unificar as três formas de etapa** — `EtapaTreino`, `EtapaTreinoDto` e `EtapaItem`. Os três
   adaptadores em `input.ts` absorvem a divergência na borda, o que é certo enquanto ela existir; sem
