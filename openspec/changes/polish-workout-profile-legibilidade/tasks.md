@@ -16,42 +16,42 @@ Ordem sugerida: 1 e 2 primeiro — são os dois achados de honestidade, e os que
 
 ## 1 — Zona declarada na descrição (AC-1)
 
-- [ ] **1.1** `zonaDeclarada` passa a ler também `descricao` e `ritmoAlvo`, com precedência
+- [x] **1.1** `zonaDeclarada` passa a ler também `descricao` e `ritmoAlvo`, com precedência
       declarada: `fcAlvo` → `intensidade` → `descricao` → `ritmoAlvo`. A ordem não é arbitrária —
       campo de alvo é mais específico que prosa livre, e deve ganhar quando os dois existirem e
       discordarem.
       `verify:` teste com "Corrida contínua Z2" só em `descricao` → `zone: 'Z2'`, `confidence:
       'prescribed'`; e teste de precedência com `fcAlvo: 'Z4'` + `descricao: '...Z2'` → `Z4`.
-- [ ] **1.2** Conferir o efeito no modo degradado: um treino cujas zonas estavam todas em prosa
+- [x] **1.2** Conferir o efeito no modo degradado: um treino cujas zonas estavam todas em prosa
       deixa de ser degradado, perde o chip `⚠ intensidade estimada` e ganha a badge de zona-alvo.
       `verify:` teste de ponta a ponta do seletor com o treino "Corrida contínua Z2" — `degraded:
       false` e `targetZone` preenchida.
 
 ## 2 — A razão trabalho:recuperação para de mentir (AC-2)
 
-- [ ] **2.1** `razaoTrabalhoRecuperacao` retorna `null` quando nenhum bloco tem `repeat`. Remover o
+- [x] **2.1** `razaoTrabalhoRecuperacao` retorna `null` quando nenhum bloco tem `repeat`. Remover o
       fallback global, que contava aquecimento e desaquecimento como recuperação e produziu `11:4`,
       `3:8` e `7:3` em treinos reais.
       `verify:` teste com treino sem série → `null`; teste com série 5×(3'+2') → `1.5`.
-- [ ] **2.2** O chip some do header quando a razão é `null`. Conferido no DoR: `formatWorkRatio`
+- [x] **2.2** O chip some do header quando a razão é `null`. Conferido no DoR: `formatWorkRatio`
       já devolve `null` e `textoDaMetrica` só renderiza texto não nulo — então esta task é
       confirmação por teste, não código novo.
       `verify:` teste de componente: treino sem série não exibe chip de razão.
-- [ ] **2.3** Atualizar o comentário de `workToRecoveryRatio` em `types.ts`, que hoje **promete o
+- [x] **2.3** Atualizar o comentário de `workToRecoveryRatio` em `types.ts`, que hoje **promete o
       fallback global** ("global caso contrário"). Deixar o contrato afirmando o que o código deixou
       de fazer é como o `prescribed` da change anterior mentiu na própria doc.
       `verify:` o comentário descreve `null` sem série, com o motivo.
 
 ## 3 — Eixo X com unidade única (AC-3)
 
-- [ ] **3.1** Acima de 60min, **todos** os ticks em `h:mm`, incluindo o zero (`0:00`) e os abaixo de
+- [x] **3.1** Acima de 60min, **todos** os ticks em `h:mm`, incluindo o zero (`0:00`) e os abaixo de
       uma hora (`0:10`, `0:50`). Hoje a mesma régua mistura `50` e `1:00`.
       `verify:` `xAxisTicks(75*60)` devolve `0:00 0:10 … 1:15`; `xAxisTicks(50*60)` segue em minutos
       crus (`0 10 … 50`), porque abaixo de uma hora não há ambiguidade.
-- [ ] **3.2** Supressão do penúltimo tick passa de `< passo/2` para `<= passo/2` — em 75min a
+- [x] **3.2** Supressão do penúltimo tick passa de `< passo/2` para `<= passo/2` — em 75min a
       distância é exatamente meio passo (75 − 70 = 5 = passo/2), e `1:10` colide com `1:15`.
       `verify:` `xAxisTicks(75*60)` não contém `1:10`; nenhum par de ticks a menos de meio passo.
-- [ ] **3.3** **Quebra esperada:** `axis.test.ts` fixa `'15'` como primeiro passo de um treino de 2h;
+- [x] **3.3** **Quebra esperada:** `axis.test.ts` fixa `'15'` como primeiro passo de um treino de 2h;
       com unidade única acima de 60min isso vira `'0:15'`. Atualizar a asserção — a mudança é
       intencional, e o AC-4 da spec anterior (40min → `0, 5, …, 40`) **continua válido**, porque
       abaixo de uma hora nada muda.
