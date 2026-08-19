@@ -59,7 +59,7 @@ Ordem sugerida: 1 e 2 primeiro — são os dois achados de honestidade, e os que
 
 ## 4 — Rótulo contido no bloco (AC-4)
 
-- [ ] **4.1** **[investigar antes de corrigir]** A hipótese do proposal (falta de
+- [x] **4.1** **[investigar antes de corrigir]** A hipótese do proposal (falta de
       `maxWidth`/`minWidth` no span) **não se sustenta sozinha** e o DoR derrubou: o bloco já tem
       `overflow: hidden` (`ProfilePlot.tsx`), que por semântica de CSS bastaria para conter o texto.
       Se o rótulo aparece fora, ou o clipping não está valendo, ou **o próprio bloco** está mais
@@ -70,7 +70,7 @@ Ordem sugerida: 1 e 2 primeiro — são os dois achados de honestidade, e os que
       Não resolver com reticências — proibidas pelo AC-7 da spec anterior.
       `verify:` **Playwright** — para todo rótulo visível, a caixa do texto está contida na do bloco,
       e a do bloco contida na do plot.
-- [ ] **4.2** Rever a cadeia de fallback com a largura real: hoje ela estima `texto.length * 6`, e o
+- [x] **4.2** Rever a cadeia de fallback com a largura real: hoje ela estima `texto.length * 6`, e o
       vazamento sugere que a estimativa é otimista para as fontes em uso.
       `verify:` o mesmo teste da 4.1, num treino com rótulos longos (DESAQUECIMENTO em bloco estreito).
 
