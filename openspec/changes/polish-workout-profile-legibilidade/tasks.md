@@ -76,7 +76,7 @@ Ordem sugerida: 1 e 2 primeiro — são os dois achados de honestidade, e os que
 
 ## 5 — Série expandida sem `blocoId` (AC-5)
 
-- [ ] **5.1** **[extração]** Tirar a heurística de janela de dentro do `itensFromEtapas` para um util
+- [x] **5.1** **[extração]** Tirar a heurística de janela de dentro do `itensFromEtapas` para um util
       compartilhado. **Não é reuso direto** — conferido no DoR, e o proposal errava ao sugerir que
       fosse:
       - os helpers (`equivalentes`, `janelaEquivalente`, `contemIntervalado`) são **privados** e
@@ -102,7 +102,7 @@ Ordem sugerida: 1 e 2 primeiro — são os dois achados de honestidade, e os que
       no perfil, 6 pares idênticos sem `blocoId` → um bracket `6×` e só a primeira repetição
       rotulada; e um teste que prova o vocabulário mais amplo: série com `tipoEtapa: 'TIRO'` é
       agrupada pelo perfil.
-- [ ] **5.2** Confirmar que a razão trabalho:recuperação volta a ser calculada nesses treinos, agora
+- [x] **5.2** Confirmar que a razão trabalho:recuperação volta a ser calculada nesses treinos, agora
       pelo caminho da série — é o ganho colateral da 5.1 sobre a task 2.1.
       `verify:` o intervalado 6×(2'+1') passa a exibir `trabalho 2:1`.
 
