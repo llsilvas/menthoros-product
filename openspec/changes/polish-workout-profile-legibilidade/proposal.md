@@ -37,9 +37,10 @@ Numa superfície que se apresenta como premium, esse acabamento é o que separa 
 
 ## What Changes
 
-1. **Zona declarada na descrição passa a contar.** `zonaDeclarada` lê também `descricao` (e o
-   `ritmoAlvo`, pela mesma razão). Ordem de precedência declarada: `fcAlvo` → `intensidade` →
-   `descricao`. Sai do modo degradado todo treino cuja zona já estava escrita em prosa.
+1. **Zona declarada na descrição passa a contar.** `zonaDeclarada` lê também `descricao` e
+   `ritmoAlvo`. Ordem de precedência declarada: `fcAlvo` → `intensidade` → `descricao` →
+   `ritmoAlvo` — campo de alvo ganha de prosa livre quando os dois existirem e discordarem. Sai do
+   modo degradado todo treino cuja zona já estava escrita em texto.
 2. **A razão trabalho:recuperação some quando não há série.** Sem `repeat`, retorna `null` e o chip
    não renderiza. Uma métrica ausente é melhor que uma métrica que mente — e a razão só tem
    significado dentro de uma série, que é como o treinador enuncia o treino.

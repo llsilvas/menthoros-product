@@ -85,8 +85,13 @@ Ordem sugerida: 1 e 2 primeiro — são os dois achados de honestidade, e os que
         `fcAlvoEtapa` — e não os três que o proposal descrevia;
       - `contemIntervalado` exige a string literal `'INTERVALADO'` (`:114-119`), enquanto o
         `papelDe` do seletor reconhece também `interval`, `tiro`, `esforco`, `esforço`
-        (`selectWorkoutProfile.ts:70-80`). Importar o critério como está faria a série **sumir em
+        (`selectWorkoutProfile.ts:87-96`). Importar o critério como está faria a série **sumir em
         silêncio** nos treinos que o resto do módulo já trata como trabalho.
+
+      **Atenção de implementação:** `ProfileEtapaInput` **não carrega `distanciaKm`**
+      (`input.ts:13-30`), e a assinatura do editor usa esse campo. Se a assinatura do perfil
+      precisar dele para distinguir séries, o input tem de ser ampliado — decidir isso ao escrever
+      a extração, não no meio dela.
 
       Forma da extração: um util genérico sobre uma **assinatura extraída** (função
       `(item) => string`) e um **predicado de "contém trabalho"** injetado. O editor passa a sua
