@@ -2,15 +2,18 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-08-16b (**Nova change: `polish-inbox-visual-semantics` (XS · Fast).**
-Navegação de verificação do inbox pós-merge da `refine-inbox-visual-hierarchy` confirmou as Fases
-1–2 no ar — CTA contextual nos dois estados exercitáveis ("Contatar atleta" sólido para inatividade,
-"Abrir plano" neutro para atleta saudável), card da fila com motivo+recência, título rebaixado,
-menor fonte 11px, empty state com mensagem — e colheu 4 pontas de acabamento que ficaram fora do
-fechamento: accent vazando em secundários e no toggle do PMC, badge "Alerta" âmbar vs. card
-vermelho, zero-por-ausência com check verde no strip de KPIs, e rota inválida caindo no fallback
-cru do React Router. Viraram a change nova, na tabela do Bloco 1 ao lado da
-`refine-inbox-mobile-breakpoint`.)
+**Última atualização:** 2026-08-19 (**`refactor-workout-profile-chart` entregue e arquivada.**
+O perfil do treino foi reconstruído sobre o encoding canônico — largura = tempo, altura =
+intensidade, cor = zona — com um seletor puro único do qual badge, altura, cor e distribuição saem
+no mesmo retorno, o que mata a divergência que produzia "Z1 100%" sobre blocos laranja. Detalhes na
+seção de concluídas.
+
+**A lição de processo desta change é sobre onde o teste não alcança.** O gate de DoR reprovou a spec
+três vezes com achados reais, e ainda assim os três defeitos mais sérios só apareceram olhando a
+tela: geometria calculada contra uma largura fixa cortando o último bloco, rótulo decepado pelo
+`clip-path`, e o modo degradado saindo chapado no treino mais comum. Os 1168 testes passavam nos
+três. O repo já documentava que jsdom com `css: false` não prova geometria; esta change mostrou que
+isso vale também para "o gráfico está dizendo a coisa certa".)
 
 Antes: 2026-08-16 (**`intervals-icu-oauth2-integration` reescrita e escalonada —
 a trilha intervals.icu ganha seção própria.** O founder confirmou que o app OAuth (client ID `663`)
@@ -683,6 +686,52 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 ---
 
 ## Changes concluídas (fora de sprint)
+
+### `refactor-workout-profile-chart` ✅ **ARQUIVADA** — o perfil do treino passa a ser legível sem leitura (2026-08-19)
+
+**Entregue:** `menthoros-front` **#80** (merge `123e59a`). **1168 testes unitários em 132 arquivos**
+e **61 specs E2E**. Arquivada em `changes/archive/2026-08/2026-08-19-refactor-workout-profile-chart/`.
+
+**O gráfico do treino não respondia à pergunta que o treinador faz.** O `WorkoutTimelineChart`
+jogava toda a intensidade numa borda esquerda de 3px e usava o preenchimento — o maior canal visual
+— para a etapa estrutural em vez da zona; as alturas iam de 65 a 128px num container de 70. E
+**mentia**: badge, legenda e cor saíam de derivações independentes, então "Z1 100%" sobre blocos
+laranja era consequência esperada do desenho, não azar. Reconstruído sobre o encoding canônico
+(largura = tempo, altura = intensidade, cor = zona), com um seletor puro único do qual badge,
+altura, cor e distribuição saem no mesmo retorno — não há como divergirem sem quebrar teste.
+
+**A change nasceu de uma spec de componente pronta, e o gate de DoR a reprovou três vezes.** O Codex
+achou cinco Critical na primeira passada, e quatro eram reais: a métrica de sucesso pressupunha um
+canal de analytics que não existe no front; a assinatura do seletor servia só uma das **três** formas
+de etapa do app; o chip IF era inimplementável na revisão (`TreinoPlanejadoDto` não tem
+`intensidadePlanejada` — virou DEP-5); e **cinco critérios de aceite não eram verificáveis onde a
+spec os colocava** — o Vitest roda jsdom com `css: false`, onde toda medida é zero e um teste de
+altura passa nas duas versões. Migrados para Playwright, com a parte estrutural em Vitest.
+
+**O padrão que mais custou: os três defeitos mais sérios não saíram de teste nenhum.** A geometria
+era calculada contra uma largura fixa de 600px enquanto o plot media 532 — o último bloco vazava e
+era cortado pelo `overflow: hidden`, então o desaquecimento sumia e o eixo de tempo mentia. O rótulo
+das rampas era decepado pelo `clip-path` ("AQUECIMENTO" virava "TO"), e o AC-7 não pegava porque
+procura `…` e `text-overflow: ellipsis`. E o modo degradado saía **chapado** no treino mais comum,
+porque a spec dava o mesmo nível a aquecimento, principal e desaquecimento — o defeito D2 de volta
+pelo caminho que hoje é o normal; esse foi o founder quem apontou, olhando a tela. Os 1168 testes
+passavam nos três casos.
+
+**Emendas aplicadas na spec canônica**, não como desvio silencioso: `ProfileEtapaInput` com três
+adaptadores; DEP-5; `prescribed` passa a significar zona declarada (exigir "alvo numérico + limiar"
+deixaria todo treino permanentemente degradado); e a §4.6, cuja prosa contradizia a própria tabela e
+o AC-4.
+
+**Métrica de sucesso: qualitativa por decisão.** Não há canal de analytics no front e construí-lo não
+pertence a uma change de gráfico. Feedback do treinador após uma semana, com a taxa de edição após
+aprovação (`editadoPeloCoach`) como contra-métrica — sai do banco, sem instrumentação nova.
+
+**Aberto:** a avaliação qualitativa (task 5.2), que só roda depois do uso. E os follow-ups, com
+**zona alvo em bpm** na frente: as etapas reais trazem `fcAlvoEtapa` como "165-175 bpm", não como
+token `Z1`–`Z5`, então caem inteiras no degradado. É o maior retorno disponível — o dado de
+intensidade **existe**, só não está na unidade que o front lê. Depende do `fcMax` do atleta (DEP-2).
+Também: DEP-1, DEP-3, unificação das três formas de etapa e migração `zone` → `workoutZone` nos
+demais gráficos.
 
 ### `preservar-serie-estruturada-na-edicao` ✅ **ARQUIVADA** — editar um treino na revisão achatava a série (2026-08-18)
 

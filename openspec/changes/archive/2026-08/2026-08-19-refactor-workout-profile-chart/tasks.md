@@ -1,5 +1,16 @@
 # Tasks — refactor-workout-profile-chart
 
+> **Estado final (2026-08-19) — entregue no `menthoros-front` #80, merge `123e59a`.**
+> 33 tasks concluídas de 35. Validação final: lint limpo, build sem erro de tipo, **1168 testes
+> unitários em 132 arquivos** e **61 specs E2E**.
+>
+> **Adiadas, as duas de propósito:**
+> - **2.14** — caminho SVG agregado acima de 200 blocos. O `design.md` §6 recomendava não construir
+>   um segundo renderizador, e nenhum treino real chega perto do corte. Não implementada.
+> - **5.2** — avaliação qualitativa da v1. Só é executável depois de uma semana de uso: feedback do
+>   treinador sobre "dá para dizer que treino é esse sem ler texto?" mais a taxa de edição após
+>   aprovação (`editadoPeloCoach`) como contra-métrica. **Pendente de verdade**, não abandonada.
+
 Repo: `apps/menthoros-front`. Gate de stack em todo bloco: `npm run lint && npm run build && npm run test:run`.
 Referências `§` são da spec (`artifacts/design-system/workout-profile-spec.md`); `AC-n` são os
 critérios de aceite da §9.
