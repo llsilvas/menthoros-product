@@ -108,9 +108,9 @@ Ordem sugerida: 1 e 2 primeiro — são os dois achados de honestidade, e os que
 
 ## 6 — Fechamento
 
-- [ ] **6.1** Navegação de verificação nos **mesmos quatro treinos** que originaram a change: nenhum
+- [x] **6.1** Navegação de verificação nos **mesmos quatro treinos** que originaram a change: nenhum
       chip de razão sem série, nenhum eixo com duas unidades, nenhum rótulo fora do container, e
       "Corrida contínua Z2" colorido em vez de hachurado. Capturar as telas.
 - [ ] **6.2** `/qa` — `frontend-reviewer` + `clean-code-reviewer`.
-- [ ] **6.3** Registrar o **bloco cinza dominante** (Q1 do proposal) como change própria, com as três
+- [x] **6.3** Registrar o **bloco cinza dominante** (Q1 do proposal) como change própria, com as três
       saídas avaliadas antes do código.
