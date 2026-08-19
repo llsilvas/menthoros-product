@@ -22,11 +22,13 @@ então o dado estava ali, escrito pelo treinador, e foi descartado. É a mesma c
 change anterior existiu para corrigir: afirmar o que não se sabe tendo o dado à mão.
 
 **A razão trabalho:recuperação engana.** Os treinos reais mostraram `11:4`, `3:8` e `7:3` — nenhuma
-delas é como um treinador enuncia um treino. A causa é estrutural: sem `repeat`, o cálculo cai no
-fallback **global**, que conta aquecimento e desaquecimento como "recuperação". Num intervalado isso
-produziu `3:8`, sugerindo que o atleta descansa quase três vezes mais do que corre forte, enquanto o
-gráfico ao lado mostrava o contrário. A spec da change anterior já avisava que "a razão global de um
-longo com sprint final não diz nada" — e o fallback global foi implementado mesmo assim.
+delas é como um treinador enuncia um treino. A causa é estrutural: sem `repeat`, o cálculo cai num
+fallback **global** que classifica cada bloco por `zonaIntensa` (Z3+ é trabalho, o resto é descanso)
+sobre o treino inteiro. Como aquecimento e desaquecimento ficam abaixo de Z3, eles entram na conta
+como "recuperação" — num intervalado isso produziu `3:8`, sugerindo que o atleta descansa quase três
+vezes mais do que corre forte, enquanto o gráfico ao lado mostrava o contrário. A spec da change
+anterior já avisava que "a razão global de um longo com sprint final não diz nada", e o fallback
+global foi implementado mesmo assim.
 
 Os outros quatro custam confiança de outra forma: um eixo que troca de unidade no meio, um rótulo
 que atravessa a borda do card, `REC` repetido seis vezes, e uma laje cinza ocupando 70% da área.
@@ -45,10 +47,15 @@ Numa superfície que se apresenta como premium, esse acabamento é o que separa 
    `1:15`), nunca minutos crus misturados com `1:00`. E a supressão do penúltimo tick passa a usar
    `<= passo/2`, corrigindo a colisão de `1:10` com `1:15`.
 4. **Rótulo não vaza o container.** O texto do bloco fica contido na largura dele; abaixo do que
-   couber, cai para a abreviação ou some, pela cadeia que já existe.
+   couber, cai para a abreviação ou some, pela cadeia que já existe. **A causa ainda não é
+   conhecida** — o bloco já tem `overflow: hidden`, que bastaria para conter o texto, então ou o
+   clipping não está valendo ou o próprio bloco está mais largo que o espaço alocado. A task manda
+   medir antes de editar, porque a correção mora em arquivos diferentes conforme o caso.
 5. **Agrupar série expandida sem `blocoId`.** Quando o backend entrega N repetições planas, detectar
-   a janela repetida por assinatura (tipo + duração + alvo) e emitir `repeat`, como
-   `itensFromEtapas` já faz no editor. Ganha-se o bracket `n×` e cala-se o `REC` repetido.
+   a janela repetida e emitir `repeat` — ganha-se o bracket `n×` e cala-se o `REC` repetido seis
+   vezes. **Isto exige extrair** a heurística que hoje vive privada dentro do `itensFromEtapas`,
+   tipada em `EtapaTreinoDto` e amarrada à string literal `'INTERVALADO'`, para um util
+   parametrizado por assinatura e por predicado de trabalho. Não é reuso direto; ver task 5.1.
 
 ### Não faz parte desta change
 
@@ -89,11 +96,23 @@ laje, que é a leitura honesta de "não sei"; (b) colorir pelo `zonaAlvo` do tre
 vale para o corpo — mais bonito, e uma afirmação mais forte do que o dado sustenta; (c) subdividir o
 bloco em fatias com a mesma altura, o que só troca uma laje por várias. Nenhuma é obviamente certa.
 
-**A1 — detecção de série por assinatura (#5) é heurística.** Agrupar por "tipo + duração + alvo
-iguais, alternando" acerta o caso comum e pode errar num treino que legitimamente repete um par sem
-ser uma série. O `itensFromEtapas` já corre esse risco no editor, e a consequência aqui é menor —
-um bracket a mais, não um dado gravado errado. **Premissa:** aceitável, com o mesmo critério de
-janela usado no editor, para não haver duas heurísticas divergentes.
+**A1 — detecção de série por assinatura (#5) é heurística.** Agrupar por assinatura repetida acerta
+o caso comum e pode errar num treino que legitimamente repete um par sem ser uma série. O
+`itensFromEtapas` já corre esse risco no editor, e a consequência aqui é menor — um bracket a mais,
+não um dado gravado errado. **Premissa:** aceitável, desde que exista **uma** heurística
+parametrizada, e não duas implementações. O DoR mostrou que "reusar" não é importar: os helpers são
+privados, tipados em `EtapaTreinoDto`, comparam quatro campos (incluindo `distanciaKm`) e exigem a
+string literal `'INTERVALADO'`. A task 5.1 foi reescrita como **extração** por causa disso.
+
+## Risco e rollback
+
+Frontend-only, sem migração, sem mudança de contrato: `git revert` do PR devolve o estado anterior.
+
+O risco maior não é técnico, é de escopo: a task 5 (extração da heurística de série) toca código
+compartilhado com o editor de treinos, e o editor é caminho de escrita no plano do atleta. A
+mitigação está no `verify:` da própria task — **o `TreinoEditDialog.test.tsx` precisa continuar
+verde sem alteração**, porque a extração não pode mudar o comportamento de quem já a usava. Se para
+manter o editor verde for preciso alterar as asserções dele, a extração saiu errada.
 
 **A2 — a mudança do eixo para `h:mm` altera o AC-4 da spec anterior**, que fixava `0, 5, …, 40` para
 um treino de 40min. Abaixo de 60min nada muda (segue em minutos crus); a mudança vale só acima de
