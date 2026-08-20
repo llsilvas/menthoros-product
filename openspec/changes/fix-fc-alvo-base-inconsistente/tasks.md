@@ -48,41 +48,46 @@
   falta de dado usa um estado que o produto suporta, em vez de criar caminho de exceção. O fallback
   etário (`220 - idade`) erra dezenas de bpm e não vira meta que o atleta persegue — [CA3]
 
-- [ ] **0.3 Definir ONDE o treinador é avisado** quando a meta que ele prescreveu foi descartada por
-  falta de dado do atleta — tela do plano, retorno do envio, ou ambos — [CA10]
+- [x] **0.3 ONDE o treinador é avisado — DECIDIDO em 2026-08-20: no status do push.** O treino
+  conclui em `SINCRONIZADO_PARCIAL` com o motivo em `erroSincronizacao` — [CA10]
   - ⚠️ No payload, "treinador escolheu sem objetivo" e "prescrição descartada" são **idênticos**: etapa
     sem meta. Sem aviso, o treinador prescreve uma zona, o atleta recebe treino livre, e nada na tela
     diferencia isso de uma decisão dele
-  - Única questão de produto que resta em aberto nesta change
+  - **Por que o status e não a tela do plano:** `StatusSincronizacao.SINCRONIZADO_PARCIAL` e o campo
+    `TreinoPlanejado.erroSincronizacao` **já existem** e já são lidos pelo front. Marcar por etapa no
+    DTO do plano exigiria campo novo + front, subindo a change de S para M e invadindo o escopo que a
+    proposal empurrou de propósito para `coach-meta-intensidade-editor`
+  - Granularidade aceita: o aviso é **por treino**, não por etapa. O treinador sabe que aquele treino
+    saiu com prescrição descartada e por quê; qual etapa exatamente fica para a change do editor
 
 ## 1. Rede de segurança
 
-- [ ] **1.1 Teste que reproduz o bug** — alvo prescrito para uma zona, bpm enviado bem acima — [CA6]
+- [x] **1.1 Teste que reproduz o bug** — alvo prescrito para uma zona, bpm enviado bem acima — [CA6]
   - ⚠️ Deve **falhar** antes da correção. Se passar de primeira, não está reproduzindo o defeito
-- [ ] **1.2 Caracterizar o payload atual** dos três caminhos (`BPM`, `PERCENT`, `ZONE`), para provar
+- [x] **1.2 Caracterizar o payload atual** dos três caminhos (`BPM`, `PERCENT`, `ZONE`), para provar
   depois que só o pretendido mudou
   - `verify:` `./mvnw clean verify` verde antes de alterar `src/main`
 
 ## 2. Resolver para bpm absoluto
 
-- [ ] **2.1 Resolver `HrTarget` para bpm no `IntervalsIcuWorkoutConverter`**, usando o atleta — [CA1]
+- [x] **2.1 Resolver `HrTarget` para bpm no `IntervalsIcuWorkoutConverter`**, usando o atleta — [CA1]
   - ⚠️ No converter, **não** no adapter: o adapter não tem referência a `Atleta` e seu papel é
     traduzir modelo canônico → JSON
   - Consequência: `HrTarget` chega ao adapter sempre em `BPM`; `PERCENT`/`ZONE` viram representação
     intermediária do parser e não atravessam mais a fronteira
-- [ ] **2.2 Zona resolve reusando `ZonaTreinoService.calcularZonas`** — a zona N vira o
+- [x] **2.2 Zona resolve reusando `ZonaTreinoService.calcularZonas`** — a zona N vira o
   `fcMin`–`fcMax` da zona N — [CA2]
   - ⚠️ **Não reimplementar a conta.** Reimplementar a mesma grandeza em dois lugares é exatamente
     como o BUG-CONF-001 nasceu
-- [ ] **2.3 Percentual legado** (`"90-95% FCmax"` já gravado em `fcAlvoEtapa`): interpretar na base do
+- [x] **2.3 Percentual legado** (`"90-95% FCmax"` já gravado em `fcAlvoEtapa`): interpretar na base do
   domínio (%LTHR) e **registrar a interpretação** — [CA5]
   - ⚠️ Não reinterpretar em silêncio: o mesmo texto passa a significar outro bpm
-- [ ] **2.4 Remover a emissão de `%hr` e `hr_zone`** do `IntervalsIcuAdapter:272,277` — [CA1]
+- [x] **2.4 Remover a emissão de `%hr` e `hr_zone`** do `IntervalsIcuAdapter:272,277` — [CA1]
   - `verify:` nenhum alvo relativo trafega; `grep` por `"%hr"`/`"hr_zone"` em `src/main` ⇒ 0
 
 ## 2b. Meta de intensidade explícita
 
-- [ ] **2b.1 Tornar a meta de intensidade uma escolha declarada** no `WorkoutStep`: sem meta, ritmo ou
+- [x] **2b.1 Tornar a meta de intensidade uma escolha declarada** no `WorkoutStep`: sem meta, ritmo ou
   FC — em vez de dois campos opcionais resolvidos por precedência — [CA7]
   - ✅ **Validado na UI do Garmin (2026-08-02):** "Meta de intensidade → Tipo" é dropdown de escolha
     única (`Sem objetivo` · `Ritmo` · `Cadência` · `Zona de frequência cardíaca` ·
@@ -92,25 +97,25 @@
     `IntervalsIcuAdapter:243-249` emitiria **os dois** se os dois viessem. Nada estrutural impede;
     uma mudança futura no converter vaza direto para o payload
   - Usar o vocabulário do produto nos nomes: "meta de intensidade", "sem objetivo"
-- [ ] **2b.2 Etapa prescrita por FC mantém a FC como meta**, mesmo havendo ritmo informado — [CA8]
+- [x] **2b.2 Etapa prescrita por FC mantém a FC como meta**, mesmo havendo ritmo informado — [CA8]
   - ⚠️ Hoje `pace` ganha sempre e a FC é rebaixada a texto por `anexarFc`: o atleta lê `"(140-150
     bpm)"` na descrição e o relógio não controla nada. Para uma etapa prescrita por FC, é perder em
     silêncio o que o treinador pediu
-- [ ] **2b.3 "Sem objetivo" como escolha de primeira classe** — o treinador pode não informar meta, e
+- [x] **2b.3 "Sem objetivo" como escolha de primeira classe** — o treinador pode não informar meta, e
   o treino vai sem meta. É prescrição válida, não falha; nunca substituir por meta inventada — [CA9]
-- [ ] **2b.4 Distinguir os dois caminhos até "sem objetivo"** — [CA10]
+- [x] **2b.4 Distinguir os dois caminhos até "sem objetivo"** — [CA10]
   - ⚠️ No payload são idênticos. "Treinador escolheu não prescrever" e "prescrição do treinador foi
     descartada por falta de dado" são opostos, e sem sinalização o segundo se disfarça do primeiro
   - `verify:` existe teste para os dois casos, afirmando que o **aviso** só ocorre no segundo
 
 ## 3. Prompt coerente
 
-- [ ] **3.1 Alinhar o prompt** — entregar bpm e exigir bpm na saída; remover o exemplo
+- [x] **3.1 Alinhar o prompt** — entregar bpm e exigir bpm na saída; remover o exemplo
   `"90-95% FCmax"` de `plano-treino-prompt.txt:34-45` — [CA4]
   - ⚠️ Hoje o prompt entrega bpm (`PlanoTreinoPromptBuilder:503`) e proíbe inventar valores (`:493`),
     mas exemplifica percentual. Modelo segue exemplo — é a origem do rótulo ambíguo
   - Conferir **os dois** prompts: `plano-treino-prompt.txt` e `plano-treino-otimizado-claude.txt`
-- [ ] **3.2 Declarar a meta de intensidade no schema de etapa** — [CA7]
+- [x] **3.2 Declarar a meta de intensidade no schema de etapa** — [CA7]
   - ⚠️ Achado que muda o quadro: `ritmoAlvo` é campo do **treino** (`plano-treino-prompt.txt:80`),
     não da etapa, e o schema de etapa só tem `fcAlvo`. Por isso `etapa.ritmoAlvo` nunca é preenchido
     em plano gerado, `pace` é sempre nulo e **100% das etapas caem no ramo de FC** — o quebrado. O
@@ -121,17 +126,17 @@
 
 ## 4. Testes que afirmam valor
 
-- [ ] **4.1 Substituir as asserções de string de unidade por valor absoluto** em
+- [x] **4.1 Substituir as asserções de string de unidade por valor absoluto** em
   `IntervalsIcuAdapterTest:117,133`
   - ⚠️ Afirmar `units == "bpm"` não prova nada sobre o número — foi por isso que a suíte não pegou
-- [ ] **4.2 Afirmar a igualdade com o `ZonaTreinoService`** e **fixar valores absolutos** — [CA2]
+- [x] **4.2 Afirmar a igualdade com o `ZonaTreinoService`** e **fixar valores absolutos** — [CA2]
   - ⚠️ Só a igualdade não basta: se as duas pontas quebrarem juntas, o teste segue verde. Lição
     explícita do BUG-CONF-001
 
 ## 5. Verificação
 
-- [ ] **5.1** O teste de 1.1 passa a verde e a correção explica a diferença — [CA6]
-- [ ] **5.2 Guardrail de escopo:** `git diff develop -- '*ZonaTreinoService.java'` ⇒ **vazio**
+- [x] **5.1** O teste de 1.1 passa a verde e a correção explica a diferença — [CA6]
+- [x] **5.2 Guardrail de escopo:** `git diff develop -- '*ZonaTreinoService.java'` ⇒ **vazio**
 - [ ] **5.3 Validar ponta a ponta com conta real** de intervals.icu: o bpm no relógio é o mesmo da
   tela do plano
   - ⚠️ Contrato externo. `units: "bpm"` já é emitido hoje (`IntervalsIcuAdapter:267`), então não é
