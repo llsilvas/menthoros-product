@@ -2,18 +2,16 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-08-19 (**`refactor-workout-profile-chart` entregue e arquivada.**
-O perfil do treino foi reconstruído sobre o encoding canônico — largura = tempo, altura =
-intensidade, cor = zona — com um seletor puro único do qual badge, altura, cor e distribuição saem
-no mesmo retorno, o que mata a divergência que produzia "Z1 100%" sobre blocos laranja. Detalhes na
-seção de concluídas.
+**Última atualização:** 2026-08-20 (**`polish-workout-profile-legibilidade` entregue e arquivada.**
+Segunda change da linha do perfil de treino, nascida de uma navegação de verificação em treinos
+reais logo após o merge da primeira. Corrigiu duas afirmações falsas do gráfico — a razão
+trabalho:recuperação que contradizia o próprio desenho, e a zona escrita na prosa sendo descartada —
+mais quatro acabamentos. Detalhes na seção de concluídas.
 
-**A lição de processo desta change é sobre onde o teste não alcança.** O gate de DoR reprovou a spec
-três vezes com achados reais, e ainda assim os três defeitos mais sérios só apareceram olhando a
-tela: geometria calculada contra uma largura fixa cortando o último bloco, rótulo decepado pelo
-`clip-path`, e o modo degradado saindo chapado no treino mais comum. Os 1168 testes passavam nos
-três. O repo já documentava que jsdom com `css: false` não prova geometria; esta change mostrou que
-isso vale também para "o gráfico está dizendo a coisa certa".)
+**O número que essa linha de trabalho produziu:** somando as duas changes, **oito dos defeitos mais
+sérios não apareceram em teste** — vieram de renderizar e olhar a tela. Três foram causados por
+correções anteriores, feitas sem ver o resultado. Vale como regra prática: depois de mexer em como
+alguma coisa é desenhada, olhar o desenho não é opcional.)
 
 Antes: 2026-08-16 (**`intervals-icu-oauth2-integration` reescrita e escalonada —
 a trilha intervals.icu ganha seção própria.** O founder confirmou que o app OAuth (client ID `663`)
@@ -686,6 +684,58 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 ---
 
 ## Changes concluídas (fora de sprint)
+
+### `polish-workout-profile-legibilidade` ✅ **ARQUIVADA** — o perfil parou de afirmar o que não é verdade (2026-08-20)
+
+**Entregue:** `menthoros-front` **#81** (merge `584397c`). **1215 testes unitários em 134 arquivos**
+e **63 specs E2E**. Arquivada em
+`changes/archive/2026-08/2026-08-20-polish-workout-profile-legibilidade/`.
+
+**Nasceu de uma navegação de verificação em treinos reais, feita logo após o merge da
+`refactor-workout-profile-chart`.** O encoding entregue lá funciona — num intervalado dá para ler
+"seis tiros fortes com recuperação entre eles" sem ler texto. A navegação colheu seis observações:
+quatro de acabamento e **duas do gráfico afirmando o que não é verdade**.
+
+A **razão trabalho:recuperação** exibia `11:4`, `3:8` e `7:3` em treinos reais. Sem série, o cálculo
+caía num fallback global que classificava por zona sobre o treino inteiro, e aquecimento e
+desaquecimento entravam como "recuperação" — o `3:8` dizia que o atleta descansa quase três vezes
+mais do que corre forte, com o gráfico ao lado mostrando o contrário. Virou `null` sem série: métrica
+ausente é melhor que métrica que mente. E a **zona escrita na prosa** ("Corrida contínua Z2" em
+`descricaoEtapa`) era descartada, então o bloco saía hachurado — "não sei a zona" — com o dado
+escrito ali.
+
+Acabamento: eixo em unidade única acima de uma hora (`0 10 … 50 1:00 1:10 1:15` misturava dois
+sistemas na mesma régua, e `1:10` colidia com `1:15`); rótulo **medido** em vez de estimado, porque
+`length * 6` escolhia "DESAQUECIMENTO" para um bloco de 100px onde ele mede 99; e série expandida
+sem `blocoId` voltou a ser série, o que trouxe de volta o bracket `n×` e calou o `REC` repetido seis
+vezes.
+
+**O DoR reprovou a primeira versão, e o achado era real.** A task da série prometia "reusar o
+critério do `itensFromEtapas`" — e não dava: os helpers são privados, tipados em `EtapaTreinoDto`, e
+exigem a string literal `INTERVALADO`, enquanto o perfil reconhece também `tiro` e `esforço`.
+Importar como estava faria a série **sumir em silêncio** nos treinos que o próprio módulo já trata
+como trabalho. Virou extração parametrizada por assinatura e predicado — uma heurística, dois
+vocabulários declarados —, com o critério de que o `TreinoEditDialog.test.tsx` continuasse verde
+**sem alteração de asserção**, porque o editor é caminho de escrita. Cumprido.
+
+**Três defeitos vieram de olhar a tela, e nenhum apareceu em teste.** A **descrição da etapa era
+apagada ao salvar** (`serializarItens` não emitia `descricaoEtapa`) — perda de dado anterior a esta
+change, sem relação com gráfico, corrigida aqui por decisão explícita. A **rampa era desenhada acima
+do próprio nominal**, então o aquecimento saía mais alto que o bloco principal. E o **regenerativo
+saía de cabeça para baixo**: a zona-alvo do treino era aplicada só ao miolo e o resto seguia em
+altura de papel — duas escalas no mesmo eixo, com o corpo em 0.15 e o aquecimento em 0.46.
+
+**A lição de processo é a mesma das duas changes, e agora com número.** Somando as duas, **oito dos
+defeitos mais sérios não apareceram em teste** — vieram de renderizar e olhar. Três deles foram
+causados por correções anteriores minhas, feitas sem ver o resultado na tela. O gate de qualidade
+achou o que a análise no papel não achou (a rampa degenerando em patamar no piso da escala), o que
+reforça a ordem: renderizar, olhar, revisar — nessa sequência, e nenhuma substitui a outra.
+
+**Aberto:** `desenhar-bloco-sem-zona-conhecida` (a laje cinza que ocupa até 73% do gráfico em
+treinos contínuos), não escalonada e aguardando decisão de design — com a pergunta que deve vir
+antes: que fração dos treinos reais cai no modo degradado? E a conversão **bpm → zona**, que é
+provavelmente o maior retorno disponível: as etapas reais trazem "165-175 bpm", e o dado de
+intensidade existe, só não está na unidade que o front lê.
 
 ### `refactor-workout-profile-chart` ✅ **ARQUIVADA** — o perfil do treino passa a ser legível sem leitura (2026-08-19)
 

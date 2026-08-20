@@ -1,5 +1,18 @@
 # Tasks — polish-workout-profile-legibilidade
 
+> **Estado final (2026-08-20) — entregue no `menthoros-front` #81, merge `584397c`.**
+> **15 de 15 tasks concluídas**, nenhuma adiada. Validação final: lint limpo, build sem erro de
+> tipo, **1215 testes unitários em 134 arquivos** e **63 specs E2E**.
+>
+> A change cresceu além do escopo previsto, e por um bom motivo: a navegação de verificação da task
+> 6.1 encontrou que **a descrição da etapa era apagada ao salvar** — perda de dado num caminho de
+> escrita do plano do atleta, anterior a esta change e sem relação com gráfico. Corrigida aqui por
+> decisão explícita, em vez de virar change própria.
+>
+> Também entraram, achados ao conferir o resultado renderizado: a rampa desenhada acima do próprio
+> nominal (o aquecimento saía mais alto que o bloco principal) e o regenerativo de cabeça para baixo
+> (duas escalas no mesmo eixo). Nenhum dos três apareceu em teste.
+
 Repo: `apps/menthoros-front`. Gate em todo bloco: `npm run lint && npm run build && npm run test:run`.
 Módulo: `src/features/workout/profile/`.
 
