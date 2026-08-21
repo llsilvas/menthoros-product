@@ -14,7 +14,10 @@ três pontos que teriam produzido código que compila e não funciona.
 ## D1 — Basic → Bearer é um ponto único de mudança
 
 **Decisão:** trocar `headers.setBasicAuth("API_KEY", apiKey)` por `headers.setBearerAuth(token)` em
-`IntervalsIcuClientImpl.java:148`. Nenhuma assinatura de método muda.
+`IntervalsIcuClientImpl` (método `basic()`). **[DoR 2026-08-21]** Nenhum call site muda de dado ou
+de ordem de argumentos; os *nomes públicos* mudam — `validarApiKey` → `validarToken` e o parâmetro
+`apiKey` → `token`. (A redação anterior dizia "nenhuma assinatura de método muda", o que
+contradizia o `proposal.md` e o `tasks.md`.)
 
 **Por quê é seguro:** os seis pontos que usam a credencial já a obtêm da mesma forma —
 `conexao.getAccessToken()` — e a repassam ao client como `String`:
