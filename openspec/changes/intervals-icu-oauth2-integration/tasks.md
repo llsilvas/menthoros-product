@@ -90,11 +90,11 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
 
 ## Bloco 3 — State assinado (2 tasks)
 
-- [ ] 3.1 Helper `IntervalsIcuStateSigner` (`services/helper`): `assinar(UUID atletaId)` →
+- [x] 3.1 Helper `IntervalsIcuStateSigner` (`services/helper`): `assinar(UUID atletaId)` →
   `<atletaId>.<epochSeconds>.<HMAC-SHA256 base64url>` usando o `clientSecret` como chave;
   `validar(String state)` → `Optional<UUID>`, rejeitando assinatura inválida ou idade > 10 min.
   Comparação de MAC em tempo constante (`MessageDigest.isEqual`).
-- [ ] 3.2 Teste unitário do signer: round-trip feliz, assinatura adulterada, state expirado,
+- [x] 3.2 Teste unitário do signer: round-trip feliz, assinatura adulterada, state expirado,
   formato malformado, `atletaId` não-UUID. Nenhum desses caminhos pode lançar para fora.
 
 ## Bloco 4 — OAuth Service (4 tasks)
