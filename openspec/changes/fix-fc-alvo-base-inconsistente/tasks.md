@@ -1,4 +1,4 @@
-# Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend · 20 tasks + 1 decidida)
+# Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend + front · 32 tasks)
 
 > **Refinada em 2026-08-02:** escopo reduzido ao **formato de alvo** (padrão Garmin). O
 > `ZonaTreinoService` **não é tocado** — nenhuma faixa muda. Diff em `ZonaTreinoService.java` é sinal
@@ -115,14 +115,69 @@
   - ⚠️ Hoje o prompt entrega bpm (`PlanoTreinoPromptBuilder:503`) e proíbe inventar valores (`:493`),
     mas exemplifica percentual. Modelo segue exemplo — é a origem do rótulo ambíguo
   - Conferir **os dois** prompts: `plano-treino-prompt.txt` e `plano-treino-otimizado-claude.txt`
-- [x] **3.2 Declarar a meta de intensidade no schema de etapa** — [CA7]
-  - ⚠️ Achado que muda o quadro: `ritmoAlvo` é campo do **treino** (`plano-treino-prompt.txt:80`),
-    não da etapa, e o schema de etapa só tem `fcAlvo`. Por isso `etapa.ritmoAlvo` nunca é preenchido
-    em plano gerado, `pace` é sempre nulo e **100% das etapas caem no ramo de FC** — o quebrado. O
-    ramo de pace é código morto no fluxo principal
-  - Decidir: a etapa passa a declarar a meta (e opcionalmente aceitar ritmo por etapa), ou assume-se
-    que etapa é sempre por FC e o ramo de pace é removido. **Não deixar código morto se passando por
-    funcionalidade**
+- [x] **3.2 Declarar a meta de intensidade no schema de etapa — DECIDIDO em 2026-08-21: o ramo de
+  pace fica.** O `fcAlvoEtapa` ganhou `pattern` de bpm e os dois prompts passaram a exigir bpm — [CA7]
+  - ❌ **A premissa desta task estava errada, e a verificação do código a refutou.** Ela dizia que
+    `ritmoAlvo` é campo só do treino e que o ramo de pace é código morto. Isso vale para o
+    `plano-treino-prompt.txt`, mas **não é o prompt que manda**: o schema de structured output é
+    construído em código e **exige `ritmoAlvo` por etapa** (`IaServiceImpl:243-250`, nullable, com
+    `pattern` `m:ss-m:ss/km`), desde `22716ba` (2026-04-30). `TreinoMapper.toEntity` é MapStruct e
+    mapeia o campo por nome. **O planner prescreve ritmo por etapa e o banco persiste.**
+  - Remover o ramo teria apagado funcionalidade viva. A spec o teria mandado remover.
+  - Confirmado com o founder em 2026-08-21: **os campos da etapa ficam a critério do treinador** —
+    ele prescreve uma etapa por ritmo ou por FC
+
+## 3b. Ritmo por etapa deixa de ser apagado na edição
+
+> Aberta em 2026-08-21, durante a 3.2: se o planner prescreve ritmo por etapa, era preciso ver o que
+> a edição fazia com ele. Fazia sumir.
+
+- [x] **3b.1 `ritmoAlvo` no `EtapaInputDto`** — o PATCH limpa as etapas e as reconstrói a partir
+  dele, então campo ausente do DTO nascia nulo: **editar qualquer coisa no treino apagava o ritmo de
+  todas as etapas**, sem erro e sem aviso
+  - **Terceira ocorrência do mesmo defeito no mesmo método**, depois de `blocoId`
+    (`preservar-serie-estruturada-na-edicao`) e de `descricaoEtapa`. O padrão é estrutural: enquanto
+    o payload de entrada for um subconjunto do que a entidade guarda, haverá um quarto campo
+  - Provado por sonda antes de corrigir: `EtapaMapper.toEntity(EtapaInputDto)` devolvia
+    `ritmoAlvo = null`
+- [x] **3b.2 `comRepeticoes()` copia o campo** — segundo vazamento, no mesmo método: sem isso a
+  expansão de um `BLOCO` perdia o ritmo em cada cópia da série, mesmo com o DTO de entrada carregando
+- [x] **3b.3 Front devolve o ritmo no patch** — `etapaItem.ts` (modelo, serialização, hidratação).
+  Corrigir só o backend não pararia a perda: o editor não devolvia o valor. Viaja intacto, como
+  `descricaoEtapa`; o seletor de objetivo é escopo de `coach-meta-intensidade-editor`
+- [x] **3b.4 Assinatura da série inclui o ritmo** — espelha `etapasEquivalentes` no backend. Sem
+  isso um progressivo (mesma duração, ritmo caindo) viraria uma série que ninguém prescreveu
+- [x] **3b.5 `EtapaMapperTest`** prende os campos que a edição precisa preservar — era o teste que
+  faltava para o defeito aparecer sozinho
+- [x] **3b.6 E2E** (`plan-review-edicao.spec.ts`): editar as repetições e salvar mantém o ritmo no
+  payload do PATCH
+
+## 3c. Contrato do alvo — investigado contra fonte primária (2026-08-21)
+
+> FIT SDK 21.171.00 (`Profile.xlsx`), cookbook oficial da Garmin, OpenAPI + código do intervals.icu,
+> posts do criador no fórum. Investigado a pedido do founder, depois da 3b.
+
+- [x] **3c.1 A premissa da change está confirmada por fonte primária.** O tipo `workout_hr` do FIT:
+  `0 - 100 indicates % of max hr; >100 indicates bpm (255 max) plus 100`. O canal relativo é
+  **%FCmax por definição do formato** — não havia percentual correto a enviar
+- [x] **3c.2 "Sem objetivo" é `target_type = open` (=2)** — valor nomeado no enum `wkt_step_target`,
+  o que sustenta o CA9. No FIT **não existe alvo "pace"**: é `speed`, em m/s × 1000
+- [ ] **3c.3 Rever o CA8 à luz do contrato real — DECISÃO PENDENTE DO FOUNDER**
+  - **O intervals.icu guarda os três alvos e escolhe na execução.** O criador: *"Any step can have
+    power, HR and pace targets but you need to choose one of power/HR/pace when executing"*. O evento
+    tem `target: AUTO | POWER | HR | PACE` (confirmado no OpenAPI)
+  - Consequência: a regra implementada (FC vence, ritmo desce para o texto) **descarta informação que
+    o canal aceitaria**. O desenho que o provedor modela é emitir os dois e **declarar** qual manda
+  - O FIT também tem alvo secundário (`secondary_target_*`, campos 19-22), então "não são
+    acumuláveis" — afirmação do `design.md` — está desatualizado. Suporte é por dispositivo
+- [x] **3c.4 O intervals.icu aceita `%lthr`** — a chave `hr` aceita `%hr`, `%lthr`, `hr_zone`, `bpm`.
+  Existe canal relativo com a base do domínio, ao contrário do que a proposal afirmava. **Não muda a
+  decisão:** seria resolvido contra o LTHR do perfil remoto, que o Menthoros não escreve — a mesma
+  delegação que condenou o `hr_zone`. Continuamos certos, por um motivo mais forte
+- [ ] **3c.5 NÃO confirmado: como o intervals.icu converte `workout_doc` → FIT no download.** Sem
+  fonte. Há um bug report de usuário (2026-08-21) alegando que `hr_zone` sai como custom errado e que
+  `%pace` vira `OPEN` — **não verificado e contestado no próprio tópico**. Reforça a 5.3: só a
+  validação com conta real fecha isso
 
 ## 4. Testes que afirmam valor
 
