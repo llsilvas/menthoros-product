@@ -74,18 +74,18 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
 > um estado intermediário quebrado que passaria no gate de cada bloco isoladamente. **A remoção vem
 > antes da troca, no mesmo bloco.**
 
-- [ ] 2.0 **[DoR 2026-08-21] Remover primeiro:** apagar `IntervalsIcuConnectInputDto`, o `POST` de
+- [x] 2.0 **[DoR 2026-08-21] Remover primeiro:** apagar `IntervalsIcuConnectInputDto`, o `POST` de
   conexão por key em `IntervalsIcuConnectionController` e `IntervalsIcuConnectionServiceImpl.conectar`
   + impl + testes. `status`/`desconectar` permanecem. (Era a task 6.1.)
-- [ ] 2.1 `IntervalsIcuClientImpl`: trocar `headers.setBasicAuth("API_KEY", apiKey)` por
+- [x] 2.1 `IntervalsIcuClientImpl`: trocar `headers.setBasicAuth("API_KEY", apiKey)` por
   `headers.setBearerAuth(token)` (método `basic()` — localizar por `setBasicAuth("API_KEY"`, não
   por número de linha: era 148 em 2026-08-16 e é 151 hoje) e renomear o parâmetro `apiKey` →
   `token` nas assinaturas de `IntervalsIcuClient` + impl. **Nenhum dos 6 call sites muda de dado ou
   ordem de argumentos** — todos já passam `conexao.getAccessToken()`; o que muda são nomes
   públicos. Renomear `validarApiKey` → `validarToken`.
-- [ ] 2.2 Novo método `revogarAcesso(String token)` no client:
+- [x] 2.2 Novo método `revogarAcesso(String token)` no client:
   `DELETE /api/v1/disconnect-app` com Bearer. Falha é logada, não propagada (best-effort).
-- [ ] 2.3 `grep -rn "apiKey\|API_KEY" src/main/java | grep -i intervals` volta vazio (fora de
+- [x] 2.3 `grep -rn "apiKey\|API_KEY" src/main/java | grep -i intervals` volta vazio (fora de
   comentários históricos). O termo no domínio passa a ser `token`. (Era a task 6.2.)
 
 ## Bloco 3 — State assinado (2 tasks)

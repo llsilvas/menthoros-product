@@ -219,7 +219,11 @@ e o pipeline de ingestão são independentes do mecanismo de auth).
   chama o intervals.icu (push de evento, busca de atividade, backfill de laps), Then o header é
   `Authorization: Bearer <token>` — nenhuma chamada usa mais Basic.
 - **CA8 — API key removida:** Given o deploy desta change, When se tenta `POST` com corpo
-  `{apiKey}` no endpoint antigo, Then o endpoint não existe (404) — o DTO e o service foram removidos.
+  `{apiKey}` no endpoint antigo, Then a requisição é rejeitada sem tocar no service — o DTO e o
+  método `conectar` foram removidos.
+  **[Implementação 2026-08-21] O status é `405`, não `404`** como esta spec previa: a URL
+  `/api/v1/integracoes/me/intervals-icu` continua existindo para `GET` e `DELETE`, então quem
+  desapareceu foi o **método**, não o recurso. Verificado no teste, não deduzido.
 - **CA9 — Multi-tenancy:** Given o callback (público, sem JWT), When persiste a integração,
   Then o `tenantId` vem de `atleta.getAssessoria().getId()`, resolvido a partir do state validado —
   nunca de parâmetro do request.
