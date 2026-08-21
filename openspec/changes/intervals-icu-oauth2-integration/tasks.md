@@ -147,13 +147,13 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
 
 ## Bloco 5 — Controller e Security (3 tasks)
 
-- [ ] 5.1 Em `IntervalsIcuConnectionController` (`/api/v1/integracoes/me/intervals-icu`):
+- [x] 5.1 Em `IntervalsIcuConnectionController` (`/api/v1/integracoes/me/intervals-icu`):
   **adicionar** `GET /authorize-url` (**[DoR 2026-08-21]** apenas `ROLE_ATLETA` — `ADMIN` saiu do
   contrato porque `resolverAtletaIdAtual()` exige `Atleta` vinculado ao `Usuario` e lançaria
   `DomainNotFoundException` para um ADMIN sem vínculo; devolve DTO tipado — não `Map`); manter
   `GET` de status; `DELETE` passa a chamar `revogarEDesconectar`. (A remoção do `POST` foi
   antecipada para a task 2.0.)
-- [ ] 5.2 Novo controller público para o callback em `/api/v1/integracoes/intervals-icu/callback`
+- [x] 5.2 Novo controller público para o callback em `/api/v1/integracoes/intervals-icu/callback`
   (fora do `me/`, que exige JWT): `GET ?code=&state=&error=` → redirect 302 para o front com
   `?intervals-icu=success|error`. Sem `@PreAuthorize`, com comentário explicando.
   **[DoR 2026-08-21] NÃO copiar `StravaAuthController.callback` como está:** ele faz
@@ -162,7 +162,7 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
   `code` ausente, provedor fora do ar, exceção inesperada, duplicidade da 4.3b) vira 302 com
   `?intervals-icu=error`; a causa vai para o log, sem token e sem `code` na mensagem (CA10).
   `verify:` `*IT` que cobre os quatro caminhos de falha e assere 302 em todos (CA13).
-- [ ] 5.3 `CoreSecurityProperties`: nova lista `intervalsIcuPaths` (default
+- [x] 5.3 `CoreSecurityProperties`: nova lista `intervalsIcuPaths` (default
   `List.of("/api/v1/integracoes/intervals-icu/callback")`) + `permitAll` no `CoreSecurityConfig`
   (linha 45 é o precedente). **Não** renomear `stravaPaths`
 
