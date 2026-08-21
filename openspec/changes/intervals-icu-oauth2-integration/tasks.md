@@ -197,16 +197,16 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
 
 ## Bloco 8 — Frontend (3 tasks)
 
-- [ ] 8.1 `IntervalsIcuConnectionCard.tsx`: remover o `TextField` de API key e o link para
+- [x] 8.1 `IntervalsIcuConnectionCard.tsx`: remover o `TextField` de API key e o link para
   `/settings`; botão "Conectar com intervals.icu" que busca `authorize-url` e redireciona
-- [ ] 8.2 `useIntervalsIcuConnection`: `connect()` sem parâmetro, passa a buscar a URL e navegar;
+- [x] 8.2 `useIntervalsIcuConnection`: `connect()` sem parâmetro, passa a buscar a URL e navegar;
   regenerar o client da API (`IntervalsIcuService`)
-- [ ] 8.3 Tratar o retorno `?intervals-icu=success|error` na tela de perfil do atleta
+- [x] 8.3 Tratar o retorno `?intervals-icu=success|error` na tela de perfil do atleta
   (feedback visual + refresh do status), com teste
 
 ## Bloco 9 — Validação e documentação (3 tasks)
 
-- [ ] 9.1 `./mvnw clean verify` no backend (não só `test` — há `*IT` nesta change) e
+- [x] 9.1 `./mvnw clean verify` no backend (não só `test` — há `*IT` nesta change) e
   lint + testes + build no front
 - [ ] 9.2 Smoke real contra o app 663: conectar → **push de um treino planejado** (valida
   `CALENDAR:WRITE`) → **import de uma atividade** (valida `ACTIVITY:READ`) → desconectar e
