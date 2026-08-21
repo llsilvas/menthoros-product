@@ -2,6 +2,8 @@
 
 **Criado:** 2026-08-16 · **Trilha:** Full · **Tamanho:** M
 **Repos:** `apps/menthoros-backend`, `apps/menthoros-front`
+**Revisado:** 2026-08-21 — gate de DoR. Decisões **D11 a D15** acrescentadas ao final, todas
+originadas de achados do Codex confirmados contra o código.
 
 Este documento registra as decisões de desenho e, principalmente, **o que foi verificado contra a
 API real** — a versão anterior da proposta assumiu o contrato do Strava por analogia e errou em
@@ -151,6 +153,91 @@ não de significado.
 O `code` expira em **2 minutos**. Isso descarta qualquer desenho que enfileire a troca (evento
 assíncrono, retry com backoff longo). A troca acontece no próprio handler do callback; falha é
 falha, e o atleta refaz a autorização — que custa um clique, ao contrário do retry.
+
+---
+
+## D11 — O `clientSecret` é material criptográfico, e o boot precisa tratá-lo assim
+
+**Decisão:** `@Validated` + `@NotBlank` em `IntervalsIcuProperties`. Configuração incompleta derruba
+o contexto no boot.
+
+**Por quê isso não é higiene de config:** em D2, o `clientSecret` deixou de ser apenas a credencial
+do token endpoint e virou **a chave do HMAC do state**. O `application.yml` traz
+`${INTERVALS_ICU_CLIENT_SECRET:}` — default vazio, seguindo o padrão do Strava. A composição das
+duas coisas é o problema: com secret vazio, a chave do HMAC é `""`, conhecida por qualquer um, e o
+state assinado — a defesa inteira desta change — passa a ser forjável para qualquer `atletaId`.
+
+**O que torna isso pior que um bug comum:** não há sintoma. O fluxo funciona de ponta a ponta,
+conecta atletas, e passa em qualquer teste feliz. Só um atacante nota a diferença. Um erro de
+configuração precisa falhar barulhento, e o único momento barulhento disponível é o boot.
+
+**Por quê `StravaProperties` não é precedente:** ele também não valida nada, e está certo em não
+validar — o state do Strava é um UUID cru, não assinado. Lá o secret vazio quebra a troca de token
+com um 401 imediato e visível. Aqui ele abre um buraco silencioso. Mesma ausência de validação,
+consequências opostas.
+
+## D12 — O vínculo `externalAthleteId` é verificado onde ele nasce, não onde é usado
+
+**Decisão:** o guard D5.1 (`findOtherActiveByExternalAthleteIdAndPlataformaAndTenantId`, que **já
+existe** no repositório) roda dentro de `exchangeCodeForToken`, antes de persistir.
+
+**Por quê o guard atual não basta:** ele só é chamado em
+`IntervalsIcuActivityIngestionServiceImpl`, ou seja, **no import**. O push de treino planejado
+(`IntervalsIcuAdapter`) lê `conexao.getAccessToken()` e escreve no calendário sem verificação
+nenhuma. Se dois atletas do mesmo tenant autorizarem a mesma conta intervals.icu, os dois passam a
+receber treino planejado no mesmo calendário e no mesmo relógio — e isso acontece **antes** de
+qualquer import rodar, então a defesa existente nunca dispara a tempo.
+
+**Por quê no callback:** é o único ponto do sistema onde o vínculo atleta ↔ conta externa é criado.
+Verificar no consumo significa espalhar a mesma checagem por todo call site futuro e depender de
+ninguém esquecer. Verificar na origem é uma chamada, num lugar só.
+
+**Cuidado de implementação:** o filtro do repositório é `atleta.id <> :atletaId`, então
+**reconexão do próprio atleta não é bloqueada** — só o vínculo cruzado. O teste 7.7 cobre os dois
+lados justamente porque um guard que barra a reconexão legítima seria pior que a ausência dele.
+
+## D13 — Desconectar zera tudo, não só o token
+
+**Decisão:** `desconectar` limpa `accessToken`, `refreshToken`, `scopes`, `tokenExpiraEm`,
+`externalAthleteId` e `lastSyncError`.
+
+**Por quê:** o método existente limpa apenas os dois primeiros. Isso já era incompleto, mas com
+OAuth passa a ter uma consequência mensurável: a métrica de sucesso desta change conta conexões
+OAuth por `scopes != null`, e um atleta desconectado continuaria contado como conectado. O
+equivalente do Strava (`StravaOAuthServiceImpl.disconnect`) já limpa `scopes` e `tokenExpiraEm` —
+a inconsistência entre os dois caminhos é dívida, não decisão.
+
+**`externalAthleteId` também sai** porque, com D12, uma row inativa que guarda o id externo é um
+registro sem função que só pode confundir uma auditoria futura.
+
+## D14 — O callback é uma superfície de redirect, não uma API
+
+**Decisão:** todo caminho do callback termina em 302 — `success` ou `error`. Nenhum produz 4xx/5xx.
+
+**Por quê não copiar o Strava:** `StravaAuthController.callback` faz `UUID.fromString(state)` sem
+try/catch. Um state malformado lança `IllegalArgumentException` e o handler global devolve erro
+HTTP. Quem está do outro lado é **o browser do atleta**, não um cliente de API: ele veria uma
+página de erro em vez de voltar ao Menthoros. E CA3/CA4 exigem redirect explicitamente, então o
+molde não atende os critérios desta change.
+
+**Consequência de desenho:** o handler traduz falha em redirect e registra a causa no log — nunca
+na URL, que é visível na barra do browser e no histórico (CA10). Isso vale inclusive para o `code`,
+que não é token mas é credencial de troca.
+
+## D15 — A remoção da API key vem antes da troca para Bearer
+
+**Decisão:** fundir o antigo Bloco 6 no Bloco 2, com a remoção primeiro.
+
+**Por quê a ordem importa:** na sequência anterior, o Bloco 2 trocava o header para Bearer e o
+`POST` de conexão por API key só era apagado no Bloco 6. Entre os dois commits existe um estado em
+que o endpoint continua publicado, aceita um corpo `{apiKey}`, persiste a key — e o client já a
+envia como Bearer, que o provedor rejeita. O endpoint estaria anunciando um formato que ele próprio
+já quebrou.
+
+**Por quê isso passaria despercebido:** cada bloco passa no seu próprio gate isoladamente. O estado
+quebrado só existe *entre* eles, que é exatamente o tipo de defeito que validação por bloco não vê.
+Como os blocos são checkpoints de commit, e não deploys, o risco real é baixo — mas o custo de
+inverter a ordem é zero.
 
 ---
 

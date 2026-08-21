@@ -11,6 +11,11 @@
 **Revisado:** 2026-08-16 — contrato real da API verificado contra a documentação oficial
 (3 premissas da versão anterior estavam erradas) e 3 decisões de produto tomadas pelo founder.
 Tamanho subiu de S para M em consequência.
+**Revisado:** 2026-08-21 — gate de Definition of Ready (`spec-reviewer` + passada adversarial do
+Codex). O Codex reprovou com 2 blockers e 4 majors, **todos confirmados contra o código**; esta
+revisão os endereça e as emendas estão marcadas `[DoR 2026-08-21]`. O `spec-reviewer` havia
+aprovado, e a divergência é a lição: ele conferiu que tudo o que a spec **cita** existe — e existia
+—, enquanto as lacunas estavam inteiras no que a spec **deixava de dizer**.
 
 ## Contrato real da API (verificado 2026-08-16)
 
@@ -50,6 +55,10 @@ Pedir menos que isso quebra funcionalidade em produção.
    já existente. Não se cria endpoint coach-facing com `atletaId` (o molde do Strava, onde o
    **técnico** dispara a autorização, não se aplica: quem loga no intervals.icu é o dono da conta).
    Isso **corrige o CA1 da versão anterior**, que exigia `ROLE_TECNICO`.
+   **[DoR 2026-08-21] E só `ROLE_ATLETA` — `ADMIN` sai do contrato.** `resolverAtletaIdAtual()`
+   exige um `Atleta` vinculado ao `Usuario` autenticado e lança `DomainNotFoundException` quando
+   não há; um ADMIN sem vínculo de atleta receberia 404 em vez da URL, ou seja, o CA descrevia um
+   caminho inalcançável. E é coerente: quem não é atleta não tem conta intervals.icu para conectar.
 2. **A API key é removida.** OAuth não convive com o fluxo antigo. Consequência aceita
    explicitamente: **todo atleta hoje conectado por API key para de sincronizar no deploy e
    precisa reconectar** — ver "Riscos e mitigações".
@@ -68,6 +77,14 @@ revogável pelo atleta no próprio intervals.icu.
 
 1. **`IntervalsIcuProperties`** (já existe, hoje só com `baseUrl`) — acrescentar `clientId`,
    `clientSecret`, `redirectUri`, `authorizationUri`, `tokenUri`, `scope`.
+   **[DoR 2026-08-21] Com validação fail-fast:** `@Validated` na classe e `@NotBlank` em
+   `clientId`, `clientSecret`, `redirectUri`, `tokenUri`, `authorizationUri` e `scope`. Não é
+   preciosismo de configuração: o `clientSecret` **é a chave do HMAC do state** (item 3). Com o
+   default vazio do `application.yml`, a chave é `""` — conhecida por qualquer um — e o state
+   assinado, que é a defesa central desta change, passa a ser forjável para qualquer `atletaId`.
+   O modo de falha é silencioso: o fluxo *funciona* mal configurado. Falhar no boot é o
+   comportamento correto. `StravaProperties` não valida nada e **não serve de precedente aqui** —
+   o state do Strava não é assinado, então lá o secret vazio não abre esse buraco.
 2. **`IntervalsIcuOAuthService`** — interface + impl:
    - `getAuthorizationUrl()` — resolve o atleta do JWT (`resolverAtletaIdAtual`), monta a URL com
      `client_id`, `redirect_uri`, `scope`, `state`.
@@ -78,8 +95,19 @@ revogável pelo atleta no próprio intervals.icu.
      o provedor não emite nenhum dos dois; a JavaDoc registra o porquê para ninguém "corrigir" depois.
      Mantém o hook D5.2 (pausa automática do Strava) já implementado em
      `IntervalsIcuConnectionServiceImpl.pausarStravaAutomaticamente`.
+     **[DoR 2026-08-21] Guard D5.1 antes de ativar:** verificar
+     `findOtherActiveByExternalAthleteIdAndPlataformaAndTenantId` — se o `externalAthleteId`
+     recebido já pertence a **outro** atleta ativo do mesmo tenant, **não persistir** e redirecionar
+     com erro. Ver item 9.
    - `disconnect()` — chama `DELETE /api/v1/disconnect-app` no provedor (best-effort, falha não
-     bloqueia) e então o soft-disconnect local já existente.
+     bloqueia) e então o soft-disconnect local.
+     **[DoR 2026-08-21] O soft-disconnect existente é insuficiente e precisa ser estendido:**
+     `IntervalsIcuConnectionServiceImpl.desconectar` hoje limpa apenas `accessToken` e
+     `refreshToken`. Precisa passar a limpar também `scopes`, `tokenExpiraEm`, `externalAthleteId`
+     e `lastSyncError` — alinhando com `StravaOAuthServiceImpl.disconnect`, que já limpa `scopes` e
+     `tokenExpiraEm`. Sem isso, CA6 ("credenciais zeradas") é falso e a métrica de sucesso deste
+     documento — que conta conexões OAuth por `scopes != null` — passa a contar como conectado todo
+     atleta que se desconectou.
 3. **State assinado (HMAC), não `atletaId` cru.** O callback é público por definição. Com o
    `state=atletaId` do molde Strava, qualquer um que descubra um `atletaId` pode vincular a
    **própria** conta intervals.icu ao registro de outro atleta. Como aqui o fluxo é self-service e
@@ -88,10 +116,14 @@ revogável pelo atleta no próprio intervals.icu.
    (O Strava permanece como está: corrigi-lo é fora de escopo desta change.)
 4. **`IntervalsIcuClientImpl`: Basic → Bearer.** Único ponto de mudança:
    `headers.setBasicAuth("API_KEY", apiKey)` → `headers.setBearerAuth(token)`
-   (`IntervalsIcuClientImpl.java:148`). Os **seis** call sites (`IntervalsIcuAdapter` ×3,
-   `IntervalsIcuActivityIngestionServiceImpl`, `IntervalsIcuLapsBackfillServiceImpl`,
-   `validarApiKey`) já leem `conexao.getAccessToken()` e repassam — **nenhuma assinatura muda.**
-   Renomear o parâmetro `apiKey` → `token` nas assinaturas do `IntervalsIcuClient`.
+   (`IntervalsIcuClientImpl`, no método `basic()` — a linha era 148 em 2026-08-16 e é 151 hoje;
+   localizar por `setBasicAuth("API_KEY"`, não por número). Os **seis** call sites
+   (`IntervalsIcuAdapter` ×3, `IntervalsIcuActivityIngestionServiceImpl`,
+   `IntervalsIcuLapsBackfillServiceImpl`, `validarApiKey`) já leem `conexao.getAccessToken()` e
+   repassam. **[DoR 2026-08-21]** O que não muda é **o dado e a ordem dos argumentos em cada call
+   site** — os *nomes públicos* mudam: o parâmetro `apiKey` vira `token` e `validarApiKey` vira
+   `validarToken` nas assinaturas do `IntervalsIcuClient`. (A redação anterior dizia "nenhuma
+   assinatura muda" e mandava renomear na frase seguinte.)
 5. **Remoção do fluxo de API key:** apagar `IntervalsIcuConnectInputDto`, o `POST` de conexão por
    key em `IntervalsIcuConnectionController`, e `IntervalsIcuConnectionServiceImpl.conectar`.
    `status()`/`desconectar()` permanecem (o `disconnect` ganha a chamada de revogação do item 2).
@@ -111,7 +143,23 @@ revogável pelo atleta no próprio intervals.icu.
        token-uri: https://intervals.icu/api/oauth/token
        scope: ACTIVITY:READ,CALENDAR:WRITE
    ```
-8. **Frontend** (`apps/menthoros-front`) — obrigatório, não mais "change separada": remover a API
+9. **[DoR 2026-08-21] Guard de `externalAthleteId` duplicado no callback.** O repositório **já
+   tem** `findOtherActiveByExternalAthleteIdAndPlataformaAndTenantId` (decisão D5.1), e
+   `IntervalsIcuActivityIngestionServiceImpl` já trata a duplicidade como incidente
+   (`log.error("SECURITY: ...")` + `DomainConflictException`). Mas isso só dispara **no import**, e
+   o **push** (`IntervalsIcuAdapter`) não tem guard nenhum. Sem verificação no callback, dois
+   atletas do mesmo tenant podem autorizar a **mesma** conta intervals.icu e passar a receber
+   treino planejado no mesmo calendário e no mesmo relógio — o dano chega a uma pessoa real antes
+   de qualquer import acontecer. O callback é o único ponto onde o vínculo nasce, então é onde a
+   verificação pertence: duplicidade detectada → nada é persistido, log de segurança, redirect com
+   `?intervals-icu=error`.
+10. **[DoR 2026-08-21] O callback nunca lança — sempre redireciona.** O molde
+   `StravaAuthController.callback` faz `UUID.fromString(state)` **sem** try/catch: state malformado
+   estoura e o handler global devolve erro HTTP, não o redirect. CA3/CA4 exigem redirect em todo
+   caminho de falha, então copiar o padrão do Strava **não** atende os critérios. O handler do
+   callback envolve a resolução do state e a troca do code, traduz qualquer falha em
+   `?intervals-icu=error`, e registra a causa no log — sem token e sem `code` na mensagem (CA10).
+11. **Frontend** (`apps/menthoros-front`) — obrigatório, não mais "change separada": remover a API
    key remove o `TextField` de `IntervalsIcuConnectionCard.tsx`, que passa a ter um botão
    "Conectar com intervals.icu" (busca a URL de autorização e redireciona). `useIntervalsIcuConnection`
    perde o parâmetro `apiKey` de `connect`. A tela de perfil trata o retorno
@@ -138,7 +186,8 @@ e o pipeline de ingestão são independentes do mecanismo de auth).
 
 ## Critérios de aceite
 
-- **CA1 — Autorização:** Given atleta autenticado (`ROLE_ATLETA`/`ADMIN`), When chama
+- **CA1 — Autorização:** Given atleta autenticado (`ROLE_ATLETA`; **[DoR 2026-08-21]** `ADMIN`
+  removido — ver Decisões de produto), When chama
   `GET /api/v1/integracoes/me/intervals-icu/authorize-url`, Then recebe a URL de
   `https://intervals.icu/oauth/authorize` com `client_id`, `redirect_uri`,
   `scope=ACTIVITY:READ,CALENDAR:WRITE` e `state` assinado.
@@ -157,8 +206,10 @@ e o pipeline de ingestão são independentes do mecanismo de auth).
   Then retorna a conexão ativa sem jamais expor o token.
 - **CA6 — Desconexão revoga no provedor:** Given atleta conectado, When
   `DELETE /api/v1/integracoes/me/intervals-icu`, Then o backend chama
-  `DELETE /api/v1/disconnect-app` com o Bearer e faz o soft-disconnect local
-  (`ativo=false`, credenciais zeradas). Falha na revogação remota **não** impede a local.
+  `DELETE /api/v1/disconnect-app` com o Bearer e faz o soft-disconnect local. Falha na revogação
+  remota **não** impede a local. **[DoR 2026-08-21] "Credenciais zeradas" é verificável campo a
+  campo:** após o `DELETE`, a row tem `ativo=false` e `accessToken`, `refreshToken`, `scopes`,
+  `tokenExpiraEm`, `externalAthleteId` e `lastSyncError` todos `null`.
 - **CA7 — Bearer nas chamadas de API:** Given uma conexão OAuth ativa, When qualquer operação
   chama o intervals.icu (push de evento, busca de atividade, backfill de laps), Then o header é
   `Authorization: Bearer <token>` — nenhuma chamada usa mais Basic.
@@ -170,6 +221,21 @@ e o pipeline de ingestão são independentes do mecanismo de auth).
 - **CA10 — Token nunca vaza:** Given qualquer caminho de erro, Then o token não aparece em log,
   mensagem de exceção, resposta de API ou URL de redirect (regra já vigente em
   `IntervalsIcuClientImpl.traduz`).
+- **CA11 — [DoR 2026-08-21] Configuração incompleta derruba o boot:** Given `client-secret`,
+  `client-id`, `redirect-uri`, `token-uri`, `authorization-uri` ou `scope` vazio ou ausente, When a
+  aplicação sobe, Then o contexto **falha no boot** com mensagem nomeando a propriedade — nunca
+  sobe com um HMAC de chave vazia. O teste exercita o secret vazio explicitamente, porque é o caso
+  que transforma o state assinado em decoração.
+- **CA12 — [DoR 2026-08-21] Conta intervals.icu já vinculada a outro atleta:** Given o
+  `externalAthleteId` retornado pela troca já pertence a outra `IntegracaoExterna` **ativa** do
+  mesmo tenant em outro atleta, When o callback processa, Then **nada é persistido** (a conexão do
+  segundo atleta não é criada nem ativada), um log de segurança é emitido, e o redirect leva
+  `?intervals-icu=error`. Impede dois atletas de receberem push no mesmo calendário.
+- **CA13 — [DoR 2026-08-21] O callback nunca devolve erro HTTP:** Given qualquer entrada — state
+  malformado, `code` ausente, provedor fora do ar, exceção inesperada na troca —, When o callback
+  processa, Then a resposta é **sempre** um 302 para o front (`success` ou `error`); nenhum caminho
+  produz 4xx/5xx nem página de erro. É o que separa esta change do molde
+  `StravaAuthController.callback`, que faz `UUID.fromString(state)` sem proteção.
 
 ## Métrica de sucesso
 
