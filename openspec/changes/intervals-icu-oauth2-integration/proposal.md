@@ -114,7 +114,12 @@ revogável pelo atleta no próprio intervals.icu.
    o `atletaId` sai do JWT, o state carrega `atletaId + timestamp + HMAC-SHA256(clientSecret)`,
    validado no callback com TTL de 10 minutos. Stateless — funciona multi-instância, sem tabela nova.
    (O Strava permanece como está: corrigi-lo é fora de escopo desta change.)
-4. **`IntervalsIcuClientImpl`: Basic → Bearer.** Único ponto de mudança:
+4. **`IntervalsIcuClientImpl`: Basic → Bearer.** **[DoR 2026-08-21] A execução inverte a ordem
+   destes dois itens: a remoção da API key (item 5) vem *antes* da troca para Bearer (item 4).**
+   Esta lista é temática, não cronológica; a ordem normativa está em D15 e no Bloco 2 do
+   `tasks.md`. Trocar o header antes de apagar o `POST` deixa um commit em que o endpoint de
+   conexão por key continua publicado rejeitando o próprio formato que anuncia. Único ponto de
+   mudança:
    `headers.setBasicAuth("API_KEY", apiKey)` → `headers.setBearerAuth(token)`
    (`IntervalsIcuClientImpl`, no método `basic()` — a linha era 148 em 2026-08-16 e é 151 hoje;
    localizar por `setBasicAuth("API_KEY"`, não por número). Os **seis** call sites

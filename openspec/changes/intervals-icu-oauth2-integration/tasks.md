@@ -104,19 +104,31 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
 - [ ] 4.2 `getAuthorizationUrl` — resolve o atleta via `atletaProgressService.resolverAtletaIdAtual()`,
   monta a URL com `client_id`, `redirect_uri`, `scope`, `state` assinado. Tenant-aware via
   `TenantContext`.
-- [ ] 4.3 `exchangeCodeForToken` — valida o state, resolve o `Atleta` **sem** filtro de tenant
-  (o callback não tem JWT; mesmo padrão de `StravaOAuthServiceImpl.findAtletaForCallback`),
-  `POST` no `tokenUri` com `client_id`/`client_secret`/`code`, parseia
-  `access_token`/`scope`/`athlete.id`, faz find-or-create de `IntegracaoExterna` por
-  `(atletaId, INTERVALS_ICU)`, popula `accessToken`/`scopes`/`externalAthleteId`/`ativo=true`/
-  `lastSyncError=null`, seta `tenantId = atleta.getAssessoria().getId()`, e reaproveita o hook D5.2
-  (pausa Strava). **JavaDoc obrigatória** explicando por que `refreshToken` e `tokenExpiraEm` ficam
-  `null` — o provedor não emite nenhum dos dois, e a próxima pessoa vai querer "consertar".
-- [ ] 4.3b **[DoR 2026-08-21] Guard D5.1 dentro de `exchangeCodeForToken`, antes de persistir:**
-  chamar `integracaoExternaRepository.findOtherActiveByExternalAthleteIdAndPlataformaAndTenantId(...)`
+- [ ] 4.3 `exchangeCodeForToken` — **[DoR 2026-08-21] a ordem dos passos é normativa**, porque em
+  JPA uma entidade obtida por `findBy...` é *managed*: mutá-la antes do guard da 4.3b a persiste no
+  flush **mesmo sem `save()` explícito**, e CA12 ("nada é persistido") vira falso. Sequência:
+  1. valida o state;
+  2. resolve o `Atleta` **sem** filtro de tenant (o callback não tem JWT; mesmo padrão de
+     `StravaOAuthServiceImpl.findAtletaForCallback`);
+  3. `POST` no `tokenUri` com `client_id`/`client_secret`/`code`;
+  4. parseia `access_token`/`scope`/`athlete.id`;
+  5. **guard da 4.3b** — antes de qualquer busca ou mutação de `IntegracaoExterna`;
+  6. só então find-or-create por `(atletaId, INTERVALS_ICU)` e popula
+     `accessToken`/`scopes`/`externalAthleteId`/`ativo=true`/`lastSyncError=null`, com
+     `tenantId = atleta.getAssessoria().getId()`;
+  7. reaproveita o hook D5.2 (pausa Strava).
+
+  **JavaDoc obrigatória** explicando por que `refreshToken` e `tokenExpiraEm` ficam `null` — o
+  provedor não emite nenhum dos dois, e a próxima pessoa vai querer "consertar".
+- [ ] 4.3b **[DoR 2026-08-21] Guard D5.1 dentro de `exchangeCodeForToken`, no passo 5 acima —
+  antes de buscar ou mutar a row:** chamar
+  `integracaoExternaRepository.findOtherActiveByExternalAthleteIdAndPlataformaAndTenantId(...)`
   — o método **já existe**. Se o `externalAthleteId` recebido já pertence a outro atleta ativo do
   mesmo tenant, **nada é persistido**, emitir `log.error("SECURITY: ...")` no mesmo formato de
   `IntervalsIcuActivityIngestionServiceImpl` e sinalizar erro ao callback.
+  **Não confiar no rollback para garantir CA12:** D14 manda o callback nunca lançar, então o
+  caminho provável é o service devolver um resultado tipado — e retorno normal **commita** a
+  transação. A garantia tem que vir da ordem, não da exceção.
   **Por que aqui e não no import:** hoje a duplicidade só é detectada na ingestão, e o **push**
   (`IntervalsIcuAdapter`) não tem guard nenhum — dois atletas vinculados à mesma conta passariam a
   receber treino planejado no mesmo calendário e no mesmo relógio antes de qualquer import rodar.

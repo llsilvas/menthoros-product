@@ -196,6 +196,14 @@ ninguém esquecer. Verificar na origem é uma chamada, num lugar só.
 **reconexão do próprio atleta não é bloqueada** — só o vínculo cruzado. O teste 7.7 cobre os dois
 lados justamente porque um guard que barra a reconexão legítima seria pior que a ausência dele.
 
+**A ordem dentro do método é parte da decisão, não detalhe de implementação.** O guard roda depois
+de parsear a resposta do token (precisa do `athlete.id`) e **antes** de qualquer busca ou mutação de
+`IntegracaoExterna`. O motivo é JPA: uma entidade obtida por `findBy...` é *managed*, e mutá-la a
+persiste no flush do commit **sem `save()` explícito**. Somado a D14 — que manda o callback nunca
+lançar, tornando provável um service que devolve resultado tipado em vez de exceção —, o retorno
+normal **commita**. Se o guard rodasse depois da mutação, CA12 ("nada é persistido") dependeria de
+um rollback que nunca aconteceria. A garantia vem da ordem.
+
 ## D13 — Desconectar zera tudo, não só o token
 
 **Decisão:** `desconectar` limpa `accessToken`, `refreshToken`, `scopes`, `tokenExpiraEm`,
