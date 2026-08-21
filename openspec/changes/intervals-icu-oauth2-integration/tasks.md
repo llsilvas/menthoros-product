@@ -51,13 +51,13 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
   não protege nada e a troca não quebra nada; fazer agora evita herdar um segredo queimado quando a
   change de webhook entrar. Não versionar o valor novo em lugar nenhum.
 
-## Bloco 1 — Config e Properties (2 tasks)
+## Bloco 1 — Config e Properties (3 tasks)
 
-- [ ] 1.1 Estender `IntervalsIcuProperties` (hoje só tem `baseUrl`) com `clientId`, `clientSecret`,
+- [x] 1.1 Estender `IntervalsIcuProperties` (hoje só tem `baseUrl`) com `clientId`, `clientSecret`,
   `redirectUri`, `authorizationUri`, `tokenUri`, `scope`
-- [ ] 1.2 Adicionar as propriedades em `application.yml` (defaults do proposal, secret via env var)
+- [x] 1.2 Adicionar as propriedades em `application.yml` (defaults do proposal, secret via env var)
   e em `src/test/resources/application-test.yml` com valores fake
-- [ ] 1.3 **[DoR 2026-08-21] Fail-fast:** `@Validated` na classe + `@NotBlank` em `clientId`,
+- [x] 1.3 **[DoR 2026-08-21] Fail-fast:** `@Validated` na classe + `@NotBlank` em `clientId`,
   `clientSecret`, `redirectUri`, `authorizationUri`, `tokenUri` e `scope`. **É requisito de
   segurança, não de higiene de config:** o `clientSecret` é a chave do HMAC do state (Bloco 3) e o
   default do `application.yml` é vazio — com chave `""` qualquer um forja um state válido para
@@ -188,7 +188,7 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
   redirect 302 e sem vazar token na URL (CA13). Autenticação via `jwt()` post-processor onde
   houver JWT (**nunca** `@WithMockUser` — ver CLAUDE.md do backend)
 - [ ] 7.5 Multi-tenancy: `tenantId` persistido vem do atleta resolvido pelo state, não do request
-- [ ] 7.6 **[DoR 2026-08-21]** Boot falha com `client-secret` vazio (CA11). É o teste que impede
+- [x] 7.6 **[DoR 2026-08-21]** Boot falha com `client-secret` vazio (CA11). É o teste que impede
   alguém de "simplificar" o `@NotBlank` e reabrir o HMAC de chave vazia.
 - [ ] 7.7 **[DoR 2026-08-21]** Guard D5.1 no callback (CA12): atleta B autoriza com o
   `externalAthleteId` já ativo do atleta A → nada persistido, log de segurança, redirect com erro.
