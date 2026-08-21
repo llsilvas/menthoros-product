@@ -176,21 +176,21 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
 
 ## Bloco 7 — Testes backend (7 tasks)
 
-- [ ] 7.1 `IntervalsIcuOAuthServiceImpl` unit: montagem da URL de autorização, troca de code,
+- [x] 7.1 `IntervalsIcuOAuthServiceImpl` unit: montagem da URL de autorização, troca de code,
   merge com registro existente, hook D5.2, `refreshToken`/`tokenExpiraEm` nulos, state inválido
   não persiste nada
-- [ ] 7.2 `IntervalsIcuClientImpl`: header é `Bearer` em todas as operações (não Basic);
+- [x] 7.2 `IntervalsIcuClientImpl`: header é `Bearer` em todas as operações (não Basic);
   `revogarAcesso` não propaga falha
-- [ ] 7.3 `@WebMvcTest` do controller `/me`: `authorize-url` 200 com `ROLE_ATLETA`, 403 com
+- [x] 7.3 `@WebMvcTest` do controller `/me`: `authorize-url` 200 com `ROLE_ATLETA`, 403 com
   `ROLE_TECNICO`, `DELETE` 204
-- [ ] 7.4 `*IT` do callback público: sucesso, `?error=`, state adulterado, state expirado,
+- [x] 7.4 `*IT` do callback público: sucesso, `?error=`, state adulterado, state expirado,
   **[DoR 2026-08-21]** state malformado (não-UUID) e falha do provedor na troca — **todos** com
   redirect 302 e sem vazar token na URL (CA13). Autenticação via `jwt()` post-processor onde
   houver JWT (**nunca** `@WithMockUser` — ver CLAUDE.md do backend)
-- [ ] 7.5 Multi-tenancy: `tenantId` persistido vem do atleta resolvido pelo state, não do request
+- [x] 7.5 Multi-tenancy: `tenantId` persistido vem do atleta resolvido pelo state, não do request
 - [x] 7.6 **[DoR 2026-08-21]** Boot falha com `client-secret` vazio (CA11). É o teste que impede
   alguém de "simplificar" o `@NotBlank` e reabrir o HMAC de chave vazia.
-- [ ] 7.7 **[DoR 2026-08-21]** Guard D5.1 no callback (CA12): atleta B autoriza com o
+- [x] 7.7 **[DoR 2026-08-21]** Guard D5.1 no callback (CA12): atleta B autoriza com o
   `externalAthleteId` já ativo do atleta A → nada persistido, log de segurança, redirect com erro.
   E o caso legítimo de reconexão do **próprio** atleta A continua funcionando (o guard filtra por
   `atleta.id <> :atletaId`, então não pode barrar a reconexão).
