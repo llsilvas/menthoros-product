@@ -99,12 +99,12 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
 
 ## Bloco 4 — OAuth Service (4 tasks)
 
-- [ ] 4.1 Interface `IntervalsIcuOAuthService`: `getAuthorizationUrl()`,
+- [x] 4.1 Interface `IntervalsIcuOAuthService`: `getAuthorizationUrl()`,
   `exchangeCodeForToken(String code, String state)`, `revogarEDesconectar(UUID atletaId)`
-- [ ] 4.2 `getAuthorizationUrl` — resolve o atleta via `atletaProgressService.resolverAtletaIdAtual()`,
+- [x] 4.2 `getAuthorizationUrl` — resolve o atleta via `atletaProgressService.resolverAtletaIdAtual()`,
   monta a URL com `client_id`, `redirect_uri`, `scope`, `state` assinado. Tenant-aware via
   `TenantContext`.
-- [ ] 4.3 `exchangeCodeForToken` — **[DoR 2026-08-21] a ordem dos passos é normativa**, porque em
+- [x] 4.3 `exchangeCodeForToken` — **[DoR 2026-08-21] a ordem dos passos é normativa**, porque em
   JPA uma entidade obtida por `findBy...` é *managed*: mutá-la antes do guard da 4.3b a persiste no
   flush **mesmo sem `save()` explícito**, e CA12 ("nada é persistido") vira falso. Sequência:
   1. valida o state;
@@ -120,7 +120,7 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
 
   **JavaDoc obrigatória** explicando por que `refreshToken` e `tokenExpiraEm` ficam `null` — o
   provedor não emite nenhum dos dois, e a próxima pessoa vai querer "consertar".
-- [ ] 4.3b **[DoR 2026-08-21] Guard D5.1 dentro de `exchangeCodeForToken`, no passo 5 acima —
+- [x] 4.3b **[DoR 2026-08-21] Guard D5.1 dentro de `exchangeCodeForToken`, no passo 5 acima —
   antes de buscar ou mutar a row:** chamar
   `integracaoExternaRepository.findOtherActiveByExternalAthleteIdAndPlataformaAndTenantId(...)`
   — o método **já existe**. Se o `externalAthleteId` recebido já pertence a outro atleta ativo do
@@ -135,7 +135,7 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
   O callback é onde o vínculo nasce.
   `verify:` teste que autoriza o atleta B com o `externalAthleteId` já ativo do atleta A e assere
   que nenhuma row nova fica `ativo=true` (CA12).
-- [ ] 4.4 `revogarEDesconectar` — chama `client.revogarAcesso(token)` (best-effort) e então o
+- [x] 4.4 `revogarEDesconectar` — chama `client.revogarAcesso(token)` (best-effort) e então o
   soft-disconnect em `IntervalsIcuConnectionServiceImpl.desconectar`.
   **[DoR 2026-08-21] O `desconectar` existente precisa ser estendido:** hoje limpa só `accessToken`
   e `refreshToken` (`IntervalsIcuConnectionServiceImpl.java:151-156`). Passa a limpar também
