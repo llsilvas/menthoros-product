@@ -67,6 +67,17 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
   alterar** atividades realizadas do atleta, e nada no código faz isso. É privilégio a mais sobre
   dado de terceiro, exibido na tela de consentimento que o atleta lê. Se a tela não expuser essa
   configuração, registrar aqui que é limitação do provedor e avaliar contato com o David.
+- [x] 0.6 **[2026-08-21] Variáveis de ambiente fora do código** — pré-requisito operacional de
+  deploy, não é configuração do provedor. `INTERVALS_ICU_CLIENT_ID` e
+  `INTERVALS_ICU_CLIENT_SECRET` no **Railway** (feito) e no `.env.example` do workspace (feito).
+  Sem elas o backend **não sobe**: `IntervalsIcuProperties` é `@Validated`/`@NotBlank` e o
+  contexto falha no boot (D11). O fail-fast vale em produção também — é o comportamento
+  pretendido, mas descobrir isso no deploy seria o pior lugar.
+  **Pendência conhecida:** o `.env.example` vive solto na raiz do workspace, que **não é
+  repositório git**. Não é symlink para `menthoros-infra/workspace/` como os outros docs
+  transversais, e o `bootstrap.sh` não o recria — então a edição existe só na máquina do dev e
+  uma máquina nova nasce sem template. Corrigir é o mesmo padrão de symlink já usado para
+  `CLAUDE.md`/`PROJECT.md`; fora do escopo desta change.
 - [ ] 0.4 **[DoR 2026-08-21] Trocar o Webhook Secret do app** (`TF3w-piFpR0` em 2026-08-21) — foi
   exposto em captura de tela durante a especificação. Nenhum webhook está marcado hoje, então ele
   não protege nada e a troca não quebra nada; fazer agora evita herdar um segredo queimado quando a
