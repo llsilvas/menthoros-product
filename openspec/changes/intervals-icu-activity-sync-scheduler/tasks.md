@@ -17,7 +17,11 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
       design.md/proposal.md.** **Rodadas 2 e 3 (2026-08-22):** `spec-reviewer` READY COM RESSALVAS
       + Codex NOT READY ×2, 7 achados reais corrigidos na spec, 1 refutado, 2 residuais em D4.1.
       Branch aberta em `290c209` (develop) com aval do founder.
-- [ ] 0.2 **Gate de contrato real da API (achado crítico #2 do pre-mortem)** — antes de implementar
+- [x] 0.2 **Gate de contrato real da API (achado crítico #2 do pre-mortem)** — **FECHADO em
+      2026-08-22** contra a API real: sem paginação (53 itens, janelas de 90d e de 2024 idênticas),
+      filtro por data local inclusivo, listagem = summary completo menos `icu_intervals`, 429 não
+      provocado (headers só expõem os limites globais), ids globais. Tabela com a evidência em
+      design.md D1. Desdobramento: cursor passa a usar `start_date` (UTC). — antes de implementar
       `listarAtividades`, confirmar contra a API real do intervals.icu (atleta founder, mesmo padrão
       de gate usado em `intervals-icu-activity-ingestion` D6/gate 3.0):
       (a) `GET /api/v1/athlete/{id}/activities?oldest=&newest=` pagina para uma janela com muitas
@@ -52,7 +56,8 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
 - [ ] 1.2 Adicionar `listarAtividades(String token, String externalAthleteId, LocalDate oldest,
       LocalDate newest)` à interface `IntervalsIcuClient` e implementar em `IntervalsIcuClientImpl`
       no mesmo padrão de `listarEventos` — `executa("listar atividades", …)` + `bearer(headers,
-      token)`, sem tradução de exceção — ver design.md D1.
+      token)`, sem tradução de exceção — ver design.md D1. Acrescentar a `IcuActivityDto` o campo
+      `@JsonProperty("start_date") String startDate` (UTC, gate 0.2) para o cursor de D2.
       Se paginado (gate 0.2), implementar o loop de páginas aqui.
       Verify: `IntervalsIcuClientImplTest` do passo 1.1 verde.
 - [ ] 1.3 Validação: `./mvnw clean test`.

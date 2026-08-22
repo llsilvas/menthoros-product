@@ -71,6 +71,21 @@ empiricamente, contra a API real (atleta founder, mesmo padrão de gate usado em
   `@JsonIgnoreProperties(ignoreUnknown = true)` já cobre isso, mas os campos ausentes na listagem
   não podem ser assumidos como confiáveis para nada além do `id` usado por `importarAtividade`.
 
+### Gate 0.2 — FECHADO em 2026-08-22, contra a API real (atleta `i641775`, 7 requisições de leitura)
+
+| Pergunta | Observado |
+|---|---|
+| (a) Paginação | **Nenhuma.** `oldest=2026-05-24` e `oldest=2024-01-01` devolvem o mesmo corpo (53 atividades, 234 KB); sem `Link`, sem campo `next`, sem header de página. Limite prático desconhecido acima de 53 — o histórico desse atleta começa em 2026-07-14. **`P = 1` confirmado na escala observada**; a matemática de cota da D4.1 fica como está. |
+| (b) Filtro | Por **data local** (`start_date_local`), **inclusivo nas duas pontas**: `oldest=08-20&newest=08-21` devolveu as atividades de 08-20 e de 08-21. Ordem devolvida: **decrescente** (mais nova primeiro) — o scheduler ordena ascendente, como D2 já faz. |
+| (c) Payload | A listagem é o **summary completo** (183 chaves), idêntica ao `GET /activity/{id}` (185) exceto `icu_intervals` e `icu_groups`, que só vêm com `?intervals=true`. Valores iguais nos campos do mapper. **Confirma a refutação do "eliminar refetch":** o refetch existe só pelos laps. Bônus: a listagem traz **`start_date` em UTC** (`2026-08-21T10:15:06Z`) além do `start_date_local`. |
+| (d) 429 | **Não provocado.** Headers em toda resposta: `x-ratelimit-limit: 2500,8000` e `x-ratelimit-remaining: 2499,7981` — só os dois limites globais; **o per-user de 100/dia não aparece em header**, então o scheduler não tem como medir a folga dele. Reforça o residual da D4.1: o cap é a única proteção. |
+| (e) IDs | **Globais.** `i178232809` (este atleta, 08-21), `i171415754` (02/08) e `i166338796` (16/07, smoke da ingestão) formam uma sequência monotônica no tempo, independente do atleta. O dedup `(tenant, fonte, externalId)` é seguro. |
+
+**Consequência para D2 (cursor):** usar **`start_date` (UTC)** em vez de `start_date_local` para
+`cursorDe(...)` — elimina a imprecisão de fuso que o overlap absorvia. Exige acrescentar
+`@JsonProperty("start_date") String startDate` ao `IcuActivityDto` (aditivo; a task 1.2 cobre).
+O overlap de 1 dia continua, agora só pela conversão `Instant → LocalDate` do parâmetro `oldest`.
+
 ## D2 — Scheduler: `IntervalsIcuActivitySyncScheduler`
 
 Nova classe em `services/` (sem sufixo `Impl`, mesmo nível de `StravaActivitySyncScheduler`):
@@ -225,9 +240,9 @@ public class IntervalsIcuActivitySyncScheduler {
                 .ifPresent(i -> { i.setLastSyncError(mensagem); integracaoExternaRepository.save(i); });
     }
 
-    /** start_date_local não tem fuso; o overlap de 1 dia (D3) absorve a imprecisão. */
+    /** Gate 0.2: a listagem traz start_date em UTC — cursor exato, sem depender do fuso local. */
     private static Instant cursorDe(IcuActivityDto atividade) {
-        return LocalDateTime.parse(atividade.startDateLocal()).toInstant(ZoneOffset.UTC);
+        return Instant.parse(atividade.startDate());
     }
 }
 ```
