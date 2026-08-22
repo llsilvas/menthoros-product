@@ -1,4 +1,4 @@
-# Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend + front · 32 tasks)
+# Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend + front · 37 tasks)
 
 > **Refinada em 2026-08-02:** escopo reduzido ao **formato de alvo** (padrão Garmin). O
 > `ZonaTreinoService` **não é tocado** — nenhuma faixa muda. Diff em `ZonaTreinoService.java` é sinal
@@ -187,6 +187,44 @@
 - [x] **4.2 Afirmar a igualdade com o `ZonaTreinoService`** e **fixar valores absolutos** — [CA2]
   - ⚠️ Só a igualdade não basta: se as duas pontas quebrarem juntas, o teste segue verde. Lição
     explícita do BUG-CONF-001
+
+## 4b. QA — gate de 2026-08-21
+
+> 4 reviewers Claude (backend: convenções, segurança, design; frontend) + 2 passes do Codex
+> (review + adversarial). Builds verdes nos dois repos.
+
+- [x] **4b.1 CRITICAL corrigido — o aviso contradizia o payload.** Quando a FC era descartada
+  (atleta sem `fcLimiar`) **e** a etapa tinha ritmo, o ritmo virava a meta, mas o treino era marcado
+  `SINCRONIZADO_PARCIAL` dizendo "etapa sem meta". O treinador lia que o relógio não controlava nada,
+  e ele estava controlando ritmo — [CA10]
+  - **Alcance real:** 26% das etapas com alvo de FC são de atletas sem `fcLimiar` (task 0.2) e o
+    planner prescreve ritmo por etapa (task 3.2). Não era caso de borda
+  - **Divergência cross-model, resolvida por experimento.** Codex BLOQUEOU; o `code-reviewer` do
+    Claude classificou o mesmo trecho como Minor e escreveu "usa o pace como meta — o que é correto".
+    Reproduzi com sonda antes de decidir: `metaFcDescartada=true` com `meta=PaceTarget[240,250]`.
+    Os dois tinham razão em metade — cair no ritmo é defensável, **o defeito era o aviso mentir**
+  - **Decisão do founder: manter o ritmo como meta e corrigir o aviso.** O ritmo também é prescrição
+    do treinador; entregar a etapa em outra grandeza é melhor que entregá-la livre
+  - A conversão passa a distinguir `fcDescartadaSemMeta` de `fcDescartadaComRitmo`, e o motivo
+    gravado diz qual dos dois — ou os dois, quando o treino tem etapas nos dois desfechos
+  - A FC descartada passa a ser anexada ao texto da etapa: sem isso o treinador não sabe qual meta
+    se perdeu (achado do `code-reviewer`)
+- [x] **4b.2 `AtomicBoolean` → `DescartesFc`** — nunca houve concorrência no converter, e o tipo
+  sugeria uma preocupação inexistente (achado do `clean-code-reviewer`)
+- [x] **4b.3 Log da reinterpretação desce para `debug`** — carrega FC de limiar e bpm, dado
+  fisiológico que não deve ficar em nível de rotina. **Convergência**: apontado independentemente
+  pelo `security-reviewer` e pelo `code-reviewer`
+- [ ] **4b.4 Reinterpretação do legado sem versionamento** — o Codex adversarial classificou como
+  ERRADA: reenviar o mesmo treino em datas diferentes pode gerar bpm diferente por mudança de regra,
+  não por mudança do atleta. O log registra o efeito, não a intenção. **Não corrigido** — exigiria
+  versionar a interpretação ou campo normalizado separado, o que é mudança de schema
+- [ ] **4b.5 Granularidade do aviso é por treino, não por etapa** — 1 de 10 etapas perdidas produz o
+  mesmo sinal que 10 de 10. Aceito conscientemente na decisão 0.3; o adversarial reforça que o sinal
+  mede **existência** do dano, não tamanho nem localização
+- Minor não corrigidos, por escopo: `case BPM -> throw` inalcançável no resolver;
+  `calcularZonasFC` recebendo parâmetro que o serviço ignora; `ritmoAlvo` sem `@Pattern` (mesmo
+  padrão pré-existente do `fcAlvoEtapa`); assinatura de série concatenando texto livre sem escape no
+  front; falta teste explícito de treino legado sem `ritmoAlvo` agrupando como série
 
 ## 5. Verificação
 
