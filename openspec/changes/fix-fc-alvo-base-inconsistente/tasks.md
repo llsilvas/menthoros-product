@@ -162,7 +162,7 @@
   **%FCmax por definição do formato** — não havia percentual correto a enviar
 - [x] **3c.2 "Sem objetivo" é `target_type = open` (=2)** — valor nomeado no enum `wkt_step_target`,
   o que sustenta o CA9. No FIT **não existe alvo "pace"**: é `speed`, em m/s × 1000
-- [ ] **3c.3 Rever o CA8 à luz do contrato real — DECISÃO PENDENTE DO FOUNDER**
+- [x] **3c.3 CA8 revisto à luz do contrato real — DECISÃO DO FOUNDER (2026-08-22): mantido.**
   - **O intervals.icu guarda os três alvos e escolhe na execução.** O criador: *"Any step can have
     power, HR and pace targets but you need to choose one of power/HR/pace when executing"*. O evento
     tem `target: AUTO | POWER | HR | PACE` (confirmado no OpenAPI)
@@ -170,6 +170,12 @@
     o canal aceitaria**. O desenho que o provedor modela é emitir os dois e **declarar** qual manda
   - O FIT também tem alvo secundário (`secondary_target_*`, campos 19-22), então "não são
     acumuláveis" — afirmação do `design.md` — está desatualizado. Suporte é por dispositivo
+  - **Decisão: o CA8 fica como foi implementado e mergeado** — a FC permanece a meta única e o ritmo
+    desce para o texto. Emitir os dois alvos e declarar `target: HR` é o desenho que o provedor
+    modela, mas **contradiz o CA7** ("exatamente uma meta"), que teria de ser reescrito, e só se
+    verifica contra conta real — a mesma validação que a 5.3 ainda deve. Reabrir uma change já
+    mergeada para isso custaria branch, PR e revalidação, sem fechar a incerteza
+  - **Follow-up registrado no Radar do SPRINTS:** emitir FC + ritmo com o alvo executado declarado
 - [x] **3c.4 O intervals.icu aceita `%lthr`** — a chave `hr` aceita `%hr`, `%lthr`, `hr_zone`, `bpm`.
   Existe canal relativo com a base do domínio, ao contrário do que a proposal afirmava. **Não muda a
   decisão:** seria resolvido contra o LTHR do perfil remoto, que o Menthoros não escreve — a mesma
@@ -214,13 +220,18 @@
 - [x] **4b.3 Log da reinterpretação desce para `debug`** — carrega FC de limiar e bpm, dado
   fisiológico que não deve ficar em nível de rotina. **Convergência**: apontado independentemente
   pelo `security-reviewer` e pelo `code-reviewer`
-- [ ] **4b.4 Reinterpretação do legado sem versionamento** — o Codex adversarial classificou como
+- [x] **4b.4 Reinterpretação do legado sem versionamento — aceito conscientemente** — o Codex
+  adversarial classificou como
   ERRADA: reenviar o mesmo treino em datas diferentes pode gerar bpm diferente por mudança de regra,
   não por mudança do atleta. O log registra o efeito, não a intenção. **Não corrigido** — exigiria
   versionar a interpretação ou campo normalizado separado, o que é mudança de schema
-- [ ] **4b.5 Granularidade do aviso é por treino, não por etapa** — 1 de 10 etapas perdidas produz o
+  - **Decisão do founder (2026-08-22):** aceito nesta change, registrado no Radar do SPRINTS como
+    candidato próprio — versionar a interpretação é mudança de schema e merece change dedicada
+- [x] **4b.5 Granularidade do aviso é por treino, não por etapa — aceito conscientemente** — 1 de
+  10 etapas perdidas produz o
   mesmo sinal que 10 de 10. Aceito conscientemente na decisão 0.3; o adversarial reforça que o sinal
   mede **existência** do dano, não tamanho nem localização
+  - **Decisão do founder (2026-08-22):** aceito nesta change, registrado no Radar do SPRINTS
 - Minor não corrigidos, por escopo: `case BPM -> throw` inalcançável no resolver;
   `calcularZonasFC` recebendo parâmetro que o serviço ignora; `ritmoAlvo` sem `@Pattern` (mesmo
   padrão pré-existente do `fcAlvoEtapa`); assinatura de série concatenando texto livre sem escape no
@@ -234,7 +245,8 @@
   tela do plano
   - ⚠️ Contrato externo. `units: "bpm"` já é emitido hoje (`IntervalsIcuAdapter:267`), então não é
     formato novo — mas confirmar contra a API real, não só contra teste
-- [ ] **5.4** `./mvnw clean verify` verde
+- [x] **5.4** `./mvnw clean verify` verde — rodado em `develop` **depois** do merge dos PRs #75
+  (backend) e #84 (front), em 2026-08-22: **2660 unitários + 113 de integração, zero falha**
 
 ## Fora de escopo — abrir como change própria
 
