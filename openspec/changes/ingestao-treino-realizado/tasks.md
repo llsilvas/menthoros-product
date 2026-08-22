@@ -65,12 +65,12 @@
   verify: `IntervalsIcuActivityPersisterTest` inalterado, continua verde (24 testes — confirmado no `./mvnw clean verify` da Seção 4)
 - [x] 5.3 `StravaActivityServiceImpl`: `syncSingleActivityById` E o loop de `syncActivitiesInternal` (achado: este último nunca chamava TSB nem publicava evento — o gap mais sério do arquivo) mantêm o find-or-new + merge e chamam `registrar` com a entidade gerenciada; removidos `atualizarTsbDia` privado, os campos `tsbService`/`treinoDedupHelper` e as duas chamadas diretas a `saveIdempotent`. `enriquecerTreinoComStrava` (`:270`) **permanece inalterado** — achado real: migrar para `reprocessar` (nunca publica evento, D5) silenciaria a única análise por IA de treinos Strava sem RPE no sync inicial (`WorkoutAnalysisListener` exige RPE não-nulo); ver design.md "Achado de implementação (Seção 5) — enriquecerTreinoComStrava". A dupla atribuição de `statusSincronizacao` não bloqueou nenhum teste — não tocada, segue como follow-up do candidato 4
   verify: `StravaActivityServiceImplSyncTest` (novo, 3 testes) + `StravaActivityServiceTest` (2) + `EnriquecerStravaServiceTest` (8) — 13 testes, 0 falhas; `./mvnw clean verify` completo — BUILD SUCCESS
-- [ ] 5.4 Guard de idade em `WorkoutAnalysisListener` (`workout-analysis.max-idade-dias`, `@ConfigurationProperties` + `@Validated`); teste do guard
-  verify: teste com treino de idade > limite não dispara análise; `@Validated` rejeita valor `< 1` na carga da config
+- [x] 5.4 Guard de idade em `WorkoutAnalysisListener` (`app.workout-analysis.max-idade-dias`, `WorkoutAnalysisProperties` com `@ConfigurationProperties` + `@Validated`, default 30 dias); teste do guard
+  verify: `WorkoutAnalysisListenerTest` (8, incluindo o guard e o caso defensivo de `dataTreino` nula) + `WorkoutAnalysisPropertiesTest` (5, binding + validação) — 13 testes, 0 falhas
 - [ ] 5.5 Medir em stage o custo de `recalcularDesde` na carga inicial Strava de um atleta com 90 dias; registrar no proposal (Open Question do pre-mortem #1)
-  verify: número (ms/atividade ou total) registrado no proposal.md
-- [ ] 5.6 Validação: `./mvnw clean test`
-  verify: build verde
+  verify: **não executável nesta sessão** — sem acesso a ambiente de stage. Permanece como Open Question aberta no proposal; medir antes do deploy em produção (task 6.2 já exige stage antes de prod para o backfill, mesma janela serve para esta medição)
+- [x] 5.6 Validação: `./mvnw clean test`
+  verify: `./mvnw clean verify` — BUILD SUCCESS, 0 falhas (701 classes)
 
 ### 6. Entrega do Bloco 1
 
