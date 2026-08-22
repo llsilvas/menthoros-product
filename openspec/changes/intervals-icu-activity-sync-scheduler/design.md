@@ -85,28 +85,7 @@ public class IntervalsIcuActivitySyncScheduler {
     private final TreinoRealizadoRepository treinoRealizadoRepository;
     private final IntervalsIcuClient intervalsIcuClient;
     private final IntervalsIcuActivityIngestionService ingestionService;
-
-    @Value("${intervals-icu.sync-days-back:90}")
-    private int syncDaysBack;
-
-    @Value("${intervals-icu.sync-overlap-days:1}")
-    private int overlapDays;
-
-    @Value("${intervals-icu.sync-max-activities-per-cycle:6}")
-    private int maxPorCiclo; // D4.1 — teto por contagem, decidido em 2026-08-22
-
-    // DoR rodada 3: com 0 o lote fica vazio, esgotouJanela=false, cursor não move e o atleta
-    // relista a mesma janela para sempre SEM erro; negativo estoura no subList. Falhar na carga.
-    @PostConstruct
-    void validarConfig() {
-        if (maxPorCiclo < 1) {
-            throw new IllegalStateException(
-                    "intervals-icu.sync-max-activities-per-cycle deve ser >= 1 (recebido " + maxPorCiclo + ")");
-        }
-        if (syncDaysBack < 1 || overlapDays < 0) {
-            throw new IllegalStateException("intervals-icu.sync-days-back >= 1 e sync-overlap-days >= 0");
-        }
-    }
+    private final IntervalsIcuProperties props; // app.intervals-icu.* — ver D3
 
     @Scheduled(fixedDelayString = "PT2H", initialDelayString = "PT1M")
     public void runDailyIncrementalSync() {
@@ -147,8 +126,8 @@ public class IntervalsIcuActivitySyncScheduler {
         UUID tenantId = integracao.getTenantId();
         LocalDate oldest = integracao.getUltimaSincronizacao() != null
                 ? integracao.getUltimaSincronizacao().atZone(ZoneOffset.UTC).toLocalDate()
-                        .minusDays(overlapDays) // overlap de segurança — pre-mortem moderado #5
-                : LocalDate.now(ZoneOffset.UTC).minusDays(syncDaysBack);
+                        .minusDays(props.getSyncOverlapDays()) // overlap de segurança — pre-mortem moderado #5
+                : LocalDate.now(ZoneOffset.UTC).minusDays(props.getSyncDaysBack());
         LocalDate newest = LocalDate.now(ZoneOffset.UTC);
 
         // CORRIGIDO (pre-mortem crítico #5): erro em listarAtividades (credencial revogada, rate
@@ -168,6 +147,7 @@ public class IntervalsIcuActivitySyncScheduler {
                         .isEmpty()) // já importada: custa 0 requisições e não conta no teto
                 .sorted(Comparator.comparing(IcuActivityDto::startDateLocal))
                 .toList();
+        int maxPorCiclo = props.getSyncMaxActivitiesPerCycle();
         boolean esgotouJanela = pendentes.size() <= maxPorCiclo;
         List<IcuActivityDto> lote = pendentes.subList(0, Math.min(maxPorCiclo, pendentes.size()));
 
@@ -287,8 +267,21 @@ Reusa `IntegracaoExterna.ultimaSincronizacao` (mesmo campo usado pelo Strava,
 último ciclo de sync rodou com sucesso para este atleta", não "data da atividade mais recente
 importada" — mesma semântica já aceita no Strava (`StravaActivityServiceImpl.java:195`).
 
-Fallback de primeiro ciclo: `intervals-icu.sync-days-back` (novo `@Value`, default 90), espelhando
-`strava.sync-days-back` (`application.yml:257`). **Overlap de segurança** (novo, achado moderado #5
+Fallback de primeiro ciclo: `app.intervals-icu.sync-days-back` (default 90), espelhando
+`strava.sync-days-back`. **Onde vive (corrigido no `init` de 2026-08-22):** a config do intervals.icu
+não é chave de raiz — é o prefixo `app.intervals-icu`, ligado a `IntervalsIcuProperties`
+(`config/external/`, `@ConfigurationProperties` + `@Validated`). Os três knobs desta change viram
+campos nessa classe, com Bean Validation, e o scheduler recebe o bean — não `@Value` solto:
+
+```java
+// IntervalsIcuProperties — acrescentar
+@Min(1)  private int syncDaysBack = 90;
+@Min(0)  private int syncOverlapDays = 1;
+@Min(1)  private int syncMaxActivitiesPerCycle = 6; // D4.1; 0 travaria o sync sem erro (DoR r3)
+```
+
+Isso **substitui o `@PostConstruct` pedido na rodada 3 do DoR**: valor inválido falha a carga do
+contexto pelo mesmo mecanismo que já protege `clientSecret` em branco. **Overlap de segurança** (novo, achado moderado #5
 do pre-mortem): `intervals-icu.sync-overlap-days` (default 1) subtraído do cursor ao calcular
 `oldest`, para absorver a perda de precisão de `Instant→LocalDate` (o cursor guarda o momento exato
 do último ciclo, mas a API só aceita data, sem hora) — sem esse overlap, uma atividade ocorrida no
@@ -297,10 +290,11 @@ overlap é seguro porque o dedup (CA2) absorve o reprocessamento de atividades j
 Adicionar ao `application.yml`:
 
 ```yaml
-intervals-icu:
-  sync-days-back: ${INTERVALS_ICU_SYNC_DAYS_BACK:90}
-  sync-overlap-days: ${INTERVALS_ICU_SYNC_OVERLAP_DAYS:1}
-  sync-max-activities-per-cycle: ${INTERVALS_ICU_SYNC_MAX_ACTIVITIES_PER_CYCLE:6}
+app:
+  intervals-icu:            # bloco já existe (application.yml:319) — só acrescentar as três
+    sync-days-back: ${INTERVALS_ICU_SYNC_DAYS_BACK:90}
+    sync-overlap-days: ${INTERVALS_ICU_SYNC_OVERLAP_DAYS:1}
+    sync-max-activities-per-cycle: ${INTERVALS_ICU_SYNC_MAX_ACTIVITIES_PER_CYCLE:6}
 ```
 
 **Semântica do cursor (ajustada pela D4.1):** `ultimaSincronizacao` passa a significar "até que

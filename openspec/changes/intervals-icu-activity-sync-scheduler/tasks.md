@@ -10,11 +10,13 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
 
 ## Bloco 0 — Spec / DoR
 
-- [ ] 0.1 DoR (`spec-reviewer`) + pre-mortem cross-model (Codex) sobre proposal.md/design.md.
+- [x] 0.1 DoR (`spec-reviewer`) + pre-mortem cross-model (Codex) sobre proposal.md/design.md.
       Corrigir achados antes de abrir a branch.
       Verify: DoR = READY (com ou sem ressalvas registradas em proposal.md "Status"). **Rodada 1
       (Codex, 2026-07-20) concluída — 5 críticos + 5 moderados + 1 menor, todos corrigidos em
-      design.md/proposal.md.** Rodada 2 em 2026-08-22, sobre a spec com a D4.1 decidida.
+      design.md/proposal.md.** **Rodadas 2 e 3 (2026-08-22):** `spec-reviewer` READY COM RESSALVAS
+      + Codex NOT READY ×2, 7 achados reais corrigidos na spec, 1 refutado, 2 residuais em D4.1.
+      Branch aberta em `290c209` (develop) com aval do founder.
 - [ ] 0.2 **Gate de contrato real da API (achado crítico #2 do pre-mortem)** — antes de implementar
       `listarAtividades`, confirmar contra a API real do intervals.icu (atleta founder, mesmo padrão
       de gate usado em `intervals-icu-activity-ingestion` D6/gate 3.0):
@@ -66,12 +68,12 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
       `ativo=false` OU `autoSyncPausado=true` é pulado, sem chamar o client. Cobre CA3.
       Verify: teste falha (classe ainda não existe).
 - [ ] 2.2 Teste primeiro: cursor incremental com overlap — atleta com `ultimaSincronizacao`
-      preenchida usa essa data **menos `intervals-icu.sync-overlap-days`** como `oldest`; atleta sem
-      `ultimaSincronizacao` usa o fallback `intervals-icu.sync-days-back` (mock do `@Value` ou teste
-      de integração com property sobrescrita). Cobre CA6 e a janela da CA7.
+      preenchida usa essa data **menos `syncOverlapDays`** como `oldest`; atleta sem
+      `ultimaSincronizacao` usa o fallback `syncDaysBack` (`IntervalsIcuProperties` instanciada no
+      teste com os valores desejados — é um POJO, sem mock). Cobre CA6 e a janela da CA7.
       Verify: teste falha (classe ainda não existe).
 - [ ] 2.2b Teste primeiro: **teto por contagem (D4.1)** — listagem devolve mais pendentes que
-      `intervals-icu.sync-max-activities-per-cycle`; só as N mais antigas (por `start_date_local`)
+      `syncMaxActivitiesPerCycle`; só as N mais antigas (por `start_date_local`)
       chegam a `importarAtividade`; o cursor vira a data da última processada, não `now()`;
       atividades já importadas (dedup) são filtradas antes e não contam no teto. Segundo caso:
       pendentes ≤ N → todas processadas e cursor = `now()`. Cobre CA7.
@@ -123,22 +125,24 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
       método privado `syncAtleta` com a orquestração de lote (client → loop classificando exceção
       retryable vs. permanente → reload fresco → atualização condicional de
       `ultimaSincronizacao`/`syncActivityCount`/`lastSyncError`).
+      Espelhar `StravaActivitySyncSchedulerTest` (`@ExtendWith(MockitoExtension)`, `@InjectMocks`);
+      `IntervalsIcuProperties` entra como instância real, não mock.
       Verify: testes 2.0-2.10 verdes.
 - [ ] 2.12 Validação: `./mvnw clean test`.
 
 ## Bloco 3 — Configuração (D3)
 
-- [ ] 3.1 Adicionar `intervals-icu.sync-days-back: ${INTERVALS_ICU_SYNC_DAYS_BACK:90}`,
-      `intervals-icu.sync-overlap-days: ${INTERVALS_ICU_SYNC_OVERLAP_DAYS:1}` e
-      `intervals-icu.sync-max-activities-per-cycle: ${INTERVALS_ICU_SYNC_MAX_ACTIVITIES_PER_CYCLE:6}`
-      ao `application.yml`, espelhando `strava.sync-days-back` (`application.yml:257`).
-      Verify: `./mvnw spring-boot:run` (ou teste de contexto) carrega as três properties sem erro;
-      testes de 2.2/2.2b usando override de property confirmam o binding.
-- [ ] 3.1b Teste primeiro + implementação: **invariantes de configuração** (DoR rodada 3) —
-      `sync-max-activities-per-cycle < 1` ou `sync-days-back < 1` falham a carga do bean com
-      mensagem que diz o valor recebido (`@PostConstruct` em D2). Teste unitário instancia o
-      scheduler com 0 e com -1 e espera `IllegalStateException`.
-      Verify: teste verde; contexto sobe com os defaults.
+- [ ] 3.1 Acrescentar a `IntervalsIcuProperties` (`config/external/`, prefixo `app.intervals-icu`)
+      os campos `syncDaysBack` (`@Min(1)`, default 90), `syncOverlapDays` (`@Min(0)`, default 1) e
+      `syncMaxActivitiesPerCycle` (`@Min(1)`, default 6), e as três chaves ao bloco `app.intervals-icu`
+      já existente em `application.yml:319`. **Não** criar chave de raiz `intervals-icu` nem usar
+      `@Value` — ver design.md D3.
+      Verify: teste de contexto sobe com os defaults; teste de binding confirma as três chaves.
+- [ ] 3.1b Teste primeiro: **invariantes de configuração** (DoR rodada 3) — `syncMaxActivitiesPerCycle=0`
+      e `syncDaysBack=0` reprovam na validação do bean (`Validator` do Jakarta no teste unitário, ou
+      contexto com a property sobrescrita falhando na carga). Substitui o `@PostConstruct` pedido
+      na rodada 3 — é a mesma validação que já protege `clientSecret` em branco.
+      Verify: teste verde com 0 e -1 reprovados; contexto sobe com os defaults.
 - [ ] 3.2 Adicionar `countByTenantIdAndAtletaIdAndFonteDados(UUID, UUID, FonteDados)` ao
       `TreinoRealizadoRepository` (query derivada Spring Data, sem migration) — usado pelo scheduler
       para a contagem por delta (design.md D2/D4).
