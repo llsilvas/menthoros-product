@@ -214,7 +214,7 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
       (**aceito**, default → 7), `start_date` nulo (**convergente**, corrigido), e 4 residuais
       já aceitos em D8/D4.1. Detalhe em design.md D4.1 "QA gate". Suíte pós-QA: 22 cenários no
       scheduler + 15 em properties.
-- [ ] 5.4 Abrir PR (`feature/intervals-icu-activity-sync-scheduler` → `develop`), CI verde.
+- [x] 5.4 PR aberto em 2026-08-22: backend **#77** (`feature/intervals-icu-activity-sync-scheduler` → `develop`, 4 commits). CI e merge pela plataforma.
 - [ ] 5.5 Atualizar este `tasks.md` com o que foi entregue vs. adiado antes de arquivar.
 
 **DoD:** CA1–CA12 cobertos por teste; gate 0.2 (contrato real da API) documentado em design.md D1;
