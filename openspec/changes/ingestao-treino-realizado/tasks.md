@@ -107,10 +107,20 @@
 
 ### 7. Migrar os caminhos manuais e de alteração
 
-- [ ] 7.1 `lancarTreino`, `registrarTreinoManualAtleta`, `addTreino`: resolver default de data **uma vez** com `Clock` (injetar em `TreinoServiceImpl`), depois `registrar`; `addTreino` passa a publicar evento
-  verify: teste por método confirmando `registrar` chamado uma vez com data resolvida; `addTreino` publica `TreinoRegistradoEvent`
-- [ ] 7.2 Apagar `TreinoServiceImpl.atualizarVolumeDiario` e `atualizarTsb` — CA11; testes de `TreinoServiceImpl` que assertavam o `+1` incremental são removidos (descrevem o bug)
-  verify: `grep -n atualizarVolumeDiario\|atualizarTsb TreinoServiceImpl.java` vazio; `metricasDiariasRepository.save` só aparece em `TsbServiceImpl`/`TsbRecalculoExecutor` (CA11)
+- [x] 7.1 `lancarTreino`, `registrarTreinoManualAtleta`, `addTreino`: resolver default de data **uma vez** com `Clock` (injetar em `TreinoServiceImpl`), depois `registrar`; `addTreino` passa a publicar evento
+  verify: os três métodos migrados para `ingestaoTreinoRealizadoService.registrar(...)`; data resolvida
+  uma única vez via `LocalDate.now(clock)` (`ClockConfig` já existia). `resolverPlanoSemanal` passou a
+  receber a data já resolvida em vez de reler `input.dataTreino()` (podiam divergir na borda do dia).
+  `addTreino` agora publica evento (antes não publicava nenhum) — o mesmo gap que `syncActivitiesInternal`
+  tinha no Strava (Seção 5). Testes atualizados: `TreinoServiceImplTest`, `AtletaTreinoServiceImplTest`,
+  `TreinoServiceTenantTest`, `TreinoServiceConsistenciaValidatorTest` — 4 arquivos, stubs de
+  `treinoRealizadoRepository.save`/`tsbService.atualizarTsbDia` trocados por
+  `ingestaoTreinoRealizadoService.registrar`. `./mvnw clean verify` — BUILD SUCCESS, 701 classes, 0 falhas
+- [x] 7.2 Apagar `TreinoServiceImpl.atualizarVolumeDiario` e `atualizarTsb` — CA11; testes de `TreinoServiceImpl` que assertavam o `+1` incremental são removidos (descrevem o bug)
+  verify: `grep -n "atualizarVolumeDiario\|atualizarTsb\b" TreinoServiceImpl.java` vazio (só comentários
+  mencionando o antigo comportamento); campo `TsbService tsbService` removido da classe (ficou
+  inteiramente sem uso após 7.1); `metricasDiariasRepository`/`treinoRealizadoRepository.save` para
+  MetricasDiarias só aparece em `TsbServiceImpl`/`TsbRecalculoExecutor` agora (CA11)
 - [ ] 7.3 `updateTreino` → ler `treino.getDataTreino()` antes de mutar/salvar, então `reprocessar(id, dataAntiga)` (`dataAntiga = null` se a data não mudou)
   verify: teste com mudança de data confirma `recalcularDesde` chamado com a menor das duas (CA6)
 - [ ] 7.4 `ManualReconciliationServiceImpl` (3 pontos) → `reprocessar(id, null)`
