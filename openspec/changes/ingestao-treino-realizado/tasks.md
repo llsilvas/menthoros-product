@@ -96,8 +96,11 @@
   Não é fluxo crítico da lista de E2E obrigatório do CLAUDE.md do front — sem E2E dedicado.
   **Remover o componente/hook depois que o backfill rodar em produção e o aviso já tiver
   circulado por um tempo razoável** (sem expiração automática por código)
-- [ ] 6.3 `/pr ingestao-treino-realizado` (PR 1 de 2) com changelog para o treinador (cancelados saem do PMC; TSS de dispositivo passa a valer no PMC; agregadores fora do TSB só no PR 2)
-  verify: PR aberto contra `develop`, CI verde, descrição inclui o changelog
+- [x] 6.3 `/pr ingestao-treino-realizado` (PR 1 de 2) com changelog para o treinador (cancelados saem do PMC; TSS de dispositivo passa a valer no PMC; agregadores fora do TSB só no PR 2)
+  verify: PR backend aberto — https://github.com/llsilvas/menthoros-backend/pull/78 (2026-08-22);
+  PR frontend aberto (nota in-app, task 6.2b) — https://github.com/llsilvas/menthoros-front/pull/86.
+  Descrições incluem changelog, critérios de aceite, validação e link da spec. **Aguardando CI +
+  merge** — auto-merge não configurado, requer aprovação/merge manual pelo founder
 
 ## Bloco 2 — gestos de alteração e limpeza (só após merge do Bloco 1)
 
