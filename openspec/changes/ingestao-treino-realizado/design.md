@@ -37,9 +37,13 @@ o lugar para trocar a política depois sem tocar os chamadores.
 
 ### D2 — Duas operações: `registrar` e `reprocessar`
 Os chamadores têm dois gestos distintos: "este treino entrou" (1–6) e "este treino mudou ou saiu"
-(7–11). No segundo a data pode ter mudado ou o treino não existe mais — o chamador de `deleteTreino`
-não tem mais o treino para entregar. *Alternativa rejeitada:* um método idempotente "sincronizar", que
-obrigaria todo chamador a carregar o estado anterior.
+(7–11). No segundo a data pode ter mudado — o chamador precisa entregar a data anterior, porque
+depois do `save` ela não é mais recuperável de lugar nenhum (nem a entidade nem o banco a guardam).
+*Alternativa rejeitada:* um método idempotente "sincronizar", que obrigaria todo chamador a carregar
+o estado anterior de qualquer forma, sem ganho.
+*Pre-mortem #2 (Codex, DoR):* a primeira versão desta decisão expunha só `reprocessar(treinoId)`,
+mas o texto de implementação pedia `min(data anterior, atual)` sem um parâmetro para recebê-la —
+contrato inexequível. Corrigido: `reprocessar(treinoId, dataAnterior: LocalDate?)`.
 
 ### D3 — `tssCalculado` é a única verdade
 O ingestor calcula uma vez; `TsbService` soma o campo dos treinos que contam em vez de recalcular.
@@ -77,15 +81,19 @@ O ingestor exige data não-nula e falha se não vier. O default "hoje" fica nos 
 resolvido **uma vez** com o `Clock` de `ClockConfig`. O ingestor não injeta relógio nem fuso
 (candidato 7). Elimina o duplo `LocalDate.now()` em `addTreino`.
 
-### D8 — Treino cancelado não conta — em **todo** leitor de carga
+### D8 — Treino cancelado não conta — em **todo** leitor de carga (predicado null-safe)
 `reprocessar` trata `CANCELADO` como "zera a contribuição"; `tssCalculado` fica para auditoria.
-"Treino que conta" é **um** predicado de repositório (`statusSincronizacao <> CANCELADO`) usado por
-`TsbService` **e pelos agregadores que somam `tssCalculado` direto** — *pre-mortem #4 (Codex)*
-encontrou seis: `CoachDashboardServiceImpl:143`, `TreinoServiceImpl:474` (resumo semanal),
-`RaceProjectionServiceImpl:184`, `PlanoTreinoPromptBuilder:439,466`, `VariabilidadePromptFormatter:279,303,529`,
-`InjuryRiskEvaluator:65`, `PlannerShadowService:202`. Sem isso o PMC e o resumo semanal discordariam
-sobre o mesmo treino apagado. Bloco 1 aplica ao TSB; Bloco 2 roteia os agregadores pelo mesmo
-predicado (task 6.7) — a divergência entre PR1 e PR2 é conhecida e curta.
+"Treino que conta" é **um** predicado de repositório (`statusSincronizacao IS NULL OR <> CANCELADO`
+— NULL é o estado normal de FIT/manual, não pode ser tratado como cancelado) usado por
+`TsbService` **e pelos produtores que somam `tssCalculado` direto** — levantamento original
+(pre-mortem #4, Codex) mais a correção de DoR (Codex #3): `CoachDashboardServiceImpl:143`,
+`TreinoServiceImpl:474` (resumo semanal), `RaceProjectionServiceImpl:184`, `InjuryRiskEvaluator:65`,
+e **`PlanoServiceImpl.getDadosPlano:720-724`** (`findByAtletaIdAndDataTreinoBetween`) — é esta
+query, não `PlannerShadowService:202`, que produz o histórico consumido pelo planner e pelos
+formatters de prompt (`PlanoTreinoPromptBuilder:439,466`, `VariabilidadePromptFormatter:279,303,529`);
+`PlannerShadowService` só lê o DTO já filtrado por ela. Sem isso o PMC e o resumo semanal
+discordariam sobre o mesmo treino apagado. Bloco 1 aplica ao TSB; Bloco 2 roteia os produtores pelo
+mesmo predicado (task 7.7) — a divergência entre PR1 e PR2 é conhecida e curta.
 *Impacto:* PMC histórico de quem tem cancelados acumulados muda — correção, não regressão; aviso no
 PR e in-app (Open Question do product review).
 
@@ -142,7 +150,7 @@ Tudo que o chamador precisa saber:
 ```
 IngestaoTreinoRealizadoService
   SaveResult registrar(TreinoRealizado treino, @Nullable String externalId)
-  void       reprocessar(UUID treinoRealizadoId)
+  void       reprocessar(UUID treinoRealizadoId, @Nullable LocalDate dataAnterior)
 
 SaveResult(TreinoRealizado treino, boolean inserted)   // já existe em TreinoDedupHelper
 ```
@@ -162,17 +170,23 @@ SaveResult(TreinoRealizado treino, boolean inserted)   // já existe em TreinoDe
 - **`reprocessar` de id inexistente:** `DomainNotFoundException`. Não há remoção física hoje
   (`deleteTreino` é vazio, `TreinoServiceImpl:301`); se vier a existir, é outra change e deve
   capturar a data antes de apagar.
+- **`dataAnterior`:** o chamador lê `treino.getDataTreino()` **antes** de mutar/salvar a entidade e
+  passa esse valor; `null` quando a data não mudou (laps, cancelamento, reconciliação).
 
 ## Implementação (o que fica atrás do seam)
 
 - **Dedup:** `TreinoDedupHelper.saveIdempotent` absorvido; visibilidade de pacote.
 - **Treino que conta:** `TreinoRealizadoRepository.findQueContamByAtletaIdAndDataTreino(atletaId, data)`
-  — `statusSincronizacao <> CANCELADO`. `TsbServiceImpl.buscarTreinosDia` passa a usar esta consulta.
+  — `statusSincronizacao IS NULL OR statusSincronizacao <> CANCELADO`. Necessário porque o campo é
+  nullable (`TreinoRealizado.java:119`) e **nenhum caminho FIT ou manual o define hoje** — em
+  SQL/JPQL, `<> CANCELADO` sozinho excluiria NULL e derrubaria CA1/CA3 para esses treinos.
+  `TsbServiceImpl.buscarTreinosDia` passa a usar esta consulta.
+  *Pre-mortem #1 (Codex, DoR), confirmado no código.*
 - **TSS:** calcula só quando nulo ou `metodoCalculoTss != DISPOSITIVO` (D3.1). Único chamador.
 - **Carga:** `tsbService.recalcularDesde(atletaId, menorDataAfetada)` (D13); em `reprocessar` a
-  menor data é `min(data anterior, data atual)`. `TsbServiceImpl.calcularTssDia` passa a somar
-  `tssCalculado` (D3); o fallback "campo nulo → calcular" existe **só até o backfill rodar** e é
-  removido no Bloco 2.
+  menor data é `min(dataAnterior, treino.dataTreino)` quando `dataAnterior` foi passada, senão
+  `treino.dataTreino`. `TsbServiceImpl.calcularTssDia` passa a somar `tssCalculado` (D3); o fallback
+  "campo nulo → calcular" existe **só até o backfill rodar** e é removido no Bloco 2.
 - **Guard de custo no listener:** `WorkoutAnalysisListener` ignora treinos com `dataTreino` anterior
   a N dias (config `workout-analysis.max-idade-dias`, default a decidir no Bloco 1).
 
@@ -184,10 +198,10 @@ icu ─┤                                  │  tssCalculado ← TssCalculatorS
 Strava ┤ registrar(treino, externalId) ──┤  save
 manual ┘                                 │  TreinoRegistradoEvent  (só inserção)
                                          └─ TsbService.recalcularDesde(dataTreino)
-laps ─┐
-reconc ┤                                 ┌─ recarrega treino por id
-update ┤ reprocessar(treinoId) ──────────┤  tssCalculado (se conta e não é DISPOSITIVO)
-webhook ┘                                └─ TsbService.recalcularDesde(min(dia antigo, dia atual))
+laps ────┐
+reconc ──┤                                          ┌─ recarrega treino por id
+update ──┤ reprocessar(treinoId, dataAnterior?) ─────┤  tssCalculado (se conta e não é DISPOSITIVO)
+webhook ─┘                                          └─ TsbService.recalcularDesde(min(dataAnterior, dataTreino))
 ```
 
 ## Riscos e mitigações
@@ -200,12 +214,32 @@ webhook ┘                                └─ TsbService.recalcularDesde(min
 | `reprocessar` em TX do scheduler com entidade stale (`IntegracaoExterna`) | `reprocessar` recarrega o treino por id dentro da própria TX; não recebe entidade |
 | `recalcularDesde` em carga inicial em lote: O(atividades × dias) (D13) | Medir em stage com atleta de 90 dias; follow-up: scheduler de lote chama `recalcularHistoricoCompleto` uma vez ao final |
 | D3.1 muda o PMC de treinos FIT com TSS de dispositivo (hoje ignorado) | Task 0.2 registra o delta no dataset de referência antes de implementar |
-| Agregadores fora do TSB divergem do PMC entre PR1 e PR2 (D8) | Janela curta; task 6.7 fecha; documentar no PR1 |
+| Agregadores fora do TSB divergem do PMC entre PR1 e PR2 (D8) | Janela curta; task 7.7 fecha; documentar no PR1 |
 | Regressão no dataset de referência por treinos cancelados | Assumption registrada; atualizar dataset com nota se ocorrer |
+| Backfill (`recalcularHistoricoCompleto`) muta CTL/ATL/TSB de produção; reverter o código não desfaz o dado já recalculado | Dump de `tb_metricas_diarias` antes de rodar em produção (task 6.2); stage é obrigatório antes de prod — ver task 6.2b |
+| `intervals-icu-activity-sync-scheduler` está em implementação em paralelo; se o contrato de `IntervalsIcuActivityPersister` mudar antes da task 5.2, ela quebra | Task 5.2 confirma o status daquela change antes de começar |
 | `first-party-ingestion-architecture` retomada cria 12º caminho | Dependência declarada no proposal; task 0.3 deixa nota naquela change |
 | D5 amplia para o Strava a análise por IA visível ao atleta sem revisão do treinador (gap pré-existente: `AnaliseWorkoutController:31`) | Fora do escopo desta change (não muda autoridade do treinador); Open Question no proposal; guard de 4.4 filtra por idade e por `percepcaoEsforco` já existente |
 
-## Pre-mortem cross-model
+## DoR (Definition of Ready)
+
+`spec-reviewer` (2026-08-22): **READY COM RESSALVAS**, 3 achados, todos incorporados — rollback do
+backfill (tabela de Riscos), dependência com `intervals-icu-activity-sync-scheduler` (idem, task
+5.2), e as duas decisões "Aberto" ganharam tratamento explícito (guard de custo: default fixado só
+após a task 5.5 de medição, sem bloquear o merge; nota in-app: task nova 6.2b).
+
+Codex (`/codex:adversarial-review`, 2026-08-22, segunda rodada — DoR): **needs-attention (NOT
+READY)**, 3 achados, **todos confirmados no código e corrigidos**:
+1. **[alto] Predicado `<> CANCELADO` excluiria NULL** — confirmado: `TreinoRealizado.statusSincronizacao`
+   é nullable e nenhum caminho FIT/manual o define. → D8 e a query de "treino que conta" agora são
+   `IS NULL OR <> CANCELADO`.
+2. **[alto] `reprocessar(treinoId)` não tinha como saber a data anterior** — confirmado: a interface
+   só recebia o id. → D2 ganha parâmetro `dataAnterior`.
+3. **[médio] Inventário da task 7.7 apontava para o lugar errado** — confirmado:
+   `PlannerShadowService` lê de um DTO, a query real é `PlanoServiceImpl.getDadosPlano:720-724`. →
+   inventário corrigido para nomear produtores/queries, não pontos de leitura.
+
+## Pre-mortem cross-model (primeira rodada)
 
 Codex (`/codex:adversarial-review`, 2026-08-22) — veredito **needs-attention**, 5 achados, **todos
 verificados no código e incorporados**:
@@ -220,7 +254,7 @@ verificados no código e incorporados**:
    (`FitTreinoPersister:166-169`, `DISPOSITIVO`). → D3.1. Achado colateral: hoje PMC ignora e
    projeção usa — passam a concordar.
 4. **[médio] Cancelado fora do PMC mas dentro dos agregadores** — confirmado (8 leitores somam
-   `tssCalculado` sem filtro). → D8 ampliado + task 6.7.
+   `tssCalculado` sem filtro). → D8 ampliado + task 7.7.
 5. **[médio] `deleteTreino` é no-op** — confirmado (`TreinoServiceImpl:301-303`, corpo vazio).
    → caminho 8 fora do escopo; `reprocessarDia` removido da interface; `reprocessar` de id
    inexistente lança `DomainNotFoundException`.

@@ -15,12 +15,19 @@ treino cancelado sai da carga — e exige backfill do histórico; backend-only, 
   como Open Question (guard de revisão do treinador é outra change). (2) O aviso "cancelados saem do
   PMC" estava só no PR; Open Question sobre superfície in-app. (3) Métrica "zero recálculos manuais"
   sem baseline — task 0.4 registra a contagem atual antes do deploy.
-- Pre-mortem cross-model (2026-08-22, Codex): **needs-attention, 5 achados, todos confirmados no
-  código e incorporados** — recálculo para a frente (D13, o mais importante: `atualizarTsbDia` deriva
-  de D-1, então só o dia deixava o PMC stale); dedup compatível com o find-or-new do Strava (D4);
-  TSS do dispositivo preservado (D3.1); "treino que conta" aplicado aos 8 agregadores que somam
-  `tssCalculado` (D8, task 6.7); `deleteTreino` é vazio hoje → fora do escopo. Ver design.md
-  "Pre-mortem". Aguardando DoR (`spec-reviewer`) em `/implement init`.
+- Pre-mortem cross-model (2026-08-22, Codex, 1ª rodada): **needs-attention, 5 achados, todos
+  confirmados e incorporados** — recálculo para a frente (D13: `atualizarTsbDia` deriva de D-1,
+  então só o dia deixava o PMC stale); dedup compatível com o find-or-new do Strava (D4); TSS do
+  dispositivo preservado (D3.1); "treino que conta" nos agregadores (D8); `deleteTreino` vazio →
+  fora do escopo.
+- **DoR em `/implement init` (2026-08-22): `spec-reviewer` READY COM RESSALVAS (3 achados) · Codex
+  NOT READY (3 achados) → todos verificados no código e corrigidos.** Bloqueadores reais do Codex:
+  o predicado "treino que conta" excluiria NULL (status não é setado em FIT/manual — corrigido para
+  `IS NULL OR <> CANCELADO`); `reprocessar(treinoId)` não tinha parâmetro para a data anterior
+  (corrigido: `reprocessar(treinoId, dataAnterior?)`); inventário da task 7.7 apontava
+  `PlannerShadowService` quando a query real é `PlanoServiceImpl.getDadosPlano:720-724` (corrigido).
+  Do `spec-reviewer`: rollback do backfill e dependência com `intervals-icu-activity-sync-scheduler`
+  na tabela de Riscos; nota in-app do PMC virou task 6.2b. Ver design.md "DoR".
 
 ## Why
 
@@ -61,9 +68,10 @@ que o atleta apagou, e métricas que só ficam certas depois de um recálculo hi
     idempotente por `(atleta, externalId)` → `TreinoRegistradoEvent` (só em inserção) → recálculo
     da carga **de `dataTreino` até hoje**. Aceita entidade nova ou já gerenciada (quem precisa de
     merge no re-sync faz find-or-new antes, como o Strava já faz). Exige `dataTreino` não-nulo.
-  - `reprocessar(treinoId)` — recarrega o treino, recalcula `tssCalculado` (se não é de
-    dispositivo) e a carga **da menor data afetada até hoje**; treino cancelado zera a
-    contribuição. Não publica evento.
+  - `reprocessar(treinoId, dataAnterior?)` — recarrega o treino, recalcula `tssCalculado` (se não é
+    de dispositivo) e a carga **de `min(dataAnterior, dataTreino)` até hoje**; treino cancelado zera
+    a contribuição. Não publica evento. `dataAnterior` é lida pelo chamador antes de mutar a
+    entidade (não há como recuperá-la depois do save).
 - **`TsbService.recalcularDesde(atletaId, data)`** — novo; recalcula dia a dia até o último dia
   materializado. É o gancho que `add-continuous-daily-load-management` precisa.
 - **`tssCalculado` vira a única verdade.** `TsbService` passa a somar o campo dos *treinos que
@@ -72,9 +80,11 @@ que o atleta apagou, e métricas que só ficam certas depois de um recálculo hi
   também no PMC, que hoje o ignora.
   Backfill único do histórico via `TsbService.recalcularHistoricoCompleto`, que passa a preencher o
   campo.
-- **Treino que conta** = não `CANCELADO`. Um predicado de repositório, usado pelo TSB **e pelos
-  agregadores que somam `tssCalculado`** (dashboard do coach, resumo semanal, projeção de prova,
-  formatters de prompt, avaliador de risco de lesão) — senão PMC e resumo semanal discordam.
+- **Treino que conta** = `statusSincronizacao IS NULL OR <> CANCELADO` (NULL é o estado normal de
+  FIT/manual — nenhum desses caminhos define o campo hoje). Um predicado de repositório, usado pelo
+  TSB **e pelos produtores que somam `tssCalculado`** (dashboard do coach, resumo semanal, projeção
+  de prova, formatters de prompt, avaliador de risco de lesão, `PlanoServiceImpl.getDadosPlano`) —
+  senão PMC e resumo semanal discordam.
 - **`TsbService` é o único escritor de `MetricasDiarias`** — `TreinoServiceImpl.atualizarVolumeDiario`
   é removido.
 - **Os 10 chamadores migram** para `registrar`/`reprocessar`. `TreinoDedupHelper` deixa de ser
@@ -133,7 +143,8 @@ que o atleta apagou, e métricas que só ficam certas depois de um recálculo hi
   anterior).
 - **CA7 — cancelado não conta.** Given um treino que conta em D, When ele vira `CANCELADO` e
   `reprocessar` é chamado, Then `MetricasDiarias(D..hoje)` não inclui seu TSS; `tssCalculado`
-  permanece gravado.
+  permanece gravado. Given um treino FIT/manual com `statusSincronizacao` NULL, Then ele continua
+  contando (NULL ≠ cancelado).
 - **CA7b — cancelado não conta em lugar nenhum.** Given o mesmo treino, When o resumo semanal, o
   dashboard do coach e a projeção de prova são lidos, Then nenhum deles soma seu TSS (Bloco 2).
 - **CA8 — data obrigatória.** Given um treino com `dataTreino` nulo, When `registrar` é chamado,
@@ -189,6 +200,10 @@ que o atleta apagou, e métricas que só ficam certas depois de um recálculo hi
   com nota (task 0.2).
 - **Aberto (pre-mortem #1):** custo de `recalcularDesde` na carga inicial em lote. Medir em stage;
   se pesar, o scheduler de lote chama `recalcularHistoricoCompleto` uma vez ao final (follow-up).
+- **Resolvido (DoR, product review #2):** aviso in-app da mudança de PMC — nota simples na tela de
+  PMC para tenants afetados pelo backfill; task 6.2b no Bloco 1.
+- **Resolvido (DoR, spec-reviewer):** rollback do backfill — dump de `tb_metricas_diarias` antes de
+  rodar em produção; stage antes de prod é obrigatório (task 6.2b).
 - **Aberto:** valor do guard de custo no `WorkoutAnalysisListener` (ex.: não analisar treinos de
   importação inicial com mais de N dias). Decidir no Bloco 1 com base no volume real do Strava.
 - **Aberto:** se `updateTreino` deve publicar evento quando muda de "sem etapas" para "com etapas".
