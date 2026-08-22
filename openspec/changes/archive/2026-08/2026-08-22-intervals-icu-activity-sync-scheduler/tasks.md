@@ -215,7 +215,12 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
       já aceitos em D8/D4.1. Detalhe em design.md D4.1 "QA gate". Suíte pós-QA: 22 cenários no
       scheduler + 15 em properties.
 - [x] 5.4 PR aberto em 2026-08-22: backend **#77** (`feature/intervals-icu-activity-sync-scheduler` → `develop`, 4 commits). CI e merge pela plataforma.
-- [ ] 5.5 Atualizar este `tasks.md` com o que foi entregue vs. adiado antes de arquivar.
+- [x] 5.5 Fechado em 2026-08-22, no arquivamento. **Entregue: tudo** — 30/30. Nada adiado. PR #77
+      mergeado em `develop` (squash `7fd066e`, 13:24Z). Residuais aceitos e documentados em design.md
+      D4.1/D8: sem lock distribuído, cota compartilhada sem budget, falha permanente sem tombstone
+      (restrita a 404/422 após o pré-filtro de modalidade). Follow-ups no Radar do SPRINTS: semear o
+      PMC com o CTL/ATL do provedor; `intervals-icu-webhook-ingestion` (spec não escrita) agora
+      destravada.
 
 **DoD:** CA1–CA12 cobertos por teste; gate 0.2 (contrato real da API) documentado em design.md D1;
 `./mvnw clean test` verde; smoke real executado (Bloco 4); PR mergeado em `develop`; change
