@@ -50,6 +50,12 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
     > Plataforma de treinamento de corrida com seu treinador no comando: a IA propõe, o treinador
     > aprova. O Menthoros lê seus treinos realizados no Intervals.icu e publica os treinos
     > planejados no seu calendário — e de lá para o seu relógio.
+- [ ] 0.5 **[Smoke 2026-08-21] Reduzir o escopo de `ACTIVITY:WRITE` para `ACTIVITY:READ`**, se a
+  tela do app 663 permitir configurar escopos. O smoke revelou que o provedor concede
+  `ACTIVITY:WRITE` mesmo pedindo `ACTIVITY:READ` — ou seja, hoje o Menthoros pode **criar e
+  alterar** atividades realizadas do atleta, e nada no código faz isso. É privilégio a mais sobre
+  dado de terceiro, exibido na tela de consentimento que o atleta lê. Se a tela não expuser essa
+  configuração, registrar aqui que é limitação do provedor e avaliar contato com o David.
 - [ ] 0.4 **[DoR 2026-08-21] Trocar o Webhook Secret do app** (`TF3w-piFpR0` em 2026-08-21) — foi
   exposto em captura de tela durante a especificação. Nenhum webhook está marcado hoje, então ele
   não protege nada e a troca não quebra nada; fazer agora evita herdar um segredo queimado quando a
@@ -212,9 +218,28 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
 
 - [x] 9.1 `./mvnw clean verify` no backend (não só `test` — há `*IT` nesta change) e
   lint + testes + build no front
-- [ ] 9.2 Smoke real contra o app 663: conectar → **push de um treino planejado** (valida
+- [x] 9.2 Smoke real contra o app 663: conectar → **push de um treino planejado** (valida
   `CALENDAR:WRITE`) → **import de uma atividade** (valida `ACTIVITY:READ`) → desconectar e
   confirmar a revogação no intervals.icu. Um escopo faltando só aparece aqui.
+  **Executado em 2026-08-21, tudo verde**, com evidência em banco e log:
+  - Conexão persistida na row já existente da API key (`criado_em` de 2026-07-15 preservado) —
+    o find-or-create reusou o registro, como previsto.
+  - **`CALENDAR:WRITE`:** `ultima_sincronizacao` gravada 3s após a aprovação do plano
+    `493a1702`. Esse campo só é escrito quando `algumPushComSucesso` é verdadeiro, então é
+    prova de push aceito — **o canal de produção sobreviveu à troca Basic→Bearer**.
+  - **`ACTIVITY:READ`:** atividades importadas via `POST .../activities/import`.
+  - **Revogação (D7):** log `Acesso revogado no intervals.icu` às 21:28:37,389, seguido do
+    disconnect local em 21:28:37,395 — ordem remoto→local confirmada.
+  - **D13:** após o `DELETE`, seis campos nulos (`access_token`, `refresh_token`, `scopes`,
+    `token_expira_em`, `external_athlete_id`, `last_sync_error`) e `ativo=false`.
+  - **D3:** `refresh_token` e `token_expira_em` nulos em todo o ciclo.
+
+  **Achado — o escopo concedido difere do pedido.** Pedimos `ACTIVITY:READ` e o provedor
+  concedeu **`ACTIVITY:WRITE`** (`scopes = ACTIVITY:WRITE,CALENDAR:WRITE`). Funciona, porque
+  write implica read, mas o Menthoros ficou com permissão de **escrever atividades** do atleta —
+  o que não pede e não usa. Contraria o princípio de D4 ("escopo pedido a mais é superfície
+  desnecessária"), só que aqui não pedimos: recebemos. A hipótese é que os escopos venham da
+  configuração do app 663, e não do parâmetro `scope` do request. Ver task 0.5.
 - [ ] 9.3 Atualizar `Integrations.md` no vault e registrar em
   `intervals-icu-activity-sync-scheduler/proposal.md` que `listarAtividades` nasce com Bearer
   (o item 1 do "What Changes" de lá ainda diz "Basic Auth com a API key do atleta")
