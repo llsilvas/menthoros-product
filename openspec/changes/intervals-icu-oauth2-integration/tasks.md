@@ -21,8 +21,11 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
 > o app já funciona para OAuth. O e-mail para o David serve para **listar publicamente**, não para
 > implementar nem testar. A configuração abaixo é toda editável na própria tela.
 
-- [ ] 0.1 **Registrar as redirect URLs** — o campo está **vazio** hoje, e o provedor não aceita
-  wildcard. Registrar as duas, para que a troca de domínio planejada não quebre o OAuth:
+- [x] 0.1 **Registrar as redirect URLs** — **feito em 2026-08-21.** O campo estava vazio e o
+  provedor não aceita wildcard fora de localhost. As duas registradas, para que a troca de domínio
+  planejada não quebre o OAuth. Era a única pendência que bloqueava o deploy, e a única cujo
+  esquecimento **não apareceria em nenhum teste local** — em localhost o provedor aceita sem
+  registro (ver 0.2), então o fluxo passaria em dev e falharia em produção:
   - `https://menthoros.up.railway.app/api/v1/integracoes/intervals-icu/callback`
   - `https://api.menthoros.com/api/v1/integracoes/intervals-icu/callback` (DNS previsto no `PROJECT.md`)
 - [x] 0.2 **Confirmar empiricamente se `http://localhost/*` cobre a porta.** A nota da tela diz que
