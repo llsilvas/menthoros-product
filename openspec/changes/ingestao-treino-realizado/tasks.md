@@ -2,10 +2,10 @@
 
 - [x] 0.1 Branch `feature/ingestao-treino-realizado` em `apps/menthoros-backend` (`/implement init`, 2026-08-22, base `7fd066e`)
   verify: `git -C apps/menthoros-backend branch --show-current` → `feature/ingestao-treino-realizado`
-- [ ] 0.2 Confirmar no dataset de `TsbRecalculoEquivalenciaIT`: treinos `CANCELADO` e FIT com `metodoCalculoTss = DISPOSITIVO` (D3.1 e D8 mudam o esperado para esses; registrar o delta antes de implementar)
-  verify: grep no dataset de referência por `CANCELADO`/`DISPOSITIVO`; se algum aparecer, nota no proposal com o delta esperado antes da task 4.3
-- [ ] 0.3 Deixar nota em `first-party-ingestion-architecture/proposal.md` ("Relação"): `WorkoutImportService` deve terminar em `registrar`
-  verify: a nota aparece no proposal daquela change (`grep -n registrar first-party-ingestion-architecture/proposal.md`)
+- [x] 0.2 Confirmar no dataset de `TsbRecalculoEquivalenciaIT`: treinos `CANCELADO` e FIT com `metodoCalculoTss = DISPOSITIVO` (D3.1 e D8 mudam o esperado para esses; registrar o delta antes de implementar)
+  verify: grep no dataset de referência por `CANCELADO`/`DISPOSITIVO`; se algum aparecer, nota no proposal com o delta esperado antes da task 4.3 — CONFIRMADO 2026-08-22: dataset (`reference-dataset.md`, arquivada em fix-tsb-recalculo-resiliente) não contém nenhum dos dois; sem delta a registrar
+- [x] 0.3 Deixar nota em `first-party-ingestion-architecture/proposal.md` ("Relação"): `WorkoutImportService` deve terminar em `registrar`
+  verify: nota adicionada em "Riscos e mitigações" (não havia seção "Relação"), 2026-08-22
 - [ ] 0.4 Baseline da métrica de sucesso: contar chamadas a `recalcularHistoricoCompleto` nos últimos 30 dias (logs de produção) e registrar no proposal
   verify: número registrado na seção "Métrica de sucesso" do proposal.md
 
