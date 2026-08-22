@@ -161,7 +161,7 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
 
 ## Bloco 4 — Gate de validação real (smoke)
 
-- [~] 4.1 Smoke manual: com um atleta real conectado ao intervals.icu (mesmo atleta founder usado no
+- [x] 4.1 Smoke manual: com um atleta real conectado ao intervals.icu (mesmo atleta founder usado no
       smoke de `intervals-icu-activity-ingestion`), disparar o método agendado manualmente (ex.: via
       endpoint de teste temporário ou invocação direta em ambiente de dev) e confirmar que uma
       atividade nova aparece como `TreinoRealizado` sem ação manual.
@@ -177,6 +177,14 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
       passou a rodar **antes de qualquer HTTP** (commit do pré-filtro; teste
       `modalidadeNaoSuportadaNaoEBuscada`). **Falta o CA1 literal** — uma atividade *nova* entrando
       sem ação manual — porque todas as corridas do founder já estavam importadas.
+      **CA1 fechado no 2º ciclo (09:55:51, backend reiniciado com o pré-filtro):** os dois treinos
+      de 17/08 do founder foram apagados do banco de dev (com etapas e reconciliação em cascata) e
+      o ciclo os reimportou sozinho, **em ordem cronológica** (`i176725898` 0,56 km → `i176753134`
+      5,01 km, 1 e 5 etapas), com reconciliação inline executada, `novas=2`,
+      `pendentesRestantes=0`, cursor em `12:55:51Z`, `sync_activity_count=2`,
+      `last_sync_error=null`, **zero `ignorada (permanente)`** — as 6 não-suportadas foram
+      descartadas pela listagem sem nenhum fetch — e zero duplicata. 21 treinos no total, como
+      antes. Duas requisições ao provedor além da listagem, exatamente o `1 + N` da D4.1.
       Verify: checklist documentado em proposal.md "Open Questions" ou no PR — pelo menos 1 ciclo
       real executado contra o provedor real, 0 duplicatas, `ultimaSincronizacao` atualizada.
 - [x] 4.2 **Confirmado no smoke de 2026-08-22:** o founder tem `STRAVA ativo=true,
