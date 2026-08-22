@@ -76,8 +76,16 @@
 
 - [x] 6.1 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer) sem achado Crítico — atenção a tenant (CA10) e atomicidade (CA9)
   verify: relatório do `/qa` (2026-08-22) — 0 Crítico nos 3 revisores Claude + Codex review + Codex adversarial-review; `./mvnw clean test` 2773 testes, 0 falhas. 1 achado alto do Codex corrigido nesta rodada (data mudou no re-sync do Strava não recalculava o dia antigo — ver design.md "Achado de implementação (Bloco 1, Seção 5)"); 1 achado alto verificado como pré-existente e deferido (corrida de dedup pode desativar integração Strava — ver design.md). Achados Importante/Menor restantes registrados em design.md/Riscos, nenhum bloqueante para este PR
-- [ ] 6.2 Dump de `tb_metricas_diarias` (backup) antes de rodar em produção; rodar `recalcularHistoricoCompleto` primeiro em stage, depois prod; query de verificação: zero treinos que contam com `tssCalculado` nulo (spec-reviewer #1)
-  verify: dump salvo com timestamp; query de verificação retorna 0 em stage e em prod
+- [~] 6.2 Dump de `tb_metricas_diarias` (backup) antes de rodar em produção; rodar `recalcularHistoricoCompleto` primeiro em stage, depois prod; query de verificação: zero treinos que contam com `tssCalculado` nulo (spec-reviewer #1)
+  verify: **stage (HomeLab) concluído em 2026-08-22.** Dump de `tb_metricas_diarias` (939 linhas) salvo
+  em `~/menthoros-backup/tb_metricas_diarias_backup_20260822_184211.sql` na própria HomeLab e localmente.
+  `recalcularHistoricoCompleto` rodado para os 6 atletas via backend local apontado para o Postgres da
+  HomeLab (`192.168.15.24:5432`) — 4 com treinos (Carla Oliveira, Hugo Silva, Leandro Silva, Maria
+  Santos) tiveram métricas recalculadas (`updated_at` no intervalo 18:49:26–18:50:03); 2 sem treino
+  (Antonio Santos, João Silva) corretamente sem métrica. Query de verificação:
+  `select count(*) from tb_treino_realizado where (status_sincronizacao is null or status_sincronizacao
+  <> 'CANCELADO') and tss_calculado is null` → **0**. **Pendente: rodar em prod** (Railway) antes de
+  fechar esta task — requer confirmação explícita separada, é ambiente de produção
 - [ ] 6.2b Nota in-app na tela de PMC para tenants afetados pelo backfill ("valores históricos recalculados — treinos cancelados e TSS de dispositivo agora refletidos corretamente") (spec-reviewer / product review #2)
   verify: nota visível na tela de PMC do frontend para um tenant com backfill aplicado
 - [ ] 6.3 `/pr ingestao-treino-realizado` (PR 1 de 2) com changelog para o treinador (cancelados saem do PMC; TSS de dispositivo passa a valer no PMC; agregadores fora do TSB só no PR 2)
