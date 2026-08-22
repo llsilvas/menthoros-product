@@ -71,12 +71,16 @@ API que o Strava). A descomissão do Strava é **non-goal explícito** desta cha
 
 ## What Changes (backend `apps/menthoros-backend`)
 
-1. **Client:** novo método `listarAtividades(String apiKey, String externalAthleteId, LocalDate
+1. **Client:** novo método `listarAtividades(String token, String externalAthleteId, LocalDate
    oldest, LocalDate newest)` em `IntervalsIcuClient`/`IntervalsIcuClientImpl`
    (`GET /api/v1/athlete/{id}/activities?oldest=&newest=`), no mesmo padrão de `listarEventos`
-   (`IntervalsIcuClientImpl.java:102-105`) — **`Authorization: Bearer`, com o token OAuth do atleta**
+   — **`Authorization: Bearer`, com o token OAuth do atleta**
    (atualizado 2026-08-16: `intervals-icu-oauth2-integration` remove a API key e converte o client
    para Bearer; nascer em Basic seria escrever código para apagar em seguida — ver design.md D1).
+   **[2026-08-21] O parâmetro chama-se `token`, não `apiKey`** — a change de OAuth2 já renomeou
+   todos os parâmetros da interface e `validarApiKey` virou `validarToken`. O helper de auth do
+   impl é `bearer(headers, token)`. Nascer com `apiKey` aqui reintroduziria o vocabulário que a
+   task 2.3 daquela change eliminou do módulo.
 2. **Scheduler:** nova classe `IntervalsIcuActivitySyncScheduler` (`services/`, sem sufixo `Impl`,
    espelhando `StravaActivitySyncScheduler`):
    - `@Scheduled(fixedDelayString = "PT2H", initialDelayString = "PT1M")` (mesma cadência do Strava;
@@ -161,8 +165,10 @@ API que o Strava). A descomissão do Strava é **non-goal explícito** desta cha
 - **CA8 — Multi-tenancy:** Given atletas de tenants diferentes com integração intervals.icu ativa,
   When o scheduler processa o ciclo completo, Then cada atleta é processado com o `TenantContext`
   correto (setado e limpo por iteração), sem vazamento de dados entre tenants.
-- **CA9 — Credencial revogada não interrompe o ciclo:** Given atleta com API key intervals.icu
-  revogada/expirada (401/403 do provedor), When o scheduler tenta listar as atividades desse atleta,
+- **CA9 — Credencial revogada não interrompe o ciclo:** Given atleta cujo **token OAuth** do
+  intervals.icu foi revogado (401/403 do provedor — o atleta desconectou o app no provedor, ou o
+  Menthoros revogou; o token **não expira por tempo**, ver D3 da change de OAuth2),
+  When o scheduler tenta listar as atividades desse atleta,
   Then o erro é registrado em `lastSyncError`, o cursor (`ultimaSincronizacao`) **não avança**, o
   atleta é pulado, e o ciclo continua para os demais atletas.
 - **CA10 — Falha transitória não avança o cursor (achado crítico #1 do pre-mortem):** Given um lote
@@ -237,6 +243,33 @@ API que o Strava). A descomissão do Strava é **non-goal explícito** desta cha
   caminhos rodam em paralelo (nenhum substitui o outro); o design deste scheduler não muda quando o
   webhook chegar — ele continua sendo apenas mais um *caller* do mesmo
   `IntervalsIcuActivityIngestionService`.
+
+  **[Verificado em 2026-08-21] O webhook não cobre 100% dos atletas — e por isso este scheduler
+  não é temporário nem opcional.** A tela de configuração do app 663 traz a nota:
+
+  > *"Note that activity webhooks are not delivered for Strava activities."*
+
+  Ou seja: quando o atleta alimenta a conta do intervals.icu **via Strava**, os eventos
+  `ACTIVITY_UPLOADED` / `ACTIVITY_ANALYZED` **não disparam** — a atividade entra no intervals.icu
+  em silêncio, e um sistema que dependesse só de webhook nunca saberia dela.
+
+  **Por que isso muda o desenho, e não é nota de rodapé:**
+
+  1. A cobertura do webhook passa a depender de **como cada atleta alimenta a conta dele** — Garmin
+     direto (dispara) ou Strava (não dispara). É informação que o Menthoros não controla, não recebe
+     e não infere com confiança. Não dá para decidir por atleta quando ligar ou desligar o polling.
+  2. O cenário é real na base atual, não hipotético: no smoke de 2026-08-21 o log registrou
+     `Dedup: descartada atividade i166332515 (fonte INTERVALS_ICU) em favor de 19308989483
+     (fonte STRAVA)` — atividade do mesmo atleta chegando pelas duas pontas.
+  3. Consequência prática: **o scheduler é o único caminho com cobertura completa.** Deve ser
+     implementado **primeiro** e permanece necessário depois do webhook — não como redundância
+     defensiva, mas porque há uma classe inteira de atividades que só ele enxerga. Inverter a ordem
+     entregaria um sync que funciona para uns atletas e falha silenciosamente para outros, com o
+     sintoma "meu treino não apareceu" e nenhuma pista no log.
+
+  **Para a change de webhook, quando for escrita:** a mesma tela instrui a usar `CALENDAR_UPDATED`
+  e **não** `CALENDAR_EVENT_UPDATED`/`CALENDAR_EVENT_DELETED`, marcados como deprecated. Relevante
+  para detectar edições que o atleta faça nos treinos planejados que o Menthoros publicou.
 - **Relação com a substituição estratégica do Strava:** fora de escopo nesta change; nenhuma decisão
   de desligar o Strava é tomada aqui. Se e quando isso acontecer, será uma change própria.
 - **Crítico, gate obrigatório antes de implementar (achado #2 do pre-mortem Codex): paginação de
