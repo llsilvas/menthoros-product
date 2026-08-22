@@ -13,10 +13,10 @@
 
 ### 1. Treino que conta
 
-- [ ] 1.1 `TreinoRealizadoRepository.findQueContamByAtletaIdAndDataTreino(atletaId, data)` com `statusSincronizacao IS NULL OR statusSincronizacao <> CANCELADO`; IT com um cancelado e um NULL no mesmo dia — o NULL conta, o cancelado não (DoR Codex #1)
-  verify: IT vermelho→verde; asserta que o NULL aparece na lista e o `CANCELADO` não
-- [ ] 1.2 `TsbServiceImpl.buscarTreinosDia` passa a usar a consulta de 1.1; `TsbServiceImplSemanticaTest` ajustado
-  verify: `./mvnw test -Dtest=TsbServiceImplSemanticaTest` verde
+- [x] 1.1 `TreinoRealizadoRepository.findQueContamByAtletaIdAndDataTreino(atletaId, data)` com `statusSincronizacao IS NULL OR statusSincronizacao <> CANCELADO`; IT com um cancelado e um NULL no mesmo dia — o NULL conta, o cancelado não (DoR Codex #1)
+  verify: `TreinoRealizadoRepositoryQueContaIT` — 2 testes, 0 falhas (`./mvnw clean verify`, 2026-08-22)
+- [x] 1.2 `TsbServiceImpl.buscarTreinosDia` passa a usar a consulta de 1.1; `TsbServiceImplSemanticaTest` ajustado
+  verify: `TsbServiceImplSemanticaTest`, `TsbServiceImplRecalculoSemanticaTest`, `TsbServiceImplDiasConsecutivosTest` — 15 testes, 0 falhas (2026-08-22). Os três usam `Proxy` sobre `TreinoRealizadoRepository` e precisaram trocar o nome do método interceptado.
 
 ### 2. `TsbService.recalcularDesde` (D13)
 
