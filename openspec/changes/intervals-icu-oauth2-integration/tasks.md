@@ -25,10 +25,14 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
   wildcard. Registrar as duas, para que a troca de domínio planejada não quebre o OAuth:
   - `https://menthoros.up.railway.app/api/v1/integracoes/intervals-icu/callback`
   - `https://api.menthoros.com/api/v1/integracoes/intervals-icu/callback` (DNS previsto no `PROJECT.md`)
-- [ ] 0.2 **Confirmar empiricamente se `http://localhost/*` cobre a porta.** A nota da tela diz que
+- [x] 0.2 **Confirmar empiricamente se `http://localhost/*` cobre a porta.** A nota da tela diz que
   localhost é sempre permitido, mas o dev roda em `localhost:**8099**`. Se a porta não entrar no
-  wildcard, o fluxo local falha e o sintoma parece bug de código, não de configuração. Se não
-  cobrir, registrar a URI de dev explicitamente.
+  wildcard, o fluxo local falha e o sintoma parece bug de código, não de configuração.
+  **Respondido em 2026-08-21: cobre.** Conexão real concluída com
+  `redirect_uri=http://localhost:8099/api/v1/integracoes/intervals-icu/callback` e o campo
+  "Redirect URLs" do app 663 ainda **vazio** — o provedor aceitou sem registro explícito. Não é
+  preciso registrar a URI de dev; a 0.1 (produção) continua necessária, porque lá o host não é
+  localhost.
 - [ ] 0.3 **Corrigir Site, Política de Privacidade e Descrição** — os três vieram com o texto de
   exemplo do provedor e aparecem **na tela de consentimento que o atleta vê**. Autorizar o
   "Menthoros" e ler `example.com` destrói a confiança no momento exato em que ela é pedida; a
