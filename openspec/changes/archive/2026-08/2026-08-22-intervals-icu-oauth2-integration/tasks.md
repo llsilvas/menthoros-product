@@ -1,5 +1,48 @@
 # Tasks: intervals-icu-oauth2-integration
 
+## Estado final — 2026-08-22 (change concluída)
+
+**33 de 36 tasks concluídas.** Mergeado em `develop`:
+menthoros-backend#74 e menthoros-front#83, com 51 segundos entre os dois merges — a janela curta
+importava, porque entre um e outro quem tinha API key ficaria sem sincronizar e sem botão para
+reconectar.
+
+**Validação:** backend `mvnw clean verify` com 2689 unitários + 114 de integração; front com 1226
+testes em 135 arquivos, lint e build limpos. CI verde nos dois PRs.
+
+**Smoke real contra o app 663 (task 9.2), o que nenhum teste automatizado provou:** conectar →
+importar atividade → aprovar plano com push aceito → desconectar com revogação confirmada em log.
+O `ultima_sincronizacao` gravado 3s após a aprovação é a prova de que **o push de treino ao
+relógio, em produção desde 2026-07-14, sobreviveu à troca de Basic para Bearer**.
+
+### Adiado — 3 tasks, nenhuma de código nem bloqueante
+
+- **0.4 — trocar o webhook secret** (`TF3w-piFpR0`, exposto em captura durante a especificação).
+  Nenhum webhook está marcado hoje, então ele não protege nada; fazer antes de a change de webhook
+  entrar evita herdar um segredo queimado.
+- **0.5 — reduzir `ACTIVITY:WRITE` para `ACTIVITY:READ`.** O provedor concedeu WRITE mesmo pedindo
+  READ, então o Menthoros tem permissão para criar e alterar atividades do atleta — que não usa.
+  Depende de a tela do app 663 expor essa configuração; se não expuser, é limitação do provedor.
+- **9.3 — `Integrations.md` no vault.** A parte que vivia nas specs foi feita: a spec do
+  `intervals-icu-activity-sync-scheduler` recebeu o parâmetro `token` (não `apiKey`), o CA9
+  reescrito para token revogado, e o achado de que **webhooks não são entregues para atividades
+  vindas do Strava** — que muda a ordem de prioridade entre scheduler e webhook.
+
+### Achados que mudaram a implementação
+
+1. **Gate de DoR (Codex):** 2 blockers e 4 majors, todos confirmados no código. O mais grave foi o
+   `clientSecret` com default vazio sendo a chave do HMAC — com chave `""` o state assinado vira
+   forjável e **o fluxo continua funcionando, sem sintoma**.
+2. **Ordem JPA em `exchangeCodeForToken`:** o guard precisa rodar antes do find-or-create, porque
+   entidade managed é persistida no flush mesmo sem `save()` — e o retorno tipado commita.
+3. **Redirect fora do hash:** o callback mandava o atleta para a raiz com o parâmetro antes do `#`,
+   invisível para o `useSearchParams`. A task 8.3 era inimplementável como especificada.
+4. **`setSearchParams` não funciona neste app** — verificado isoladamente com o padrão canônico do
+   react-router. A limpeza do parâmetro usa `history.replaceState`.
+5. **CA8 previa 404 para o POST removido; o real é 405** — a URL segue existindo para GET/DELETE.
+
+---
+
 **Tamanho:** M · **Trilha:** Full
 **Tasks totais:** 29 · **Repos afetados:** `apps/menthoros-backend`, `apps/menthoros-front`
 **Revisado:** 2026-08-16 — reescrito após verificação do contrato real da API e das decisões do

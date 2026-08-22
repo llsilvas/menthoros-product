@@ -2,7 +2,29 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-08-20 (**`polish-workout-profile-legibilidade` entregue e arquivada.**
+**Última atualização:** 2026-08-22 (**`intervals-icu-oauth2-integration` entregue e arquivada.**
+A conexão com o intervals.icu deixou de exigir API key colada à mão: o atleta autoriza por botão,
+com escopo limitado e revogável no provedor. Backend#74 e front#83 mergeados com 51 segundos de
+diferença — a janela curta importava, porque o backend deixa de aceitar API key e, entre um merge e
+outro, quem já estava conectado ficaria sem sincronizar e sem botão para reconectar.
+
+**O que essa change ensinou sobre o gate de DoR.** A revisão da Claude aprovou a spec; a passada
+adversarial do Codex reprovou, com 2 blockers e 4 majors — **todos confirmados no código**. A
+diferença não foi competência, foi a pergunta: a primeira conferiu se o que a spec **cita** existe,
+a segunda perguntou o que a spec **deixa de dizer**. Todas as lacunas estavam na segunda categoria.
+A mais séria: o `clientSecret` tinha default vazio e era a chave do HMAC que assina o `state` do
+callback público — com chave `""` o state assinado vira forjável para qualquer atleta, **e o fluxo
+continua funcionando, sem sintoma nenhum**. Um segundo achado, na revisão seguinte, era mais sutil:
+o guard de conta duplicada rodava depois do find-or-create, e em JPA a entidade managed é gravada no
+flush do commit mesmo sem `save()` — o "nada é persistido" do critério de aceite dependeria de um
+rollback que nunca aconteceria.
+
+**E o que o smoke ensinou de novo.** Três defeitos só apareceram fora dos testes: o callback
+redirecionava para fora do hash (o feedback nunca chegaria à tela), `setSearchParams` não surte
+efeito neste app, e o provedor concede `ACTIVITY:WRITE` mesmo pedindo `READ`. O último ainda está
+aberto, como task adiada. Detalhes na seção de concluídas.
+
+Antes: 2026-08-20 (**`polish-workout-profile-legibilidade` entregue e arquivada.**
 Segunda change da linha do perfil de treino, nascida de uma navegação de verificação em treinos
 reais logo após o merge da primeira. Corrigiu duas afirmações falsas do gráfico — a razão
 trabalho:recuperação que contradizia o próprio desenho, e a zona escrita na prosa sendo descartada —
@@ -548,8 +570,8 @@ conecta, evitando duplicação cross-fonte.
 
 | Ordem | Change | Tam. | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|:---:|---|---|
-| 1 | `intervals-icu-oauth2-integration` | **M · Full** | 0/23 | **Troca API key por OAuth2** (app `663`, aprovado por David em 2026-08-02). Atleta conecta por botão, sem gerar key manualmente; escopo limitado e revogável no provedor. Inclui a troca de Basic para **Bearer** no client, state assinado com HMAC, revogação remota no disconnect, e o front (o campo de colar a key deixa de existir). **Breaking change aceito:** conexões por API key param no deploy e exigem reconexão — backend e front sobem juntos. **Spec reescrita em 2026-08-16** após verificação contra a API real (3 premissas erradas + 1 lacuna crítica — ver changelog no topo). | Gate externo: redirect URI de produção registrada no app 663 (task 0.1) |
-| 2 | `intervals-icu-activity-sync-scheduler` | M · Full | 0/~30 | **Pull automático** — scheduler cross-tenant espelhando o `StravaActivitySyncScheduler`: cursor incremental via `ultimaSincronizacao`, guard `autoSyncPausado`, reuso do pipeline de ingestão individual. Fecha a metade "polling" do non-goal deixado por `intervals-icu-activity-ingestion`. Product review **GO** (6 achados incorporados) e pre-mortem Codex concluídos (**5 críticos** corrigidos no design: cursor condicional, reload-antes-do-save, gate de paginação, classificação retryable-vs-permanente). **Revisada em 2026-08-16 por dois achados externos:** `listarAtividades` passa a nascer com **Bearer** (a API key deixa de existir na change 1), e os **rate limits foram medidos** — 2500/15min · 8000/dia · **100 por usuário/dia** · 10/s por IP —, fechando a Open Question que dizia serem indocumentados. O número expõe um **laço**: com `PT2H` (12 ciclos/dia) e o desenho 1+N, o primeiro ciclo de um atleta que treina diariamente custa **91 requisições** e estoura a cota; como 429 é retryable e a CA10 manda não avançar o cursor, o ciclo seguinte repete a mesma janela de 90 dias — mesma falha, todo dia, sem nunca completar a carga inicial. Direção de correção em design.md **D4.1** (fatiar a janela e avançar o cursor por bloco); **a CA7 precisa ser reescrita antes de implementar**. | `intervals-icu-oauth2-integration` |
+| 1 | ~~`intervals-icu-oauth2-integration`~~ **✅ CONCLUÍDA 2026-08-22** | **M · Full** | 33/36 | **Trocou API key por OAuth2** (app `663`). Mergeada em backend#74 + front#83, com 51s entre os merges. O smoke real fechou o que teste nenhum prova: conectar → importar → aprovar plano com **push aceito** → desconectar com revogação confirmada — ou seja, **o canal de push ao relógio, em produção desde 2026-07-14, sobreviveu à troca para Bearer**. Gate de DoR (Codex) reprovou a spec com 2 blockers e 4 majors, todos reais: o pior era o `clientSecret` com default vazio servindo de chave do HMAC — com chave `""` o state assinado vira forjável **e o fluxo segue funcionando, sem sintoma**. Arquivada em `changes/archive/2026-08/2026-08-22-…`. **Adiado (3, nenhum de código):** trocar webhook secret exposto (0.4); reduzir `ACTIVITY:WRITE`→`READ` — o provedor concedeu WRITE sem termos pedido (0.5); `Integrations.md` no vault (9.3). | — |
+| 2 | `intervals-icu-activity-sync-scheduler` | M · Full | 0/~30 | **Pull automático** — scheduler cross-tenant espelhando o `StravaActivitySyncScheduler`: cursor incremental via `ultimaSincronizacao`, guard `autoSyncPausado`, reuso do pipeline de ingestão individual. Fecha a metade "polling" do non-goal deixado por `intervals-icu-activity-ingestion`. Product review **GO** (6 achados incorporados) e pre-mortem Codex concluídos (**5 críticos** corrigidos no design: cursor condicional, reload-antes-do-save, gate de paginação, classificação retryable-vs-permanente). **Revisada em 2026-08-16 por dois achados externos:** `listarAtividades` passa a nascer com **Bearer** (a API key deixa de existir na change 1), e os **rate limits foram medidos** — 2500/15min · 8000/dia · **100 por usuário/dia** · 10/s por IP —, fechando a Open Question que dizia serem indocumentados. O número expõe um **laço**: com `PT2H` (12 ciclos/dia) e o desenho 1+N, o primeiro ciclo de um atleta que treina diariamente custa **91 requisições** e estoura a cota; como 429 é retryable e a CA10 manda não avançar o cursor, o ciclo seguinte repete a mesma janela de 90 dias — mesma falha, todo dia, sem nunca completar a carga inicial. Direção de correção em design.md **D4.1** (fatiar a janela e avançar o cursor por bloco); **a CA7 precisa ser reescrita antes de implementar**. **Atualizada em 2026-08-21 com um achado que muda a prioridade:** a tela do app 663 diz que *"activity webhooks are not delivered for Strava activities"* — quando o atleta alimenta o intervals.icu via Strava, os eventos não disparam. Isso torna a cobertura do webhook dependente de como **cada atleta** alimenta a conta dele, algo que o Menthoros não controla nem infere. **O scheduler é o único caminho com cobertura completa** e continua necessário depois do webhook — não como redundância, mas porque há uma classe de atividades que só ele enxerga. | ✅ dependência satisfeita (change 1 concluída em 2026-08-22) |
 | 3 | `intervals-icu-webhook-ingestion` | — | **spec não escrita** | **Tempo real** — segunda metade do non-goal. O provedor passou a suportar webhook. Quando existir, o webhook vira o caminho primário e o scheduler (2) passa a ser fallback/reconciliação — mesmo par que `StravaWebhookServiceImpl` + `StravaActivitySyncScheduler` formam hoje. **A premissa registrada em 2026-08-02 de que esta change carregaria a migração para OAuth está superada:** a migração virou a change (1), que a antecede. Abrir com `/opsx:propose` depois que o scheduler estiver validado em produção. | (2) validada em produção |
 
 > **A ordem aqui é técnica, não de prioridade.** (1) precisa vir antes de (2) porque o método
