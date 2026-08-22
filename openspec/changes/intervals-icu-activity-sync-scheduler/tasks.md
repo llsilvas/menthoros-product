@@ -161,13 +161,29 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
 
 ## Bloco 4 — Gate de validação real (smoke)
 
-- [ ] 4.1 Smoke manual: com um atleta real conectado ao intervals.icu (mesmo atleta founder usado no
+- [~] 4.1 Smoke manual: com um atleta real conectado ao intervals.icu (mesmo atleta founder usado no
       smoke de `intervals-icu-activity-ingestion`), disparar o método agendado manualmente (ex.: via
       endpoint de teste temporário ou invocação direta em ambiente de dev) e confirmar que uma
       atividade nova aparece como `TreinoRealizado` sem ação manual.
+      **Parcial em 2026-08-22 — 1 ciclo real contra o provedor, no backend de dev (perfil `local`,
+      banco do HomeLab), sem endpoint temporário: o `initialDelay` de 1 min bastou.** O ciclo das
+      09:47 listou o founder, o dedup filtrou tudo que já tinha sido importado à mão, e sobraram 6
+      pendentes — **todas de modalidade não suportada** (3 `VirtualRide`, 2 `Swim`, 1
+      `WeightTraining`): cada uma custou 1 fetch, caiu como permanente, cursor foi a `now()`
+      (`12:47:04Z` no banco), `sync_activity_count=0`, `last_sync_error=null`, `TenantContext`
+      setado e limpo na thread `menthoros-scheduler-2`. **Achado que nenhum revisor pegou:** com
+      overlap de 7 dias, essas 6 seriam rebuscadas em todo ciclo por uma semana — 72 das 100
+      req/dia de um triatleta, em nada. O `type` vem na listagem, então o filtro de modalidade
+      passou a rodar **antes de qualquer HTTP** (commit do pré-filtro; teste
+      `modalidadeNaoSuportadaNaoEBuscada`). **Falta o CA1 literal** — uma atividade *nova* entrando
+      sem ação manual — porque todas as corridas do founder já estavam importadas.
       Verify: checklist documentado em proposal.md "Open Questions" ou no PR — pelo menos 1 ciclo
       real executado contra o provedor real, 0 duplicatas, `ultimaSincronizacao` atualizada.
-- [ ] 4.2 Confirmar que o guard de `autoSyncPausado` herdado (D7) não quebra com o scheduler ativo —
+- [x] 4.2 **Confirmado no smoke de 2026-08-22:** o founder tem `STRAVA ativo=true,
+      auto_sync_pausado=true` e `INTERVALS_ICU ativo=true, auto_sync_pausado=false` — o guard
+      herdado vale. O ciclo Strava que rodou em paralelo (`menthoros-scheduler-1`) era de **outro**
+      atleta (`07e276e0`). 21 treinos `INTERVALS_ICU` no banco, **zero duplicata** por `external_id`.
+      Texto original: confirmar que o guard de `autoSyncPausado` herdado (D7) não quebra com o scheduler ativo —
       atleta com Strava ainda ativo (se houver algum em ambiente de smoke) não gera duplicata
       cross-fonte.
       Verify: inspeção manual dos registros criados (sem duas fontes para o mesmo treino) ou nota de

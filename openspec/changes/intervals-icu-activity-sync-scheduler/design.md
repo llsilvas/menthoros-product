@@ -410,6 +410,12 @@ Codex adversarial):**
 - **Regra do cursor extraída** em `calcularCursor(...)` + record `EstadoCursor` (clean-code):
   os três ramos ficam legíveis e testados sem mock.
 
+**Smoke real de 2026-08-22 (1 ciclo contra o provedor) — acrescentou o que o QA não viu:**
+o filtro de modalidade passa a rodar **sobre a listagem**, antes de qualquer fetch. Sem isso, toda
+atividade de natação/bike/musculação custava 1 requisição para ser rejeitada pela ingestão — e com
+o overlap de 7 dias seria rebuscada em todo ciclo por uma semana (6 × 12 = 72 req/dia no founder,
+que é triatleta). O residual "falha permanente sem tombstone" fica restrito a 404/422 raros.
+
 **Refutados no QA, com verificação no código:** dedup sem `atletaId` (ids do provedor são globais,
 gate 0.2, e é o Passo 0 pré-existente da ingestão); `finally` sem `clear()` (a listagem vem antes
 do `setTenantId`); NPE em `ultimaProcessada` na falha da primeira (o ramo `!= null` guarda); lock
