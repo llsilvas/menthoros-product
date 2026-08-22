@@ -43,7 +43,8 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
 
 ## Bloco 1 — Client: `listarAtividades` (D1)
 
-- [ ] 1.1 Teste primeiro: `IntervalsIcuClientImplTest#listarAtividades` — sucesso (lista de
+- [x] 1.1 Teste primeiro: `IntervalsIcuClientImplTest#listarAtividades` — 7 testes num `@Nested
+      ListarAtividades` (2026-08-22); o vermelho começou na compilação (6 `cannot find symbol`). — sucesso (lista de
       `IcuActivityDto`, incluindo lista vazia), e 401/429/5xx/timeout lançando
       **`IntervalsIcuApiException` com o status (ou sem status em falha de transporte)** — mesmo
       padrão dos testes existentes da classe (`IntervalsIcuClientImplTest:132-140`); a classificação
@@ -53,14 +54,16 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
       **Se o gate 0.2 confirmou paginação:** incluir teste de múltiplas páginas sendo consumidas até
       esgotar (mesmo padrão de `StravaActivityServiceImpl.java:280-312`).
       Verify: teste roda e falha (método ainda não existe).
-- [ ] 1.2 Adicionar `listarAtividades(String token, String externalAthleteId, LocalDate oldest,
+- [x] 1.2 Adicionar `listarAtividades(String token, String externalAthleteId, LocalDate oldest,
       LocalDate newest)` à interface `IntervalsIcuClient` e implementar em `IntervalsIcuClientImpl`
       no mesmo padrão de `listarEventos` — `executa("listar atividades", …)` + `bearer(headers,
       token)`, sem tradução de exceção — ver design.md D1. Acrescentar a `IcuActivityDto` o campo
       `@JsonProperty("start_date") String startDate` (UTC, gate 0.2) para o cursor de D2.
+      **Feito:** o campo entrou como 6º do record e as 23 construções posicionais em 5 testes
+      ganharam `null` na posição — nenhum fixture precisou do valor. 27/27 na classe do client.
       Se paginado (gate 0.2), implementar o loop de páginas aqui.
       Verify: `IntervalsIcuClientImplTest` do passo 1.1 verde.
-- [ ] 1.3 Validação: `./mvnw clean test`.
+- [x] 1.3 Validação: `./mvnw clean test` — 2667/2667 (2026-08-22). Checkpoint `90c61d6`.
 
 ## Bloco 2 — Scheduler: `IntervalsIcuActivitySyncScheduler` (D2, D3, D4, D5, D6, D7, D8)
 
