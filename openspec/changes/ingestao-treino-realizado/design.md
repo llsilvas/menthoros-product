@@ -259,6 +259,36 @@ inalterado — não usa `TreinoDedupHelper` nem duplica `atualizarTsbDia`, entã
 mecânico desta migração de qualquer forma. Recalcular TSS quando o RPE chega tarde (hoje não
 acontece) fica como follow-up, não parte desta change.
 
+## Achado de implementação (Bloco 1, Seção 5) — data mudou no re-sync do Strava não recalculava o dia antigo
+
+Achado do pre-mortem Codex (`/qa`, 2026-08-22, alto): `syncSingleActivityById` e o loop de
+`syncActivitiesInternal` fazem find-or-new por `externalId`, chamam `mergeActivityIntoTreino`
+(que sobrescreve `dataTreino` incondicionalmente a partir de `activity.startDateLocal()`) e então
+`registrar()` — cujo `recalcularDesde` só enxerga a data NOVA. Se o atleta editar o horário/data de
+uma atividade já sincronizada no próprio Strava, o webhook de update dispara um re-sync que move o
+treino de D1 para D2 sem nunca recalcular D1 em diante — violando o mesmo contrato que CA6/D13
+garantem para `reprocessar`. **Confirmado como bug pré-existente** (`git show develop:...`: o código
+anterior também só chamava `atualizarTsbDia` com a data nova, um único dia, sem propagação) — não é
+uma regressão desta change, mas o gap é cobrível a custo baixo com a própria infraestrutura que esta
+change introduz, no mesmo método já tocado pela task 5.3.
+
+**Correção:** captura `dataAntiga = treino.getDataTreino()` antes de `mergeActivityIntoTreino`; se a
+data mudou, chama `ingestaoTreinoRealizadoService.reprocessar(id, dataAntiga)` logo após `registrar`
+— reaproveita o próprio seam (idempotente) em vez de reimplementar o recálculo. Coberto por
+`StravaActivityServiceImplSyncTest.dataMudouNoStravaChamaReprocessarComDataAntiga`.
+
+## Achado de QA — corrida de dedup pode desativar a integração Strava (verificado: pré-existente)
+
+Achado do pre-mortem Codex (alto): uma corrida verdadeiramente concorrente em `TreinoDedupHelper`
+(residual já documentado acima) propaga a exceção original; `syncActivitiesForAtleta` tem um
+`catch (Exception e)` genérico que marca `integracao.setAtivo(false)` para qualquer erro não
+tratado — incluindo essa corrida transitória, desativando uma integração saudável por um evento
+raro e não relacionado a credenciais. **Verificado (`git show develop:...`):** tanto o
+`catch (DataIntegrityViolationException e) { ...; throw e; }` de `TreinoDedupHelper` quanto o
+`catch (Exception e)` de `syncActivitiesForAtleta` já existiam, inalterados, antes desta change —
+não é uma regressão introduzida aqui. Fora do escopo do Bloco 1; candidato a follow-up separado
+(diferenciar erro transitório/retryable de erro de credencial antes de desativar a integração).
+
 ## Riscos e mitigações
 
 | Risco | Mitigação |
