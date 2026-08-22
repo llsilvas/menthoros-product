@@ -33,7 +33,8 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
   "Redirect URLs" do app 663 ainda **vazio** — o provedor aceitou sem registro explícito. Não é
   preciso registrar a URI de dev; a 0.1 (produção) continua necessária, porque lá o host não é
   localhost.
-- [ ] 0.3 **Corrigir Site, Política de Privacidade e Descrição** — os três vieram com o texto de
+- [x] 0.3 **Corrigir Site, Política de Privacidade e Descrição** — **feito em 2026-08-21, os três.**
+  Os três vieram com o texto de
   exemplo do provedor e aparecem **na tela de consentimento que o atleta vê**. Autorizar o
   "Menthoros" e ler `example.com` destrói a confiança no momento exato em que ela é pedida; a
   política de privacidade é requisito de LGPD. Valores confirmados em 2026-08-21
