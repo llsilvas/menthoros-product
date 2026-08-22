@@ -74,8 +74,8 @@
 
 ### 6. Entrega do Bloco 1
 
-- [ ] 6.1 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer) sem achado Crítico — atenção a tenant (CA10) e atomicidade (CA9)
-  verify: relatório do `/qa` sem item Crítico aberto
+- [x] 6.1 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer) sem achado Crítico — atenção a tenant (CA10) e atomicidade (CA9)
+  verify: relatório do `/qa` (2026-08-22) — 0 Crítico nos 3 revisores Claude + Codex review + Codex adversarial-review; `./mvnw clean test` 2773 testes, 0 falhas. 1 achado alto do Codex corrigido nesta rodada (data mudou no re-sync do Strava não recalculava o dia antigo — ver design.md "Achado de implementação (Bloco 1, Seção 5)"); 1 achado alto verificado como pré-existente e deferido (corrida de dedup pode desativar integração Strava — ver design.md). Achados Importante/Menor restantes registrados em design.md/Riscos, nenhum bloqueante para este PR
 - [ ] 6.2 Dump de `tb_metricas_diarias` (backup) antes de rodar em produção; rodar `recalcularHistoricoCompleto` primeiro em stage, depois prod; query de verificação: zero treinos que contam com `tssCalculado` nulo (spec-reviewer #1)
   verify: dump salvo com timestamp; query de verificação retorna 0 em stage e em prod
 - [ ] 6.2b Nota in-app na tela de PMC para tenants afetados pelo backfill ("valores históricos recalculados — treinos cancelados e TSS de dispositivo agora refletidos corretamente") (spec-reviewer / product review #2)
