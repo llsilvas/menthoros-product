@@ -99,8 +99,9 @@
 - [x] 6.3 `/pr ingestao-treino-realizado` (PR 1 de 2) com changelog para o treinador (cancelados saem do PMC; TSS de dispositivo passa a valer no PMC; agregadores fora do TSB só no PR 2)
   verify: PR backend aberto — https://github.com/llsilvas/menthoros-backend/pull/78 (2026-08-22);
   PR frontend aberto (nota in-app, task 6.2b) — https://github.com/llsilvas/menthoros-front/pull/86.
-  Descrições incluem changelog, critérios de aceite, validação e link da spec. **Aguardando CI +
-  merge** — auto-merge não configurado, requer aprovação/merge manual pelo founder
+  Descrições incluem changelog, critérios de aceite, validação e link da spec. **Mergeados em
+  `develop` em 2026-08-22** — backend `c60f516`, frontend `caa26eb`. Branches locais e remotas
+  limpas. **Bloco 1 entregue.**
 
 ## Bloco 2 — gestos de alteração e limpeza (só após merge do Bloco 1)
 
