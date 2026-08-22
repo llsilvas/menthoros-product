@@ -14,7 +14,7 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
       Corrigir achados antes de abrir a branch.
       Verify: DoR = READY (com ou sem ressalvas registradas em proposal.md "Status"). **Rodada 1
       (Codex, 2026-07-20) concluída — 5 críticos + 5 moderados + 1 menor, todos corrigidos em
-      design.md/proposal.md.**
+      design.md/proposal.md.** Rodada 2 em 2026-08-22, sobre a spec com a D4.1 decidida.
 - [ ] 0.2 **Gate de contrato real da API (achado crítico #2 do pre-mortem)** — antes de implementar
       `listarAtividades`, confirmar contra a API real do intervals.icu (atleta founder, mesmo padrão
       de gate usado em `intervals-icu-activity-ingestion` D6/gate 3.0):
@@ -24,54 +24,80 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
       (b) `oldest`/`newest` filtram por `start_date_local` ou outro campo?
       (c) o payload da listagem tem os mesmos campos de `buscarAtividade` ou é um subconjunto?
       (d) como um 429 é sinalizado (status, headers de retry, escopo do limite)?
+      (e) os activity ids são **globais** (sequência única do provedor) ou por atleta? O dedup
+      `(tenant, fonte, externalId)` — já usado pelo Passo 0 de `importarAtividade` e replicado
+      pelo scheduler antes do teto — só é seguro se forem globais. Os observados até aqui
+      (`i166338796`, `i171415754`, atletas diferentes) sugerem que são; confirmar com dois atletas.
       Registrar o resultado em design.md D1 (substituir a suposição por fato observado) ANTES de
-      escrever o Bloco 1.
+      escrever o Bloco 1. **Bloqueia também a matemática de cota da D4.1/CA7:** se (a) confirmar
+      paginação, recalcular `N` default e/ou cadência para `12 × (P + N)` caber em 100/dia antes do
+      Bloco 2.
       Verify: nota de gate em design.md D1 com evidência real (payload/headers observados), igual ao
       padrão do gate 3.0 da change anterior.
 
 ## Bloco 1 — Client: `listarAtividades` (D1)
 
 - [ ] 1.1 Teste primeiro: `IntervalsIcuClientImplTest#listarAtividades` — sucesso (lista de
-      `IcuActivityDto`, incluindo lista vazia), 401/403 (credencial inválida), 429/5xx/timeout
-      (`IntervalsIcuRateLimitException`), verificando a URL exata
-      (`/api/v1/athlete/{id}/activities?oldest=...&newest=...`) e que a API key nunca aparece em log.
+      `IcuActivityDto`, incluindo lista vazia), e 401/429/5xx/timeout lançando
+      **`IntervalsIcuApiException` com o status (ou sem status em falha de transporte)** — mesmo
+      padrão dos testes existentes da classe (`IntervalsIcuClientImplTest:132-140`); a classificação
+      retryable/permanente é exclusiva dos testes do scheduler (Bloco 2). Verificar a URL exata
+      (`/api/v1/athlete/{id}/activities?oldest=...&newest=...`), o header `Authorization: Bearer` e
+      que o token nunca aparece em log.
       **Se o gate 0.2 confirmou paginação:** incluir teste de múltiplas páginas sendo consumidas até
       esgotar (mesmo padrão de `StravaActivityServiceImpl.java:280-312`).
       Verify: teste roda e falha (método ainda não existe).
-- [ ] 1.2 Adicionar `listarAtividades(String apiKey, String externalAthleteId, LocalDate oldest,
+- [ ] 1.2 Adicionar `listarAtividades(String token, String externalAthleteId, LocalDate oldest,
       LocalDate newest)` à interface `IntervalsIcuClient` e implementar em `IntervalsIcuClientImpl`
-      no mesmo padrão de `listarEventos` (`IntervalsIcuClientImpl.java:102-105`) — ver design.md D1.
+      no mesmo padrão de `listarEventos` — `executa("listar atividades", …)` + `bearer(headers,
+      token)`, sem tradução de exceção — ver design.md D1.
       Se paginado (gate 0.2), implementar o loop de páginas aqui.
       Verify: `IntervalsIcuClientImplTest` do passo 1.1 verde.
 - [ ] 1.3 Validação: `./mvnw clean test`.
 
 ## Bloco 2 — Scheduler: `IntervalsIcuActivitySyncScheduler` (D2, D3, D4, D5, D6, D7, D8)
 
+- [ ] 2.0 Teste primeiro: **caminho feliz** — atleta ativo com N ≤ teto atividades novas na listagem;
+      cada uma chega a `importarAtividade(atletaId, id, tenantId)` na ordem cronológica, o cursor
+      vira `now()` (janela esgotada), `lastSyncError` fica nulo e `syncActivityCount` soma as novas.
+      Cobre CA1. (Adicionada no DoR de 2026-08-22 — CA1 estava sem task.)
+      Verify: teste falha (classe ainda não existe).
 - [ ] 2.1 Teste primeiro: late-check revalida `ativo` E `autoSyncPausado` (query fresca) — atleta com
       `ativo=false` OU `autoSyncPausado=true` é pulado, sem chamar o client. Cobre CA3.
       Verify: teste falha (classe ainda não existe).
 - [ ] 2.2 Teste primeiro: cursor incremental com overlap — atleta com `ultimaSincronizacao`
       preenchida usa essa data **menos `intervals-icu.sync-overlap-days`** como `oldest`; atleta sem
       `ultimaSincronizacao` usa o fallback `intervals-icu.sync-days-back` (mock do `@Value` ou teste
-      de integração com property sobrescrita). Cobre CA6, CA7.
+      de integração com property sobrescrita). Cobre CA6 e a janela da CA7.
+      Verify: teste falha (classe ainda não existe).
+- [ ] 2.2b Teste primeiro: **teto por contagem (D4.1)** — listagem devolve mais pendentes que
+      `intervals-icu.sync-max-activities-per-cycle`; só as N mais antigas (por `start_date_local`)
+      chegam a `importarAtividade`; o cursor vira a data da última processada, não `now()`;
+      atividades já importadas (dedup) são filtradas antes e não contam no teto. Segundo caso:
+      pendentes ≤ N → todas processadas e cursor = `now()`. Cobre CA7.
       Verify: teste falha (classe ainda não existe).
 - [ ] 2.3 Teste primeiro: isolamento por atividade PERMANENTE — uma `IcuActivityDto` no lote lança
       `DomainNotFoundException`/`DomainRuleViolationException` ao importar, as demais do MESMO atleta
       continuam sendo processadas E o cursor avança normalmente ao final. Cobre CA4.
       Verify: teste falha (classe ainda não existe).
-- [ ] 2.4 Teste primeiro: falha TRANSITÓRIA aborta o lote e bloqueia o cursor (achado crítico #1 +
-      moderado #2 do pre-mortem) — uma atividade no meio do lote lança `IntervalsIcuRateLimitException`
-      ou `DomainConflictException`; as atividades seguintes do MESMO lote NÃO são tentadas,
-      `ultimaSincronizacao` não é atualizada, `lastSyncError` é gravado. Cobre CA10, CA12.
+- [ ] 2.4 Teste primeiro: falha TRANSITÓRIA aborta o lote e o cursor fica na última processada
+      (achado crítico #1 + moderado #2 do pre-mortem, refinado pela D4.1) — a k-ésima atividade lança
+      `IntervalsIcuRateLimitException` ou `DomainConflictException`; as seguintes do MESMO lote NÃO
+      são tentadas, `ultimaSincronizacao` = data da atividade k-1 (e intocada se k = 1),
+      `lastSyncError` é gravado. Cobre CA10, CA12.
       Verify: teste falha (classe ainda não existe).
 - [ ] 2.5 Teste primeiro: conflito cross-fonte Strava é falha de atleta, não de atividade (achado
       crítico #5) — `importarAtividade` lança `DomainConflictException` pela precondição
-      Strava-ativo-não-pausado; mesmo comportamento do teste 2.4 (aborta lote, cursor não avança).
-      Cobre CA10.
+      Strava-ativo-não-pausado; mesmo comportamento do teste 2.4 (aborta o lote, cursor fica na
+      última processada — intocado se for a primeira). Cobre CA10.
       Verify: teste dedicado verde (pode reusar fixture de 2.4 com origem de exceção diferente).
 - [ ] 2.6 Teste primeiro: isolamento por atleta — um atleta cuja chamada a `listarAtividades` lança
-      exceção não impede o processamento dos demais atletas do ciclo; cursor desse atleta não avança.
-      Cobre CA5, CA9.
+      exceção (`IntervalsIcuApiException` 401, ou sem status) não impede o processamento dos demais
+      atletas do ciclo; cursor desse atleta não avança e `lastSyncError` é gravado **via reload
+      fresco** (não na instância da listagem inicial). Cobre CA5, CA9.
+      Verify: teste falha (classe ainda não existe).
+- [ ] 2.6b Implementar `listarAtividades`-independente: o scheduler NÃO depende do tipo da exceção
+      da listagem — qualquer `Exception` em `syncAtleta` antes do loop é falha de atleta (D5).
       Verify: teste falha (classe ainda não existe).
 - [ ] 2.7 Teste primeiro: reload antes do save não ressuscita desconexão (achado crítico #3) — atleta
       é desconectado (`ativo=false`) entre o início do processamento do lote e o momento do save
@@ -97,16 +123,22 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
       método privado `syncAtleta` com a orquestração de lote (client → loop classificando exceção
       retryable vs. permanente → reload fresco → atualização condicional de
       `ultimaSincronizacao`/`syncActivityCount`/`lastSyncError`).
-      Verify: testes 2.1-2.10 verdes.
+      Verify: testes 2.0-2.10 verdes.
 - [ ] 2.12 Validação: `./mvnw clean test`.
 
 ## Bloco 3 — Configuração (D3)
 
-- [ ] 3.1 Adicionar `intervals-icu.sync-days-back: ${INTERVALS_ICU_SYNC_DAYS_BACK:90}` e
-      `intervals-icu.sync-overlap-days: ${INTERVALS_ICU_SYNC_OVERLAP_DAYS:1}` ao `application.yml`,
-      espelhando `strava.sync-days-back` (`application.yml:257`).
-      Verify: `./mvnw spring-boot:run` (ou teste de contexto) carrega as duas properties sem erro;
-      teste de 2.2 usando override de property confirma o binding de ambas.
+- [ ] 3.1 Adicionar `intervals-icu.sync-days-back: ${INTERVALS_ICU_SYNC_DAYS_BACK:90}`,
+      `intervals-icu.sync-overlap-days: ${INTERVALS_ICU_SYNC_OVERLAP_DAYS:1}` e
+      `intervals-icu.sync-max-activities-per-cycle: ${INTERVALS_ICU_SYNC_MAX_ACTIVITIES_PER_CYCLE:6}`
+      ao `application.yml`, espelhando `strava.sync-days-back` (`application.yml:257`).
+      Verify: `./mvnw spring-boot:run` (ou teste de contexto) carrega as três properties sem erro;
+      testes de 2.2/2.2b usando override de property confirmam o binding.
+- [ ] 3.1b Teste primeiro + implementação: **invariantes de configuração** (DoR rodada 3) —
+      `sync-max-activities-per-cycle < 1` ou `sync-days-back < 1` falham a carga do bean com
+      mensagem que diz o valor recebido (`@PostConstruct` em D2). Teste unitário instancia o
+      scheduler com 0 e com -1 e espera `IllegalStateException`.
+      Verify: teste verde; contexto sobe com os defaults.
 - [ ] 3.2 Adicionar `countByTenantIdAndAtletaIdAndFonteDados(UUID, UUID, FonteDados)` ao
       `TreinoRealizadoRepository` (query derivada Spring Data, sem migration) — usado pelo scheduler
       para a contagem por delta (design.md D2/D4).

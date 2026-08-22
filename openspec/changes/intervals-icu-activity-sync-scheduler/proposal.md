@@ -25,6 +25,40 @@ pipeline hoje só individual; risco de multi-tenancy; backend-only, **sem migrat
   **pré-requisito** desta change; (b) os **rate limits foram medidos** na tela do app 663 e fecham a
   Open Question que estava aberta, mas revelam um **laço no primeiro ciclo** de atletas com
   histórico denso (design.md D4.1). A CA7 precisa ser reescrita antes de implementar.
+- **`/implement init` (2026-08-22) — D4.1 decidida pelo founder: teto por contagem.** Cada ciclo
+  importa no máximo `intervals-icu.sync-max-activities-per-cycle` atividades por atleta (default
+  **6**), da mais antiga para a mais nova, e o cursor avança até a última processada. A carga
+  inicial deixa de ser tudo-ou-nada e vira progresso incremental que cabe na cota
+  (1+6 = 7 req × 12 ciclos = 84/dia < 100). CA7 e CA10 reescritas; D2/D3/D4.1 e a spec atualizados.
+  **A alternativa "eliminar o refetch" foi refutada no código:** `importarAtividade` chama
+  `buscarAtividade(…, comIntervalos=true)` e os laps (`icu_intervals`) só vêm com
+  `?intervals=true` — a listagem não os traz. Usar o DTO da listagem perderia os laps de todo
+  treino sincronizado.
+- **DoR rodada 2 (2026-08-22): `spec-reviewer` READY COM RESSALVAS · Codex NOT READY → 6 achados
+  consolidados, todos verificados no código.** Convergente (os dois): falha na listagem não gravava
+  `lastSyncError` apesar da CA9 — corrigido em D2 (`registrarErro`, reload fresco). Só Claude: CA1
+  sem task (→ 2.0); D1 atribuía ao client uma tradução de exceção que vive na ingestão, e invertia
+  os args de `executa` — corrigidos. Só Codex: (a) dedup antes do teto sem `atletaId` — **refutado
+  como novo**: é o Passo 0 de `importarAtividade` hoje, o scheduler replica o contrato; vira item (e)
+  do gate 0.2 (confirmar que os ids são globais — os observados `i166338796`/`i171415754` são);
+  (b) cota compartilhada com push/import manual sem budget — **residual aceito**, ver design D4.1;
+  (c) falha permanente sem tombstone reaparece no overlap — **residual limitado** pelo overlap de 1
+  dia, ver D4.1. Nenhum achado restante exige mudança de escopo.
+- **DoR rodada 3 (2026-08-22, Codex sobre a spec corrigida): NOT READY → 3 achados, todos de
+  texto, todos corrigidos.** (1) A prova de cota assumia `1 + N` enquanto D1 admite paginação —
+  CA7 passa a `P + N` e o gate 0.2 vira bloqueante para a matemática, não só para o client;
+  (2) tasks 1.1/1.2 ainda pediam `apiKey` e esperavam `IntervalsIcuRateLimitException` do client,
+  contradizendo o D1 corrigido — alinhadas ao que `IntervalsIcuClientImplTest` já faz
+  (`IntervalsIcuApiException` com status); (3) `sync-max-activities-per-cycle` sem invariante:
+  `0` fazia o atleta relistar a mesma janela para sempre sem erro — D2 ganha validação `>= 1` na
+  carga (padrão `@ConfigurationProperties` + `@Validated` de `config/core/`), com teste.
+- **Lookback de 90 dias mantido (founder, 2026-08-22).** Questionado se 42 dias bastariam, já que
+  τ do CTL é 42: não — τ é constante de tempo, não janela. Partindo de zero, o CTL converge a 63%
+  do real com 42 dias e a 88% com 90; com 42 o TSB nasce falsamente positivo (~+15 a +20 num
+  atleta de CTL 50), o erro que a prescrição não pode cometer. Com o teto por contagem, 90 vs 42
+  custa um dia a mais de convergência. **Follow-up registrado no Radar:** semear o PMC com o
+  CTL/ATL que o próprio intervals.icu calcula (endpoint de wellness, 1 requisição) e importar só
+  42 dias de detalhe — mexe em `TsbServiceImpl` e é decisão de produto; change própria.
 
 ## Prioridade no roadmap
 
@@ -159,9 +193,18 @@ API que o Strava). A descomissão do Strava é **non-goal explícito** desta cha
 - **CA6 — Cursor incremental:** Given um atleta já sincronizado antes, When o próximo ciclo roda,
   Then a janela de busca (`oldest`) parte de `ultimaSincronizacao` do ciclo anterior (não refaz o
   lookback completo) — evita reprocessar o histórico inteiro a cada ciclo.
-- **CA7 — Primeiro ciclo (atleta novo):** Given um atleta conectado ao intervals.icu sem
-  `ultimaSincronizacao` prévia, When o primeiro ciclo do scheduler roda para esse atleta, Then a
-  janela de busca usa o fallback de `intervals-icu.sync-days-back` dias (default 90) a partir de hoje.
+- **CA7 — Primeiro ciclo (atleta novo) cabe na cota e converge:** Given um atleta conectado ao
+  intervals.icu sem `ultimaSincronizacao` prévia e com mais atividades nos últimos
+  `intervals-icu.sync-days-back` dias (default 90) do que o teto
+  `intervals-icu.sync-max-activities-per-cycle` (default 6), When o primeiro ciclo roda, Then a
+  listagem cobre a janela inteira de fallback, mas **só as `N` atividades mais antigas ainda não
+  importadas** são buscadas e ingeridas, e o cursor avança para a data da última processada — não
+  para `now()`. Ciclos seguintes continuam de onde pararam até esgotar a janela, quando o cursor
+  passa a `now()`. Em nenhum ciclo o atleta gera mais de `P + N` requisições ao provedor, onde
+  `P` é o número de páginas da listagem — **`P = 1` é premissa até o gate 0.2 confirmar**; se a
+  listagem paginar, o default de `N` e/ou a cadência são recalculados antes do Bloco 2 para que
+  `12 × (P + N) + folga` continue abaixo de 100/dia. Atividades já importadas (dedup por
+  `externalId`) não contam no teto nem geram chamada.
 - **CA8 — Multi-tenancy:** Given atletas de tenants diferentes com integração intervals.icu ativa,
   When o scheduler processa o ciclo completo, Then cada atleta é processado com o `TenantContext`
   correto (setado e limpo por iteração), sem vazamento de dados entre tenants.
@@ -171,12 +214,15 @@ API que o Strava). A descomissão do Strava é **non-goal explícito** desta cha
   When o scheduler tenta listar as atividades desse atleta,
   Then o erro é registrado em `lastSyncError`, o cursor (`ultimaSincronizacao`) **não avança**, o
   atleta é pulado, e o ciclo continua para os demais atletas.
-- **CA10 — Falha transitória não avança o cursor (achado crítico #1 do pre-mortem):** Given um lote
+- **CA10 — Falha transitória não passa o cursor da última processada (achado crítico #1 do pre-mortem):** Given um lote
   de atividades de um atleta onde uma atividade falha por rate limit ou por conflito cross-fonte
   Strava (`DomainConflictException`), When o scheduler processa o lote, Then o restante do lote desse
-  atleta é abortado, `ultimaSincronizacao` NÃO é atualizada, e o próximo ciclo reprocessa a mesma
-  janela (mais o overlap de segurança) — nenhuma atividade fica permanentemente fora da janela de
-  retry só por causa de uma falha transitória em outra atividade do mesmo lote.
+  atleta é abortado e `ultimaSincronizacao` avança **no máximo até a última atividade processada
+  antes da falha** (ou não avança, se a falha foi na primeira ou na própria listagem) — nunca para
+  `now()`. O próximo ciclo relista a partir daí (mais o overlap de segurança), então nenhuma
+  atividade que ficou **sem tentativa** sai da janela de retry — e o progresso feito antes da falha
+  não é jogado fora (reescrito em 2026-08-22; a versão anterior, "cursor não avança", recriava o
+  laço da D4.1 num atleta com histórico denso).
 - **CA11 — Desconexão durante o ciclo não é revertida (achado crítico #3 do pre-mortem):** Given um
   atleta cuja integração intervals.icu é desconectada pelo coach enquanto o scheduler está
   processando o lote desse atleta, When o scheduler tenta salvar o resultado do ciclo (cursor,
@@ -217,9 +263,10 @@ API que o Strava). A descomissão do Strava é **non-goal explícito** desta cha
   ciclo de um atleta que treina diariamente custa 91 requisições** e estoura a cota sozinho.
   **Pior que estourar: o laço.** 429 é retryable, a CA10 manda não avançar o cursor, e o ciclo
   seguinte repete a mesma janela de 90 dias — mesma falha, todo dia, sem nunca completar a carga
-  inicial. Direção de correção (fatiar a janela do primeiro ciclo e avançar o cursor por bloco) em
-  design.md **D4.1**; decidir no `/implement init`. **A CA7 precisa ser reescrita junto** — dizer
-  "usa o fallback de 90 dias" não basta se 90 dias não cabem na cota.
+  inicial. **DECIDIDO em 2026-08-22 (founder): teto por contagem** — ver design.md **D4.1** e a
+  CA7 reescrita. Fatiar por dias foi descartado porque o custo de um bloco de dias depende do hábito
+  do atleta (2 treinos/dia = 15 req num bloco de 7 dias) — o teto por contagem é o único que o
+  Menthoros controla.
 - **Processamento sequencial por atleta** (mesmo padrão do Strava, sem paralelismo) continua sendo
   a mitigação de base, e o teto de 10 chamadas/s por IP a confirma como correta.
 - **Estimativa de custo de chamadas HTTP (achado #2 do product review):** cenário de referência (100

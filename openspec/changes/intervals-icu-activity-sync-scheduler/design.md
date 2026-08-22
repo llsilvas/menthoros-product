@@ -26,23 +26,29 @@ List<IcuActivityDto> listarAtividades(String token, String externalAthleteId,
 @Override
 public List<IcuActivityDto> listarAtividades(String token, String externalAthleteId,
                                               LocalDate oldest, LocalDate newest) {
-    return executa(() -> webClient.get()
+    return executa("listar atividades", () -> webClient.get()
             .uri(uri -> uri.path("/api/v1/athlete/{id}/activities")
                     .queryParam("oldest", oldest.toString())
                     .queryParam("newest", newest.toString())
                     .build(externalAthleteId))
-            .headers(headers -> headers.setBearerAuth(token))
+            .headers(headers -> bearer(headers, token))
             .retrieve()
             .bodyToFlux(IcuActivityDto.class)
             .collectList()
-            .block(), "listarAtividades");
+            .block());
 }
 ```
 
 `IcuActivityDto` já existe (usado por `buscarAtividade`); o endpoint de listagem retorna o mesmo
 formato de summary — reusar o DTO existente, sem novo record. Erros seguem o mesmo `executa`/`traduz`
-já usado pelos demais métodos (401/403 → credencial inválida; 429/5xx/timeout →
-`IntervalsIcuRateLimitException`; nunca loga API key nem body).
+já usado pelos demais métodos — **que lança só `IntervalsIcuApiException`** (com o status HTTP, ou
+sem status em falha de transporte), nunca logando token nem body. A tradução para
+`DomainConflictException`/`IntervalsIcuRateLimitException` **não fica no client**: hoje ela vive
+em `IntervalsIcuActivityIngestionServiceImpl.buscarAtividade` (linhas 131-148), e `listarAtividades`
+não a replica. O scheduler trata qualquer exceção da listagem como falha do atleta (D5), sem
+depender do tipo — o status só entra na mensagem de `lastSyncError`. (Corrigido em 2026-08-22 pelo
+DoR: a versão anterior atribuía ao client uma tradução que ele não faz; a assinatura real é
+`executa(String operacao, Supplier<T>)` e o helper de auth é `bearer(headers, token)`.)
 
 **Nota de tipo:** `oldest`/`newest` são `LocalDate` (igual a `listarEventos`), não `Instant` — o
 scheduler converte o cursor `Instant` (`ultimaSincronizacao`) para `LocalDate` via
@@ -86,6 +92,22 @@ public class IntervalsIcuActivitySyncScheduler {
     @Value("${intervals-icu.sync-overlap-days:1}")
     private int overlapDays;
 
+    @Value("${intervals-icu.sync-max-activities-per-cycle:6}")
+    private int maxPorCiclo; // D4.1 — teto por contagem, decidido em 2026-08-22
+
+    // DoR rodada 3: com 0 o lote fica vazio, esgotouJanela=false, cursor não move e o atleta
+    // relista a mesma janela para sempre SEM erro; negativo estoura no subList. Falhar na carga.
+    @PostConstruct
+    void validarConfig() {
+        if (maxPorCiclo < 1) {
+            throw new IllegalStateException(
+                    "intervals-icu.sync-max-activities-per-cycle deve ser >= 1 (recebido " + maxPorCiclo + ")");
+        }
+        if (syncDaysBack < 1 || overlapDays < 0) {
+            throw new IllegalStateException("intervals-icu.sync-days-back >= 1 e sync-overlap-days >= 0");
+        }
+    }
+
     @Scheduled(fixedDelayString = "PT2H", initialDelayString = "PT1M")
     public void runDailyIncrementalSync() {
         List<IntegracaoExterna> integracoes =
@@ -109,8 +131,11 @@ public class IntervalsIcuActivitySyncScheduler {
 
                 syncAtleta(fresca.get());
             } catch (Exception ex) {
+                // CA9 — falha de ATLETA (listagem 401/429/timeout, ou erro inesperado): fica
+                // visível em lastSyncError. Reload antes de gravar, pela mesma razão de D8.
                 log.warn("Falha ao sincronizar intervals.icu do atleta {}: {}",
                         integracao.getAtleta().getId(), ex.getMessage());
+                registrarErro(integracao.getAtleta().getId(), tenantId, ex.getMessage());
             } finally {
                 TenantContext.clear();
             }
@@ -135,10 +160,23 @@ public class IntervalsIcuActivitySyncScheduler {
         long antesDoLote = treinoRealizadoRepository
                 .countByTenantIdAndAtletaIdAndFonteDados(tenantId, atletaId, FonteDados.INTERVALS_ICU);
 
+        // D4.1 — da mais antiga para a mais nova: a carga inicial constrói o PMC em ordem
+        // cronológica e o cursor pode apontar para "até onde cheguei".
+        List<IcuActivityDto> pendentes = atividades.stream()
+                .filter(a -> treinoRealizadoRepository
+                        .findByTenantIdAndFonteDadosAndExternalId(tenantId, FonteDados.INTERVALS_ICU, a.id())
+                        .isEmpty()) // já importada: custa 0 requisições e não conta no teto
+                .sorted(Comparator.comparing(IcuActivityDto::startDateLocal))
+                .toList();
+        boolean esgotouJanela = pendentes.size() <= maxPorCiclo;
+        List<IcuActivityDto> lote = pendentes.subList(0, Math.min(maxPorCiclo, pendentes.size()));
+
         boolean falhaTransitoria = false;
-        for (IcuActivityDto atividade : atividades) {
+        IcuActivityDto ultimaProcessada = null; // última que consumiu tentativa antes de uma falha transitória
+        for (IcuActivityDto atividade : lote) {
             try {
                 ingestionService.importarAtividade(atletaId, atividade.id(), tenantId);
+                ultimaProcessada = atividade;
             } catch (IntervalsIcuRateLimitException ex) {
                 // CORRIGIDO (pre-mortem moderado #2): rate limit aborta o RESTANTE do lote deste
                 // atleta — não adianta insistir nas próximas atividades no mesmo ciclo.
@@ -149,15 +187,16 @@ public class IntervalsIcuActivitySyncScheduler {
             } catch (DomainConflictException ex) {
                 // CORRIGIDO (pre-mortem crítico #5): a precondição Strava-ativo-não-pausado (ou
                 // credencial intervals.icu revogada, também DomainConflictException) é falha de
-                // ATLETA, não de atividade isolada — abortar o lote e NÃO avançar o cursor, para que
-                // o próximo ciclo reavalie a mesma janela quando a colisão cross-fonte for resolvida.
+                // ATLETA, não de atividade isolada — abortar o lote para que o próximo ciclo
+                // reavalie a partir daqui quando a colisão cross-fonte for resolvida.
                 falhaTransitoria = true;
                 log.warn("Conflito ao importar activity {} do atleta {} — abortando lote do ciclo: {}",
                         atividade.id(), atletaId, ex.getMessage());
                 break;
             } catch (DomainNotFoundException | DomainRuleViolationException ex) {
                 // Falha PERMANENTE desta atividade específica (modalidade não suportada, activity
-                // inexistente) — não é retryable, não bloqueia o avanço do cursor. CA4.
+                // inexistente) — não é retryable; o cursor pode passar por ela. CA4.
+                ultimaProcessada = atividade;
                 log.warn("Falha permanente ao importar activity {} do atleta {}: {}",
                         atividade.id(), atletaId, ex.getMessage());
             }
@@ -181,14 +220,34 @@ public class IntervalsIcuActivitySyncScheduler {
         atual.setSyncActivityCount(
                 (atual.getSyncActivityCount() == null ? 0 : atual.getSyncActivityCount())
                         + novasImportadas);
-        if (falhaTransitoria) {
-            atual.setLastSyncError("Ciclo interrompido por falha transitória — cursor mantido para retry");
-            // ultimaSincronizacao NÃO avança — próximo ciclo reprocessa a mesma janela (idempotente)
-        } else {
+        // D4.1 / CA10 — o cursor avança até onde o ciclo chegou, nunca além:
+        //   - janela esgotada sem falha transitória → now() (regime de cruzeiro)
+        //   - lote parcial (teto) ou falha transitória → data da última processada
+        //   - falha na primeira atividade → cursor intocado
+        if (!falhaTransitoria && esgotouJanela) {
             atual.setUltimaSincronizacao(Instant.now());
             atual.setLastSyncError(null);
+        } else if (ultimaProcessada != null) {
+            atual.setUltimaSincronizacao(cursorDe(ultimaProcessada));
+            atual.setLastSyncError(falhaTransitoria
+                    ? "Ciclo interrompido por falha transitória — cursor em " + ultimaProcessada.startDateLocal()
+                    : null);
+        } else if (falhaTransitoria) {
+            atual.setLastSyncError("Ciclo interrompido por falha transitória — cursor mantido para retry");
         }
         integracaoExternaRepository.save(atual);
+    }
+
+    private void registrarErro(UUID atletaId, UUID tenantId, String mensagem) {
+        integracaoExternaRepository
+                .findByAtletaIdAndPlataformaAndTenantId(atletaId, FonteDados.INTERVALS_ICU, tenantId)
+                .filter(IntegracaoExterna::isAtivo)
+                .ifPresent(i -> { i.setLastSyncError(mensagem); integracaoExternaRepository.save(i); });
+    }
+
+    /** start_date_local não tem fuso; o overlap de 1 dia (D3) absorve a imprecisão. */
+    private static Instant cursorDe(IcuActivityDto atividade) {
+        return LocalDateTime.parse(atividade.startDateLocal()).toInstant(ZoneOffset.UTC);
     }
 }
 ```
@@ -211,11 +270,12 @@ Diferenças deliberadas em relação ao `StravaActivitySyncScheduler`:
   (`DomainNotFoundException`, `DomainRuleViolationException`) são isoladas sem afetar o cursor. O
   Strava só tem a camada por-atleta porque `syncActivities` já processa 1 atividade de cada vez
   internamente com seu próprio isolamento (fora do escopo desta leitura).
-- **Cursor não é incondicional** (achado crítico #1 do pre-mortem): só avança quando o lote do atleta
-  termina sem falha transitória. Uma atividade antiga que falhar por rate limit/conflito não fica
-  "perdida para sempre" fora da janela — o próximo ciclo tenta a mesma janela (mais o overlap de D3),
-  e a idempotência do dedup (CA2) garante que atividades já importadas com sucesso no meio do lote
-  anterior não duplicam.
+- **Cursor não é incondicional** (achado crítico #1 do pre-mortem, refinado pela D4.1 em
+  2026-08-22): avança **até a última atividade processada**, nunca além. Com a janela esgotada e sem
+  falha transitória, isso é `now()`; num lote parcial (teto) ou interrompido por rate limit/conflito,
+  é a data da última que consumiu tentativa. Uma atividade que ficou **sem tentativa** nunca sai da
+  janela — e o progresso feito antes da falha não é descartado. A idempotência do dedup (CA2)
+  garante que o overlap de D3 não duplica nada.
 - **`syncActivityCount` mede importações NOVAS de verdade** (achado moderado #4): calculado por
   contagem antes/depois no `TreinoRealizadoRepository`, não por incrementar a cada chamada bem-sucedida
   de `importarAtividade` (que também retorna sucesso — idempotente — para atividades já existentes).
@@ -240,13 +300,18 @@ Adicionar ao `application.yml`:
 intervals-icu:
   sync-days-back: ${INTERVALS_ICU_SYNC_DAYS_BACK:90}
   sync-overlap-days: ${INTERVALS_ICU_SYNC_OVERLAP_DAYS:1}
+  sync-max-activities-per-cycle: ${INTERVALS_ICU_SYNC_MAX_ACTIVITIES_PER_CYCLE:6}
 ```
 
-**Cursor não avança em falha transitória (achado crítico #1 do pre-mortem):** ver D2 — só
-`ultimaSincronizacao=now()` quando o lote inteiro do atleta processa sem `IntervalsIcuRateLimitException`
-nem `DomainConflictException`. Isso evita que uma atividade antiga fique permanentemente fora da
-janela de retry só porque o ciclo em que ela apareceu teve uma falha transitória em outra atividade
-do mesmo lote.
+**Semântica do cursor (ajustada pela D4.1):** `ultimaSincronizacao` passa a significar "até que
+momento do histórico do atleta o sync chegou" — em regime de cruzeiro coincide com "quando o último
+ciclo rodou" (mesma semântica do Strava), mas durante a carga inicial aponta para a data da última
+atividade processada. É o mesmo campo, sem migration; só a leitura muda.
+
+**Cursor em falha transitória (achado crítico #1 do pre-mortem, refinado pela D4.1):** ver D2 —
+`ultimaSincronizacao=now()` só quando a janela foi esgotada sem `IntervalsIcuRateLimitException`
+nem `DomainConflictException`; caso contrário avança até a última atividade processada. Nenhuma
+atividade sem tentativa sai da janela de retry, e o ciclo seguinte não repete o que já foi feito.
 
 ## D4 — Reaproveitamento do pipeline de ingestão (sem mudança)
 
@@ -292,15 +357,44 @@ estoura a cota no primeiro ciclo, o cursor não avança, e o **próximo ciclo re
 completar a carga inicial. A proteção contra perda de dado vira, nesse caso, uma proteção contra
 progresso.
 
-**Direção de correção (a decidir no `/implement init`, não fechada aqui):** fatiar a janela do
-primeiro ciclo em blocos (ex.: 7 dias por ciclo) e avançar o cursor **por bloco concluído**, em vez
-de tratar os 90 dias como uma transação tudo-ou-nada. Isso preserva a garantia da CA10 dentro de
-cada bloco e transforma a carga inicial em progresso incremental. Alternativa complementar: eliminar
-o refetch (usar o `IcuActivityDto` da listagem), que corta o custo do primeiro ciclo pela metade —
-mas mexe no serviço de ingestão, o que esta change vinha evitando de propósito.
+**DECIDIDO em 2026-08-22 (`/implement init`, founder): teto por contagem.**
 
-**Consequência para a CA7:** o critério atual ("a janela usa o fallback de 90 dias") passa a ser
-insuficiente sozinho — precisa dizer o que acontece quando 90 dias não cabem na cota.
+- `intervals-icu.sync-max-activities-per-cycle` (default **6**): máximo de atividades **ainda não
+  importadas** que um ciclo busca e ingere por atleta. Já importadas (dedup por `externalId`,
+  checado antes de qualquer HTTP) não contam nem custam.
+- A listagem continua cobrindo a janela inteira (1 requisição); as pendentes são ordenadas por
+  `start_date_local` ascendente e só as `N` primeiras entram no lote.
+- O cursor avança para a data da última processada (ver D2/D3). Janela esgotada → `now()`.
+- Custo máximo por atleta: **P + 6 req/ciclo**, com `P` = páginas da listagem. **Com `P = 1`:
+  7 × 12 = 84/dia**, 16 de folga. `P = 1` é premissa — o gate 0.2 é bloqueante para esta conta,
+  não só para o client: se a listagem paginar, recalcular `N` default (ou a cadência) antes do
+  Bloco 2 e registrar aqui. Folga para o push ao
+  relógio e o import manual, que consomem a mesma cota. Carga de 90 dias de um atleta diário termina
+  em ~15 ciclos (~30h); de um atleta 3x/semana, em ~7 (~14h). O PMC cresce em ordem cronológica.
+
+**Por que não fatiar por dias (a direção original desta seção):** o custo de um bloco de dias
+depende do hábito do atleta — 7 dias de quem treina 2x/dia são 15 requisições — e o teto volta a
+ser do provedor. Por contagem, o teto é do Menthoros. Um knob só; dois seriam redundantes.
+
+**Por que não eliminar o refetch (a alternativa complementar) — refutada no código:**
+`importarAtividade` chama `buscarAtividade(token, id, comIntervalos=true)`; os laps
+(`icu_intervals`) só vêm com `?intervals=true` e a listagem não os traz. Mapear da listagem
+perderia os laps de todo treino sincronizado. O 1+N fica, e é por isso que o teto é necessário.
+
+**Residuais aceitos no DoR de 2026-08-22 (Codex), registrados para não serem "descobertos" depois:**
+
+- *Cota compartilhada.* O mesmo token paga a listagem, o fetch, o push ao relógio e o import
+  manual. 84/dia deixa 16 de folga, sem budget compartilhado. Se a folga não bastar num dia, o 429
+  aborta o lote **com o cursor preservado** — o custo é atraso até o dia seguinte, não laço nem
+  perda. O knob `sync-max-activities-per-cycle` permite apertar por env sem deploy. Budget por
+  integração seria mecanismo novo; fora de escopo.
+- *Falha permanente sem tombstone.* Uma atividade rejeitada (modalidade, 404) não é persistida, então
+  reaparece como pendente enquanto estiver dentro do overlap de 1 dia do cursor — custa no máximo
+  ~12 fetches (um por ciclo) e some quando o cursor passa. Durante a carga inicial o cursor passa por
+  ela no mesmo ciclo (ela conta como processada). Tombstone exige schema; fora de escopo.
+
+**Consequência para a CA7 e a CA10:** reescritas no proposal.md — a CA7 exige o teto e o cursor
+parcial; a CA10 passa de "cursor não avança" para "cursor não passa da última processada".
 
 ## D5 — Exceções e classificação de erro (revisado pós pre-mortem)
 
@@ -311,8 +405,8 @@ Reusa as exceções já existentes (`IntervalsIcuRateLimitException`, `DomainCon
 
 | Exceção | Origem | Classificação | Efeito no lote do atleta |
 |---|---|---|---|
-| `IntervalsIcuRateLimitException` | `listarAtividades` ou `importarAtividade` (429/5xx/timeout) | Retryable | Aborta o restante do lote; cursor NÃO avança |
-| `DomainConflictException` | Credencial revogada (401/403) ou precondição Strava-ativo-não-pausado | Retryable (estado pode mudar) | Aborta o restante do lote; cursor NÃO avança |
+| `IntervalsIcuRateLimitException` | `listarAtividades` ou `importarAtividade` (429/5xx/timeout) | Retryable | Aborta o restante do lote; cursor fica na última processada |
+| `DomainConflictException` | Credencial revogada (401/403) ou precondição Strava-ativo-não-pausado | Retryable (estado pode mudar) | Aborta o restante do lote; cursor fica na última processada |
 | `DomainNotFoundException` | Activity não encontrada/de outro atleta | Permanente (desta atividade) | Log e segue para a próxima atividade; cursor pode avançar |
 | `DomainRuleViolationException` | Modalidade não suportada | Permanente (desta atividade) | Log e segue para a próxima atividade; cursor pode avançar |
 

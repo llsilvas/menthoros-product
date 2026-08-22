@@ -39,19 +39,30 @@ cada ciclo, com uma janela de fallback limitada no primeiro ciclo.
 - **Then** a janela de busca (`oldest`) parte do momento do último ciclo bem-sucedido (menos um
   overlap de segurança configurável), não do início do histórico
 
-#### Scenario: Cursor não avança quando o ciclo tem falha transitória
+#### Scenario: Falha transitória não descarta o progresso nem pula atividade sem tentativa
 - **Given** um atleta cujo lote de atividades inclui uma falha transitória (rate limit do provedor,
-  ou conflito de precondição cross-fonte com o Strava)
+  ou conflito de precondição cross-fonte com o Strava) na k-ésima atividade
 - **When** o scheduler processa o lote
-- **Then** o cursor (`ultimaSincronizacao`) NÃO avança para esse atleta
-- **And** o próximo ciclo reprocessa a mesma janela, sem perder atividades que ficaram sem
-  tentativa
+- **Then** o cursor (`ultimaSincronizacao`) avança no máximo até a data da atividade k-1 — e não
+  avança se k = 1 ou se a própria listagem falhou
+- **And** o próximo ciclo relista a partir daí, sem perder atividades que ficaram sem tentativa
 
-#### Scenario: Primeiro ciclo usa janela de fallback
+#### Scenario: Primeiro ciclo usa janela de fallback com teto por contagem
 - **Given** um atleta conectado ao intervals.icu sem nenhuma sincronização anterior
+- **And** mais atividades na janela de fallback (`intervals-icu.sync-days-back`, default 90 dias)
+  do que o teto `intervals-icu.sync-max-activities-per-cycle` (default 6)
 - **When** o primeiro ciclo do scheduler executa para esse atleta
-- **Then** a janela de busca usa o fallback configurado (`intervals-icu.sync-days-back`, default 90
-  dias) a partir de hoje
+- **Then** a listagem cobre a janela de fallback inteira, a partir de hoje
+- **And** só as N atividades mais antigas ainda não importadas são buscadas e ingeridas
+- **And** o cursor avança para a data da última processada, não para agora
+- **And** o atleta não gera mais de 1 + N requisições ao provedor neste ciclo
+
+#### Scenario: Carga inicial converge em ciclos sucessivos
+- **Given** um atleta no meio da carga inicial (cursor numa data anterior a hoje)
+- **When** os ciclos seguintes executam
+- **Then** cada ciclo continua da data do cursor (menos o overlap) e importa as próximas N
+- **And** atividades já importadas não contam no teto nem geram chamada ao provedor
+- **And** quando a listagem não devolve mais nada novo, o cursor passa a agora
 
 ## Requirement: Isolamento de falhas, classificado por tipo
 
@@ -74,7 +85,7 @@ limite ou contra uma colisão cross-fonte não resolvida.
   cross-fonte com o Strava
 - **When** o scheduler processa o lote desse atleta
 - **Then** as atividades seguintes do MESMO lote não são tentadas neste ciclo
-- **And** o cursor não avança (ver Requirement "Cursor incremental")
+- **And** o cursor não passa da última atividade processada (ver Requirement "Cursor incremental")
 
 #### Scenario: Falha em um atleta não aborta o ciclo
 - **Given** múltiplos atletas com conexão ativa no mesmo ciclo
