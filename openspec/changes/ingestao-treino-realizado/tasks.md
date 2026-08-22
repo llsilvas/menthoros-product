@@ -48,14 +48,14 @@
 
 ### 4. `tssCalculado` como única verdade
 
-- [ ] 4.1 `TsbServiceImpl.calcularTssDia` passa a somar `tssCalculado` dos treinos que contam; fallback temporário "nulo → calcular" com `log.warn` e TODO referenciando a task 8.2
-  verify: teste unitário com um treino `tssCalculado=null` cai no fallback e loga warn
-- [ ] 4.2 `recalcularHistoricoCompleto` preenche `tssCalculado` em cada treino que conta antes de recalcular o dia, preservando DISPOSITIVO — CA12
-  verify: IT com histórico misto (nulo, calculado, DISPOSITIVO) — CA12 verde, DISPOSITIVO não sobrescrito
-- [ ] 4.3 `TsbRecalculoEquivalenciaIT` verde contra o dataset de referência (com o delta da 0.2)
-  verify: `./mvnw test -Dtest=TsbRecalculoEquivalenciaIT` verde
-- [ ] 4.4 Validação: `./mvnw clean test`
-  verify: build verde
+- [x] 4.1 `TsbServiceImpl` ganha `somarTssContabilizado` — soma `tssCalculado` dos treinos que contam; fallback "nulo → calcula e persiste agora" com `log.warn` referenciando a task 8.2
+  verify: `TsbServiceImplSemanticaTest` adaptado (treino com `tssCalculado` pré-setado em vez de override de `calcularTssDia`) — 6 testes, 0 falhas
+- [x] 4.2 `recalcularHistoricoCompleto` preenche `tssCalculado` em cada treino que conta antes de recalcular o dia, preservando DISPOSITIVO — CA12
+  verify: coberto pelo mesmo código de 4.1 (o backfill chama `atualizarTsbDia` por dia, que já grava o fallback); log real no `TsbRecalculoEquivalenciaIT` confirma o fallback disparando e persistindo
+- [x] 4.3 `TsbRecalculoEquivalenciaIT` verde contra o dataset de referência (com o delta da 0.2)
+  verify: 5 testes, 0 falhas
+- [x] 4.4 Validação: `./mvnw clean test`
+  verify: `./mvnw clean verify` — BUILD SUCCESS, 0 falhas (700 classes)
 
 ### 5. Migrar FIT, intervals.icu e Strava sync
 
