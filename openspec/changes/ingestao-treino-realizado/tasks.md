@@ -20,11 +20,12 @@
 
 ### 2. `TsbService.recalcularDesde` (D13)
 
-- [ ] 2.1 IT vermelho: treino registrado em D-3 com métricas materializadas até hoje → CTL/ATL/TSB de D-3..hoje mudam consistentemente — CA6b
-  verify: teste falha (método `recalcularDesde` ainda não existe/compila)
-- [ ] 2.2 `TsbService.recalcularDesde(atletaId, data)`: loop dia a dia até o último `MetricasDiarias` materializado (ou hoje), `atualizarMetaDados` só no último; reusa `atualizarTsbDia(…, false)`
-  verify: IT de 2.1 vira verde (CA6b)
-- [ ] 2.3 Validação: `./mvnw clean test`
+- [x] 2.1 IT vermelho: treino registrado em D-3 com métricas materializadas até hoje → CTL/ATL/TSB de D-3..hoje mudam consistentemente — CA6b
+  verify: `TsbServiceRecalcularDesdeIT` não compilava (`recalcularDesde` ausente) — red confirmado 2026-08-22
+- [x] 2.2 `TsbService.recalcularDesde(atletaId, data)`: loop dia a dia até o último `MetricasDiarias` materializado (ou hoje), `atualizarMetaDados` só no último; reusa `atualizarTsbDia(…, false)`
+  verify: `TsbServiceRecalcularDesdeIT` — 1 teste, 0 falhas (`./mvnw clean verify`, 2026-08-22); CTL propaga de D-3 até hoje (1.46/5.81) no caminho novo, zero no caminho antigo
+- [x] 2.3 Validação: `./mvnw clean test`
+  verify: `./mvnw clean verify` — BUILD SUCCESS
 
 ### 3. Módulo `IngestaoTreinoRealizadoService` (TDD, IT sobre `AbstractIntegrationTest`)
 
