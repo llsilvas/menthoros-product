@@ -175,11 +175,21 @@ depende de 1; Bloco 3 (config) é paralelizável com 1-2; Bloco 4 (smoke/valida�
 
 ## QA / entrega
 
-- [ ] 5.1 `code-reviewer` (Java/Spring, CLAUDE.md do backend).
-- [ ] 5.2 `security-reviewer` — foco em multi-tenancy do scheduler (D6) e não-vazamento de API key
-      em logs (D1, D5).
-- [ ] 5.3 `test-master` — cobertura dos cenários de isolamento e retry (CA4, CA5, CA10, CA12),
-      não-ressurreição de desconexão (CA11) e idempotência (CA2).
+- [x] 5.1 `code-reviewer` — 1 "Critical" (ordenação por `String`) rebaixado a Important após
+      verificação (ISO-8601 UTC confirmado no gate 0.2) e corrigido junto com o `null` de
+      `start_date`; JavaDoc, multi-tenancy, late-check e classificação de exceções aprovados.
+- [x] 5.2 `security-reviewer` — 3 "Critical" **refutados no código** (dedup sem `atletaId`:
+      ids globais + contrato pré-existente; `finally`: listagem antes do `setTenantId`; NPE na
+      primeira: ramo guardado). 1 Important real e convergente com o Codex: `lastSyncError` com
+      mensagem arbitrária acima de `VARCHAR(500)` — corrigido (`mensagemSegura`).
+- [x] 5.3 `clean-code-reviewer` (no lugar do `test-master`, que não existe no plugin) — regra do
+      cursor extraída em `calcularCursor` + `EstadoCursor`, testável sem mock; 3 comentários de
+      *porquê* adicionados. Cobertura dos CAs 4/5/10/11/12 e 2 confirmada nos 18 cenários.
+- [x] 5.3b Cross-model (Codex): `review` → 1 P2 (corte do `lastSyncError`, **convergente**);
+      `adversarial` → NOT READY com 6 achados: overlap 1 dia perdia atividade atrasada
+      (**aceito**, default → 7), `start_date` nulo (**convergente**, corrigido), e 4 residuais
+      já aceitos em D8/D4.1. Detalhe em design.md D4.1 "QA gate". Suíte pós-QA: 22 cenários no
+      scheduler + 15 em properties.
 - [ ] 5.4 Abrir PR (`feature/intervals-icu-activity-sync-scheduler` → `develop`), CI verde.
 - [ ] 5.5 Atualizar este `tasks.md` com o que foi entregue vs. adiado antes de arquivar.
 

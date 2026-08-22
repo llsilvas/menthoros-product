@@ -291,7 +291,7 @@ campos nessa classe, com Bean Validation, e o scheduler recebe o bean — não `
 ```java
 // IntervalsIcuProperties — acrescentar
 @Min(1)  private int syncDaysBack = 90;
-@Min(0)  private int syncOverlapDays = 1;
+@Min(0)  private int syncOverlapDays = 7; // era 1; subiu no QA — ver "Residuais" em D4.1
 @Min(1)  private int syncMaxActivitiesPerCycle = 6; // D4.1; 0 travaria o sync sem erro (DoR r3)
 ```
 
@@ -308,7 +308,7 @@ Adicionar ao `application.yml`:
 app:
   intervals-icu:            # bloco já existe (application.yml:319) — só acrescentar as três
     sync-days-back: ${INTERVALS_ICU_SYNC_DAYS_BACK:90}
-    sync-overlap-days: ${INTERVALS_ICU_SYNC_OVERLAP_DAYS:1}
+    sync-overlap-days: ${INTERVALS_ICU_SYNC_OVERLAP_DAYS:7}
     sync-max-activities-per-cycle: ${INTERVALS_ICU_SYNC_MAX_ACTIVITIES_PER_CYCLE:6}
 ```
 
@@ -389,6 +389,32 @@ ser do provedor. Por contagem, o teto é do Menthoros. Um knob só; dois seriam 
 `importarAtividade` chama `buscarAtividade(token, id, comIntervalos=true)`; os laps
 (`icu_intervals`) só vêm com `?intervals=true` e a listagem não os traz. Mapear da listagem
 perderia os laps de todo treino sincronizado. O 1+N fica, e é por isso que o teto é necessário.
+
+**QA gate de 2026-08-22 — o que mudou no código depois dos revisores (3 Claude + Codex review +
+Codex adversarial):**
+
+- **Overlap default 1 → 7 dias.** Achado do adversarial: um relógio que fica dias sem sincronizar
+  entrega atividades com `start_date` anterior ao cursor — com overlap de 1 dia elas nunca seriam
+  listadas, e o cursor seguiria para `now()` por cima delas, em silêncio. Custa zero requisições
+  (o dedup filtra antes de qualquer HTTP) e uma query a mais por atividade relistada. Atividade
+  atrasada em mais de 7 dias continua dependendo do import manual.
+- **`start_date` nulo ou ilegível não derruba o atleta** (convergente Claude + Codex): a atividade
+  é pulada com log e fica para o import manual; o instante é parseado uma vez (record `Pendente`),
+  e a ordenação deixou de ser alfabética em `String`.
+- **`lastSyncError` sanitizado e cortado em 500** (convergente security-reviewer + Codex review,
+  P2): a coluna é `VARCHAR(500)`; uma mensagem de exceção inesperada (SQL, NPE) acima disso faria
+  o *próprio registro do erro* falhar **dentro do catch**, saindo do laço e quebrando o isolamento
+  por atleta (CA5). Só exceções do client e do domínio passam a mensagem; o resto vira
+  `"Falha inesperada no sync (<classe>)"`. A coluna não é exposta em DTO — era robustez, não
+  confidencialidade.
+- **Regra do cursor extraída** em `calcularCursor(...)` + record `EstadoCursor` (clean-code):
+  os três ramos ficam legíveis e testados sem mock.
+
+**Refutados no QA, com verificação no código:** dedup sem `atletaId` (ids do provedor são globais,
+gate 0.2, e é o Passo 0 pré-existente da ingestão); `finally` sem `clear()` (a listagem vem antes
+do `setTenantId`); NPE em `ultimaProcessada` na falha da primeira (o ramo `!= null` guarda); lock
+distribuído e corrida reload→save (ambos aceitos explicitamente em D8); 429 na listagem custando
+1 req/ciclo (12/dia, e só com a cota já esgotada).
 
 **Residuais aceitos no DoR de 2026-08-22 (Codex), registrados para não serem "descobertos" depois:**
 
