@@ -38,6 +38,7 @@ Esta change é o **núcleo provider-agnostic** (espelho do exporter) do qual dep
 - **Volume de raw samples** (~3.600/treino) (Médio): política de persistência (gzip JSONB no piloto; S3 depois).
 - **Tenant isolation** (Alto/segurança): `TenantGuard.assertAthleteBelongsTo` antes de parse/persist — não negociável.
 - **Strava fora do sealed** até clareza legal; **nunca** alimentar o ML predictor com dado Strava-API (decisão de produto registrada).
+- **Nova dependência ao retomar esta change (2026-08-22):** `ingestao-treino-realizado` (backend) cria o seam `IngestaoTreinoRealizadoServiceImpl` (`registrar`/`reprocessar`) para o `TreinoRealizado` existente. Se `WorkoutImportService` passar a persistir em paralelo (`tb_completed_workout`), o passo "save → `WorkoutImportedEvent`" deve terminar chamando aquele seam (ou ser reconciliado com ele) — caso contrário nasce um 12º caminho de ingestão fora do que aquela change unificou. Ver `ingestao-treino-realizado/design.md` antes de implementar o orquestrador.
 
 ## Referências
 - `design.md` (arquitetura original). Filhas: `add-health-connect-ingestion`, `add-workout-metrics-analyzer`. Relacionada/deferida: família `strava-*`.
