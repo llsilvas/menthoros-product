@@ -86,8 +86,16 @@
   `select count(*) from tb_treino_realizado where (status_sincronizacao is null or status_sincronizacao
   <> 'CANCELADO') and tss_calculado is null` → **0**. **Pendente: rodar em prod** (Railway) antes de
   fechar esta task — requer confirmação explícita separada, é ambiente de produção
-- [ ] 6.2b Nota in-app na tela de PMC para tenants afetados pelo backfill ("valores históricos recalculados — treinos cancelados e TSS de dispositivo agora refletidos corretamente") (spec-reviewer / product review #2)
-  verify: nota visível na tela de PMC do frontend para um tenant com backfill aplicado
+- [x] 6.2b Nota in-app na tela de PMC para tenants afetados pelo backfill ("valores históricos recalculados — treinos cancelados e TSS de dispositivo agora refletidos corretamente") (spec-reviewer / product review #2)
+  verify: implementado em `apps/menthoros-front` (branch `feature/ingestao-treino-realizado`) —
+  `PmcBackfillNotice` (Alert MUI dismissível) + `usePmcBackfillNotice` (flag em `localStorage`,
+  degrada com segurança se storage estiver bloqueado), exibido em `DiagnosisTabPanel` (tela de
+  diagnóstico do coach) quando há série PMC. **Decisão:** banner global simples, sem flag por
+  tenant no backend (mecanismo mais preciso avaliado e descartado por expandir escopo do Bloco 1 —
+  ver conversa da task). `npm run lint`/`build`/`test:run` verdes (1238 testes, 19 novos/afetados).
+  Não é fluxo crítico da lista de E2E obrigatório do CLAUDE.md do front — sem E2E dedicado.
+  **Remover o componente/hook depois que o backfill rodar em produção e o aviso já tiver
+  circulado por um tempo razoável** (sem expiração automática por código)
 - [ ] 6.3 `/pr ingestao-treino-realizado` (PR 1 de 2) com changelog para o treinador (cancelados saem do PMC; TSS de dispositivo passa a valer no PMC; agregadores fora do TSB só no PR 2)
   verify: PR aberto contra `develop`, CI verde, descrição inclui o changelog
 
