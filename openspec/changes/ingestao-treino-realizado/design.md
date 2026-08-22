@@ -204,6 +204,27 @@ update ──┤ reprocessar(treinoId, dataAnterior?) ─────┤  tssCal
 webhook ─┘                                          └─ TsbService.recalcularDesde(min(dataAnterior, dataTreino))
 ```
 
+## Achado de implementação (Bloco 1, Seção 3)
+
+`TreinoDedupHelper.saveIdempotent`, chamado de dentro de um `@Transactional` ambiente (D6), tinha
+um bug latente: o `INSERT` fica pendente até a próxima query no mesmo `EntityManager`, então a
+violação de constraint só aparecia (a) fora do `try/catch` do próprio helper, como
+`ConstraintViolationException` bruta não traduzida pelo Spring, e (b) já com a transação Postgres
+"aborted" (25P02) — a própria query de fallback (`findByExternalIdAndAtletaId`) falhava também.
+Esse mesmo defeito já existia em `FitTreinoPersister`/`IntervalsIcuActivityPersister` (ambos
+`@Transactional`), só nunca exercitado por um teste que força a duplicata real.
+
+Duas correções, ambas verificadas pelo `./mvnw clean verify` completo (0 falhas):
+1. `TreinoDedupHelper.saveIdempotent` ganhou `entityManager.flush()` logo após o `save()`, dentro
+   do `try`, e passou a capturar `ConstraintViolationException` (Hibernate) além de
+   `DataIntegrityViolationException` (Spring) — corrige a tradução de exceção para chamadas diretas
+   ao `EntityManager`.
+2. `registrar` faz uma checagem prévia por `(externalId, atletaId)` antes de tentar inserir,
+   evitando depender do catch de constraint no caminho sequencial (o caso comum e o que os testes
+   exercitam). A corrida verdadeiramente concorrente (duas chamadas na mesma transação no mesmo
+   nanossegundo) continua sendo um risco residual — o mesmo que já existia nos chamadores atuais —
+   e corrigi-lo por completo exigiria propagação `NESTED` com savepoints, fora do escopo desta task.
+
 ## Riscos e mitigações
 
 | Risco | Mitigação |
@@ -218,6 +239,7 @@ webhook ─┘                                          └─ TsbService.recalc
 | Regressão no dataset de referência por treinos cancelados | Assumption registrada; atualizar dataset com nota se ocorrer |
 | Backfill (`recalcularHistoricoCompleto`) muta CTL/ATL/TSB de produção; reverter o código não desfaz o dado já recalculado | Dump de `tb_metricas_diarias` antes de rodar em produção (task 6.2); stage é obrigatório antes de prod — ver task 6.2b |
 | `intervals-icu-activity-sync-scheduler` está em implementação em paralelo; se o contrato de `IntervalsIcuActivityPersister` mudar antes da task 5.2, ela quebra | Task 5.2 confirma o status daquela change antes de começar |
+| Corrida verdadeiramente concorrente em `registrar` (mesmo externalId, mesma transação, mesmo nanossegundo) ainda pode poluir a transação Postgres (25P02) | Residual, já presente nos chamadores atuais de `TreinoDedupHelper`; checagem prévia elimina o caminho comum; corrigir por completo exige `Propagation.NESTED` — fora do escopo |
 | `first-party-ingestion-architecture` retomada cria 12º caminho | Dependência declarada no proposal; task 0.3 deixa nota naquela change |
 | D5 amplia para o Strava a análise por IA visível ao atleta sem revisão do treinador (gap pré-existente: `AnaliseWorkoutController:31`) | Fora do escopo desta change (não muda autoridade do treinador); Open Question no proposal; guard de 4.4 filtra por idade e por `percepcaoEsforco` já existente |
 

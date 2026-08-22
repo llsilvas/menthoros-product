@@ -29,22 +29,22 @@
 
 ### 3. Módulo `IngestaoTreinoRealizadoService` (TDD, IT sobre `AbstractIntegrationTest`)
 
-- [ ] 3.1 Interface em `services/` com `registrar(treino, externalId?)` e `reprocessar(treinoId, dataAnterior?)` + javadoc com as invariantes do design (ordem, entidade nova/gerenciada, erros, TX, tenant)
-  verify: compila; javadoc cobre ordem, TX, tenant, erro (revisão manual contra design.md "Interface do módulo")
-- [ ] 3.2 IT vermelho: `registrar` parametrizado por `FonteDados` (FIT com e sem TSS de dispositivo, STRAVA, INTERVALS_ICU, MANUAL) — CA1, CA3, CA4, CA10
-  verify: `@ParameterizedTest` com 5 casos, todos vermelhos (sem implementação ainda)
-- [ ] 3.3 IT vermelho: entidade nova com `externalId` existente (CA2) e entidade gerenciada após merge (CA2b)
-  verify: dois testes vermelhos, cada um cobrindo CA2 e CA2b isoladamente
-- [ ] 3.4 IT vermelho: `dataTreino` nulo — CA8; falha na carga reverte o treino — CA9
-  verify: CA8 assert `DomainRuleViolationException`; CA9 assert que o `findById` depois do erro devolve vazio
-- [ ] 3.5 Implementação `registrar`: `tssCalculado` (D3.1) → `saveIdempotent` (absorver `TreinoDedupHelper`, visibilidade de pacote) → evento se inseriu → `recalcularDesde(dataTreino)`
-  verify: os IT de 3.2/3.3/3.4 viram verdes
-- [ ] 3.6 IT vermelho: `reprocessar` — laps adicionados sem `dataAnterior` (CA5), data mudou com `dataAnterior` preenchida (CA6, CA6b), cancelado (CA7), id inexistente → `DomainNotFoundException`
-  verify: 4 testes vermelhos, um por CA
-- [ ] 3.7 Implementação `reprocessar`: recarrega por id → `tssCalculado` se conta e não é DISPOSITIVO → `recalcularDesde(min(dataAnterior, treino.dataTreino))` quando `dataAnterior != null`, senão `recalcularDesde(treino.dataTreino)`
-  verify: os 4 IT de 3.6 viram verdes
-- [ ] 3.8 Validação: `./mvnw clean test`
-  verify: build verde; nenhum teste do módulo 3 pulado
+- [x] 3.1 Interface em `services/` com `registrar(treino, externalId?)` e `reprocessar(treinoId, dataAnterior?)` + javadoc com as invariantes do design (ordem, entidade nova/gerenciada, erros, TX, tenant)
+  verify: compila; javadoc cobre ordem, TX, tenant, erro
+- [x] 3.2 IT vermelho: `registrar` parametrizado por `FonteDados` (FIT com e sem TSS de dispositivo, STRAVA, INTERVALS_ICU, MANUAL) — CA1, CA3, CA4, CA10
+  verify: `IngestaoTreinoRealizadoServiceRegistrarIT` — nested `TodaFonteGravaTss`, 5 testes, 0 falhas
+- [x] 3.3 IT vermelho: entidade nova com `externalId` existente (CA2) e entidade gerenciada após merge (CA2b)
+  verify: nested `Deduplicacao`, 2 testes, 0 falhas — inclui `TransactionTemplate` no teste para simular a mesma TX do chamador real (D6), sem o que a entidade recarregada ficava detached
+- [x] 3.4 IT vermelho: `dataTreino` nulo — CA8; falha na carga reverte o treino — CA9
+  verify: `IngestaoTreinoRealizadoServiceImplTest` (Mockito, não IT — não precisa de banco): 3 testes, 0 falhas
+- [x] 3.5 Implementação `registrar`: `tssCalculado` (D3.1) → checagem prévia de duplicata por `(externalId, atletaId)` → `saveIdempotent` → evento se inseriu → `recalcularDesde(dataTreino)`
+  verify: os IT de 3.2/3.3 e o teste de 3.4 verdes. **Bug real encontrado e corrigido** (não estava no design original): `TreinoDedupHelper.saveIdempotent` chamado de dentro de `@Transactional` deixava o INSERT pendente até a próxima query, e a violação de constraint só aparecia depois, sem tradução de exceção e com a transação Postgres já "aborted" (25P02) — corrigido com `entityManager.flush()` + catch de `ConstraintViolationException` no helper, e checagem prévia em `registrar` para o caminho comum (ver design.md "Achado de implementação")
+- [x] 3.6 IT vermelho: `reprocessar` — laps adicionados sem `dataAnterior` (CA5), data mudou com `dataAnterior` preenchida (CA6, CA6b), cancelado (CA7), id inexistente → `DomainNotFoundException`
+  verify: `IngestaoTreinoRealizadoServiceReprocessarIT`, 4 testes, 0 falhas
+- [x] 3.7 Implementação `reprocessar`: recarrega por id → `tssCalculado` se conta e não é DISPOSITIVO → `recalcularDesde(min(dataAnterior, treino.dataTreino))` quando `dataAnterior != null`, senão `recalcularDesde(treino.dataTreino)`
+  verify: os 4 IT de 3.6 verdes
+- [x] 3.8 Validação: `./mvnw clean verify`
+  verify: BUILD SUCCESS, 0 falhas em toda a suíte (700 classes)
 
 ### 4. `tssCalculado` como única verdade
 
