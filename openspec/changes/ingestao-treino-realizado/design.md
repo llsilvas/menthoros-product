@@ -1,0 +1,228 @@
+# Design: ingestao-treino-realizado
+
+Vocabulário de arquitetura: módulo, interface, implementação, profundidade, seam, adapter, leverage,
+locality (skill `codebase-design`). Vocabulário de domínio: `CONTEXT.md` (ingestão de treino realizado,
+treino que conta, TSS calculado, carga do dia).
+
+## Contexto
+
+O módulo nasce do `/improve-codebase-architecture` de 2026-08-22 (candidato 1 de 9). Teste de
+deleção: apagar o módulo devolve a orquestração TSS → save idempotente → evento → carga a 10 chamadores — é
+deep por construção. Hoje a orquestração existe em 11 versões, 4 delas incompletas.
+
+### Os dez chamadores (e um método vazio) (estado em 2026-08-22)
+
+| # | Caminho | Onde | Evento | `tssCalculado` | Carga do dia |
+|---|---|---|---|---|---|
+| 1 | FIT upload | `FitTreinoPersister:112` | sim | sim | sim |
+| 2 | intervals.icu import | `IntervalsIcuActivityPersister:62` | sim | sim | sim |
+| 3 | Strava sync | `StravaActivityServiceImpl:172,270` | **não** | **não** | sim |
+| 4 | `lancarTreino` | `TreinoServiceImpl:345` | sim | **não** | sim |
+| 5 | `registrarTreinoManualAtleta` | `TreinoServiceImpl:570` | sim | **não** | sim |
+| 6 | `addTreino` | `TreinoServiceImpl:85` | **não** | **não** | sim (+ escrita dupla) |
+| 7 | `updateTreino` | `TreinoServiceImpl:265` | não | **não** | **não** |
+| 8 | ~~`deleteTreino`~~ | `TreinoServiceImpl:301` | — | — | **método vazio** — não apaga nada hoje; fora do escopo (pre-mortem #5) |
+| 9 | reconciliação vincular/desvincular | `ManualReconciliationServiceImpl:80,118,156` | não | não | **não** |
+| 10 | backfill de laps | `IntervalsIcuLapsBackfillPersister:61` | não | **não** | **não** |
+| 11 | webhook Strava delete → `CANCELADO` | `StravaWebhookServiceImpl:121` | não | — | **não** |
+
+## Decisões (sessão de grilling, 2026-08-22)
+
+### D1 — Recálculo síncrono, na transação do chamador
+O coach abre o dashboard logo após o upload e espera CTL/ATL atualizados. Um listener
+`AFTER_COMMIT` leria métricas velhas no `GET` seguinte e precisaria de TX própria sem poder reverter o
+treino. O evento continua existindo só para o que é genuinamente assíncrono (análise por IA).
+*Alternativa rejeitada:* `TsbListener` assíncrono. *Residual:* a request paga o recálculo; o seam é
+o lugar para trocar a política depois sem tocar os chamadores.
+
+### D2 — Duas operações: `registrar` e `reprocessar`
+Os chamadores têm dois gestos distintos: "este treino entrou" (1–6) e "este treino mudou ou saiu"
+(7–11). No segundo a data pode ter mudado ou o treino não existe mais — o chamador de `deleteTreino`
+não tem mais o treino para entregar. *Alternativa rejeitada:* um método idempotente "sincronizar", que
+obrigaria todo chamador a carregar o estado anterior.
+
+### D3 — `tssCalculado` é a única verdade
+O ingestor calcula uma vez; `TsbService` soma o campo dos treinos que contam em vez de recalcular.
+`TssCalculatorService` fica com um chamador. Backfill único via `recalcularHistoricoCompleto`, que
+passa a preencher o campo. *Alternativa rejeitada:* manter o recálculo ao vivo e tratar o campo
+como cache — mantém os dois caminhos e a divergência latente.
+
+### D4 — Dedup dentro; o chamador faz find-or-new antes, quando precisa de merge
+`registrar` persiste a entidade recebida — **nova ou já gerenciada**. Dedup é o guard de corrida que
+`TreinoDedupHelper.saveIdempotent` já faz (insert → `DataIntegrityViolationException` → busca a
+existente): se a entidade era nova e a constraint `(atleta, externalId)` disparou, a linha existente
+vence, o estado recebido é descartado e a existente é reprocessada — exatamente o contrato atual de
+FIT e icu. Se a entidade já é gerenciada (caso Strava: `findByExternalIdAndAtletaId(...).orElseGet(new)`
+→ merge → save, `StravaActivityServiceImpl:160-172`), o save é um UPDATE, `inserted=false`, nenhum
+evento, e o pós-processamento completo roda — o re-sync continua recalculando TSS e carga a cada
+ciclo, como hoje. **O merge de campos fica no chamador**, antes de `registrar`; o ingestor nunca
+mescla. `inserted` sai no `SaveResult` só para log/contagem. `TreinoDedupHelper` vira implementação
+privada. *Pre-mortem #2 (Codex):* a redação anterior ("dedup → TSS → save") era incompatível com o
+find-or-new do Strava — corrigida aqui.
+
+### D5 — Evento em toda inserção, nunca em reprocessamento
+Regra única "treino novo → análise". Strava e `addTreino` passam a publicar. `reprocessar` e
+duplicata não publicam. Controle de custo fica no `WorkoutAnalysisListener` (guard para lote
+inicial), não na ingestão — senão cada fonte volta a ter política própria.
+
+### D6 — `@Transactional` juntando a TX do chamador; tenant pela entidade
+Se a carga falhar, o treino não pode ficar gravado com `tssCalculado` nulo (o estado que estamos
+eliminando). Dos 10 chamadores, 3 rodam fora de request com `TenantContext` setado à mão; a entidade
+já deriva `tenantId` no `@PrePersist` (`TreinoRealizado.java:241-246`). `recalcularHistoricoCompleto`
+com seus blocos `REQUIRES_NEW` continua em `TsbService` — é outro gesto (lote).
+*Residual aceito:* falha na carga derruba a ingestão inteira; preferível a dado pela metade.
+
+### D7 — `dataTreino` é invariante da interface
+O ingestor exige data não-nula e falha se não vier. O default "hoje" fica nos fluxos manuais,
+resolvido **uma vez** com o `Clock` de `ClockConfig`. O ingestor não injeta relógio nem fuso
+(candidato 7). Elimina o duplo `LocalDate.now()` em `addTreino`.
+
+### D8 — Treino cancelado não conta — em **todo** leitor de carga
+`reprocessar` trata `CANCELADO` como "zera a contribuição"; `tssCalculado` fica para auditoria.
+"Treino que conta" é **um** predicado de repositório (`statusSincronizacao <> CANCELADO`) usado por
+`TsbService` **e pelos agregadores que somam `tssCalculado` direto** — *pre-mortem #4 (Codex)*
+encontrou seis: `CoachDashboardServiceImpl:143`, `TreinoServiceImpl:474` (resumo semanal),
+`RaceProjectionServiceImpl:184`, `PlanoTreinoPromptBuilder:439,466`, `VariabilidadePromptFormatter:279,303,529`,
+`InjuryRiskEvaluator:65`, `PlannerShadowService:202`. Sem isso o PMC e o resumo semanal discordariam
+sobre o mesmo treino apagado. Bloco 1 aplica ao TSB; Bloco 2 roteia os agregadores pelo mesmo
+predicado (task 6.7) — a divergência entre PR1 e PR2 é conhecida e curta.
+*Impacto:* PMC histórico de quem tem cancelados acumulados muda — correção, não regressão; aviso no
+PR e in-app (Open Question do product review).
+
+### D9 — `TsbService` é o único escritor de `MetricasDiarias`
+`TreinoServiceImpl.atualizarVolumeDiario` é apagado. Como o ingestor sempre chama `atualizarTsbDia`
+e ele recalcula volume e contagem a partir dos treinos que contam, a escrita incremental não tem
+função.
+
+### D10 — Nome e glossário
+`IngestaoTreinoRealizadoService` / `IngestaoTreinoRealizadoServiceImpl`, seguindo a convenção
+`Service`/`Impl` do ADR-0007 (interface com 1 implementação é convenção, não seam). Termos novos em
+`CONTEXT.md`: ingestão de treino realizado, treino que conta, TSS calculado, carga do dia.
+
+### D11 — Testes pelo seam, nenhum por reflexão
+IT do ingestor sobre `AbstractIntegrationTest` (Testcontainers), parametrizado por `FonteDados`, mais
+os casos de `reprocessar`. Testes dos chamadores passam a mockar o ingestor e verificam só o que o
+chamador decide; asserts sobre `tsbService`/`setTssCalculado` são apagados, não migrados. Suíte de
+`TssCalculatorService` e ITs de TSB intactos (o dataset de referência valida também o backfill).
+
+### D3.1 — TSS do dispositivo é autoritativo quando existe
+*Pre-mortem #3 (Codex):* `FitTreinoPersister:166-169` grava o TSS do próprio Garmin com
+`metodoCalculoTss = "DISPOSITIVO"` e só cai no calculador quando o arquivo não traz TSS. A spec
+anterior mandava o ingestor sobrescrever tudo com `calcularTss`. **Decisão:** o ingestor calcula
+apenas quando `tssCalculado == null` ou `metodoCalculoTss != "DISPOSITIVO"`; o valor do dispositivo é
+preservado em `registrar` e em `reprocessar`. *Consequência nova e intencional:* hoje o PMC
+**ignora** o TSS do dispositivo (recalcula ao vivo) enquanto a projeção de prova o usa — com D3 os
+dois passam a concordar, e o dataset de `TsbRecalculoEquivalenciaIT` pode mudar para treinos FIT
+com TSS de dispositivo (registrar na task 0.2).
+
+### D13 — Recalcular para a frente, não só o dia
+*Pre-mortem #1 (Codex), confirmado em `TsbServiceImpl:85-86`:* `atualizarTsbDia(D)` deriva CTL/ATL
+de `MetricasDiarias(D-1)`; logo mudar o TSS de um dia passado invalida **todos os dias seguintes**.
+Isso já acontece hoje em todo import retroativo (Strava de 3 dias atrás, laps de ontem) — a spec
+anterior herdava o defeito. **Decisão:** `TsbService` ganha `recalcularDesde(atletaId, data)` —
+recalcula dia a dia de `data` até o último `MetricasDiarias` materializado (ou hoje), com
+`atualizarMetaDados` só no último — e o ingestor chama `recalcularDesde(menor data afetada)` em
+`registrar` e `reprocessar`. Custo: 1 dia no caso comum (treino de hoje); N dias no retroativo.
+*Residual:* carga inicial em lote (Strava/icu com dezenas de atividades antigas) vira
+O(atividades × dias) — mitigação: o scheduler de lote pode desligar o recálculo por treino e chamar
+`recalcularHistoricoCompleto` uma vez ao final (follow-up, fora desta change; registrado em Riscos).
+É também o gancho que `add-continuous-daily-load-management` precisa — aquela change estende a
+janela (descanso explícito, dias futuros), não a cria.
+
+### D12 — Uma change, dois blocos
+Bloco 1 (seam + verdade única + caminhos 1–3 + backfill) fecha os bugs da projeção de prova e do
+Strava. Bloco 2 (caminhos 4–11 + limpeza) só começa com o Bloco 1 mergeado. Duas changes dariam o
+mesmo resultado com mais cerimônia e o risco de o Bloco 2 — onde estão os caminhos *sem* recálculo
+nenhum — ficar na fila.
+
+## Interface do módulo
+
+Tudo que o chamador precisa saber:
+
+```
+IngestaoTreinoRealizadoService
+  SaveResult registrar(TreinoRealizado treino, @Nullable String externalId)
+  void       reprocessar(UUID treinoRealizadoId)
+
+SaveResult(TreinoRealizado treino, boolean inserted)   // já existe em TreinoDedupHelper
+```
+
+- **Invariantes de entrada:** `treino.dataTreino != null` (CA8); `treino.atleta != null`;
+  `externalId` obrigatório quando `fonteDados` é externa (FIT, STRAVA, INTERVALS_ICU).
+- **Ordem garantida em `registrar`:** `tssCalculado` (salvo D3.1) → save idempotente (D4) → evento
+  (se inseriu) → `recalcularDesde(dataTreino)`. O chamador não reordena nem repete nenhum passo.
+- **Entidade nova ou gerenciada:** ambas aceitas (D4). Quem precisa de merge no re-sync faz
+  find-or-new antes e passa a gerenciada.
+- **Erros:** `DomainRuleViolationException` para invariante violada; qualquer exceção da carga
+  propaga e reverte a TX (CA9).
+- **Transação:** `@Transactional` (REQUIRED). Chamar de fora de TX abre uma.
+- **Tenant:** derivado da entidade; `TenantContext` não é lido.
+- **Evento:** `TreinoRegistradoEvent(treinoId, tenantId)` publicado via `ApplicationEventPublisher`;
+  entregue `AFTER_COMMIT` pelo listener existente.
+- **`reprocessar` de id inexistente:** `DomainNotFoundException`. Não há remoção física hoje
+  (`deleteTreino` é vazio, `TreinoServiceImpl:301`); se vier a existir, é outra change e deve
+  capturar a data antes de apagar.
+
+## Implementação (o que fica atrás do seam)
+
+- **Dedup:** `TreinoDedupHelper.saveIdempotent` absorvido; visibilidade de pacote.
+- **Treino que conta:** `TreinoRealizadoRepository.findQueContamByAtletaIdAndDataTreino(atletaId, data)`
+  — `statusSincronizacao <> CANCELADO`. `TsbServiceImpl.buscarTreinosDia` passa a usar esta consulta.
+- **TSS:** calcula só quando nulo ou `metodoCalculoTss != DISPOSITIVO` (D3.1). Único chamador.
+- **Carga:** `tsbService.recalcularDesde(atletaId, menorDataAfetada)` (D13); em `reprocessar` a
+  menor data é `min(data anterior, data atual)`. `TsbServiceImpl.calcularTssDia` passa a somar
+  `tssCalculado` (D3); o fallback "campo nulo → calcular" existe **só até o backfill rodar** e é
+  removido no Bloco 2.
+- **Guard de custo no listener:** `WorkoutAnalysisListener` ignora treinos com `dataTreino` anterior
+  a N dias (config `workout-analysis.max-idade-dias`, default a decidir no Bloco 1).
+
+### Diagrama
+
+```
+FIT ─┐                                  ┌─ dedup (tenant, fonte, externalId)
+icu ─┤                                  │  tssCalculado ← TssCalculatorService
+Strava ┤ registrar(treino, externalId) ──┤  save
+manual ┘                                 │  TreinoRegistradoEvent  (só inserção)
+                                         └─ TsbService.recalcularDesde(dataTreino)
+laps ─┐
+reconc ┤                                 ┌─ recarrega treino por id
+update ┤ reprocessar(treinoId) ──────────┤  tssCalculado (se conta e não é DISPOSITIVO)
+webhook ┘                                └─ TsbService.recalcularDesde(min(dia antigo, dia atual))
+```
+
+## Riscos e mitigações
+
+| Risco | Mitigação |
+|---|---|
+| Backfill muda PMC histórico (cancelados saem; treinos Strava/manual ganham TSS) | Rodar em stage primeiro; comparar com `TsbRecalculoEquivalenciaIT`; changelog para o treinador |
+| Strava passa a publicar evento → custo de LLM no lote inicial | Guard de idade no listener (D5); medir volume em stage antes do default |
+| Chamador esquece de migrar e continua chamando `tsbService` direto | Teste de arquitetura (ArchUnit ou grep no CI) — `TsbService.atualizarTsbDia` só pode ser chamado do ingestor (CA11 estendido) |
+| `reprocessar` em TX do scheduler com entidade stale (`IntegracaoExterna`) | `reprocessar` recarrega o treino por id dentro da própria TX; não recebe entidade |
+| `recalcularDesde` em carga inicial em lote: O(atividades × dias) (D13) | Medir em stage com atleta de 90 dias; follow-up: scheduler de lote chama `recalcularHistoricoCompleto` uma vez ao final |
+| D3.1 muda o PMC de treinos FIT com TSS de dispositivo (hoje ignorado) | Task 0.2 registra o delta no dataset de referência antes de implementar |
+| Agregadores fora do TSB divergem do PMC entre PR1 e PR2 (D8) | Janela curta; task 6.7 fecha; documentar no PR1 |
+| Regressão no dataset de referência por treinos cancelados | Assumption registrada; atualizar dataset com nota se ocorrer |
+| `first-party-ingestion-architecture` retomada cria 12º caminho | Dependência declarada no proposal; task 0.3 deixa nota naquela change |
+| D5 amplia para o Strava a análise por IA visível ao atleta sem revisão do treinador (gap pré-existente: `AnaliseWorkoutController:31`) | Fora do escopo desta change (não muda autoridade do treinador); Open Question no proposal; guard de 4.4 filtra por idade e por `percepcaoEsforco` já existente |
+
+## Pre-mortem cross-model
+
+Codex (`/codex:adversarial-review`, 2026-08-22) — veredito **needs-attention**, 5 achados, **todos
+verificados no código e incorporados**:
+
+1. **[alto] Recálculo só do dia deixa a cadeia do PMC stale** — confirmado (`TsbServiceImpl:85-86`
+   lê D-1). → D13 `recalcularDesde`. Defeito pré-existente em todo import retroativo; a spec
+   anterior o herdava.
+2. **[alto] Dedup-first apagava o merge do re-sync Strava** — confirmado
+   (`StravaActivityServiceImpl:160-172`, find-or-new → merge → `saveIdempotent` com `inserted`
+   ignorado de propósito). → D4 reescrito: entidade gerenciada aceita; merge fica no chamador.
+3. **[médio] Single-truth apagava o TSS do dispositivo Garmin** — confirmado
+   (`FitTreinoPersister:166-169`, `DISPOSITIVO`). → D3.1. Achado colateral: hoje PMC ignora e
+   projeção usa — passam a concordar.
+4. **[médio] Cancelado fora do PMC mas dentro dos agregadores** — confirmado (8 leitores somam
+   `tssCalculado` sem filtro). → D8 ampliado + task 6.7.
+5. **[médio] `deleteTreino` é no-op** — confirmado (`TreinoServiceImpl:301-303`, corpo vazio).
+   → caminho 8 fora do escopo; `reprocessarDia` removido da interface; `reprocessar` de id
+   inexistente lança `DomainNotFoundException`.
+
+Residual aceito: custo de `recalcularDesde` em carga inicial em lote (ver Riscos).
