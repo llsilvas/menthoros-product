@@ -225,6 +225,40 @@ Duas correções, ambas verificadas pelo `./mvnw clean verify` completo (0 falha
    nanossegundo) continua sendo um risco residual — o mesmo que já existia nos chamadores atuais —
    e corrigi-lo por completo exigiria propagação `NESTED` com savepoints, fora do escopo desta task.
 
+## Achado de implementação (Bloco 1, Seção 5) — `IntervalsIcuActivityPersister` não migra para `registrar`
+
+Ao tentar migrar `IntervalsIcuActivityPersister` (task 5.2), um conflito real de contrato: o
+pre-mortem #10 de `intervals-icu-activity-ingestion` (arquivada) exige que `TreinoRegistradoEvent`
+só seja publicado **depois** que TSS/TSB/reconciliação estão computados no mesmo commit —
+verificado no design arquivado daquela change. `ReconciliationDecisionExecutor.executar` faz sua
+própria persistência (`treinoRealizadoRepository.save` + `treinoReconciliacaoRepository.save`),
+que exige `realizado.getId()` não-nulo — ou seja, reconciliação roda **depois** do insert mas
+**antes** do evento.
+
+`registrar()` não tem esse encaixe: seu evento é publicado como parte inseparável do próprio fluxo
+(save → evento → carga), sem hook para um passo do chamador entre save e evento. E o sinal
+`eraNovo` (D4, `treino.getId() == null` antes da chamada) não serve aqui — se o chamador salvasse
+a entidade primeiro (para reconciliar), `registrar()` já veria um id preenchido e classificaria
+como "entidade gerenciada" (D4), suprimindo o evento até para o primeiro insert real.
+
+**Decisão:** `IntervalsIcuActivityPersister` permanece na implementação atual (direta, com
+`TreinoDedupHelper`/`TssCalculatorService`/`TsbService`/`ApplicationEventPublisher`), sem migrar
+para `registrar()`. Migrar exigiria expandir o contrato do seam (um hook pós-save/pré-evento) ou
+relaxar a garantia de ordem do pre-mortem #10 — nenhuma das duas cabe no escopo desta change.
+Registrado como candidato de follow-up, não como pendência desta change.
+
+## Achado de implementação (Bloco 1, Seção 5) — `enriquecerTreinoComStrava` não migra para `reprocessar`
+
+`StravaActivityServiceImpl.enriquecerTreinoComStrava` publica `TreinoRegistradoEvent` quando o RPE
+chega atrasado (`rpePreenchido`). O `WorkoutAnalysisListener` só dispara análise quando
+`percepcaoEsforco != null` — ou seja, para um treino sincronizado sem RPE, este é o **único**
+disparo de análise que ele recebe. `reprocessar()` nunca publica evento (D5); migrar este método
+para `reprocessar()` silenciaria a análise por IA para todo treino Strava sem RPE no momento do
+sync inicial. **Decisão:** este método permanece com `eventPublisher.publishEvent` direto,
+inalterado — não usa `TreinoDedupHelper` nem duplica `atualizarTsbDia`, então está fora do escopo
+mecânico desta migração de qualquer forma. Recalcular TSS quando o RPE chega tarde (hoje não
+acontece) fica como follow-up, não parte desta change.
+
 ## Riscos e mitigações
 
 | Risco | Mitigação |
@@ -240,6 +274,7 @@ Duas correções, ambas verificadas pelo `./mvnw clean verify` completo (0 falha
 | Backfill (`recalcularHistoricoCompleto`) muta CTL/ATL/TSB de produção; reverter o código não desfaz o dado já recalculado | Dump de `tb_metricas_diarias` antes de rodar em produção (task 6.2); stage é obrigatório antes de prod — ver task 6.2b |
 | `intervals-icu-activity-sync-scheduler` está em implementação em paralelo; se o contrato de `IntervalsIcuActivityPersister` mudar antes da task 5.2, ela quebra | Task 5.2 confirma o status daquela change antes de começar |
 | Corrida verdadeiramente concorrente em `registrar` (mesmo externalId, mesma transação, mesmo nanossegundo) ainda pode poluir a transação Postgres (25P02) | Residual, já presente nos chamadores atuais de `TreinoDedupHelper`; checagem prévia elimina o caminho comum; corrigir por completo exige `Propagation.NESTED` — fora do escopo |
+| `IntervalsIcuActivityPersister` não migra para `registrar` (conflito de ordem evento/reconciliação, pre-mortem #10 de outra change) | Fica na implementação direta atual; duplica dedup/TSS/evento/carga só para este caller — ver "Achado de implementação (Seção 5)" |
 | `first-party-ingestion-architecture` retomada cria 12º caminho | Dependência declarada no proposal; task 0.3 deixa nota naquela change |
 | D5 amplia para o Strava a análise por IA visível ao atleta sem revisão do treinador (gap pré-existente: `AnaliseWorkoutController:31`) | Fora do escopo desta change (não muda autoridade do treinador); Open Question no proposal; guard de 4.4 filtra por idade e por `percepcaoEsforco` já existente |
 
