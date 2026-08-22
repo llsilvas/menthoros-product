@@ -51,6 +51,16 @@ duplicado no callback), 4.4 estendida (disconnect limpa todos os campos OAuth), 
     > Plataforma de treinamento de corrida com seu treinador no comando: a IA propõe, o treinador
     > aprova. O Menthoros lê seus treinos realizados no Intervals.icu e publica os treinos
     > planejados no seu calendário — e de lá para o seu relógio.
+
+    **Aplicado em 2026-08-21:** `A IA propõe. O treinador decide.` — o slogan do site
+    (`<title>` de menthoros.com). Resolve o problema principal, que era o texto de exemplo do
+    provedor com a promessa de reembolso.
+    **Ressalva registrada, não bloqueante:** o campo aparece na tela de consentimento, onde o
+    atleta decide se autoriza acesso à conta dele. O slogan comunica o posicionamento, mas não
+    diz **o que o app fará com a conta** — que é a pergunta daquele momento e o que a LGPD pede
+    que seja claro. Uma composição resolveria sem perder a identidade, ex.:
+    `A IA propõe. O treinador decide. O Menthoros lê seus treinos realizados e publica os
+    planejados no seu calendário.` Fica como melhoria de copy, a critério do founder.
 - [ ] 0.5 **[Smoke 2026-08-21] Reduzir o escopo de `ACTIVITY:WRITE` para `ACTIVITY:READ`**, se a
   tela do app 663 permitir configurar escopos. O smoke revelou que o provedor concede
   `ACTIVITY:WRITE` mesmo pedindo `ACTIVITY:READ` — ou seja, hoje o Menthoros pode **criar e
