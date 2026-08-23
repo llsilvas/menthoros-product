@@ -135,8 +135,14 @@
   no fixture (mesmo padrão de `seedAtleta` usado em outros IT). Teste novo:
   `TreinoServiceImplTest.recalculaCargaViaReprocessar`. `./mvnw clean verify` — BUILD SUCCESS, 701
   classes, 0 falhas
-- [ ] 7.4 `ManualReconciliationServiceImpl` (3 pontos) → `reprocessar(id, null)`
-  verify: os 3 pontos chamam `reprocessar`; teste por ponto
+- [x] 7.4 `ManualReconciliationServiceImpl` (3 pontos) → `reprocessar(id, null)`
+  verify: `linkManually`, `markAsNotPlanned`, `unlinkManually` chamam `reprocessar(id, null)` após
+  persistir + evento de auditoria — por completude (D2/D9), mesmo nenhum dos três gestos alterando
+  `tssCalculado`/carga hoje (nenhum toca `statusSincronizacao` nem campos usados por
+  `TssCalculatorService`). `ManualReconciliationServiceImplTest` novo (3 testes, um por ponto).
+  Achado ao rodar `ManualReconciliationControllerIT` (pré-existente): mesmo gap do fixture de
+  7.3 — `PlanoMetaDados` não existia para o atleta de teste; corrigido. `./mvnw clean verify` —
+  BUILD SUCCESS, 701 classes, 0 falhas
 - [ ] 7.5 `IntervalsIcuLapsBackfillPersister` → `reprocessar(id, null)` após gravar etapas
   verify: teste confirma que `tssCalculado`/carga do dia mudam após laps adicionados (fecha CA5 no caminho real)
 - [ ] 7.6 `StravaWebhookServiceImpl.markAsCanceled` → `reprocessar(id, null)`
