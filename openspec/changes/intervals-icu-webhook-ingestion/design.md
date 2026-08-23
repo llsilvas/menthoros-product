@@ -12,18 +12,23 @@ vem da integração, não do request.
 
 **Ordem obrigatória das verificações — e onde cada uma vive:**
 
-1. **Filtro** `IntervalsIcuWebhookAuthFilter` (`OncePerRequestFilter`, só para
-   `POST /api/v1/intervals-icu/webhook`, molde `PublicRequestSizeLimitFilter`): header
-   `Authorization` com `MessageDigest.isEqual` contra `props.getWebhook().getAuthorization()`;
-   diferente ou ausente → `401` sem corpo, **sem tocar em `getInputStream()`**. No mesmo filtro,
-   `Content-Length` acima de **64 KB** → `413`. **Por que filtro e não controller (pré-mortem):**
-   um `@RequestBody`, mesmo `String`, é resolvido *antes* do método — o corpo já teria sido lido
-   e parseado por qualquer request sem header. Registrado como `@Bean`/`FilterRegistrationBean`
-   numa `@Configuration`, não `@Component`, para não entrar nos `@WebMvcTest` (regra do CLAUDE.md).
-2. **Controller**: desserializa o DTO; campo do secret (nome confirmado no gate 0.2) contra
-   `props.getWebhook().getSecret()`, em tempo constante. Diferente → `401`. JSON inválido → `400`
+> **Revisado pelo gate 0.2 (2026-08-23): o provedor NÃO envia o header `Authorization`, mesmo com
+> o campo preenchido na tela** — confirmado no webhook de teste e no upload real. A "camada 1"
+> planejada não existe do lado dele. O que resta, e basta:
+
+1. **Filtro** `IntervalsIcuWebhookSizeFilter` (`OncePerRequestFilter`, só para
+   `POST /api/v1/intervals-icu/webhook`, molde `PublicRequestSizeLimitFilter`): `Content-Length`
+   acima de **64 KB** → `413` sem tocar em `getInputStream()` (o payload real de um upload tem
+   ~2,7 KB; 64 KB dá folga para lotes). É a única defesa antes do parse — mesmo patamar do
+   `/asaas/webhook`, e um acima do `/strava/webhook`, que não tem nem secret. Registrado como
+   `FilterRegistrationBean` numa `@Configuration`, não `@Component` (regra dos `@WebMvcTest`).
+2. **Controller**: desserializa o envelope; `secret` contra `props.getWebhook().getSecret()` em
+   tempo constante (`MessageDigest.isEqual`). Diferente ou ausente → `401`. JSON inválido → `400`
    sem chamar o serviço.
-3. `200` imediato. Só então `service.handleEventAsync(dto)`.
+3. `200` imediato. Só então `service.handleEventAsync(payload)`.
+
+O campo "Webhook Authorization Header" da tela fica **vazio** no app: valor que o provedor ignora
+não é defesa, é falsa sensação. A property `webhook.authorization` sai do desenho.
 
 Nenhum dos dois valores — recebido ou esperado — aparece em log, mensagem de exceção ou resposta.
 Teste de contrato com `ListAppender`, igual ao do client.
@@ -32,8 +37,7 @@ Teste de contrato com `ListAppender`, igual ao do client.
 // IntervalsIcuProperties — acrescentar
 @Valid private final Webhook webhook = new Webhook();
 @Getter @Setter public static class Webhook {
-    @NotBlank private String authorization; // valor literal do campo "Webhook Authorization Header"
-    @NotBlank private String secret;        // valor do campo "Webhook Secret", rotacionado
+    @NotBlank private String secret; // valor do campo "Webhook Secret" da tela, rotacionado
 }
 ```
 
@@ -41,13 +45,12 @@ Teste de contrato com `ListAppender`, igual ao do client.
 app:
   intervals-icu:
     webhook:
-      authorization: ${INTERVALS_ICU_WEBHOOK_AUTHORIZATION:}
       secret: ${INTERVALS_ICU_WEBHOOK_SECRET:}
 ```
 
-`@NotBlank` nos dois: sem eles o endpoint público aceitaria qualquer coisa e o contexto **não
-pode subir**. Mesmo raciocínio do `clientSecret` (D11 da OAuth2). Consequência: os testes de
-contexto que já sobrescrevem as sete propriedades passam a precisar de mais duas.
+`@NotBlank`: sem ele o endpoint público aceitaria qualquer coisa e o contexto **não pode subir**.
+Mesmo raciocínio do `clientSecret` (D11 da OAuth2). Consequência: os testes de contexto que já
+sobrescrevem as propriedades do intervals.icu passam a precisar de mais uma.
 
 ## D2 — DTO e gate 0.2 (payload real)
 
@@ -63,6 +66,22 @@ public record IntervalsIcuWebhookEventDto(
         @JsonProperty("secret") String secret,
         @JsonProperty("created") String created) {}
 ```
+
+### Gate 0.2 — captura (b), upload real (`ACTIVITY_UPLOADED`), 2026-08-23 13:20 UTC
+
+Meia maratona real do founder ("São Paulo Corrida", Garmin Forerunner 970, 21,08 km). O evento
+chega com o **objeto `activity` embutido — 88 campos**, o summary completo (inclui
+`icu_lap_count: 22`, FC, GAP, dinâmica de corrida), **mas sem `icu_intervals`**: os laps continuam
+existindo só no `GET /activity/{id}?intervals=true` — o refetch do pipeline permanece necessário, e
+o DTO ignora o objeto embutido além do `id` (não confiar em campo que não vamos re-buscar).
+
+- Campo da atividade: **`events[].activity.id`** (`i178902020`) — não `activity_id` no evento.
+- Lote com **1 evento** neste request; a estrutura continua `{secret, events[]}`.
+- **Sem header `Authorization` de novo, com o campo preenchido** → o provedor **não envia o header
+  em nenhum request**. A camada 1 do D1 cai — ver a revisão do D1.
+- `activity.created` 13:20:22 → `analyzed` **13:20:27** (5 s): a análise é praticamente síncrona
+  com o upload. Se o `ACTIVITY_ANALYZED` disparar como evento separado logo após, ele é o gatilho
+  ideal (D5); registrado na sequência.
 
 ### Gate 0.2 — captura (a), "Enviar webhook de teste", 2026-08-23 07:13 UTC
 
