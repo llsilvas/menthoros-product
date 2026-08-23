@@ -64,6 +64,39 @@ public record IntervalsIcuWebhookEventDto(
         @JsonProperty("created") String created) {}
 ```
 
+### Gate 0.2 — captura (a), "Enviar webhook de teste", 2026-08-23 07:13 UTC
+
+```http
+POST / HTTP/1.1
+User-Agent: Java-http-client/21.0.11
+Content-Type: application/json
+Content-Length: 118
+```
+```json
+{"secret":"***","events":[{"athlete_id":"i641775","type":"TEST","timestamp":"2026-08-23T07:13:17.277+00:00"}]}
+```
+
+O que a captura fecha: **o payload é um lote** — `events` é lista, o `secret` fica no envelope, não
+no evento; **não há id de evento** (idempotência por hash, o plano B do D3, vira o plano); o tipo
+vem como string (`TEST`); `timestamp` ISO-8601 com offset. **Nenhum header `Authorization`** veio
+neste request — a confirmar se o campo estava preenchido na tela (se estava, o provedor não manda
+no teste ou não manda nunca, e a camada 1 do D1 precisa ser repensada). O campo da atividade não
+aparece no `TEST`; fica para a captura (b).
+
+**Consequência para o DTO:** envelope + lista.
+
+```java
+public record IntervalsIcuWebhookPayloadDto(String secret, List<IntervalsIcuWebhookEventDto> events) {}
+public record IntervalsIcuWebhookEventDto(
+        @JsonProperty("athlete_id") String athleteId,
+        String type,
+        String timestamp,
+        @JsonProperty("activity_id") String activityId /* nome a confirmar na captura (b) */) {}
+```
+
+Chave de idempotência: `sha256(type|athlete_id|activity_id|timestamp)` **por evento**, não por
+request — um lote com N eventos vira N claims.
+
 **Gate 0.2, em duas capturas:** (a) "Enviar webhook de teste" da tela para um request bin; (b) um
 upload real de atividade com a URL do bin cadastrada — o teste pode ter shape diferente do evento
 real. Registrar aqui os dois payloads (sem o secret) e só então fixar o record. Perguntas que o
