@@ -26,25 +26,31 @@ Bloco 5 (smoke no Railway) depende de tudo; QA/entrega por último.
       observado — tratado como "sem retry garantido" (o scheduler é o fallback).
       Verify: D2 com os três payloads e o record fixado. Feito.
 - [ ] 0.3 DoR (`spec-reviewer`) + pre-mortem cross-model (Codex) sobre proposal/design com o D2
-      fechado. **Pré-condição registrada pelo founder:** scheduler validado em produção.
+      fechado. Rodada 2 de 2026-08-23: spec-reviewer **NOT READY** (2 blockers — DTO sem o
+      `activity` aninhado; property `webhook.authorization` órfã nas tasks — + 2 majors), todos
+      corrigidos na mesma data. **Pré-condição registrada pelo founder:** scheduler validado em
+      produção.
       Verify: DoR = READY (com ressalvas registradas em "Status").
 
 ## Bloco 1 — Properties e rota pública (D1)
 
-- [ ] 1.1 Teste primeiro: `IntervalsIcuPropertiesTest` — `webhook.authorization` e `webhook.secret`
-      fazem binding; **contexto falha** com qualquer um em branco (mesma família do `clientSecret`).
-      Atualizar `PROPRIEDADES_COMPLETAS` dos testes existentes com as duas chaves.
-      Verify: teste falha (campos não existem).
-- [ ] 1.2 `IntervalsIcuProperties.Webhook` (`@Valid`, `@NotBlank` ×2) + chaves em
-      `application.yml` (`app.intervals-icu.webhook.*`). Conferir que **todos** os testes de
-      contexto que sobrescrevem as properties do intervals.icu ganham as duas novas.
+- [ ] 1.1 Teste primeiro: `IntervalsIcuPropertiesTest` — `webhook.secret` faz binding; **contexto
+      falha** com ele em branco (mesma família do `clientSecret`). **Não existe
+      `webhook.authorization`**: o gate 0.2 provou que o provedor nunca envia o header (D1
+      revisado). Atualizar `PROPRIEDADES_COMPLETAS` dos testes existentes com a chave nova.
+      Verify: teste falha (campo não existe).
+- [ ] 1.2 `IntervalsIcuProperties.Webhook` (`@Valid`, `@NotBlank` no `secret`) + chave
+      `app.intervals-icu.webhook.secret` em `application.yml`. Conferir que **todos** os testes de
+      contexto que sobrescrevem as properties do intervals.icu ganham a nova.
       Verify: 1.1 verde; `./mvnw clean test` verde (nenhum contexto caiu por `@NotBlank`).
 - [ ] 1.3 Teste primeiro: `CoreSecurityPropertiesTest` (ou o teste de `SecurityConfig` existente) —
       `/api/v1/intervals-icu/webhook` é pública; `/api/v1/intervals-icu/**` demais continuam
       autenticadas.
       Verify: teste falha.
-- [ ] 1.4 `intervalsIcuPaths` em `CoreSecurityProperties` + uso na `SecurityConfig`, molde
-      `asaasPaths`.
+- [ ] 1.4 Adicionar **`/api/v1/intervals-icu/webhook`** à lista `intervalsIcuPaths` de
+      `CoreSecurityProperties` — a lista **já existe** e hoje contém só
+      `/api/v1/integracoes/intervals-icu/callback`; é estender, não criar. Conferir o uso na
+      `SecurityConfig` (molde `asaasPaths`).
       Verify: 1.3 verde.
 - [ ] 1.5 Teste primeiro: `IntervalsIcuWebhookAuthFilterTest` (unitário, `MockHttpServletRequest`)
       — header ausente → 401 e **`getInputStream()` nunca chamado** (request espiado); header

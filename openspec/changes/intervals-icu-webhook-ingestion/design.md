@@ -109,19 +109,31 @@ apenas o limite de tamanho antes do parse — o mesmo patamar em que `/strava/we
 sem nem o secret. O campo da atividade não
 aparece no `TEST`; fica para a captura (b).
 
-**Consequência para o DTO:** envelope + lista.
+**Consequência para o DTO — fixado pelo payload real (capturas a+b):** envelope + lista, com a
+atividade **aninhada** em `events[].activity` (não `activity_id` no evento). Do objeto de 88
+campos, o DTO lê **só o `id`** — o resto vem do refetch, e campo que não vamos re-buscar não entra
+no contrato. `timestamp` fica **`String`** de propósito: ele só serve à chave de idempotência, e
+hash sobre a string crua do provedor é estável por construção — parsear para `Instant` e
+re-serializar poderia normalizar o offset (`+00:00` → `Z`) e mudar o hash entre versões de lib.
 
 ```java
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record IntervalsIcuWebhookPayloadDto(String secret, List<IntervalsIcuWebhookEventDto> events) {}
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record IntervalsIcuWebhookEventDto(
         @JsonProperty("athlete_id") String athleteId,
         String type,
-        String timestamp,
-        @JsonProperty("activity_id") String activityId /* nome a confirmar na captura (b) */) {}
+        String timestamp,     // ISO-8601 cru, ex.: "2026-08-23T13:20:27.608+00:00" — só para o hash
+        Activity activity) {
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Activity(String id) {}
+}
 ```
 
-Chave de idempotência: `sha256(type|athlete_id|activity_id|timestamp)` **por evento**, não por
-request — um lote com N eventos vira N claims.
+Chave de idempotência: `sha256(type|athlete_id|activity.id|timestamp)` **por evento**, não por
+request — um lote com N eventos vira N claims. **Nenhuma das três capturas trouxe id de evento do
+provedor** — o "id se existir" do D3 é puramente defensivo, o caminho vivo é o hash.
 
 **Gate 0.2, em duas capturas:** (a) "Enviar webhook de teste" da tela para um request bin; (b) um
 upload real de atividade com a URL do bin cadastrada — o teste pode ter shape diferente do evento
