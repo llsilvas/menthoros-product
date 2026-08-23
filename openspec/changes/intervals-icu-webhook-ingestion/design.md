@@ -79,9 +79,13 @@ o DTO ignora o objeto embutido além do `id` (não confiar em campo que não vam
 - Lote com **1 evento** neste request; a estrutura continua `{secret, events[]}`.
 - **Sem header `Authorization` de novo, com o campo preenchido** → o provedor **não envia o header
   em nenhum request**. A camada 1 do D1 cai — ver a revisão do D1.
-- `activity.created` 13:20:22 → `analyzed` **13:20:27** (5 s): a análise é praticamente síncrona
-  com o upload. Se o `ACTIVITY_ANALYZED` disparar como evento separado logo após, ele é o gatilho
-  ideal (D5); registrado na sequência.
+- `activity.created` 13:20:22 → `analyzed` **13:20:27.550** → webhook enviado **13:20:27.608**:
+  o `ACTIVITY_UPLOADED` dispara **depois** da análise (58 ms). E **nenhum `ACTIVITY_ANALYZED`
+  chegou em 7h30** — a descrição da tela é literal: *"Existing activity **re**-analyzed"*, só
+  re-análise. **Isso inverte o D5 da rodada 1:** o gatilho é o `UPLOADED` (que já vem
+  pós-análise); o `ANALYZED` é aceito como secundário.
+- Captura (c), 20:52 UTC: chegou um `CALENDAR_UPDATED` — tipo fora do escopo aparecendo na
+  prática. O descarte com log (CA8) não é cenário hipotético.
 
 ### Gate 0.2 — captura (a), "Enviar webhook de teste", 2026-08-23 07:13 UTC
 
@@ -165,7 +169,7 @@ de centenas de milhares.
 ```java
 @Async("intervalsIcuWebhookExecutor")
 public void handleEventAsync(IntervalsIcuWebhookEventDto evento) {
-    if (!"ACTIVITY_ANALYZED".equals(evento.tipo())) { log.info(...); return; }     // CA8, D5
+    if (!TIPOS_ACEITOS.contains(evento.tipo())) { log.info(...); return; } // UPLOADED, ANALYZED — CA8, D5
     if (!claim(evento)) { log.debug("repetido"); return; }                          // CA4, D3
     List<IntegracaoExterna> integracoes = integracaoExternaRepository
             .findAllActiveByExternalAthleteIdAndPlataforma(evento.athleteId(), INTERVALS_ICU); // D4 ↓
@@ -206,29 +210,29 @@ e atividade (nunca o payload inteiro) e incrementa `intervals_icu.webhook.descar
 Micrometer. **Não** usar `DiscardPolicy` (descarta em silêncio — achado do pré-mortem) nem
 `CallerRunsPolicy` (executaria o import na thread HTTP e derrubaria o 200 imediato). CA11.
 
-## D5 — Só `ACTIVITY_ANALYZED` importa (decidido no pré-mortem)
+## D5 — Gatilho: `ACTIVITY_UPLOADED`, com `ACTIVITY_ANALYZED` aceito (revisado 2× por evidência)
 
-A versão inicial deste design importava no `UPLOADED` e completava os laps no `ANALYZED` via
-`backfillEtapas`. O pré-mortem derrubou as duas premissas, verificadas no código:
-
-- `IntervalsIcuRetrySchedulerImpl` (PT15M) reprocessa **push de treinos planejados**
-  (`findAllAguardandoRetryIntervalsIcu`), não laps. `backfillEtapas` só é chamado pelo
-  `IntervalsIcuActivityController` (ação manual). **Não há recuperação automática de laps.**
-- `backfillEtapas(atletaId, tenantId)` é por atleta e busca **até 50** treinos sem etapas por
-  execução (`MAX_POR_EXECUCAO = 50`) — um `ANALYZED` num atleta com passivo estouraria a cota.
-
-Desenho final:
+Rodada 1 (pré-mortem): "importar no `UPLOADED` e completar laps via backfill" caiu — não existe
+recuperação automática de laps e `backfillEtapas` custa até 50 fetches. Rodada 2 (gate 0.2, dado
+real): "importar só no `ANALYZED`" caiu também — **o `ANALYZED` não dispara no fluxo normal**
+(é só re-análise) e o `UPLOADED` **já é enviado depois da análise** (58 ms depois do carimbo
+`analyzed` na captura (b)), então o fetch com `intervals=true` encontra os laps.
 
 | Evento | Estado do treino | Ação | Fetch |
 |---|---|---|---|
-| `ACTIVITY_UPLOADED` | — | **não marcado no app**; se chegar, ignorado (CA8) | 0 |
-| `ACTIVITY_ANALYZED` | não existe | `importarAtividade` → treino **já com laps** (`intervals=true`) | 1 |
-| `ACTIVITY_ANALYZED` (re-análise) | existe | `importarAtividade` dedup no Passo 0 | 0 |
-| `ANALYZED` perdido | não existe | scheduler no ciclo seguinte, também com laps | 1 |
+| `ACTIVITY_UPLOADED` | não existe | `importarAtividade` → treino **com laps** | 1 |
+| `ACTIVITY_UPLOADED` (reentrega) | existe | claim (D3) ou dedup do pipeline | 0 |
+| `ACTIVITY_ANALYZED` (re-análise) | existe | `importarAtividade` → dedup no Passo 0 | 0 |
+| `ACTIVITY_ANALYZED` | existe **sem etapas** (upload veio sem análise) | dedup retorna cedo — **não completa laps**; residual abaixo | 0 |
+| Qualquer outro tipo (`CALENDAR_UPDATED` observado) | — | ignorado com log (CA8) | 0 |
 
-Custo da escolha: a latência inclui o tempo da análise do provedor (segundos a poucos minutos).
-O gate 0.2 mede esse atraso e confirma que o `ANALYZED` dispara para **todo** upload; se não
-disparar, o `UPLOADED` volta ao escopo — com um desenho de laps que hoje não existe.
+**Residual aceito, com evidência:** se algum upload disparar antes da análise (não observado; a
+captura (b) diz o contrário), o treino importa sem etapas e **nada o completa automaticamente** —
+`ANALYZED` de re-análise cai no dedup, e o backfill é manual. Registrado; se o smoke do Bloco 5
+mostrar treino sem etapas, vira change própria (backfill por atividade).
+
+Marcar no app: **`ACTIVITY_UPLOADED` e `ACTIVITY_ANALYZED`**. `CALENDAR_UPDATED` desmarcado — é do
+lado de push, fora desta change.
 
 ## D6 — Relação com o scheduler
 
@@ -256,7 +260,7 @@ ciclo para atletas Garmin-direct — a cota por atleta **cai**, não sobe.
 | Verificação de subscription (`GET hub.challenge`) | sim | **não** | o provedor não tem handshake; cadastro é na tela |
 | Autenticação | `verify_token` só no handshake; POST sem auth | header + secret no corpo, **todo POST** | a rota é pública e o provedor oferece os dois |
 | Idempotência por evento | não | **sim**, claim liberado em falha (D3) | cota de 100/dia por atleta |
-| Evento que importa | `create` | `ACTIVITY_ANALYZED` (D5) | laps só existem após a análise |
+| Evento que importa | `create` | `ACTIVITY_UPLOADED` (+`ANALYZED` idempotente, D5) | o upload já dispara pós-análise |
 | Autenticação antes do corpo | n/a | filtro (D1) | `@RequestBody` lê antes do método |
 | Delete/update | `processDeleteEvent`/`processUpdateEvent` | **fora de escopo** | decisão de produto pendente |
 | Lookup do atleta | `findActiveIntegrationByOwnerId` (um) | lista (D4) | um atleta pode estar em dois tenants |

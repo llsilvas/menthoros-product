@@ -68,7 +68,8 @@ Valor para o coach: feedback no mesmo dia, sem ação dele e sem ação do atlet
   toda chamada. Dá um **segundo segredo, verificável antes de parsear o corpo**.
 - **14 tipos de evento**, com o escopo OAuth exigido por cada um. Interessam à ingestão:
   `ACTIVITY_UPLOADED` (*New activity uploaded*, escopo ACTIVITY) e `ACTIVITY_ANALYZED` (*Existing
-  activity re-analyzed*). O app já tem `ACTIVITY:READ`. **Só o `ANALYZED` é marcado** — ver item 6.
+  activity re-analyzed*). O app já tem `ACTIVITY:READ`. **Os dois são marcados; o gatilho é o
+  `UPLOADED`** — ver item 6 e o histórico de reviravoltas no D5.
 - Nota da tela: *"activity webhooks are not delivered for Strava activities. Please use
   CALENDAR_UPDATED and not CALENDAR_EVENT_UPDATED or CALENDAR_EVENT_DELETED"* — a segunda parte é
   para o lado de **push** (treinos planejados), fora desta change.
@@ -97,21 +98,21 @@ Valor para o coach: feedback no mesmo dia, sem ação dele e sem ação do atlet
    chega durante o processamento) e **removido se o processamento falhar** — assim uma reentrega
    do provedor, ou o scheduler, reprocessa. O Strava não tem isso e reprocessa tudo; aqui o custo
    de reprocessar é **cota** (1 fetch por evento), então a tabela paga por si.
-5. **Processamento** (`IntervalsIcuWebhookServiceImpl`): tipo fora de `ACTIVITY_ANALYZED` →
+5. **Processamento** (`IntervalsIcuWebhookServiceImpl`): tipo fora de {`ACTIVITY_UPLOADED`,
+   `ACTIVITY_ANALYZED`} →
    log e fim; `externalAthleteId` sem integração ativa → log e fim; para **cada** integração ativa
    e não pausada com esse `externalAthleteId` (um atleta pode existir em dois tenants — ver D4),
    `TenantContext` por integração e `importarAtividade(atletaId, activityId, tenantId)` — o
    mesmo pipeline do import manual e do scheduler, com dedup, modalidade, TSS/TSB e reconciliação.
-6. **Só `ACTIVITY_ANALYZED` dispara importação — `ACTIVITY_UPLOADED` não é marcado.** Os laps
-   (`icu_intervals`) só existem depois da análise do provedor; importar no `UPLOADED` criaria o
-   treino sem etapas, e **não existe recuperação automática de laps** no sistema (o
-   `IntervalsIcuRetrySchedulerImpl` reprocessa *push*; `backfillEtapas` é manual e faz até 50
-   fetches por execução — achado do pré-mortem). No `ANALYZED` o fetch já traz tudo: **1 requisição
-   por treino, zero backfill**. Re-análises posteriores da mesma atividade caem no dedup (0 fetch).
-   O gate 0.2 confirma que o `ANALYZED` dispara para todo upload e mede o atraso em relação a ele.
+6. **O gatilho é `ACTIVITY_UPLOADED`; `ACTIVITY_ANALYZED` é aceito como secundário.** O gate 0.2
+   mostrou com dado real que (a) o `UPLOADED` **já dispara depois da análise** (58 ms após o
+   carimbo `analyzed`), então o fetch com `intervals=true` traz os laps; e (b) o `ANALYZED` **não
+   dispara no fluxo normal** — é só re-análise ("Existing activity **re**-analyzed"). Importar só
+   no `ANALYZED`, como a rodada 1 do pré-mortem sugeriu, significaria **nunca** importar. 1 fetch
+   por treino, zero backfill; re-análises caem no dedup (0 fetch). Residual com evidência no D5.
 7. **Scheduler inalterado** — continua a cada 2h como fallback e reconciliação. Zero diff nele.
-8. **Operação:** marcar **só** `ACTIVITY_ANALYZED` no app; a URL é a do ambiente **com https
-   público** (Railway dev primeiro; local não recebe webhook — ver D7).
+8. **Operação:** marcar `ACTIVITY_UPLOADED` e `ACTIVITY_ANALYZED` no app; a URL é a do ambiente
+   **com https público** (Railway dev primeiro; local não recebe webhook — ver D7).
 
 ### Fora de escopo
 
@@ -131,18 +132,17 @@ Valor para o coach: feedback no mesmo dia, sem ação dele e sem ação do atlet
   D4.1; o webhook custa 1 fetch por evento novo, dentro do mesmo `1 + N`.
 - **Retry próprio de eventos que falharam** — não há fila; o claim liberado em falha deixa a
   reentrega do provedor (se houver) e o scheduler reprocessarem.
-- **`ACTIVITY_UPLOADED`** — não marcado (item 6). Se o gate 0.2 mostrar que o `ANALYZED` não
-  dispara para todo upload, reabrir aqui.
-- **Backfill de laps no webhook** — descartado pelo pré-mortem (até 50 fetches por chamada).
+- **Backfill de laps no webhook** — descartado pelo pré-mortem (até 50 fetches por chamada). O
+  caso "upload sem análise" é residual documentado no D5, não observado no dado real.
 - **Front** — nada.
 
 ## Critérios de aceite
 
-- **CA1 — Análise vira treino em minutos, já com etapas:** Given atleta com integração
-  intervals.icu ativa e não pausada, When o provedor entrega `ACTIVITY_ANALYZED` válido para uma
+- **CA1 — Upload vira treino em segundos, já com etapas:** Given atleta com integração
+  intervals.icu ativa e não pausada, When o provedor entrega `ACTIVITY_UPLOADED` válido para uma
   atividade de corrida ainda não importada, Then o `TreinoRealizado` (`fonteDados=INTERVALS_ICU`)
-  existe **com as etapas**, reconciliado, sem ação do coach nem do atleta — e o request recebeu
-  **200 antes** de o processamento terminar.
+  existe **com as etapas** (o evento dispara pós-análise — gate 0.2), reconciliado, sem ação do
+  coach nem do atleta — e o request recebeu **200 antes** de o processamento terminar.
 - **CA2 — Sem o header certo, o corpo nem é lido:** Given um POST sem `Authorization` ou com valor
   diferente do configurado, When chega à rota, Then a resposta é **401 sem corpo**, o corpo da
   requisição **não é consumido** (filtro antes do controller), nenhum processamento é disparado,
@@ -162,9 +162,9 @@ Valor para o coach: feedback no mesmo dia, sem ação dele e sem ação do atlet
 - **CA7 — Re-análise não duplica nem custa:** Given treino já importado, When um novo
   `ACTIVITY_ANALYZED` chega para a mesma atividade (re-análise pelo atleta), Then não há segundo
   `TreinoRealizado` e **nenhuma chamada ao provedor** é feita (dedup do pipeline antes do fetch).
-- **CA8 — Tipo não suportado é ignorado:** Given evento de tipo diferente de `ACTIVITY_ANALYZED`
-  (inclusive `ACTIVITY_UPLOADED`, se alguém marcar por engano), When chega autenticado, Then 200,
-  log, nenhum processamento.
+- **CA8 — Tipo não suportado é ignorado:** Given evento de tipo fora de {`ACTIVITY_UPLOADED`,
+  `ACTIVITY_ANALYZED`} — um `CALENDAR_UPDATED` real chegou durante o gate 0.2 —, When chega
+  autenticado, Then 200, log, nenhum processamento.
 - **CA9 — Falha no processamento não volta ao provedor:** Given `importarAtividade` lança (429,
   modalidade, credencial), When o evento é processado, Then a resposta já foi 200, a falha fica em
   log e em `lastSyncError` da integração (sanitizada, ≤ 500), e o scheduler reprocessa no próximo
@@ -202,9 +202,8 @@ atleta, é telemetria de cobertura para engenharia — o coach não vê nem age 
   evento por request.
 - **Aberto, gate 0.2 — retry do provedor.** Se não responder 200, ele reenvia? Com que política?
   Define se a idempotência é "nice to have" ou obrigatória.
-- **Aberto, gate 0.2 — `ACTIVITY_ANALYZED` dispara para todo upload?** E com que atraso em
-  relação ao `UPLOADED`? É a premissa que sustenta "importar só no `ANALYZED`". Se não disparar
-  sempre, o `UPLOADED` volta ao escopo com um desenho de laps que hoje não existe.
+- ~~Aberto — `ACTIVITY_ANALYZED` dispara para todo upload?~~ **FECHADO pelo gate 0.2: não
+  dispara** (só re-análise). E o `UPLOADED` já vem pós-análise. Gatilho invertido — ver D5.
 - **Assumido — `ACTIVITY_ANALYZED` pode vir mais de uma vez** (re-análise manual). Tratado como
   idempotente e barato pelo dedup do pipeline.
 - **Follow-up de UI (product review):** a ficha do atleta não diz se ele sincroniza em tempo real

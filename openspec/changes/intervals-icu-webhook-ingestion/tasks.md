@@ -15,15 +15,16 @@ Bloco 5 (smoke no Railway) depende de tudo; QA/entrega por último.
       aleatório longo. Guardar os dois **só em env** (`INTERVALS_ICU_WEBHOOK_SECRET`,
       `INTERVALS_ICU_WEBHOOK_AUTHORIZATION`), nunca no repo, nunca em captura.
       Verify: tela mostra o secret novo; nenhum dos dois valores aparece em arquivo versionado.
-- [ ] 0.2 **Gate de contrato real (payload)** — apontar a URL do app para um request bin https e
-      capturar **dois** payloads: (a) "Enviar webhook de teste"; (b) um upload real de atividade
-      com `UPLOADED` **e** `ANALYZED` marcados só durante a captura — anotar o **atraso** entre os
-      dois e confirmar que o `ANALYZED` **dispara para todo upload** (premissa do D5). Registrar em
-      design.md D2, com o secret mascarado: nomes dos campos, id de evento (existe?), um evento por
-      request ou lote, header `Authorization` literal ou prefixado, e **se o provedor reenvia**
-      quando não recebe 200. Desmarcar a URL do bin ao terminar.
-      Verify: D2 com os dois payloads reais e o record fixado; atraso `UPLOADED→ANALYZED` medido;
-      a pergunta do retry respondida.
+- [x] 0.2 **Gate de contrato real (payload)** — **FECHADO em 2026-08-23**, três capturas num
+      request bin (webhook de teste, upload real de meia maratona, e um `CALENDAR_UPDATED`
+      espontâneo). O que fechou: payload é **lote** `{secret, events[]}`; **sem id de evento**
+      (idempotência por hash); atividade em `events[].activity` (88 campos, **sem laps** — refetch
+      permanece); **`Authorization` nunca é enviado**, mesmo com o campo preenchido (camada 1 do D1
+      caiu); **`ANALYZED` não dispara no fluxo normal** (só re-análise) e o **`UPLOADED` dispara
+      58 ms depois da análise** — gatilho invertido para `UPLOADED` (D5, 2ª reviravolta). Evidência
+      integral em design.md D2. **Pendente, não bloqueante:** retry do provedor sem 200 não
+      observado — tratado como "sem retry garantido" (o scheduler é o fallback).
+      Verify: D2 com os três payloads e o record fixado. Feito.
 - [ ] 0.3 DoR (`spec-reviewer`) + pre-mortem cross-model (Codex) sobre proposal/design com o D2
       fechado. **Pré-condição registrada pelo founder:** scheduler validado em produção.
       Verify: DoR = READY (com ressalvas registradas em "Status").
@@ -97,8 +98,9 @@ Bloco 5 (smoke no Railway) depende de tudo; QA/entrega por último.
       `IntegracaoExternaRepository` (lista, não `Optional`) — D4.
       Verify: usada em 4.4; nome validado no boot do contexto.
 - [ ] 4.3 Teste primeiro (`IntervalsIcuWebhookServiceImplTest`, Mockito, molde do scheduler):
-      tipo ≠ `ACTIVITY_ANALYZED` (inclusive `UPLOADED`) → nada (CA8); evento repetido → nada (CA4);
-      atleta desconhecido → nada (CA5); `ANALYZED` válido → `importarAtividade(atletaId,
+      tipo fora de {`UPLOADED`, `ANALYZED`} (usar `CALENDAR_UPDATED`, observado no gate) → nada
+      (CA8); evento repetido → nada (CA4);
+      atleta desconhecido → nada (CA5); `UPLOADED` válido → `importarAtividade(atletaId,
       activityId, tenantId)` com `TenantContext` certo e limpo (CA1); dois tenants → duas
       importações, cada uma com o seu tenant (CA6); late-check inativo/pausado → pulado (CA10);
       re-análise de treino existente → `importarAtividade` chamado (o dedup é dele) e **nenhum
@@ -120,7 +122,7 @@ Bloco 5 (smoke no Railway) depende de tudo; QA/entrega por último.
 ## Bloco 5 — Smoke no Railway dev (D7)
 
 - [ ] 5.1 Setar as duas env no serviço do Railway; deploy da branch (ou do PR) no ambiente de dev;
-      cadastrar a URL no app **com só `ACTIVITY_ANALYZED` marcado**. O founder precisa estar
+      cadastrar a URL no app **com `ACTIVITY_UPLOADED` e `ACTIVITY_ANALYZED` marcados**. O founder precisa estar
       conectado ao intervals.icu **no Railway** (banco próprio), não no HomeLab.
       Verify: `POST` sem header → 401; "Enviar webhook de teste" → 200 e log do tipo.
 - [ ] 5.2 Upload real (ou apagar um treino do founder no banco de dev e re-sincronizar o relógio):

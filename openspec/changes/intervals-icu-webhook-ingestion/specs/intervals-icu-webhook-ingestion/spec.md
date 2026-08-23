@@ -36,15 +36,15 @@ entregas que carreguem os dois segredos configurados, e responder antes de proce
 - **When** a aplicação sobe
 - **Then** o contexto falha — a rota pública nunca fica no ar sem os dois segredos
 
-## Requirement: Ingestão por evento de análise
+## Requirement: Ingestão por evento de atividade
 
-O evento `ACTIVITY_ANALYZED` DEVE acionar o mesmo pipeline de ingestão do import manual e do
-scheduler, para cada integração ativa e não pausada do atleta. `ACTIVITY_UPLOADED` não é
-consumido: os laps só existem depois da análise e não há recuperação automática de laps.
+Os eventos `ACTIVITY_UPLOADED` (gatilho principal — dispara depois da análise do provedor, gate
+0.2) e `ACTIVITY_ANALYZED` (re-análise, idempotente) DEVEM acionar o mesmo pipeline de ingestão do
+import manual e do scheduler, para cada integração ativa e não pausada do atleta.
 
-#### Scenario: Análise vira treino com etapas, sem ação do coach
+#### Scenario: Upload vira treino com etapas, sem ação do coach
 - **Given** atleta com integração intervals.icu ativa e não pausada
-- **And** `ACTIVITY_ANALYZED` para uma atividade de corrida ainda não importada
+- **And** `ACTIVITY_UPLOADED` para uma atividade de corrida ainda não importada
 - **When** o evento é processado
 - **Then** o `TreinoRealizado` (`fonteDados=INTERVALS_ICU`) existe, com etapas, reconciliado com o
   planejado
@@ -60,9 +60,9 @@ consumido: os laps só existem depois da análise e não há recuperação autom
 - **Then** o treino é importado nos dois, cada um com o contexto do próprio tenant, limpo ao final
 
 #### Scenario: Atleta desconhecido, tipo não suportado, integração pausada
-- **Given** evento de atleta sem integração ativa, **ou** de tipo diferente de
-  `ACTIVITY_ANALYZED` (inclusive `ACTIVITY_UPLOADED`), **ou** de integração inativa/pausada no
-  momento do processamento
+- **Given** evento de atleta sem integração ativa, **ou** de tipo fora de
+  {`ACTIVITY_UPLOADED`, `ACTIVITY_ANALYZED`} (ex.: o `CALENDAR_UPDATED` observado no gate 0.2),
+  **ou** de integração inativa/pausada no momento do processamento
 - **When** o evento é processado
 - **Then** é ignorado com log, sem chamada ao provedor, e a resposta ao provedor já foi `200`
 
