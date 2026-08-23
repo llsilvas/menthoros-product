@@ -23,9 +23,11 @@ vem da integração, não do request.
    `/asaas/webhook`, e um acima do `/strava/webhook`, que não tem nem secret. Registrado como
    `FilterRegistrationBean` numa `@Configuration`, não `@Component` (regra dos `@WebMvcTest`).
 2. **Controller**: desserializa o envelope; `secret` contra `props.getWebhook().getSecret()` em
-   tempo constante (`MessageDigest.isEqual`). Diferente ou ausente → `401`. JSON inválido → `400`
-   sem chamar o serviço.
-3. `200` imediato. Só então `service.handleEventAsync(payload)`.
+   tempo constante (`MessageDigest.isEqual`), **uma vez por request**. Diferente ou ausente →
+   `401`. JSON inválido → `400` sem chamar o serviço.
+3. `200` imediato. Só então, **para cada** `events[i]`, `service.handleEventAsync(evento)` — N
+   eventos = N enfileiramentos, N claims, backpressure por evento; a falha de um não contamina o
+   lote.
 
 O campo "Webhook Authorization Header" da tela fica **vazio** no app: valor que o provedor ignora
 não é defesa, é falsa sensação. A property `webhook.authorization` sai do desenho.
@@ -161,12 +163,12 @@ explícita do CLAUDE.md do backend): tenta inserir; `DataIntegrityViolationExcep
 processamento ou processado → log `debug` e fim. A inserção acontece **antes** do processamento,
 então uma entrega duplicada que chegue durante o processamento da primeira também é barrada.
 
-**O claim é liberado em falha (pré-mortem):** se `importarAtividade` lançar para **todas** as
-integrações do evento, a linha é apagada no `finally` do serviço — senão uma falha transitória
-(429, timeout) viraria "já processado" e a reentrega do provedor seria descartada para sempre. Com
-sucesso em pelo menos uma integração, a linha fica. Sem coluna de status: o par
-"existe = processado ou em curso / não existe = pode processar" é suficiente porque o dedup por
-`externalId` no pipeline torna o reprocessamento seguro.
+**O claim é liberado se QUALQUER integração falhar (pré-mortem r1, apertado na r2):** a versão
+anterior ("libera só se todas falharem") quebrava o CA6 — com o mesmo atleta em dois tenants e
+falha transitória em um, a reentrega seria descartada e o tenant afetado ficaria só com o
+scheduler. Regra final: sucesso em **todas** → claim fica; falha em **ao menos uma** → claim sai, a
+reentrega reprocessa, e a integração que já sucedeu é absorvida pelo dedup do pipeline (1 query, 0
+HTTP). Sem coluna de status: o par existe/não-existe basta porque o reprocessamento é seguro.
 
 Por que existe, se o `importarAtividade` já tem dedup por `externalId`: o dedup evita a
 **duplicata**, não o **custo** — cada reprocessamento de `UPLOADED` é uma chamada a
@@ -235,13 +237,16 @@ real): "importar só no `ANALYZED`" caiu também — **o `ANALYZED` não dispara
 | `ACTIVITY_UPLOADED` | não existe | `importarAtividade` → treino **com laps** | 1 |
 | `ACTIVITY_UPLOADED` (reentrega) | existe | claim (D3) ou dedup do pipeline | 0 |
 | `ACTIVITY_ANALYZED` (re-análise) | existe | `importarAtividade` → dedup no Passo 0 | 0 |
-| `ACTIVITY_ANALYZED` | existe **sem etapas** (upload veio sem análise) | dedup retorna cedo — **não completa laps**; residual abaixo | 0 |
+| `ACTIVITY_ANALYZED` | existe **sem etapas** (upload veio sem análise) | **backfill por atividade** — overload novo `backfillEtapas(atletaId, tenantId, externalId)` no serviço existente | 1 |
 | Qualquer outro tipo (`CALENDAR_UPDATED` observado) | — | ignorado com log (CA8) | 0 |
 
-**Residual aceito, com evidência:** se algum upload disparar antes da análise (não observado; a
-captura (b) diz o contrário), o treino importa sem etapas e **nada o completa automaticamente** —
-`ANALYZED` de re-análise cai no dedup, e o backfill é manual. Registrado; se o smoke do Bloco 5
-mostrar treino sem etapas, vira change própria (backfill por atividade).
+**Residual da r1 fechado na r2 (pré-mortem):** o dedup do `importarAtividade` retorna cedo e
+bloquearia a correção de um treino importado sem etapas. Por isso o `ANALYZED` sobre treino
+existente **sem etapas** chama um **backfill por atividade** — overload aditivo
+`backfillEtapas(atletaId, tenantId, externalId)` no `IntervalsIcuLapsBackfillService`, reusando o
+fetch+persist que já existe, custo 1 fetch, sem o teto de 50 do caminho por atleta. É a função
+real do evento secundário. A decisão de gatilho segue apoiada em 1 amostra; o smoke do Bloco 5
+exige ≥ 2 uploads reais **com etapas** antes do PR.
 
 Marcar no app: **`ACTIVITY_UPLOADED` e `ACTIVITY_ANALYZED`**. `CALENDAR_UPDATED` desmarcado — é do
 lado de push, fora desta change.

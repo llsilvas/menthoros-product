@@ -27,6 +27,11 @@ front.)
   `ACTIVITY_ANALYZED`**, quando os laps já existem; nada de backfill no webhook. Os outros três
   (corpo lido antes do header com `@RequestBody String`; claim de idempotência que vira perda
   permanente em falha; `DiscardPolicy` é silenciosa) foram incorporados em D1/D3/D4.
+- **DoR rodada 2 (2026-08-23):** `spec-reviewer` NOT READY (2 blockers: DTO sem o `activity`
+  aninhado; property `webhook.authorization` órfã) + Codex NOT READY (4 achados: spec/tasks ainda
+  com o contrato de header morto; treino sem etapas ficava órfão — virou backfill por atividade;
+  claim global quebrava o retry multi-tenant — liberado em qualquer falha; lote sem contrato — N
+  eventos = N enfileiramentos). **Todos incorporados na mesma data.**
 - **Premissas validadas com o founder (2026-08-22):** escopo só de ingestão (delete/update fora);
   smoke no **Railway dev com banco próprio** (o founder precisa conectar o intervals.icu lá); um
   atleta em dois tenants é hipótese, **tratada mesmo assim**.
@@ -143,25 +148,27 @@ Valor para o coach: feedback no mesmo dia, sem ação dele e sem ação do atlet
   atividade de corrida ainda não importada, Then o `TreinoRealizado` (`fonteDados=INTERVALS_ICU`)
   existe **com as etapas** (o evento dispara pós-análise — gate 0.2), reconciliado, sem ação do
   coach nem do atleta — e o request recebeu **200 antes** de o processamento terminar.
-- **CA2 — Sem o header certo, o corpo nem é lido:** Given um POST sem `Authorization` ou com valor
-  diferente do configurado, When chega à rota, Then a resposta é **401 sem corpo**, o corpo da
-  requisição **não é consumido** (filtro antes do controller), nenhum processamento é disparado,
-  e **nem o valor recebido nem o esperado** aparecem em log. Given corpo acima de 64 KB com header
-  certo, Then **413** sem processamento.
-- **CA3 — Secret do payload também é verificado:** Given header correto mas secret do corpo
-  ausente ou diferente, When chega à rota, Then 401, nada processado, secret fora do log.
+- **CA2 — Corpo grande é barrado antes do parse:** Given `Content-Length` acima de 64 KB, When
+  chega à rota, Then **413** sem desserializar e sem processamento. (A verificação de header caiu
+  no gate 0.2: o provedor não envia `Authorization` — a autenticação é o CA3.)
+- **CA3 — Secret do envelope é a autenticação:** Given secret do corpo ausente ou diferente, When
+  chega à rota, Then **401**, nada processado, secret fora do log; validado **uma vez por
+  request**, e um lote de N eventos vira **N** processamentos independentes.
 - **CA4 — Idempotência por evento, sem perda em falha:** Given o mesmo evento entregue duas vezes
   (mesma chave), When os dois chegam, Then o processamento roda **uma** vez e o segundo é
-  registrado como repetido — zero fetch extra. Given o processamento **falhou** (exceção), When a
-  mesma entrega chega de novo, Then ela **é** processada — o claim foi liberado na falha.
+  registrado como repetido — zero fetch extra. Given o processamento falhou em **qualquer** das
+  integrações do atleta (inclusive uma de duas, no caso de dois tenants), When a mesma entrega
+  chega de novo, Then ela **é** processada — o claim foi liberado, e a integração que já sucedera
+  é absorvida pelo dedup.
 - **CA5 — Atleta desconhecido não é erro:** Given `externalAthleteId` sem integração ativa em
   nenhum tenant, When o evento chega, Then 200, log em `info`, nenhum fetch.
 - **CA6 — Um atleta, dois tenants:** Given o mesmo `externalAthleteId` com integração ativa em
   dois tenants, When um `ACTIVITY_UPLOADED` chega, Then o treino é importado **nos dois**, cada
   um com o `TenantContext` do próprio tenant, limpo ao final.
-- **CA7 — Re-análise não duplica nem custa:** Given treino já importado, When um novo
-  `ACTIVITY_ANALYZED` chega para a mesma atividade (re-análise pelo atleta), Then não há segundo
-  `TreinoRealizado` e **nenhuma chamada ao provedor** é feita (dedup do pipeline antes do fetch).
+- **CA7 — `ANALYZED` completa ou não custa:** Given treino já importado **com etapas**, When um
+  `ACTIVITY_ANALYZED` chega (re-análise), Then não há segundo `TreinoRealizado` e nenhuma chamada
+  ao provedor. Given treino importado **sem etapas**, Then as etapas passam a existir via backfill
+  **por atividade** (1 fetch) — é a função do evento secundário.
 - **CA8 — Tipo não suportado é ignorado:** Given evento de tipo fora de {`ACTIVITY_UPLOADED`,
   `ACTIVITY_ANALYZED`} — um `CALENDAR_UPDATED` real chegou durante o gate 0.2 —, When chega
   autenticado, Then 200, log, nenhum processamento.

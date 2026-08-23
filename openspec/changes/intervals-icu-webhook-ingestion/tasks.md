@@ -52,14 +52,14 @@ Bloco 5 (smoke no Railway) depende de tudo; QA/entrega por último.
       `/api/v1/integracoes/intervals-icu/callback`; é estender, não criar. Conferir o uso na
       `SecurityConfig` (molde `asaasPaths`).
       Verify: 1.3 verde.
-- [ ] 1.5 Teste primeiro: `IntervalsIcuWebhookAuthFilterTest` (unitário, `MockHttpServletRequest`)
-      — header ausente → 401 e **`getInputStream()` nunca chamado** (request espiado); header
-      diferente → 401; header igual → segue a cadeia; `Content-Length` > 64 KB → 413; outra rota →
-      segue sem verificar; `ListAppender`: nem o recebido nem o esperado em log. Cobre CA2.
+- [ ] 1.5 Teste primeiro: `IntervalsIcuWebhookSizeFilterTest` (unitário, `MockHttpServletRequest`)
+      — `Content-Length` > 64 KB → 413 e **`getInputStream()` nunca chamado** (request espiado);
+      dentro do limite → segue a cadeia; outra rota → segue sem verificar. **Não há verificação de
+      header**: o provedor não envia `Authorization` (gate 0.2). Cobre CA2.
       Verify: teste falha (filtro não existe).
-- [ ] 1.6 `IntervalsIcuWebhookAuthFilter` (`OncePerRequestFilter`, `MessageDigest.isEqual`),
-      registrado via `FilterRegistrationBean` numa `@Configuration` (não `@Component` — regra dos
-      slices `@WebMvcTest`).
+- [ ] 1.6 `IntervalsIcuWebhookSizeFilter` (`OncePerRequestFilter`, molde
+      `PublicRequestSizeLimitFilter`), registrado via `FilterRegistrationBean` numa
+      `@Configuration` (não `@Component` — regra dos slices `@WebMvcTest`).
       Verify: 1.5 verde; `./mvnw clean test` verde (nenhum slice arrastou o filtro).
 
 ## Bloco 2 — Controller (D1, D2)
@@ -68,13 +68,15 @@ Bloco 5 (smoke no Railway) depende de tudo; QA/entrega por último.
       `@JsonIgnoreProperties(ignoreUnknown = true)`, `@Schema` nos campos.
       Verify: teste de desserialização com o payload real capturado (sem secret) → todos os campos.
 - [ ] 2.2 Teste primeiro (`@WebMvcTest(IntervalsIcuWebhookController.class)`, o filtro fica fora
-      do slice por ser `@Bean`): secret errado ou ausente → 401 sem corpo; secret certo → **200 e
-      `handleEventAsync` chamado uma vez**; JSON quebrado → 400 **sem** chamar o serviço;
-      `ListAppender`: o secret não aparece em log. Cobre CA3.
+      do slice por ser `@Bean`): secret errado ou ausente → 401 sem corpo e **zero** chamadas ao
+      serviço; secret certo com lote de **3 eventos** → 200 e `handleEventAsync` chamado **3
+      vezes, um evento por chamada, na ordem do lote** (secret validado uma vez); lote vazio → 200
+      e zero chamadas; JSON quebrado → 400 sem chamar o serviço; `ListAppender`: o secret não
+      aparece em log. Cobre CA3 e o contrato de lote.
       Verify: teste falha (controller não existe).
 - [ ] 2.3 `IntervalsIcuWebhookController` — `@Tag(name = "intervals-icu-webhook")`, `@Operation`,
-      `@ApiResponses` (200/400/401); `@RequestBody` do DTO; secret em tempo constante; responde 200
-      e delega. A verificação do header **não** fica aqui (é o filtro, 1.6).
+      `@ApiResponses` (200/400/401); `@RequestBody` do envelope; secret em tempo constante uma vez;
+      responde 200 e delega **por evento**. Sem verificação de header (não existe — gate 0.2).
       Verify: 2.2 verde.
 - [ ] 2.4 Validação: `./mvnw clean test`.
 
@@ -103,17 +105,23 @@ Bloco 5 (smoke no Railway) depende de tudo; QA/entrega por último.
 - [ ] 4.2 Query derivada `findAllActiveByExternalAthleteIdAndPlataforma(String, FonteDados)` em
       `IntegracaoExternaRepository` (lista, não `Optional`) — D4.
       Verify: usada em 4.4; nome validado no boot do contexto.
+- [ ] 4.2b Overload **por atividade** no `IntervalsIcuLapsBackfillService`:
+      `backfillEtapas(UUID atletaId, UUID tenantId, String externalId)` — reusa o fetch+persist do
+      caminho por atleta, sem o teto de 50; aditivo, o método existente não muda. Teste primeiro no
+      `IntervalsIcuLapsBackfillServiceImplTest` existente.
+      Verify: testes existentes do backfill intocados e verdes; o novo caminho coberto.
 - [ ] 4.3 Teste primeiro (`IntervalsIcuWebhookServiceImplTest`, Mockito, molde do scheduler):
       tipo fora de {`UPLOADED`, `ANALYZED`} (usar `CALENDAR_UPDATED`, observado no gate) → nada
       (CA8); evento repetido → nada (CA4);
       atleta desconhecido → nada (CA5); `UPLOADED` válido → `importarAtividade(atletaId,
       activityId, tenantId)` com `TenantContext` certo e limpo (CA1); dois tenants → duas
       importações, cada uma com o seu tenant (CA6); late-check inativo/pausado → pulado (CA10);
-      re-análise de treino existente → `importarAtividade` chamado (o dedup é dele) e **nenhum
-      backfill** (CA7); `importarAtividade` lança em todas as integrações → `lastSyncError`
-      sanitizado via reload, **claim liberado**, sem propagar (CA9/CA4); lança em uma de duas →
-      claim mantido. Stubs de `doThrow` com id específico são `lenient()` — armadilha registrada no
-      scheduler.
+      re-análise de treino existente **com etapas** → dedup, nenhum fetch (CA7); `ANALYZED` de
+      treino existente **sem etapas** → `backfillEtapas(atletaId, tenantId, externalId)` por
+      atividade (D5); `importarAtividade` lança em **qualquer** integração → `lastSyncError`
+      sanitizado via reload e **claim liberado** (CA9/CA4) — inclusive falha em uma de duas
+      (regra apertada na rodada 2: a que sucedeu é absorvida pelo dedup na reentrega). Stubs de
+      `doThrow` com id específico são `lenient()` — armadilha registrada no scheduler.
       Verify: teste falha (classe não existe).
 - [ ] 4.4 `IntervalsIcuWebhookService` + `IntervalsIcuWebhookServiceImpl` (`@Async`, JavaDoc
       Idempotent/Side Effects/Tenant-aware).
@@ -132,9 +140,10 @@ Bloco 5 (smoke no Railway) depende de tudo; QA/entrega por último.
       conectado ao intervals.icu **no Railway** (banco próprio), não no HomeLab.
       Verify: `POST` sem header → 401; "Enviar webhook de teste" → 200 e log do tipo.
 - [ ] 5.2 Upload real (ou apagar um treino do founder no banco de dev e re-sincronizar o relógio):
-      `TreinoRealizado` aparece **em minutos, já com etapas**; linha na tabela de eventos; zero
-      duplicata; `lastSyncError` nulo. Medir a latência fim do treino → `criado_em` (proxy da
-      métrica de sucesso).
+      `TreinoRealizado` aparece **em minutos, já com etapas** — **≥ 2 uploads reais** (a decisão
+      do gatilho apoia-se em 1 amostra; o smoke é onde ela ganha ou perde); linha na tabela de
+      eventos; zero duplicata; `lastSyncError` nulo. Medir a latência fim do treino → `criado_em`
+      (proxy da métrica de sucesso).
       Verify: evidência (log + banco) registrada aqui com timestamps.
 - [ ] 5.3 Backpressure/fallback: desmarcar a URL, fazer um upload, confirmar que o scheduler o
       traz no ciclo seguinte — o fallback está vivo.
