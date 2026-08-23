@@ -79,8 +79,11 @@ Content-Length: 118
 O que a captura fecha: **o payload é um lote** — `events` é lista, o `secret` fica no envelope, não
 no evento; **não há id de evento** (idempotência por hash, o plano B do D3, vira o plano); o tipo
 vem como string (`TEST`); `timestamp` ISO-8601 com offset. **Nenhum header `Authorization`** veio
-neste request — a confirmar se o campo estava preenchido na tela (se estava, o provedor não manda
-no teste ou não manda nunca, e a camada 1 do D1 precisa ser repensada). O campo da atividade não
+neste request, **com o campo preenchido na tela** (confirmado pelo founder). Ou o provedor não o
+manda no evento de teste, ou não manda nunca — a captura (b) decide. Se não vier no evento real:
+a camada 1 do D1 cai, a autenticação fica **só no secret do corpo**, e o filtro passa a fazer
+apenas o limite de tamanho antes do parse — o mesmo patamar em que `/strava/webhook` vive hoje,
+sem nem o secret. O campo da atividade não
 aparece no `TEST`; fica para a captura (b).
 
 **Consequência para o DTO:** envelope + lista.
