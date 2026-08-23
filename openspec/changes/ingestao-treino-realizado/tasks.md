@@ -121,8 +121,20 @@
   mencionando o antigo comportamento); campo `TsbService tsbService` removido da classe (ficou
   inteiramente sem uso após 7.1); `metricasDiariasRepository`/`treinoRealizadoRepository.save` para
   MetricasDiarias só aparece em `TsbServiceImpl`/`TsbRecalculoExecutor` agora (CA11)
-- [ ] 7.3 `updateTreino` → ler `treino.getDataTreino()` antes de mutar/salvar, então `reprocessar(id, dataAntiga)` (`dataAntiga = null` se a data não mudou)
-  verify: teste com mudança de data confirma `recalcularDesde` chamado com a menor das duas (CA6)
+- [x] 7.3 `updateTreino` → ler `treino.getDataTreino()` antes de mutar/salvar, então `reprocessar(id, dataAntiga)` (`dataAntiga = null` se a data não mudou)
+  verify: **achado real, não regressão desta task:** `dataTreino` é imutável via `updateTreino` —
+  `applyMutableFields` nunca a atribui (confirmado por `UpdateTreinoIntegrationTest.
+  updateTreino_doesNotOverwriteImmutableFields`, teste pré-existente e mantido). `dataAntiga` captada
+  antes da mutação, então, é sempre igual à data atual — `reprocessar` sempre recebe
+  `dataAnterior=null` neste caminho específico (o parâmetro segue existindo para o contrato genérico
+  do seam, exercitado com data diferente em `IngestaoTreinoRealizadoServiceReprocessarIT`). O que a
+  migração fecha de fato: antes, `updateTreino` **nunca** tocava TSB/`MetricasDiarias` (tabela de
+  chamadores do design.md, #7 — carga do dia "não" em negrito); agora recalcula a cada update.
+  Descoberto um segundo achado real ao rodar o IT existente: `UpdateTreinoIntegrationTest` não
+  criava `PlanoMetaDados` para o atleta — nunca precisou antes porque nada chamava TSB; corrigido
+  no fixture (mesmo padrão de `seedAtleta` usado em outros IT). Teste novo:
+  `TreinoServiceImplTest.recalculaCargaViaReprocessar`. `./mvnw clean verify` — BUILD SUCCESS, 701
+  classes, 0 falhas
 - [ ] 7.4 `ManualReconciliationServiceImpl` (3 pontos) → `reprocessar(id, null)`
   verify: os 3 pontos chamam `reprocessar`; teste por ponto
 - [ ] 7.5 `IntervalsIcuLapsBackfillPersister` → `reprocessar(id, null)` após gravar etapas
