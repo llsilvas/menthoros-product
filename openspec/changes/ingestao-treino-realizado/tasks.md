@@ -143,8 +143,12 @@
   Achado ao rodar `ManualReconciliationControllerIT` (pré-existente): mesmo gap do fixture de
   7.3 — `PlanoMetaDados` não existia para o atleta de teste; corrigido. `./mvnw clean verify` —
   BUILD SUCCESS, 701 classes, 0 falhas
-- [ ] 7.5 `IntervalsIcuLapsBackfillPersister` → `reprocessar(id, null)` após gravar etapas
-  verify: teste confirma que `tssCalculado`/carga do dia mudam após laps adicionados (fecha CA5 no caminho real)
+- [x] 7.5 `IntervalsIcuLapsBackfillPersister` → `reprocessar(id, null)` após gravar etapas
+  verify: `IntervalsIcuLapsBackfillPersisterIT` novo (2 testes, 0 falhas) — `tssCalculado` muda após
+  etapa gravada, `MetricasDiarias` reflete a carga (CA5, caminho real, Testcontainers). Reprocessar
+  chamado dentro da mesma transação `REQUIRES_NEW` do treino (D6, join na transação ambiente do
+  `@Transactional` do próprio `gravarEtapas`). `./mvnw clean verify` — BUILD SUCCESS, 701 classes,
+  0 falhas
 - [ ] 7.6 `StravaWebhookServiceImpl.markAsCanceled` → `reprocessar(id, null)`
   verify: teste confirma que a carga do dia exclui o treino após cancelamento (fecha CA7 no caminho real)
 - [ ] 7.7 "Treino que conta" nos **produtores/queries** (D8, CA7b — inventário corrigido no DoR, Codex #3): `CoachDashboardServiceImpl:143`, `TreinoServiceImpl:474`, `RaceProjectionServiceImpl:184`, `InjuryRiskEvaluator:65`, e **`PlanoServiceImpl.getDadosPlano:720-724`** (`findByAtletaIdAndDataTreinoBetween` — alimenta `PlannerShadowService` e `PlanoTreinoPromptBuilder:439,466`/`VariabilidadePromptFormatter:279,303,529`; verificar se estes dois últimos leem daqui ou de query própria antes de decidir onde aplicar o predicado). Teste por query com um cancelado e um NULL no período.
