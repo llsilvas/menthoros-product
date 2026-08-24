@@ -155,9 +155,23 @@
   shouldMarkTrainingAsCanceledOnDelete` atualizado para verificar `reprocessar(treino.getId(),
   null)`; `StravaWebhookServiceImplTest` e o construtor ajustados para o novo colaborador.
   `./mvnw clean verify` — BUILD SUCCESS, 701 classes, 0 falhas
-- [ ] 7.7 "Treino que conta" nos **produtores/queries** (D8, CA7b — inventário corrigido no DoR, Codex #3): `CoachDashboardServiceImpl:143`, `TreinoServiceImpl:474`, `RaceProjectionServiceImpl:184`, `InjuryRiskEvaluator:65`, e **`PlanoServiceImpl.getDadosPlano:720-724`** (`findByAtletaIdAndDataTreinoBetween` — alimenta `PlannerShadowService` e `PlanoTreinoPromptBuilder:439,466`/`VariabilidadePromptFormatter:279,303,529`; verificar se estes dois últimos leem daqui ou de query própria antes de decidir onde aplicar o predicado). Teste por query com um cancelado e um NULL no período.
-- [ ] 7.8 Validação: `./mvnw clean test`
-  verify: build verde
+- [x] 7.7 "Treino que conta" nos **produtores/queries** (D8, CA7b — inventário corrigido no DoR, Codex #3): `CoachDashboardServiceImpl:143`, `TreinoServiceImpl:474`, `RaceProjectionServiceImpl:184`, `InjuryRiskEvaluator:65`, e **`PlanoServiceImpl.getDadosPlano:720-724`** (`findByAtletaIdAndDataTreinoBetween` — alimenta `PlannerShadowService` e `PlanoTreinoPromptBuilder:439,466`/`VariabilidadePromptFormatter:279,303,529`; verificar se estes dois últimos leem daqui ou de query própria antes de decidir onde aplicar o predicado). Teste por query com um cancelado e um NULL no período.
+  verify: predicado centralizado como `TreinoRealizado.contaNaCarga()` (fonte única em Java;
+  `IngestaoTreinoRealizadoServiceImpl` passou a delegar para ela também). Aplicado nos 4 produtores
+  citados via `.filter(TreinoRealizado::contaNaCarga)`. **`InjuryRiskEvaluator` não precisou de
+  mudança própria** — investigação confirmou que consome `TreinoRealizadoSnapshot` construído por
+  `PlannerShadowService` a partir de `dadosPlano.ultimosTreinos()`, corrigido ao filtrar
+  `PlanoServiceImpl.getDadosPlano`. **Achado real da investigação:** `PlanoTreinoPromptBuilder`/
+  `VariabilidadePromptFormatter` NÃO leem de `getDadosPlano` — o método `buildRequest` que consome
+  esse DTO está marcado "MÉTODO LEGADO"; o caminho real (`buildOptimizedPrompt`) usa
+  `TreinoHistoricoProvider.prepararContexto`, uma query totalmente separada
+  (`findByAtletaAndDataTreinoGreaterThanEqualOrderByDataTreinoDesc`) — filtrada também, já que
+  alimenta toda a árvore de formatters de prompt do planner. 5 testes novos/atualizados (um por
+  produtor + `TreinoHistoricoProviderTest` novo), cada um com cancelado excluído e NULL incluído.
+  `./mvnw clean verify` — BUILD SUCCESS, 701 classes, 0 falhas
+- [x] 7.8 Validação: `./mvnw clean test`
+  verify: `./mvnw clean verify` rodado a cada task da Seção 7 — BUILD SUCCESS, 0 falhas em toda a
+  suíte (última rodada: task 7.7)
 
 ### 8. Fechar o seam
 
