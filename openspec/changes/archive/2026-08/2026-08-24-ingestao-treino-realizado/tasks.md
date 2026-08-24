@@ -220,5 +220,18 @@
 - [x] 9.2 `/pr ingestao-treino-realizado` (PR 2 de 2)
   verify: PR #79 aberto contra `develop`, CI verde (`Build e testes (verify)` pass em 5m1s,
   `GitGuardian Security Checks` pass) — https://github.com/llsilvas/menthoros-backend/pull/79
-- [ ] 9.3 Atualizar `tasks.md`; `/done ingestao-treino-realizado` (archive + SPRINTS)
-  verify: change arquivada em `changes/archive/2026-08/`; `SPRINTS.md` atualizado
+- [x] 9.3 Atualizar `tasks.md`; `/done ingestao-treino-realizado` (archive + SPRINTS)
+  verify: change arquivada em `changes/archive/2026-08/2026-08-24-ingestao-treino-realizado/`.
+  Bloco 1 (PR #78 backend, PR #86 frontend) e Bloco 2 (PR #79 backend) mergeados em `develop`.
+  Itens deliberadamente não fechados nesta change, todos com dependência externa documentada —
+  não bloqueiam o arquivamento:
+  - 0.4 (baseline da métrica de sucesso) e 5.5 (medir custo de `recalcularDesde` em stage) — não
+    executáveis nesta sessão por falta de acesso a métricas/ambiente de produção; ficam como
+    trabalho de observação pós-deploy, sem código pendente.
+  - 6.2 (backfill de produção) — stage/HomeLab concluído e verificado (2026-08-22); a rodada em
+    produção (Railway) requer confirmação explícita separada, fora do escopo de uma sessão de
+    implementação.
+  - 8.2 (remover fallback "nulo → calcular") — bloqueada por 6.2 (produção); o fallback é seguro
+    de manter até lá (task 4.1) e vira um `follow-up` natural do backfill de produção, não desta
+    change.
+  Nenhum destes é código pendente ou teste faltando — são follow-ups operacionais/observacionais.

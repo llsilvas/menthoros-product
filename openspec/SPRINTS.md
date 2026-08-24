@@ -714,6 +714,41 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
+### `ingestao-treino-realizado` ✅ **ARQUIVADA** — um seam único para "treino entrou/mudou/saiu" (2026-08-24)
+
+**Entregue em dois blocos:** Bloco 1 — `menthoros-backend` **#78** (`c60f516`) +
+`menthoros-front` **#86** (`caa26eb`), 2026-08-22. Bloco 2 — `menthoros-backend` **#79**,
+2026-08-24. Arquivada em `changes/archive/2026-08/2026-08-24-ingestao-treino-realizado/`.
+
+**O problema:** onze pontos diferentes do código gravavam `TreinoRealizado` e decidiam, cada um à
+sua maneira, se recalculava TSS/TSB/carga do dia e se publicava evento — FIT, Strava, intervals.icu,
+lançamento manual, reconciliação, edição, cada caminho com sua própria versão da mesma lógica. A
+divergência mais concreta: o predicado "treino cancelado não conta na carga" (`<> CANCELADO`) não é
+null-safe em SQL/JPQL — excluiria silenciosamente os treinos sem status, que são a maioria (FIT e
+manuais). O Bloco 1 criou o seam (`IngestaoTreinoRealizadoService.registrar`/`reprocessar`) e migrou
+as fontes externas; o Bloco 2 migrou os caminhos manuais/de alteração e fechou o seam com uma regra
+ArchUnit — nenhuma classe fora dele pode mais chamar `TsbService.atualizarTsbDia`/`recalcularDesde`
+diretamente.
+
+**O `/qa` do Bloco 2 pagou por si de novo.** O Codex adversarial-review achou que o predicado D8
+(`contaNaCarga`) tinha ficado de fora de `ProgressaoTreinoServiceImpl.calcularHistorico` — a query
+que alimenta a decisão automática de progressão do plano (volume/longão/RPE). Investigar os outros
+chamadores da mesma query de repositório achou o gap repetido, de forma idêntica, em mais dois
+lugares que o inventário original da task 7.7 não cobria: `PlanoServiceImpl.
+calcularVolumeRealizadoKm` (volume da semana no card do plano) e `AthleteThresholdUpdater.
+atualizarLimiares` (inferência de limiar de FC/pace). Um achado de revisão virou três correções, com
+teste cada um. Separadamente, o Codex plain review achou que `TsbServiceImpl.atualizarMetaDados`
+lançava exceção quando `PlanoMetaDados` ainda não existia para o atleta — bug pré-existente
+(nasceu porque metadados só eram criados ao gerar o primeiro plano), mas cujo alcance a própria
+change ampliou ao consolidar todos os caminhos de mutação na mesma cadeia de recálculo; trocado
+pelo mesmo seam de lazy-creation (`PlanoMetadadosService.buscarOuCriarMetadados`) já usado no resto
+do sistema.
+
+**Ficou de fora, com motivo registrado:** o backfill de `tssCalculado`/TSB em produção (stage/HomeLab
+concluído e verificado; produção pede confirmação explícita separada) e a remoção do fallback
+"nulo → calcula agora" que só faz sentido depois desse backfill — ambos follow-ups operacionais, sem
+código pendente.
+
 ### `polish-workout-profile-legibilidade` ✅ **ARQUIVADA** — o perfil parou de afirmar o que não é verdade (2026-08-20)
 
 **Entregue:** `menthoros-front` **#81** (merge `584397c`). **1215 testes unitários em 134 arquivos**
