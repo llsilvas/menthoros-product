@@ -175,14 +175,26 @@
 
 ### 8. Fechar o seam
 
-- [ ] 8.1 Teste de arquitetura: `TsbService.atualizarTsbDia`/`recalcularDesde` e `TssCalculatorService.calcularTss` só são chamados de `IngestaoTreinoRealizadoServiceImpl` (ArchUnit se disponível; senão teste com grep em `src/main`)
-  verify: teste falha se um novo chamador externo for adicionado (CA11 estendido)
-- [ ] 8.2 Remover o fallback "nulo → calcular" de 4.1 (backfill já rodou em produção)
-  verify: query de verificação da task 6.2 ainda retorna 0 em prod antes de remover; `./mvnw clean test` verde depois
-- [ ] 8.3 `TreinoDedupHelper` sem `public`; `TssCalculatorService.calcularTssDia` removido ou privado
-  verify: compila sem uso externo dessas classes fora do pacote/ingestor
-- [ ] 8.4 Validação: `./mvnw clean test`
-  verify: build verde
+- [x] 8.1 Teste de arquitetura: `TsbService.atualizarTsbDia`/`recalcularDesde` e `TssCalculatorService.calcularTss` só são chamados de `IngestaoTreinoRealizadoServiceImpl` (ArchUnit se disponível; senão teste com grep em `src/main`)
+  verify: `IngestaoTreinoRealizadoSeamArchTest` novo (ArchUnit, disponível no `pom.xml`) — 3 regras,
+  uma por método, com as duas exceções documentadas em design.md (`TsbServiceImpl` self-calls,
+  `IntervalsIcuActivityPersister`) explicitamente permitidas via `DescribedPredicate`. Estendida
+  na task 8.3 para uma 4ª regra (`TreinoDedupHelper.saveIdempotent`)
+- [~] 8.2 Remover o fallback "nulo → calcular" de 4.1 (backfill já rodou em produção)
+  verify: **bloqueada** — depende do backfill já ter rodado em produção (task 6.2, parte prod), que
+  ainda não aconteceu nesta sessão (só stage/HomeLab). Fica pendente até o deploy + backfill de
+  produção; a query de verificação da task 6.2 é o gate antes de remover
+- [x] 8.3 `TreinoDedupHelper` sem `public`; `TssCalculatorService.calcularTssDia` removido ou privado
+  verify: **`TreinoDedupHelper` não pode ficar package-private** — `services`/`services.impl`/
+  `services.helper` são pacotes distintos e vários tipos cruzam essa fronteira (a interface do seam
+  retorna `TreinoDedupHelper.SaveResult`); reescrever para o mesmo pacote seria uma mudança de
+  escopo bem maior que esta task. Substituído pelo equivalente arquitetural: 4ª regra ArchUnit em
+  `IngestaoTreinoRealizadoSeamArchTest` restringindo `saveIdempotent` aos 2 chamadores legítimos.
+  `TssCalculatorService.calcularTssDia` **removido** — confirmado órfão (zero chamadores em
+  `src/main` e `src/test`, achado do `/qa` original); dublê de teste morto em
+  `TsbServiceImplRecalculoSemanticaTest` (`tssCalculatorStub`) removido junto
+- [x] 8.4 Validação: `./mvnw clean test`
+  verify: `./mvnw clean verify` — BUILD SUCCESS, 701 classes, 0 falhas
 
 ### 9. Entrega do Bloco 2
 
