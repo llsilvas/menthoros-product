@@ -198,8 +198,25 @@
 
 ### 9. Entrega do Bloco 2
 
-- [ ] 9.1 `/qa` sem achado Crítico
-  verify: relatório do `/qa` sem item Crítico aberto
+- [x] 9.1 `/qa` sem achado Crítico
+  verify: 0 Crítico. Achados reais fixados: (1) Codex adversarial-review "high" — D8
+  (`contaNaCarga`) faltava em `ProgressaoTreinoServiceImpl.calcularHistorico`,
+  `PlanoServiceImpl.calcularVolumeRealizadoKm` e `AthleteThresholdUpdater.atualizarLimiares`
+  (achados por investigação de seguimento sobre a mesma query) — corrigido com testes cobrindo
+  CANCELADO excluído/NULL incluído; (2) Codex plain review `[P2]` — `TsbServiceImpl.atualizarMetaDados`
+  lançava `IllegalArgumentException` quando `PlanoMetaDados` ainda não existia (bug pré-existente,
+  blast radius ampliado por esta change consolidar os caminhos de mutação) — trocado para
+  `PlanoMetadadosService.buscarOuCriarMetadados`; (3) code-reviewer — JavaDoc
+  Idempotent/Side Effects/Tenant-aware faltando em `addTreino` e nos 3 métodos de
+  `ManualReconciliationServiceImpl` tocados nesta migração — adicionado.
+  Achados deferidos com justificativa: `addTreino`'s pre-check de duplicidade não chama o seam no
+  branch de duplicata (comportamento pré-existente, não regressão — fora de escopo unificar agora);
+  `TreinoDedupHelper.SaveResult` público entre pacotes e filtragem D8 em memória vs. JPQL — ambos já
+  documentados como decisão deliberada (task 8.3, design.md D8); dead-code de `dataAntiga` em
+  `updateTreino` — já documentado (task 7.3), comentário no código reforçado. Achados de segurança
+  pré-existentes (BOLA em `TreinoRealizadoController.updateTreino`, assinatura de webhook Strava,
+  enumeração em `ManualReconciliationServiceImpl`) confirmados fora do diff desta change — não
+  fixados aqui. `./mvnw clean verify`: 797 unit + 37 IT, 0 falhas.
 - [ ] 9.2 `/pr ingestao-treino-realizado` (PR 2 de 2)
   verify: PR aberto contra `develop`, CI verde
 - [ ] 9.3 Atualizar `tasks.md`; `/done ingestao-treino-realizado` (archive + SPRINTS)
