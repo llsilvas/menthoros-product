@@ -217,7 +217,8 @@
   pré-existentes (BOLA em `TreinoRealizadoController.updateTreino`, assinatura de webhook Strava,
   enumeração em `ManualReconciliationServiceImpl`) confirmados fora do diff desta change — não
   fixados aqui. `./mvnw clean verify`: 797 unit + 37 IT, 0 falhas.
-- [ ] 9.2 `/pr ingestao-treino-realizado` (PR 2 de 2)
-  verify: PR aberto contra `develop`, CI verde
+- [x] 9.2 `/pr ingestao-treino-realizado` (PR 2 de 2)
+  verify: PR #79 aberto contra `develop`, CI verde (`Build e testes (verify)` pass em 5m1s,
+  `GitGuardian Security Checks` pass) — https://github.com/llsilvas/menthoros-backend/pull/79
 - [ ] 9.3 Atualizar `tasks.md`; `/done ingestao-treino-realizado` (archive + SPRINTS)
   verify: change arquivada em `changes/archive/2026-08/`; `SPRINTS.md` atualizado
