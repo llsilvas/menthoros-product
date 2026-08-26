@@ -69,8 +69,11 @@ Cada task traz `verify:` — como saber que funcionou.
 
 ## 3. E2E
 
-- [ ] 3.1 `tests/e2e/athlete/plan.spec.ts` em 390×844: sete linhas sem scroll horizontal; hoje
+- [x] 3.1 `tests/e2e/athlete/plan.spec.ts` em 390×844: sete linhas sem scroll horizontal; hoje
       expandido com "Registrar treino" navegando para o registro; toque em treino sem etapas
       expande/colapsa; toque em treino com etapas abre o drawer com `workout-profile`; rodapé
       "Dia N de 7" sem texto de juízo; nenhum "TSS". Validação: `npm run test:e2e` verde.
       verify: `npm run test:e2e -- tests/e2e/athlete/plan.spec.ts` verde; `smoke-tema` continua verde.
+      **Feito 2026-08-26** — 3 specs; suíte E2E do atleta 14/14. Armadilha registrada: o coringa
+      `**/api/**` precisa ser registrado **antes** dos handlers específicos (o Playwright avalia da
+      última rota para a primeira) — registrado depois, ele engolia o plano e a tela caía no vazio.
