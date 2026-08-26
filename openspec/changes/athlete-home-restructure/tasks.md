@@ -144,3 +144,29 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
       herda fonte; body global é Syne) → família do tema, 11px. Follow-up (não é estouro pelo
       critério): no Registro, o label externo em negrito e o label flutuante do `TextField` repetem
       "Data do treino"/"Duração (minutos)" — pré-existente, fica para a change do registro.
+
+## QA gate — 2026-08-26
+
+Três revisões sobre a branch (`frontend-reviewer`, `clean-code-reviewer`, Codex adversarial).
+Nenhum Critical de código; nenhum achado de segurança. Corrigidos no commit de QA:
+
+- **Codex, BLOCKER (real):** "Editar" abria direto o modal — o inline de três estados **nunca era
+  alcançável com check-in existente**, e a metade do hook coberta por teste unitário não rodava na
+  Home. Editar passa a abrir o inline; o modal fica atrás de "Mais detalhes". Teste unitário e E2E
+  cobrem agora o segundo POST com DTO completo.
+- **Codex, MAJOR (real):** o envio do check-in estava dentro do updater de `setSelecao`; com
+  `StrictMode` (`main.tsx`) o updater roda duas vezes. A próxima seleção é calculada fora do
+  updater, a partir de um ref espelho.
+- **Codex, MAJOR:** `QuickCheckInModal` mantinha `0.9/0.85/1.15rem` — viram variantes do tema.
+- **clean-code, Important + Codex Minor:** código morto da reescrita do hero (`workoutGradients`,
+  `timeOfDayOverlay`, `WorkoutType` de `gradients.ts`, `homeWorkoutType`) removido; `gradients.ts`
+  fica só com `TimeOfDay`.
+- **frontend, Important:** sufixo hex para alpha (`${cor}2E`) → `alpha()` do MUI, como o resto do
+  repo. **Minor:** `definir()` sem consumidor removido; `role="img"` + `aria-label` no anel.
+
+Follow-ups registrados (não bloqueiam): agrupar os 7 fetches/erros num `useAthleteHomeData` e os
+5 booleans de UI num `useAthleteHomeUi` quando a próxima feature entrar na Home; `statusValue`
+duplicado entre `buildWeekOverview` e `buildWeeklyPlan` (extrair na terceira ocorrência); nomes de
+função em PT em `inlineCheckinMapping` (não replicar em código novo); label duplicado no Registro.
+
+Validação final: `lint` limpo, `build` ok, `test:run` **1263/1263**, E2E `tests/e2e/athlete` **11/11**.
