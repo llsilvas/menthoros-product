@@ -104,7 +104,7 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
 
 ## 4. Erros consolidados
 
-- [ ] 4.1 `useAthleteHomeErrors` agregando `{error, refetch}` de readiness, treinos, provas,
+- [x] 4.1 `useAthleteHomeErrors` agregando `{error, refetch}` de readiness, treinos, provas,
       checkinAtual, kudos, plano e **`useCalibracao().error` (hoje não lido pela Home)**; um
       `Alert` no topo com "Recarregar" (`retryAll`). Erro de `useAthleteHome` mantém a tela
       bloqueante. Remover os sete `Alert` inline.
