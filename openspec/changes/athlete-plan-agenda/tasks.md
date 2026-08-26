@@ -22,10 +22,13 @@ Repo: `apps/menthoros-front`. Validação padrão: `npm run lint && npm run buil
       outra semana → nenhum "hoje").
 - [ ] 1.2 `WeekAgendaRow` (linha; variantes descanso/hoje-expandido) e `WeekAgenda` (lista), status
       por ícone (D4), cor por `workoutTypeColor` + legenda. Validação: testes de componente.
-- [ ] 1.3 `EtapaTreino` (`types/TreinoPlanejado.ts`) ganha `blocoId?`, `blocoRepeticoes?`,
-      `blocoRepeticaoIndex?`; `fromEtapaTreino` (`features/workout/profile/input.ts`) os mapeia.
-      Validação: teste do adapter com série 4× produzindo `repeat` nos blocos; testes do coach
-      (`DetalheTreinoDialog`) verdes.
+- [ ] 1.3 `EtapaTreino` (`types/TreinoPlanejado.ts`) ganha `blocoId?` e `blocoRepeticoes?`;
+      adapter `expandirEtapasTreino(etapas)` em `features/workout/profile/input.ts`: agrupa etapas
+      consecutivas de mesmo `blocoId`, replica `r = 1..blocoRepeticoes` com
+      `blocoRepeticaoIndex = r` e id `bloco-${blocoId}-${r}-${ordem}`; sem bloco ou N ≤ 1 →
+      `fromEtapaTreino`. Validação: teste com bloco 4× (esforço + recuperação) → 8 entradas,
+      `repeat.index` 1..4 e `total` 4 em `selectWorkoutProfile`; sem bloco → inalterado; testes
+      do coach verdes.
 - [ ] 1.3a Toque por treino: sem etapas → expansão única; com etapas → `WorkoutDetailDrawer`
       (descrição, etapas, `WorkoutProfile`). Remover o no-op `handleDayPress`. Validação: testes
       de comportamento nos dois casos.

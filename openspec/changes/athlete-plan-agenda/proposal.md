@@ -48,10 +48,14 @@ Somente `apps/menthoros-front`. Versão proposta desenhada no canvas (prancheta 
   pode escolher a semana seguinte.
 - **Distância por treino: a prescrita (`distanciaKm`) primeiro**; derivar de `duracaoMin × ritmoAlvo`
   só quando ela faltar e houver pace; sem ambos, só duração e zona. Nunca fabricar.
-- **Série no perfil:** `EtapaTreino` (front) ganha `blocoId`/`blocoRepeticoes`/`blocoRepeticaoIndex`,
-  que o `EtapaTreinoDto` já envia, e `fromEtapaTreino` os mapeia — sem isso o `WorkoutProfile` no
-  drawer desenha um intervalado como etapas soltas, sem o bracket "4×". O detalhe do coach herda a
-  correção.
+- **Série no perfil:** `EtapaTreino` (front) ganha `blocoId` e `blocoRepeticoes`, que o
+  `EtapaTreinoDto` envia (`:35-38`; **não há índice de repetição no contrato**). No plano
+  persistido as etapas de um bloco vêm **uma vez**; o perfil espera uma entrada por repetição. Um
+  adapter novo `expandirEtapasTreino(etapas)` agrupa as etapas consecutivas de mesmo `blocoId` e as
+  replica `r = 1..blocoRepeticoes` com `blocoRepeticaoIndex = r` (mesma regra do expansor do editor
+  em `profile/input.ts:100-118`); sem `blocoId` ou com `blocoRepeticoes ≤ 1`, cai em
+  `fromEtapaTreino` como hoje. Sem isso o drawer desenha um intervalado como etapas soltas, sem o
+  bracket "4×". O detalhe do coach pode adotar o mesmo adapter (follow-up, não aqui).
 - **Status por ícone** (check / chevron / traço de descanso), sem borda lateral colorida.
 - **Cor do tipo** por `workoutTypeColor` (mesma fonte da Home) + legenda.
 
@@ -103,7 +107,7 @@ Somente `apps/menthoros-front`. Versão proposta desenhada no canvas (prancheta 
   OrderBySemanaInicioDesc`) — que o cliente curado tipa como lista e `selectAthletePlan` normaliza.
   Traz `etapas` por treino (`TreinoPlanejadoOutputDto:81`, carregadas porque `buscarPlanoPorAtleta`
   é `@Transactional`), `ritmoAlvo` (`:44`) e `distanciaKm` (`:41`). Não há endpoint de semanas
-  passadas. `EtapaTreinoDto` envia `blocoId`/`blocoRepeticoes`, que o tipo front não tem.
+  passadas. `EtapaTreinoDto` envia `blocoId`/`blocoRepeticoes` (sem índice de repetição), que o tipo front não tem.
 - **Premissa:** o `Math.round` do volume era só apresentação — o backend devolve `BigDecimal`.
 - **Follow-up de backend (fora daqui):** endpoint de semanas anteriores; e a regra "aprovado mais
   recente" vs. "semana que contém hoje" — decisão de produto a registrar no Radar.
@@ -118,6 +122,9 @@ Somente `apps/menthoros-front`. Versão proposta desenhada no canvas (prancheta 
   como robustez; `distanciaKm` prescrita tem precedência sobre pace (incorporado); `fromEtapaTreino`
   perde `blocoId` (incorporado — tipo + adapter); `selectAthletePlan` em UTC (incorporado, com
   teste de 23:30 em UTC-3); limpeza de referências a `DayCard` (incorporado na 1.4).
+- Codex, rodada 2: os seis resolvidos; um novo, **confirmado**: a spec dizia que o DTO envia
+  `blocoRepeticaoIndex` — não envia. Regra corrigida: o índice é **derivado** pela expansão
+  `1..N` no adapter (`expandirEtapasTreino`), como o editor do coach já faz.
 
 ## Referências
 

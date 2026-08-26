@@ -19,7 +19,9 @@ Comportamento do toque é decidido **por treino** (o contrato traz `etapas` por 
   etapas (duração · zona · alvo) e o `WorkoutProfile` (reuso de `features/workout/profile`, via
   `selectWorkoutProfile(etapas.map(fromEtapaTreino))`) — o mesmo que `athlete-home-workout-profile`
   traz ao hero. Para a série aparecer com o bracket "N×", `EtapaTreino` recebe
-  `blocoId`/`blocoRepeticoes`/`blocoRepeticaoIndex` e `fromEtapaTreino` os mapeia (hoje descarta).
+  `blocoId`/`blocoRepeticoes` e um adapter `expandirEtapasTreino` replica as etapas do bloco
+  `r = 1..N` com `blocoRepeticaoIndex = r` — o contrato não envia índice; o `selectWorkoutProfile`
+  cairia em `index: 1` para todas. Regra idêntica ao expansor do editor (`profile/input.ts`).
 
 ## D2b — Data local, nunca UTC
 
