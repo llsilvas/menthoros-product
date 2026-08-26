@@ -72,16 +72,16 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
 
 ## 3. Hero, prontidão e "Sua semana"
 
-- [ ] 3.1 `TodayHeroCard`: remover `motivationalMessage`; chip do tipo com
+- [x] 3.1 `TodayHeroCard`: remover `motivationalMessage`; chip do tipo com
       `workoutTypeColor(proximoTreino.tipoTreino)`; ação primária "Registrar treino" →
       `ROUTES.ATHLETE_TRAINING_LOG`; link "Ver plano da semana" (`RouterLink`, `#/athlete/plan`).
       Atualizar `TodayHeroCard.test.tsx` e `AthleteHomePage.test.tsx`.
       verify: único `button` com `variant="contained"` na Home é "Registrar treino"; link com
       `href="#/athlete/plan"` (router real, não `MemoryRouter`).
-- [ ] 3.2 `ReadinessCard` em layout de linha: anel SVG 56px, rótulo + score, recomendação, origem
+- [x] 3.2 `ReadinessCard` em layout de linha: anel SVG 56px, rótulo + score, recomendação, origem
       "com base no seu check-in" quando há check-in hoje.
       verify: teste de componente; altura do card < 100px em 358px (jsdom: estrutura, não px).
-- [ ] 3.3 Adapter puro `buildWeekOverview(plano, treinos, provas, streak)` em
+- [x] 3.3 Adapter puro `buildWeekOverview(plano, treinos, provas, streak)` em
       `features/athlete/adapters/` → `{ streak, volumeRealizadoKm, volumePlanejadoKm, dias[7]:
       {date, status, color}, proximaProva }`; cor por `workoutTypeColor(treinoPlanejado.tipoTreino)`
       (enum do backend; **não** `mapTipoTreino`). `WeekOverviewCard` com regiões `data-testid`
@@ -89,13 +89,18 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
       card de streak e o de prova da Home (e seus testes, se sem outro consumidor).
       verify: `buildWeekOverview.test.ts` (semana sem plano, com descanso, concluído, hoje);
       `rg WeeklySummaryCard src` vazio.
-- [ ] 3.4 Kudos em linha (`KudosCard` compacto); linha "Forma: <statusForma em PT-BR>" + link
+- [x] 3.4 Kudos em linha (`KudosCard` compacto); linha "Forma: <statusForma em PT-BR>" + link
       "Ver progresso" (`#/athlete/progress`); remover o grid "Métricas de hoje" da Home.
       `buildHomeMetrics`: manter se `AthleteProgressPage` consumir, senão remover com o teste.
       verify: teste de página — nenhum texto `CTL|ATL|TSB|pts`; link para progresso presente.
-- [ ] 3.5 Cabeçalho com data por extenso (`date-fns` `format(..., "EEEE, d 'de' MMMM", {locale: ptBR})`)
+- [x] 3.5 Cabeçalho com data por extenso (`date-fns` `format(..., "EEEE, d 'de' MMMM", {locale: ptBR})`)
       e saudação por `timeOfDayNow`.
       verify: teste com `vi.setSystemTime` em duas datas/horas.
+      **Feito 2026-08-26.** `WeeklySummaryCard`/`buildWeeklySummary` e `buildHomeMetrics` removidos
+      (sem outro consumidor). `KudosCard` ficou como estava (já era compacto; texto preservado nos
+      testes). Achado no teste: com erro nas provas o card sugeria "sem meta" — ganhou
+      `provaConhecida`. O teste de navegação do botão espia `useNavigate` (o data router do
+      `createHashRouter` falha no jsdom ao navegar); os links continuam no router real. Suíte 1262.
 
 ## 4. Erros consolidados
 
