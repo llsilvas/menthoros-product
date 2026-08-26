@@ -113,14 +113,17 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
 
 ## 5. Barra inferior
 
-- [ ] 5.1 Remover `ITEM_SAIR` de `AthleteBottomNav`; "Sair" no `AthleteProfilePage` com o mesmo
+- [x] 5.1 Remover `ITEM_SAIR` de `AthleteBottomNav`; "Sair" no `AthleteProfilePage` com o mesmo
       `ConfirmDialog` e `useAuth().logout` (extrair `useLogoutConfirm` se o nav já tiver essa
       lógica, para não duplicar).
       verify: teste do nav — 5 `button`, nenhum "Sair"; teste do perfil — "Sair" abre confirmação
       e chama `logout`.
-- [ ] 5.2 `AthleteLayout` passa `unreadCoachMessages={0}` com comentário apontando o ponto de
+- [x] 5.2 `AthleteLayout` passa `unreadCoachMessages={0}` com comentário apontando o ponto de
       injeção (mensageria, Sprint 28).
       verify: teste do badge com `unreadCoachMessages={2}` mostra "2".
+      **Feito 2026-08-26.** Em vez de extrair `useLogoutConfirm`, o Perfil reaproveita o
+      `LogoutButton` compartilhado (já tinha confirmação e tratamento de falha); a lógica duplicada
+      de logout saiu do `AthleteBottomNav`.
 
 ## 6. E2E e smoke
 
