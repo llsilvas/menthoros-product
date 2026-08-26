@@ -10,8 +10,8 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
 
 ## 0. Pré-condições (bloqueiam as demais)
 
-- [ ] 0.1 Ler o cálculo do `readinessScore` em `apps/menthoros-backend` (serviço de check-in de
-      prontidão — localizar por `readinessScore`/`NivelProntidao`) e registrar aqui (caminho:linha)
+- [ ] 0.1 Ler o cálculo do `readinessScore` em
+      `apps/menthoros-backend/src/main/java/br/com/menthoros/backend/services/helper/ReadinessService.java` e registrar aqui (caminho:linha)
       se o mapeamento 3 estados → 1–10 (D2) preserva a semântica. Se sensível a granularidade, o
       inline grava e o modal segue como precisão (D2 ajustado). Dono: executor da change.
       verify: esta task tem a evidência colada, com decisão explícita "mantém D2" ou "D2 ajustado".
