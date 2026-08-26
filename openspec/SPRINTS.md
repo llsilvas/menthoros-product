@@ -2,7 +2,24 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-08-22, tarde (**`intervals-icu-activity-sync-scheduler` entregue e
+**Última atualização:** 2026-08-26 (**Trilha atleta aberta — quatro changes criadas a partir de
+uma revisão de design da tela do atleta.** A revisão reconstruiu Home e Plano a partir do código,
+não de memória, e o resultado está num canvas com três páginas (atual + notas, proposta, ciclo do
+treino): <https://claude.ai/code/artifact/bfa9863e-cba8-4a1f-bbc9-fe9cfb4a957d>. Treze achados,
+todos de apresentação e de ação — nenhum de dado. O mais caro: o botão principal da Home diz
+"Iniciar treino" e abre o **check-in**; o registro de treino, que alimenta o motor, está no fim de
+~1400px de scroll. O mais silencioso: o shell inteiro renderiza em Syne 700 porque só essas weights
+são carregadas, enquanto `font.text` = Inter existe como token e ninguém consome.
+
+**Por que quatro e não uma.** O escopo cruza dois repositórios e um contrato (etapas no `me/home`),
+e o ciclo pós-treino depende de mensageria que não existe. Cortar no seam de dependência:
+`athlete-home-restructure` (front, M) → `athlete-plan-agenda` (front, M) →
+`athlete-home-workout-profile` (backend+front, S) → `athlete-training-loop` (backend+front, L, com
+seam de split documentado para a fatia que depende de `add-athlete-coach-messaging`). A justificativa
+de valor é do treinador em todas: menos "qual é o treino de hoje?", mais registro e mais RPE sem
+cobrança. Trilha própria abaixo, com o veredito do product review por change.)
+
+Antes: 2026-08-22, tarde (**`intervals-icu-activity-sync-scheduler` entregue e
 arquivada — a trilha intervals.icu fecha a metade "polling" do non-goal.** Atletas conectados passam a
 ter os treinos aparecendo sozinhos, a cada 2h, sem o coach colar id de atividade. Feita inteira num
 dia. O desenho que importava — teto por contagem contra a cota de 100 req/usuário/dia — foi decidido
@@ -587,6 +604,34 @@ conecta, evitando duplicação cross-fonte.
 
 ---
 
+## Trilha atleta — revisão de design da Home e do Plano
+
+Seção aberta em **2026-08-26**, a partir de uma revisão de design feita sobre o código do shell do
+atleta (`features/athlete/`), com canvas de referência
+<https://claude.ai/code/artifact/bfa9863e-cba8-4a1f-bbc9-fe9cfb4a957d>. O shell existe desde
+`refine-athlete-shell-ux` (2026-06-01) e foi ligado a endpoints em 9.5–9.7 (julho); desde então só
+recebeu correções pontuais. **A persona primária continua sendo o treinador** — cada change abaixo
+justifica-se pelo que tira da rotina dele: mensagens de "qual é o treino?", cobrança de registro,
+RPE que só chega de quem registra à mão.
+
+**Sequência é de dependência, não de prioridade isolada:** (1) reescreve o hero que (3) e (4) usam;
+(3) põe as etapas no contrato da Home que (4) exibe com alvos; (4) tem uma fatia que espera
+`add-athlete-coach-messaging` (Sprint 28, 0%).
+
+| Ordem | Change | Tam. | Tasks | Objetivo | Dependência |
+|:---:|---|:---:|:---:|---|---|
+| 1 | `athlete-home-restructure` | **M · Full** | 0/20 | **Home com uma ação honesta.** Check-in vira linha de estado (e ganha versão inline de três estados por item, salvando a cada toque); o hero é o treino de hoje com **Registrar treino** como única ação primária; prontidão em linha; streak/volume/prova num só card; CTL/ATL/TSB saem para Progresso; um `Alert` consolidado em vez de sete; tema do shell com `font.text`/`font.display` via `ThemeProvider` próprio (precedente `coachTheme.ts`); barra com cinco itens e "Sair" no Perfil. Só front. Product review **Refine**, incorporado: baseline numérico nas métricas (+15 pp registro, +30% check-ins), validação do mapeamento 3 estados → 1–10 virou pré-condição (0.1), critério objetivo de "estouro" no smoke do tema, e a declaração de que **não** alimenta o loop `WeekSuggestion` — é qualidade do dado de entrada. Pré-condição 0.3: confirmar assessoria piloto com atletas no shell; sem ela, candidata a pós-piloto. | — |
+| 2 | `athlete-plan-agenda` | **M · Full** | 0/9 | **A semana inteira cabe no celular.** Carrossel de `DayCard` (2 dias visíveis em 390px, toque no-op) vira agenda vertical com hoje expandido e ação; volume em km com uma casa nos dois lugares (hoje 14,5 vira 14 por `Math.round`); "Dia N de 7" no lugar de "Semana leve — abaixo do planejado" na quarta; status por ícone; cor do tipo por `workoutTypeColor` (mesma da Home). Navegação de semana e detalhe do dia **gated pelo contrato** (task 0.1). Só front. Product review **Go**; refino leve aplicado: a contagem manual de mensagens "qual é o treino?" ganhou dono e lugar (coach piloto, 2 semanas antes / 4 depois). | (1) para a cor compartilhada; independente no resto |
+| 3 | `athlete-home-workout-profile` | **S · Full** | 0/7 | **O atleta vê o perfil que o coach prescreveu.** `me/home` passa a trazer `etapas`/`duracaoMin`/`zonaAlvo` no próximo treino (mesmo `EtapaTreinoDto` do detalhe, sem duplicar); o hero renderiza `WorkoutProfile` compacto. Full por cruzar dois repos; sem migration. Product review **Go**. | (1) hero |
+| 4 | `athlete-training-loop` | **M · Full** | 1/17 | **Fechar o ciclo: executar → sentir.** A: modo treino em tela cheia com etapas e alvos de FC resolvidos pelo backend pela **mesma cadeia do push** (`IntervalsIcuTargetParser` → `IntervalsIcuFcAlvoResolver`) + "Não vou conseguir hoje" que sinaliza o coach no dia. B: "Como foi?" (RPE + sensações + frase) em `TreinoRealizado` para **qualquer origem** — hoje só o registro manual traz RPE; o `rpe` existente (usado pelo `TssCalculatorService`) **não** é duplicado nem movido. Product review **Refine**, incorporado: a fatia C ("o coach reagiu") **saiu em definitivo** — a task 0.1, resolvida na criação, mostrou que **não existe entidade de ajuste de plano** (`PlanAdjustmentCard` é herança do mock); nasce completa depois da mensageria (linha no Radar). L → M. **Pré-mortem Codex needs-attention, 5 achados confirmados e incorporados:** `PULADO` não existe no enum e a fila só vê `PERDIDO`/`PARCIAL` acima de ALTA → pulo vira `PERDIDO` + motivo, CA4 promete só o drilldown; reversão não bateria no match do registro → `PERDIDO` reaproveita o match, testado nos 3 caminhos; "hoje" vem do backend no fuso do atleta; feedback completo = carimbo; FC vence pace no contrato como no push. | (1), (3) |
+
+> **O que ficou fora, de propósito:** notificações push (sem change — depende de decisão de canal),
+> Progresso "uma pergunta por bloco", chat com treino anexado (entra na mensageria), onboarding
+> progressivo durante a calibração. Estão listados na conversa de origem como sugestões 4–8 e voltam
+> ao radar quando a trilha entregar as quatro acima.
+
+---
+
 ## Bloco 3 — Loop de auto-cadastro do coach (self-service onboarding)
 
 Bloco aberto em **2026-07-31**, quando as cinco changes foram criadas no mesmo dia. Fecha a jornada
@@ -1106,6 +1151,7 @@ Sprint 14" sem tachado, apesar de concluída 2026-07-14) — corrigido removendo
 | Emitir FC **e** ritmo com o alvo executado declarado (intervals.icu) | **Não é change ainda — achado de fonte primária 2026-08-21, decisão do founder 2026-08-22** | A `fix-fc-alvo-base-inconsistente` implementou o CA8 como "FC vence, ritmo desce para o texto". A investigação contra fonte primária mostrou que **o provedor guarda os três alvos e escolhe na execução** — o evento tem `target: AUTO \| POWER \| HR \| PACE` (confirmado no OpenAPI), e o criador confirma no fórum. A regra atual **descarta informação que o canal aceitaria**: o ritmo prescrito pelo treinador vira texto quando poderia viajar como alvo secundário. O FIT também tem `secondary_target_*` (campos 19-22), então "os alvos não são acumuláveis" — afirmação do `design.md` da change — está desatualizado; o suporte é por dispositivo. | S · Full. **Bloqueante: reescrever o CA7** ("exatamente uma meta de intensidade"), que passa a ser falso por desenho. Só se verifica com **conta real** — mesma validação que a 5.3 de `fix-fc-alvo-base-inconsistente` ainda deve, então faz sentido agrupar as duas numa passada só. Não reabrir a change mergeada: custo de branch + PR + revalidação sem fechar a incerteza. |
 | Versionar a reinterpretação de `fcAlvoEtapa` legado | **Não é change ainda — débito aceito em `fix-fc-alvo-base-inconsistente` (4b.4), registrado 2026-08-22** | Achado do Codex adversarial, classificado como ERRADO e **não corrigido por escopo**: o mesmo treino reenviado em datas diferentes pode gerar **bpm diferente por mudança de regra de interpretação**, não por mudança do atleta. O log registra o efeito, não a intenção — então, olhando o histórico, não há como distinguir "o atleta evoluiu" de "a gente mudou como lê o campo". | S/M · Full — **mexe em schema**: exige versionar a interpretação ou gravar um campo normalizado separado. Por isso ficou fora da change de correção. Companheiro natural: **4b.5** — o aviso de FC descartada é por **treino**, não por etapa, então 1 de 10 etapas perdidas produz o mesmo sinal que 10 de 10 (aceito na decisão 0.3, reforçado pelo adversarial). As duas tocam a mesma superfície de rastreabilidade e valem uma change só. |
 | Semear o PMC com o CTL/ATL do intervals.icu na conexão | **Não é change ainda — identificado no `/implement init` de `intervals-icu-activity-sync-scheduler` (2026-08-22)** | A carga inicial importa 90 dias de histórico para o CTL (τ = 42) convergir a 88% do real; o intervals.icu **já calcula** CTL/ATL do atleta e expõe no wellness. Uma requisição semearia o PMC com o valor real no dia da conexão, e bastaria importar ~42 dias de detalhe por treino — menos cota e CTL certo desde o primeiro dia. | S · Full — mexe em `TsbServiceImpl` (hoje parte de zero) e tem decisão de produto: confiar no cálculo do provedor, que pode usar TSS diferente do nosso. Depois do scheduler validado em produção. |
+| "O coach reagiu" na Home do atleta (ajuste de plano como primeiro bloco, com "Entendi" e "Responder") | **Não é change ainda — retirada de `athlete-training-loop` no product review de 2026-08-26** | Desenhada na prancheta 2b do canvas da revisão do atleta. Saiu porque **não existe entidade de ajuste de plano no backend**: `PlanAdjustmentCard` é consumido só pelo `CoachChatPanel`, herança do mock. Entregar "ver o ajuste" sem "responder" seria metade de uma feature de comunicação no piloto. | S · Full, front + backend (`vistoEm` no `plan_adjustment`). Abrir **depois** de `add-athlete-coach-messaging` (Sprint 28), que cria a entidade. Métrica já escrita: tempo entre treino realizado e ajuste visto pelo atleta. |
 | Expor métricas `.fit` já calculadas no drilldown | **Não é change ainda — quick-win identificado 2026-07-20** | A sequência `.fit` está completa (GCT, equilíbrio E/D, Pw:HR, EF por volta) mas 100% invisível no front — zero consumo desde `fit-running-dynamics-ingestion` (2026-07-13). Achado "fora da caixa" do CPO weekly: maior gap de exposição vs. esforço do backlog atual. | XS (3-5 tasks, frontend-only, zero endpoint novo — dados já nos DTOs de `GET /realizados/{id}`). Abrir com `/opsx:propose` quando priorizado. |
 
 ---
