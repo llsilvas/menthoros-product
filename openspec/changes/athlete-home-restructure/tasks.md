@@ -127,14 +127,20 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
 
 ## 6. E2E e smoke
 
-- [ ] 6.1 `tests/e2e/athlete/home.spec.ts` (criar a pasta; auth e `page.route` no padrão de
+- [x] 6.1 `tests/e2e/athlete/home.spec.ts` (criar a pasta; auth e `page.route` no padrão de
       `tests/e2e/coach/inbox.spec.ts`), viewport 390×844: "Registrar treino" visível sem scroll
       (`boundingBox().y + height ≤ 844`); check-in inline — **mockar `POST /api/v1/checkins` e o
       `GET` de readiness**, asserir o payload do POST (cinco campos) e o score novo vindo do GET;
       falha parcial (kudos 500) → um `Alert`; barra com 5 itens, "Sair" no Perfil; varredura de
       nós de texto visíveis: nenhuma `font-family` com "Syne", todo `font-size` na escala.
       verify: `npm run test:e2e -- tests/e2e/athlete/home.spec.ts` verde.
-- [ ] 6.2 Smoke visual de Progresso, Coach, Perfil e Registro em 390px com o tema novo. Corrigir
+- [x] 6.2 Smoke visual de Progresso, Coach, Perfil e Registro em 390px com o tema novo. Corrigir
       **só** estouro (texto cortado, `scrollWidth > innerWidth`, controle < 44px); o resto vira
       follow-up listado aqui.
       verify: lista de telas inspecionadas com resultado; E2E existentes verdes.
+      **Feito 2026-08-26** — `tests/e2e/athlete/smoke-tema.spec.ts` (6 telas em 390×844: Home,
+      Progresso, Coach, Perfil, Registro, Plano — sem scroll horizontal, sem Syne, screenshot por
+      tela, inspecionados). Achado corrigido: rótulo da barra em **10px Arial** (`<button>` não
+      herda fonte; body global é Syne) → família do tema, 11px. Follow-up (não é estouro pelo
+      critério): no Registro, o label externo em negrito e o label flutuante do `TextField` repetem
+      "Data do treino"/"Duração (minutos)" — pré-existente, fica para a change do registro.
