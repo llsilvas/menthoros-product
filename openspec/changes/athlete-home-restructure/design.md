@@ -29,7 +29,8 @@ inline expõe três estados por item e grava valores fixos:
 | Estresse | alto → 8 | médio → 4 | baixo → 0 |
 
 - Ao abrir a Home com check-in já feito, o inline mostra o estado mais próximo de cada valor
-  (≤4 / 5–7 / ≥8; invertido para dores e estresse) e "Salvo" (sem horário — o contrato não o traz).
+  (positivos ≤4 / 5–7 / ≥8; invertidos ≤3 / 4–7 / ≥8 — o meio dos invertidos é 4 e precisa voltar
+  como nível 2) e "Salvo" (sem horário — o contrato não o traz).
 - **Primeiro check-in do dia** (`useCheckinAtual` → `null`): os cinco itens começam **sem estado**
   e nada é enviado até os cinco terem seleção — a UI mostra "N de 5"; ao completar, um POST com o
   DTO completo. Não se fabrica default: os cinco campos são `@NotNull` e um valor inventado viraria

@@ -54,7 +54,7 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
 
 ## 2. Check-in
 
-- [ ] 2.1 `useInlineCheckin` (`src/features/athlete/hooks/`) sobre `useRegistrarCheckin` +
+- [x] 2.1 `useInlineCheckin` (`src/features/athlete/hooks/`) sobre `useRegistrarCheckin` +
       `useCheckinAtual`: estado derivado do check-in existente (≤4 / 5–7 / ≥8, invertido para dores
       e estresse); **primeiro check-in: sem POST até os cinco terem estado** (`pending: N`);
       existente: POST completo por toque com debounce 600ms; falha reverte o item e expõe `error`;
@@ -63,9 +63,12 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
       verify: testes do hook — `null` → 4 seleções sem chamada a `registrar` → 5ª dispara com os
       cinco valores mapeados; existente → 1 toque → `registrar` com DTO completo; falha → estado
       anterior. Teste do componente: 5 alvos com `role="button"` e `aria-pressed`.
-- [ ] 2.2 `CheckInStatusRow`: "Fazer check-in" (abre inline expandido) / "Check-in de hoje feito ·
+- [x] 2.2 `CheckInStatusRow`: "Fazer check-in" (abre inline expandido) / "Check-in de hoje feito ·
       Editar" (abre o modal com `initialData`). Sem horário.
       verify: teste de componente nos dois estados; nenhum texto "às".
+      **Feito 2026-08-26.** Ajuste ao D2 descoberto pelo teste de ida-e-volta: nos invertidos a banda
+      é ≤3 / 4–7 / ≥8 (com ≤4 o valor médio 4 voltava como "nenhuma"). Componentes ainda não estão
+      montados na Home — entram na 3.5/4.1 junto com o resto do layout.
 
 ## 3. Hero, prontidão e "Sua semana"
 
