@@ -1,5 +1,8 @@
 # Tasks — athlete-home-restructure
 
+**Entregue e arquivada em 2026-08-26.** PR `menthoros-front#92` mergeado em `develop` (merge commit).
+20/20 tasks; nada adiado — os follow-ups do QA gate estão listados no fim, sem dono nem change.
+
 Repo: `apps/menthoros-front`, branch `feature/athlete-home-restructure` (base `develop@1edf714`).
 Validação padrão de cada bloco: `npm run lint && npm run build && npm run test:run`; E2E onde
 indicado (check-in, registro e navegação são fluxos críticos). Cada task traz uma linha `verify:`
