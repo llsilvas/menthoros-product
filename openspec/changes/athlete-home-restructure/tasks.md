@@ -34,13 +34,13 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
 
 ## 1. Tema e tokens do shell
 
-- [ ] 1.1 `src/features/athlete/theme/athleteTheme.ts` — `createTheme(appTheme, {...})` no molde de
+- [x] 1.1 `src/features/athlete/theme/athleteTheme.ts` — `createTheme(appTheme, {...})` no molde de
       `features/coach/theme/coachTheme.ts`: `fontFamily = font.text`, `h1–h4` em `font.display`,
       escala `typography` (11/13/14/16/18/24/32); `AthleteLayout` envolve o `Outlet` + nav com
       `ThemeProvider`. Teste `athleteTheme.test.ts` (famílias por variante) e teste do layout.
       verify: `getComputedStyle` de um `Typography` dentro do layout não contém "Syne"; coach e
       landing inalterados (`npm run test:run` verde nos testes deles).
-- [ ] 1.2 Remover os 11 `fontFamily: 'Syne, sans-serif'` de `features/athlete/**` (Plano, Perfil,
+- [x] 1.2 Remover os 11 `fontFamily: 'Syne, sans-serif'` de `features/athlete/**` (Plano, Perfil,
       Progresso, Onboarding, `ManualTrainingFormPage`, `QuickCheckInModal`, `FitUploadResultCard`,
       `IntervalsIcuConnectionCard`, `PostWorkoutFeedbackCard`) → variante `h5`/`h6` do tema; em
       `shared/components/ConfirmDialog.tsx` e `CoachDialog.tsx` trocar o literal por
@@ -49,6 +49,8 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
       `surface[700]`.
       verify: `rg "Syne" src/features/athlete src/shared/components --glob '!*.test.*'` vazio;
       snapshot visual do coach (`CoachDialog`) sem mudança de fonte (teste de tema do coach).
+      **Feito 2026-08-26:** eram 9 literais em `features/athlete` (+2 compartilhados); 1250 testes.
+      Tamanhos `rem` fora da escala nos demais componentes ficam para os blocos 2–3, que os reescrevem.
 
 ## 2. Check-in
 
