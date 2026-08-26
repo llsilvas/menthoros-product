@@ -111,10 +111,11 @@ Somente `apps/menthoros-front`, shell `features/athlete/`. Versão proposta dese
 
 - **Taxa de registro de treino sem cobrança do coach**: proporção de treinos planejados com registro
   (manual, `.fit` ou sync) em até 24h, medida em `PlanoSemanal`/`TreinoRealizado`. **Baseline medido
-  nas 4 semanas anteriores ao rollout** (query registrada na task 0.2); alvo: **+15 pp** nas 4
-  semanas seguintes. Proxy do tempo que o coach gasta cobrando dado.
-- **Check-ins por atleta ativo por semana** — baseline nas mesmas 4 semanas; alvo **+30%** com o
-  check-in inline (o modal de cinco sliders é a hipótese de abandono).
+  em 2026-08-26 no HomeLab: 30%** (13 de 43; task 0.2); alvo: **≥45% (+15 pp)** nas 4 semanas
+  seguintes. Proxy do tempo que o coach gasta cobrando dado.
+- **Check-ins por atleta ativo por semana** — baseline nas mesmas 4 semanas: **zero** (2 check-ins
+  em todo o histórico, ambos em julho); alvo absoluto **≥3 por semana** com o check-in inline (o
+  modal de cinco sliders é a hipótese de abandono — o baseline a confirma).
 - **O que esta change não é:** não alimenta o loop `WeekSuggestion` (proposta da IA vs. edição do
   coach). É infraestrutura de qualidade do dado de entrada — check-in e registro — que esse loop e
   a fila de atenção consomem. Não conta como avanço de moat.

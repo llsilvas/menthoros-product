@@ -10,15 +10,23 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
 
 ## 0. Pré-condições (bloqueiam as demais)
 
-- [ ] 0.1 Ler o cálculo do `readinessScore` em
-      `apps/menthoros-backend/src/main/java/br/com/menthoros/backend/services/helper/ReadinessService.java` e registrar aqui (caminho:linha)
-      se o mapeamento 3 estados → 1–10 (D2) preserva a semântica. Se sensível a granularidade, o
-      inline grava e o modal segue como precisão (D2 ajustado). Dono: executor da change.
-      verify: esta task tem a evidência colada, com decisão explícita "mantém D2" ou "D2 ajustado".
-- [ ] 0.2 Medir e registrar o baseline das duas métricas (4 semanas anteriores): `PlanoSemanal`/
-      `TreinoRealizado` (treinos planejados com registro ≤24h) e `CheckinProntidao` (check-ins por
-      atleta ativo/semana) — SQL no banco de dev/prod conforme acesso.
-      verify: dois números e a query nesta task.
+- [x] 0.1 **Resolvido 2026-08-26.** `services/helper/ReadinessService.java:33-48` — `calcularScore` é
+      média ponderada de normalizações **lineares** (`normalizarPositivo` 1–10, `normalizarInvertido`
+      0–10), cortes em 0,75 (PRONTO) e 0,50 (CAUTELOSO). Com pesos iguais, 3 estados caem limpos nas
+      três bandas: bom (9/9/9, 0/0) ≈ 0,93 PRONTO; médio (6/6/6, 4/4) ≈ 0,58 CAUTELOSO; ruim (3/3/3,
+      8/8) ≈ 0,21 DESCANSAR. Não há sensibilidade a granularidade além da resolução — **mantém D2**.
+- [x] 0.2 **Baseline medido 2026-08-26 no HomeLab** (`192.168.15.24`, `menthoros-db`, 1 atleta com
+      usuário — o founder; janela `current_date-28 .. current_date-1`):
+      · treinos planejados (≠ DESCANSO): **43**; com registro vinculado ≤24h: **13 (30%)**; com
+        registro em qualquer prazo: **17 (40%)**; status: 17 REALIZADO · 23 PERDIDO · 3 PENDENTE.
+      · realizados: 29 (16 intervals.icu, 13 Strava); com RPE: **16 (55%)** — o RPE dos sincronizados
+        vem do provedor, não do atleta.
+      · check-ins: **0** nas 4 semanas; **2 no histórico inteiro** (2026-07-04 e 07-16) — o modal de
+        cinco sliders não sobreviveu à segunda semana, exatamente a hipótese da change.
+      Alvos: registro ≤24h 30% → ≥45% (+15 pp); check-ins/semana 0 → ≥3 (o "+30%" do proposal não
+      se aplica sobre zero; alvo absoluto). Queries: joins `tb_treino_planejado` ×
+      `tb_treino_realizado.treino_planejado_id` com `created_at ≤ data_treino + 2 dias`;
+      `tb_checkin_prontidao` por `date_trunc('week', data)`.
 - [ ] 0.3 Gate: o founder confirma aqui se há atletas de assessoria piloto usando o shell. Negativo
       → change fica `[~]` com o gatilho "retomar quando houver ≥1 atleta de piloto no shell"; as
       tasks 1+ não começam.
