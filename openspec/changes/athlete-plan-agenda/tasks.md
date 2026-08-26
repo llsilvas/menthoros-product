@@ -23,12 +23,13 @@ Repo: `apps/menthoros-front`. Validação padrão: `npm run lint && npm run buil
 - [ ] 1.2 `WeekAgendaRow` (linha; variantes descanso/hoje-expandido) e `WeekAgenda` (lista), status
       por ícone (D4), cor por `workoutTypeColor` + legenda. Validação: testes de componente.
 - [ ] 1.3 `EtapaTreino` (`types/TreinoPlanejado.ts`) ganha `blocoId?` e `blocoRepeticoes?`;
-      adapter `expandirEtapasTreino(etapas)` em `features/workout/profile/input.ts`: agrupa etapas
-      consecutivas de mesmo `blocoId`, replica `r = 1..blocoRepeticoes` com
-      `blocoRepeticaoIndex = r` e id `bloco-${blocoId}-${r}-${ordem}`; sem bloco ou N ≤ 1 →
-      `fromEtapaTreino`. Validação: teste com bloco 4× (esforço + recuperação) → 8 entradas,
-      `repeat.index` 1..4 e `total` 4 em `selectWorkoutProfile`; sem bloco → inalterado; testes
-      do coach verdes.
+      adapter `indexarRepeticoes(etapas)` em `features/workout/profile/input.ts`: para cada grupo
+      consecutivo de mesmo `blocoId` (tamanho `k`, `N = blocoRepeticoes`), `c = k / N`,
+      `blocoRepeticaoIndex = ⌊pos / c⌋ + 1`; `k % N ≠ 0` → sem índice; sem bloco ou `N ≤ 1` →
+      `fromEtapaTreino` inalterado. **Não reexpande.** Validação: teste com 8 linhas de um bloco
+      4× (esforço, recuperação × 4) → `repeat.index` 1,1,2,2,3,3,4,4 e `total` 4 em
+      `selectWorkoutProfile`; 7 linhas com N = 4 → sem índice; sem bloco → inalterado; testes do
+      coach verdes.
 - [ ] 1.3a Toque por treino: sem etapas → expansão única; com etapas → `WorkoutDetailDrawer`
       (descrição, etapas, `WorkoutProfile`). Remover o no-op `handleDayPress`. Validação: testes
       de comportamento nos dois casos.

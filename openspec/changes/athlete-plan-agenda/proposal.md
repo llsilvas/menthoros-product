@@ -49,13 +49,15 @@ Somente `apps/menthoros-front`. Versão proposta desenhada no canvas (prancheta 
 - **Distância por treino: a prescrita (`distanciaKm`) primeiro**; derivar de `duracaoMin × ritmoAlvo`
   só quando ela faltar e houver pace; sem ambos, só duração e zona. Nunca fabricar.
 - **Série no perfil:** `EtapaTreino` (front) ganha `blocoId` e `blocoRepeticoes`, que o
-  `EtapaTreinoDto` envia (`:35-38`; **não há índice de repetição no contrato**). No plano
-  persistido as etapas de um bloco vêm **uma vez**; o perfil espera uma entrada por repetição. Um
-  adapter novo `expandirEtapasTreino(etapas)` agrupa as etapas consecutivas de mesmo `blocoId` e as
-  replica `r = 1..blocoRepeticoes` com `blocoRepeticaoIndex = r` (mesma regra do expansor do editor
-  em `profile/input.ts:100-118`); sem `blocoId` ou com `blocoRepeticoes ≤ 1`, cai em
-  `fromEtapaTreino` como hoje. Sem isso o drawer desenha um intervalado como etapas soltas, sem o
-  bracket "4×". O detalhe do coach pode adotar o mesmo adapter (follow-up, não aqui).
+  `EtapaTreinoDto` envia (`:35-38`; **não há índice de repetição no contrato**). O backend persiste
+  a série **já expandida**: `expandirBloco` grava `N × sub-etapas` linhas com o mesmo `blocoId`
+  (`TreinoPlanejadoServiceImpl:265-290`). Um adapter novo `indexarRepeticoes(etapas)` percorre as
+  etapas consecutivas de mesmo `blocoId` (tamanho `k`, `N = blocoRepeticoes`), define o ciclo
+  `c = k / N` e atribui `blocoRepeticaoIndex = ⌊posição / c⌋ + 1`; se `k` não for múltiplo de `N`,
+  não inventa — deixa o índice ausente (o perfil cai em `1`). **Nunca reexpande** (um 4×2 já chega
+  como 8 linhas; reexpandir daria 32). Sem `blocoId` ou `N ≤ 1`, `fromEtapaTreino` como hoje. Sem
+  isso o drawer desenha um intervalado sem o bracket "4×". O detalhe do coach pode adotar o mesmo
+  adapter (follow-up, não aqui).
 - **Status por ícone** (check / chevron / traço de descanso), sem borda lateral colorida.
 - **Cor do tipo** por `workoutTypeColor` (mesma fonte da Home) + legenda.
 
@@ -123,8 +125,10 @@ Somente `apps/menthoros-front`. Versão proposta desenhada no canvas (prancheta 
   perde `blocoId` (incorporado — tipo + adapter); `selectAthletePlan` em UTC (incorporado, com
   teste de 23:30 em UTC-3); limpeza de referências a `DayCard` (incorporado na 1.4).
 - Codex, rodada 2: os seis resolvidos; um novo, **confirmado**: a spec dizia que o DTO envia
-  `blocoRepeticaoIndex` — não envia. Regra corrigida: o índice é **derivado** pela expansão
-  `1..N` no adapter (`expandirEtapasTreino`), como o editor do coach já faz.
+  `blocoRepeticaoIndex` — não envia.
+- Codex, rodada 3: a correção da rodada 2 ("expandir 1..N no adapter") estava **errada** — o backend
+  já persiste a série expandida (`expandirBloco`), e reexpandir multiplicaria as etapas. Regra
+  final: `indexarRepeticoes` deriva o índice por posição sobre a sequência já expandida.
 
 ## Referências
 
