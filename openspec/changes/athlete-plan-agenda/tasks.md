@@ -28,8 +28,9 @@ Cada task traz `verify:` — como saber que funcionou.
       pace > ausente.
 - [x] 1.2 `WeekAgendaRow` (linha; variantes descanso/hoje-expandido) e `WeekAgenda` (lista), status
       por ícone (D4), cor por `workoutTypeColor` + legenda. Validação: testes de componente.
-      verify: 7 `role="button"` (linhas) com `aria-expanded`; nenhum `border-left` colorido; ícone
-      por status via `data-status`.
+      verify: linhas de treino são `role="button"` (`aria-expanded` sem etapas, `aria-haspopup="dialog"`
+      com etapas); descanso **não** é interativo — não há o que expandir; nenhum `border-left`
+      colorido; ícone por status via `data-status`, hoje via `data-today`.
 - [x] 1.3 `EtapaTreino` (`types/TreinoPlanejado.ts`) ganha `blocoId?` e `blocoRepeticoes?`;
       adapter `indexarRepeticoes(etapas)` em `features/workout/profile/input.ts`: para cada grupo
       consecutivo de mesmo `blocoId` (tamanho `k`, `N = blocoRepeticoes`), `c = k / N`,
@@ -77,3 +78,30 @@ Cada task traz `verify:` — como saber que funcionou.
       **Feito 2026-08-26** — 3 specs; suíte E2E do atleta 14/14. Armadilha registrada: o coringa
       `**/api/**` precisa ser registrado **antes** dos handlers específicos (o Playwright avalia da
       última rota para a primeira) — registrado depois, ele engolia o plano e a tela caía no vazio.
+
+
+## QA gate — 2026-08-26
+
+Três revisões (`frontend-reviewer`, `clean-code-reviewer`, Codex adversarial). Nenhum Critical;
+nenhum achado de segurança. Corrigidos no commit de QA:
+
+- **Codex, MAJOR (real):** `statusDoDia` devolvia `hoje` antes de avaliar `REALIZADO`/`PERDIDO` —
+  um treino feito hoje perdia o check no dia mais importante. `isToday` virou eixo próprio; a regra
+  de status passou a ser compartilhada (`adapters/dayStatus.ts`) entre Plano e Home.
+- **Codex, MAJOR ×2 (reais):** `indexarRepeticoes` deixava passar `blocoId` sem `blocoRepeticoes`
+  (bloqueava a inferência do perfil) e o mesmo `blocoId` em segmentos separados (o `ProfilePlot`
+  desenharia o bracket da primeira à última ocorrência, cobrindo etapas alheias). Ambos os casos
+  perdem os metadados de bloco. Testes novos.
+- **Codex, MAJOR (spec):** "descanso deveria ser `button`" — decisão: descanso não é interativo
+  (não há o que expandir); o `verify` da 1.2 estava errado e foi corrigido.
+- **clean-code, Important:** `statusDoDia`/`statusValue` duplicados → `dayStatus.ts`; `formatKm`
+  triplicado → `utils/formatKm.ts`.
+- **frontend, Important:** cast `(treino as { zonaAlvo })` removido (o campo entrou no tipo);
+  fixtures com `as never` → fábrica tipada; `aria-haspopup="dialog"` na linha com etapas.
+
+Follow-ups (não bloqueiam): `AgendaWorkout.treino` carrega o `TreinoPlanejado` bruto para o drawer
+(migrar para um view model do detalhe quando o drawer crescer); `metaLinha` poderia vir pronta do
+adapter; teste de fuso é independente de TZ e só reproduz o bug antigo em runner UTC-3 (rodado
+localmente); `volumePlanejadoKm = 0` deixa a barra em 0% sem aviso.
+
+Validação final: `lint` limpo, `build` ok, `test:run` **1275/1275**, E2E `tests/e2e/athlete` **14/14**.
