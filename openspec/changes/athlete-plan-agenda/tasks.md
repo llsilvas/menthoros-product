@@ -14,23 +14,23 @@ Cada task traz `verify:` — como saber que funcionou.
 
 ## 1. Agenda
 
-- [ ] 1.0 `selectAthletePlan`: `hoje` em data local (`date-fns format`) em vez de `toISOString`;
+- [x] 1.0 `selectAthletePlan`: `hoje` em data local (`date-fns format`) em vez de `toISOString`;
       teste com `vi.setSystemTime` às 23:30 de domingo em UTC-3 escolhendo a semana corrente.
       Validação: `test:run`.
       verify: `selectAthletePlan.test` com `vi.setSystemTime(2026-08-30T23:30-03:00)` escolhe o plano
       de 24–30 e não o de 31.
-- [ ] 1.1 Adapter `buildWeekAgenda(plano, weekDates, hoje)` → linhas com `{date, isToday, workout,
+- [x] 1.1 Adapter `buildWeekAgenda(plano, weekDates, hoje)` → linhas com `{date, isToday, workout,
       status, durationMin, distanceKm?, zoneLabel?, temEtapas}`; reaproveitar `weekDatesFromInicio`.
       Distância: `distanciaKm` prescrita; senão `duracaoMin × ritmoAlvo` quando houver pace; senão
       ausente. Validação: `test:run` (casos: hoje, descanso, concluído, pulado, futuro, plano de
       outra semana → nenhum "hoje").
       verify: `buildWeekAgenda.test.ts` cobre os 6 casos e a precedência distância prescrita >
       pace > ausente.
-- [ ] 1.2 `WeekAgendaRow` (linha; variantes descanso/hoje-expandido) e `WeekAgenda` (lista), status
+- [x] 1.2 `WeekAgendaRow` (linha; variantes descanso/hoje-expandido) e `WeekAgenda` (lista), status
       por ícone (D4), cor por `workoutTypeColor` + legenda. Validação: testes de componente.
       verify: 7 `role="button"` (linhas) com `aria-expanded`; nenhum `border-left` colorido; ícone
       por status via `data-status`.
-- [ ] 1.3 `EtapaTreino` (`types/TreinoPlanejado.ts`) ganha `blocoId?` e `blocoRepeticoes?`;
+- [x] 1.3 `EtapaTreino` (`types/TreinoPlanejado.ts`) ganha `blocoId?` e `blocoRepeticoes?`;
       adapter `indexarRepeticoes(etapas)` em `features/workout/profile/input.ts`: para cada grupo
       consecutivo de mesmo `blocoId` (tamanho `k`, `N = blocoRepeticoes`), `c = k / N`,
       `blocoRepeticaoIndex = ⌊pos / c⌋ + 1`; `k % N ≠ 0` → etapas do grupo sem `blocoId`/`blocoRepeticoes`
@@ -40,12 +40,12 @@ Cada task traz `verify:` — como saber que funcionou.
       `selectWorkoutProfile`; 7 linhas com N = 4 → nenhum bloco com `repeat`; sem bloco → inalterado; testes do
       coach verdes.
       verify: `input.test.ts` novo casos acima; `npx vitest run src/features/workout` verde.
-- [ ] 1.3a Toque por treino: sem etapas → expansão única; com etapas → `WorkoutDetailDrawer`
+- [x] 1.3a Toque por treino: sem etapas → expansão única; com etapas → `WorkoutDetailDrawer`
       (descrição, etapas, `WorkoutProfile`). Remover o no-op `handleDayPress`. Validação: testes
       de comportamento nos dois casos.
       verify: teste de página — clique em linha sem etapas alterna `aria-expanded`; clique em
       linha com etapas abre `role="dialog"` contendo `data-testid="workout-profile"`.
-- [ ] 1.4 Substituir `WeeklyPlanList`/`DayCard` no `AthletePlanPage`; mover os tipos que
+- [x] 1.4 Substituir `WeeklyPlanList`/`DayCard` no `AthletePlanPage`; mover os tipos que
       `buildWeeklyPlan` importa deles (`CompletionStatus`, `WorkoutType`, `WeeklyWorkout`) para o
       adapter; remover os componentes, seus testes e o comentário em `src/test/setup.ts`.
       Nenhum consumidor em `features/coach`. Validação: lint+build+test; `rg "DayCard|WeeklyPlanList"
@@ -54,12 +54,18 @@ Cada task traz `verify:` — como saber que funcionou.
 
 ## 2. Volume e cabeçalho
 
-- [ ] 2.1 Rodapé de volume neutro (D3): `toFixed(1)`, marcador do esperado-até-hoje, "Dia N de 7 ·
+- [x] 2.1 Rodapé de volume neutro (D3): `toFixed(1)`, marcador do esperado-até-hoje, "Dia N de 7 ·
       X de Y treinos feitos"; remover `getTSSInterpretation`/`getTSSBarColor`. Validação: testes.
-- [ ] 2.2 Cabeçalho "Plano da semana" + intervalo + objetivo semanal; **sem** controles de semana
+- [x] 2.2 Cabeçalho "Plano da semana" + intervalo + objetivo semanal; **sem** controles de semana
       (0.1: não há endpoint). Quando o plano não contém hoje, subtítulo deixa claro ("semana de
       D a D"). Validação: teste de página.
       verify: nenhum `button` de semana anterior/próxima; subtítulo com intervalo.
+      **Seções 1–2 feitas em 2026-08-26.** Achado no teste de `indexarRepeticoes`: um grupo
+      inválido (k % N ≠ 0) perde os metadados de bloco, mas o perfil ainda pode **inferir** série
+      por padrão repetido (`inferirSeries`) — comportamento do componente, não do adapter; a
+      asserção garante só que nenhum bracket vem do `blocoId` inválido. Teste de fuso escrito
+      independente de TZ (o plano escolhido contém a data local) para não passar/falhar por
+      acidente no CI em UTC. Suíte 1273.
 
 ## 3. E2E
 
