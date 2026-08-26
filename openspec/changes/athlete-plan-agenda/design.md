@@ -11,13 +11,21 @@ ler qualquer treino além do selecionado.
 
 ## D2 — Expansão vs. detalhe
 
-Comportamento do toque depende do que o contrato traz (task 0.1):
+Comportamento do toque é decidido **por treino** (o contrato traz `etapas` por item, opcional):
 
-- **Sem etapas no contrato:** toque expande/colapsa a linha (descrição completa + ação). Só uma
-  linha expandida por vez; hoje expandido por padrão.
-- **Com etapas:** toque abre `WorkoutDetailDrawer` (MUI `Drawer` bottom) com descrição, etapas
-  (duração · zona · alvo) e, quando existir, o `WorkoutProfile` (reuso de
-  `features/workout/profile`) — o mesmo que `athlete-home-workout-profile` traz ao hero.
+- **Treino sem etapas** (ou descanso): toque expande/colapsa a linha (descrição completa + ação).
+  Só uma linha expandida por vez; hoje expandido por padrão quando o plano contém hoje.
+- **Treino com etapas:** toque abre `WorkoutDetailDrawer` (MUI `Drawer` bottom) com descrição,
+  etapas (duração · zona · alvo) e o `WorkoutProfile` (reuso de `features/workout/profile`, via
+  `selectWorkoutProfile(etapas.map(fromEtapaTreino))`) — o mesmo que `athlete-home-workout-profile`
+  traz ao hero. Para a série aparecer com o bracket "N×", `EtapaTreino` recebe
+  `blocoId`/`blocoRepeticoes`/`blocoRepeticaoIndex` e `fromEtapaTreino` os mapeia (hoje descarta).
+
+## D2b — Data local, nunca UTC
+
+`hoje` = `format(new Date(), 'yyyy-MM-dd')` (`date-fns`, fuso do aparelho), como `buildWeeklyPlan`.
+`selectAthletePlan` usa `toISOString().slice(0, 10)` (UTC): às 23:30 de domingo em UTC-3 já é
+segunda em UTC e ele escolhe o plano seguinte, se aprovado. Corrigido aqui, com teste.
 
 ## D3 — Rodapé de volume neutro
 
