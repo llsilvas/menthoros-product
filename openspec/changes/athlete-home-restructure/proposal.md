@@ -149,6 +149,17 @@ Somente `apps/menthoros-front`, shell `features/athlete/`. Versão proposta dese
 - **Premissa que pode cair:** "Sair" no Perfil é encontrável. Se o piloto mostrar atletas presos
   logados em aparelho compartilhado, reavaliar.
 
+## Definition of Ready (2026-08-26)
+
+- `spec-reviewer`: **READY** (gaps médios incorporados: dono da 0.1, gate da 0.3, CA 9).
+- Codex, rodada 1: **NOT READY** — 7 achados, todos confirmados no código e incorporados (ver
+  commit `dcc722c`). Rodada 2: os 7 resolvidos; um achado novo, **refutado**: "falta delta em
+  `specs/<capability>/spec.md`". `specs/` é opcional por convenção do workspace (CLAUDE.md da
+  raiz, "specs/ (opcional — specs delta de capability)"), não há capability canônica do shell do
+  atleta em `openspec/specs/` (só `fc-limiar-zones` e `prova-crud`), e as changes de front
+  recentes (`refine-inbox-mobile-breakpoint`) não têm delta. Os critérios de aceite vivem neste
+  proposal. Veredito consolidado: **READY**.
+
 ## Referências
 
 - Canvas da revisão: <https://claude.ai/code/artifact/bfa9863e-cba8-4a1f-bbc9-fe9cfb4a957d>
