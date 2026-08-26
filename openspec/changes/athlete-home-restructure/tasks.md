@@ -6,30 +6,36 @@ registro de treino, navegação) exigem E2E.
 
 ## 0. Pré-condições (bloqueiam as demais)
 
-- [ ] 0.1 Validar com o backend a premissa do mapeamento 3 estados → 1–10 (D2) contra o
-      `ReadinessService`. Registrar a resposta aqui; se sensível, o inline grava e o modal segue como
-      precisão (D2 ajustado). Validação: nota nesta task.
+- [ ] 0.1 Ler o cálculo do `readinessScore` em `apps/menthoros-backend` e registrar aqui
+      (caminho:linha) se o mapeamento 3 estados → 1–10 (D2) preserva a semântica. Se sensível a
+      granularidade, o inline grava e o modal segue como precisão (D2 ajustado). Dono: executor da
+      change. Validação: evidência nesta task.
 - [ ] 0.2 Medir e registrar o baseline das duas métricas de sucesso (4 semanas anteriores): query
       sobre `PlanoSemanal`/`TreinoRealizado` e `CheckinProntidao`. Validação: números nesta task.
-- [ ] 0.3 Confirmar com o founder que há atletas de assessoria piloto usando o shell. Sem isso,
-      pausar a change (candidata a pós-piloto). Validação: nota nesta task.
+- [ ] 0.3 Gate: o founder confirma aqui se há atletas de assessoria piloto usando o shell. Negativo
+      → change fica `[~]` com o gatilho "retomar quando houver ≥1 atleta de piloto no shell"; as
+      tasks 1+ não começam. Validação: linha assinada nesta task.
 
 ## 1. Tema e tokens do shell
 
 - [ ] 1.1 Criar `features/athlete/theme/athleteTheme.ts` estendendo `appTheme` com `font.text` como
       `fontFamily` e `font.display` nos títulos; envolver o `AthleteLayout` com `ThemeProvider`.
       Validação: lint+build; teste de que `AthleteLayout` renderiza texto sem `Syne`.
-- [ ] 1.2 Substituir tamanhos em `rem` fora da escala nos componentes tocados pela change pelos
-      tokens `typography`; unificar raios (`radius.lg` externo, `radius.md` interno) e superfície
-      (`elevation.card` + `surface[700]`). Validação: lint+build.
+- [ ] 1.2 Remover os 11 `fontFamily: 'Syne, sans-serif'` literais de `features/athlete/**` (viram
+      variante do tema) e trocar os 2 de `shared/components` (`ConfirmDialog`, `CoachDialog`) por
+      `fontFamily` da variante do tema (D3); substituir tamanhos em `rem` fora da escala nos
+      componentes tocados pelos tokens `typography`; unificar raios e superfície. Validação:
+      lint+build + `rg "Syne" src/features/athlete src/shared/components` vazio (fora de testes).
 
 ## 2. Check-in
 
 - [ ] 2.1 `InlineCheckIn` (componente) + `useInlineCheckin` (hook sobre `useRegistrarCheckin`/
-      `useCheckinAtual`): cinco itens de 48px, três estados, debounce 600ms, reversão em falha,
-      "Salvo às HH:MM", "Mais detalhes" abre o `QuickCheckInModal`. Validação: testes de hook e
-      de componente (estado inicial derivado, ciclo de estados, falha reverte).
-- [ ] 2.2 Linha de estado do check-in quando já feito ("Check-in de hoje feito · às HH:MM · Editar").
+      `useCheckinAtual`): cinco itens de 48px, três estados; **primeiro check-in: sem POST até os
+      cinco terem estado ("N de 5")**; existente: POST completo por toque com debounce 600ms;
+      reversão em falha; "Salvo"; "Mais detalhes" abre o `QuickCheckInModal`. Validação: testes de
+      hook e componente (inicial `null` → 4 seleções sem POST → 5ª dispara; estado derivado de
+      check-in existente; ciclo; falha reverte).
+- [ ] 2.2 Linha de estado do check-in quando já feito ("Check-in de hoje feito · Editar").
       Validação: teste de componente.
 
 ## 3. Hero, prontidão e "Sua semana"
@@ -50,9 +56,10 @@ registro de treino, navegação) exigem E2E.
 
 ## 4. Erros consolidados
 
-- [ ] 4.1 `useAthleteHomeErrors` agregando erros/refetch dos hooks secundários; um `Alert` no topo com
-      "Recarregar". Erro de `useAthleteHome` mantém a tela bloqueante. Validação: teste de página
-      com dois hooks falhando → um `Alert`.
+- [ ] 4.1 `useAthleteHomeErrors` agregando erros/refetch dos hooks secundários — **incluindo
+      `useCalibracao().error`, que a Home hoje não lê**; um `Alert` no topo com "Recarregar". Erro
+      de `useAthleteHome` mantém a tela bloqueante. Validação: teste de página com dois hooks
+      falhando → um `Alert`; teste com só calibração falhando → `Alert` presente.
 
 ## 5. Barra inferior
 
@@ -64,7 +71,9 @@ registro de treino, navegação) exigem E2E.
 ## 6. E2E e smoke
 
 - [ ] 6.1 `tests/e2e/athlete/home.spec.ts` em 390×844: botão "Registrar treino" visível sem scroll;
-      check-in inline grava e atualiza prontidão; um `Alert` em falha parcial (mock de rede);
+      check-in inline — **mockar `POST /api/v1/checkins` e o `GET` de readiness** e asserir o
+      payload do POST e o score novo vindo do GET (não aceitar estado otimista); um `Alert` em
+      falha parcial (mock de rede);
       barra com cinco itens e "Sair" no Perfil; varredura de fontes/tamanhos (CA 8). Validação:
       `npm run test:e2e` verde.
 - [ ] 6.2 Smoke visual de Progresso, Coach, Perfil e Registro em 390px com o tema novo. Corrigir

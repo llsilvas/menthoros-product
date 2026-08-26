@@ -29,29 +29,46 @@ inline expõe três estados por item e grava valores fixos:
 | Estresse | alto → 8 | médio → 4 | baixo → 0 |
 
 - Ao abrir a Home com check-in já feito, o inline mostra o estado mais próximo de cada valor
-  (≤4 / 5–7 / ≥8; invertido para dores e estresse) e "Salvo às HH:MM".
-- Cada toque envia o DTO completo (os cinco valores atuais), com debounce de 600ms para absorver
-  toques em sequência. Falha → reverte o item e mostra erro inline.
+  (≤4 / 5–7 / ≥8; invertido para dores e estresse) e "Salvo" (sem horário — o contrato não o traz).
+- **Primeiro check-in do dia** (`useCheckinAtual` → `null`): os cinco itens começam **sem estado**
+  e nada é enviado até os cinco terem seleção — a UI mostra "N de 5"; ao completar, um POST com o
+  DTO completo. Não se fabrica default: os cinco campos são `@NotNull` e um valor inventado viraria
+  dado de prontidão.
+- **Check-in existente:** cada toque envia o DTO completo (os cinco valores atuais), com debounce
+  de 600ms para absorver toques em sequência. Falha → reverte o item e mostra erro inline.
 - "Mais detalhes" abre o `QuickCheckInModal` com os valores atuais — o modal não muda.
 - Rejeitado: gravar só ao final com botão "Salvar" — reintroduz o formulário que se quer eliminar.
 
 ## D3 — Tema do shell do atleta
 
 `features/athlete/theme/athleteTheme.ts` estende `appTheme` (precedente `coachTheme.ts`) com
-`typography.fontFamily = font.text` e variantes de título em `font.display`. Envolve o `AthleteLayout`.
-Não toca `appTheme`: landing e coach continuam como estão. Consequência aceita: Progresso, Coach e
-Perfil mudam de fonte sem redesenho — smoke visual obrigatório (task 6.2).
+`typography.fontFamily = font.text` e variantes de título (`h1`–`h6`) em `font.display`. Envolve o
+`AthleteLayout`. Não toca `appTheme`: landing e coach continuam como estão.
+
+**O tema não alcança literais.** Há 11 `fontFamily: 'Syne, sans-serif'` em `features/athlete/**`
+(páginas Plano, Perfil, Progresso, Onboarding, registro; `QuickCheckInModal`, `FitUploadResultCard`,
+`IntervalsIcuConnectionCard`, `PostWorkoutFeedbackCard`) e 2 em `shared/components`
+(`ConfirmDialog`, `CoachDialog`). A task 1.2 remove os do shell do atleta (viram variante do tema);
+nos compartilhados o literal vira `fontFamily: (t) => t.typography.h6.fontFamily` — o coach
+continua em Syne pelo `appTheme`, o atleta resolve para `font.display`. Sem isso o CA 8 é falso.
+Consequência aceita: Progresso, Coach e Perfil mudam de fonte sem redesenho — smoke (task 6.2).
 
 ## D4 — Consolidação de erros
 
 Um `useAthleteHomeErrors(...)` local agrega `error`/`refetch` dos hooks secundários (readiness,
-treinos, provas, checkinAtual, kudos, plano, calibração) e devolve `{ failed: string[], retryAll }`.
+treinos, provas, checkinAtual, kudos, plano, **calibração — hoje `useCalibracao` expõe `error` e a
+Home não o lê, então falha de calibração é silenciosa**) e devolve `{ failed: string[], retryAll }`.
 A Home renderiza um `Alert` só. O erro de `useAthleteHome` continua sendo a tela de erro atual.
 
 ## D5 — Cor do tipo de treino
 
-Fonte única: `workoutTypeColor(tipoTreino)` de `theme/activeTheme`. O `DayCard` migra na change
-`athlete-plan-agenda`; aqui o hero e os pontos de dia do card "Sua semana" já usam essa fonte.
+Fonte única: `workoutTypeColor(tipoTreino)` de `theme/activeTheme`, que recebe o **enum do
+backend** (`FACIL`, `LONGO`, …). O `DayCard` hoje trabalha num `WorkoutType` local (`easy_run`,
+…, via `mapTipoTreino`) e pinta por `categorical.cat*` — são dois domínios, e a divergência de cor
+vem daí. Nesta change, o hero e os pontos de dia de "Sua semana" recebem o `tipoTreino` do backend
+(`proximoTreino.tipoTreino`; `plano.treinos[].tipoTreino`) e chamam `workoutTypeColor` direto —
+**nunca passam pelo `WorkoutType` local**. A migração do `DayCard` (e a remoção de `TYPE_COLORS`) é
+de `athlete-plan-agenda`; o adaptador comum é o próprio `workoutTypeColor`, já existente.
 
 ## Riscos e mitigações
 

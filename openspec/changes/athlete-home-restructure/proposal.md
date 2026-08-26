@@ -39,10 +39,14 @@ Somente `apps/menthoros-front`, shell `features/athlete/`. Versão proposta dese
 
 - **Cabeçalho** com data por extenso e saudação por período do dia; a frase motivacional fixa sai.
 - **Check-in vira linha de estado** com rótulo honesto: "Fazer check-in" / "Check-in de hoje feito ·
-  às 07:12 · Editar". Continua abrindo o `QuickCheckInModal` existente.
+  Editar". **Sem horário:** `CheckinProntidaoOutputDto` expõe só `data`; `updatedAt` existe na
+  entidade e não sai no contrato — expor é mudança de API, fora do non-goal (follow-up registrado).
+  Continua abrindo o `QuickCheckInModal` existente.
 - **Check-in inline (XS dentro desta change):** os cinco sliders 1–10 do modal ganham uma
-  alternativa de três estados por item, na própria Home, salvando a cada toque; o modal fica atrás de
-  "Mais detalhes". Mapeamento para `CheckinProntidaoInputDto` definido no `design.md`.
+  alternativa de três estados por item, na própria Home. Os cinco campos do DTO são `@NotNull`:
+  **no primeiro check-in do dia nada é enviado até os cinco itens terem estado** ("3 de 5"); a
+  partir daí cada toque envia o DTO completo. O modal fica atrás de "Mais detalhes". Mapeamento
+  definido no `design.md` D2.
 - **Hero = o treino de hoje**, com **uma** ação primária: "Registrar treino" (`ROUTES.ATHLETE_TRAINING_LOG`).
   Chip do tipo com cor de `workoutTypeColor`. Link secundário "Ver plano da semana".
 - **Prontidão em uma linha** (anel 56px + rótulo + recomendação + origem "com base no seu check-in").
@@ -54,9 +58,12 @@ Somente `apps/menthoros-front`, shell `features/athlete/`. Versão proposta dese
 - **Erros parciais consolidados**: um único `Alert` de "alguns dados não carregaram · Recarregar" no
   topo, em vez de um por hook; erro do resumo principal (`useAthleteHome`) continua bloqueante.
 - **Tokens**: `font.display` (Space Grotesk) para títulos e números, `font.text` (Inter) para texto,
-  via `ThemeProvider` próprio do shell do atleta (precedente: `features/coach/theme/coachTheme.ts`);
-  escala `typography` de 7 níveis; dois raios (`radius.lg` externo, `radius.md` interno); superfície
-  `elevation.card` + borda `surface[700]`.
+  via `ThemeProvider` próprio do shell do atleta (precedente: `features/coach/theme/coachTheme.ts`)
+  **e remoção dos `fontFamily: 'Syne, sans-serif'` literais** em `features/athlete/**` (11
+  ocorrências hoje — o `ThemeProvider` sozinho não os alcança); componentes compartilhados com o
+  coach (`ConfirmDialog`, `CoachDialog`) passam a herdar a fonte da variante do tema em vez do
+  literal, para que cada shell resolva a sua. Escala `typography` de 7 níveis; dois raios
+  (`radius.lg` externo, `radius.md` interno); superfície `elevation.card` + borda `surface[700]`.
 - **`AthleteBottomNav`**: "Sair" sai da barra e vai para o Perfil (com o mesmo `ConfirmDialog`);
   cinco destinos; `unreadCoachMessages` passa a ser alimentado quando houver fonte (hoje não há —
   ver Open Questions).
@@ -73,12 +80,15 @@ Somente `apps/menthoros-front`, shell `features/athlete/`. Versão proposta dese
 
 1. **Ação honesta** — Given a Home carregada sem check-in hoje, When o atleta lê a tela, Then o
    único botão primário sólido é "Registrar treino" e o check-in aparece como "Fazer check-in";
-   Given check-in feito, Then a linha mostra "Check-in de hoje feito" com horário e "Editar".
-2. **Check-in inline** — Given a Home, When o atleta toca um item do check-in inline, Then o estado
-   cicla (3 estados), o `POST /api/v1/checkins` é enviado com os valores mapeados e a prontidão é
-   refetchada; Given falha no POST, Then o item volta ao estado anterior e um erro é exibido.
-3. **Sem repetição** — Given a Home, Then streak, próximo treino e forma aparecem **uma** vez cada
-   (asserção por texto único no teste de página).
+   Given check-in feito, Then a linha mostra "Check-in de hoje feito" e "Editar".
+2. **Check-in inline** — Given a Home sem check-in hoje, When o atleta seleciona quatro itens, Then
+   nenhum POST é feito e a UI mostra "4 de 5"; When seleciona o quinto, Then `POST /api/v1/checkins`
+   é enviado com os cinco valores mapeados e a prontidão é refetchada; Given check-in existente,
+   When toca um item, Then o estado cicla e o POST completo é enviado; Given falha no POST, Then o
+   item volta ao estado anterior e um erro é exibido.
+3. **Sem repetição** — Given a Home, Then as regiões `data-testid` `home-streak`, `home-next-workout`
+   e `home-form` existem **uma** vez cada, e nenhuma outra região da Home repete o valor (asserção
+   por região, não por busca global de texto — "Próximo"/"Forma" aparecem em labels e links).
 4. **Sem jargão** — Given a Home, Then não há texto "CTL", "ATL", "TSB" nem unidade "pts"; existe
    link para `ROUTES.ATHLETE_PROGRESS`.
 5. **Data** — Given a Home, Then o cabeçalho exibe a data corrente por extenso em PT-BR.
@@ -90,8 +100,10 @@ Somente `apps/menthoros-front`, shell `features/athlete/`. Versão proposta dese
 8. **Tokens** — Given a Home renderizada, Then nenhum texto usa `font-family` Syne; todos os
    `font-size` pertencem à escala `typography` (teste mecânico varrendo nós de texto visíveis,
    mesmo padrão de `tests/e2e/coach/inbox.spec.ts`).
-9. **Cor do tipo** — Given próximo treino FACIL, Then o chip usa a mesma cor que o `DayCard` do
-   Plano usará (`workoutTypeColor`) — asserção compartilhada com `athlete-plan-agenda`.
+9. **Cor do tipo** — Given próximo treino FACIL, Then o chip do hero e o ponto do dia em "Sua
+   semana" usam `workoutTypeColor('FACIL')` a partir do enum do backend (`tipoTreino`), **não** do
+   `WorkoutType` local (`easy_run`) do `DayCard`. A paridade com o Plano é asserida em
+   `athlete-plan-agenda`, quando o `DayCard` migrar.
 10. **Regressão** — `npm run lint && npm run build && npm run test:run` verdes; E2E
     `tests/e2e/athlete/home.spec.ts` (novo) cobrindo 1, 2, 6 e 7 em 390×844.
 
@@ -112,11 +124,17 @@ Somente `apps/menthoros-front`, shell `features/athlete/`. Versão proposta dese
 
 - **Pré-condição de entrada (task 0.1, bloqueia o resto):** o mapeamento 3 estados → slider 1–10
   (ruim/médio/bom = 3/6/9; dores e estresse invertidos 0/4/8) preserva a semântica do cálculo de
-  prontidão no backend (`ReadinessService`). Se o cálculo for sensível a granularidade, o inline
-  grava e o modal segue como caminho de precisão — decidido **antes** da primeira task de código.
-- **Pré-condição (task 0.3):** confirmar com o founder se há assessoria piloto com atletas usando o
-  shell hoje. Se não houver, a change é candidata a pós-piloto — a métrica de sucesso não teria
-  como ser medida.
+  prontidão no backend. **Dono:** quem executa a change lê `ReadinessService`/o cálculo do
+  `readinessScore` em `apps/menthoros-backend` e registra a evidência (caminho:linha) na task 0.1 —
+  não há segundo time a consultar; é leitura de código. Se o cálculo for sensível a granularidade,
+  o inline grava e o modal segue como caminho de precisão — decidido **antes** da primeira task de
+  código.
+- **Pré-condição (task 0.3, gate do `/implement init`):** o founder confirma, na própria task, se
+  há assessoria piloto com atletas usando o shell. Resposta negativa → a change fica `[~]` em
+  espera com o gatilho escrito: "retomar quando houver ≥1 atleta de piloto no shell". Sem essa
+  linha registrada, as tasks 1+ não começam.
+- **Follow-up de contrato (fora desta change):** expor `updatedAt` do check-in no
+  `CheckinProntidaoOutputDto` para mostrar o horário na linha de estado.
 - **Premissa:** `useAthletePlan` já traz `volumeRealizadoKm`/`volumePlanejadoKm` — o card "Sua
   semana" não precisa de endpoint novo.
 - **Em aberto:** fonte de `unreadCoachMessages`. Não existe até `add-athlete-coach-messaging`
