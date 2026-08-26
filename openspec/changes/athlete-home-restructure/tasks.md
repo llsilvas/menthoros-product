@@ -27,10 +27,10 @@ Sequência: 0 → 1 → (2 ∥ 3) → 4 → 5 → 6. O bloco 2 e o 3 não compar
       se aplica sobre zero; alvo absoluto). Queries: joins `tb_treino_planejado` ×
       `tb_treino_realizado.treino_planejado_id` com `created_at ≤ data_treino + 2 dias`;
       `tb_checkin_prontidao` por `date_trunc('week', data)`.
-- [ ] 0.3 Gate: o founder confirma aqui se há atletas de assessoria piloto usando o shell. Negativo
-      → change fica `[~]` com o gatilho "retomar quando houver ≥1 atleta de piloto no shell"; as
-      tasks 1+ não começam.
-      verify: linha assinada com data nesta task.
+- [x] 0.3 **2026-08-26 — founder:** "hoje não tem ninguém usando o shell de atleta". Gate negativo,
+      **override do founder**: ele é o único atleta com usuário (HomeLab) e o baseline da 0.2 já é
+      medido sobre os dados dele — a métrica roda no founder até haver assessoria piloto. Tasks 1+
+      liberadas.
 
 ## 1. Tema e tokens do shell
 
