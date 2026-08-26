@@ -21,7 +21,8 @@ Comportamento do toque é decidido **por treino** (o contrato traz `etapas` por 
   traz ao hero. Para a série aparecer com o bracket "N×", `EtapaTreino` recebe
   `blocoId`/`blocoRepeticoes` e um adapter `indexarRepeticoes` deriva `blocoRepeticaoIndex` por
   posição sobre a sequência **já expandida** pelo backend (`expandirBloco` grava N cópias):
-  ciclo `c = k / N`, índice `⌊pos / c⌋ + 1`; `k` não múltiplo de `N` → sem índice. O contrato não
+  ciclo `c = k / N`, índice `⌊pos / c⌋ + 1`; `k` não múltiplo de `N` → grupo inválido, etapas
+  perdem `blocoId`/`blocoRepeticoes` (sem bracket, sem `repeat`). O contrato não
   envia índice e o `selectWorkoutProfile` cairia em `index: 1` para todas. **Não reexpandir** — o
   expansor do editor (`profile/input.ts`) parte do modelo de edição, que guarda o bloco uma vez.
 

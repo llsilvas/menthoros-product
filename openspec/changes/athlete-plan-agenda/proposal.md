@@ -54,7 +54,9 @@ Somente `apps/menthoros-front`. Versão proposta desenhada no canvas (prancheta 
   (`TreinoPlanejadoServiceImpl:265-290`). Um adapter novo `indexarRepeticoes(etapas)` percorre as
   etapas consecutivas de mesmo `blocoId` (tamanho `k`, `N = blocoRepeticoes`), define o ciclo
   `c = k / N` e atribui `blocoRepeticaoIndex = ⌊posição / c⌋ + 1`; se `k` não for múltiplo de `N`,
-  não inventa — deixa o índice ausente (o perfil cai em `1`). **Nunca reexpande** (um 4×2 já chega
+  o grupo é inválido e o adapter **remove `blocoId`/`blocoRepeticoes`** dessas etapas — sem
+  bracket, em vez de um bracket falso com tudo em "1 de N" (o `selectWorkoutProfile` cria `repeat`
+  a partir de `blocoId` e cai em `index ?? 1`). **Nunca reexpande** (um 4×2 já chega
   como 8 linhas; reexpandir daria 32). Sem `blocoId` ou `N ≤ 1`, `fromEtapaTreino` como hoje. Sem
   isso o drawer desenha um intervalado sem o bracket "4×". O detalhe do coach pode adotar o mesmo
   adapter (follow-up, não aqui).
@@ -129,6 +131,9 @@ Somente `apps/menthoros-front`. Versão proposta desenhada no canvas (prancheta 
 - Codex, rodada 3: a correção da rodada 2 ("expandir 1..N no adapter") estava **errada** — o backend
   já persiste a série expandida (`expandirBloco`), e reexpandir multiplicaria as etapas. Regra
   final: `indexarRepeticoes` deriva o índice por posição sobre a sequência já expandida.
+- Codex, rodada 4: resolvido; um refinamento **aceito**: grupo com `k % N ≠ 0` perde os metadados
+  de bloco (sem bracket), em vez de índice ausente. Veredito consolidado: **READY** — o restante
+  foi verificado em quatro rodadas e o `spec-reviewer` já dera READY.
 
 ## Referências
 

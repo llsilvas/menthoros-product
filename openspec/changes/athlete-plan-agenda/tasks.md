@@ -1,7 +1,9 @@
 # Tasks — athlete-plan-agenda
 
-Repo: `apps/menthoros-front`. Validação padrão: `npm run lint && npm run build`
-(+ `npm run test:run` em lógica; E2E onde indicado — o plano é fluxo crítico).
+Repo: `apps/menthoros-front`, branch `feature/athlete-plan-agenda` (base `develop` pós-#92).
+Validação padrão: `npm run lint && npm run build && npm run test:run`; E2E onde indicado — o
+plano é fluxo crítico. Sequência: 0 → 1.0 → 1.1 → 1.2 → 1.3 → 1.3a → 1.4 → 2 → 3.
+Cada task traz `verify:` — como saber que funcionou.
 
 ## 0. Contrato
 
@@ -15,29 +17,40 @@ Repo: `apps/menthoros-front`. Validação padrão: `npm run lint && npm run buil
 - [ ] 1.0 `selectAthletePlan`: `hoje` em data local (`date-fns format`) em vez de `toISOString`;
       teste com `vi.setSystemTime` às 23:30 de domingo em UTC-3 escolhendo a semana corrente.
       Validação: `test:run`.
+      verify: `selectAthletePlan.test` com `vi.setSystemTime(2026-08-30T23:30-03:00)` escolhe o plano
+      de 24–30 e não o de 31.
 - [ ] 1.1 Adapter `buildWeekAgenda(plano, weekDates, hoje)` → linhas com `{date, isToday, workout,
       status, durationMin, distanceKm?, zoneLabel?, temEtapas}`; reaproveitar `weekDatesFromInicio`.
       Distância: `distanciaKm` prescrita; senão `duracaoMin × ritmoAlvo` quando houver pace; senão
       ausente. Validação: `test:run` (casos: hoje, descanso, concluído, pulado, futuro, plano de
       outra semana → nenhum "hoje").
+      verify: `buildWeekAgenda.test.ts` cobre os 6 casos e a precedência distância prescrita >
+      pace > ausente.
 - [ ] 1.2 `WeekAgendaRow` (linha; variantes descanso/hoje-expandido) e `WeekAgenda` (lista), status
       por ícone (D4), cor por `workoutTypeColor` + legenda. Validação: testes de componente.
+      verify: 7 `role="button"` (linhas) com `aria-expanded`; nenhum `border-left` colorido; ícone
+      por status via `data-status`.
 - [ ] 1.3 `EtapaTreino` (`types/TreinoPlanejado.ts`) ganha `blocoId?` e `blocoRepeticoes?`;
       adapter `indexarRepeticoes(etapas)` em `features/workout/profile/input.ts`: para cada grupo
       consecutivo de mesmo `blocoId` (tamanho `k`, `N = blocoRepeticoes`), `c = k / N`,
-      `blocoRepeticaoIndex = ⌊pos / c⌋ + 1`; `k % N ≠ 0` → sem índice; sem bloco ou `N ≤ 1` →
+      `blocoRepeticaoIndex = ⌊pos / c⌋ + 1`; `k % N ≠ 0` → etapas do grupo sem `blocoId`/`blocoRepeticoes`
+      (sem `repeat`); sem bloco ou `N ≤ 1` →
       `fromEtapaTreino` inalterado. **Não reexpande.** Validação: teste com 8 linhas de um bloco
       4× (esforço, recuperação × 4) → `repeat.index` 1,1,2,2,3,3,4,4 e `total` 4 em
-      `selectWorkoutProfile`; 7 linhas com N = 4 → sem índice; sem bloco → inalterado; testes do
+      `selectWorkoutProfile`; 7 linhas com N = 4 → nenhum bloco com `repeat`; sem bloco → inalterado; testes do
       coach verdes.
+      verify: `input.test.ts` novo casos acima; `npx vitest run src/features/workout` verde.
 - [ ] 1.3a Toque por treino: sem etapas → expansão única; com etapas → `WorkoutDetailDrawer`
       (descrição, etapas, `WorkoutProfile`). Remover o no-op `handleDayPress`. Validação: testes
       de comportamento nos dois casos.
+      verify: teste de página — clique em linha sem etapas alterna `aria-expanded`; clique em
+      linha com etapas abre `role="dialog"` contendo `data-testid="workout-profile"`.
 - [ ] 1.4 Substituir `WeeklyPlanList`/`DayCard` no `AthletePlanPage`; mover os tipos que
       `buildWeeklyPlan` importa deles (`CompletionStatus`, `WorkoutType`, `WeeklyWorkout`) para o
       adapter; remover os componentes, seus testes e o comentário em `src/test/setup.ts`.
       Nenhum consumidor em `features/coach`. Validação: lint+build+test; `rg "DayCard|WeeklyPlanList"
       src` só em nomes de adapter, se restarem.
+      verify: os dois arquivos e seus testes não existem; `setup.ts` sem a menção; suíte verde.
 
 ## 2. Volume e cabeçalho
 
@@ -46,6 +59,7 @@ Repo: `apps/menthoros-front`. Validação padrão: `npm run lint && npm run buil
 - [ ] 2.2 Cabeçalho "Plano da semana" + intervalo + objetivo semanal; **sem** controles de semana
       (0.1: não há endpoint). Quando o plano não contém hoje, subtítulo deixa claro ("semana de
       D a D"). Validação: teste de página.
+      verify: nenhum `button` de semana anterior/próxima; subtítulo com intervalo.
 
 ## 3. E2E
 
@@ -53,3 +67,4 @@ Repo: `apps/menthoros-front`. Validação padrão: `npm run lint && npm run buil
       expandido com "Registrar treino" navegando para o registro; toque em treino sem etapas
       expande/colapsa; toque em treino com etapas abre o drawer com `workout-profile`; rodapé
       "Dia N de 7" sem texto de juízo; nenhum "TSS". Validação: `npm run test:e2e` verde.
+      verify: `npm run test:e2e -- tests/e2e/athlete/plan.spec.ts` verde; `smoke-tema` continua verde.
