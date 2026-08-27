@@ -120,6 +120,11 @@ Somente `apps/menthoros-front`, sem mudança de contrato. Prancheta "Progresso �
   PMC para drawer perdia inspeção (vira expansão inline); arredondamento das zonas (normalizado);
   aderência com menos de 4 semanas (preenchidas); varredura E2E limitada fora do gráfico.
 
+- `spec-reviewer` (init): **READY com ressalvas**, incorporadas: `statusForma` vem do último ponto
+  do PMC (sem `useAthleteHome`); `RecordRow.data` já é ISO cru — o gap é a data formatada.
+- Codex, rodada 2 (init): resíduos de texto ("drawer") corrigidos. A task 0.2 (único limiar) fica
+  como pré-condição assinada pelo founder — sequenciamento, não gap de DoR. Consolidado: **READY**.
+
 ## Referências
 
 - Canvas, página "Progresso": pranchetas "Progresso — atual (Visão Geral)" e "Progresso — proposta".
