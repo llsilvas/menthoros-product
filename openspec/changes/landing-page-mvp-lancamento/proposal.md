@@ -101,9 +101,14 @@ toca API, schema ou mais de um repo).
 - **Prova social real** (número de assessorias/atletas em teste) — a prancheta desenhou um bloco de
   3 fatos (`[N] atletas em beta`, `[N] semanas de dados`, `[N] assessorias fundadoras`) mas nenhum
   número real foi fornecido. **Fica fora desta change** até existir um dado verdadeiro — ver Open
-  Questions.
+  Questions. Corte confirmado como seguro em Riscos e mitigações: a origem do tráfego é a waitlist
+  existente (audiência aquecida), não tráfego frio.
 - **Posicionamento explícito vs. concorrência** (TrainingPeaks, intervals.icu, planilha) — levantado
-  na revisão de marketing como gap, mas sem copy nem brief definido. Fica para uma change futura.
+  na revisão de marketing como gap, mas sem copy nem brief definido. Fica para uma change futura. Pelo
+  mesmo motivo acima, o corte é seguro para esta audiência.
+- **Personalização para quem vem da waitlist** ("você já está na nossa lista") — decisão do founder em
+  2026-08-27: a página fica genérica; a mesma copy serve para quem vem da waitlist e para qualquer
+  outro visitante.
 - Tabela completa de planos como página própria (`/precos`) — a tabela desta change vive só dentro da
   landing.
 - SEO/meta tags, analytics de funil de conversão, A/B test — não fazem parte desta change.
@@ -174,9 +179,16 @@ uma change futura de produto (fora do escopo desta, que é só marketing/aquisi�
 Revisão de produto (`menthoros-workflow:product-reviewer`, 2026-08-27) devolveu **Go**, condicionado a
 quatro perguntas que só o founder responde — não bloqueiam a implementação, mas ficam registradas:
 
-1. **Origem do tráfego das 10 vagas** (outreach direto vs. tráfego pago/frio) — se for tráfego frio, a
-   ausência de prova social e de posicionamento vs. concorrência (Non-Goals) deixa de ser um corte
-   seguro. Decisão do founder, não desta change.
+1. ~~**Origem do tráfego das 10 vagas**~~ — **Resolvido pelo founder em 2026-08-27:** a origem é a
+   **waitlist já existente** (pessoas que já demonstraram interesse antes do MVP fechar), não tráfego
+   pago/frio. O objetivo desta página é converter quem já está cadastrado lá em usuário do programa
+   fundador. Confirma que os Non-Goals (sem prova social fabricada, sem posicionamento vs.
+   concorrência) são um corte seguro — é audiência aquecida, não desconhecida cética.
+   **Decisão de escopo (2026-08-27):** a página **permanece genérica** — mesma copy para quem vem da
+   waitlist e para qualquer outro visitante que receba o link. Nenhuma personalização "você já está na
+   nossa lista" entra nesta change (exigiria saber, na própria página, que a pessoa já se cadastrou —
+   hoje não há esse dado nem esse mecanismo). Se o founder quiser essa personalização depois, é uma
+   change própria, não um adendo a esta.
 2. **Como medir "visitantes únicos"** para a métrica de sucesso declarada, já que analytics de funil
    está nos Non-Goals — sem isso, dá para contar submissões, não a taxa de conversão de fato.
 3. "Técnico" na tabela de planos — rótulo de marketing ou nome que precisa alinhar com o domínio? (já
