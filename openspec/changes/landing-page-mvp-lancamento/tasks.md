@@ -29,8 +29,12 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
       assessorias" → "10 vagas do programa fundador · 60 dias grátis, sem cartão".
 - [ ] A.4 `hero.eyebrow` em `content.ts`: "Performance intelligence" → "Inteligência de performance"
       (única string em inglês da página).
-- [ ] A.5 Validação manual: 1366×768 e 1440×900, título + CTA + card visíveis sem rolar (AC1). Rodar
-      Lighthouse local antes/depois — LCP não piora (AC9).
+- [ ] A.5 Validação manual: 1366×768 e 1440×900, título + CTA + card visíveis sem rolar (AC1).
+      **Protocolo de LCP (AC9, achado 6 do pré-mortem):** `npm run build && npm run preview`;
+      Lighthouse CLI preset mobile padrão (throttling 4G simulado + CPU 4x — sem customização), 3
+      execuções em `develop` (baseline) e 3 na branch da change; comparar a **mediana** de LCP; salvar
+      os 6 relatórios (HTML ou JSON) numa pasta local e anexar ao PR como evidência — um número solto
+      sem os relatórios não conta como validado.
 - [ ] A.6 Validação de viewport curto/extremo (achado do pré-mortem, `design.md` D1): 1366×600, zoom
       de browser 150–200%, mobile landscape 844×390 — hero não corta título/CTA nem trava altura que
       esconde conteúdo (sem `overflow: hidden` no container do hero) (AC8b). Conferir também o
@@ -101,7 +105,7 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
       atual dava contra qualquer caminho de submit). `AccessForm.tsx`: botão sempre habilitado (exceto
       `submitting`); `handleSubmit` chama `validate(...)` com os 4 argumentos e não envia enquanto
       `errors` tiver qualquer chave (AC6).
-- [ ] G.2 `AccessForm.tsx:1022-1031`: link "Política de Privacidade" sai de dentro do
+- [ ] G.2 `AccessForm.tsx:83-91`: link "Política de Privacidade" sai de dentro do
       `FormControlLabel`; vira `Link` irmão do checkbox, fora do `<label>` (mesmo padrão de
       `CoachConsentDialog.tsx` citado no `CLAUDE.md`) (AC7).
 - [ ] G.3 `accessFormValidation.test.ts`: teste unitário da função pura para `aceiteLgpd` ausente/
@@ -118,6 +122,11 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
 
 ## I. Fechamento
 
+- [ ] I.0 **Gate bloqueante (achado alto do pré-mortem):** não abrir o PR desta change, nem mergear,
+      sem confirmar que `fix-limites-plano-basic-e-scale` está mergeada em `develop`, migrada
+      (`V83` aplicada) e com AC1/AC2 verificadas no ambiente alvo. A task D.1 (copy "Basic ≤20
+      atletas") passa em lint/build/test mesmo sem o backend — só este gate impede publicar uma
+      promessa que o produto ainda rejeita.
 - [ ] I.1 `npm run lint && npm run build && npm run test:run` — suíte completa, incluindo
       `LandingPage.test.tsx`, `AccessForm.test.tsx`, `Nav.test.tsx` atualizados (AC10).
 - [ ] I.2 `npm run test:e2e` — fluxo de acesso (preencher formulário, consentir, submeter) é crítico

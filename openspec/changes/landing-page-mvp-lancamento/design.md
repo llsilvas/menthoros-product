@@ -87,7 +87,7 @@ Todos os componentes novos (marca de seção, pílulas de passo, cards de plano)
 `InterpretationCard` (`ProductUI.tsx:79-113`) — mesma família tipográfica, mesmo `radius.inner`/
 `radius.outer`, mesma borda `divider`. Não introduzir um sistema visual paralelo.
 
-`SectionMark` (`primitives.tsx:805-828`) muda de duas linhas empilhadas (`§ NN — rótulo` em cima,
+`SectionMark` (`primitives.tsx:178-200`) muda de duas linhas empilhadas (`§ NN — rótulo` em cima,
 numeral vazado embaixo) para numeral + rótulo na mesma linha (`display: flex; align-items: baseline`)
 — elimina a duplicação do número.
 
@@ -96,12 +96,12 @@ numeral vazado embaixo) para numeral + rótulo na mesma linha (`display: flex; a
 5 cards em `repeat(5, minmax(0, 1fr))` no desktop, 1 coluna empilhada no mobile — mesmo padrão de
 `grid-template-columns` usado em `Pain`/`HowItWorks` (`sections.tsx`), só com 5 colunas em vez de 3.
 O card `Basic` ganha `border: 1px solid primary.main` (mesmo tratamento que a caixa "TREINADOR
-DECIDIU" em `Delta`, `sections.tsx:426`) e um badge posicionado com `position: absolute; top: -11px`
+DECIDIU" em `Delta`, `sections.tsx:264-265`) e um badge posicionado com `position: absolute; top: -11px`
 — cuidado com `overflow: hidden` em containers pais, que cortaria o badge.
 
 ## D6 · Formulário — validação de consentimento no submit
 
-Hoje (`AccessForm.tsx:1040`): `disabled={submitting || !aceiteLgpd}` — o botão nasce desabilitado.
+Hoje (`AccessForm.tsx:101`): `disabled={submitting || !aceiteLgpd}` — o botão nasce desabilitado.
 
 Mudar para: botão habilitado sempre (exceto `submitting`). `aceiteLgpd: boolean` entra como parâmetro
 de `validate(nome, email, qtdAtletasRaw, aceiteLgpd)` em `accessFormValidation.ts`, e `AccessFormErrors`
@@ -117,7 +117,7 @@ campo). Erro exibido abaixo do checkbox, mesmo estilo do `helperText` dos `TextF
 ## D7 · Link fora do label — mesmo padrão já documentado
 
 `CLAUDE.md` do front já registra esse bug e a correção (seção "Component Standards", referência
-`CoachConsentDialog.tsx`). Aplicar o mesmo padrão em `AccessForm.tsx:1022-1031`: `FormControlLabel`
+`CoachConsentDialog.tsx`). Aplicar o mesmo padrão em `AccessForm.tsx:83-91`: `FormControlLabel`
 só com o texto do consentimento; o link vira um `Link` irmão, fora do `label`, com seu próprio
 `onClick`/`href` de navegação.
 

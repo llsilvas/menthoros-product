@@ -45,7 +45,7 @@ toca API, schema ou mais de um repo).
   colidiam visualmente com a marca de seção.
 - Cabeçalho do card Delta reordenado (nome · semana · métrica) — evita "14" órfão sozinho na quebra
   do mobile.
-- `SectionHeading` (`primitives.tsx:701-727`): título com `\n` ganha um espaço antes do `<br>`
+- `SectionHeading` (`primitives.tsx:74-99`): título com `\n` ganha um espaço antes do `<br>`
   condicional — hoje o `<br>` some abaixo de 900px sem deixar nada no lugar, produzindo
   "lendoplanilha", "sóexibição", "treinadoresperguntam" em seis das sete seções no mobile.
 
@@ -142,25 +142,38 @@ toca API, schema ou mais de um repo).
    componente.
 7. **Link fora do label.** Given o link "Política de Privacidade" no formulário, When inspecionado no
    DOM, Then é irmão do `<label>` do checkbox, nunca filho — clicar no link nunca alterna o checkbox.
-8. **Contraste AA.** Given os rótulos mono da landing (eyebrow, escassez, marca de seção, chips,
-   rodapé), When a razão de contraste é medida contra o fundo `#0A1628`, Then é ≥4.5:1.
+8. **Contraste AA (validação manual, sem gate de CI).** Given os rótulos mono da landing (eyebrow,
+   escassez, marca de seção, chips, rodapé), When a razão de contraste é medida manualmente (DevTools
+   ou ferramenta de contraste) contra o fundo `#0A1628`, Then é ≥4.5:1.
 8b. **Hero resiste a viewport curto.** Given uma janela de desktop baixa (ex.: 1366×600) ou zoom de
    browser a 150–200% (efeito equivalente a reduzir a altura útil), When a página carrega, Then nem o
    título nem o CTA saem para fora da área visível por causa da centralização vertical — o hero tem
    uma estratégia de overflow (não trava numa altura que corta conteúdo) e o mobile landscape
    (844×390) também é testado, não só o retrato.
-9. **Vídeo não bloqueia o LCP.** Given a landing carregada com throttling de rede, When o Lighthouse
-   mede o Largest Contentful Paint, Then o LCP não piora em relação à baseline atual (o vídeo some da
-   dobra; o poster carrega antes do título ficar visível).
+9. **Vídeo não bloqueia o LCP (validação manual, sem gate de CI).** Given `npx unlighthouse` ou `npx lighthouse` rodado localmente contra
+   o build de produção (`npm run build && npm run preview`) com o preset mobile padrão (throttling
+   4G simulado, CPU 4x slowdown — o preset "mobile" default do Lighthouse CLI, sem customização),
+   3 execuções, When comparado o **valor mediano** de LCP antes (branch `develop`) e depois (branch da
+   change), Then a mediana depois não é maior que a de antes. Evidência: os 3 relatórios HTML/JSON de
+   cada lado salvos em `tasks.md` (caminho) ou anexados ao PR — não um número solto sem o artefato.
 10. **Testes refletem o novo comportamento.** Given a suíte de `LandingPage.test.tsx`,
     `AccessForm.test.tsx` e `Nav.test.tsx`, When rodada após a change, Then passa — incluindo a
     reescrita do teste "mantém o envio desabilitado até aceitar a LGPD" (comportamento
     intencionalmente trocado pelo item G, não um bug).
 
+## Rollback & Riscos operacionais
+
+Frontend puro, sem migração nem dado persistido — reverter é o `revert` do PR/commit na branch,
+sem nenhum passo de banco a desfazer (ao contrário de `fix-limites-plano-basic-e-scale`, que tem sua
+própria seção de rollback por mexer em schema). Se algo quebrar após o merge em `develop`, o caminho é
+puramente git: revert e novo deploy.
+
 ## Riscos e mitigações
 
-Pré-mortem cross-model (`/codex:adversarial-review`, 2026-08-27) devolveu **needs-attention** — dois
-achados altos e dois médios, dobrados nas seções acima. Registro aqui a rastreabilidade:
+Pré-mortem cross-model (`/codex:adversarial-review`, 2026-08-27) devolveu **needs-attention** na
+proposta inicial (dois achados altos e dois médios) e, numa segunda passada em modo DoR já com a
+change `fix-limites-plano-basic-e-scale` criada, mais um achado alto e um médio. Todos dobrados nas
+seções acima; registro a rastreabilidade:
 
 | # | Severidade | Achado | Mitigação aplicada |
 |---|---|---|---|
@@ -168,6 +181,8 @@ achados altos e dois médios, dobrados nas seções acima. Registro aqui a rastr
 | 2 | Alto | Validação de consentimento "no submit" podia virar checagem ad hoc no componente, perdendo a garantia que o `disabled` dava de graça (inclui submit por Enter) | Item G + AC6 + tasks G.1/G.3: `aceiteLgpd` entra em `AccessFormErrors`/`validate()` como função pura testável; teste cobre clique **e** Enter |
 | 3 | Médio | `minHeight: calc(100vh - nav)` com centralização vertical não testado em viewport curto, zoom, mobile landscape, notch | AC8b nova + `design.md` D1 atualizado com estratégia de overflow |
 | 4 | Médio | Preço aparece antes da explicação do trial (seção Planos antes do FAQ) | Mesma mitigação do achado 1 — a explicação passa a estar na própria seção de preços, não só depois dela no FAQ |
+| 5 | Alto | Dependência de `fix-limites-plano-basic-e-scale` só registrada em prosa no cabeçalho de `tasks.md` — nada impede terminar todas as tasks do front e publicar antes do backend estar no ar, prometendo um limite que o produto ainda rejeita | Nova task I.0 (gate bloqueante) em `tasks.md`: publicar/mergear esta change exige `fix-limites-plano-basic-e-scale` mergeada, migrada e com AC1/AC2 verificadas no ambiente alvo |
+| 6 | Médio | AC9 (LCP) não tinha protocolo objetivo — sem baseline, throttling, nº de execuções ou critério de variância, uma medição isolada pode esconder ou inventar regressão | AC9 reescrita: Lighthouse CLI preset mobile padrão, 3 execuções, comparação de mediana `develop` vs. branch, evidência = relatórios salvos |
 
 O pré-mortem também perguntou se a cobrança do dia 61 é automática após cadastro do cartão ou exige
 confirmação explícita de plano pago. **Não é automática nesta change**: o cadastro do cartão e a
