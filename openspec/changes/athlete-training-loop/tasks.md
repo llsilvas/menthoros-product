@@ -76,15 +76,28 @@ são fluxos críticos). Depende de `athlete-home-restructure` e `athlete-home-wo
 
 ## B. Pós-treino
 
-- [ ] B.1 Backend: `sensacoes` e `feedbackRegistradoEm` em `TreinoRealizado` (D3; comentário em
-      `feedbackAtleta`, RPE em `percepcaoEsforco`), migration aditiva sem backfill;
-      `POST /me/realizados/{id}/feedback` exige RPE, grava e carimba. Testes: gravação; segundo POST
-      substitui; payload sem RPE → 400; manual com RPE antigo e sem carimbo → incompleto; sync sem
-      RPE; tenant; regressão de `calcularTssRpe` e `ultimoRpe`; TSS ao receber RPE depois.
-- [ ] B.2 Backend: `AtletaPerfilCoachOutputDto.realizadosRecentes` (últimos 7 dias, com
-      `percepcaoEsforco`, `sensacoes`, `feedbackAtleta`, `feedbackRegistradoEm`) em
-      `CoachAthleteProfileServiceImpl` — o perfil do coach hoje só tem planejados da semana.
-      Teste de serialização e de janela; tenant.
+- [x] B.1 Backend: `sensacoes` (V82, `ElementCollection` **EAGER**, tipo `Set` não `List` — dois
+      achados encadeados no `clean test`: (1) LAZY quebrava `LazyInitializationException` em
+      `IntervalsIcuActivityImportIntegrationTest` (ingestão .fit/Strava/intervals.icu serializa
+      `TreinoRealizado` fora de sessão); EAGER na entidade não bastou porque o `@EntityGraph`
+      existente em `findByTenantIdAndFonteDadosAndExternalId` é `type=FETCH` (padrão do Spring
+      Data) — nesse modo tudo fora da lista do graph volta a LAZY na query, então `sensacoes`
+      precisou entrar no `attributePaths`; (2) com dois `List` (`etapasRealizadas` +
+      `sensacoes`) no mesmo `@EntityGraph`, `MultipleBagFetchException` — `sensacoes` virou `Set`
+      (sem ordem que importe, é o tipo certo, não um contorno) e `TreinoRealizadoOutputDto`/
+      `RealizadoRecenteDto` seguem `List` (conversão na borda). `feedbackRegistradoEm` em
+      `TreinoRealizado`; `POST /me/realizados/{id}/feedback`
+      (`FeedbackTreinoInputDto`, RPE `@NotNull @Min(1) @Max(10)` → 400) grava e carimba, chama
+      `ingestaoTreinoRealizadoService.reprocessar(id, null)` (recalcula TSS quando o RPE é a única
+      fonte). Testes: `AtletaTreinoFeedbackServiceImplTest` (5, grava/substitui/reprocessar/
+      isolamento por atleta e tenant), `AtletaTreinoControllerTest` (+4), `TreinoMapperFeedbackTest`
+      (2, wiring). `TreinoRealizadoOutputDto` ganhou `sensacoes`/`feedbackRegistradoEm` no fim do
+      record (7 call-sites posicionais ajustados). **Feito 2026-08-27.**
+- [x] B.2 Backend: `AtletaPerfilCoachOutputDto.RealizadoRecenteDto` + `realizadosRecentes` (últimos
+      7 dias via `findByAtletaIdAndTenantIdAndDataTreinoBetween`, existente; mais recente primeiro)
+      em `CoachAthleteProfileServiceImpl` — o perfil do coach só tinha planejados da semana.
+      Teste de janela/ordem/feedback (`CoachAthleteProfileServiceImplTest`, +1). **Feito 2026-08-27.**
+      verify: `./mvnw clean test` — ver nota do achado EAGER acima.
 - [ ] B.3 Front: `selectTodayState(home)` (D1) usando `hoje` e `realizadoHoje` do contrato (nunca
       a data do aparelho — `AthleteHomePage.tsx:134` ainda usa `new Date()`) e completude por
       `feedbackRegistradoEm`; testes por estado, incluindo RPE sem carimbo.
