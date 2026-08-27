@@ -98,15 +98,27 @@ são fluxos críticos). Depende de `athlete-home-restructure` e `athlete-home-wo
       em `CoachAthleteProfileServiceImpl` — o perfil do coach só tinha planejados da semana.
       Teste de janela/ordem/feedback (`CoachAthleteProfileServiceImplTest`, +1). **Feito 2026-08-27.**
       verify: `./mvnw clean test` — ver nota do achado EAGER acima.
-- [ ] B.3 Front: `selectTodayState(home)` (D1) usando `hoje` e `realizadoHoje` do contrato (nunca
-      a data do aparelho — `AthleteHomePage.tsx:134` ainda usa `new Date()`) e completude por
-      `feedbackRegistradoEm`; testes por estado, incluindo RPE sem carimbo.
-- [ ] B.4 Front: `PostWorkoutFeedbackCard` reescrito para o hero: dados do feito + origem, RPE 1–10
-      (10 alvos de 40px), chips de sensação, frase opcional; um envio. Áudio desligado até a
-      mensageria (Open Question). Testes de componente.
-- [ ] B.5 Front: Home usa `selectTodayState`; "Registrar treino" some quando há realizado por sync;
-      `CoachAthleteProfilePage` ganha `SectionCard` "Treinos recentes" (adapter de
-      `realizadosRecentes`, feedback só quando carimbado). Testes de página (atleta e coach).
+- [x] B.3 Front: `selectTodayState(home)` (D1), pura, 5 estados — `realizadoHoje` vence
+      `proximoTreino` (feito é o eixo do dia); completude por `feedbackRegistradoEm`, nunca por
+      RPE isolado. Achado: `AtletaHomeDto.ProximoTreino` não tinha `statusTreino`/`motivoPulo` —
+      sem eles o front não distinguia PULADO de PENDENTE; e `realizadoHoje.feedbackRegistradoEm`
+      estava hardcoded `null` desde a A.0 — corrigidos no backend (commit `46024fe`, fora desta
+      task mas descoberto por ela). Testes: 9 casos. **Feito 2026-08-27.**
+- [x] B.4 Front: **`TodayFeedbackCard` novo** (não o `PostWorkoutFeedbackCard` existente, que é a
+      tela pós-registro manual em `ManualTrainingFormPage` — propósito diferente; reescrevê-lo
+      quebraria esse fluxo sem necessidade). Dados do feito + origem, RPE 1–10 (10 alvos de 40px,
+      `role="radio"`), chips de sensação (multi-seleção), frase opcional; um envio via
+      `useAthleteFeedback` → `POST me/realizados/{id}/feedback`. Áudio desligado (Open Question).
+      `TodayCompletedCard` (estado FEITO) e `TodaySkippedCard` (estado PULADO) também novos —
+      D1 tem 5 estados, o hero precisa dos 3 que `TodayHeroCard` não cobre. Testes: 6 + 2 + 2.
+      **Feito 2026-08-27.**
+- [x] B.5 Front: `AthleteHomePage` troca o hero pelo card do estado (`selectTodayState`); com
+      realizado (sync ou manual) o "Registrar treino" desaparece — substituído pelo card do
+      estado, não escondido condicionalmente. Drilldown do coach: `RecentTrainingsPanel` novo,
+      seção "Treinos recentes" em `CoachAthleteProfilePage` (RPE + sensações + comentário quando
+      carimbado). Testes: Home +5 (fixture padrão do arquivo ganhou `hoje`/`proximoTreino.data`
+      para não regredir os 26 testes existentes), coach +1, painel 3. **Feito 2026-08-27.**
+      verify: `npx tsc --noEmit`, `npm run lint`, `npm run build`, `npx vitest run` 1349/1349.
 - [ ] B.6 E2E parte B: registrar → "Como foi?" → enviar → hero mostra feedback; coach vê no drilldown.
 
 ## C. Fechamento
