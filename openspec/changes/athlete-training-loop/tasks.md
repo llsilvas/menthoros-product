@@ -13,16 +13,15 @@ são fluxos críticos). Depende de `athlete-home-restructure` e `athlete-home-wo
 - [ ] 0.2 Medir nos planos ativos quantas etapas têm alvo de FC resolvível (parser + resolver) e o
       baseline de "realizados com RPE" nas 4 semanas anteriores. Registrar aqui. **Bloqueada em
       2026-08-27:** Postgres do HomeLab (`192.168.3.5:5433`) fora; medir quando voltar.
-- [ ] 0.3 **Decisão do founder (bloqueia A.2 e a métrica):** motivo do pulo — opcional, enum
-      `SEM_TEMPO | CANSADO | DOR | OUTRO`, validado no backend (proposta) — e confirmar assessoria
-      piloto com atletas no shell.
-- [ ] 0.4 **Decisão do founder (bloqueia CA4):** upload `.fit` e Strava não vinculam planejado
-      (`FitTreinoPersister:87`, `Strava*ServiceImpl` → só `IngestaoTreinoRealizadoService`).
-      Opções: (a) task backend nova passando `.fit` pela mesma cadeia `CandidateSelector` →
-      `ReconciliationDecisionExecutor` do intervals.icu (escopo sobe; Strava idem ou não);
-      (b) CA4 nomeia manual + intervals.icu + reconciliação manual e `.fit`/Strava viram linha no
-      Radar. **Recomendação: (b)** — é o mesmo corte por seam que tirou a fatia C; o founder é quem
-      mais usa `.fit` e vai sentir a lacuna primeiro, então a linha do Radar precisa de data.
+- [x] 0.3 **Decidido pelo founder em 2026-08-27:** motivo do pulo **opcional**, enum
+      `MotivoPulo { SEM_TEMPO, CANSADO, DOR, OUTRO }` validado no backend (`400` fora da lista;
+      ausente = pulo sem motivo). Piloto: o founder é o atleta piloto (mesmo override da
+      `athlete-home-restructure`) — a métrica é medida no HomeLab.
+- [x] 0.4 **Decidido pelo founder em 2026-08-27 — cortar:** upload `.fit` e Strava não vinculam
+      planejado (`FitTreinoPersister:87`, `Strava*ServiceImpl` → só `IngestaoTreinoRealizadoService`)
+      e **continuam assim nesta change**. CA4 nomeia manual + intervals.icu + reconciliação manual;
+      "`.fit`/Strava passam pela reconciliação" é linha do Radar no `SPRINTS.md`, com o founder
+      como primeiro afetado (ele registra por `.fit`).
 - [ ] 0.5 Spec deltas em `openspec/specs/` (antes de A.1, DoR Codex): `me/home` (+`hoje`,
       +`realizadoHoje`), `GET/POST me/treinos/hoje[/pular]`, `POST me/realizados/{id}/feedback`,
       `AtletaPerfilCoachOutputDto.realizadosRecentes` — payloads, status, tenant/404, migrations.
@@ -42,8 +41,9 @@ são fluxos críticos). Depende de `athlete-home-restructure` e `athlete-home-wo
       `motivoPulo` + `puladoEm` (D4, migration aditiva; enum conforme 0.3). Testes: status e
       motivo; reversão ao criar `TreinoRealizado` pelos **três caminhos que vinculam** (manual
       `TreinoServiceImpl:561`, sync intervals.icu `ReconciliationDecisionExecutor:118`,
-      reconciliação manual `ManualReconciliationServiceImpl:82`) limpando o motivo; `.fit`/Strava
-      conforme 0.4; aparece no Plano do atleta no mesmo dia; tenant.
+      reconciliação manual `ManualReconciliationServiceImpl:82`) limpando o motivo; teste negativo
+      documentando que `.fit` **não** reverte (0.4); aparece no Plano do atleta no mesmo dia; tenant.
+      verify: `./mvnw test -Dtest='*TreinoServiceImpl*,*ReconciliationDecisionExecutor*,*ManualReconciliation*'`.
 - [ ] A.3 Front: cliente curado + `useTodayWorkout` (loading/error/empty). Testes de hook.
 - [ ] A.4 Front: `AthleteWorkoutPage` (rota `/athlete/workout/today` — nova em `ROUTES`, no tipo
       `AthleteRoute` e no `App.tsx:140`, que hoje só registra home/plan/progress/coach/profile/

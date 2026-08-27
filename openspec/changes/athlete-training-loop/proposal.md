@@ -76,9 +76,9 @@ Backend + frontend. Duas fatias, entregáveis em sequência (ver `design.md` D0 
    com motivo no Plano do atleta e no drilldown do coach **no mesmo dia**; nunca cria
    `TreinoRealizado`. Given registro posterior no mesmo dia por um caminho **que vincula ao
    planejado** — manual, sync do intervals.icu, reconciliação manual — Then o planejado vai a
-   `REALIZADO` e `motivoPulo` é limpo. Upload `.fit` e Strava **não vinculam planejado hoje**
-   (`FitTreinoPersister`, `Strava*ServiceImpl` só passam pela ingestão) — cobertos ou não por esta
-   change conforme a decisão 0.4 das tasks. (A fila de atenção não muda por um pulo isolado —
+   `REALIZADO` e `motivoPulo` é limpo. Upload `.fit` e Strava **não vinculam planejado** hoje
+   (`FitTreinoPersister`, `Strava*ServiceImpl` só passam pela ingestão) **nem nesta change** —
+   decisão 0.4, follow-up no Radar. (A fila de atenção não muda por um pulo isolado —
    comportamento existente da fila, ver `design.md` D4.)
 
 **B**
@@ -115,9 +115,8 @@ Backend + frontend. Duas fatias, entregáveis em sequência (ver `design.md` D0 
   `ultimoRpe` — teste de regressão explícito na B.1.
 - **Premissa:** o feedback por áudio reaproveita o armazenamento/transcrição que a mensageria vai
   introduzir; até lá, B grava só texto e o `AudioRecorder` fica desligado nesta tela.
-- **Em aberto:** "Não vou conseguir hoje" deve pedir motivo (lista curta) ou só marcar? Proposta:
-  motivo opcional, lista de 4 (`SEM_TEMPO`, `CANSADO`, `DOR`, `OUTRO`), porque é o dado que o coach
-  usa para ajustar — mas não pode ser fricção.
+- **Resolvido (0.3, founder, 2026-08-27):** motivo **opcional**, lista de 4 (`SEM_TEMPO`,
+  `CANSADO`, `DOR`, `OUTRO`) — é o dado que o coach usa para ajustar, sem virar fricção.
 - **Em aberto (fora desta change):** um pulo com motivo `DOR` merece sinal próprio na fila de
   atenção? Hoje a fila corta abaixo de ALTA e um pulo isolado não entra. Decisão da fila
   (`CoachAttentionSignalEvaluator`), não daqui — registrar no Radar se o piloto pedir.
@@ -134,8 +133,8 @@ Backend + frontend. Duas fatias, entregáveis em sequência (ver `design.md` D0 
 - **Sequência:** depende de `athlete-home-restructure` (hero) e `athlete-home-workout-profile`
   (etapas no contrato da Home; o modo treino usa endpoint próprio, mas o `WorkoutProfile` no front
   já estará ligado ao atleta).
-- **Em aberto (0.3):** há assessoria piloto com atletas no shell? Sem ela a métrica de feedback
-  não é mensurável — mesma pré-condição de `athlete-home-restructure`.
+- **Resolvido (0.3, 2026-08-27):** o founder é o atleta piloto — a métrica é medida no HomeLab,
+  mesmo override de `athlete-home-restructure`.
 
 ## Referências
 
