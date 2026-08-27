@@ -191,10 +191,19 @@ quatro perguntas que só o founder responde — não bloqueiam a implementação
    change própria, não um adendo a esta.
 2. **Como medir "visitantes únicos"** para a métrica de sucesso declarada, já que analytics de funil
    está nos Non-Goals — sem isso, dá para contar submissões, não a taxa de conversão de fato.
-3. "Técnico" na tabela de planos — rótulo de marketing ou nome que precisa alinhar com o domínio? (já
-   registrado em Open Questions).
-4. Confirmar que os valores de Pro/Enterprise/Scale (publicados mesmo sem clientes nesses tiers ainda)
-   não mudam no curto prazo — a página os torna públicos e comparáveis.
+3. ~~"Técnico" na tabela de planos~~ — **Resolvido em 2026-08-27:** já é o termo oficial do domínio,
+   não um rótulo novo de marketing. `UserRole.TECNICO` é um papel real (mapeado do Keycloak),
+   `Assessoria.maxTecnicos`/`maxAtletas` já existem como campos, e o comentário de
+   `UserRole.PROPRIETARIO` já cita "`maxTecnicos = 1` no BASIC" — mesmo número da tabela publicada.
+   Nenhum trabalho extra.
+4. ~~Confirmar que os valores de Pro/Enterprise/Scale... não mudam no curto prazo~~ — **Resolvido em
+   2026-08-27, mas revelou uma divergência real:** o backend cria toda assessoria nova como `BASIC`
+   com `maxAtletas = 10` (constante `MAX_ATLETAS_BASIC`), não os 20 confirmados para a tabela — 10 é
+   o limite do plano **Gratuito**. E `PlanoAssessoria` (enum + `chk_plano` no banco) não tem o valor
+   `SCALE`. **O founder confirmou que os números da tabela (Basic ≤20, mais o Scale) são os corretos —
+   o backend está desatualizado.** Corrigido pela change `fix-limites-plano-basic-e-scale` (XS · Fast,
+   proposta em 2026-08-27), da qual esta change passa a depender: a landing não deve publicar "Basic
+   ≤20 atletas" antes de o backend aplicar esse limite de verdade a quem se cadastra.
 
 ## Métrica de sucesso
 
@@ -205,9 +214,11 @@ válidas) medida antes/depois do deploy, com meta operacional de preencher as **
 fundador** dentro do período de captação planejado pelo founder.
 
 **Gap identificado na revisão de produto:** essa métrica não é instrumentável com o escopo atual — os
-Non-Goals excluem analytics de funil, então só dá para contar submissões, não visitantes únicos. Sem
-isso, o founder sabe quantas inscrições chegaram, mas não a taxa de conversão de fato. Decisão de
-adicionar um analytics mínimo (mesmo que só pageview) fica com o founder, fora desta change.
+Non-Goals excluem analytics de funil, então só dá para contar submissões, não visitantes únicos.
+**Confirmado pelo founder em 2026-08-27: não há nenhum analytics implementado hoje.** Sem isso, a
+métrica de sucesso desta change fica, na prática, "quantas das 10 vagas foram preenchidas" — não uma
+taxa de conversão. Fica assim mesmo nesta change; analytics mínimo (mesmo que só pageview) é uma
+decisão futura do founder, fora de escopo.
 
 ## Open Questions & Assumptions
 

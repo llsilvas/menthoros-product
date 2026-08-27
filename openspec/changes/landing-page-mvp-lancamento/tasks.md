@@ -4,6 +4,10 @@ Repo: `apps/menthoros-front`. Validação padrão a cada bloco: `npm run lint &&
 npm run test:run`. E2E (`npm run test:e2e`) obrigatória no fechamento — o formulário de acesso é o
 único CTA de conversão da página e a mudança em D6/D7 mexe direto em como o consentimento é validado.
 
+Depende de `fix-limites-plano-basic-e-scale` (backend) — a tarefa D.1 publica "Basic ≤20 atletas" e a
+existência do plano Scale; sem essa change mergeada, o número publicado não bate com o que o backend
+aplica a quem se cadastra de verdade.
+
 Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` antes do primeiro commit
 (ver `CLAUDE.md` raiz, "Diretrizes de Git").
 
