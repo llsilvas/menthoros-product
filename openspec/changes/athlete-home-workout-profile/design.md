@@ -9,9 +9,16 @@ condicional.
 
 ## D2 — Variante do perfil no hero
 
-`variant="compact"` explícito (plot 92px, sem eixo Y, três ticks): o `useResolvedVariant('auto')`
-escolhe por largura e em 358px poderia resolver `full`, que tem 176px de plot — alto demais para o
-hero. `showDistribution` mantido (barra de 4px + legenda).
+`variant="compact"` explícito (plot 92px, sem eixo Y, três ticks). `useResolvedVariant('auto')` só
+resolve `full` a partir de 560px, então em 358px cairia em `compact` de qualquer forma — o
+explícito é por determinismo (testes e o hero nunca mudam de variante com a largura), não por
+risco. `showDistribution` mantido (barra de 4px + legenda).
+
+## D2b — Mesmo caminho do drawer do Plano
+
+`profile = selectWorkoutProfile(indexarRepeticoes(etapas.map(fromEtapaTreino)), { sport: 'run',
+tss: tssPlanejado, if: intensidadePlanejada, zonaAlvoTreino: zonaAlvo })`, como em
+`WorkoutDetailDrawer` (`athlete-plan-agenda`). Duas telas, uma regra: o bracket "N×" sai igual.
 
 ## D3 — Ausência honesta
 
