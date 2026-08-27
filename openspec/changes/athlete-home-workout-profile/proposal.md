@@ -27,7 +27,7 @@ o atleta o vê, executa o que foi prescrito (e não a descrição em prosa que e
   (`AtletaProgressServiceImpl:212`), **sem filtro de status**: o treino de hoje aparece no hero
   mesmo depois de `REALIZADO`, porque o hero é "treino de hoje", e o estado "feito / como foi?" é
   de `athlete-training-loop` (D1 lá). Desempate quando há mais de um treino no mesmo dia: a query
-  ganha ordenação secundária por `createdAt` para o resultado ser estável.
+  ganha ordenação secundária por `criadoEm` (campo JPA herdado de `TreinoBase`; a coluna é `created_at`) para o resultado ser estável.
 - Sem migration, sem endpoint novo: `GET /api/v1/atletas/me/home` ganha campos.
 
 **Frontend (`apps/menthoros-front`):**
@@ -90,6 +90,8 @@ o atleta o vê, executa o que foi prescrito (e não a descrição em prosa que e
   `variant="compact"` corrigido (`useResolvedVariant` só resolve `full` a partir de 560px — o
   explícito fica por determinismo, não por risco). **Refutado:** "o DTO não expõe os campos" — é o
   escopo da change, não uma premissa falsa.
+- Codex, rodada 2: tudo resolvido; um ajuste de nome aceito — o campo JPA é `criadoEm`
+  (`TreinoBase`), não `createdAt`. Veredito consolidado: **READY**.
 
 ## Referências
 

@@ -11,7 +11,7 @@ Repos: `apps/menthoros-backend` (validação `./mvnw clean verify`) e `apps/ment
 - [ ] 1.2 `AtletaHomeDto.ProximoTreino` ganha `etapas` (`List<EtapaTreinoDto>`), `duracaoMin`
       (**`Integer` minutos**, de `Duration`) e `zonaAlvo`, opcionais; `getHome` preenche a partir do
       `TreinoPlanejado` (já em transação). Query do próximo treino ganha ordenação secundária por
-      `createdAt` (desempate no mesmo dia). Validação: teste de serialização (com e sem etapas;
+      `criadoEm` (campo JPA de `TreinoBase` — `createdAt` não existe na entidade; desempate no mesmo dia). Validação: teste de serialização (com e sem etapas;
       `Duration` 45 min → 45) + teste de isolamento por atleta/tenant em `me/home`.
       verify: `AtletaProgressServiceImplTest`/controller test verdes; `./mvnw clean verify`.
 - [ ] 1.3 Atualizar OpenAPI (`@Schema`) e gerar referência para o front (`npm run generate:api` em
