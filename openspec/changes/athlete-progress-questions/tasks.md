@@ -29,14 +29,16 @@ E2E novo `tests/e2e/athlete/progress.spec.ts`. Sequência: 0 → 1 → 2 → 3 �
 
 ## 2. Blocos
 
-- [ ] 2.1 `StrongerBlock` (pergunta, leitura descritiva com número, sparkline SVG, chip de forma
+- [x] 2.1 `StrongerBlock` (pergunta, leitura descritiva com número, sparkline SVG, chip de forma
       do backend, "Falar com o coach", "Ver o gráfico completo" expandindo o `PMCChart` lazy inline).
       verify: teste de componente; `PMCChart` renderiza ao expandir; nenhum "Sim"/"Não".
-- [ ] 2.2 `ZonesBlock` (barras Z1–Z5 com `activeTheme.zones`, frase da dominante); remover
+- [x] 2.2 `ZonesBlock` (barras Z1–Z5 com `activeTheme.zones`, frase da dominante); remover
       `ZoneDistributionInsight` se sem outro consumidor. verify: teste; barras somam 100.
-- [ ] 2.3 `AdherenceBlock` (N de M, 4 barras com "sem plano" apagadas, corrente marcada, "Falar com
+- [x] 2.3 `AdherenceBlock` (N de M, 4 barras com "sem plano" apagadas, corrente marcada, "Falar com
       o coach" → `ROUTES.ATHLETE_COACH`). verify: teste; link `href="#/athlete/coach"` no router real.
-- [ ] 2.4 `RecordsBlock` (PRs com "novo", próxima prova). verify: teste.
+- [x] 2.4 `RecordsBlock` (PRs com "novo", próxima prova). verify: teste.
+      **Seção 2 feita 2026-08-26.** `ZoneDistributionInsight` ainda não removido — sai na 3.1 junto
+      com a página (é o único consumidor). Lint do repo barrou um `rgba` cru na sparkline → token.
 
 ## 3. Página
 
