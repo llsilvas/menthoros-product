@@ -49,14 +49,30 @@ são fluxos críticos). Depende de `athlete-home-restructure` e `athlete-home-wo
       não tem teste negativo: `FitTreinoPersister` nem injeta o repositório de planejado, não há o
       que verificar — a spec delta registra o comportamento. **Feito 2026-08-27.**
       verify: `./mvnw clean test` 2827/2827.
-- [ ] A.3 Front: cliente curado + `useTodayWorkout` (loading/error/empty). Testes de hook.
-- [ ] A.4 Front: `AthleteWorkoutPage` (rota `/athlete/workout/today` — nova em `ROUTES`, no tipo
-      `AthleteRoute` e no `App.tsx:140`, que hoje só registra home/plan/progress/coach/profile/
-      training-log/onboarding): perfil full, etapas com alvo, "Concluí o treino" → registro
-      pré-preenchido, "Não vou conseguir hoje" → confirmação + pular. Entradas na Home e no Plano.
-      Testes de página + teste de roteamento com `createHashRouter` real (`href="#/athlete/workout/today"`).
-- [ ] A.5 E2E `training-loop.spec.ts` parte A em 390×844: perfil + etapas + botão sem scroll (≤4
-      etapas); concluir abre registro preenchido; pular marca o dia no Plano.
+- [x] A.3 Front: `AthleteWorkoutTodayService` (`getTreinoHoje`, `pularHoje`) + `useTodayWorkout`
+      (loading/error/empty; `pular` com `pulando`/`pularError` próprios, sem sobrescrever o
+      treino em caso de falha). `TreinoHoje`/`EtapaAlvo` em `types/AthleteWorkoutToday.ts`.
+      `buildTodayWorkoutProfile` reaproveita `buildProfileFromTreino` (mesmo motor visual de
+      Home/Plano) mapeando `EtapaAlvo` → `EtapaTreino`; `formatAlvoEtapa` formata FC/pace já
+      resolvidos. Testes: hook (6), adapter (6). **Feito 2026-08-27.**
+- [x] A.4 Front: `AthleteWorkoutPage` na rota `/athlete/workout/today` (nova em `ROUTES`, no tipo
+      `AthleteRoute` e no `App.tsx`): perfil full, etapas com alvo/duração, "Concluí o treino" →
+      `navigate(ATHLETE_TRAINING_LOG, { state: { tipo, duracaoMinutos } })`, "Não vou conseguir
+      hoje" → `SkipWorkoutDialog` (motivo opcional, 4 chips) → `pular`. Estado vazio, erro,
+      loading e "já pulado" (`statusTreino === 'PERDIDO'`) tratados. `ManualTrainingForm` ganhou
+      `initial?: { tipo, duracaoMinutos }` para o pré-preenchimento (CA3); `ManualTrainingFormPage`
+      lê de `location.state`, validado campo a campo. Entradas: link "Ver etapas e começar" no
+      `TodayHeroCard` (só quando `proximoTreino.data` é hoje — `homeAdapter.isToday`) e no
+      `WorkoutDetailDrawer` do Plano (dia de hoje). Testes: página (9), `ManualTrainingForm` (+1),
+      `homeAdapter`/`TodayHeroCard` (+4), `AthletePlanPage` (+1, agora com router real —
+      `WorkoutDetailDrawer` ganhou um `Link`). **Feito 2026-08-27.**
+- [x] A.5 E2E `training-loop.spec.ts` parte A em 390×844: perfil + 3 etapas + "Concluí o treino"
+      sem scroll (`boundingBox` dentro de 844px); concluir navega e pré-preenche tipo/duração;
+      "Não vou conseguir hoje" com motivo marca PERDIDO e o Plano mostra `data-status="pulado"`
+      no mesmo dia (mapeamento existente de `dayStatus.ts`, sem mudança). Achado: o catch-all de
+      mock precisa devolver `[]` para endpoints de lista (`/me/treinos`) e `{}` só para os de
+      objeto — `{}` genérico quebrava `useManualTraining` de forma intermitente (mesmo padrão do
+      `plan.spec.ts`). **Feito 2026-08-27.** verify: `npx playwright test tests/e2e/athlete` 19/19.
 
 ## B. Pós-treino
 
