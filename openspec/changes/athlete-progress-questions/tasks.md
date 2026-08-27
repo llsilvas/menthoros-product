@@ -59,3 +59,36 @@ E2E novo `tests/e2e/athlete/progress.spec.ts`. Sequência: 0 → 1 → 2 → 3 �
       **Feito 2026-08-26.** 3 specs; E2E do atleta 17/17. A varredura de fontes pegou um `0.6em`
       (14,4px) no "de N" da aderência — virou variante do tema. Smoke com dados reais no
       `localhost:5174` do founder: os quatro blocos com os números dele. verify: E2E do atleta verde (`smoke-tema` incluso).
+
+## QA gate — 2026-08-26
+
+Revisores: `frontend-reviewer`, `clean-code-reviewer` e Codex (`NEEDS-ATTENTION`, 4 MAJOR). Nenhum
+Critical. Um bug real e três achados de design aceitos; o resto registrado.
+
+Corrigido (commit único na branch):
+- **Limiar sobre o Δ arredondado** (Codex, MAJOR — confirmado): 2,6 virava 3 e "subia" quando o
+  design diz estável (|Δ| < 3). O limiar agora compara o Δ bruto; só a exibição arredonda. Teste
+  unitário do caso 2,6 e E2E com valor exato (`+7`) em vez de `\+\d+`.
+- **Provas fora do retry consolidado** (Codex, MAJOR — confirmado): "tentar novamente" não refazia a
+  próxima prova. Entra no agregador; não conta para "tudo falhou". Teste cobre `fetchProvas`.
+- **Vazio sem "Falar com o coach"** (Codex, MAJOR — confirmado, D1): o vazio agora é um
+  `ProgressBlockCard`. Teste garante 4 links também no estado vazio.
+- **Cor no delta era veredito implícito** (frontend-reviewer): verde/laranja em "subiu/caiu" julgava o
+  que o texto evita. Delta em cor neutra, só o sinal.
+- **Legenda do bloco 1 discrepante** (founder, no smoke): o card dizia "12 semanas" e a leitura
+  comparava 4. Card: "hoje vs 4 semanas atrás"; sparkline mantém "12 sem atrás → hoje" (contexto
+  longo, rótulo próprio); subtítulo da página deixou de prometer uma janela que só valia para o gráfico.
+- `BlockState` substitui os quatro ternários (clean-code); bloco 4 documentado como exceção (nunca vazio).
+- `useAthleteHomeErrors` → `useAggregatedFetchErrors` (segundo consumidor); `aria-controls` no botão
+  de expansão; `alpha()` na sparkline em vez de concatenar hex.
+
+Registrado, sem ação:
+- `AthleteLayout` `maxWidth: 640` no desktop (Codex e frontend-reviewer): é a dívida D1 da
+  `athlete-plan-agenda`, decisão explícita da proposta desta change; smoke de Home/Plano/Perfil feito
+  nesta sessão, E2E das rotas passa (17/17).
+- `buildProgressReadings.ts` com 4 leituras (clean-code): mantido, justificativa no topo do arquivo —
+  dividem os limiares e a página consome em bloco.
+- Imports relativos `../../../../` (frontend-reviewer): padrão do diretório (`PMCChart`); follow-up de
+  higiene, fora do escopo.
+
+Validação após as correções: `lint` · `build` · `test:run` 272/272 · `test:e2e tests/e2e/athlete` 17/17.
