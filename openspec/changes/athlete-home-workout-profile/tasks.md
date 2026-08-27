@@ -8,15 +8,18 @@ Repos: `apps/menthoros-backend` (validação `./mvnw clean verify`) e `apps/ment
 - [x] 1.1 **Resolvido no DoR (2026-08-26):** `EtapaTreinoDto` (`:10-40`) tem só ordem, tipo,
       descrição, duração, distância, FC, ritmo, repetições, `blocoId`, `blocoRepeticoes` — nada
       sensível. D1 = reuso, sem projeção.
-- [ ] 1.2 `AtletaHomeDto.ProximoTreino` ganha `etapas` (`List<EtapaTreinoDto>`), `duracaoMin`
+- [x] 1.2 `AtletaHomeDto.ProximoTreino` ganha `etapas` (`List<EtapaTreinoDto>`), `duracaoMin`
       (**`Integer` minutos**, de `Duration`) e `zonaAlvo`, opcionais; `getHome` preenche a partir do
       `TreinoPlanejado` (já em transação). Query do próximo treino ganha ordenação secundária por
       `criadoEm` (campo JPA de `TreinoBase` — `createdAt` não existe na entidade; desempate no mesmo dia). Validação: teste de serialização (com e sem etapas;
       `Duration` 45 min → 45) + teste de isolamento por atleta/tenant em `me/home`.
       verify: `AtletaProgressServiceImplTest`/controller test verdes; `./mvnw clean verify`.
-- [ ] 1.3 Atualizar OpenAPI (`@Schema`) e gerar referência para o front (`npm run generate:api` em
+- [x] 1.3 Atualizar OpenAPI (`@Schema`) e gerar referência para o front (`npm run generate:api` em
       scratch). Validação: `verify` verde.
       verify: o JSON do `me/home` no scratch mostra `proximoTreino.etapas[]`.
+      **Feito 2026-08-26.** `@Schema` nos campos novos. A geração em scratch (`generate:api`) exige
+      o backend de pé em `:8099` — não rodada; o porte ao cliente curado (2.1) é feito a partir do
+      próprio DTO, que é a fonte. `./mvnw clean verify`: 2792 + 145 IT verdes.
 
 ## 2. Frontend
 
