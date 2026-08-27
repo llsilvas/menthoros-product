@@ -119,7 +119,14 @@ são fluxos críticos). Depende de `athlete-home-restructure` e `athlete-home-wo
       carimbado). Testes: Home +5 (fixture padrão do arquivo ganhou `hoje`/`proximoTreino.data`
       para não regredir os 26 testes existentes), coach +1, painel 3. **Feito 2026-08-27.**
       verify: `npx tsc --noEmit`, `npm run lint`, `npm run build`, `npx vitest run` 1349/1349.
-- [ ] B.6 E2E parte B: registrar → "Como foi?" → enviar → hero mostra feedback; coach vê no drilldown.
+- [x] B.6 E2E parte B, em `training-loop.spec.ts`: realizado sem feedback → hero mostra "Como
+      foi?" sem "Registrar treino" → RPE 6 → enviar → hero mostra o resumo (`training-loop.spec.ts`
+      390×844); coach autenticado (`TECNICO`) vê "Treinos recentes" com RPE/sensações/comentário
+      no drilldown. Achado: `CoachAthleteProfilePage` nunca tinha E2E — o catch-all `{}` genérico
+      fazia `useWeeklyAthleteReview` tratar "sem revisão" como uma revisão vazia válida, e
+      `buildWeeklyReviewFromDto` quebrava em `parseISO(undefined)`; o backend real devolve 404
+      quando não há revisão, corrigido no mock. **Feito 2026-08-27.**
+      verify: `npx playwright test tests/e2e/athlete tests/e2e/coach` 66/66.
 
 ## C. Fechamento
 
