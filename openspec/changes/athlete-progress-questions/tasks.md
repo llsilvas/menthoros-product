@@ -16,13 +16,16 @@ E2E novo `tests/e2e/athlete/progress.spec.ts`. Sequência: 0 → 1 → 2 → 3 �
 
 ## 1. Adapter
 
-- [ ] 1.0 `recordsAdapter`: `RecordRow` com `dataIso` (cálculo) e `dataFormatada` (exibição);
+- [x] 1.0 `recordsAdapter`: `RecordRow` com `dataIso` (cálculo) e `dataFormatada` (exibição);
       `zonesAdapter`: normalização para 100 (resto na maior zona). verify: testes dos dois adapters
       (99 → 100, 101 → 100; data ISO preservada e formatada).
-- [ ] 1.1 `buildProgressReadings` (D2) com constantes nomeadas; casos: CTL sobe/estável/cai, ponto
+- [x] 1.1 `buildProgressReadings` (D2) com constantes nomeadas; casos: CTL sobe/estável/cai, ponto
       D−28 ausente com vizinho a ±3 d, sem vizinho ("Ainda cedo para comparar"), PMC vazio,
       aderência com 2 semanas → 4 barras, semana corrente, recorde novo/antigo.
       verify: `buildProgressReadings.test.ts` verde, ≥ 12 casos; nenhuma string "Sim"/"Não".
+      **Feito 2026-08-26.** Dois testes pré-existentes mudaram de propósito (zonas 33/33/33 → 34/33/33;
+      `RecordRow` com `dataIso`/`dataFormatada`). A tela atual passou a exibir `dataFormatada` até a
+      reescrita da 3.1. Também rebase da branch sobre o `develop` com o fix #95.
 
 ## 2. Blocos
 
