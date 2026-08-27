@@ -35,19 +35,31 @@ Backend apenas (`apps/menthoros-backend`), aditivo — nenhuma coluna nem dado e
 
 1. **Basic com 20 atletas.** Given um auto-cadastro público via `POST` do `CoachSignupController`,
    When a assessoria é criada, Then `plano = BASIC`, `maxAtletas = 20`, `maxTecnicos = 1`.
-2. **Scale é um plano válido.** Given uma chamada administrativa que define
-   `PlanoAssessoria.SCALE`, When persistida, Then não viola `chk_plano` nem o `@Enumerated` do JPA.
+2. **Scale é um plano válido, testado pelo caminho de verdade.** Given uma chamada
+   `PATCH /api/admin/assessorias/{id}/assinatura` (`AssinaturaController.atualizarTier`) com
+   `plano: "SCALE"`, When processada, Then `PlanoAssessoria` local passa a `SCALE` sem violar
+   `chk_plano` nem o `@Enumerated` do JPA — não basta persistir `SCALE` direto via JPA num teste, o
+   binding do enum no JSON de entrada e o fluxo do service precisam ser exercitados.
 3. **Sem regressão nos tiers existentes.** Given a suíte de testes atual de `CoachSignupServiceImplTest`,
    `AssessoriaMapperTest`, `AssessoriaSettingsServiceImplTest` e `AssinaturaServiceImplTest`, When
    rodada após a change, Then passa sem alteração de comportamento para `GRATUITO`/`BASIC`/`PRO`/
    `ENTERPRISE`.
 
+## Rollback & Riscos
+
+- **Rollback da migration:** `V83` é aditiva (só amplia o `CHECK`, não remove nem renomeia nada) —
+  reverter é `DROP CONSTRAINT chk_plano; ADD CONSTRAINT chk_plano CHECK (plano IN ('BASIC', 'PRO',
+  'ENTERPRISE'))`, o CHECK original de `V2`. Só falha se alguma linha já tiver `plano = 'SCALE'` ou
+  `'GRATUITO'` persistida nesse meio-tempo — nesse caso o rollback exige decidir o que fazer com essas
+  linhas antes (não é o caminho esperado, mas fica registrado).
+- **Risco:** assessorias criadas **antes** desta migration mantêm `maxAtletas = 10` — a constante só é
+  lida no momento da criação (`CoachSignupServiceImpl`), não há job de backfill. **Mitigação:**
+  aceitável porque o MVP ainda não tem assessorias reais em produção além de dados de teste/homelab —
+  mas **confirmar com o founder antes do merge** se algum dado real já existe; se existir, a mitigação
+  vira um `UPDATE` manual pontual (poucas linhas, não uma migration de dados em massa).
+
 ## Open Questions & Assumptions
 
-- **Assumido:** assessorias já criadas antes desta migration mantêm `maxAtletas = 10` (a mudança só
-  vale para cadastros novos — a constante é lida só na criação, não há job de backfill). Aceitável
-  porque o MVP ainda não tem assessorias reais em produção além de dados de teste/homelab; **conferir
-  com o founder se algum dado real já existe antes de assumir que backfill é dispensável.**
 - **Observação:** `chk_plano` (migration `V2`) nunca incluiu `GRATUITO`, apesar do enum Java já ter
   esse valor — inconsistência pré-existente, não introduzida por esta change. A nova migration
   aproveita para incluir `GRATUITO` também, fechando esse gap de graça (mesmo custo de migration).

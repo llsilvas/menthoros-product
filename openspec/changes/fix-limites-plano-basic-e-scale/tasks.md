@@ -23,9 +23,13 @@ Branch: `feature/fix-limites-plano-basic-e-scale`, criada a partir de `develop`.
 
 - [ ] 3.1 `CoachSignupServiceImplTest.java:155`: `assertThat(a.getMaxAtletas()).isEqualTo(10)` →
       `isEqualTo(20)`.
-- [ ] 3.2 Novo teste (mesma classe ou `AssessoriaSettingsServiceImplTest`): persistir uma `Assessoria`
-      com `plano = PlanoAssessoria.SCALE` e confirmar que salva sem violar o CHECK nem o
-      `@Enumerated(EnumType.STRING)`.
+- [ ] 3.2 **Achado do pré-mortem (Codex):** persistir `SCALE` só via JPA num teste não prova o
+      caminho de verdade — o binding do JSON no controller e o fluxo do service ficam de fora. Novo
+      teste em `AssinaturaServiceImplTest` (ou `AssinaturaControllerTest`, se existir) exercitando
+      `AssinaturaController.atualizarTier` / `AssinaturaServiceImpl.atualizarTier` com
+      `AssinaturaTierInputDto(PlanoAssessoria.SCALE, valor)` — confirma que `PlanoAssessoria` local
+      vira `SCALE` sem violar `chk_plano` nem o `@Enumerated`, cobrindo o binding do enum no JSON de
+      entrada, não só a persistência direta (AC2).
 - [ ] 3.3 Rodar `AssessoriaMapperTest`, `AssinaturaServiceImplTest`, `AssessoriaSettingsControllerTest`
       — confirmar que nenhum deles fixa `10` como valor esperado de `maxAtletas` para BASIC fora do
       teste já corrigido em 3.1 (buscar antes de rodar: `grep -rn maxAtletas.*10` na suíte).
