@@ -1,5 +1,8 @@
 # Tasks — athlete-home-workout-profile
 
+**Entregue e arquivada em 2026-08-26.** PRs `menthoros-backend#83` e `menthoros-front#94` mergeados
+em `develop` (backend primeiro). 7/7 tasks; nada adiado — follow-ups do QA gate no fim.
+
 Repos: `apps/menthoros-backend` (validação `./mvnw clean verify`) e `apps/menthoros-front`
 (`npm run lint && npm run build && npm run test:run`). Backend primeiro; PRs coordenados.
 
