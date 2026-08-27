@@ -31,21 +31,24 @@ são fluxos críticos). Depende de `athlete-home-restructure` e `athlete-home-wo
 
 ## A. Modo treino
 
-- [ ] A.0 Backend: `hojeDoAtleta` por `Atleta.timezone` (D2b) num helper reutilizado por `me/home`
-      e pelos endpoints novos; `me/home` passa a devolver `hoje` e `realizadoHoje` (D1).
-      `AtletaProgressServiceImpl.getHome` hoje usa `LocalDate.now(clock)` sem fuso. Testes com clock
-      fixo às 23:50 e 00:10 em fuso ≠ servidor; `realizadoHoje` nulo sem realizado.
-      verify: `AtletaHomeDto` com os dois campos; `./mvnw test -Dtest=AtletaProgressService*`.
-- [ ] A.1 Backend: `GET /api/v1/atletas/me/treinos/hoje` (etapas + `alvoPrimario` + FC/pace +
-      `textoSecundario`, D2). Testes: igualdade com o `WorkoutStep` do `IntervalsIcuWorkoutConverter`
-      (FC vence, pace vira texto); etapa sem alvo → `NENHUM`; isolamento por atleta/tenant.
-- [ ] A.2 Backend: `POST /api/v1/atletas/me/treinos/hoje/pular { motivo? }` → `PERDIDO` +
-      `motivoPulo` + `puladoEm` (D4, migration aditiva; enum conforme 0.3). Testes: status e
-      motivo; reversão ao criar `TreinoRealizado` pelos **três caminhos que vinculam** (manual
-      `TreinoServiceImpl:561`, sync intervals.icu `ReconciliationDecisionExecutor:118`,
-      reconciliação manual `ManualReconciliationServiceImpl:82`) limpando o motivo; teste negativo
-      documentando que `.fit` **não** reverte (0.4); aparece no Plano do atleta no mesmo dia; tenant.
-      verify: `./mvnw test -Dtest='*TreinoServiceImpl*,*ReconciliationDecisionExecutor*,*ManualReconciliation*'`.
+- [x] A.0 Backend: `AtletaHojeResolver` (`hojeDe`/`agoraDe` por `Atleta.timezone`, fallback
+      `America/Sao_Paulo`, fuso inválido logado) usado por `me/home` e pelos endpoints novos;
+      `AtletaHomeDto` ganhou `hoje` e `realizadoHoje` (mais recente por `criadoEm`;
+      `feedbackRegistradoEm` fica `null` até a B.1). Testes: 23:50 em Manaus com servidor em UTC,
+      00:10 com servidor a oeste, fuso inválido/nulo. **Feito 2026-08-27.**
+- [x] A.1 Backend: `GET /me/treinos/hoje` → `TreinoHojeDto` (200/204). `EtapaAlvoResolver`
+      reproduz a precedência de `IntervalsIcuWorkoutConverter.stepDeEtapa` e o teste compara
+      contra o `WorkoutStep` real do converter (FC vence → pace em `textoSecundario`; FC
+      descartada → pace assume e a FC vai para o texto; nada → `NENHUM`). Achado: por etapa o
+      parser só lê `bpm`/`%` — zona textual é do treino; spec delta corrigida. **Feito 2026-08-27.**
+- [x] A.2 Backend: `POST /me/treinos/hoje/pular` (motivo opcional, `MotivoPulo` de 4 valores →
+      400 fora da lista; 422 sem treino ou já realizado), `PERDIDO` + `motivo_pulo` + `pulado_em`
+      (V81, aditiva). `TreinoPlanejado.limparPulo()` chamado nos três caminhos que vinculam,
+      cada um com teste de reversão; `TreinoPlanejadoOutputDto` expõe `motivoPulo`/`puladoEm`
+      (MapStruct, teste de wiring) — é o DTO do Plano do atleta e do detalhe do coach. O `.fit`
+      não tem teste negativo: `FitTreinoPersister` nem injeta o repositório de planejado, não há o
+      que verificar — a spec delta registra o comportamento. **Feito 2026-08-27.**
+      verify: `./mvnw clean test` 2827/2827.
 - [ ] A.3 Front: cliente curado + `useTodayWorkout` (loading/error/empty). Testes de hook.
 - [ ] A.4 Front: `AthleteWorkoutPage` (rota `/athlete/workout/today` — nova em `ROUTES`, no tipo
       `AthleteRoute` e no `App.tsx:140`, que hoje só registra home/plan/progress/coach/profile/

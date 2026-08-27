@@ -50,7 +50,8 @@ paceAlvo?, textoSecundario?, blocoId?, blocoRepeticoes? }`, resolvidos por
 `IntervalsIcuTargetParser.parsePace` — a mesma cadeia de `IntervalsIcuWorkoutConverter.stepDeEtapa`.
 
 #### Scenario: FC e pace na mesma etapa — FC vence, pace vira texto
-- **Given** uma etapa com `fcAlvoEtapa = "Z2"` e `ritmoAlvo = "5:30-5:45"` e atleta com `fcLimiar`
+- **Given** uma etapa com `fcAlvoEtapa = "85-89%"` e `ritmoAlvo = "5:30-5:45"` e atleta com `fcLimiar`
+  (por etapa o parser resolve `bpm` e `%`; zona textual só existe no nível do treino, como no push)
 - **When** `GET /me/treinos/hoje`
 - **Then** `alvoPrimario = "FC"`, `fcAlvoMin`/`fcAlvoMax` iguais ao `HrTarget` que o converter
   produz para a mesma etapa, `paceAlvo` ausente e `textoSecundario = "5:30-5:45"`
@@ -62,10 +63,11 @@ paceAlvo?, textoSecundario?, blocoId?, blocoRepeticoes? }`, resolvidos por
   `textoSecundario = "85-90%"` (a FC prescrita que se perdeu, como no push)
 
 #### Scenario: Etapa sem alvo confiável
-- **Given** uma etapa só com `fcAlvoEtapa = "Z3"`, atleta sem `fcLimiar`, sem `ritmoAlvo`
+- **Given** uma etapa só com `fcAlvoEtapa = "85-90%"`, atleta sem `fcLimiar`, sem `ritmoAlvo`
 - **When** `GET /me/treinos/hoje`
-- **Then** `alvoPrimario = "NENHUM"`, `zona = "Z3"`, sem campos de FC/pace — o front mostra a
-  zona e omite o bpm, sem inventar faixa
+- **Then** `alvoPrimario = "NENHUM"`, `textoSecundario = "85-90%"`, sem campos de FC/pace — o
+  front mostra a prescrição como texto e omite o bpm, sem inventar faixa. A `zonaAlvo` do treino
+  segue no nível do treino
 
 #### Scenario: Dia sem treino planejado
 - **Given** nenhum `TreinoPlanejado` com `dataTreino == hoje`
