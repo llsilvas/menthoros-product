@@ -1,5 +1,8 @@
 # Tasks — athlete-plan-agenda
 
+**Entregue e arquivada em 2026-08-26.** PR `menthoros-front#93` mergeado em `develop`. 10/10 tasks;
+nada adiado — follow-ups do QA gate listados no fim, sem dono nem change.
+
 Repo: `apps/menthoros-front`, branch `feature/athlete-plan-agenda` (base `develop` pós-#92).
 Validação padrão: `npm run lint && npm run build && npm run test:run`; E2E onde indicado — o
 plano é fluxo crítico. Sequência: 0 → 1.0 → 1.1 → 1.2 → 1.3 → 1.3a → 1.4 → 2 → 3.
