@@ -74,17 +74,21 @@ Backend + frontend. Duas fatias, entregáveis em sequência (ver `design.md` D0 
 3. Given "Concluí o treino", Then o registro abre com tipo, data e duração planejada preenchidos.
 4. Given "Não vou conseguir hoje", Then o planejado fica `PERDIDO` com `motivoPulo`, aparece assim
    com motivo no Plano do atleta e no drilldown do coach **no mesmo dia**; nunca cria
-   `TreinoRealizado`. Given registro posterior no mesmo dia por **qualquer** caminho (manual,
-   FIT/sync, reconciliação), Then o planejado vai a `REALIZADO` e `motivoPulo` é limpo. (A fila de
-   atenção não muda por um pulo isolado — comportamento existente da fila, ver `design.md` D4.)
+   `TreinoRealizado`. Given registro posterior no mesmo dia por um caminho **que vincula ao
+   planejado** — manual, sync do intervals.icu, reconciliação manual — Then o planejado vai a
+   `REALIZADO` e `motivoPulo` é limpo. Upload `.fit` e Strava **não vinculam planejado hoje**
+   (`FitTreinoPersister`, `Strava*ServiceImpl` só passam pela ingestão) — cobertos ou não por esta
+   change conforme a decisão 0.4 das tasks. (A fila de atenção não muda por um pulo isolado —
+   comportamento existente da fila, ver `design.md` D4.)
 
 **B**
 5. Given `TreinoRealizado` de hoje (qualquer origem) sem `feedbackRegistradoEm`, Then a Home mostra
    "Treino feito · Como foi?" no lugar do hero — pré-preenchido com o RPE se já existir; Given
    carimbo presente, Then mostra o resumo do feedback até o fim do dia (no fuso do atleta).
 6. Given envio com RPE 5 e chip `PERNAS_PESADAS`, Then `GET` do realizado devolve o feedback e o
-   drilldown do coach o exibe; `ultimoRpe` do readiness reflete 5; Given segundo POST, Then
-   substitui; Given payload sem RPE, Then 400.
+   perfil do atleta no coach (`AtletaPerfilCoachOutputDto.realizadosRecentes`, seção "Treinos
+   recentes" da `CoachAthleteProfilePage` — ambos novos, ver `design.md`) o exibe; `ultimoRpe` do
+   readiness reflete 5; Given segundo POST, Then substitui; Given payload sem RPE, Then 400.
 7. Given treino chegado por sync, Then o botão "Registrar treino" não aparece para aquele dia.
 
 **Transversal**
@@ -119,6 +123,14 @@ Backend + frontend. Duas fatias, entregáveis em sequência (ver `design.md` D0 
   (`CoachAttentionSignalEvaluator`), não daqui — registrar no Radar se o piloto pedir.
 - **Pré-mortem Codex (2026-08-26):** cinco achados, todos confirmados e incorporados — ver
   `design.md`, "Riscos e mitigações".
+- **DoR (2026-08-27, `spec-reviewer` + Codex, ambos NOT READY):** convergiram em dois pontos —
+  o upload `.fit` (e o Strava) nunca vinculou planejado, então "qualquer caminho" no CA4 era
+  falso; e 0.3 é decisão humana que trava o contrato de `motivoPulo`. Só o Codex: D1 dizia
+  `feedback == null` contradizendo D3 (corrigido para o carimbo); o drilldown do coach não tem
+  realizados nem feedback (escopo explicitado); `/athlete/workout/today` não existe em `ROUTES`
+  nem no `App.tsx` (task A.4); spec deltas em `openspec/specs/` eram condicionais (agora 0.5,
+  antes de A.1). Só o `spec-reviewer`: `selectTodayState` não tinha fonte para "realizado de hoje"
+  (D1: `me/home` devolve `realizadoHoje`); faltava rollback (design). Tudo verificado no código.
 - **Sequência:** depende de `athlete-home-restructure` (hero) e `athlete-home-workout-profile`
   (etapas no contrato da Home; o modo treino usa endpoint próprio, mas o `WorkoutProfile` no front
   já estará ligado ao atleta).

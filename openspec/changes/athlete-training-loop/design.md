@@ -13,12 +13,20 @@ de `add-athlete-coach-messaging`.
 | Estado | Condição | Hero mostra |
 |---|---|---|
 | `PLANEJADO` | treino hoje, sem realizado | treino de hoje + "Ver etapas e começar" / "Registrar treino" |
-| `FEITO_SEM_FEEDBACK` | realizado hoje, `feedback == null` | "Treino feito" + "Como foi?" |
-| `FEITO` | realizado hoje com feedback | resumo do feito + feedback |
-| `PULADO` | dia marcado pulado | "Hoje você pulou" + "Registrar mesmo assim" |
+| `FEITO_SEM_FEEDBACK` | realizado hoje, `feedbackRegistradoEm == null` | "Treino feito" + "Como foi?" (pré-preenchido com o RPE se existir) |
+| `FEITO` | realizado hoje, `feedbackRegistradoEm != null` | resumo do feito + feedback |
+| `PULADO` | planejado de hoje `PERDIDO` com `puladoEm` | "Hoje você pulou" + "Registrar mesmo assim" |
 | `DESCANSO` | sem treino planejado | "Descanso" + registro opcional |
 
-Selector puro `selectTodayState(home, realizadosHoje)` com testes por linha da tabela.
+"Feedback" na tabela é o **carimbo** (D3), nunca o texto ou o RPE — RPE legado sem carimbo é
+`FEITO_SEM_FEEDBACK` (DoR 2026-08-27, Codex).
+
+**Fonte do estado (DoR 2026-08-27, spec-reviewer):** `useAthleteHome` devolve só
+`proximoTreino` + `metricasChave` — não há de onde tirar "realizado de hoje" no front. O contrato
+de `me/home` passa a trazer `hoje` (D2b) e `realizadoHoje?: { id, origem, percepcaoEsforco?,
+feedbackRegistradoEm?, duracaoMin, distanciaKm? }` — um fetch só, o hero não chama `GET
+/me/treinos` para descobrir o dia. Selector puro `selectTodayState(home)` com testes por linha
+da tabela.
 
 ## D2 — Alvos de FC/pace vêm resolvidos do backend
 
@@ -75,11 +83,18 @@ a aderência já conta `PERDIDO`, o encerramento da semana já o trata, e o moti
 fila. A change não cria sinal novo; o CA4 foi reescrito para prometer o que existe. Se "pulo com
 motivo" merecer sinal próprio, é decisão da fila de atenção, não desta change (Open Question).
 
-**Reversão (achado Codex #2):** o match do registro manual já vincula planejados `PENDENTE` ou
-`PERDIDO` (`TreinoServiceImpl:561-565`) e os leva a `REALIZADO` — com `PERDIDO` a reversão vem de
-graça nesse caminho. A A.2 **testa os três caminhos** de criação de `TreinoRealizado` (manual,
-FIT/sync, reconciliação) limpando `motivoPulo`/`puladoEm` ao vincular; qualquer caminho que não
-vincule é defeito desta change, não follow-up.
+**Reversão (achado Codex #2, corrigido no DoR de 2026-08-27):** o match do registro manual já
+vincula planejados `PENDENTE` ou `PERDIDO` (`TreinoServiceImpl:561-565`) e os leva a `REALIZADO`;
+o sync do intervals.icu passa por `CandidateSelector` (não filtra status, logo `PERDIDO` é
+candidato) → `ReconciliationDecisionExecutor:118-124`; a reconciliação manual vincula em
+`ManualReconciliationServiceImpl:82`. **Esses são os três caminhos que vinculam.** O que a versão
+anterior deste parágrafo chamava de "FIT/sync" está errado pela metade: o upload `.fit`
+(`FitTreinoPersister:87`) e o Strava (`StravaActivityServiceImpl`, `StravaWebhookServiceImpl`)
+chamam só `IngestaoTreinoRealizadoService.registrar` — dedup, TSS, carga do dia — e **nunca
+vinculam um `TreinoPlanejado`**, hoje nem antes desta change. A A.2 testa a reversão nos três
+caminhos que vinculam, limpando `motivoPulo`/`puladoEm`. O `.fit`/Strava fica a cargo da decisão
+0.4 (tasks): ou entra na reconciliação nesta change (task própria, escopo sobe), ou o CA4 nomeia
+os caminhos e o resto vira follow-up no Radar.
 
 ## Riscos e mitigações
 
@@ -97,3 +112,17 @@ vincule é defeito desta change, não follow-up.
   foi?" — hoje já é assim (sync sem RPE cai em outro cálculo de TSS); B.1 testa que gravar o RPE
   depois recalcula o que depender dele, ou registra explicitamente que não recalcula.
 - **Escopo M**: duas fatias com E2E própria cada; `/implement run --step`.
+- **Rollback (DoR 2026-08-27):** migrations são aditivas e nulas (`motivo_pulo`, `pulado_em`,
+  `sensacoes`, `feedback_registrado_em`) — reverter o código não exige reverter dado. Sem feature
+  flag: a rota `/athlete/workout/today` e o hero por `selectTodayState` saem num PR front só;
+  revert do PR devolve o hero anterior, e os endpoints novos ficam órfãos sem efeito colateral.
+  `me/home` com `hoje`/`realizadoHoje` é aditivo — o front anterior ignora os campos.
+
+## Drilldown do coach (DoR 2026-08-27, Codex)
+
+`AtletaPerfilCoachOutputDto` traz só `TreinoPlanejadoResumoDto` da semana — **não há lista de
+realizados nem feedback no perfil do coach hoje**, e `CoachAthleteProfilePage` não tem seção de
+"treinos recentes". O "feedback aparece no drilldown" da proposta é, portanto, escopo novo nos dois
+repos: o DTO ganha `realizadosRecentes` (últimos 7 dias: data, tipo, origem, `percepcaoEsforco`,
+`sensacoes`, `feedbackAtleta`, `feedbackRegistradoEm`), e a página ganha uma `SectionCard`
+"Treinos recentes" que renderiza o feedback quando carimbado. B.2 e B.5 foram reescritas.
