@@ -2,10 +2,13 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-08-26, noite (**`athlete-home-workout-profile` entregue e arquivada**
+**Última atualização:** 2026-08-27, manhã (**`athlete-progress-questions` entregue e arquivada**
+— PR front #96 mergeado, quarta change da trilha atleta. Sobrou na trilha só
+`athlete-training-loop`.)
+
+Antes, na noite de 2026-08-26: (**`athlete-home-workout-profile` entregue e arquivada**
 — PRs backend #83 + front #94, a terceira change da trilha atleta no mesmo dia e a primeira a cruzar
-os dois repos. Sobrou na trilha: `athlete-progress-questions` (criada hoje, product review e
-pré-mortem já incorporados) e `athlete-training-loop`.)
+os dois repos.)
 
 Antes, no mesmo dia: (**`athlete-plan-agenda` entregue e arquivada** — PR
 front #93, a segunda change da trilha atleta no mesmo dia. O DoR levou quatro rodadas de Codex
@@ -650,7 +653,7 @@ RPE que só chega de quem registra à mão.
 > visual por screenshot **mostrou** a barra estourando na primeira execução (e eu não vi) — inspeção de
 > screenshot precisa de checklist, não de olhada.
 
-| 5 | `athlete-progress-questions` | **M · Full** | 0/9 | **Progresso em quatro perguntas, sem abas.** A tela mostrava ao atleta o conjunto do coach sem tradução (CTL/ATL/TSB em "pts", tooltip de hover, quatro abas). Passa a responder "Estou ficando mais forte?" (ΔCTL de 4 semanas + sparkline; PMC completo atrás de um link), "Estou treinando nas zonas certas?" (barras Z1–Z5, frase da dominante — **sem alvo da fase**, que não existe no contrato), "Estou cumprindo o plano?" (N de M + 4 barras semanais) e "O que já quebrei?" (PRs com "novo" + próxima prova). Limiares das frases no adapter, validados com o founder (0.2). Só front. Criada 2026-08-26 à noite, depois das três primeiras entregues — era a única tela do shell fora da trilha. Product review **Refine** + Codex **NOT READY**, ambos incorporados: a UI **descreve, não julga** (sem "Sim/Não"; "Falar com o coach" em cada bloco); a régua paralela de cansaço por ATL/CTL saiu (contradiria a `FaixaTsb`); PMC expande inline em vez de ir para drawer; `ZoneDistributionInsight` é donut → barras próprias; D−28 com tolerância; aderência preenchida a 4 semanas; `dataIso` no recorde. | (1) tema |
+| 5 | ~~`athlete-progress-questions`~~ **✅ CONCLUÍDA 2026-08-27** | **M · Full** | 9/9 | **Progresso em quatro perguntas, sem abas — entregue em ~12h de spec a merge.** PR front **#96** mergeado; arquivada em `archive/2026-08/2026-08-27-…`. **QA gate (frontend + clean-code + Codex):** 3 MAJORs confirmados e corrigidos — limiar comparava o Δ **arredondado** (2,6 virava 3 e "subia" quando o design diz estável), a próxima prova ficava fora do retry consolidado, e o estado vazio perdia o "Falar com o coach"; além da cor verde/laranja no delta, que era veredito implícito (virou neutra). O founder pegou no smoke a legenda do card prometendo 12 semanas quando a leitura comparava 4. Suíte 272, E2E do atleta 17/17 em 390×844; varredura de fontes achou um `0.6em` fora da escala. `AthleteLayout` ganhou `maxWidth: 640` no desktop, quitando a dívida D1 da `athlete-plan-agenda`. Escopo original: A tela mostrava ao atleta o conjunto do coach sem tradução (CTL/ATL/TSB em "pts", tooltip de hover, quatro abas). Passa a responder "Estou ficando mais forte?" (ΔCTL de 4 semanas + sparkline; PMC completo atrás de um link), "Estou treinando nas zonas certas?" (barras Z1–Z5, frase da dominante — **sem alvo da fase**, que não existe no contrato), "Estou cumprindo o plano?" (N de M + 4 barras semanais) e "O que já quebrei?" (PRs com "novo" + próxima prova). Limiares das frases no adapter, validados com o founder (0.2). Só front. Criada 2026-08-26 à noite, depois das três primeiras entregues — era a única tela do shell fora da trilha. Product review **Refine** + Codex **NOT READY**, ambos incorporados: a UI **descreve, não julga** (sem "Sim/Não"; "Falar com o coach" em cada bloco); a régua paralela de cansaço por ATL/CTL saiu (contradiria a `FaixaTsb`); PMC expande inline em vez de ir para drawer; `ZoneDistributionInsight` é donut → barras próprias; D−28 com tolerância; aderência preenchida a 4 semanas; `dataIso` no recorde. | (1) tema |
 
 > **O que ficou fora, de propósito:** notificações push (sem change — depende de decisão de canal),
 > chat com treino anexado (entra na mensageria), onboarding progressivo durante a calibração.
