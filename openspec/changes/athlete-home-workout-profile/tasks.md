@@ -23,21 +23,26 @@ Repos: `apps/menthoros-backend` (validação `./mvnw clean verify`) e `apps/ment
 
 ## 2. Frontend
 
-- [ ] 2.1 Portar campos ao cliente curado (`types/AthleteHome.ts`: `AthleteProximoTreino.etapas?:
+- [x] 2.1 Portar campos ao cliente curado (`types/AthleteHome.ts`: `AthleteProximoTreino.etapas?:
       EtapaTreino[]`, `duracaoMin?: number`, `zonaAlvo?: string`, `tssPlanejado?`,
       `intensidadePlanejada?` se o DTO trouxer), sem sobrescrever `src/api`. Validação: build.
       verify: `tsc -b` limpo; nenhum arquivo em `src/api` alterado.
-- [ ] 2.2 `buildNextWorkout`: `profile` via `selectWorkoutProfile(indexarRepeticoes(etapas.map(
+- [x] 2.2 `buildNextWorkout`: `profile` via `selectWorkoutProfile(indexarRepeticoes(etapas.map(
       fromEtapaTreino)), { sport: 'run', tss, if, zonaAlvoTreino })` (D2b), `estimatedDuration` de
       `duracaoMin`; `profile` ausente sem etapas. Teste do adapter: com etapas (bloco 2× → blocos
       com `repeat.total === 2`), sem etapas → `profile` undefined.
       verify: `homeAdapter.test.ts` verde.
-- [ ] 2.3 `TodayHeroCardProps.nextWorkout.profile?: WorkoutProfileData`; o card renderiza
+- [x] 2.3 `TodayHeroCardProps.nextWorkout.profile?: WorkoutProfileData`; o card renderiza
       `<WorkoutProfile variant="compact" />` quando `profile.blocks.length > 0` (D2, D3). Validação:
       teste de componente (com/sem perfil; `workout-profile` presente/ausente) + smoke visual com
       treino intervalado em 390px.
       verify: `TodayHeroCard.test.tsx` verde; screenshot do smoke inspecionado.
-- [ ] 2.4 Estender `tests/e2e/athlete/home.spec.ts`: fixture do `me/home` **com etapas** (bloco 2×);
+- [x] 2.4 Estender `tests/e2e/athlete/home.spec.ts`: fixture do `me/home` **com etapas** (bloco 2×);
       asserir `workout-profile` e `repeat-bracket` "2×" no hero **e** "Registrar treino" visível sem
       scroll em 390×844 com o perfil presente. Validação: `npm run test:e2e` verde.
       verify: `npm run test:e2e -- tests/e2e/athlete` verde.
+      **Feito 2026-08-26.** Dois ajustes no E2E que o perfil expôs: a fixture do check-in usava
+      `toISOString()` (UTC) — depois das 21h em UTC-3 o check-in "de hoje" era de amanhã para o app
+      (mesma classe do bug corrigido em `selectAthletePlan`); e a varredura de fontes passou a
+      isentar o subtree do `WorkoutProfile`, que tem tokens tipográficos próprios (ticks mono de
+      10px) e uma tabela oculta de acessibilidade. Suíte 1278; E2E do atleta 14/14.
