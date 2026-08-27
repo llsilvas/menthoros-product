@@ -53,6 +53,9 @@ E2E novo `tests/e2e/athlete/progress.spec.ts`. Sequência: 0 → 1 → 2 → 3 �
 
 ## 4. E2E
 
-- [ ] 4.1 `tests/e2e/athlete/progress.spec.ts` em 390×844: quatro blocos; sem abas; link expande o
+- [x] 4.1 `tests/e2e/athlete/progress.spec.ts` em 390×844: quatro blocos; sem abas; link expande o
       PMC (asserido pela presença do componente); varredura de fontes/tamanhos **fora** do gráfico
-      expandido (não "fora do drawer" — não há drawer). verify: E2E do atleta verde (`smoke-tema` incluso).
+      expandido (não "fora do drawer" — não há drawer).
+      **Feito 2026-08-26.** 3 specs; E2E do atleta 17/17. A varredura de fontes pegou um `0.6em`
+      (14,4px) no "de N" da aderência — virou variante do tema. Smoke com dados reais no
+      `localhost:5174` do founder: os quatro blocos com os números dele. verify: E2E do atleta verde (`smoke-tema` incluso).
