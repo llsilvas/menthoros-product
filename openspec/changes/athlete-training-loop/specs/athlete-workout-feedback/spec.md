@@ -76,6 +76,26 @@ feedbackRegistradoEm? }`, mais recente primeiro.
 
 ## Dados
 
-Migration aditiva: `tb_treino_realizado.feedback_registrado_em TIMESTAMP NULL` e tabela
+Migration aditiva (`V82__add_feedback_pos_treino_to_tb_treino_realizado.sql`):
+`tb_treino_realizado.feedback_registrado_em TIMESTAMP NULL` e tabela
 `tb_treino_realizado_sensacao (treino_realizado_id UUID FK, sensacao VARCHAR(30))` com PK
-composta. Sem backfill. Rollback: reverter o código; colunas/tabela ficam inertes.
+composta. `sensacoes` é `Set` (não `List`) na entidade — achado do `clean test`:
+`MultipleBagFetchException` ao fazer join fetch com `etapasRealizadas` (duas bags na mesma
+query); `EAGER` sozinho também não bastou por causa do `@EntityGraph` existente em
+`findByTenantIdAndFonteDadosAndExternalId`, que é `type=FETCH` e reverte a LAZY tudo fora do
+`attributePaths` — `sensacoes` precisou entrar na lista. Sem backfill. Rollback: reverter o
+código; colunas/tabela ficam inertes.
+
+## Requirement: Métricas de sucesso
+
+O backend DEVE incrementar `atleta_treino_feedback_total` a cada feedback registrado e
+`atleta_treino_pulo_total` a cada pulo — as métricas de sucesso da change (`SPRINTS.md`:
+"Treinos com feedback / treinos realizados" e o volume de pulos avisados).
+
+#### Scenario: Contador de feedback
+- **When** `POST /me/realizados/{id}/feedback` com sucesso
+- **Then** `atleta_treino_feedback_total` incrementa em 1
+
+#### Scenario: Contador de pulo
+- **When** `POST /me/treinos/hoje/pular` com sucesso
+- **Then** `atleta_treino_pulo_total` incrementa em 1

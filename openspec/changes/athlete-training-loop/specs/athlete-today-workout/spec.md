@@ -125,5 +125,6 @@ Os três endpoints DEVEM resolver o atleta pelo JWT (`resolverAtletaIdAtual`) e 
 
 ## Dados
 
-Migration aditiva `tb_treino_planejado`: `motivo_pulo VARCHAR(20) NULL`, `pulado_em TIMESTAMP
-NULL`. Sem backfill. Rollback: reverter o código; as colunas nulas ficam inertes.
+Migration aditiva `tb_treino_planejado` (`V81__add_motivo_pulo_to_tb_treino_planejado.sql`):
+`motivo_pulo VARCHAR(20) NULL`, `pulado_em TIMESTAMP NULL`. Sem backfill. Rollback: reverter o
+código; as colunas nulas ficam inertes.

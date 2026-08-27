@@ -130,7 +130,11 @@ são fluxos críticos). Depende de `athlete-home-restructure` e `athlete-home-wo
 
 ## C. Fechamento
 
-- [ ] C.1 Conferir que os spec deltas da 0.5 batem com o que foi entregue (feedback, pulo,
-      `realizadosRecentes`); arquivar promove para `openspec/specs/`. Validação: revisão.
-- [ ] C.2 PRs coordenados backend → front; `tasks.md` marcado; métricas de sucesso instrumentadas
-      (contadores de feedback e de pulo).
+- [x] C.1 Spec deltas conferidos contra o entregue — batiam em tudo (endpoints, contratos,
+      isolamento); ajustes: nomes reais das migrations (`V81`, `V82`) citados nos dois deltas,
+      e `sensacoes` documentado como `Set` (não `List`) com a razão (`MultipleBagFetchException`
+      + `@EntityGraph type=FETCH`). Adicionado requirement de métricas de sucesso no delta de
+      feedback. **Feito 2026-08-27.**
+- [x] C.2 Métricas de sucesso instrumentadas: `atleta_treino_feedback_total` e
+      `atleta_treino_pulo_total` (Micrometer `Counter`, mesmo padrão de
+      `intervals_icu.import.etapas`). PRs coordenados backend → front — ver relato do `/pr`.
