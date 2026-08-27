@@ -8,6 +8,11 @@ Repo: `apps/menthoros-backend`. Validação: `./mvnw clean test`.
       por uma query filtrada por `createdAt >= :desde`, sem LIMIT, mesma ordenação
       (`ORDER BY createdAt DESC`). Renomear para refletir o novo contrato (ex.:
       `findRecentesByAtletaIdAndTenantId(atletaId, tenantId, desde)`).
+      **Achado do DoR (Codex, confirmado):** atualizar também a documentação pública que promete
+      "até os 10 kudos mais recentes" — `KudosService.listarRecentes` JavaDoc
+      (`services/KudosService.java:37`) e `@Operation(description=...)` de
+      `GET /me/kudos/recentes` (`controller/AtletaKudosController.java:33`) — para "kudos dos
+      últimos 7 dias, mais recente primeiro". Semântica pública muda, não só o payload.
 - [ ] 1.2 `KudosServiceImpl.listarRecentes`: calcular
       `desde = Instant.now(clock).minus(7, ChronoUnit.DAYS)` e passar para o novo método do
       repository.
