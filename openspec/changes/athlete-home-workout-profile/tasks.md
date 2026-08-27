@@ -46,3 +46,26 @@ Repos: `apps/menthoros-backend` (validação `./mvnw clean verify`) e `apps/ment
       (mesma classe do bug corrigido em `selectAthletePlan`); e a varredura de fontes passou a
       isentar o subtree do `WorkoutProfile`, que tem tokens tipográficos próprios (ticks mono de
       10px) e uma tabela oculta de acessibilidade. Suíte 1278; E2E do atleta 14/14.
+
+## QA gate — 2026-08-26
+
+Cinco revisões (backend: `code-reviewer` + `security-reviewer`; front: `frontend-reviewer`;
+`clean-code-reviewer` nos dois; Codex adversarial nos dois). Nenhum Critical; nenhum achado de
+segurança High. Corrigidos no commit de QA:
+
+- **Codex, MAJOR (real):** `TreinoBase.duracaoMin` é `nullable = false` e o backend usa
+  `Duration.ZERO` como sentinela de "não prescrita" (`ReconciliationDecisionExecutor`) — `0` vazava
+  como duração. ZERO agora vira `null`; teste no service.
+- **Codex, MINOR:** teste do controller passou a asserir a serialização das etapas (`blocoId`,
+  `blocoRepeticoes`, omissão em `etapas[0]`) e a omissão de `etapas`/`duracaoMin` no JSON.
+- **clean-code, Important ×2:** o bloco `selectWorkoutProfile(indexarRepeticoes(…))` com o mesmo
+  comentário estava copiado em `homeAdapter` e `WorkoutDetailDrawer`, e só o drawer ordenava por
+  `ordem` → `buildProfileFromTreino` em `features/workout/profile/fromTreino.ts` (ordena, indexa,
+  resolve; `sport: 'run'` e o TODO dos `thresholds` num lugar só). Teste com etapas fora de ordem.
+- **frontend, Important:** TODO explícito sobre `thresholds`/esporte ausentes no contrato (agora
+  no adapter compartilhado).
+
+Follow-ups (não bloqueiam): `findByAtletaIdAndDataBetween` sem `tenantId` na query — pré-existente,
+compartilhado por 3 serviços, todos com `validarAtletaNoTenant` a montante; tornar a garantia
+estrutural é change própria (assinatura + call-sites). `LIMIT 1` no próximo treino (custo marginal,
+janela de 14 dias).
