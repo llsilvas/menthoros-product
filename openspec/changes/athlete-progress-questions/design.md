@@ -2,32 +2,42 @@
 
 ## D1 — Quatro perguntas, um scroll
 
-Sem `Tabs`: o atleta abre a tela e lê quatro respostas de cima para baixo. Cada bloco é um card
-(`elevation.card` + `surface[700]`, raio 12) com: pergunta (`h6`), resposta curta em display
-(`h3`), número/gráfico simples, e um link quando há mais.
+Sem `Tabs`: o atleta abre a tela e lê quatro leituras de cima para baixo. Cada bloco é um card
+(`elevation.card` + `surface[700]`, raio 12) com: pergunta (`h6`), leitura descritiva em display
+(`h3`, sempre com o número), gráfico simples, "Falar com o coach" e, quando há, o gráfico completo
+expansível. **A UI descreve; o coach interpreta** — nenhum bloco diz "sim", "não", "bem" ou "mal".
 
 Rejeitado: manter abas com títulos-pergunta — a aba esconde a resposta que a pergunta promete.
 
 ## D2 — Respostas derivadas de deltas, com limiares fora do componente
 
-Adapter puro `buildProgressAnswers(pmc, zones, aderencia, recordes, provas, hoje)` em
-`features/athlete/adapters/`, com os limiares em constantes nomeadas no topo do arquivo
-(`CTL_DELTA_MELHORA = 3`, `ATL_CTL_ALTO = 1.1`, `ATL_CTL_MUITO_ALTO = 1.3`, `RECORDE_NOVO_DIAS = 28`).
+Adapter puro `buildProgressReadings(pmc, zones, aderencia, recordes, provas, hoje)` em
+`features/athlete/adapters/`, com as constantes nomeadas no topo (`CTL_DELTA_ESTAVEL = 3`,
+`CTL_JANELA_DIAS = 28`, `CTL_TOLERANCIA_DIAS = 3`, `RECORDE_NOVO_DIAS = 28`).
 
-- Bloco 1: `ctlHoje − ctl(hoje − 28d)` sobre os pontos do PMC; sem ponto a 28 dias → "Ainda cedo
-  para saber". Sparkline: CTL dos últimos 84 dias (SVG simples, sem recharts — o gráfico completo
-  fica no `PMCChart`).
-- Bloco 2: percentuais de `buildZoneDistributionPercent`; dominante = maior percentual.
-- Bloco 3: `buildAderenciaResumo` + as 4 semanas do DTO; a corrente é a que contém `hoje`.
-- Bloco 4: `buildRecordRows` + `dataIso` do recorde para a marca "novo".
+- Bloco 1: `ctlHoje − ctlBase`, onde `ctlBase` é o ponto do PMC mais próximo de D−28 dentro de
+  ±3 dias (a série é diária, mas só tem dias com métrica — `AtletaProgressServiceImpl:94-99`);
+  sem ponto na janela → "Ainda cedo para comparar". |Δ| < 3 → "ficou estável"; senão "subiu +N" /
+  "caiu −N". Forma: `FAIXA_APRESENTACAO[statusForma]` do backend — **sem** régua de cansaço por
+  ATL/CTL (contradiria a `FaixaTsb`). Sparkline: CTL dos últimos 84 dias em SVG simples.
+- Bloco 2: percentuais de `buildZoneDistributionPercent` **normalizados**: arredondar e atribuir a
+  diferença para 100 à maior zona (hoje pode somar 99/101 — `zonesAdapter:21-29`). Dominante =
+  maior percentual.
+- Bloco 3: `buildAderenciaResumo` + as semanas do DTO, **preenchendo** até 4 com `{ semplano }` —
+  o backend só devolve semanas com treino planejado (`AtletaProgressServiceImpl:280-290`). A
+  corrente é a que contém `hoje`.
+- Bloco 4: `buildRecordRows` passa a expor `dataIso` (o `RecordeDto.data` é `LocalDate`); "novo"
+  se `hoje − dataIso ≤ 28 d`.
 
 Testado com tabela de casos (`buildProgressAnswers.test.ts`).
 
-## D3 — O gráfico completo continua existindo
+## D3 — O gráfico completo continua na tela
 
-`PMCChart` (recharts, lazy) abre num `Drawer` bottom pelo link do bloco 1 — não some, muda de
-lugar. `ZoneDistributionInsight` é avaliado na task 0.1: se o insight atual já é "barras + frase",
-o bloco 2 o reaproveita; se não, o bloco 2 desenha as barras e o insight é removido.
+`PMCChart` (recharts, lazy) **expande inline** abaixo do bloco 1 pelo link "Ver o gráfico
+completo" — não vai para drawer (perderia a inspeção imediata de CTL/ATL/TSB que o atleta que
+entende do assunto quer). Fechado por padrão; o estado expandido é local. `ZoneDistributionInsight`
+é um donut Recharts, não serve ao CA das barras: o bloco 2 desenha as próprias barras e o insight
+é removido se a task 0.1 não achar outro consumidor.
 
 ## D4 — Estados
 
@@ -37,8 +47,9 @@ consolidado (padrão de `useAthleteHomeErrors`).
 
 ## Riscos e mitigações
 
-- **Frase errada vale mais que número nenhum**: limiares no adapter com testes por caso e
-  validação do founder (0.2); a resposta cita o número ao lado ("+6"), nunca sozinha.
+- **Frase que julga**: retirada por desenho — só leitura descritiva com o número ao lado, e
+  "Falar com o coach" em cada bloco. Limiar único (estável) validado na 0.2 e reaberto com coaches.
+- **Régua paralela ao backend**: retirada (cansaço por ATL/CTL); forma vem só de `statusForma`.
 - **Perder o PMC por engano**: CA 7 e E2E abrem o drawer e asserem o gráfico.
 - **Escopo crescer para o backend** (alvo de fase, treinos perdidos): non-goals explícitos e
   follow-ups no Radar.
