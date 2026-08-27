@@ -138,3 +138,37 @@ são fluxos críticos). Depende de `athlete-home-restructure` e `athlete-home-wo
 - [x] C.2 Métricas de sucesso instrumentadas: `atleta_treino_feedback_total` e
       `atleta_treino_pulo_total` (Micrometer `Counter`, mesmo padrão de
       `intervals_icu.import.etapas`). PRs coordenados backend → front — ver relato do `/pr`.
+
+## QA gate — 2026-08-27
+
+Revisores em paralelo: `code-reviewer` e `security-reviewer` (backend), `frontend-reviewer`,
+`clean-code-reviewer` (os dois cobrindo os dois repos). Nenhum Critical. Um achado real (Major) e
+dois achados convergentes (dois revisores independentes, mesmo ponto) corrigidos; o resto
+registrado.
+
+Corrigido:
+- **Estado FEITO perdia sensações e comentário** (frontend-reviewer, Major — confirmado):
+  `TodayCompletedCard` já sabia renderizá-los, mas `AtletaHomeDto.RealizadoHoje`/
+  `AthleteRealizadoHoje` não carregavam `sensacoes`/`feedbackAtleta` — o resumo pós-envio mostrava
+  só o RPE. Estendido nos dois lados (`efaf4fb`, `4cd881c`).
+- **`MOTIVO_LABELS` triplicado e já divergente** (clean-code-reviewer + frontend-reviewer,
+  convergente): `SkipWorkoutDialog` tinha `'Cansado'`, `TodaySkippedCard`/`AthleteWorkoutPage`
+  tinham `'cansaço'` — mesmo enum, textos diferentes. `MOTIVO_PULO_LABELS` em
+  `types/AthleteWorkoutToday.ts` é a única fonte agora; o dialog capitaliza para os chips.
+- **`AthleteWorkoutPage` reimplementava o estado PULADO** (clean-code-reviewer): reusa
+  `TodaySkippedCard` em vez de duplicar markup e texto (era a causa raiz do achado acima).
+
+Registrado, sem ação:
+- Coluna de repositório sem filtro de tenant em `findByAtletaIdAndDataBetween`/
+  `findByAtletaIdAndDataTreino` (code-reviewer, Minor): seguro hoje porque `atletaId` já vem
+  validado contra o tenant no chamador — mesmo padrão usado em outros pontos do código; comentário
+  de precondição no método do repositório é follow-up de higiene, fora do escopo.
+- Shell/header duplicados entre `TodayFeedbackCard`/`TodayCompletedCard`/`TodaySkippedCard`
+  (clean-code-reviewer, Minor): componentes corretamente separados (interações diferentes); a
+  duplicação é só de moldura visual — `TodayCardShell` é follow-up de higiene, não urgente.
+- `feedbackAtleta` como texto livre do atleta chegando ao DTO do coach sem consumidor de LLM ainda
+  (code-reviewer, watch item): nada a fazer agora — fica registrado para quando alguém construir
+  uma feature de IA sobre esse perfil.
+
+Validação após as correções: backend `./mvnw clean test` 2844/2844; front `tsc`/`lint`/`build`
+limpos, `vitest run` 1349/1349, `playwright test tests/e2e/athlete tests/e2e/coach` 66/66.
