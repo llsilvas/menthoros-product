@@ -18,7 +18,9 @@ Adapter puro `buildProgressReadings(pmc, zones, aderencia, recordes, provas, hoj
 - Bloco 1: `ctlHoje − ctlBase`, onde `ctlBase` é o ponto do PMC mais próximo de D−28 dentro de
   ±3 dias (a série é diária, mas só tem dias com métrica — `AtletaProgressServiceImpl:94-99`);
   sem ponto na janela → "Ainda cedo para comparar". |Δ| < 3 → "ficou estável"; senão "subiu +N" /
-  "caiu −N". Forma: `FAIXA_APRESENTACAO[statusForma]` do backend — **sem** régua de cansaço por
+  "caiu −N". Forma: `FAIXA_APRESENTACAO[ultimoPmc.statusForma]` — o **último ponto do PMC já traz
+  `statusForma`** (`PmcPontoRaw`, `types/AtletaPerfilCoach.ts:14`; backend `PmcPontoDto.statusForma`
+  via `FaixaTsb.classificarNome`), sem chamar `useAthleteHome`. **Sem** régua de cansaço por
   ATL/CTL (contradiria a `FaixaTsb`). Sparkline: CTL dos últimos 84 dias em SVG simples.
 - Bloco 2: percentuais de `buildZoneDistributionPercent` **normalizados**: arredondar e atribuir a
   diferença para 100 à maior zona (hoje pode somar 99/101 — `zonesAdapter:21-29`). Dominante =
@@ -26,8 +28,10 @@ Adapter puro `buildProgressReadings(pmc, zones, aderencia, recordes, provas, hoj
 - Bloco 3: `buildAderenciaResumo` + as semanas do DTO, **preenchendo** até 4 com `{ semplano }` —
   o backend só devolve semanas com treino planejado (`AtletaProgressServiceImpl:280-290`). A
   corrente é a que contém `hoje`.
-- Bloco 4: `buildRecordRows` passa a expor `dataIso` (o `RecordeDto.data` é `LocalDate`); "novo"
-  se `hoje − dataIso ≤ 28 d`.
+- Bloco 4: `RecordRow.data` **já é ISO cru** (`recordsAdapter.ts:26` repassa `AthleteRecord.data`)
+  e a tela atual o renderiza sem formatar (`AthleteProgressPage.tsx:315`) — o que falta é o
+  inverso do que a spec dizia: `dataIso` (cálculo) **e** `dataFormatada` (exibição, `d 'de' MMM`).
+  "novo" se `hoje − dataIso ≤ 28 d`.
 
 Testado com tabela de casos (`buildProgressAnswers.test.ts`).
 
@@ -50,6 +54,6 @@ consolidado (padrão de `useAthleteHomeErrors`).
 - **Frase que julga**: retirada por desenho — só leitura descritiva com o número ao lado, e
   "Falar com o coach" em cada bloco. Limiar único (estável) validado na 0.2 e reaberto com coaches.
 - **Régua paralela ao backend**: retirada (cansaço por ATL/CTL); forma vem só de `statusForma`.
-- **Perder o PMC por engano**: CA 7 e E2E abrem o drawer e asserem o gráfico.
+- **Perder o PMC por engano**: CA 7 e E2E expandem o gráfico inline e asserem o componente.
 - **Escopo crescer para o backend** (alvo de fase, treinos perdidos): non-goals explícitos e
   follow-ups no Radar.

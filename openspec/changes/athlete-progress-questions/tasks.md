@@ -7,7 +7,7 @@ E2E novo `tests/e2e/athlete/progress.spec.ts`. Sequência: 0 → 1 → 2 → 3 �
 
 - [x] 0.1 **Resolvido no DoR (Codex):** o PMC é diário e ordenado, só com dias que têm métrica
       (`AtletaProgressServiceImpl:94-99`) → tolerância ±3 d em D−28; `RecordRow` não tem `dataIso`
-      (só `data` formatada; `RecordeDto.data` é `LocalDate`) → entra; `ZoneDistributionInsight` é
+      (`data` é ISO cru repassado do DTO e a tela o mostra sem formatar — o gap é `dataFormatada`, não `dataIso`) → os dois campos entram; `ZoneDistributionInsight` é
       donut Recharts → bloco 2 com barras próprias; aderência vem ascendente só com semanas
       planejadas (`:280-290`) → preencher até 4; `zonesAdapter` arredonda sem normalizar → normalizar.
 - [ ] 0.2 Validar com o founder o único limiar novo: |ΔCTL| < 3 em 4 semanas = "ficou estável"
@@ -16,8 +16,9 @@ E2E novo `tests/e2e/athlete/progress.spec.ts`. Sequência: 0 → 1 → 2 → 3 �
 
 ## 1. Adapter
 
-- [ ] 1.0 `recordsAdapter`: `RecordRow.dataIso`; `zonesAdapter`: normalização para 100 (resto na
-      maior zona). verify: testes dos dois adapters (99 → 100, 101 → 100).
+- [ ] 1.0 `recordsAdapter`: `RecordRow` com `dataIso` (cálculo) e `dataFormatada` (exibição);
+      `zonesAdapter`: normalização para 100 (resto na maior zona). verify: testes dos dois adapters
+      (99 → 100, 101 → 100; data ISO preservada e formatada).
 - [ ] 1.1 `buildProgressReadings` (D2) com constantes nomeadas; casos: CTL sobe/estável/cai, ponto
       D−28 ausente com vizinho a ±3 d, sem vizinho ("Ainda cedo para comparar"), PMC vazio,
       aderência com 2 semanas → 4 barras, semana corrente, recorde novo/antigo.
@@ -45,4 +46,4 @@ E2E novo `tests/e2e/athlete/progress.spec.ts`. Sequência: 0 → 1 → 2 → 3 �
 
 - [ ] 4.1 `tests/e2e/athlete/progress.spec.ts` em 390×844: quatro blocos; sem abas; link expande o
       PMC (asserido pela presença do componente); varredura de fontes/tamanhos **fora** do gráfico
-      expandido. verify: E2E do atleta verde (`smoke-tema` incluso).
+      expandido (não "fora do drawer" — não há drawer). verify: E2E do atleta verde (`smoke-tema` incluso).
