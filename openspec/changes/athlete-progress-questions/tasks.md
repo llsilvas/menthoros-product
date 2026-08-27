@@ -10,9 +10,9 @@ E2E novo `tests/e2e/athlete/progress.spec.ts`. Sequência: 0 → 1 → 2 → 3 �
       (`data` é ISO cru repassado do DTO e a tela o mostra sem formatar — o gap é `dataFormatada`, não `dataIso`) → os dois campos entram; `ZoneDistributionInsight` é
       donut Recharts → bloco 2 com barras próprias; aderência vem ascendente só com semanas
       planejadas (`:280-290`) → preencher até 4; `zonesAdapter` arredonda sem normalizar → normalizar.
-- [ ] 0.2 Validar com o founder o único limiar novo: |ΔCTL| < 3 em 4 semanas = "ficou estável"
-      (e "novo" = 28 d). Reabrir com os coaches do piloto quando existirem.
-      verify: linha assinada nesta task.
+- [x] 0.2 **Aprovado pelo founder em 2026-08-26:** |ΔCTL| < 3 em 4 semanas = "ficou estável" (fora
+      disso "subiu +N" / "caiu −N"); recorde "novo" = últimos 28 dias. Reabrir com os coaches do
+      piloto quando existirem.
 
 ## 1. Adapter
 
