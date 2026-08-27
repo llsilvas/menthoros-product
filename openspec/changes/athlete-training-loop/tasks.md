@@ -22,10 +22,12 @@ são fluxos críticos). Depende de `athlete-home-restructure` e `athlete-home-wo
       e **continuam assim nesta change**. CA4 nomeia manual + intervals.icu + reconciliação manual;
       "`.fit`/Strava passam pela reconciliação" é linha do Radar no `SPRINTS.md`, com o founder
       como primeiro afetado (ele registra por `.fit`).
-- [ ] 0.5 Spec deltas em `openspec/specs/` (antes de A.1, DoR Codex): `me/home` (+`hoje`,
-      +`realizadoHoje`), `GET/POST me/treinos/hoje[/pular]`, `POST me/realizados/{id}/feedback`,
-      `AtletaPerfilCoachOutputDto.realizadosRecentes` — payloads, status, tenant/404, migrations.
-      verify: `openspec validate` verde.
+- [x] 0.5 Spec deltas (DoR Codex): `specs/athlete-today-workout/spec.md` (`hoje` por fuso,
+      `realizadoHoje` no `me/home`, `GET me/treinos/hoje` com alvos pela cadeia do push, `POST
+      .../pular`, reversão nos três caminhos, `.fit` não reverte, tenant, migration) e
+      `specs/athlete-workout-feedback/spec.md` (feedback + carimbo, validações, TSS por RPE
+      tardio, `realizadosRecentes` no perfil do coach, migration). **Feito 2026-08-27.**
+      `openspec validate` não rodou — CLI ausente na máquina; revisão manual.
 
 ## A. Modo treino
 
