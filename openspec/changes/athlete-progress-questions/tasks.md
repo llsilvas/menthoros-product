@@ -42,10 +42,14 @@ E2E novo `tests/e2e/athlete/progress.spec.ts`. Sequência: 0 → 1 → 2 → 3 �
 
 ## 3. Página
 
-- [ ] 3.1 `AthleteProgressPage` sem `Tabs`: cabeçalho ("Últimas 12 semanas"), quatro blocos com
+- [x] 3.1 `AthleteProgressPage` sem `Tabs`: cabeçalho ("Últimas 12 semanas"), quatro blocos com
       estados independentes (D4), `Alert` consolidado se tudo falhar; remover `KpiCard`/`buildKpis`
       e os `rem` fora da escala. verify: `AthleteProgressPage.test.tsx` reescrito; nenhum
-      `role="tab"`; nenhum texto CTL/ATL/TSB/pts fora do drawer.
+      `role="tab"`; nenhum texto CTL/ATL/TSB/pts fora do gráfico expandido.
+      **Feito 2026-08-26.** `useManualTraining` saiu da tela (o KPI de volume de 28 dias era o único
+      consumidor aqui). `ZoneDistributionInsight` removido. Aproveitado o `useAthleteHomeErrors` para
+      o Alert consolidado. O `AthleteLayout` ganhou `maxWidth: 640` no desktop — dívida da
+      `athlete-plan-agenda` (D1), quitada aqui porque é o mesmo container.
 
 ## 4. E2E
 
