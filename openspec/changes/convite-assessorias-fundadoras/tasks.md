@@ -200,3 +200,15 @@ Quatro revisores em paralelo (code, security, frontend, clean-code). Nenhum Crit
       projeção/JOIN se o volume crescer (code #4).
 - [ ] 6.10 `consultarConvite` sem `AbortSignal` — consistente com `cadastrar`, que também não cancela
       (frontend #6).
+
+## 7. CI dos PRs (2026-08-28)
+
+- [x] 7.1 Backend #87 falhou no `verify`: 15 `@SpringBootTest` sem profile (H2) caíram no
+      `SmtpEmailSender` sem `JavaMailSender`. Localmente o erro estava misturado aos 173 de
+      Testcontainers sem Docker e não foi separado — lição: **classificar cada erro de contexto pela
+      causa raiz**, não pelo tipo. Corrigido em `daa3fc3`: SMTP só em `cloud | dev`; arquivo no resto.
+- [x] 7.2 Front #99 falhou em `Lint, build e testes` com todos os testes passando: 46 *unhandled
+      errors* (`AbortSignal`/undici) porque `window.location.hash = …` nos testes do modo convite
+      dispara `hashchange` nos data routers de testes anteriores. Localmente eu li só o resumo e
+      não o exit code — lição: **checar `echo $?` e "unhandled"**, não só o `Tests passed`.
+      Corrigido: `history.replaceState` nos testes.
