@@ -1,0 +1,131 @@
+# Tasks — convite-assessorias-fundadoras
+
+## 0. Pré-condições operacionais (fora do código, bloqueiam o `/pr`)
+
+- [ ] 0.1 Usuário do founder com role `ADMIN` no Keycloak de **produção**, via `menthoros-infra`
+      (seed/sync), nunca pelo console. Registrar o procedimento no `keycloak/README.md` se ainda
+      não existir.
+      *verify:* JWT do founder em produção contém `ADMIN` em `realm_access.roles`.
+- [ ] 0.2 Vars `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_STARTTLS`, `SMTP_FROM`,
+      `SMTP_FROM_NAME` no serviço `menthoros-backend` do Railway (`develop` e `production`), por
+      referência às `KC_SMTP_*` do Keycloak. Conferir `FRONTEND_URL` nos dois ambientes.
+      *verify:* `railway variables --service menthoros-backend --environment develop` lista as sete.
+- [ ] 0.3 Confirmar no Resend que o domínio está verificado e que um segundo cliente SMTP com a
+      mesma API key envia normalmente (teste com a implementação da task 2.6 em `develop`).
+
+## 1. Discovery e decisões
+
+- [x] 1.1 **Decidido em 2026-08-28: inglês.** O ADR-0007 é sobre camadas; a regra de idioma está no
+      `CLAUDE.md` do backend ("Identifier Language", 2026-07-25): código novo nasce em inglês. Os
+      artefatos foram renomeados (`tb_founding_invite`, `FoundingInvite`, `founding`/`founding_converted_at`,
+      `origin`/`invite_id`, `InviteToken`, `EmailSender`, `inviteToken`). URLs ficam como no spec — são
+      contrato, e as rotas `/api/admin/**` existentes já são PT.
+- [x] 1.2 Confirmado: `KeycloakOrganizationGatewayImpl.java:148` usa `exact=true`; serve para "e-mail
+      já possui conta".
+- [x] 1.3 Spec revisada no `/implement init` (DoR) e renomeada junto com 1.1.
+
+## 2. Backend — convite e e-mail
+
+- [ ] 2.1 Migration `V84__create_tb_founding_invite_e_flag_fundadora.sql`: tabela, índice parcial
+      único por inscrito ativo, colunas `founding`/`founding_converted_at` em `tb_assessoria`,
+      `origin` em `tb_signup_provisioning` com `DEFAULT 'PUBLIC_SIGNUP'` e `invite_id` (FK,
+      índice parcial) para contar tentativas por convite.
+      *verify:* teste de migration com Testcontainers (padrão `SignupProvisioningMigrationTest`);
+      `./mvnw clean test`.
+- [ ] 2.2 Entidade `FoundingInvite` + `FoundingInviteRepository` (`findByTokenHash`,
+      `findOpenByWaitlistId` — não convertido e não invalidado, expirado incluso); campos `founding`/`foundingConvertedAt` em `Assessoria`;
+      `origem` em `SignupProvisioning` (enum `ProvisioningOrigin`).
+      *verify:* `./mvnw clean test`.
+- [ ] 2.3 `InviteToken` — geração (`SecureRandom` 32 bytes, base64url) e `hash(token)` SHA-256 hex;
+      `toString()` que não vaza o valor.
+      *verify:* testes unitários: 43 chars, hash estável, dois tokens nunca iguais.
+- [ ] 2.4 `EmailSender` (interface) + `EmailMessage` (record) + `FileEmailSender`
+      (`@Profile({"local","test"})`, grava `.eml` em `app.email.outbox-dir`, **nunca loga o
+      link**) + `SmtpEmailSender` (Spring Mail, profile `cloud`). Dependência
+      `spring-boot-starter-mail` no `pom.xml`; `spring.mail.*` no `application.yml` lendo `SMTP_*`.
+      *verify:* `./mvnw clean test`; em `local`/`test` o contexto sobe sem SMTP e o `.eml` aparece
+      no outbox; em `cloud` sem `SMTP_HOST` o contexto **falha** (teste de contexto negativo).
+- [ ] 2.5 Template `resources/templates/email/founding-invite.html` + `.txt` e renderizador de
+      placeholders (`{{nome}}`, `{{link}}`, `{{validade}}`). Copy em PT-BR, sem imagens.
+      *verify:* teste de renderização: nenhum `{{` sobra; link contém o token; HTML escapa o nome.
+- [ ] 2.6 `FoundingInviteService` / `Impl.convidar(waitlistId, adminSubject)`: `422` ATLETA,
+      `422` e-mail > 100 chars (limite do signup/`tb_usuario`), `409` e-mail com conta no
+      Keycloak, `409` já convertido, invalida **qualquer** convite anterior não convertido e não invalidado (inclusive expirado ou sem `sent_at` — o índice parcial não olha `expires_at`), insere novo, envia e-mail **fora**
+      da transação, `sent_at` no sucesso, `502` na falha de envio. Link no formato
+      `<FRONTEND_URL>/#/cadastro?convite=<token>` (fragmento — hash router).
+      *verify:* testes de serviço com `EmailSender` e gateway mockados — os cinco caminhos de erro,
+      reenvio invalidando o anterior **também quando expirado e quando o SMTP falhou** (sem violar o índice único), e que o token nunca aparece no retorno nem em log.
+- [ ] 2.7 `FoundingInviteAdminController` — `POST /api/admin/waitlist/{id}/convite`,
+      `@PreAuthorize("hasRole('ADMIN')")`, `202 { id, waitlistId, expiraEm }`; OpenAPI.
+      *verify:* `*IT` com `jwt()` sintético: `ADMIN` → 202; `TECNICO` → 403; sem JWT → 401.
+- [ ] 2.8 `FoundingInviteController` — `GET /api/public/founding-invites/{token}`: `200 {nome,email}`
+      só para convite ativo; `404` idêntico para expirado/invalidado/convertido/inexistente.
+      `PublicEndpointRateLimitFilter` vira **method-aware** (hoje ignora tudo que não é POST) com
+      política `GET` para `/api/public/founding-invites/*`.
+      *verify:* `*IT`: os cinco estados; **GETs** repetidos devolvem 429 após o limite; os POSTs
+      existentes continuam limitados como antes.
+
+## 3. Backend — modo fundadora no signup
+
+- [ ] 3.1 `CoachSignupInputDto.inviteToken` opcional; gate do `CoachSignupController` vira
+      `enabled || inviteToken != null`; no modo convite o header `Idempotency-Key` é ignorado e a
+      chave é derivada **por tentativa**: `"<token_hash>:<n>"`, `n` = rastros existentes com
+      aquele `invite_id`. `ACTIVE` → reenvio; só `FAILED` → tentativa nova; qualquer
+      `RECONCILIATION_REQUIRED` → `409`; estado intermediário (`STARTED`…`VERIFICATION_EMAIL_SENT`) → `409`.
+      *verify:* `*IT`: flag off + sem token → 404; flag off + token válido → 201; flag off + token
+      inválido → 404; teste de serviço: após `FAILED` compensado a segunda chamada **conclui**
+      (hoje o `resolverReenvio` rejeitaria); após `RECONCILIATION_REQUIRED` → 409.
+- [ ] 3.2 `NovoUsuarioKeycloak.emailVerificado` + gateway enviando `emailVerified` na
+      representação do usuário.
+      *verify:* teste do gateway confirma o campo no JSON; contrato conferido contra Keycloak 26.7
+      real em `develop` (como foi feito na 2.3 da change de onboarding).
+- [ ] 3.3 `ProvisioningMode` resolvido em `CoachSignupServiceImpl.cadastrar` antes da saga:
+      `FOUNDING_INVITE` → GRATUITO 10/1, `founding = true`, `foundingConvertedAt`,
+      `emailVerificado = true`, `acoesObrigatorias = []`, sem `enviarVerificacaoDeEmail`; e-mail do
+      DTO ≠ e-mail do convite → `422`; token não ativo → `404`.
+      *verify:* testes de serviço: os dois modos lado a lado (plano/limites/required actions/envio
+      de verificação), e-mail divergente, token expirado.
+- [ ] 3.4 Fechamento da saga: no `COMPLETED`, gravar `converted_at` e `assessoria_id` no convite na
+      mesma transação local do `Usuario`; `origin = FOUNDING_INVITE` no rastro; compensação não
+      toca o convite.
+      *verify:* teste: falha no Keycloak → assessoria compensada **e** convite continua ativo;
+      segunda tentativa gera chave **nova** (`"<hash>:2"`), conclui e marca `converted_at`;
+      asserção negativa: a chave `"<hash>:1"` nunca é reutilizada (o `resolverReenvio` a rejeitaria).
+- [ ] 3.5 Auditoria de logs: nenhum log/exception/trace com token, senha ou credencial SMTP.
+      *verify:* grep nos testes (`assertThat(logs).doesNotContain(token)`) como no signup.
+
+## 4. Frontend
+
+- [ ] 4.1 `CoachSignupService.consultarConvite(token)` + `inviteToken` opcional no payload; tipos.
+      *verify:* `npm run lint && npm run build`.
+- [ ] 4.2 `useCoachSignup`: estado do convite (`ocioso | carregando | valido | invalido`) e dados
+      pré-preenchidos.
+      *verify:* testes do hook (Vitest): 200 → `valido` com nome/e-mail; 404 → `invalido`.
+- [ ] 4.3 `CadastroPage` modo convite: lê `convite` do fragmento (`/#/cadastro?convite=`), guarda
+      em estado e faz `history.replaceState` removendo o parâmetro **antes** do primeiro render;
+      `valido` → nome/e-mail `disabled` + copy "turma fundadora"; `invalido` → tela de convite
+      inválido com CTA `/waitlist`; submit inclui `inviteToken`. Token nunca vai para storage.
+      `index.html` ganha `<meta name="referrer" content="strict-origin-when-cross-origin">`.
+      *verify:* testes de componente: os dois estados; campo desabilitado não editável; payload
+      carrega o token; após o mount `window.location.hash` não contém `convite`.
+- [ ] 4.4 `CadastroPage` sem token: `404` do `POST` (flag desligada) exibe "cadastro por convite"
+      com CTA `/waitlist`, em vez do erro genérico.
+      *verify:* teste de componente; `npm run lint && npm run build`.
+- [ ] 4.5 **(opcional — decisão do founder no init; product review sugeriu cortar)** E2E (Playwright) do caminho feliz com backend mockado: abrir `/#/cadastro?convite=x`,
+      preencher assessoria/slug/senha, ver redirecionamento ao login.
+      *verify:* `npx playwright test`.
+
+## 5. Validação em `develop` e rollout
+
+- [ ] 5.1 Em `develop`: convidar um inscrito de teste, receber o e-mail real (Resend), aceitar,
+      logar, confirmar JWT com `tenant_id` da nova organização e `PROPRIETARIO`, `Assessoria`
+      `GRATUITO 10/1 fundadora=true`, convite `converted_at`, `tb_signup_provisioning` com
+      `origin = FOUNDING_INVITE`.
+- [ ] 5.2 Em `develop`: reenvio invalida o anterior (link antigo → 404); link expirado (ajustar
+      `expires_at` no banco) → 404; segundo `POST` com o mesmo link depois de convertido → 409/404.
+- [ ] 5.3 `COACH_SIGNUP_ENABLED=false` em `production` no deploy; `/cadastro` sem token mostra o
+      aviso de convite.
+- [ ] 5.4 Atualizar `keycloak/README.md` (ADMIN do founder) e o `CLAUDE.md` do backend (seção de
+      e-mail: o backend agora envia e-mail transacional próprio; Keycloak segue com os dele).
+- [ ] 5.5 Marcar as tasks, registrar decisões tomadas durante a implementação neste arquivo e no
+      `design.md`, e seguir para `/qa` → `/pr`.
