@@ -78,7 +78,7 @@
 
 ## 3. Backend — modo fundadora no signup
 
-- [ ] 3.1 `CoachSignupInputDto.inviteToken` opcional; gate do `CoachSignupController` vira
+- [x] 3.1 **Feito** (3 testes de controller + 5 de serviço). `CoachSignupInputDto.inviteToken` opcional; gate do `CoachSignupController` vira
       `enabled || inviteToken != null`; no modo convite o header `Idempotency-Key` é ignorado e a
       chave é derivada **por tentativa**: `"<token_hash>:<n>"`, `n` = rastros existentes com
       aquele `invite_id`. `ACTIVE` → reenvio; só `FAILED` → tentativa nova; qualquer
@@ -86,24 +86,43 @@
       *verify:* `*IT`: flag off + sem token → 404; flag off + token válido → 201; flag off + token
       inválido → 404; teste de serviço: após `FAILED` compensado a segunda chamada **conclui**
       (hoje o `resolverReenvio` rejeitaria); após `RECONCILIATION_REQUIRED` → 409.
-- [ ] 3.2 `NovoUsuarioKeycloak.emailVerificado` + gateway enviando `emailVerified` na
+      📌 Token em branco é normalizado para `null` no DTO (uma representação só para "sem token").
+      Construtor de 6 args preservado para os chamadores existentes. A chave por tentativa é
+      calculada em `chavePorTentativa` lendo `findByInviteIdOrderByCreatedAtAsc`.
+- [x] 3.2 **Feito** (2 testes de gateway). `NovoUsuarioKeycloak.emailVerificado` + gateway enviando `emailVerified` na
       representação do usuário.
       *verify:* teste do gateway confirma o campo no JSON; contrato conferido contra Keycloak 26.7
       real em `develop` (como foi feito na 2.3 da change de onboarding).
-- [ ] 3.3 `ProvisioningMode` resolvido em `CoachSignupServiceImpl.cadastrar` antes da saga:
+      📌 Construtor de 5 args mantido (`emailVerificado = false`). A conferência contra o Keycloak
+      26.7 real fica para a 5.1 — o campo `emailVerified` na representação do usuário é documentado
+      na Admin REST API e já era enviado (fixo em `false`).
+- [x] 3.3 **Feito** (record `ProvisioningMode` em `services/impl`, package-private). `ProvisioningMode` resolvido em `CoachSignupServiceImpl.cadastrar` antes da saga:
       `FOUNDING_INVITE` → GRATUITO 10/1, `founding = true`, `foundingConvertedAt`,
       `emailVerificado = true`, `acoesObrigatorias = []`, sem `enviarVerificacaoDeEmail`; e-mail do
       DTO ≠ e-mail do convite → `422`; token não ativo → `404`.
       *verify:* testes de serviço: os dois modos lado a lado (plano/limites/required actions/envio
       de verificação), e-mail divergente, token expirado.
-- [ ] 3.4 Fechamento da saga: no `COMPLETED`, gravar `converted_at` e `assessoria_id` no convite na
+      📌 Decisão extra: no modo convite os limites anti-abuso por e-mail/dia e o teto diário **não se
+      aplicam** — o token é o portão, e o limite de 3/dia bloquearia a retentativa legítima após
+      falha. `proximoPasso` do convite é "Sua assessoria está pronta…" (`PRONTO_PARA_ENTRAR`), já
+      que não há verificação a esperar. Métricas: `sucesso_convite`, `convite_invalido`,
+      `convite_email_divergente`, `convite_reconciliacao_pendente`, `convite_tentativa_em_curso`.
+- [x] 3.4 **Feito** (4 testes). Fechamento da saga: no `COMPLETED`, gravar `converted_at` e `assessoria_id` no convite na
       mesma transação local do `Usuario`; `origin = FOUNDING_INVITE` no rastro; compensação não
       toca o convite.
       *verify:* teste: falha no Keycloak → assessoria compensada **e** convite continua ativo;
       segunda tentativa gera chave **nova** (`"<hash>:2"`), conclui e marca `converted_at`;
       asserção negativa: a chave `"<hash>:1"` nunca é reutilizada (o `resolverReenvio` a rejeitaria).
-- [ ] 3.5 Auditoria de logs: nenhum log/exception/trace com token, senha ou credencial SMTP.
+      📌 A saga é deliberadamente sem transação (ver JavaDoc); `convertedAt` é gravado logo após o
+      rastro virar `ACTIVE`, num save próprio. Se esse save falhar depois do `ACTIVE`, o convite
+      fica aberto com assessoria criada — a próxima tentativa cai no rastro `ACTIVE` e devolve o
+      resultado sem provisionar de novo; o `existsByWaitlistIdAndConvertedAtIsNotNull` do reenvio
+      não pegaria, mas o `buscarUsuarioIdPorEmail` sim (409). Aceito para 10 registros.
+- [x] 3.5 **Feito.** Auditoria de logs: nenhum log/exception/trace com token, senha ou credencial SMTP.
       *verify:* grep nos testes (`assertThat(logs).doesNotContain(token)`) como no signup.
+      📌 Coberto por `tokenNaoVaza` (serviço do signup, serviço do convite e `FileEmailSender`),
+      `EmailMessage`/`NovoUsuarioKeycloak`/`InviteToken` com `toString()` mascarado, e o hash do
+      payload sem senha nem token.
 
 ## 4. Frontend
 
