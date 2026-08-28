@@ -105,14 +105,14 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
 
 ## F. Mecânica do programa fundador (proposal.md item F)
 
-- [ ] F.1 `content.ts#faq.items`: resposta de "Quanto custa?" reescrita com a mecânica real — 60 dias
+- [x] F.1 `content.ts#faq.items`: resposta de "Quanto custa?" reescrita com a mecânica real — 60 dias
       grátis sem cartão, dia 61 cadastra cartão e vira Basic R$99 (≤20 atletas, 1 técnico), sem
-      cadastro perde acesso. Sem placeholder (AC4).
-- [ ] F.2 `content.ts#finalCta`: subtítulo reforça o enquadramento de programa fundador ("uma das 10
-      assessorias fundadoras... seu retorno molda as próximas versões").
-- [ ] F.3 `AccessForm.tsx`: microcopy sob o botão de submit — "Sem compromisso · 60 dias grátis, sem
+      cadastro perde acesso. Sem placeholder (AC4). **Feito em 1393e6f.**
+- [x] F.2 `content.ts#finalCta`: subtítulo reforça o enquadramento de programa fundador ("uma das 10
+      assessorias fundadoras... seu retorno molda as próximas versões"). **Feito em 1393e6f.**
+- [x] F.3 `AccessForm.tsx`: microcopy sob o botão de submit — "Sem compromisso · 60 dias grátis, sem
       cartão · 10 vagas no programa fundador" (substitui a linha atual "Sem compromisso · vagas
-      limitadas").
+      limitadas"). **Feito em 1393e6f.**
 
 ## G. Formulário — validação e link (D6, D7)
 
