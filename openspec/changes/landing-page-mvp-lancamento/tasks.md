@@ -13,28 +13,39 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
 
 ## 0. Preparação de asset
 
-- [ ] 0.1 Reencode `showcase.mp4` com `-movflags +faststart`, ~720p, ~1MB (ver `design.md` D3).
+- [x] 0.1 Reencode `showcase.mp4` com `-movflags +faststart`, ~720p, ~1MB (ver `design.md` D3).
       Gerar poster (frame real do vídeo, não desenhado) e salvar em `src/assets/landing/`. Validar
-      visualmente antes de substituir o asset atual.
+      visualmente antes de substituir o asset atual. **Feito em 75c3045** — 3,0MB → 1,7MB, `moov`
+      confirmado antes do `mdat`, poster real extraído em t=2.6s (1200×675).
 
 ## A. Hero (D1, D2)
 
-- [ ] A.1 `VideoShowcase.tsx`: vídeo vira fundo absoluto do hero (não mais bloco de 560px acima). Ganha
+- [x] A.1 `VideoShowcase.tsx`: vídeo vira fundo absoluto do hero (não mais bloco de 560px acima). Ganha
       `poster`, `preload="metadata"` (era `"auto"`), overlays de degradê horizontal + vertical (D2).
-      Autoplay condicional a `prefers-reduced-motion` já existe — preservar.
-- [ ] A.2 `sections.tsx#Hero`: bloco texto+CTA+card vira `minHeight: calc(100vh - <nav>)` +
+      Autoplay condicional a `prefers-reduced-motion` já existe — preservar. **Feito em 9f5828e** —
+      reduzido para vídeo decorativo (`aria-hidden`, sem controles/aria-label; a proposta de valor
+      está no texto). Opacidade dos overlays ajustada a pedido do founder para o vídeo ficar mais
+      aparente (padrões finais: horizontal desktop 0.8→0.18, vertical topo/base 0.18).
+- [x] A.2 `sections.tsx#Hero`: bloco texto+CTA+card vira `minHeight: calc(100vh - <nav>)` +
       `alignItems: center` no lugar do `mt` negativo atual que sobrepõe o vídeo (`LandingPage.tsx:30`).
-      Object-position do vídeo ajustado para não colidir com o texto (D2).
-- [ ] A.3 `hero.scarcity` em `content.ts`: "Turma fundadora · vagas limitadas para as primeiras
-      assessorias" → "10 vagas do programa fundador · 60 dias grátis, sem cartão".
-- [ ] A.4 `hero.eyebrow` em `content.ts`: "Performance intelligence" → "Inteligência de performance"
-      (única string em inglês da página).
-- [ ] A.5 Validação manual: 1366×768 e 1440×900, título + CTA + card visíveis sem rolar (AC1).
-      **Protocolo de LCP (AC9, achado 6 do pré-mortem):** `npm run build && npm run preview`;
-      Lighthouse CLI preset mobile padrão (throttling 4G simulado + CPU 4x — sem customização), 3
-      execuções em `develop` (baseline) e 3 na branch da change; comparar a **mediana** de LCP; salvar
-      os 6 relatórios (HTML ou JSON) numa pasta local e anexar ao PR como evidência — um número solto
-      sem os relatórios não conta como validado.
+      Object-position do vídeo ajustado para não colidir com o texto (D2). **Feito em 9f5828e** —
+      `NAV_HEIGHT_PX` (constante, `primitives.tsx`) usado no `calc()`; nav ganhou tamanho fixo (py e
+      logo não variam mais com `stuck`) para o `calc()` nunca ficar errado no load inicial (achado do
+      pré-mortem sobre mismatch de primeiro paint, `design.md` D1). Vídeo posicionado como irmão de
+      Nav/Hero (não pai) para preservar o sticky de página inteira da Nav.
+- [x] A.3 `hero.scarcity` em `content.ts`: "Turma fundadora · vagas limitadas para as primeiras
+      assessorias" → "10 vagas do programa fundador · 60 dias grátis, sem cartão". **Feito em 9f5828e.**
+- [x] A.4 `hero.eyebrow` em `content.ts`: "Performance intelligence" → "Inteligência de performance"
+      (única string em inglês da página). **Feito em 9f5828e.**
+- [x] A.5 Validação manual: 1366×768 e 1440×900, título + CTA + card visíveis sem rolar (AC1). **Feito**
+      — confirmado via Playwright (h1/CTA/card dentro da viewport nos dois tamanhos, screenshots
+      revisados). Protocolo completo de LCP (mediana de 3 execuções, `develop` vs. branch) **fica para
+      o fechamento (seção I)** — mais eficiente rodar uma vez só, com todas as seções já implementadas,
+      em vez de repetir a cada checkpoint.
+- [x] A.6 Validação de viewport curto/extremo: 1366×600 (conteúdo cabe sem cortar), mobile landscape
+      844×390 (sem clipping — CTA fica abaixo da dobra nesse tamanho extremo, mas acessível por
+      scroll, sem `overflow:hidden` escondendo nada) — confirmado via Playwright. Mismatch de
+      primeiro paint resolvido pela nav de tamanho fixo (A.2), não precisou de `ResizeObserver`.
 - [ ] A.6 Validação de viewport curto/extremo (achado do pré-mortem, `design.md` D1): 1366×600, zoom
       de browser 150–200%, mobile landscape 844×390 — hero não corta título/CTA nem trava altura que
       esconde conteúdo (sem `overflow: hidden` no container do hero) (AC8b). Conferir também o
