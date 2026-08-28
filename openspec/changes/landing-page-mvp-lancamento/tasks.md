@@ -137,9 +137,11 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
 
 ## H. Contraste (proposal.md item H)
 
-- [ ] H.1 Trocar `text.disabled` (`#64748B`) por `text.secondary` (`#94A3B8`) nos rótulos mono da
+- [x] H.1 Trocar `text.disabled` (`#64748B`) por `text.secondary` (`#94A3B8`) nos rótulos mono da
       landing: eyebrow do hero, linha de escassez, `SectionMark`, chips de prova (hero + Trust),
       legenda do loop (`HowItWorks`), rodapé. Conferir contraste ≥4.5:1 contra `#0A1628` depois (AC8).
+      **Feito em e0b7320 (SectionMark, seção B) + c9cff3c (demais)** — `#94A3B8` sobre `#0A1628` =
+      7,3:1, acima do AA (4,5:1). Coluna muted de `Fit` deixada como está — desênfase deliberada.
 
 ## I. Fechamento
 
