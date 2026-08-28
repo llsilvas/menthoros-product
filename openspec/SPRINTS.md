@@ -2,7 +2,25 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-08-27/28, madrugada (**`fix-limites-plano-basic-e-scale` entregue e
+**Última atualização:** 2026-08-28, madrugada (**`landing-page-mvp-lancamento` entregue e
+arquivada** — PR front #98 mergeado. M · Full, a landing pública reformulada para o lançamento do
+MVP com 10 vagas de programa fundador. Nasceu de uma revisão de design em canvas
+(<https://claude.ai/code/artifact/c862932f-7228-437c-bc61-74d478aa4dd6>): vídeo do hero virou fundo
+absoluto (era um bloco de 560px empurrando título e CTA para fora da dobra em 1366×768), nova seção
+"Planos e preços" com os 5 tiers do lançamento, honestidade de compatibilidade (hoje só Garmin —
+copy antiga prometia "qualquer marca"), mecânica real do trial (60 dias grátis, sem cartão) no lugar
+de "estamos fechando os planos", e o botão de submit trocou "disabled até aceitar LGPD" por
+validação no submit (função pura testada, cobrindo clique e Enter) — o mesmo bug de link dentro de
+`&lt;label&gt;` de `add-coach-lgpd-consent` apareceu de novo aqui e foi corrigido do mesmo jeito.
+Bloqueada por um gate próprio (I.0) até `fix-limites-plano-basic-e-scale` mergear — a página publica
+"Basic ≤20 atletas" e o plano Scale, que só existiam de verdade no backend depois daquele PR. QA
+(2 revisores) achou e corrigiu mais dois problemas pequenos: erro de consentimento ficava obsoleto
+na tela depois de marcar o checkbox, e uma string do rodapé do formulário escapou da varredura de
+contraste. E2E novo cobrindo o fluxo de consentimento (`tests/e2e/landing/acesso.spec.ts`). Sem
+prova social real nem posicionamento vs. concorrência (Non-Goals) — audiência é a waitlist já
+existente, não tráfego frio, confirmado pelo founder.)
+
+Antes, na madrugada de 2026-08-27/28: (**`fix-limites-plano-basic-e-scale` entregue e
 arquivada** — PR backend #86 mergeado. XS · Fast. Achada revisando a proposta de
 `landing-page-mvp-lancamento` contra o código real: o auto-cadastro público criava toda assessoria
 nova como Basic com `maxAtletas = 10` — o mesmo limite do plano Gratuito, não os 20 confirmados pelo
@@ -11,9 +29,7 @@ tier). Corrigido: `MAX_ATLETAS_BASIC` → 20, enum ganhou `SCALE`, migration `V8
 do banco (também fechou de graça um gap pré-existente: `GRATUITO` nunca tinha entrado nesse CHECK).
 QA achou um gap de segurança pré-existente e não introduzido por esta change — `maxAtletas` nunca é
 verificado em runtime em lugar nenhum do código (`Assessoria.podeAdicionarAtleta()` existe mas nunca
-é chamado) — registrado, não corrigido aqui; decisão de abrir change própria fica com o founder.
-`landing-page-mvp-lancamento` (frontend) estava bloqueada nesta dependência (gate I.0) e segue agora
-para PR.)
+é chamado) — registrado, não corrigido aqui; decisão de abrir change própria fica com o founder.)
 
 Antes, na noite de 2026-08-27: (**`kudos-janela-recentes` entregue e arquivada** — PR
 backend #85 mergeado. Achada numa conversa de follow-up sobre "eventos push antigos" na tela do
