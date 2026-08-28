@@ -146,11 +146,12 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
 
 ## I. Fechamento
 
-- [ ] I.0 **Gate bloqueante (achado alto do pré-mortem):** não abrir o PR desta change, nem mergear,
+- [x] I.0 **Gate bloqueante (achado alto do pré-mortem):** não abrir o PR desta change, nem mergear,
       sem confirmar que `fix-limites-plano-basic-e-scale` está mergeada em `develop`, migrada
       (`V83` aplicada) e com AC1/AC2 verificadas no ambiente alvo. A task D.1 (copy "Basic ≤20
       atletas") passa em lint/build/test mesmo sem o backend — só este gate impede publicar uma
-      promessa que o produto ainda rejeita.
+      promessa que o produto ainda rejeita. **Satisfeito em 2026-08-28** — PR backend #86 mergeado
+      em `develop` (commit `2c03a38`, trazido pelo fetch/pull local), `V83` aplicada.
 - [x] I.1 `npm run lint && npm run build && npm run test:run` — suíte completa, incluindo
       `LandingPage.test.tsx`, `AccessForm.test.tsx`, `Nav.test.tsx` atualizados (AC10). **Feito** —
       19/19 testes da landing, 0 erros de lint, build limpo (última rodada após a819a41).
