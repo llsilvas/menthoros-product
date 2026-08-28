@@ -158,15 +158,16 @@
 
 ## 5. Validação em `develop` e rollout
 
-- [ ] 5.1 Em `develop`: convidar um inscrito de teste, receber o e-mail real (Resend), aceitar,
+- [ ] 5.1 **Aguarda pré-condições 0.1–0.3 (founder).** Em `develop`: convidar um inscrito de teste, receber o e-mail real (Resend), aceitar,
       logar, confirmar JWT com `tenant_id` da nova organização e `PROPRIETARIO`, `Assessoria`
       `GRATUITO 10/1 fundadora=true`, convite `converted_at`, `tb_signup_provisioning` com
       `origin = FOUNDING_INVITE`.
-- [ ] 5.2 Em `develop`: reenvio invalida o anterior (link antigo → 404); link expirado (ajustar
+- [ ] 5.2 **Aguarda 5.1.** Em `develop`: reenvio invalida o anterior (link antigo → 404); link expirado (ajustar
       `expires_at` no banco) → 404; segundo `POST` com o mesmo link depois de convertido → 409/404.
-- [ ] 5.3 `COACH_SIGNUP_ENABLED=false` em `production` no deploy; `/cadastro` sem token mostra o
+- [ ] 5.3 **Operacional (founder), no deploy.** `COACH_SIGNUP_ENABLED=false` em `production` no deploy; `/cadastro` sem token mostra o
       aviso de convite.
-- [ ] 5.4 Atualizar `keycloak/README.md` (ADMIN do founder) e o `CLAUDE.md` do backend (seção de
+- [x] 5.4 **Feito** (`menthoros-infra` main, commit local; backend `CLAUDE.md` na feature branch). Atualizar `keycloak/README.md` (ADMIN do founder) e o `CLAUDE.md` do backend (seção de
       e-mail: o backend agora envia e-mail transacional próprio; Keycloak segue com os dele).
-- [ ] 5.5 Marcar as tasks, registrar decisões tomadas durante a implementação neste arquivo e no
+- [x] 5.5 **Feito até o QA** — tasks marcadas por seção com as decisões; QA disparado em
+      2026-08-28; o PR só depois das pré-condições e do E2E (4.5) decidido. Marcar as tasks, registrar decisões tomadas durante a implementação neste arquivo e no
       `design.md`, e seguir para `/qa` → `/pr`.
