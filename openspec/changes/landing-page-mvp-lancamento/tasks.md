@@ -68,10 +68,12 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
 
 ## C. Seção Confiança (D8)
 
-- [ ] C.1 `sections.tsx#Trust`: remove `founder-placeholder.jpg` e a imagem com legenda. Vira card com
+- [x] C.1 `sections.tsx#Trust`: remove `founder-placeholder.jpg` e a imagem com legenda. Vira card com
       citação do fundador (`content.ts#trust.founderBio` reaproveitado como citação) + avatar de
-      iniciais (mesmo padrão de avatar do `AttentionQueue`, `ProductUI.tsx:47`).
-- [ ] C.2 Sem bloco de 3 fatos (prova social) — não entra nesta change (Non-Goal, `proposal.md`).
+      iniciais (mesmo padrão de avatar do `AttentionQueue`, `ProductUI.tsx:47`). **Feito em 97f99c0**
+      — asset não usado removido do repo.
+- [x] C.2 Sem bloco de 3 fatos (prova social) — não entra nesta change (Non-Goal, `proposal.md`).
+      **Confirmado** — nada adicionado.
 
 ## D. Planos e preços (D5)
 
