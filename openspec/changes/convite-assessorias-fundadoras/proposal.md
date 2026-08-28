@@ -1,7 +1,7 @@
 # convite-assessorias-fundadoras — Converter a waitlist nas 10 assessorias fundadoras por convite
 
 **Tamanho:** M · **Trilha:** Full
-**Status:** proposta
+**Status:** em revisão — PRs [backend #87](https://github.com/llsilvas/menthoros-backend/pull/87) · [front #99](https://github.com/llsilvas/menthoros-front/pull/99) (2026-08-28)
 **Criado:** 2026-08-28
 
 ## Problema
