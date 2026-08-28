@@ -77,19 +77,20 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
 
 ## D. Planos e preços (D5)
 
-- [ ] D.1 `content.ts`: novo objeto `pricing` com os 5 planos (nome, atletas, técnicos, preço) e a
+- [x] D.1 `content.ts`: novo objeto `pricing` com os 5 planos (nome, atletas, técnicos, preço) e a
       intro ("Estes são os planos a partir do lançamento geral..."). Valores exatos:
       Gratuito `≤10 / 1 / R$0`, Basic `≤20 / 1 / R$99` (destacado), Pro `≤50 / 2 / R$199`, Enterprise
-      `≤100 / 5 / R$349`, Scale `100+ / Ilimitado / R$599`.
-- [ ] D.2 `sections.tsx`: novo `PlanCard` + `Pricing` (grid `repeat(5,1fr)` desktop / 1 coluna mobile),
+      `≤100 / 5 / R$349`, Scale `100+ / Ilimitado / R$599`. **Feito em 1101c06.**
+- [x] D.2 `sections.tsx`: novo `PlanCard` + `Pricing` (grid `repeat(5,1fr)` desktop / 1 coluna mobile),
       inserida entre `Trust` e `Faq` em `LandingPage.tsx`. Card `Basic` com borda lime + badge "SEU
       PLANO APÓS O TRIAL" (`position: absolute; top: -11px` — checar overflow do container pai).
       **Achado do pré-mortem (alto):** o card `Basic` e/ou o parágrafo de intro da seção precisam
       declarar por extenso "60 dias grátis, sem cartão — no dia 61 vira Basic se você cadastrar o
       cartão", não só o badge — quem lê só essa seção (sem abrir o FAQ) não pode ver R$99–R$599 sem
       esse contexto (AC3b). Numeral de seção da `Pricing` é `07`; `Faq` renumera para `08`.
-- [ ] D.3 Validar renderização em 1366px (5 colunas) e 390px (empilhado) — sem overflow horizontal,
-      badge não cortado (AC3).
+      **Feito em 1101c06** — nota do trial em `primary.main` logo abaixo da intro (AC3b atendida).
+- [x] D.3 Validar renderização em 1366px (5 colunas) e 390px (empilhado) — sem overflow horizontal,
+      badge não cortado (AC3). **Feito** — confirmado via Playwright nos dois tamanhos.
 
 ## E. Compatibilidade Garmin (proposal.md item E)
 
