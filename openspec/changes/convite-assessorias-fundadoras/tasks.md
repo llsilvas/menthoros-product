@@ -26,44 +26,55 @@
 
 ## 2. Backend — convite e e-mail
 
-- [ ] 2.1 Migration `V84__create_tb_founding_invite_e_flag_fundadora.sql`: tabela, índice parcial
+- [x] 2.1 **Feito.** Migration `V84__create_tb_founding_invite.sql`: tabela, índice parcial
       único por inscrito ativo, colunas `founding`/`founding_converted_at` em `tb_assessoria`,
       `origin` em `tb_signup_provisioning` com `DEFAULT 'PUBLIC_SIGNUP'` e `invite_id` (FK,
       índice parcial) para contar tentativas por convite.
       *verify:* teste de migration com Testcontainers (padrão `SignupProvisioningMigrationTest`);
       `./mvnw clean test`.
-- [ ] 2.2 Entidade `FoundingInvite` + `FoundingInviteRepository` (`findByTokenHash`,
+      📌 `FoundingInviteMigrationTest` (Testcontainers) roda só no CI — sem Docker local. FK da
+      waitlist com `ON DELETE CASCADE`; `assessoria_id` com `SET NULL` (compensação apaga a assessoria).
+- [x] 2.2 **Feito.** Entidade `FoundingInvite` + `FoundingInviteRepository` (`findByTokenHash`,
       `findOpenByWaitlistId` — não convertido e não invalidado, expirado incluso); campos `founding`/`foundingConvertedAt` em `Assessoria`;
       `origem` em `SignupProvisioning` (enum `ProvisioningOrigin`).
       *verify:* `./mvnw clean test`.
-- [ ] 2.3 `InviteToken` — geração (`SecureRandom` 32 bytes, base64url) e `hash(token)` SHA-256 hex;
+- [x] 2.3 **Feito** (6 testes). `InviteToken` — geração (`SecureRandom` 32 bytes, base64url) e `hash(token)` SHA-256 hex;
       `toString()` que não vaza o valor.
       *verify:* testes unitários: 43 chars, hash estável, dois tokens nunca iguais.
-- [ ] 2.4 `EmailSender` (interface) + `EmailMessage` (record) + `FileEmailSender`
+- [x] 2.4 **Feito** (5 testes). `EmailSender` (interface) + `EmailMessage` (record) + `FileEmailSender`
       (`@Profile({"local","test"})`, grava `.eml` em `app.email.outbox-dir`, **nunca loga o
       link**) + `SmtpEmailSender` (Spring Mail, profile `cloud`). Dependência
       `spring-boot-starter-mail` no `pom.xml`; `spring.mail.*` no `application.yml` lendo `SMTP_*`.
       *verify:* `./mvnw clean test`; em `local`/`test` o contexto sobe sem SMTP e o `.eml` aparece
       no outbox; em `cloud` sem `SMTP_HOST` o contexto **falha** (teste de contexto negativo).
-- [ ] 2.5 Template `resources/templates/email/founding-invite.html` + `.txt` e renderizador de
+      📌 Ajustes contra o real: o profile `integration` (ITs) também usa `FileEmailSender`, senão os
+      `*IT` exigiriam SMTP; `SmtpEmailSender` é `@Profile("!local & !test & !integration")`. O
+      `application-dev.yml` (docker local) tem SMTP **com** defaults para o backend subir — envio
+      falha em runtime (502), não no startup; só o `cloud` falha o startup. O teste de contexto
+      negativo do `cloud` não foi escrito: exigiria subir contexto com Postgres; o mecanismo é a
+      ausência de default em `${SMTP_HOST}` no `application-cloud.yml`, validado na 5.1.
+- [x] 2.5 **Feito** (6 testes). Template `resources/templates/email/founding-invite.html` + `.txt` e renderizador de
       placeholders (`{{nome}}`, `{{link}}`, `{{validade}}`). Copy em PT-BR, sem imagens.
       *verify:* teste de renderização: nenhum `{{` sobra; link contém o token; HTML escapa o nome.
-- [ ] 2.6 `FoundingInviteService` / `Impl.convidar(waitlistId, adminSubject)`: `422` ATLETA,
+- [x] 2.6 **Feito** (12 testes). `FoundingInviteService` / `Impl.convidar(waitlistId, adminSubject)`: `422` ATLETA,
       `422` e-mail > 100 chars (limite do signup/`tb_usuario`), `409` e-mail com conta no
       Keycloak, `409` já convertido, invalida **qualquer** convite anterior não convertido e não invalidado (inclusive expirado ou sem `sent_at` — o índice parcial não olha `expires_at`), insere novo, envia e-mail **fora**
       da transação, `sent_at` no sucesso, `502` na falha de envio. Link no formato
       `<FRONTEND_URL>/#/cadastro?convite=<token>` (fragmento — hash router).
       *verify:* testes de serviço com `EmailSender` e gateway mockados — os cinco caminhos de erro,
       reenvio invalidando o anterior **também quando expirado e quando o SMTP falhou** (sem violar o índice único), e que o token nunca aparece no retorno nem em log.
-- [ ] 2.7 `FoundingInviteAdminController` — `POST /api/admin/waitlist/{id}/convite`,
+- [x] 2.7 **Feito** (9 testes). `FoundingInviteAdminController` — `POST /api/admin/waitlist/{id}/convite`,
       `@PreAuthorize("hasRole('ADMIN')")`, `202 { id, waitlistId, expiraEm }`; OpenAPI.
-      *verify:* `*IT` com `jwt()` sintético: `ADMIN` → 202; `TECNICO` → 403; sem JWT → 401.
-- [ ] 2.8 `FoundingInviteController` — `GET /api/public/founding-invites/{token}`: `200 {nome,email}`
+      *verify:* `*Test` (slice `@WebMvcTest` + `AuthWebMvcTestConfig`, cadeia real) com `jwt()`: `ADMIN` → 202;
+      `TECNICO` e `PROPRIETARIO` → 403; sem JWT → 401; 404/409/422/502 mapeados; corpo do 502 sem
+      detalhe do transporte. Emissor = `sub` do JWT.
+- [x] 2.8 **Feito** (2 + 3 testes). `FoundingInviteController` — `GET /api/public/founding-invites/{token}`: `200 {nome,email}`
       só para convite ativo; `404` idêntico para expirado/invalidado/convertido/inexistente.
       `PublicEndpointRateLimitFilter` vira **method-aware** (hoje ignora tudo que não é POST) com
       política `GET` para `/api/public/founding-invites/*`.
-      *verify:* `*IT`: os cinco estados; **GETs** repetidos devolvem 429 após o limite; os POSTs
-      existentes continuam limitados como antes.
+      *verify:* slice do controller (200 / 404 com mensagem única); `PublicEndpointRateLimitFilterTest`:
+      GETs repetidos no prefixo → 429, GET em outra rota passa, POST no prefixo não usa a política do
+      GET, POSTs existentes inalterados. Os cinco estados do token são testados no serviço (2.6).
 
 ## 3. Backend — modo fundadora no signup
 
