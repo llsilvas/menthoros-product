@@ -53,16 +53,18 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
 
 ## B. Seções abaixo da dobra (D4)
 
-- [ ] B.1 `primitives.tsx#SectionMark`: numeral + rótulo na mesma linha (`align-items: baseline`),
-      remove a linha `§ NN — rótulo` duplicada acima dele.
-- [ ] B.2 `primitives.tsx#SectionHeading`: título com `\n` ganha espaço antes do `<br>` condicional
+- [x] B.1 `primitives.tsx#SectionMark`: numeral + rótulo na mesma linha (`align-items: baseline`),
+      remove a linha `§ NN — rótulo` duplicada acima dele. **Feito em e0b7320** — também trocou
+      `text.disabled` por `text.secondary` no rótulo (antecipa parte de H).
+- [x] B.2 `primitives.tsx#SectionHeading`: título com `\n` ganha espaço antes do `<br>` condicional
       (hoje o `<br>` some abaixo de 900px sem deixar nada no lugar → "lendoplanilha" etc). Testar as
-      7 seções em 390px depois da mudança (AC2).
-- [ ] B.3 `sections.tsx#HowItWorks`: passos viram pílulas mono `PASSO 01/02/03` no lugar dos numerais
-      grandes em lime (`content.ts#how.steps` não muda, só o componente).
-- [ ] B.4 `sections.tsx#Delta`: cabeçalho do card reordenado — `content.ts#delta.context` de
+      7 seções em 390px depois da mudança (AC2). **Feito em e0b7320** — os 8 `<h2>` da página
+      conferidos em 390px, nenhuma palavra colada.
+- [x] B.3 `sections.tsx#HowItWorks`: passos viram pílulas mono `PASSO 01/02/03` no lugar dos numerais
+      grandes em lime (`content.ts#how.steps` não muda, só o componente). **Feito em e0b7320.**
+- [x] B.4 `sections.tsx#Delta`: cabeçalho do card reordenado — `content.ts#delta.context` de
       `"CARGA INTERNA · HUGO SILVA · SEMANA 14"` para `"HUGO SILVA · SEM. 14 · CARGA INTERNA"` (evita
-      "14" órfão no mobile).
+      "14" órfão no mobile). **Feito em e0b7320** — confirmado sem quebra em 1366px e 390px.
 
 ## C. Seção Confiança (D8)
 
