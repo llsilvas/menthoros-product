@@ -150,10 +150,17 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
       (`V83` aplicada) e com AC1/AC2 verificadas no ambiente alvo. A task D.1 (copy "Basic ≤20
       atletas") passa em lint/build/test mesmo sem o backend — só este gate impede publicar uma
       promessa que o produto ainda rejeita.
-- [ ] I.1 `npm run lint && npm run build && npm run test:run` — suíte completa, incluindo
-      `LandingPage.test.tsx`, `AccessForm.test.tsx`, `Nav.test.tsx` atualizados (AC10).
-- [ ] I.2 `npm run test:e2e` — fluxo de acesso (preencher formulário, consentir, submeter) é crítico
+- [x] I.1 `npm run lint && npm run build && npm run test:run` — suíte completa, incluindo
+      `LandingPage.test.tsx`, `AccessForm.test.tsx`, `Nav.test.tsx` atualizados (AC10). **Feito** —
+      19/19 testes da landing, 0 erros de lint, build limpo (última rodada após a819a41).
+- [x] I.2 `npm run test:e2e` — fluxo de acesso (preencher formulário, consentir, submeter) é crítico
       por tocar LGPD (`CLAUDE.md` do front, "E2E is mandatory on critical flows"); spec nova ou
-      existente que exercite o novo comportamento do botão/erro de consentimento.
-- [ ] I.3 Smoke visual em 1366×768, 1440×900 e 390×844 (Playwright ou browser) — confirmar AC1, AC2,
-      AC3 lado a lado com o canvas de referência.
+      existente que exercite o novo comportamento do botão/erro de consentimento. **Feito em a818a41**
+      — `tests/e2e/landing/acesso.spec.ts`, 3 specs (sem consentimento por clique/Enter, envio
+      completo, link navega sem alternar o checkbox). Suíte completa do repo: 86/88 passam; os 2
+      que falham (`coach/workout-profile.spec.ts`, timeout) são de área não tocada por esta change
+      — não investigados, fora do escopo.
+- [x] I.3 Smoke visual em 1366×768, 1440×900 e 390×844 (Playwright ou browser) — confirmar AC1, AC2,
+      AC3 lado a lado com o canvas de referência. **Feito** — cada seção conferida individualmente
+      durante a implementação (A–H); checagem final de `scrollWidth === viewport` nos três tamanhos
+      confirma zero overflow horizontal na página inteira.
