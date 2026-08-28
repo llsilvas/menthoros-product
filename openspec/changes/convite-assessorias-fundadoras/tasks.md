@@ -126,22 +126,33 @@
 
 ## 4. Frontend
 
-- [ ] 4.1 `CoachSignupService.consultarConvite(token)` + `inviteToken` opcional no payload; tipos.
+- [x] 4.1 **Feito.** `CoachSignupService.consultarConvite(token)` + `inviteToken` opcional no payload; tipos.
       *verify:* `npm run lint && npm run build`.
-- [ ] 4.2 `useCoachSignup`: estado do convite (`ocioso | carregando | valido | invalido`) e dados
+- [x] 4.2 **Feito** (8 testes de hook). `useCoachSignup`: estado do convite (`ocioso | carregando | valido | invalido`) e dados
       pré-preenchidos.
       *verify:* testes do hook (Vitest): 200 → `valido` com nome/e-mail; 404 → `invalido`.
-- [ ] 4.3 `CadastroPage` modo convite: lê `convite` do fragmento (`/#/cadastro?convite=`), guarda
+      📌 Ganhou também o status `fechado` (404 **sem** token → tela "cadastro por convite") e
+      mensagens próprias do modo convite para 404/409/422.
+- [x] 4.3 **Feito** (5 testes de componente). `CadastroPage` modo convite: lê `convite` do fragmento (`/#/cadastro?convite=`), guarda
       em estado e faz `history.replaceState` removendo o parâmetro **antes** do primeiro render;
       `valido` → nome/e-mail `disabled` + copy "turma fundadora"; `invalido` → tela de convite
       inválido com CTA `/waitlist`; submit inclui `inviteToken`. Token nunca vai para storage.
       `index.html` ganha `<meta name="referrer" content="strict-origin-when-cross-origin">`.
       *verify:* testes de componente: os dois estados; campo desabilitado não editável; payload
       carrega o token; após o mount `window.location.hash` não contém `convite`.
-- [ ] 4.4 `CadastroPage` sem token: `404` do `POST` (flag desligada) exibe "cadastro por convite"
+      📌 Token lido e removido **direto do `location.hash`** (`history.replaceState`), sem
+      `useSearchParams`: a navegação do data router cria um `Request` com `AbortSignal` do jsdom e
+      falha nos testes, e o router não precisa saber do token. Nome/e-mail são **derivados** do
+      convite (não copiados para estado) — sem segundo render, sem chance de edição. Tela de
+      sucesso do convite não mostra "Enviamos para…" (não há verificação).
+- [x] 4.4 **Feito** (1 teste). `CadastroPage` sem token: `404` do `POST` (flag desligada) exibe "cadastro por convite"
       com CTA `/waitlist`, em vez do erro genérico.
       *verify:* teste de componente; `npm run lint && npm run build`.
-- [ ] 4.5 **(opcional — decisão do founder no init; product review sugeriu cortar)** E2E (Playwright) do caminho feliz com backend mockado: abrir `/#/cadastro?convite=x`,
+- [ ] 4.5 **ADIADA — aguardando decisão do founder** (product review sugeriu cortar; o `CLAUDE.md` do
+      front exige E2E em fluxo que cruza a fronteira da API, ou o registro explícito do adiamento —
+      este é o registro). Motivo: 10 usuárias, validação manual real em `develop` nas tasks 5.1–5.2
+      cobre o caminho feliz de ponta a ponta com backend, Keycloak e e-mail reais, coisa que o E2E
+      com backend mockado não faz. Se o founder mantiver, entra antes do PR. E2E (Playwright) do caminho feliz com backend mockado: abrir `/#/cadastro?convite=x`,
       preencher assessoria/slug/senha, ver redirecionamento ao login.
       *verify:* `npx playwright test`.
 
