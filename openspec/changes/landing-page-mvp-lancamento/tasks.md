@@ -94,13 +94,14 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
 
 ## E. Compatibilidade Garmin (proposal.md item E)
 
-- [ ] E.1 `content.ts#how.steps[0]`: "Os dados de treino dos seus atletas entram automaticamente,
+- [x] E.1 `content.ts#how.steps[0]`: "Os dados de treino dos seus atletas entram automaticamente,
       independente do relógio ou app que eles já usam." → texto que nomeia o Garmin como integração
-      ativa e outras marcas como roadmap por demanda (AC5).
-- [ ] E.2 `content.ts#faq.items`: resposta de "Preciso que meus atletas tenham um relógio
+      ativa e outras marcas como roadmap por demanda (AC5). **Feito em 4d37952.**
+- [x] E.2 `content.ts#faq.items`: resposta de "Preciso que meus atletas tenham um relógio
       específico?" reescrita — hoje sim, Garmin; convite para avisar se usa outra marca.
-- [ ] E.3 `AccessForm.tsx`: nota curta sobre Garmin logo após os campos de nome/email/quantidade de
-      atletas, antes do checkbox de consentimento.
+      **Feito em 4d37952.**
+- [x] E.3 `AccessForm.tsx`: nota curta sobre Garmin logo após os campos de nome/email/quantidade de
+      atletas, antes do checkbox de consentimento. **Feito em 4d37952.**
 
 ## F. Mecânica do programa fundador (proposal.md item F)
 
