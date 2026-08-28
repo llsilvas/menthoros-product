@@ -2,7 +2,20 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-08-27, noite (**`kudos-janela-recentes` entregue e arquivada** — PR
+**Última atualização:** 2026-08-27/28, madrugada (**`fix-limites-plano-basic-e-scale` entregue e
+arquivada** — PR backend #86 mergeado. XS · Fast. Achada revisando a proposta de
+`landing-page-mvp-lancamento` contra o código real: o auto-cadastro público criava toda assessoria
+nova como Basic com `maxAtletas = 10` — o mesmo limite do plano Gratuito, não os 20 confirmados pelo
+founder para a tabela de preços do lançamento — e `PlanoAssessoria` não tinha o valor `SCALE` (5º
+tier). Corrigido: `MAX_ATLETAS_BASIC` → 20, enum ganhou `SCALE`, migration `V83` alargou o `chk_plano`
+do banco (também fechou de graça um gap pré-existente: `GRATUITO` nunca tinha entrado nesse CHECK).
+QA achou um gap de segurança pré-existente e não introduzido por esta change — `maxAtletas` nunca é
+verificado em runtime em lugar nenhum do código (`Assessoria.podeAdicionarAtleta()` existe mas nunca
+é chamado) — registrado, não corrigido aqui; decisão de abrir change própria fica com o founder.
+`landing-page-mvp-lancamento` (frontend) estava bloqueada nesta dependência (gate I.0) e segue agora
+para PR.)
+
+Antes, na noite de 2026-08-27: (**`kudos-janela-recentes` entregue e arquivada** — PR
 backend #85 mergeado. Achada numa conversa de follow-up sobre "eventos push antigos" na tela do
 atleta: kudos recentes na Home era `LIMIT 10` por contagem, não janela de tempo; virou janela de 7
 dias. XS · Fast, fora da trilha atleta — que fechou mais cedo no mesmo dia com `athlete-training-loop`
