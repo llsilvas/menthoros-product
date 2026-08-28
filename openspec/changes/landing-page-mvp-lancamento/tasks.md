@@ -116,20 +116,24 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
 
 ## G. Formulário — validação e link (D6, D7)
 
-- [ ] G.1 `accessFormValidation.ts`: `validate()` ganha o parâmetro `aceiteLgpd: boolean` e
+- [x] G.1 `accessFormValidation.ts`: `validate()` ganha o parâmetro `aceiteLgpd: boolean` e
       `AccessFormErrors` o campo `aceiteLgpd?: string` — **não** tratar como checagem local ad hoc no
       componente (achado alto do pré-mortem: é o que preservava, de graça, a garantia que o `disabled`
       atual dava contra qualquer caminho de submit). `AccessForm.tsx`: botão sempre habilitado (exceto
       `submitting`); `handleSubmit` chama `validate(...)` com os 4 argumentos e não envia enquanto
-      `errors` tiver qualquer chave (AC6).
-- [ ] G.2 `AccessForm.tsx:83-91`: link "Política de Privacidade" sai de dentro do
+      `errors` tiver qualquer chave (AC6). **Feito em 80ed3c5.**
+- [x] G.2 `AccessForm.tsx:83-91`: link "Política de Privacidade" sai de dentro do
       `FormControlLabel`; vira `Link` irmão do checkbox, fora do `<label>` (mesmo padrão de
-      `CoachConsentDialog.tsx` citado no `CLAUDE.md`) (AC7).
-- [ ] G.3 `accessFormValidation.test.ts`: teste unitário da função pura para `aceiteLgpd` ausente/
+      `CoachConsentDialog.tsx` citado no `CLAUDE.md`) (AC7). **Feito em 80ed3c5** — a frase do
+      checkbox virou autocontida (sem link embutido) e o link ganhou linha própria, pra não
+      depender de onde o texto quebra (achado visual durante a implementação, corrigido no ato).
+- [x] G.3 `accessFormValidation.test.ts`: teste unitário da função pura para `aceiteLgpd` ausente/
       presente. `AccessForm.test.tsx`: reescrever "mantém o envio desabilitado até aceitar a LGPD"
       para o novo comportamento — cobrir **clique no botão e Enter em um campo de texto do form**,
       ambos sem `inscrever` chamado e com o erro visível quando o consentimento não foi marcado.
       Comportamento trocado deliberadamente por G.1, não uma correção de teste quebrado.
+      **Feito em 80ed3c5** — TDD (vermelho confirmado antes de cada implementação); 19/19 testes
+      da landing passam.
 
 ## H. Contraste (proposal.md item H)
 
