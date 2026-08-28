@@ -145,6 +145,17 @@ são 10 registros; dashboard ou evento de tracking não entram nesta change.
 - A cota diária de e-mail do Resend (~250/dia no plano atual) comporta 10 convites + reenvios sem
   competir com a verificação de e-mail dos demais fluxos.
 
+**Aceites de risco (QA de segurança, 2026-08-28):**
+
+- **`emailVerified = true` sem clique de verificação.** A posse do e-mail é provada pelo token de
+  256 bits que só existe no e-mail do convite, mais a exigência de o formulário usar o mesmo
+  endereço. Se o inscrito digitou o e-mail errado na waitlist (typo em domínio alheio), a conta
+  nasce com e-mail de terceiro marcado como verificado — exige erro humano prévio **e** o terceiro
+  abrir o link. Aceito para 10 fundadoras escolhidas a dedo; o founder confere o e-mail antes de
+  convidar.
+- **Rate limit do `GET` público é por IP.** Não mitiga distribuição por muitos IPs; a defesa real
+  contra enumeração é a entropia do token, o limite só contém scraping/ruído.
+
 **Em aberto (não bloqueantes — levantadas pelo product review em 2026-08-28):**
 
 - **Gatilho de upgrade.** As fundadoras nascem GRATUITO sem `Assinatura` e sem prazo. Existe (ou
@@ -172,3 +183,10 @@ Codex ainda apontou: (a) o *verify* da task 3.4 contradizia a chave por tentativ
 o serviço agora invalida **qualquer** convite anterior não encerrado antes do insert
 (`findOpenByWaitlistId`). Minor do spec-reviewer: `IN_PROGRESS` não é valor do enum —
 trocado por "estado intermediário". Status: READY.
+
+**QA (2026-08-28, `/qa`):** code-reviewer, security-reviewer, frontend-reviewer e clean-code-reviewer
+em paralelo. Nenhum Critical. Corrigidos na mesma branch: corrida no índice parcial do convite →
+`409` (era 500); CR/LF em destinatário/assunto recusados no `EmailMessage`; consumo do convite
+movido para antes do `ACTIVE` com desfazer na compensação; `useInviteToken()` extraído com parsing
+robusto; `ROUTES.TERMOS/PRIVACIDADE`; `role="status"` no spinner. Follow-ups registrados no
+`tasks.md`.

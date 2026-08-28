@@ -171,3 +171,32 @@
 - [x] 5.5 **Feito até o QA** — tasks marcadas por seção com as decisões; QA disparado em
       2026-08-28; o PR só depois das pré-condições e do E2E (4.5) decidido. Marcar as tasks, registrar decisões tomadas durante a implementação neste arquivo e no
       `design.md`, e seguir para `/qa` → `/pr`.
+
+## 6. QA (2026-08-28) — resultado e follow-ups
+
+Quatro revisores em paralelo (code, security, frontend, clean-code). Nenhum Critical.
+
+**Corrigido na branch (commits de QA):**
+- [x] 6.1 Corrida no índice parcial único do convite (dois ADMINs no mesmo inscrito) devolvia 500 —
+      agora `409` via `DataIntegrityViolationException` capturada (classe sem `@Transactional`).
+- [x] 6.2 `EmailMessage` recusa CR/LF em destinatário e assunto (header injection não depende mais do
+      `@Email` do chamador). `EmailMessageTest`.
+- [x] 6.3 Consumo do convite movido para **antes** do rastro virar `ACTIVE`, com `reabrirConvite` na
+      pilha de compensação — antes, uma falha no consumo compensava um provisionamento já marcado
+      como concluído. 3 testes novos.
+- [x] 6.4 `design.md` alinhado ao código (sem transação em `invite`; consumo antes do `ACTIVE`);
+      `proposal.md` com os aceites de risco (`emailVerified` sem clique; rate limit por IP).
+- [x] 6.5 Front: `useInviteToken()` extraído (parsing na primeira `?`, preserva outros parâmetros,
+      idempotente sob StrictMode; 9 testes); `ROUTES.TERMOS/PRIVACIDADE` em vez de literais;
+      `role="status"` no "Conferindo seu convite…".
+
+**Follow-ups (fora desta change, registrados aqui):**
+- [ ] 6.6 Consolidar a montagem MIME entre `FileEmailSender.eml()` e `SmtpEmailSender` se surgir uma
+      terceira implementação (clean-code #4).
+- [ ] 6.7 Extrair o bloco da saga de `CoachSignupServiceImpl.cadastrar` (~95 linhas) para um método
+      privado `executarSaga` — seguro, mas não bloqueante (clean-code #1).
+- [ ] 6.8 Extrair `CadastroForm` de `CadastroPage.tsx` se a tela ganhar um 4º modo (clean-code #8).
+- [ ] 6.9 `FoundingInviteServiceImpl.lookup` faz duas consultas (convite + waitlist); trocar por
+      projeção/JOIN se o volume crescer (code #4).
+- [ ] 6.10 `consultarConvite` sem `AbortSignal` — consistente com `cadastrar`, que também não cancela
+      (frontend #6).

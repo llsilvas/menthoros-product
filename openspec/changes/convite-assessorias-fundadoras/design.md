@@ -124,8 +124,11 @@ usado). Confirmar no `/implement init` contra o ADR antes de escrever a migratio
   2. `keycloak.buscarUsuarioIdPorEmail(email)` presente → `409 EMAIL_JA_POSSUI_CONTA`.
   3. convite ativo com `converted_at` → `409 CONVITE_JA_CONVERTIDO` (na prática o passo 2 já pega,
      mas o estado local é a verdade quando o Keycloak estiver fora).
-  4. `@Transactional` local: invalida ativo anterior, insere novo com `token_hash`, `expires_at =
-     now() + 7d`, `sent_at = NULL`.
+  4. **Sem transação** (decisão na implementação, 2026-08-28): invalida o aberto anterior, insere o
+     novo com `token_hash`, `expires_at = now() + 7d`, `sent_at = NULL`. A ordem torna a falha
+     parcial inofensiva e o reenvio conserta. Corrida entre dois ADMINs no mesmo inscrito: a UNIQUE
+     parcial decide e quem perdeu recebe `409` (`DataIntegrityViolationException` capturada — só
+     funciona sem `@Transactional`, ver regra do `CLAUDE.md` do backend).
   5. **Fora da transação:** envia o e-mail. Sucesso → `sent_at = now()`. Falha → registro fica
      sem `sent_at`, resposta `502 EMAIL_NAO_ENVIADO` com o `id` do convite; o founder reenvia
      (que gera outro token). Não retentar automaticamente: o recurso escasso é a cota de e-mail.
@@ -158,8 +161,11 @@ usado). Confirmar no `/implement init` contra o ADR antes de escrever a migratio
 - `Idempotency-Key` do header é ignorado no modo convite; a chave é derivada por tentativa
   (`"<token_hash>:<n>"`, ver "Token → Retentativa"). Duplo clique converge para `409` enquanto a
   primeira tentativa corre; falha compensada abre tentativa nova.
-- Passo final da saga (`COMPLETED`): grava `converted_at` e `assessoria_id` no convite, na mesma
-  transação local que persiste o `Usuario`. Compensação **não toca** o convite.
+- Consumo do convite (`converted_at`, `assessoria_id`) é o **último passo antes** de o rastro virar
+  `ACTIVE`, e entra na pilha de compensação: se o consumo falhar, o rastro nunca diz "concluído" e a
+  compensação desfaz tudo; se o `ACTIVE` falhar depois, a compensação **reabre** o convite. (A
+  versão anterior deste texto dizia "mesma transação local que o `Usuario`" — a saga é sem
+  transação por construção; o QA de 2026-08-28 apontou a divergência.)
 - `SignupProvisioning.origem` recebe `FOUNDING_INVITE`.
 
 ### `NovoUsuarioKeycloak`
