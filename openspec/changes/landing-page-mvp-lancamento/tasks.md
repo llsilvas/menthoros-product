@@ -42,14 +42,15 @@ Branch: `feature/landing-page-mvp-lancamento`, criada a partir de `develop` ante
       revisados). Protocolo completo de LCP (mediana de 3 execuções, `develop` vs. branch) **fica para
       o fechamento (seção I)** — mais eficiente rodar uma vez só, com todas as seções já implementadas,
       em vez de repetir a cada checkpoint.
-- [x] A.6 Validação de viewport curto/extremo: 1366×600 (conteúdo cabe sem cortar), mobile landscape
-      844×390 (sem clipping — CTA fica abaixo da dobra nesse tamanho extremo, mas acessível por
-      scroll, sem `overflow:hidden` escondendo nada) — confirmado via Playwright. Mismatch de
-      primeiro paint resolvido pela nav de tamanho fixo (A.2), não precisou de `ResizeObserver`.
-- [ ] A.6 Validação de viewport curto/extremo (achado do pré-mortem, `design.md` D1): 1366×600, zoom
-      de browser 150–200%, mobile landscape 844×390 — hero não corta título/CTA nem trava altura que
-      esconde conteúdo (sem `overflow: hidden` no container do hero) (AC8b). Conferir também o
-      primeiro paint (nav "não-stuck") contra o `--nav-height` usado no `calc()`.
+- [x] A.6 Validação de viewport curto/extremo (achado do pré-mortem, `design.md` D1): 1366×600 e
+      1366×450 (equivalente a ~170% de zoom, simulado por altura reduzida — mesmo método que
+      `design.md` prescreve), mobile landscape 844×390 — hero nunca corta título/CTA nem trava
+      altura que esconde conteúdo (sem `overflow: hidden` no container do hero); em 450px de altura
+      o conteúdo cresce além da viewport e fica acessível por scroll, não cortado (AC8b). Primeiro
+      paint (nav "não-stuck") resolvido pela nav de tamanho fixo (A.2), não precisou de
+      `ResizeObserver`. **Feito** — confirmado via Playwright nos três tamanhos (achado do QA:
+      havia duas entradas duplicadas desta task no arquivo — uma `[x]` e uma `[ ]` — consolidadas
+      aqui numa só).
 
 ## B. Seções abaixo da dobra (D4)
 
