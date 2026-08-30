@@ -40,7 +40,7 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
       cada, com os guardrails de D2 e um exemplo negativo ("não escreva: pule o treino de
       quinta"). Chamada pela rota `simple` (gpt-4o-mini) na segunda chamada.
       Validação: teste de contrato afirmando a presença das regras.
-- [ ] 1.2 `AthleteMessageDto` (record separado com os quatro campos, opcional) para a chamada 2;
+- [x] 1.2 `AthleteMessageDto` (record separado com os quatro campos, opcional) para a chamada 2;
       `AnaliseWorkoutRawDto` do coach e `WorkoutAnalysisTranslator` ficam **intocados**.
       Validação: teste da chamada 2 com fixture completa; campos do coach seguem como antes.
 - [ ] 1.3 Migration `V86__add_atleta_message_to_tb_analise_workout.sql` (4 × `TEXT NULL` +
