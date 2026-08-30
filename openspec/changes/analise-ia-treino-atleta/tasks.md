@@ -63,16 +63,19 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
 
 ## 2. Backend — exposição ao atleta
 
-- [ ] 2.1 `WorkoutAnalysisProperties.athleteMessageEnabled` (`app.workout-analysis.athlete-message.enabled`,
+- [x] 2.1 `WorkoutAnalysisProperties.athleteMessageEnabled` (`app.workout-analysis.athlete-message.enabled`,
       default `true`) — kill switch de D3.
-- [ ] 2.2 `GET /api/v1/atletas/me/realizados/{id}/analise` → `AthleteWorkoutAnalysisOutputDto`
+- [x] 2.2 `GET /api/v1/atletas/me/realizados/{id}/analise` → `AthleteWorkoutAnalysisOutputDto`
       (D4): `200 COMPLETED`; `200 PENDING` por **elegibilidade** (linha `PENDING` ou elegível sem
       linha — Codex #2); `204` não elegível / `FAILED` / bloco nulo / switch off; `404` não-dono
       ou outro tenant. `executado` do `TreinoRealizado`, `planejado` opcional. Micrometer
       `atleta_analise_visualizada_total` só na **primeira** `200 COMPLETED`, carimbando
       `atletaPrimeiraVisualizacaoEm` (Codex #6).
-      Validação: `*IT` cobrindo os cenários do CA3 + CA4, incluindo "registrado há 1 s sem linha"
-      e "12 PENDING + 3 COMPLETED → contador 1"; `@RequireTenant`.
+      Validação feita (2026-08-30) no padrão do repo para endpoints `/me` (o mesmo do feedback):
+      teste de serviço (11 cenários — CA3+CA4, dono, tenant, dedupe do contador, kill switch) +
+      `@WebMvcTest` do contrato HTTP (200 sem campos do coach, 204, 404). `/me` não usa
+      `@RequireTenant` (resolve o dono pelo JWT via `resolverAtletaIdAtual`, comentário no
+      controller).
 - [ ] 2.3 `TreinoPlanejadoOutputDto.analiseAtletaDisponivel` no `GET /planos/{atletaId}` — uma
       query `findByTreinoRealizadoIdIn` por plano; `false` com switch off. Com `ROLE_ATLETA`,
       `{atletaId} != atleta autenticado → 404` (Codex #5).
