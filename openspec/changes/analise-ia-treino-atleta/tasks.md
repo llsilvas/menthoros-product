@@ -81,10 +81,12 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
       `{atletaId} != atleta autenticado → 404` (Codex #5).
       Validação: teste do serviço de plano (um analisado, demais `false`; switch off → todos
       `false`); `*IT` atleta A lendo plano de B → `404`, coach → `200`. `./mvnw clean verify`.
-- [ ] 2.5 Hardening `GET /api/v1/analises/treino/{id}`: `@PreAuthorize("hasAnyRole('COACH','ADMIN')")`
-      e `AnaliseWorkoutOutputDto` com os quatro campos do atleta (Codex #1).
-      Validação: `*IT` atleta → `403`; coach → `200` com os campos. `./mvnw clean verify`.
-- [ ] 2.4 OpenAPI: anotações `@ApiResponse`/`@Schema` nos DTOs novos (convenção do backend) para o
+- [x] 2.5 Hardening `GET /api/v1/analises/treino/{id}`: `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")`
+      — o papel real do repo é `TECNICO`, não `COACH` (spec generalizava) — e
+      `AnaliseWorkoutOutputDto` com os quatro campos do atleta (Codex #1).
+      Validado (2026-08-30): `AnaliseWorkoutAccessIT` (Testcontainers) — atleta → `403`,
+      TECNICO → `200` com o bloco.
+- [x] 2.4 OpenAPI: anotações `@ApiResponse`/`@Schema` nos DTOs novos (convenção do backend) para o
       `generate:api` de referência do front.
 
 ## 3. Frontend — atleta
