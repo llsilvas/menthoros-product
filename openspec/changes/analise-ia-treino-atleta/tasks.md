@@ -19,10 +19,10 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
       (comentário no controller explica) — o endpoint novo entra no mesmo controller com o mesmo
       padrão. Rota `simple` confirmada: `TaskComplexity.SIMPLE → gpt4oMiniClient`
       (`ModelRouter:52`).
-- [ ] 0.3 Rodar as três fixtures do `SKILL.md` (execução excelente, fadiga acumulada, fatores
-      externos) contra a **chamada 2** e validar o bloco do atleta. Decisão D2 já tomada
-      (2026-08-30: segunda chamada separada, rota `simple`). Resta decidir se entra a checagem
-      binária via Haiku de D6 ("o texto manda mudar o plano?") antes de persistir. Registrar aqui.
+- [x] 0.3 **Decidido pelo founder (2026-08-30): classificador binário via Haiku LIGADO** —
+      sem gate do coach, é a única barreira semântica ("seu corpo está pedindo uma pausa" passa
+      pelo regex). Fail-open: Haiku fora → não bloqueia (regex/tamanho/idioma já rodaram).
+      Fixtures felizes e adversariais viraram testes (validador, classificador e listener).
 - [ ] 0.4 Spec delta `specs/athlete-workout-analysis/spec.md` revisada contra 0.2/0.3 (já criada na
       change; `openspec validate` não roda — CLI ausente — revisão manual).
 
@@ -52,7 +52,7 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
       Validação: teste do listener com fixture completa, com bloco ausente (campos `null`,
       status `COMPLETED`), com bloco bloqueado (`null` + motivo, `COMPLETED`) e com falha (todos
       `null`, `FAILED`). `./mvnw clean verify`.
-- [ ] 1.4 Fixtures de resposta (3 cenários felizes do `SKILL.md` + 3 adversariais: bloco que
+- [x] 1.4 Fixtures de resposta (3 cenários felizes do `SKILL.md` + 3 adversariais: bloco que
       prescreve sem usar os tokens — "seu corpo está pedindo uma pausa", "melhor não fazer o
       intervalado" — e bloco em inglês) com asserção de proibidos
       (`TSB|CTL|ATL|score|cancel|pule|pular|troque|overtraining|lesão`) e, para os adversariais,
