@@ -28,7 +28,7 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
 
 ## 1. Backend — bloco do atleta na análise
 
-- [ ] 1.0 `buildPromptData`: `duration_min` (planejado e realizado), `avg_pace_min_km` derivado,
+- [x] 1.0 `buildPromptData`: `duration_min` (planejado e realizado), `avg_pace_min_km` derivado,
       `planned.steps[]` e `actual.steps[]` (`EtapaRealizada`) — só numéricos/enums, sem texto
       livre (Codex #3). `WorkoutAnalysisEligibility` (RPE presente, `maxIdadeDias`, switch)
       extraído do listener para reuso no endpoint (Codex #2).
