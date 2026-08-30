@@ -43,7 +43,7 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
 - [x] 1.2 `AthleteMessageDto` (record separado com os quatro campos, opcional) para a chamada 2;
       `AnaliseWorkoutRawDto` do coach e `WorkoutAnalysisTranslator` ficam **intocados**.
       Validação: teste da chamada 2 com fixture completa; campos do coach seguem como antes.
-- [ ] 1.3 Migration `V86__add_atleta_message_to_tb_analise_workout.sql` (4 × `TEXT NULL` +
+- [x] 1.3 Migration `V86__add_atleta_message_to_tb_analise_workout.sql` (4 × `TEXT NULL` +
       `atleta_bloqueado_motivo VARCHAR(40) NULL` + `atleta_primeira_visualizacao_em TIMESTAMP
       NULL`) e colunas na entidade `AnaliseWorkout`; `AthleteMessageValidator` (regex, ≤ 240,
       heurística PT-BR, classificador opcional da 0.3) roda sobre o bloco da chamada 2 antes de
