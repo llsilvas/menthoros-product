@@ -29,11 +29,12 @@ com o sinal "Análise pronta", detalhe com análise em andamento, detalhe com an
 Backend + frontend, uma change (ver `design.md` D0).
 
 **Backend**
-- A skill `workout-analyzer` passa a devolver, **na mesma chamada**, um bloco `athlete_message`
-  com quatro campos em PT-BR e linguagem de atleta: `recognition` (algo concreto que ele fez bem),
+- O bloco do atleta nasce numa **segunda chamada separada** (rota `simple`, gpt-4o-mini) com
+  quatro campos em PT-BR e linguagem de atleta: `recognition` (algo concreto que ele fez bem),
   `how_it_went` (executado vs. planejado), `effort_reading` (o que o RPE informado diz, **sem**
   CTL/ATL/TSB nem diagnóstico) e `next_workout_tip` (orientação prática que **nunca altera o
-  plano** e remete ao coach na dúvida). O bloco não passa pelo `WorkoutAnalysisTranslator`.
+  plano** e remete ao coach na dúvida). A chamada 1 (Sonnet) e o `WorkoutAnalysisTranslator`
+  ficam intocados; o bloco não passa pelo tradutor.
 - O prompt passa a receber duração, pace médio e etapas (planejadas e realizadas) — só números
   e enums, sem texto livre — para que "como foi" cite fatos da sessão, não invente
   (`buildPromptData` hoje manda só tipo, distância, RPE e FC média).
@@ -145,11 +146,12 @@ Backend + frontend, uma change (ver `design.md` D0).
 - **Resolvido (founder, 2026-08-29):** sem gate do coach — ver Non-Goals. O canvas mostra a
   nota "Seu coach vê a mesma análise" no rodapé do card; ela é parte do contrato de confiança, não
   decoração.
-- **Resolvido (founder, 2026-08-29):** o texto do atleta vem da **mesma chamada** da análise
-  (bloco extra no schema da skill), não de tradução determinística por `primaryCause`.
-- **Premissa:** pedir o bloco em PT-BR direto ao Sonnet não degrada os campos do coach (que
-  seguem em inglês + tradução). Validar com as fixtures de teste da skill; se degradar, D2 prevê
-  segunda chamada só para o bloco.
+- **Resolvido (founder, 2026-08-30):** o texto do atleta vem de uma **segunda chamada separada**
+  (rota `simple`/gpt-4o-mini), não da mesma chamada da análise nem de tradução determinística.
+  Revisitado em 2026-08-30: separar as duas vozes (análise técnica vs motivação) elimina o risco
+  de degradar os campos do coach.
+- **Resolvido (2026-08-30):** a separação elimina a premissa de que pedir PT-BR na mesma chamada
+  não degrada o coach. A chamada 1 fica intocada, então não há degradação possível.
 - **Premissa:** `TreinoPlanejadoOutputDto` já expõe `treinoRealizadoId` e
   `percepcaoEsforcoRealizado` (confirmado em `src/types/TreinoPlanejado.ts`) — o drawer sabe qual
   realizado buscar sem contrato novo além do flag.

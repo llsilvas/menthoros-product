@@ -8,15 +8,16 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
 
 ## 0. Contrato e premissas
 
-- [x] 0.1 **Decidido pelo founder em 2026-08-29:** sem gate do coach (exceção ao coach-in-the-loop,
-      D3) e texto do atleta gerado na mesma chamada da análise (D1/D2).
+- [x] 0.1 **Decidido pelo founder (2026-08-29 e 2026-08-30):** sem gate do coach (exceção ao
+      coach-in-the-loop, D3) e texto do atleta gerado numa segunda chamada separada (D2, rota
+      `simple`/gpt-4o-mini). Revisitado em 2026-08-30: separação em vez de bloco extra no schema.
 - [ ] 0.2 Confirmar no código: tipo de `TreinoRealizado.duracaoMin` (para `executado.duracaoMin` em
       minutos inteiros) e o caminho de resolução do atleta autenticado usado por
       `POST /me/realizados/{id}/feedback` (reaproveitar em D4). Registrar aqui.
 - [ ] 0.3 Rodar as três fixtures do `SKILL.md` (execução excelente, fadiga acumulada, fatores
-      externos) contra o schema com `athlete_message` e comparar os campos do coach antes/depois.
-      Decidir D2 (mesma chamada vs. segunda chamada Haiku) e se entra a checagem binária via
-      Haiku de D6 ("o texto manda mudar o plano?") antes de persistir. Registrar aqui.
+      externos) contra a **chamada 2** e validar o bloco do atleta. Decisão D2 já tomada
+      (2026-08-30: segunda chamada separada, rota `simple`). Resta decidir se entra a checagem
+      binária via Haiku de D6 ("o texto manda mudar o plano?") antes de persistir. Registrar aqui.
 - [ ] 0.4 Spec delta `specs/athlete-workout-analysis/spec.md` revisada contra 0.2/0.3 (já criada na
       change; `openspec validate` não roda — CLI ausente — revisão manual).
 
@@ -28,19 +29,21 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
       extraído do listener para reuso no endpoint (Codex #2).
       Validação: teste do payload com e sem etapas; asserção de ausência de `feedbackAtleta`,
       `observacao`, `descricaoEtapa`.
-- [ ] 1.1 `SKILL.md` do `workout-analyzer`: seção "Athlete message" com o schema `athlete_message`
+- [ ] 1.1 Skill do bloco do atleta (nova `skills/analise/athlete-workout-motivation/SKILL.md` ou
+      seção separada, decidir no `implement init`): schema com os quatro campos
       (`recognition`, `how_it_went`, `effort_reading`, `next_workout_tip`), em PT-BR, ≤ 240 chars
       cada, com os guardrails de D2 e um exemplo negativo ("não escreva: pule o treino de
-      quinta"). Atualizar os três exemplos de saída da skill com o bloco.
-      Validação: teste `WorkoutAnalyzerSkillContractTest` afirmando a presença das regras.
-- [ ] 1.2 `AnaliseWorkoutRawDto.athleteMessage` (record aninhado, opcional) e
-      `WorkoutAnalysisTranslator.translate` copiando o bloco sem traduzir.
-      Validação: teste do tradutor — bloco passa intacto; campos do coach seguem traduzidos.
+      quinta"). Chamada pela rota `simple` (gpt-4o-mini) na segunda chamada.
+      Validação: teste de contrato afirmando a presença das regras.
+- [ ] 1.2 `AthleteMessageDto` (record separado com os quatro campos, opcional) para a chamada 2;
+      `AnaliseWorkoutRawDto` do coach e `WorkoutAnalysisTranslator` ficam **intocados**.
+      Validação: teste da chamada 2 com fixture completa; campos do coach seguem como antes.
 - [ ] 1.3 Migration `V85__add_atleta_message_to_tb_analise_workout.sql` (4 × `TEXT NULL` +
       `atleta_bloqueado_motivo VARCHAR(40) NULL` + `atleta_primeira_visualizacao_em TIMESTAMP
       NULL`) e colunas na entidade `AnaliseWorkout`; `AthleteMessageValidator` (regex, ≤ 240,
-      heurística PT-BR, classificador opcional da 0.3) roda antes de `applyResult` e nulifica o
-      bloco com motivo (Codex #4); `applyResult` copia os quatro campos; ramo `FAILED` zera tudo.
+      heurística PT-BR, classificador opcional da 0.3) roda sobre o bloco da chamada 2 antes de
+      persistir e nulifica o bloco com motivo (Codex #4); `applyResult` copia os quatro campos
+      junto dos campos do coach; ramo `FAILED` zera tudo.
       Validação: teste do listener com fixture completa, com bloco ausente (campos `null`,
       status `COMPLETED`), com bloco bloqueado (`null` + motivo, `COMPLETED`) e com falha (todos
       `null`, `FAILED`). `./mvnw clean verify`.

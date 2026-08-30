@@ -24,22 +24,23 @@ cite números e fatos presentes nesses dados.
 - **Then** o JSON contém só os campos disponíveis; a skill instrui a não inferir blocos ou
   desaquecimento que não estão nos dados
 
-## Requirement: A análise gera um bloco para o atleta, em PT-BR, na mesma chamada
+## Requirement: A análise gera um bloco para o atleta, em PT-BR, numa segunda chamada separada
 
 Ao concluir a análise de um `TreinoRealizado` com `percepcaoEsforco`, o `WorkoutAnalysisListener`
-DEVE persistir em `AnaliseWorkout` os campos `atletaReconhecimento`, `atletaComoFoi`,
-`atletaEsforco` e `atletaProximoTreino`, vindos de `athlete_message` no JSON da skill
-`workout-analyzer`, em português do Brasil, cada um com no máximo 240 caracteres. O bloco NÃO
-passa pelo `WorkoutAnalysisTranslator`. Os campos existentes do coach não mudam.
+DEVE, numa **segunda chamada separada** (rota `simple`, gpt-4o-mini), persistir em
+`AnaliseWorkout` os campos `atletaReconhecimento`, `atletaComoFoi`, `atletaEsforco` e
+`atletaProximoTreino`, vindos de um structured output com os quatro campos em português do
+Brasil, cada um com no máximo 240 caracteres. O bloco NÃO passa pelo
+`WorkoutAnalysisTranslator`. A chamada 1 (Sonnet) e os campos existentes do coach não mudam.
 
 #### Scenario: Resposta completa
 - **Given** um realizado com RPE 7 vinculado a um planejado com RPE esperado 6
-- **When** o LLM devolve o JSON com `athlete_message` preenchido e válido
+- **When** a chamada 2 devolve o JSON com os quatro campos preenchidos e válidos
 - **Then** a análise fica `COMPLETED` com os quatro campos do atleta e os campos do coach
   traduzidos como antes
 
 #### Scenario: Bloco ausente ou malformado
-- **When** o LLM devolve o JSON sem `athlete_message` (ou com campos vazios)
+- **When** a chamada 2 devolve o JSON sem o bloco (ou com campos vazios)
 - **Then** a análise fica `COMPLETED` com os campos do coach preenchidos e os do atleta `null`
 
 #### Scenario: Falha total

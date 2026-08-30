@@ -13,7 +13,7 @@ operação destrutiva nem incerteza de design (o canvas fechou a UI); a incertez
 `rationalePt`, `primaryCause`, `executionScore`, `tags` — todos pensados para o treinador. A
 change **não** mostra nenhum deles ao atleta. Quatro colunas novas, nomeadas pela função no card:
 
-| Coluna | Campo no schema da skill | O que é |
+| Coluna | Campo no bloco do atleta | O que é |
 |---|---|---|
 | `atleta_reconhecimento` | `athlete_message.recognition` | 1 frase, algo concreto que ele fez bem |
 | `atleta_como_foi` | `athlete_message.how_it_went` | 1–2 frases, executado vs. planejado |
@@ -21,24 +21,37 @@ change **não** mostra nenhum deles ao atleta. Quatro colunas novas, nomeadas pe
 | `atleta_proximo_treino` | `athlete_message.next_workout_tip` | 1–2 frases, prática, sem mudar o plano |
 
 Migration `V85__add_atleta_message_to_tb_analise_workout.sql`, aditiva, `TEXT NULL`, sem
-backfill. Rollback: reverter código; colunas ficam inertes. `AnaliseWorkoutRawDto` ganha
-`athleteMessage` (record aninhado, opcional); `applyResult` copia os quatro campos; o ramo `FAILED`
-já zera tudo e passa a zerar estes também.
+backfill. Rollback: reverter código; colunas ficam inertes. Um DTO separado
+(`AthleteMessageDto`) carrega os quatro campos da chamada 2; o `AnaliseWorkoutRawDto` do coach
+fica intocado; `applyResult` copia os quatro campos; o ramo `FAILED` já zera tudo e passa a
+zerar estes também.
 
 **Por que não mapear `primaryCause` para frases fixas.** Seria mais barato e previsível, mas o
 valor para o atleta está no "como foi" específico da sessão ("você cortou 3 min do
 desaquecimento"), que só a análise que viu os números consegue escrever. Decisão do founder.
 
-## D2 — Mesma chamada, PT-BR direto, fora do tradutor
+## D2 — Segunda chamada separada, PT-BR nativo, modelo simples
 
-O listener chama o Sonnet uma vez (`.entity(AnaliseWorkoutRawDto.class)`) e depois o
-`WorkoutAnalysisTranslator` faz **quatro chamadas** ao Haiku, uma por campo. O bloco do atleta:
+O listener chama o Sonnet uma vez para a análise do coach (`.entity(AnaliseWorkoutRawDto.class)`),
+depois o `WorkoutAnalysisTranslator` faz **quatro chamadas** ao Haiku, uma por campo. O bloco do
+atleta entra numa **segunda chamada separada**, não no schema do coach:
 
-- entra no **mesmo** `Output Schema` da skill, pedido explicitamente em **português do Brasil**;
-- **não** passa pelo tradutor — `translate()` copia `athleteMessage` como está. Passar por ele
-  custaria mais quatro chamadas por análise e arriscaria "traduzir" PT para PT;
-- se `translationFailed` (coach fica em inglês), o bloco do atleta **não é afetado** — já nasceu
-  em PT.
+- a chamada 1 (Sonnet, rota `complex`) fica **intocada** — mesmo `Output Schema`, mesmo tradutor;
+  zero risco de degradar os campos do coach;
+- a chamada 2 gera o bloco do atleta em **PT-BR nativo**, num único structured output com os
+  quatro campos, usando a rota **`simple`** (gpt-4o-mini, ~6,7x mais barato que Haiku) — quatro
+  frases motivacionais curtas não precisam de raciocínio complexo;
+- a chamada 2 recebe os **mesmos dados numéricos** da chamada 1 (duração, pace, etapas, RPE) mais
+  o `primary_cause` resultante da chamada 1, para remeter ao coach de forma consistente com o que
+  o treinador vê;
+- **ordem sequencial** (chamada 2 depois da 1), para o bloco nascer alinhado ao `primary_cause`;
+  o "rápido" do retorno já é resolvido porque hoje o atleta não recebe nada — ~30s é uma melhoria
+  enorme (o polling do hook é de 15s);
+- se a chamada 2 falhar ou estourar timeout, a análise do coach segue `COMPLETED` e o atleta só
+  não vê o card. Timeout/retry independentes, sem acoplamento.
+
+**Decisão do founder (2026-08-30):** separar análise do coach e retorno do atleta em duas
+chamadas. Dois artefatos distintos: análise para o treinador, motivação para o atleta.
 
 **Guardrails no prompt (a parte que o `security-reviewer` e o product review vão olhar):**
 - linguagem para quem correu, não para quem prescreve: proibido `CTL`, `ATL`, `TSB`, `score`,
@@ -57,24 +70,26 @@ distância e RPE esperado do planejado e distância, RPE e FC média do realizad
 nem pace, nem etapas. "Você cortou 3 min do desaquecimento" seria alucinação. A change amplia o
 payload com `duration_min` (planejado e realizado), `avg_pace_min_km` derivado, `planned.steps[]`
 e `actual.steps[]` (`EtapaRealizada` quando houver) — **só numéricos e enums**, mantendo a regra
-anti-injeção do listener (nada de `feedbackAtleta`, `observacao`, `descricaoEtapa`). A skill
-instrui "cite só números presentes nos dados". Isso beneficia a análise do coach de graça.
+anti-injeção do listener (nada de `feedbackAtleta`, `observacao`, `descricaoEtapa`). O mesmo
+payload alimenta as duas chamadas; a chamada 2 instrui "cite só números presentes nos dados".
+Isso beneficia a análise do coach de graça.
 
 **Validação em runtime, não só no prompt (Codex #4).** `.entity()` desserializa e `applyResult`
 persiste direto; um prompt bem escrito não impede uma prescrição de chegar ao atleta.
-`AthleteMessageValidator` roda antes de persistir: regex de proibidos, ≤ 240 chars, heurística
-de idioma PT-BR e — se a 0.3 ligar — o classificador binário via Haiku. Violou → os quatro
-campos ficam `null` e `atletaBloqueadoMotivo` registra por quê; a análise do coach segue
-`COMPLETED`. O endpoint devolve `204` (card ausente) — melhor sem card do que com um errado.
+`AthleteMessageValidator` roda antes de persistir o bloco da chamada 2: regex de proibidos,
+≤ 240 chars, heurística de idioma PT-BR e — se a 0.3 ligar — o classificador binário via Haiku.
+Violou → os quatro campos ficam `null` e `atletaBloqueadoMotivo` registra por quê; a análise do
+coach segue `COMPLETED`. O endpoint devolve `204` (card ausente) — melhor sem card do que com um
+errado.
 
 **Validação:** teste unitário do `applyResult` com fixture completa e com bloco ausente/parcial;
 testes do validador com as fixtures felizes e adversariais;
 teste do prompt afirmando que a skill contém as regras acima (regressão contra edição do
 `SKILL.md`); fixtures de resposta (3 cenários do próprio `SKILL.md` — execução excelente, fadiga
 acumulada, fatores externos) com asserção de proibidos (`TSB|CTL|ATL|score|cancel|pule|troque`).
-**Se a qualidade dos campos do coach cair** com o schema maior (comparar fixtures antes/depois),
-o fallback de D2 é uma segunda chamada Haiku só para o bloco, com o JSON do coach como entrada —
-mesma skill, seção separada. Decidir no `implement init` com as fixtures.
+A chamada 1 não é tocada, então o risco de degradação da análise do coach **desaparece** — a 0.3
+deixa de ser gate de risco e vira só validação das fixtures da chamada 2.
+
 
 ## D3 — Sem gate do coach: exceção deliberada, com três mitigações
 
@@ -182,9 +197,9 @@ por análise, contra as quatro que a tradução do coach já faz.
 | Risco | Mitigação |
 |---|---|
 | O LLM ignora os guardrails e escreve "pule o treino de quinta" | Fixtures com asserção de proibidos; regra explícita e exemplo negativo no `SKILL.md`; o coach vê o mesmo texto (D3.3); kill switch |
-| Bloco em PT degrada os campos do coach em inglês | Comparar fixtures antes/depois no `implement init`; fallback: segunda chamada (D2) |
+| Bloco em PT degrada os campos do coach em inglês | Eliminado: a chamada 1 (coach) é intocada; o bloco nasce numa segunda chamada separada (D2) |
 | Atleta lê análise de outro atleta | Endpoint novo escopado por dono (D4) + teste; o endpoint antigo fica registrado como gap |
 | Análise nunca fica pronta (LLM fora, `FAILED`) | `pending` para de consultar em 3 min; `FAILED` → `204` → card some; o drawer continua útil (etapas, perfil) |
 | Treinos antigos sem bloco geram "cadê minha análise?" | Sem card, sem promessa: o sinal "Análise pronta" só aparece quando existe; proposta registra backfill como decisão do founder |
-| Custo de LLM sobe | Zero chamadas extras no caminho principal (mesma chamada); só o fallback de D2 adiciona uma Haiku |
+| Custo de LLM sobe | +1 chamada gpt-4o-mini por treino (rota `simple`, 6,7x mais barata que Haiku); timeout/retry independentes |
 | **Pré-mortem Codex (2026-08-29), seis achados, todos confirmados no código e incorporados:** (1) bloco do atleta no DTO do coach sem endurecer `GET /analises/treino/{id}` → hardening por role no escopo (D4); (2) janela sem linha `PENDING` após o registro → endpoint por elegibilidade (D4); (3) prompt sem duração/pace/etapas → payload ampliado (D2); (4) guardrail só em fixture → validador em runtime (D2); (5) `GET /planos/{atletaId}` sem dono para `ROLE_ATLETA` → 404 (D4); (6) métrica inflada pelo polling → dedupe por `atletaPrimeiraVisualizacaoEm` (D6) | — |
