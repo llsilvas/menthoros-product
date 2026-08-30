@@ -76,7 +76,7 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
       `@WebMvcTest` do contrato HTTP (200 sem campos do coach, 204, 404). `/me` não usa
       `@RequireTenant` (resolve o dono pelo JWT via `resolverAtletaIdAtual`, comentário no
       controller).
-- [ ] 2.3 `TreinoPlanejadoOutputDto.analiseAtletaDisponivel` no `GET /planos/{atletaId}` — uma
+- [x] 2.3 `TreinoPlanejadoOutputDto.analiseAtletaDisponivel` no `GET /planos/{atletaId}` — uma
       query `findByTreinoRealizadoIdIn` por plano; `false` com switch off. Com `ROLE_ATLETA`,
       `{atletaId} != atleta autenticado → 404` (Codex #5).
       Validação: teste do serviço de plano (um analisado, demais `false`; switch off → todos
