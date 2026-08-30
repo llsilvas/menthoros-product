@@ -183,7 +183,7 @@ campos do atleta (opcionais), que o `TreinoCard` legado exibe em somente leitura
 
 ## Dados
 
-Migration aditiva `V85__add_atleta_message_to_tb_analise_workout.sql`:
+Migration aditiva `V86__add_atleta_message_to_tb_analise_workout.sql`:
 `tb_analise_workout.atleta_reconhecimento TEXT NULL`, `atleta_como_foi TEXT NULL`,
 `atleta_esforco TEXT NULL`, `atleta_proximo_treino TEXT NULL`,
 `atleta_bloqueado_motivo VARCHAR(40) NULL`, `atleta_primeira_visualizacao_em TIMESTAMP NULL`.

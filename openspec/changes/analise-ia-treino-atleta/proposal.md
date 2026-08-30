@@ -39,7 +39,7 @@ Backend + frontend, uma change (ver `design.md` D0).
   e enums, sem texto livre — para que "como foi" cite fatos da sessão, não invente
   (`buildPromptData` hoje manda só tipo, distância, RPE e FC média).
 - `AnaliseWorkout` ganha as quatro colunas de texto mais `atletaBloqueadoMotivo` e
-  `atletaPrimeiraVisualizacaoEm` (`V85`, aditiva). Um `AthleteMessageValidator` roda **antes de
+  `atletaPrimeiraVisualizacaoEm` (`V86`, aditiva). Um `AthleteMessageValidator` roda **antes de
   persistir**: jargão, tamanho, idioma ou prescrição → bloco nulificado com motivo. Falha ou
   bloqueio do bloco não falha a análise do coach: o atleta simplesmente não vê o card.
 - `GET /api/v1/atletas/me/realizados/{id}/analise` — endpoint **do atleta**, escopo por dono
@@ -167,9 +167,9 @@ Backend + frontend, uma change (ver `design.md` D0).
   e incorporados — ver `design.md`, "Riscos e mitigações". Os dois que mudaram o contrato:
   `200 PENDING` por elegibilidade (o listener é assíncrono, a linha não existe logo após o
   registro) e validação do bloco em runtime (fixture não impede uma prescrição em produção).
-- **Em aberto:** duração realizada em `TreinoRealizado.duracaoMin` é string (`"HH:MM:SS"`) no
-  contrato atual; o endpoint do atleta devolve minutos inteiros — confirmar conversão no
-  `implement init`.
+- **Resolvido no init (2026-08-30, DoR):** `duracaoMin` é `java.time.Duration` na entidade
+  (`TreinoBase:46`, `INTERVAL_SECOND`) — a string `"HH:MM:SS"` existe só no DTO legado do front.
+  O endpoint do atleta devolve minutos inteiros via `toMinutes()`.
 - **Product review (2026-08-29, `product-reviewer`, Refine):** as mitigações de D3 eram reativas
   — o coach "pode ver, se procurar", e o gatilho de reversão não tinha instrumentação. Incorporado:
   contador `atleta_analise_remete_coach_total`, métrica de rotina do coach com contagem

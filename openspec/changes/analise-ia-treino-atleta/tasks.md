@@ -11,9 +11,14 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
 - [x] 0.1 **Decidido pelo founder (2026-08-29 e 2026-08-30):** sem gate do coach (exceção ao
       coach-in-the-loop, D3) e texto do atleta gerado numa segunda chamada separada (D2, rota
       `simple`/gpt-4o-mini). Revisitado em 2026-08-30: separação em vez de bloco extra no schema.
-- [ ] 0.2 Confirmar no código: tipo de `TreinoRealizado.duracaoMin` (para `executado.duracaoMin` em
-      minutos inteiros) e o caminho de resolução do atleta autenticado usado por
-      `POST /me/realizados/{id}/feedback` (reaproveitar em D4). Registrar aqui.
+- [x] 0.2 **Verificado no init (2026-08-30):** `duracaoMin` vive em `TreinoBase`, é
+      `java.time.Duration` (`INTERVAL_SECOND`) → DTO converte com `toMinutes()`. O feedback vive
+      em `AtletaTreinoController` (`/api/v1/atletas` + `POST /me/realizados/{id}/feedback`,
+      `hasAnyRole('ATLETA','ADMIN')`), resolve o dono por
+      `AtletaProgressService.resolverAtletaIdAtual()` e **não** usa `@RequireTenant` nos `/me`
+      (comentário no controller explica) — o endpoint novo entra no mesmo controller com o mesmo
+      padrão. Rota `simple` confirmada: `TaskComplexity.SIMPLE → gpt4oMiniClient`
+      (`ModelRouter:52`).
 - [ ] 0.3 Rodar as três fixtures do `SKILL.md` (execução excelente, fadiga acumulada, fatores
       externos) contra a **chamada 2** e validar o bloco do atleta. Decisão D2 já tomada
       (2026-08-30: segunda chamada separada, rota `simple`). Resta decidir se entra a checagem
@@ -38,7 +43,7 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
 - [ ] 1.2 `AthleteMessageDto` (record separado com os quatro campos, opcional) para a chamada 2;
       `AnaliseWorkoutRawDto` do coach e `WorkoutAnalysisTranslator` ficam **intocados**.
       Validação: teste da chamada 2 com fixture completa; campos do coach seguem como antes.
-- [ ] 1.3 Migration `V85__add_atleta_message_to_tb_analise_workout.sql` (4 × `TEXT NULL` +
+- [ ] 1.3 Migration `V86__add_atleta_message_to_tb_analise_workout.sql` (4 × `TEXT NULL` +
       `atleta_bloqueado_motivo VARCHAR(40) NULL` + `atleta_primeira_visualizacao_em TIMESTAMP
       NULL`) e colunas na entidade `AnaliseWorkout`; `AthleteMessageValidator` (regex, ≤ 240,
       heurística PT-BR, classificador opcional da 0.3) roda sobre o bloco da chamada 2 antes de

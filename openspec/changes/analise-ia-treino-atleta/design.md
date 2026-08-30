@@ -20,7 +20,7 @@ change **não** mostra nenhum deles ao atleta. Quatro colunas novas, nomeadas pe
 | `atleta_esforco` | `athlete_message.effort_reading` | 1–2 frases sobre o RPE informado vs. esperado |
 | `atleta_proximo_treino` | `athlete_message.next_workout_tip` | 1–2 frases, prática, sem mudar o plano |
 
-Migration `V85__add_atleta_message_to_tb_analise_workout.sql`, aditiva, `TEXT NULL`, sem
+Migration `V86__add_atleta_message_to_tb_analise_workout.sql`, aditiva, `TEXT NULL`, sem
 backfill. Rollback: reverter código; colunas ficam inertes. Um DTO separado
 (`AthleteMessageDto`) carrega os quatro campos da chamada 2; o `AnaliseWorkoutRawDto` do coach
 fica intocado; `applyResult` copia os quatro campos; o ramo `FAILED` já zera tudo e passa a
