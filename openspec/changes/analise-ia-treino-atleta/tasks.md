@@ -34,7 +34,7 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
       extraído do listener para reuso no endpoint (Codex #2).
       Validação: teste do payload com e sem etapas; asserção de ausência de `feedbackAtleta`,
       `observacao`, `descricaoEtapa`.
-- [ ] 1.1 Skill do bloco do atleta (nova `skills/analise/athlete-workout-motivation/SKILL.md` ou
+- [x] 1.1 Skill do bloco do atleta (nova `skills/analise/athlete-workout-motivation/SKILL.md` ou
       seção separada, decidir no `implement init`): schema com os quatro campos
       (`recognition`, `how_it_went`, `effort_reading`, `next_workout_tip`), em PT-BR, ≤ 240 chars
       cada, com os guardrails de D2 e um exemplo negativo ("não escreva: pule o treino de
