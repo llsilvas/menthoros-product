@@ -107,13 +107,13 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
       `limeDiscipline`/`contrastMatrix` rodam no `test:run`).
       Validação: `*.test.tsx` — quatro blocos e ordem no `done`; "Analisando…" no `pending`;
       nada no `empty`.
-- [ ] 3.5 `WorkoutDetailDrawer`: chip "Concluído · RPE n/10 · label" + card entre descrição e
+- [x] 3.5 `WorkoutDetailDrawer`: chip "Concluído · RPE n/10 · label" + card entre descrição e
       perfil quando `status === 'concluido'` e há `treinoRealizadoId`.
       Validação: `*.test.tsx` (concluído com análise; concluído sem análise → sem card; hoje →
       inalterado). `npm run lint && npm run build && npm run test:run`.
-- [ ] 3.6 `WeekAgendaRow` + `buildWeekAgenda`: "Análise pronta" quando o flag é `true`.
+- [x] 3.6 `WeekAgendaRow` + `buildWeekAgenda`: "Análise pronta" quando o flag é `true`.
       Validação: teste do adapter e da linha.
-- [ ] 3.7 `PostWorkoutFeedbackCard` + `ManualTrainingFormPage`: card em `pending`/`done` acima do
+- [x] 3.7 `PostWorkoutFeedbackCard` + `ManualTrainingFormPage`: card em `pending`/`done` acima do
       botão; `mensagem` fixa sai quando há card.
       Validação: `*.test.tsx` existentes atualizados.
 - [ ] 3.8 E2E `tests/e2e/athlete/workout-analysis.spec.ts` (390×844): registrar treino com RPE →
