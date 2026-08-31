@@ -2,7 +2,25 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-08-28, madrugada (**`landing-page-mvp-lancamento` entregue e
+**Última atualização:** 2026-08-31 (**`analise-ia-treino-atleta` entregue e arquivada** —
+PRs backend #89 e front #100 mergeados. M · Full: o atleta passa a receber a análise da IA do
+treino que registrou — no detalhe do plano, na agenda ("Análise pronta") e logo após o registro.
+Bloco do atleta nasce numa segunda chamada LLM (skill `athlete-workout-motivation`, rota
+`simple`/gpt-4o-mini, PT-BR nativo), com validador em runtime + classificador semântico via Haiku;
+decisão do founder: **sem gate do coach** (exceção documentada ao coach-in-the-loop, com kill
+switch e o coach vendo o mesmo texto no `TreinoCard`). Endpoint `/me/realizados/{id}/analise`
+escopado por dono com `200 PENDING` por elegibilidade; de carona, dois hardenings de authz
+pré-existentes (`/analises/treino/{id}` → TECNICO/ADMIN; dono no `GET /planos/{atletaId}` para
+ATLETA). Nasceu de canvas (<https://claude.ai/code/artifact/92b790e2-173d-4a30-90bd-bba4bb829a96>),
+passou por pré-mortem Codex na spec (6 achados incorporados) e /qa cross-model no código (8
+correções no gate). Dois fixes só-no-CI: `@MockitoBean` faltante num `@WebMvcTest` que o verify
+local não acusou (a investigar) e um seletor de E2E dependente do dia da semana. Débitos
+registrados no tasks.md arquivado: transação do listener aberta durante as chamadas LLM,
+idempotência check-then-act, god class `PlanoServiceImpl`. Radar: sinal ativo ao coach na fila de
+atenção quando a análise remete a ele (`atleta_analise_remete_coach_total` já mede); backfill dos
+últimos 30 dias para o piloto — decisões do founder.)
+
+Antes: 2026-08-28, madrugada (**`landing-page-mvp-lancamento` entregue e
 arquivada** — PR front #98 mergeado. M · Full, a landing pública reformulada para o lançamento do
 MVP com 10 vagas de programa fundador. Nasceu de uma revisão de design em canvas
 (<https://claude.ai/code/artifact/c862932f-7228-437c-bc61-74d478aa4dd6>): vídeo do hero virou fundo

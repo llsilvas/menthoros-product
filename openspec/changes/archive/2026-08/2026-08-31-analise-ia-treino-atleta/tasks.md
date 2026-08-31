@@ -150,4 +150,4 @@ flash da frase fixa, estado de erro no drawer, key posicional no TreinoCard.
 
 - [x] 5.1 `openspec/specs/athlete-workout-analysis/spec.md` canônica a partir do delta; spec de
       `athlete-workout-feedback` referencia o endpoint irmão.
-- [ ] 5.2 PRs backend e front (`/pr`), `SPRINTS.md` e arquivamento (`/done`).
+- [x] 5.2 PRs backend e front — mergeados em 2026-08-31: backend #89, front #100 (`/pr`), `SPRINTS.md` e arquivamento (`/done`).
