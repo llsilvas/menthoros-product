@@ -23,7 +23,7 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
       sem gate do coach, é a única barreira semântica ("seu corpo está pedindo uma pausa" passa
       pelo regex). Fail-open: Haiku fora → não bloqueia (regex/tamanho/idioma já rodaram).
       Fixtures felizes e adversariais viraram testes (validador, classificador e listener).
-- [ ] 0.4 Spec delta `specs/athlete-workout-analysis/spec.md` revisada contra 0.2/0.3 (já criada na
+- [x] 0.4 Spec delta `specs/athlete-workout-analysis/spec.md` revisada contra 0.2/0.3 (já criada na
       change; `openspec validate` não roda — CLI ausente — revisão manual).
 
 ## 1. Backend — bloco do atleta na análise
@@ -130,6 +130,6 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
 
 ## 5. Fechamento
 
-- [ ] 5.1 `openspec/specs/athlete-workout-analysis/spec.md` canônica a partir do delta; spec de
+- [x] 5.1 `openspec/specs/athlete-workout-analysis/spec.md` canônica a partir do delta; spec de
       `athlete-workout-feedback` referencia o endpoint irmão.
 - [ ] 5.2 PRs backend e front (`/pr`), `SPRINTS.md` e arquivamento (`/done`).

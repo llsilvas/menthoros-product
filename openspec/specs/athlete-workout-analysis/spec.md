@@ -1,4 +1,6 @@
-# Spec delta: athlete-workout-analysis
+# Spec: athlete-workout-analysis
+
+> Promovida do delta da change `analise-ia-treino-atleta` (2026-08-30).
 
 > Capability nova: a análise por IA de um `TreinoRealizado` com RPE ganha um bloco escrito para o
 > atleta e um endpoint escopado por dono que o expõe; o plano sinaliza quais treinos já têm

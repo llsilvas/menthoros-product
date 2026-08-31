@@ -99,3 +99,9 @@ O backend DEVE incrementar `atleta_treino_feedback_total` a cada feedback regist
 #### Scenario: Contador de pulo
 - **When** `POST /me/treinos/hoje/pular` com sucesso
 - **Then** `atleta_treino_pulo_total` incrementa em 1
+
+## Ver também
+
+O mesmo recurso `/api/v1/atletas/me/realizados/{id}` ganhou o endpoint irmão
+`GET .../analise` — análise pós-treino em linguagem de atleta, spec
+`athlete-workout-analysis` (change `analise-ia-treino-atleta`).
