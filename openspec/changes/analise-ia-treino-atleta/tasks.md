@@ -123,7 +123,7 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
 
 ## 4. Frontend — coach (legado)
 
-- [ ] 4.1 `TreinoCard` ("Coach Insight"): bloco "O que o atleta leu" com os quatro textos,
+- [x] 4.1 `TreinoCard` ("Coach Insight"): bloco "O que o atleta leu" com os quatro textos,
       somente leitura, quando `analise` traz os campos do atleta (`AnaliseWorkout` do front ganha
       os quatro campos opcionais, devolvidos pelo endpoint do coach endurecido na 2.5).
       Validação: `*.test.tsx`; `npm run lint && npm run build && npm run test:run`.
