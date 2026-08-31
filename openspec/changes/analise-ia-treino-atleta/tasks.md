@@ -128,6 +128,24 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
       os quatro campos opcionais, devolvidos pelo endpoint do coach endurecido na 2.5).
       Validação: `*.test.tsx`; `npm run lint && npm run build && npm run test:run`.
 
+## QA (2026-08-31) — gate executado, sem Critical
+
+Passes: code/security/clean-code (backend, Claude) + frontend/clean-code (front, Claude) +
+Codex review nos dois diffs + Codex adversarial na implementação; validações completas verdes
+nos dois repos. O code-reviewer backend caiu no limite de quota — coberto por security +
+clean-code + 2 passes Codex. Corrigido no gate: tenant no listener, reset unificado do bloco,
+carimbo atômico da 1ª visualização, Mockito strict, detalhe abre sem etapas (Codex P1), sem
+flash da frase fixa, estado de erro no drawer, key posicional no TreinoCard.
+
+**Débitos registrados (não bloqueiam, candidatos a change própria):**
+- Transação do listener aberta durante as chamadas LLM (pré-existente; a change somou 2 às 5).
+- Idempotência check-then-act do listener (pré-existente) — upsert/lock por treino_realizado_id.
+- `PlanoServiceImpl` como god class (~25 deps) — extrair enriquecimento quando doer.
+- Fetch de análise inline no `TreinoCard` legado — extrair hook ao migrar o shell do coach.
+- Fail-open do classificador: decisão deliberada do founder (disponibilidade > bloqueio total),
+  reavaliar no piloto. Flag do plano não checa `maxIdadeDias` (inalcançável na semana corrente).
+- Imports FQN em `PlanoServiceImpl.comFlagDeAnalise`; estado `loading` sem skeleton no drawer.
+
 ## 5. Fechamento
 
 - [x] 5.1 `openspec/specs/athlete-workout-analysis/spec.md` canônica a partir do delta; spec de
