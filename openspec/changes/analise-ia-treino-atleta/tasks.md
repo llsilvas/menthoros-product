@@ -116,7 +116,7 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
 - [x] 3.7 `PostWorkoutFeedbackCard` + `ManualTrainingFormPage`: card em `pending`/`done` acima do
       botão; `mensagem` fixa sai quando há card.
       Validação: `*.test.tsx` existentes atualizados.
-- [ ] 3.8 E2E `tests/e2e/athlete/workout-analysis.spec.ts` (390×844): registrar treino com RPE →
+- [x] 3.8 E2E `tests/e2e/athlete/workout-analysis.spec.ts` (390×844): registrar treino com RPE →
       card `pending` → Plano com "Análise pronta" → drawer com os quatro blocos; cenário `204`
       sem card. Mocks de rede para `PENDING`/`COMPLETED`/`204`.
       Validação: `npm run test:e2e`.
