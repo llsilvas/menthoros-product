@@ -91,19 +91,19 @@ detalhe do plano são fluxos críticos e a change cruza o contrato da API). Bran
 
 ## 3. Frontend — atleta
 
-- [ ] 3.1 Tipos e fachada: `src/types/AthleteWorkoutAnalysis.ts`,
+- [x] 3.1 Tipos e fachada: `src/types/AthleteWorkoutAnalysis.ts`,
       `src/api/services/AthleteAnalysisService.ts` (`getByRealizado(id)`, `204` → `null`);
       `TreinoPlanejado.analiseAtletaDisponivel?`.
       Validação: `npm run lint && npm run build`.
-- [ ] 3.2 Adapter puro `buildWorkoutAnalysisView(dto)` (`features/athlete/adapters/`): labels do
+- [x] 3.2 Adapter puro `buildWorkoutAnalysisView(dto)` (`features/athlete/adapters/`): labels do
       RPE (`RPE_LABELS` compartilhado com `ManualTrainingForm` — extrair para `types/`), "plano …"
       só quando há `planejado`, cor do esforço por `effortColor`.
       Validação: `*.test.ts` por estado (`pending`, `done`, sem planejado).
-- [ ] 3.3 Hook `useAthleteWorkoutAnalysis(treinoRealizadoId)` (D5): `status`
+- [x] 3.3 Hook `useAthleteWorkoutAnalysis(treinoRealizadoId)` (D5): `status`
       `idle|pending|done|empty`, `loading`, `error`; repetição a cada 15 s por até 3 min em
       `pending`, com cleanup.
       Validação: `*.test.ts` com timers falsos (para em 3 min; para ao ficar `done`).
-- [ ] 3.4 `WorkoutAnalysisCard` presentacional (tokens, SVG inline, sem hex cru — os guards
+- [x] 3.4 `WorkoutAnalysisCard` presentacional (tokens, SVG inline, sem hex cru — os guards
       `limeDiscipline`/`contrastMatrix` rodam no `test:run`).
       Validação: `*.test.tsx` — quatro blocos e ordem no `done`; "Analisando…" no `pending`;
       nada no `empty`.
