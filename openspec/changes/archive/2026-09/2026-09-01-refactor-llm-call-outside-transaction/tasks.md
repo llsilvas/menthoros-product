@@ -1,5 +1,8 @@
 # Tasks — refactor-llm-call-outside-transaction (M · Full · backend)
 
+> **Arquivada em 2026-09-01** — PR backend #91. Adiadas: 0.1 (`printenv` no Railway), 0.2 (p95 real),
+> 5.1 (validação operacional do lote). Nenhuma é de código.
+
 > Trilha Full: **`design.md` é pré-requisito** — a fronteira da transação (o que atravessa e em que
 > formato) é a decisão que define o resto. Não começar pelo código.
 > Fechar cada bloco com `./mvnw clean test`. `verify:` = como saber que funcionou.
@@ -133,10 +136,14 @@
 
 ## 5. Validação final
 
-- [ ] 5.1 Teste manual: lote com LLM artificialmente lento, confirmando que o app segue respondendo
-  (login e telas do atleta) durante o lote inteiro — é o sintoma que motiva a change
+- [ ] 5.1 **ADIADA (arquivamento 2026-09-01, operação do founder):** lote real em `develop` com `curl`
+  autenticado em `/actuator/prometheus` (`hikaricp_connections_active`) durante o lote, confirmando
+  que login e telas do atleta seguem respondendo. A prova reproduzível já existe
+  (`LotePlanosFundadorasIT`); esta é a validação operacional
 - [x] 5.2 Reavaliar `BATCH_PLAN_LLM_CONCORRENCIA`: depois desta change ele volta a ser ajuste sobre
   custo/429 do provedor, não sobre pool de conexão. Documentado no `application.yml` (comentário
   do `llm-concorrencia`). **Subir o valor em produção (8-10) é operação do founder, depois do
   merge** — o default fica 4
-- [ ] 5.3 Atualizar este `tasks.md` (implementado vs. adiado) e arquivar conforme o `CLAUDE.md` raiz
+- [x] 5.3 Atualizar este `tasks.md` (implementado vs. adiado) e arquivar conforme o `CLAUDE.md` raiz —
+  PR backend **#91** mergeado em `develop` (`29e196f`, 2026-09-01); arquivada em
+  `changes/archive/2026-09/2026-09-01-refactor-llm-call-outside-transaction/`
