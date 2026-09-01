@@ -35,7 +35,8 @@
 - [x] 0.3 Verificar se `WorkoutAnalysisListener` e `WeeklyFocusNarrativeService` têm o mesmo
   acoplamento — **sim, os dois** (`@Async` + `@Transactional(REQUIRES_NEW)` em volta do LLM).
   Ficam fora desta change, como follow-up XS (`design.md` D6)
-- [ ] 0.4 Criar branch `feature/refactor-llm-call-outside-transaction`
+- [x] 0.4 Criar branch `feature/refactor-llm-call-outside-transaction` — criada em 2026-09-01 a partir
+  de `develop` @ `9bae546` (merge do PR #90)
 - [x] 0.5 Tier da chave OpenAI em produção — **tier 3** (founder, 2026-09-01): o provedor não é o
   gargalo; `llm-concorrencia` pode subir para 8–10 depois do merge (`design.md` D0)
 - [x] 0.6 Grilling do `design.md` (2026-09-01): Q1–Q13 decididas pelo founder; `CONTEXT.md` ganhou
