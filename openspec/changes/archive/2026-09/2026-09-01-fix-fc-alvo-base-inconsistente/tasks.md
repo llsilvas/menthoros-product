@@ -1,5 +1,8 @@
 # Tasks — fix-fc-alvo-base-inconsistente (S · Full · backend + front · 37 tasks)
 
+> **Arquivada em 2026-09-01** com 35/37. As duas restantes (3c.5 e 5.3) são a mesma validação
+> operacional com conta real do intervals.icu e ficam adiadas no Radar do SPRINTS.
+
 > **Refinada em 2026-08-02:** escopo reduzido ao **formato de alvo** (padrão Garmin). O
 > `ZonaTreinoService` **não é tocado** — nenhuma faixa muda. Diff em `ZonaTreinoService.java` é sinal
 > de escopo estourado.
@@ -180,7 +183,8 @@
   Existe canal relativo com a base do domínio, ao contrário do que a proposal afirmava. **Não muda a
   decisão:** seria resolvido contra o LTHR do perfil remoto, que o Menthoros não escreve — a mesma
   delegação que condenou o `hr_zone`. Continuamos certos, por um motivo mais forte
-- [ ] **3c.5 NÃO confirmado: como o intervals.icu converte `workout_doc` → FIT no download.** Sem
+- [ ] **3c.5 ADIADA (2026-09-01, arquivamento) — NÃO confirmado: como o intervals.icu converte
+  `workout_doc` → FIT no download.** Fecha junto com a 5.3, no Radar do SPRINTS. Sem
   fonte. Há um bug report de usuário (2026-08-21) alegando que `hr_zone` sai como custom errado e que
   `%pace` vira `OPEN` — **não verificado e contestado no próprio tópico**. Reforça a 5.3: só a
   validação com conta real fecha isso
@@ -241,8 +245,10 @@
 
 - [x] **5.1** O teste de 1.1 passa a verde e a correção explica a diferença — [CA6]
 - [x] **5.2 Guardrail de escopo:** `git diff develop -- '*ZonaTreinoService.java'` ⇒ **vazio**
-- [ ] **5.3 Validar ponta a ponta com conta real** de intervals.icu: o bpm no relógio é o mesmo da
-  tela do plano
+- [ ] **5.3 ADIADA (2026-09-01, arquivamento) — Validar ponta a ponta com conta real** de
+  intervals.icu: o bpm no relógio é o mesmo da tela do plano. Decisão do founder: arquivar com a
+  validação operacional pendente, registrada no Radar do SPRINTS para ser feita junto com o teste
+  real do `convite-assessorias-fundadoras` (5.1), que já exige conta real
   - ⚠️ Contrato externo. `units: "bpm"` já é emitido hoje (`IntervalsIcuAdapter:267`), então não é
     formato novo — mas confirmar contra a API real, não só contra teste
 - [x] **5.4** `./mvnw clean verify` verde — rodado em `develop` **depois** do merge dos PRs #75
