@@ -18,38 +18,40 @@
 
 ## 1. Limiter com três faixas (TDD)
 
-- [ ] 1.1 Testes primeiro (`LlmConcurrencyLimiterTest`): cap por tenant limita um tenant sem
+- [x] 1.1 Testes primeiro (`LlmConcurrencyLimiterTest`): cap por tenant limita um tenant sem
   limitar outro; ordem tenant→global na aquisição; reserva interativa indisponível para o lote;
   interativo usa capacidade ociosa do lote; reentrância por thread (lote não re-adquire);
   release em erro (todas as faixas) — [CA2] [CA3]
-- [ ] 1.2 Implementar `executarLote(UUID tenantId, Supplier)` (cadeia tenant → capacidade →
+- [x] 1.2 Implementar `executarLote(UUID tenantId, Supplier)` (cadeia tenant → capacidade →
   global, sempre nesta ordem; release inverso) e `executarInterativo(Supplier)` (só global);
   `executar(Supplier)` legado delega para o interativo e é deprecado
   - verify: `./mvnw test -Dtest=LlmConcurrencyLimiterTest*` verde
-- [ ] 1.3 Chaves `llm-concorrencia-por-tenant: ${BATCH_PLAN_LLM_CONCORRENCIA_POR_TENANT:2}` e
+- [x] 1.3 Chaves `llm-concorrencia-por-tenant: ${BATCH_PLAN_LLM_CONCORRENCIA_POR_TENANT:2}` e
   `llm-reserva-interativa: ${BATCH_PLAN_LLM_RESERVA_INTERATIVA:1}` no `application.yml`, com
   comentário no padrão do `llm-concorrencia` (o que controla, o que não controla)
-- [ ] 1.4 `./mvnw clean test` verde
+- [x] 1.4 `./mvnw clean test` verde — 12/12 no `LlmConcurrencyLimiterTest`
 
 ## 2. Ligar os dois chamadores
 
-- [ ] 2.1 `BatchPlanProcessor.processarAtleta` → `executarLote(tenantId, ...)`
+- [x] 2.1 `BatchPlanProcessor.processarAtleta` → `executarLote(tenantId, ...)`
   - verify: `BatchPlanProcessorTest` verde sem alteração de asserção (o stub do limiter muda de
     método, não de comportamento)
-- [ ] 2.2 Wrap interativo na fase 2 (`PlanoServiceImpl.gerarPlanoSemanal`), em volta SÓ da chamada
+- [x] 2.2 Wrap interativo na fase 2 (`PlanoServiceImpl.gerarPlanoSemanal`), em volta SÓ da chamada
   ao LLM — [CA3]
   - verify: teste em `PlanoServiceImplTest` — geração interativa adquire permit interativo; vinda
     do lote (permit já em posse na thread), nenhum permit novo
-- [ ] 2.3 `./mvnw clean test` verde
+- [x] 2.3 `./mvnw clean test` verde — 2951 testes, 0 falhas
 
 ## 3. Prova de justiça (régua)
 
-- [ ] 3.1 Estender `LotePlanosFundadorasIT`: com cap 2 e global 10, afirmar por contadores no stub
+- [x] 3.1 Estender `LotePlanosFundadorasIT`: com cap 2 e global 10, afirmar por contadores no stub
   do LLM que nenhum tenant passa de 2 em voo E que ≥ 5 assessorias distintas ficam em voo
   simultaneamente; a razão última/primeira é reportada no log, não assertada — [CA1]
-  - verify: IT verde; log registra o antes/depois (baseline 2,6×)
-- [ ] 3.2 Teste do CA2 no mesmo IT: lote saturado + um `gerarPlanoTreino` interativo entra no LLM
-  em ≤ 2 s (permit reservado livre) — [CA2]
+  - verify: IT verde — cap respeitado (pico por tenant = 2), ≥5 assessorias simultâneas, razão
+    última/primeira **1,25×** (baseline 2,6×); pico do lote = 9 (global − reserva, como esperado)
+- [x] 3.2 Teste do CA2 no mesmo IT: lote saturado + um `gerarPlanoTreino` interativo entra no LLM
+  em ≤ 2 s (permit reservado livre) — [CA2] — entrou em ~48 ms; o teste drena os lotes `@Async`
+  antes de terminar (aprendizado: sem isso, uma geração vazou para o teste seguinte)
 - [ ] 3.3 `PlanoGeracaoConcorrenteIT` e demais ITs de plano verdes; `./mvnw clean verify` — [CA4]
 
 ## 4. Encerramento
