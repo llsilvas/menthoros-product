@@ -63,19 +63,29 @@
 - [x] 2.0 Confirmar que nenhuma tela usa `PlanoMetaDados.dataUltimaAtualizacao` como "última vez que
   calculei" — **verificado em 2026-09-01:** o campo não é lido fora da entidade, nem no backend nem
   no front; o metadado pode existir sem plano sem efeito visível (`design.md` D1, riscos)
-- [ ] 2.1 Extrair a fase de leitura para transação própria e curta, devolvendo o que o design definiu
+- [x] 2.1 Extrair a fase de leitura para transação própria e curta, devolvendo o que o design definiu
+  — `PlanGenerationContextLoader.load` + record `PlanGenerationContext` (compõe `DadosPlanoDto` em vez
+  de substituí-lo: o `PlannerShadowService` continua recebendo o DTO que conhece);
+  `PlanGenerationContextLoaderIT` verde (Testcontainers)
   - verify: teste que executa a leitura e acessa todos os campos usados adiante **sem transação
     ativa**, incluindo `PlannerShadowService.aplicarShadow` (único consumidor externo de
     `DadosPlanoDto`) — se estourar `LazyInitializationException`, a fronteira está errada — [CA5]
-- [ ] 2.2 Tirar `gerarPlanoTreino` do `@Transactional` (ou reduzir a propagação), com a chamada ao
-  LLM fora de qualquer transação — [CA1]
+- [x] 2.2 Tirar `gerarPlanoTreino` do `@Transactional` (ou reduzir a propagação), com a chamada ao
+  LLM fora de qualquer transação — [CA1] — removido da classe **e da interface `PlanoService`**
+  (o Spring honra a anotação na interface; só a classe não bastaria). O teste com pool reduzido
+  fica para a 4.1, junto com o CA2
   - verify: teste com pool reduzido (ex.: Hikari max 2) gera plano normalmente; hoje, com o LLM
     dentro da transação, mais gerações concorrentes que o pool travam
-- [ ] 2.3 `./mvnw clean test` verde
+- [x] 2.3 `./mvnw clean test` verde — 2937 testes, 0 falhas (2026-09-01)
 
 ## 3. Persistência em transação curta
 
-- [ ] 3.1 `persistirPlanoCompleto` em transação própria, iniciada só depois da resposta do LLM
+- [x] 3.1 `persistirPlanoCompleto` em transação própria, iniciada só depois da resposta do LLM —
+  `PlanGenerationPersister.persist`, feito junto com a 2.2 (sem ele, tirar o `@Transactional` do
+  orquestrador deixaria a persistência sem transação). **Desvio do D2 registrado:** nenhuma
+  associação do `PlanoSemanal` tem cascade, então `atleta`, `assessoria` e `consumedReview` são
+  associados pela referência detached (o Hibernate usa só o id na FK); o único objeto recarregado
+  por id é o `PlanoMetaDados`, porque é o único que é alterado
   - verify: `PlanoServiceImplTest` (33) verde sem alteração de asserção — o comportamento observável
     não muda — [CA3]
   - verify: `grep dadosPlano.atleta()`/`ctx.atleta()` no caminho de escrita ⇒ nenhum uso para
