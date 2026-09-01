@@ -105,10 +105,16 @@
 
 ## 4. Prova do ganho
 
-- [ ] 4.1 Métrica/asserção de que conexões ativas não escalam com `llm-concorrencia` — [CA2]
+- [x] 4.1 Métrica/asserção de que conexões ativas não escalam com `llm-concorrencia` — [CA2] —
+  `LotePlanosFundadorasIT` (2026-09-01): 10 assessorias × 10 atletas pelo lote real, pool **2**,
+  `llm-concorrencia` **10**, LLM stub de 250 ms. Resultado: 100 planos em 3,2 s (teórico 2,5 s),
+  pico de 10 LLM em voo, **0** chamadas com transação ativa (CA1), pico de conexões ativas = 2.
+  A/B no mesmo IT: com o LLM dentro de uma transação (código antigo) só 2 gerações chegam ao LLM
+  juntas; fora, as 10. Stub em vez de WireMock: o ganho está na fronteira, não no HTTP
   - verify: lote simulado com concorrência 4 e LLM lento (WireMock `withFixedDelay`) ⇒ conexões
     ativas permanecem baixas; antes da change, 4
-- [ ] 4.2 Golden test do plano gerado inalterado — [CA3]
+- [x] 4.2 Golden test do plano gerado inalterado — [CA3] — `PlanoTreinoPromptBuilderGoldenTest` verde
+  no `clean test`, sem alteração
 - [ ] 4.3 `./mvnw clean test` + `./mvnw verify` verdes
 
 ## 5. Validação final
