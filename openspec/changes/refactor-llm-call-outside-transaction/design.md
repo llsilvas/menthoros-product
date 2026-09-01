@@ -134,12 +134,18 @@ as entidades **já inicializadas em todos os caminhos lazy que o fluxo usa**:
 | `atleta.getAssessoria()` | `criarPlanoEntity` (L596) | `Hibernate.initialize` na fase 1 (ou `getAssessoria().getId()` já resolvido no contexto) |
 | `atleta.getDiaPreferidoLongo()` | `inferirDiaPrioritarioLongo` (L235) | coluna simples, sem risco |
 | `metaDados` | `prepararMetadados` (L636-650) | **já é re-buscado** por `findByIdAndTenantId` (L643-650) por causa do incidente do cache — a fase 3 mantém isso e passa a ser a regra, não a exceção |
-| `revisaoConsumida` | `plano.setConsumedReview` (L301), leitura em L322 | fase 3 reanexa por `getReferenceById`/`findById` |
+| `revisaoConsumida` | `plano.setConsumedReview` (L301), leitura em L322 | associada pela referência detached — `PlanoSemanal.consumedReview` é `@ManyToOne(LAZY)` **sem cascade**, o Hibernate usa só o id na FK (ajustado na implementação; ver abaixo) |
 | `treinoHistoricoProvider.prepararContexto(atleta)` | dentro de `IaServiceImpl.validarENormalizarPlanoGerado` (L360-370), entre retries | **verificar na task 1.3**: o `atleta` ali vem de um `findByIdAndTenantId` próprio (L360), então é gerenciado só durante a query do repository — qualquer lazy depois disso já estoura hoje ou não é usado; confirmar com o teste do CA5 |
 
-Regra que vale para a fase 3, e que a task 3.1 exige como verificação explícita (hoje
+**Ajuste feito na implementação (2026-09-01):** nenhuma associação do `PlanoSemanal` (`atleta`,
+`assessoria`, `planoMetaDados`, `consumedReview`) tem cascade, então **associar pela referência
+detached é seguro** — o Hibernate usa só o id na FK e nunca tenta persistir a instância. A regra
+de recarga por id fica restrita ao que é **alterado** na fase 3: só o `PlanoMetaDados`. Recarregar
+`atleta` e `revisaoConsumida` custaria queries e stubs a mais sem eliminar risco nenhum.
+
+Regra original, que continua valendo para tudo que **muda de estado** na fase 3 (hoje
 `persistirPlanoCompleto` L213 e `criarPlanoEntity` L595-596 associam `dadosPlano.atleta()`
-direto ao plano): **nada que vai ser salvo ou associado usa a instância detached** —
+direto ao plano): **nada que vai ser alterado usa a instância detached** —
 `atleta`, `metaDados` e `revisaoConsumida` são recarregados por id dentro da transação de escrita e
 são essas instâncias que entram no `PlanoSemanal`. A detached serve para ler valores e montar o
 prompt. É a mesma disciplina que `prepararMetadados` já pratica sozinho hoje.

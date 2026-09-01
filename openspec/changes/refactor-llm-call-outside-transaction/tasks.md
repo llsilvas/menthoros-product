@@ -117,6 +117,20 @@
   no `clean test`, sem alteração
 - [x] 4.3 `./mvnw clean test` + `./mvnw verify` verdes — 2939 unitários + 159 ITs, 0 falhas (2026-09-01)
 
+## 4b. Gate de QA (2026-09-01)
+
+- [x] 4b.1 `code-reviewer`, `security-reviewer`, `clean-code-reviewer` (Claude) + Codex (review +
+  adversarial). Sem Critical. Convergência Claude+Codex: o `BatchPlanProcessor` rotulava **qualquer**
+  `DataIntegrityViolationException` como "plano já existe" — corrigido com o mesmo discriminador do
+  orquestrador (`PlanoJaExistenteException.causadaPeloIndiceDePlanoAtivo`) e teste. Demais
+  achados absorvidos: mensagem única via fábricas na exceção; `PlanoMetadadosCacheIT` cobre "metadado
+  sobrevive à falha do LLM"; IT do CA5 roda o shadow real e afirma zero `LazyInitializationException`;
+  IT de carga mede o platô (dentro: 2 conexões presas; fora: 0); JavaDoc do contrato de erro
+  corrigido; design D2 alinhado à decisão de associar por referência detached (sem cascade).
+  Deixados como estão: FQN inline nos testes (estilo) e o catch genérico `Exception → LLMException`
+  (preexistente; débito para a decomposição do serviço)
+- [x] 4b.2 Revalidação: `clean test` 2940/0 falhas; ITs afetados 10/10 verdes
+
 ## 5. Validação final
 
 - [ ] 5.1 Teste manual: lote com LLM artificialmente lento, confirmando que o app segue respondendo
