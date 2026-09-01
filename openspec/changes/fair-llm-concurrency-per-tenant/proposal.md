@@ -27,9 +27,11 @@ Só o backend, três pontos, nenhum contrato de API:
      global (nunca segurar o global esperando o do tenant). Com 10 lotes, global 10 e cap 2,
      **5 assessorias progridem simultaneamente** em vez de 1–2.
    - **Reserva interativa** — `app.batch-plan.llm-reserva-interativa` (novo, default **1**):
-     permits do global que o lote não pode ocupar. Implementação: o lote adquire também de um
-     semáforo de capacidade `llm-concorrencia − reserva`; o interativo só do global — pode usar a
-     capacidade ociosa do lote, mas nunca o contrário.
+     permits do global que o lote não pode ocupar. Implementação: **o lote encadeia três
+     aquisições, sempre nesta ordem — tenant → capacidade do lote (`llm-concorrencia − reserva`) →
+     global**; o interativo adquire **só o global**. O lote também consome o global — sem isso, o
+     teto contra o provedor deixaria de valer com lote e interativo juntos. Sem ciclo de espera
+     possível: o interativo nunca segura tenant/capacidade, e o lote nunca adquire fora da ordem.
 2. **`BatchPlanProcessor`** passa a chamar `executarLote(tenantId, supplier)`.
 3. **O "gerar" interativo passa pelo limiter**: o wrap acontece na fase 2 do
    `PlanoServiceImpl.gerarPlanoTreino` (em volta da chamada ao LLM, nunca das transações), como
@@ -48,9 +50,10 @@ Só o backend, três pontos, nenhum contrato de API:
 ## Critérios de aceite
 
 - **CA1 — justiça entre assessorias.** Dados 10 lotes de 10 atletas disparados juntos com global 10
-  e cap por tenant 2, quando todos terminam, então em algum instante ≥ 5 assessorias tiveram
-  geração em voo simultaneamente, e a razão entre o tempo da última e o da primeira cai para
-  ≤ 1,6× (baseline medido: 2,6×).
+  e cap por tenant 2, quando o lote roda, então (a) **nenhum tenant passa de 2 em voo** e (b) em
+  algum instante **≥ 5 assessorias distintas** têm geração em voo simultânea — ambos medidos por
+  contadores dentro do stub do LLM, determinísticos. A razão última/primeira (baseline 2,6×;
+  esperado ≤ 1,6×) é **métrica reportada no log**, não asserção — duração absoluta em CI flakeia.
 - **CA2 — interativo não espera o lote.** Dado o lote saturando todos os permits que lhe cabem,
   quando um "gerar" interativo chega, então ele entra no LLM sem esperar o lote drenar (o permit
   reservado está livre por construção).
@@ -71,12 +74,18 @@ porque clicou por último.
 **Código:** `LlmConcurrencyLimiter` (o grosso), `BatchPlanProcessor` (uma linha),
 `PlanoServiceImpl.gerarPlanoTreino` (wrap da fase 2), `application.yml` (duas chaves novas).
 **Sem migration, sem contrato de API.** Risco baixo: erro aqui degrada para o comportamento atual
-(fila global), não para indisponibilidade.
+(fila global), não para indisponibilidade. **Rollback sem deploy:** setar
+`BATCH_PLAN_LLM_CONCORRENCIA_POR_TENANT` ≥ `llm-concorrencia` e `BATCH_PLAN_LLM_RESERVA_INTERATIVA=0`
+neutraliza as duas faixas novas; reverter o PR remove tudo.
 
 ## Open Questions & Assumptions
 
 - **Premissa:** cap 2 por tenant e reserva 1 são bons defaults para 10 × 10; ambos são env vars e
   ajustáveis sem deploy.
+- **Decisão explícita (achado do Codex no DoR):** o retry do `PlanoResilienceService` (até 2
+  tentativas, deadline 100 s) roda **dentro** do permit. É deliberado: o permit protege o provedor,
+  e um retry é outra chamada ao provedor; liberá-lo entre tentativas deixaria o global estourar sob
+  falha. Custo aceito: sob falha estrutural lenta, um permit fica ocupado por até o deadline.
 - **Premissa:** o interativo não precisa de cap por tenant — é um humano clicando; se um dia um
   tenant abusar do endpoint, o problema é rate-limiting HTTP, não este limiter.
 - **Em aberto (não bloqueia):** o mapa de semáforos por tenant não é limpo — cresce com o nº de

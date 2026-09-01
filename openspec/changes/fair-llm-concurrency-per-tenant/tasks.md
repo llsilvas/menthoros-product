@@ -22,7 +22,8 @@
   limitar outro; ordem tenant→global na aquisição; reserva interativa indisponível para o lote;
   interativo usa capacidade ociosa do lote; reentrância por thread (lote não re-adquire);
   release em erro (todas as faixas) — [CA2] [CA3]
-- [ ] 1.2 Implementar `executarLote(UUID tenantId, Supplier)` e `executarInterativo(Supplier)`;
+- [ ] 1.2 Implementar `executarLote(UUID tenantId, Supplier)` (cadeia tenant → capacidade →
+  global, sempre nesta ordem; release inverso) e `executarInterativo(Supplier)` (só global);
   `executar(Supplier)` legado delega para o interativo e é deprecado
   - verify: `./mvnw test -Dtest=LlmConcurrencyLimiterTest*` verde
 - [ ] 1.3 Chaves `llm-concorrencia-por-tenant: ${BATCH_PLAN_LLM_CONCORRENCIA_POR_TENANT:2}` e
@@ -43,9 +44,10 @@
 
 ## 3. Prova de justiça (régua)
 
-- [ ] 3.1 Estender `LotePlanosFundadorasIT`: com cap 2 e global 10, afirmar ≥ 5 assessorias com
-  geração em voo simultânea (medido no stub do LLM) e razão última/primeira ≤ 1,6× — [CA1]
-  - verify: IT verde; registrar no log o antes/depois (2,6× → medido)
+- [ ] 3.1 Estender `LotePlanosFundadorasIT`: com cap 2 e global 10, afirmar por contadores no stub
+  do LLM que nenhum tenant passa de 2 em voo E que ≥ 5 assessorias distintas ficam em voo
+  simultaneamente; a razão última/primeira é reportada no log, não assertada — [CA1]
+  - verify: IT verde; log registra o antes/depois (baseline 2,6×)
 - [ ] 3.2 Teste do CA2 no mesmo IT: lote saturado + um `gerarPlanoTreino` interativo entra no LLM
   em ≤ 2 s (permit reservado livre) — [CA2]
 - [ ] 3.3 `PlanoGeracaoConcorrenteIT` e demais ITs de plano verdes; `./mvnw clean verify` — [CA4]
