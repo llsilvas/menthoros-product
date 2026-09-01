@@ -121,7 +121,8 @@
 
 - [ ] 5.1 Teste manual: lote com LLM artificialmente lento, confirmando que o app segue respondendo
   (login e telas do atleta) durante o lote inteiro — é o sintoma que motiva a change
-- [ ] 5.2 Reavaliar `BATCH_PLAN_LLM_CONCORRENCIA`: depois desta change ele volta a ser ajuste sobre
-  custo/429 do provedor, não sobre pool de conexão. Documentar isso no `application.yml`, onde hoje
-  o comentário não menciona o efeito colateral
+- [x] 5.2 Reavaliar `BATCH_PLAN_LLM_CONCORRENCIA`: depois desta change ele volta a ser ajuste sobre
+  custo/429 do provedor, não sobre pool de conexão. Documentado no `application.yml` (comentário
+  do `llm-concorrencia`). **Subir o valor em produção (8-10) é operação do founder, depois do
+  merge** — o default fica 4
 - [ ] 5.3 Atualizar este `tasks.md` (implementado vs. adiado) e arquivar conforme o `CLAUDE.md` raiz
