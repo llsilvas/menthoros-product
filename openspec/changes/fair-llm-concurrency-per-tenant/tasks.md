@@ -52,7 +52,8 @@
 - [x] 3.2 Teste do CA2 no mesmo IT: lote saturado + um `gerarPlanoTreino` interativo entra no LLM
   em ≤ 2 s (permit reservado livre) — [CA2] — entrou em ~48 ms; o teste drena os lotes `@Async`
   antes de terminar (aprendizado: sem isso, uma geração vazou para o teste seguinte)
-- [ ] 3.3 `PlanoGeracaoConcorrenteIT` e demais ITs de plano verdes; `./mvnw clean verify` — [CA4]
+- [x] 3.3 `PlanoGeracaoConcorrenteIT` e demais ITs de plano verdes; `./mvnw clean verify` — [CA4] —
+  **2951 unitários + 162 ITs, 0 falhas** (2026-09-01, pós-correções do QA)
 
 ## 3b. Gate de QA (2026-09-01)
 
