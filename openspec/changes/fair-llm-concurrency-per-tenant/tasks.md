@@ -54,6 +54,19 @@
   antes de terminar (aprendizado: sem isso, uma geração vazou para o teste seguinte)
 - [ ] 3.3 `PlanoGeracaoConcorrenteIT` e demais ITs de plano verdes; `./mvnw clean verify` — [CA4]
 
+## 3b. Gate de QA (2026-09-01)
+
+- [x] 3b.1 `code-reviewer` (sem Critical/Important), `security-reviewer` (sem High),
+  `clean-code-reviewer` + Codex. Absorvidos: os três semáforos viram **justos** (Codex — elimina
+  barging teórico; o argumento da proposal contra FIFO era sobre semáforo justo *sem* cap);
+  `executar` deprecado removido (convergência clean-code + code-reviewer — nenhum call site);
+  ThreadLocal com `remove()`; JavaDoc Idempotent/Side Effects nos métodos novos; risco aceito da
+  faixa interativa sem cap por tenant documentado no JavaDoc (security); latch no lugar do
+  sleep-poll no teste da reserva (clean-code). De carona: parágrafo do `CLAUDE.md` do backend sobre
+  "LLM dentro da transação" estava obsoleto desde o refactor — corrigido.
+- [x] 3b.2 Revalidação: limiter 12/12, `PlanoServiceImplTest` 43, ITs 4/4; justiça **1,19×**
+  (baseline 2,6×), interativo em 71 ms com o lote saturado
+
 ## 4. Encerramento
 
 - [ ] 4.1 Atualizar este `tasks.md` e arquivar conforme o `CLAUDE.md` raiz
