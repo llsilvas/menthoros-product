@@ -15,29 +15,33 @@
   `persistirPlanoCompleto`; rede de segurança é o índice único parcial da **V52**.
 - **Lote:** `BatchPlanProcessor` chama o mesmo `gerarPlanoTreino` público, com virtual threads +
   `LlmConcurrencyLimiter` (`Semaphore`, `app.batch-plan.llm-concorrencia:4`, por JVM).
-- **Pool:** sem config de Hikari no `application.yml` ⇒ default 10, `connectionTimeout` 30s.
+- **Pool:** ~~sem config ⇒ default 10~~ **corrigido em 2026-09-01:** `application-cloud.yml` e
+  `application-dev.yml` configuram `maximum-pool-size: 5` (Railway free tier). Com
+  `llm-concorrencia = 4`, o lote fixa **4 de 5** conexões (`design.md` D0).
 - **Rede de teste existente:** `PlanoServiceImplTest` (33 testes) e o golden-master do prompt.
 
 ## 0. Pré-requisitos
 
-- [ ] 0.1 Confirmar o tamanho real do pool em produção (Railway pode injetar
-  `SPRING_DATASOURCE_HIKARI_*` por env) — a conta de "quando quebra" depende disso
+- [ ] 0.1 Confirmar o tamanho real do pool em produção — **parcial (2026-09-01):** o profile `cloud`
+  fixa 5 no repo (`design.md` D0); falta só um `printenv | grep HIKARI` no serviço Railway para
+  confirmar que nenhuma env sobrescreve
 - [ ] 0.2 Recalcular o ponto de ruptura com o p95 real da rota `PLANO`, quando o `Timer` de
   `add-external-call-resilience` tiver ~2 semanas de dado (a conta atual usa os ~80s de um
   comentário de código)
-- [ ] 0.3 Verificar se `WorkoutAnalysisListener` e `WeeklyFocusNarrativeService` têm o mesmo
-  acoplamento (são `@Async`, mas podem abrir transação em volta da chamada)
+- [x] 0.3 Verificar se `WorkoutAnalysisListener` e `WeeklyFocusNarrativeService` têm o mesmo
+  acoplamento — **sim, os dois** (`@Async` + `@Transactional(REQUIRES_NEW)` em volta do LLM).
+  Ficam fora desta change, como follow-up XS (`design.md` D6)
 - [ ] 0.4 Criar branch `feature/refactor-llm-call-outside-transaction`
 
 ## 1. Design (bloqueia a implementação)
 
-- [ ] 1.1 `design.md`: decidir **o que atravessa a fronteira** — entidades detached, records de
+- [x] 1.1 `design.md` (D2 — detached para ler, recarga por id para escrever):: decidir **o que atravessa a fronteira** — entidades detached, records de
   leitura, ou recarregar na fase de escrita. É a decisão que define o risco de
   `LazyInitializationException` e o tamanho do diff
-- [ ] 1.2 `design.md`: decidir o **comportamento sob conflito** — `existePlanoAtivoNaSemana` passa a
+- [x] 1.2 `design.md` (D3 — checar na fase 1, re-checar na fase 3, índice V52 decide, `DataIntegrityViolationException` vira `PlanoJaExistenteException` no orquestrador):: decidir o **comportamento sob conflito** — `existePlanoAtivoNaSemana` passa a
   rodar em transação diferente da que persiste, abrindo janela para geração concorrente do mesmo
   plano. Hoje o índice único da V52 é a rede; definir se o tratamento é falhar limpo ou re-checar
-- [ ] 1.3 `design.md`: mapear todo acesso a entidade JPA **depois** da chamada ao LLM (candidatos a
+- [x] 1.3 `design.md` (tabela do D2; resta confirmar `treinoHistoricoProvider.prepararContexto` pelo teste do CA5):: mapear todo acesso a entidade JPA **depois** da chamada ao LLM (candidatos a
   estourar detached) — varredura em `persistirPlanoCompleto`, `criarPlanoComTreinos`,
   `prepararMetadados`, `plannerShadowService.aplicarShadow`
 - [ ] 1.4 Pre-mortem (trilha Full) sobre o design escolhido
