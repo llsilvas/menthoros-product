@@ -30,30 +30,66 @@ Isso responde a task 0.1 (a config está no repo, não em env do Railway — ain
 ponto de ruptura por `recovery-limite-min` continua em ~90 atletas, mas a degradação do app durante o
 lote é imediata e independe do tamanho da assessoria.
 
+### O cenário das fundadoras: 100 planos na mesma janela
+
+Com `convite-assessorias-fundadoras`, o regime passa a ser **10 assessorias × 10 atletas = 100
+planos por semana**, e o padrão provável é o pior: os 10 treinadores disparam o lote na mesma
+janela (domingo à noite), porque o ciclo semanal é o mesmo para todos. Contra o código de hoje:
+
+- `LlmConcurrencyLimiter` é **um semáforo por JVM**, não por assessoria, e não-justo. Dez lotes
+  disputam 4 permits: 100 × 80s ÷ 4 ≈ **33 minutos** até a última assessoria terminar — o
+  treinador que clicou por último espera meia hora sem saber por quê, e o `recovery-limite-min`
+  (30) já foi ultrapassado.
+- O **"gerar" individual não passa pelo limiter** (`PlanoTreinoController` → `planoService`
+  direto). Hoje 5 cliques simultâneos esgotam o pool de 5 sozinhos; depois desta change o pool
+  para de importar, mas a concorrência contra o provedor fica ilimitada.
+- **O provedor não é o gargalo.** A chave OpenAI de produção está no **tier 3** (confirmado pelo
+  founder em 2026-09-01: 800k TPM para o gpt-4o). Com ~10k tokens por plano de 80s, a concorrência
+  sustentável passa de 100 — o limite real de `llm-concorrencia` vira custo e comportamento do
+  lote, não 429.
+- **Um lote órfão é barato de retomar:** `processarAtleta` já tem o fast-path
+  `existePlanoParaSemana`, então clicar de novo pula os atletas prontos. Não precisamos de um lote
+  que nunca morre; precisamos de um que morre limpo e recomeça de onde parou.
+
+Decisões do founder (grilling de 2026-09-01), em ordem de execução:
+
+1. **Esta change primeiro** — sem ela, subir a concorrência derruba o app para todo mundo.
+2. **`llm-concorrencia` sobe para 8–10** depois do merge, por decisão de operação (task 5.2).
+   Com tier 3, 100 planos cabem em ~15 minutos.
+3. **Cap por assessoria dentro do cap global + faixa reservada para o clique individual** — change
+   XS própria, `fair-llm-concurrency-per-tenant` (ver D6). Com 10 lotes e global 10, cada
+   assessoria anda a 2 por vez e todas terminam em ~7 min, em vez de a primeira em 3 e a última em
+   33. Semáforo justo (FIFO) não resolve: o primeiro lote enfileira 10 de uma vez.
+4. **Recovery por estado, não por idade** — change XS própria (ver D6).
+5. **Lote agendado (cron) fica fora** — resolveria a coincidência de horário, mas tira do
+   treinador o ato de disparar, e o produto é coach-in-the-loop. Reavaliar com ~30 assessorias.
+
 ## D1 — Fronteira: três fases, orquestrador sem transação, colaboradores transacionais
 
 `gerarPlanoTreino` perde o `@Transactional` e vira um orquestrador que só encadeia:
 
 ```
 PlanoServiceImpl.gerarPlanoTreino(atletaId, modo)              ← SEM transação
-  1. ctx = contextLoader.carregar(atletaId, modo)              ← @Transactional (curta)
+  1. ctx = contextLoader.load(atletaId, modo)                  ← @Transactional (curta)
   2. planoDto = gerarPlanoSemanal(ctx, ...)                    ← LLM, nenhuma conexão em posse
-  3. return persister.persistir(ctx, planoDto, modo)           ← @Transactional (curta)
+  3. return persister.persist(ctx, planoDto, modo)             ← @Transactional (curta)
 ```
 
 **Colaborador, não self-injection.** O `@Transactional` do Spring é por proxy: chamar
 `this.getPreparaDadosPlano()` de dentro da mesma classe não abre transação nenhuma. O precedente
 (`IntervalsIcuPushProcessor`) já escolheu colaborador para evitar o `@Lazy @Autowired self`; aqui
 seguimos o mesmo. Nascem duas classes em `services/impl/` (ou `services/helper/`, onde já mora
-`LlmConcurrencyLimiter`):
+`LlmConcurrencyLimiter`), **nomeadas em inglês** — a regra de 2026-07-25 do `CLAUDE.md` do backend
+("tipos novos nascem em inglês") e as classes mais recentes do mesmo pacote
+(`ConsumedReviewOutcomeResolver`, `WeeklyReviewPromptProvider`) decidem o idioma:
 
-- **`PlanoGeracaoContextLoader.carregar(atletaId, modo)`** — `@Transactional` (não `readOnly`,
+- **`PlanGenerationContextLoader.load(atletaId, modo)`** — `@Transactional` (não `readOnly`,
   porque `planoMetadadosService.buscarOuCriarMetadados` pode inserir). Absorve o que hoje é
   `getPreparaDadosPlano` (L710-743) **mais** tudo que roda antes da chamada ao LLM e lê banco:
   `Hibernate.initialize(atleta.getProvas())` (L143), `calcularDecisaoProgressao` (L145),
   `calcularSemanaInicio` (L157), `weeklyReviewPromptProvider.resolverParaGeracao` (L158-159) e
   `buscarProximaProva` (hoje dentro de `gerarPlanoSemanal`, L777 — lê `getProvas()`).
-- **`PlanoGeracaoPersister.persistir(ctx, planoDto, modo)`** — `@Transactional`. Absorve
+- **`PlanGenerationPersister.persist(ctx, planoDto, modo)`** — `@Transactional`. Absorve
   `persistirPlanoCompleto` (L209-286) inteiro: re-checagem de duplicidade, redistribuição,
   `prepararMetadados`, `criarPlanoComTreinos`, shadow do planner, auto-approve, calibração do
   onboarding, revisão consumida e `publicarRevisaoConsumida`. Os `@Transactional` de
@@ -82,7 +118,7 @@ Três opções foram consideradas:
 | B. Entidades detached, sem mais nada | mínimo | alto e difuso — cada `get` lazy é uma bomba | não |
 | **C. Detached para ler, recarga para escrever** | médio | contido num único lugar | não |
 
-**Decisão: C.** A fase 1 devolve um record `PlanoGeracaoContexto` que substitui `DadosPlanoDto`
+**Decisão: C.** A fase 1 devolve um record `PlanGenerationContext` que substitui `DadosPlanoDto`
 (mesmos campos + `decisaoProgressao`, `semanaInicio`, `revisaoConsumida`, `proximaProva`), carregando
 as entidades **já inicializadas em todos os caminhos lazy que o fluxo usa**:
 
@@ -130,8 +166,18 @@ milissegundos para a duração da chamada. Três camadas, cada uma com um papel:
    agora **não é transacional**. É o padrão que o `CLAUDE.md` do backend já documenta ("catching
    `DataIntegrityViolationException` requires a NON-`@Transactional` method").
 
+**A checagem cedo não bloqueia nenhum caso legítimo.** Não existe fluxo de "regerar": para uma
+semana com plano ativo, o treinador só gera de novo depois de rejeitar o plano (só em
+`AGUARDANDO_REVISAO`) ou deletá-lo (`DELETE /planos/{id}`, único caminho para plano `APROVADO`).
+Em ambos o plano deixa de ser ativo antes da nova geração, então a fase 1 devolve o mesmo 422 de
+hoje — só que antes de gastar ~80s e uma chamada de LLM. Se "regerar" um dia existir, ele passa por
+rejeitar/deletar primeiro, não por relaxar a checagem.
+
 **Decisão sobre o comportamento sob conflito:** o orquestrador captura
-`DataIntegrityViolationException` vinda da fase 3 e a converte em `PlanoJaExistenteException`. Efeito:
+`DataIntegrityViolationException` vinda da fase 3 e a converte em `PlanoJaExistenteException`
+**somente quando a causa raiz cita `uk_plano_semanal_atleta_semana_ativo`** (o Postgres devolve o
+nome da constraint no `SQLException`); qualquer outra violação de integridade segue como 409 — não
+se mascara uma constraint desconhecida com mensagem de plano duplicado. Efeito:
 
 - **Endpoint do coach:** 422 com a mensagem de domínio ("já existe plano ativo para esta semana"),
   em vez do 409 genérico "conflito de dados" do `GlobalExceptionHandler` (L181-189). O coach entende
@@ -180,14 +226,22 @@ A task 0.3 está respondida: **os dois têm o mesmo acoplamento**.
 - `WeeklyFocusNarrativeService.gerarNarrativa` — `@Async` + `@Transactional(REQUIRES_NEW)` em volta
   de `modelClient.redigirFoco`.
 
-Cada execução segura uma conexão pelo tempo da chamada. A diferença para o plano é de regime: são
-por evento (um treino registrado, um encerramento de semana), não por lote, e rodam em executores
-próprios cujo tamanho limita a posse simultânea. **Decisão: fora desta change**, por dois motivos —
-o refactor do plano é o fluxo mais caro do produto e merece um PR que se lê sozinho; e o padrão que
-sai daqui (loader + persister) é o que os dois vão reutilizar, então fazê-los depois é mais barato
-que junto. Abrir `refactor-async-llm-listeners-outside-transaction` (XS · Fast, backend) no Radar,
-com pré-condição "depois desta". Se o founder preferir fechar tudo num PR, o custo é ~1 dia a mais
-e o risco é de revisão, não de design.
+Cada execução segura uma conexão pelo tempo da chamada. Os executores limitam a posse simultânea:
+`workoutAnalysisExecutor` roda efetivamente com **2 threads** (core 2, só cresce para 4 com 50
+tarefas na fila) e `weeklyFocusExecutor` com **1**. São até **3 conexões a mais** fixadas em LLM —
+somadas às 4 do lote, passam do pool de 5. **Decisão do founder: fora desta change**, por dois
+motivos — o refactor do plano é o fluxo mais caro do produto e merece um PR que se lê sozinho; e o
+padrão que sai daqui (loader + persister) é o que os dois vão reutilizar, então fazê-los depois é
+mais barato que junto. Mas o follow-up não é cosmético: é a diferença entre "sobra 1 conexão" e
+"pool esgotado com `connection-timeout` de 30s".
+
+Três changes XS nascem deste design, todas pré-condicionadas a esta:
+
+| Change | Escopo | Por quê separada |
+|---|---|---|
+| `refactor-async-llm-listeners-outside-transaction` | `WorkoutAnalysisListener` e `WeeklyFocusNarrativeService` com o padrão loader/persister | reutiliza o padrão; PR do plano se lê sozinho |
+| `fair-llm-concurrency-per-tenant` | `LlmConcurrencyLimiter` ganha cap por assessoria dentro do cap global (ex.: 2 em voo por tenant) **e** o "gerar" individual passa pelo limiter com 1–2 permits reservados para interativo | comportamento novo, só no limiter, teste próprio (10 lotes simulados ⇒ interleaving; interativo nunca espera o lote) |
+| `batch-plan-recovery-by-state` | no startup, todo job `EM_PROGRESSO` é órfão (as virtual threads morreram com a JVM); status "interrompido — clique para continuar", porque o fast-path já retoma | o limite de 30 min por `criadoEm` não protege contra nada com uma réplica e marca lote longo saudável como erro; ressalva se houver mais de uma réplica |
 
 ## D7 — Operação e rollback
 
@@ -195,8 +249,11 @@ e o risco é de revisão, não de design.
 - `application.yml` L289-295: o comentário de `llm-concorrencia` passa a dizer o que ele controla
   (custo/429 do provedor) e o que **deixou** de controlar (conexões do pool). Hoje o comentário não
   menciona o efeito colateral, e quem sobe o valor em produção não tem como saber (task 5.2).
-- Sinal de que funcionou em produção: `hikaricp.connections.active` durante um lote deixa de
-  seguir `llm-concorrencia` — hoje é 1:1. A métrica já é exportada pelo Actuator.
+- **Como a métrica de sucesso é observada.** O Hikari é exportado (`hikaricp_connections_active`),
+  mas só em `/actuator/prometheus`, autenticado e **sem nenhum scraper** — nada coleta, grava ou
+  alerta. A prova reproduzível é o teste do CA2; a validação operacional é um `curl` autenticado em
+  `/actuator/prometheus` durante um lote real, uma vez, registrado na task 5.1. Coleta de métricas
+  (Prometheus/Grafana) é change própria, se um dia valer o custo — não entra aqui.
 
 ## Riscos e mitigações
 
@@ -204,15 +261,22 @@ e o risco é de revisão, não de design.
 |---|---|
 | Acesso lazy esquecido depois da fronteira | teste do CA5 percorre a lista do D2; a lista vive no `contextLoader`, num único lugar |
 | `prepararMetadados`/`criarPlanoEntity` usam a instância detached para salvar → `detached entity passed to persist` | regra do D2: a fase 3 recarrega por id tudo que vai ser associado; revisão de código com essa checklist |
-| `publicarRevisaoConsumida` publica evento que exige transação ativa (`@TransactionalEventListener`) | fica dentro do `persister`, como hoje |
-| Metadado criado na fase 1 sobrevive à falha do LLM | desejado (D1); `PlanoMetadadosCacheIT` reescrito para o novo contrato |
+| Metadado criado na fase 1 sobrevive à falha do LLM | desejado (D1); `PlanoMetadadosCacheIT` reescrito para o novo contrato. A linha nasce com métricas nulas e `dataUltimaAtualizacao = hoje` (a UI lê como "COLETANDO DADOS") — mesmo estado que já existe entre criação e primeiro cálculo. Task de verificação: nenhuma tela usa `dataUltimaAtualizacao` como "última vez que calculei" |
+| `RevisaoConsumidaEvent` publicado dentro do `persister` | **não é risco:** `resolverParaGeracao` só lê, o vínculo é setado em memória antes do save, e o evento **não tem nenhum consumidor** no código. Fica onde está; evento sem listener é débito anotado, não decisão desta change |
 | Coach clica "gerar" durante o lote e recebe 422 | comportamento correto (D3); a checagem cedo faz isso acontecer antes de gastar LLM |
 | Diff grande no arquivo mais crítico | as duas classes novas são extração mecânica; a suíte de 33 testes é a rede; PR único, revisado com `code-reviewer` + Codex adversarial |
 
 ## Follow-ups (Radar)
 
-- `refactor-async-llm-listeners-outside-transaction` — D6.
+- As três changes XS da tabela do D6: `refactor-async-llm-listeners-outside-transaction`,
+  `fair-llm-concurrency-per-tenant`, `batch-plan-recovery-by-state`.
 - Snapshot do atleta para o prompt (opção A do D2) — quando o `PlanoTreinoPromptBuilder` for
   tocado por outro motivo.
+- `RevisaoConsumidaEvent` sem consumidor — decidir se ganha listener ou sai.
 - Confirmar por `printenv` no serviço Railway que nenhuma `SPRING_DATASOURCE_HIKARI_*` sobrescreve
   o pool 5 do profile (task 0.1).
+
+## Glossário
+
+Termos registrados no `CONTEXT.md` a partir deste design: **Lote de planos**, **Plano ativo**,
+**Revisão consumida**.

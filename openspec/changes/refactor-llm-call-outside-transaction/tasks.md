@@ -32,6 +32,10 @@
   acoplamento — **sim, os dois** (`@Async` + `@Transactional(REQUIRES_NEW)` em volta do LLM).
   Ficam fora desta change, como follow-up XS (`design.md` D6)
 - [ ] 0.4 Criar branch `feature/refactor-llm-call-outside-transaction`
+- [x] 0.5 Tier da chave OpenAI em produção — **tier 3** (founder, 2026-09-01): o provedor não é o
+  gargalo; `llm-concorrencia` pode subir para 8–10 depois do merge (`design.md` D0)
+- [x] 0.6 Grilling do `design.md` (2026-09-01): Q1–Q13 decididas pelo founder; `CONTEXT.md` ganhou
+  **Lote de planos**, **Plano ativo** e **Revisão consumida**; três follow-ups XS no D6
 
 ## 1. Design (bloqueia a implementação)
 
@@ -48,6 +52,8 @@
 
 ## 2. Separar leitura da chamada externa
 
+- [ ] 2.0 Confirmar que nenhuma tela usa `PlanoMetaDados.dataUltimaAtualizacao` como "última vez que
+  calculei" — o metadado passa a poder existir sem plano (`design.md` D1, riscos)
 - [ ] 2.1 Extrair a fase de leitura para transação própria e curta, devolvendo o que o design definiu
   - verify: teste que executa a leitura e acessa todos os campos usados adiante **sem transação
     ativa** — se estourar `LazyInitializationException`, a fronteira está errada — [CA5]
