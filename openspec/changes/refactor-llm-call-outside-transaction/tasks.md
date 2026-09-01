@@ -115,7 +115,7 @@
     ativas permanecem baixas; antes da change, 4
 - [x] 4.2 Golden test do plano gerado inalterado — [CA3] — `PlanoTreinoPromptBuilderGoldenTest` verde
   no `clean test`, sem alteração
-- [ ] 4.3 `./mvnw clean test` + `./mvnw verify` verdes
+- [x] 4.3 `./mvnw clean test` + `./mvnw verify` verdes — 2939 unitários + 159 ITs, 0 falhas (2026-09-01)
 
 ## 5. Validação final
 
