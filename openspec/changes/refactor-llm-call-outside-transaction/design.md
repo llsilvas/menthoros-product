@@ -97,8 +97,12 @@ seguimos o mesmo. Nascem duas classes em `services/impl/` (ou `services/helper/`
   (`REQUIRED`), como hoje.
 
 O `try/catch` que hoje mapeia `IllegalArgumentException`/`Exception` para `LLMException`
-(L170-182) fica no orquestrador, envolvendo as três fases — o contrato de erro do controller e do
-lote não muda.
+(L170-182) fica no orquestrador **envolvendo só as fases 2 e 3** — que é o que ele envolve hoje:
+`getPreparaDadosPlano`, o `Hibernate.initialize` e `calcularDecisaoProgressao` rodam **antes** do
+`try` (L142-145), então as exceções da fase 1 (`DomainRuleViolationException` de
+`validarEstadoAtleta`, atleta não encontrado) continuam propagando sem virar `LLMException`. O
+contrato de erro do controller e do lote não muda porque a fronteira do `catch` não muda de lugar.
+(Achado do Codex no DoR: a versão anterior deste parágrafo dizia "três fases" e estava errada.)
 
 **O que muda de semântica, de propósito.** Hoje, se o LLM falha, o `INSERT` de
 `buscarOuCriarMetadados` sofre rollback. Com a fase 1 commitada, o metadado **fica**. É desejável:
@@ -125,14 +129,17 @@ as entidades **já inicializadas em todos os caminhos lazy que o fluxo usa**:
 | Caminho lazy | Onde é lido depois do LLM | Como fica |
 |---|---|---|
 | `atleta.getProvas()` | `buscarProximaProva` (L777) | lido **antes** do LLM, na fase 1; `proximaProva` vira campo do contexto |
-| `atleta.getDiasDisponiveis()` | `obterTreinosParaPlano` (L443) | `Hibernate.initialize` na fase 1 |
+| `atleta.getDiasDisponiveis()` | `obterTreinosParaPlano` (L443) **e** `PlannerShadowService.aplicarShadow` (L191, L235) | `Hibernate.initialize` na fase 1 |
+| `atleta.getProvas()` e `getDiasDisponiveis()` via `dadosPlano.atleta()` | `PlannerShadowService` (L133, L147, L196, L323-331) — **único consumidor de `DadosPlanoDto` fora do `PlanoServiceImpl`**; `PlannerInputSnapshot` e `OnboardingContext` só o citam em JavaDoc | recebe `PlanGenerationContext` com as coleções já inicializadas; o teste do CA5 percorre também o `aplicarShadow` (achado do Codex no DoR — este consumidor faltava na tabela) |
 | `atleta.getAssessoria()` | `criarPlanoEntity` (L596) | `Hibernate.initialize` na fase 1 (ou `getAssessoria().getId()` já resolvido no contexto) |
 | `atleta.getDiaPreferidoLongo()` | `inferirDiaPrioritarioLongo` (L235) | coluna simples, sem risco |
 | `metaDados` | `prepararMetadados` (L636-650) | **já é re-buscado** por `findByIdAndTenantId` (L643-650) por causa do incidente do cache — a fase 3 mantém isso e passa a ser a regra, não a exceção |
 | `revisaoConsumida` | `plano.setConsumedReview` (L301), leitura em L322 | fase 3 reanexa por `getReferenceById`/`findById` |
 | `treinoHistoricoProvider.prepararContexto(atleta)` | dentro de `IaServiceImpl.validarENormalizarPlanoGerado` (L360-370), entre retries | **verificar na task 1.3**: o `atleta` ali vem de um `findByIdAndTenantId` próprio (L360), então é gerenciado só durante a query do repository — qualquer lazy depois disso já estoura hoje ou não é usado; confirmar com o teste do CA5 |
 
-Regra que vale para a fase 3: **nada que vai ser salvo ou associado usa a instância detached** —
+Regra que vale para a fase 3, e que a task 3.1 exige como verificação explícita (hoje
+`persistirPlanoCompleto` L213 e `criarPlanoEntity` L595-596 associam `dadosPlano.atleta()`
+direto ao plano): **nada que vai ser salvo ou associado usa a instância detached** —
 `atleta`, `metaDados` e `revisaoConsumida` são recarregados por id dentro da transação de escrita e
 são essas instâncias que entram no `PlanoSemanal`. A detached serve para ler valores e montar o
 prompt. É a mesma disciplina que `prepararMetadados` já pratica sozinho hoje.
@@ -210,9 +217,9 @@ com o pool livre, ela volta a ser só uma questão de N × 20s, e a task 0.2 rec
 | CA | Teste | Onde | O que prova |
 |---|---|---|---|
 | CA5 | `PlanoGeracaoContextoDetachedTest` | unit + `@DataJpaTest`, sem transação ativa no corpo (`@Transactional(propagation = NOT_SUPPORTED)`) | carrega o contexto pelo `contextLoader` real, fecha a sessão, e percorre **todos** os acessos da tabela do D2 — se alguém adicionar um `get` lazy depois da fronteira, este teste é o que quebra |
-| CA1 | `PlanoServiceTransactionBoundaryIT` | `@SpringBootTest` + WireMock com `withFixedDelay`, LLM stubado | dentro do stub do LLM, `TransactionSynchronizationManager.isActualTransactionActive()` é **false** e o `HikariPoolMXBean.getActiveConnections()` é **0** para a thread da geração |
+| CA1 | `PlanoServiceTransactionBoundaryIT` | `@SpringBootTest` + WireMock com `withFixedDelay`, LLM stubado | dentro do stub do LLM, `TransactionSynchronizationManager.isActualTransactionActive()` é **false** e o `HikariPoolMXBean.getActiveConnections()` é **0** para a thread da geração. A fase 2 não é "só LLM": `IaServiceImpl.validarENormalizarPlanoGerado` (L360-370) faz leituras entre as tentativas — cada uma é uma query curta de repository com transação própria, devolvida ao pool em milissegundos. O que o CA1 proíbe é posse **durante a espera de rede**, não toda query na fase 2 |
 | CA2 | `BatchPlanPoolIT` | idem, `hikari.maximum-pool-size: 2` no profile de teste, `llm-concorrencia: 4` | 4 gerações concorrentes com LLM lento completam; antes da change, com pool 2, travariam em `connection-timeout` |
-| CA4 | `PlanoGeracaoConcorrenteIT` | Testcontainers Postgres (o índice parcial só existe no banco real) | duas gerações para o mesmo atleta/semana, LLM sincronizado por `CountDownLatch` para commitarem juntas ⇒ uma `PlanoJaExistenteException`, `count = 1` |
+| CA4 | `PlanoGeracaoConcorrenteIT` | Testcontainers Postgres (o índice parcial só existe no banco real) | duas gerações para o mesmo atleta/semana, LLM sincronizado por `CountDownLatch` para commitarem juntas ⇒ uma `PlanoJaExistenteException`, `count = 1`, e no lote o motivo é `MOTIVO_PLANO_JA_EXISTE`. **Teste negativo:** uma `DataIntegrityViolationException` de outra constraint **não** vira `PlanoJaExistenteException` (segue como 409) |
 | CA3 | `PlanoServiceImplTest` (33) + `PlanoTreinoPromptBuilderGoldenTest` | existentes | verdes **sem alteração de asserção** — o `MockedStatic<Hibernate>` em volta de cada chamada sai, porque o `initialize` migra para o `contextLoader` (que é mockado) |
 
 `PlanoMetadadosCacheIT` é reescrito conforme o D1.
