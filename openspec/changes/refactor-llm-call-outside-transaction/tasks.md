@@ -91,13 +91,17 @@
   - verify: `grep dadosPlano.atleta()`/`ctx.atleta()` no caminho de escrita ⇒ nenhum uso para
     associar ou salvar (L213, L595-596 hoje); `atleta`, `metaDados` e `revisaoConsumida` recarregados
     por id dentro da transação (`design.md` D2)
-- [ ] 3.2 Tratamento do conflito concorrente conforme decidido em 1.2 — [CA4]
+- [x] 3.2 Tratamento do conflito concorrente conforme decidido em 1.2 — [CA4] —
+  `PlanoGeracaoConcorrenteIT` (Testcontainers, latch no stub do LLM): uma vence, a outra recebe
+  `PlanoJaExistenteException`, `findAtivosPorAtleta` devolve 1; o log mostra o 23505 no índice da
+  V52, então a conversão no orquestrador foi exercitada de verdade. Unitários: nome da constraint
+  certo → `PlanoJaExistenteException`; outra constraint → `DataIntegrityViolationException` intacta
   - verify: teste concorrente (duas gerações para o mesmo atleta/semana) ⇒ uma falha com
     `PlanoJaExistenteException`, nenhuma linha duplicada (Testcontainers, Postgres real — o índice
     parcial da V52 só existe no banco); no lote, motivo `MOTIVO_PLANO_JA_EXISTE`
   - verify: teste negativo — `DataIntegrityViolationException` de **outra** constraint não vira
     `PlanoJaExistenteException` (segue 409)
-- [ ] 3.3 `./mvnw clean test` verde
+- [x] 3.3 `./mvnw clean test` verde — 2939 testes, 0 falhas (2026-09-01)
 
 ## 4. Prova do ganho
 
