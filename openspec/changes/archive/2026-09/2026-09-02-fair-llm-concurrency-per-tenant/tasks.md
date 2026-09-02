@@ -70,4 +70,5 @@
 
 ## 4. Encerramento
 
-- [ ] 4.1 Atualizar este `tasks.md` e arquivar conforme o `CLAUDE.md` raiz
+- [x] 4.1 Atualizar este `tasks.md` e arquivar conforme o `CLAUDE.md` raiz — PR mergeado em
+  `develop` em 2026-09-02; arquivada em `changes/archive/2026-09/2026-09-02-fair-llm-concurrency-per-tenant/`
