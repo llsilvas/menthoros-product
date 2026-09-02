@@ -167,6 +167,9 @@ nenhuma.
   deploy.
 - O coach não precisa aprovar a prova para ela valer no planejamento.
 
+**Decidido em 2026-09-02:** o copy das mensagens da regra segue o canvas — "Dentro do recomendado" /
+"Preparação curta", com o texto "<Distância> pede N semanas de preparação. Faltam M" e, na curta,
+"ela deveria ter começado em <data>. Você pode cadastrar mesmo assim e seu treinador será avisado."
+
 **Em aberto (não muda specs nem tasks):**
-- Texto final das mensagens da regra no formulário (o canvas traz uma versão).
 - Se a evidência do item do Inbox deve incluir o tempo objetivo. Assumido: não.

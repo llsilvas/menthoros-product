@@ -228,7 +228,7 @@ estado — some sem o coach ter visto, o oposto do objetivo.
 
 ## Open Questions
 
-- Copy final das mensagens da regra no formulário e no card (o canvas traz uma versão; ajuste
-  não muda specs nem tasks).
+Copy das mensagens da regra: decidido em 2026-09-02, usa a versão do canvas (ver proposal).
+
 - Se `TECNICO` deve poder deletar fisicamente além de cancelar. Assumido: não, só cancelar; muda
   uma linha no controller.
