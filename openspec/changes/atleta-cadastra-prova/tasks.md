@@ -87,7 +87,7 @@ Validação por bloco: backend `./mvnw clean test` em `apps/menthoros-backend`; 
       de `MOTIVO_TIPO`, sem log.
       *verify:* teste do job com item `PROVA_ATLETA` não cria `SugestaoCoach` e não loga warn
       (assert no appender de teste).
-- [ ] 3.7 Suíte completa do backend verde e revisão de segurança dos endpoints tocados
+- [x] 3.7 Suíte completa do backend verde e revisão de segurança dos endpoints tocados
       (posse, tenant, papéis).
       *verify:* `./mvnw clean test`; checklist de `security-reviewer` sem item aberto.
 
@@ -134,7 +134,8 @@ Validação por bloco: backend `./mvnw clean test` em `apps/menthoros-backend`; 
       Cancelada, botão "Ciente" que chama `marcarCiente`, recarrega a lista e a attention queue.
       *verify:* teste de componente: item pendente mostra "Ciente"; clique chama o endpoint e
       remove o marcador; item revisado não mostra botão.
-- [ ] 5.3 Lint, build e suíte do front verdes; E2E Playwright existente do perfil do coach
+- [ ] 5.3 Lint, build e suíte do front verdes (feito em 2026-09-02); E2E Playwright existente do perfil do coach
+      **pendente: só roda no CI do PR** — não há ambiente local com Keycloak/backend nesta sessão.
       continua passando.
       *verify:* `npm run lint && npm run build && npm test`; `npm run test:e2e` no CI.
 
