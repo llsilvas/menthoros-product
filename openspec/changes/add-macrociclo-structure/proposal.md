@@ -42,6 +42,9 @@ Introduzir uma estrutura explícita de macrociclo com mesociclos e fases determi
 
 **Regras determinísticas para composição:**
 - Duração total determinada pela distância: meia-maratona = mínimo 12 semanas, maratona = mínimo 16 semanas, 10 km = mínimo 8 semanas
+  - **Dependência (2026-09-02):** esses mínimos passam a vir de `RacePreparationRule`, criada pela change
+    `atleta-cadastra-prova` (5 km 8 · 10 km 10 · 21 km 12 · 42 km 16, faixas para distância livre).
+    O macrociclo consome a classe em vez de definir a própria tabela.
 - Proporção padrão (configurável): BASE 40%, ESPECIFICO 30%, PICO 15%, TAPER 10%, TRANSICAO 5%
 - `TAPER` do mesociclo SHALL coincidir com janela de `PeriodoTaper` calculada por `TaperService` (se change `add-taper-guidance` estiver ativa)
 - Fases são cronologicamente ordenadas: BASE → ESPECIFICO → PICO → TAPER → TRANSICAO
