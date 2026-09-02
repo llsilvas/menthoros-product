@@ -7,11 +7,11 @@ repos antes de qualquer código.
 
 ## 1. Backend — modelo e vínculo
 
-- [ ] 1.1 Migration `V86__add_prova_id_to_tb_treino_planejado.sql` (FK nullable `ON DELETE SET
+- [ ] 1.1 Migration `V88__add_prova_id_to_tb_treino_planejado.sql` (conferir o último número livre) (FK nullable `ON DELETE SET
       NULL`, índice parcial) e campo `prova` em `TreinoPlanejado`; `provaId` em
       `TreinoPlanejadoLlmDto` e no DTO de saída; `TreinoMapper` preenche o vínculo.
       *verify:* teste de migration (Testcontainers, CI); mapper com e sem `provaId`.
-- [ ] 1.2 Migration `V87__add_reabertura_to_tb_plano_semanal.sql` (`motivo_reabertura` varchar
+- [ ] 1.2 Migration `V89__add_reabertura_to_tb_plano_semanal.sql` (`motivo_reabertura` varchar
       nullable, `reaberto_em` timestamp nullable); enum `MotivoReaberturaRevisao`; campos na
       entidade e `motivoReabertura` em `PlanoSemanalOutputDto`.
       *verify:* teste de migration; serialização do DTO com e sem motivo.

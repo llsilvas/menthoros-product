@@ -9,15 +9,21 @@ fila de atenção que ele já consulta, e registra essa ciência na própria pro
 
 ### Requirement: Prova alterada pelo atleta fica pendente de ciência do coach
 
-Toda prova SHALL carregar o indicador `revisadaPeloCoach`. Quando um usuário com papel de atleta
-cria uma prova, cancela uma prova, ou altera data, distância ou o indicador de prova-alvo, o
-sistema SHALL colocar `revisadaPeloCoach = false`. Alteração restrita a nome ou tempo objetivo
+Toda prova SHALL carregar o indicador `revisadaPeloCoach`, o motivo da pendência
+(`motivoRevisao`: `NOVA`, `DATA_ALTERADA`, `ALVO_TROCADA`, `CANCELADA`) e, quando o motivo é
+`ALVO_TROCADA`, o nome da prova-alvo substituída. Quando um usuário com papel de atleta cria uma
+prova, cancela uma prova, ou altera data, distância ou o indicador de prova-alvo, o sistema SHALL
+colocar `revisadaPeloCoach = false` e gravar o motivo correspondente. Alteração restrita a nome ou tempo objetivo
 MUST NOT alterar o indicador. Gravações feitas por treinador ou administrador MUST NOT alterar o
 indicador. Provas existentes antes desta capability SHALL nascer com `revisadaPeloCoach = true`.
 
 #### Scenario: Atleta cria prova
 - **WHEN** um atleta cria uma prova
-- **THEN** a prova fica com `revisadaPeloCoach = false`
+- **THEN** a prova fica com `revisadaPeloCoach = false` e `motivoRevisao = NOVA`
+
+#### Scenario: Atleta troca a prova-alvo
+- **WHEN** um atleta marca a prova B como alvo enquanto A era a alvo
+- **THEN** B fica com `revisadaPeloCoach = false`, `motivoRevisao = ALVO_TROCADA` e o nome de A registrado como alvo anterior
 
 #### Scenario: Atleta muda a data
 - **WHEN** um atleta altera a data de uma prova já vista pelo coach
@@ -39,7 +45,8 @@ indicador. Provas existentes antes desta capability SHALL nascer com `revisadaPe
 
 O sistema SHALL expor `PATCH /api/v1/atletas/{atletaId}/provas/{provaId}/ciente`, restrito aos
 papéis de treinador e administrador do tenant da prova, que coloca `revisadaPeloCoach = true`.
-Chamar em prova já revisada MUST ser idempotente.
+Chamar em prova já revisada MUST ser idempotente. O registro de ciência SHALL limpar o motivo e o
+nome da alvo anterior.
 
 #### Scenario: Ciência registrada
 - **WHEN** um treinador do tenant chama o endpoint em uma prova pendente
@@ -59,12 +66,15 @@ Chamar em prova já revisada MUST ser idempotente.
 
 ### Requirement: Prova pendente aparece na fila de atenção do coach
 
-A fila de atenção do treinador SHALL incluir um sinal com motivo `PROVA_ATLETA` para cada atleta
-do tenant que tenha ao menos uma prova futura ou cancelada com `revisadaPeloCoach = false`. A
-severidade SHALL ser `CRITICA` quando a prova pendente tem preparação curta ou quando a alteração
-trocou a prova-alvo; `ALTA` nos demais casos. A evidência do item SHALL trazer nome da prova,
-data, distância e "N de M semanas" (semanas faltando e mínimo). O item SHALL deixar de existir
-quando não restar prova pendente para o atleta.
+A fila de atenção do treinador SHALL produzir um sinal com motivo `PROVA_ATLETA` para todo
+atleta do tenant que tenha ao menos uma prova futura ou cancelada com `revisadaPeloCoach = false`,
+sujeito ao corte de severidade e ao limite de itens que a fila já aplica. A severidade SHALL ser
+`CRITICA` quando a prova pendente tem preparação curta ou `motivoRevisao = ALVO_TROCADA`; `ALTA`
+nos demais casos. A evidência do item SHALL trazer nome da prova, data, distância, "N de M
+semanas" (semanas faltando e mínimo) e o motivo, incluindo o nome da alvo anterior quando houver.
+O sinal SHALL deixar de existir quando não restar prova pendente para o atleta. Como a fila pode
+omitir o atleta por limite, o perfil do atleta SHALL listar as provas pendentes de ciência
+independentemente da fila.
 
 #### Scenario: Prova nova dentro do prazo
 - **WHEN** um atleta cadastra uma prova com preparação suficiente
@@ -77,7 +87,11 @@ quando não restar prova pendente para o atleta.
 
 #### Scenario: Troca de prova-alvo
 - **WHEN** um atleta marca uma prova como alvo substituindo outra
-- **THEN** o item tem severidade `CRITICA` e a evidência indica a troca de alvo
+- **THEN** o item tem severidade `CRITICA` e a evidência traz "alvo trocada: antes <nome da anterior>"
+
+#### Scenario: Atleta fora da fila por limite
+- **WHEN** a fila do tenant já tem 20 itens de severidade maior e o atleta com prova pendente fica de fora
+- **THEN** o perfil do atleta ainda lista a prova como pendente de ciência, com o botão de ciência
 
 #### Scenario: Ciência resolve o item
 - **WHEN** o coach registra ciência da única prova pendente de um atleta sem outros sinais

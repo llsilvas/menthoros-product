@@ -7,7 +7,8 @@ e no delta de `prova-crud`. Telas no [canvas "Provas do Atleta"](https://claude.
 
 Estado atual que condiciona o desenho (levantado em 2026-09-02):
 
-- `Prova` já tem `provaAlvo`, `statusProva`, `distancia` (enum 5/10/21/42), `distanciaKm`,
+- `Prova` já tem `provaAlvo`, `statusProva`, `distancia` (enum `DistanciaProva` com só 5/10/21/42,
+  persistido por **ordinal** em `smallint`), `distanciaKm`,
   `semanasPreparacao` e `inicioPreparacao`. Os dois últimos são persistidos e expostos em
   `ProvaInputDto`/`ProvaOutputDto`, mas nada os lê.
 - `ProvaController` (`/api/v1/atletas/{atletaId}/provas`): `POST`/`PUT` exigem `TECNICO`/`ADMIN`,
@@ -84,6 +85,23 @@ extremos (0,1 km e 200 km).
 *Alternativa descartada:* tabela `tb_fase_periodizacao` (V5) já guarda durações por fase, mas é
 tabela de consulta sem entidade, e o macrociclo vai precisar da mesma regra em código.
 
+### D2b. Distância livre: valor novo `CUSTOMIZADA` no fim do enum
+
+`DistanciaProva` não tem valor para distância livre; hoje `distanciaKm` é preenchido ao lado de um
+dos quatro valores. Para "Outra" no formulário, o enum ganha `CUSTOMIZADA("OUTRA", "Outra", "Outra", 4)`
+**como último constante** — `Prova.distancia` é `@Enumerated(ORDINAL)` em `smallint`, então só
+anexar ao final preserva os ordinais 0-3 gravados. Comentário no enum registra a restrição
+("novos valores só no fim; nunca reordenar"). Consumidores que precisam de caso novo: os `switch`
+exaustivos em `PeriodizacaoPromptFormatter.resolverDistanciaKm` e `PlannerShadowService` (ambos
+devolvem `distanciaKm`, que o enricher garante preenchido); no front, `types/Prova.ts` e
+`DISTANCIA_PROVA_LABELS`; `OnboardingProvaAlvoStep` itera os labels e passa a filtrar
+`CUSTOMIZADA` (onboarding continua só com as quatro distâncias). Validação: `CUSTOMIZADA ⇒
+distanciaKm > 0`.
+
+*Alternativa descartada:* migrar a coluna para `EnumType.STRING` antes. É a correção certa a longo
+prazo, mas é mudança de dado em tabela existente com rollback próprio; fica como change de
+higiene separada. Anexar ao fim não cria drift.
+
 ### D3. Derivação em um `ProvaEnricher` chamado pelo service
 
 Método `aplicarDerivados(Prova)` invocado em `criarProva`, `atualizarProva` e em
@@ -115,20 +133,28 @@ objetivo, `provaAlvo`) usado pelo controller quando o papel é `ATLETA`. É mais
 
 ### D6. Flag `revisadaPeloCoach` e motivo `PROVA_ATLETA`
 
-**Migration `V85`**: `ALTER TABLE tb_prova ADD COLUMN revisada_pelo_coach boolean NOT NULL DEFAULT true`
-mais índice parcial `(atleta_id) WHERE revisada_pelo_coach = false`. Default `true` para não
-inundar a fila no deploy.
+**Migration `V87`** (V85 e V86 já existem no repositório): `ALTER TABLE tb_prova ADD COLUMN
+revisada_pelo_coach boolean NOT NULL DEFAULT true`, `motivo_revisao varchar(20) NULL`,
+`alvo_anterior_nome varchar(100) NULL`, mais índice parcial `(atleta_id) WHERE
+revisada_pelo_coach = false`. Default `true` para não inundar a fila no deploy.
 
 **Quando zera** (só se o ator tem papel `ATLETA`): criação; cancelamento; `PUT` que altere
 `dataProva`, `distancia`, `distanciaKm` ou `provaAlvo`. Comparação feita no service antes do
-mapper aplicar o DTO. O motivo da pendência é derivado, não persistido: nova → `createdAt`
-recente e nunca revisada; cancelada → `statusProva`; alvo trocada → `provaAlvo` e `updatedAt`;
-data alterada → o resto. Para o item da fila basta "pendente + preparação curta? + alvo?".
+mapper aplicar o DTO. O motivo é **persistido** em `motivoRevisao` (enum `MotivoRevisaoProva
+{ NOVA, DATA_ALTERADA, ALVO_TROCADA, CANCELADA }`) e, quando `ALVO_TROCADA`, o nome da alvo
+substituída em `alvoAnteriorNome`; ambos limpos no "Ciente". A fila é calculada a cada `GET` e
+não teria como reconstituir "qual alvo foi substituída" sem esse estado mínimo.
 
 **Evaluator**: `avaliarProvaPendente(List<Prova> pendentes, LocalDate hoje)` →
-`Optional<SinalAtencao>`: severidade `CRITICA` se alguma pendente tem `preparacaoCurta` ou é a
-alvo; senão `ALTA`. Evidências: `Prova` = nome, `Data` = dd MMM, `Distância`, `Preparação` =
-"N de M semanas". `MotivoAtencao.PROVA_ATLETA(peso 45, suggestedAction "Revise a prova e o plano
+`Optional<SinalAtencao>`: severidade `CRITICA` se alguma pendente tem `preparacaoCurta` ou
+`motivoRevisao = ALVO_TROCADA`; senão `ALTA`. Evidências: `Prova` = nome, `Data` = dd MMM,
+`Distância`, `Preparação` = "N de M semanas", `Motivo` = label do `motivoRevisao` ("alvo trocada:
+antes <alvoAnteriorNome>").
+
+**Limite da fila**: a fila corta em severidade `ALTA` e devolve no máximo 20 itens; um tenant com
+muitos sinais pode deixar a prova de fora. O card **Provas** no perfil do atleta lê as pendentes
+direto (`findPendentesRevisaoByAtleta`), sem passar pela fila, e é ele que carrega o "Ciente";
+a fila é o caminho de descoberta, não a garantia. A spec diz isso explicitamente. `MotivoAtencao.PROVA_ATLETA(peso 45, suggestedAction "Revise a prova e o plano
 das próximas semanas")` — peso entre `FADIGA` (50) e `SOBRECARGA` (40).
 
 **Repositório**: `findPendentesRevisaoByAssessoria(tenantId)` (prova futura ou cancelada com
@@ -166,8 +192,8 @@ estado — some sem o coach ter visto, o oposto do objetivo.
 
 ### D8. Front do coach: card e motivo
 
-- `CoachAthleteProfilePage`: `SectionCard` "Provas" com `useProvas(atletaId)` (já existe, CRUD
-  completo) filtrado a não canceladas futuras + canceladas pendentes; botão "Ciente" chama
+- `CoachAthleteProfilePage`: `SectionCard` "Provas" com `useProvas()` (já existe; `atletaId` vai
+  em cada chamada, `fetchProvas(atletaId)`) filtrado a não canceladas futuras + canceladas pendentes; botão "Ciente" chama
   `ProvaService.marcarCiente` e invalida a lista e a attention queue (`reviewFetchPendentes`
   não; é `useAttentionQueue().refetch` via outlet context).
 - `types/Coach.ts`: `AttentionReason` += `'PROVA_ATLETA'`; `coachInboxHelpers.ts`:

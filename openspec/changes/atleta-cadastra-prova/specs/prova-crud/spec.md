@@ -38,8 +38,12 @@ sistema SHALL desmarcar qualquer outra prova-alvo não cancelada do mesmo atleta
 - **THEN** o sistema SHALL retornar HTTP 400 com detalhe de validação no campo `dataProva`
 
 #### Scenario: Distância customizada sem quilometragem
-- **WHEN** `distancia = CUSTOMIZADA` e `distanciaKm` está ausente ou não é positivo
+- **WHEN** `distancia = CUSTOMIZADA` (valor novo do enum, último na ordem) e `distanciaKm` está ausente ou não é positivo
 - **THEN** o sistema SHALL retornar HTTP 400
+
+#### Scenario: Distâncias existentes preservadas
+- **WHEN** o valor `CUSTOMIZADA` é adicionado ao enum
+- **THEN** provas já gravadas com 5, 10, 21 ou 42 km continuam lendo a mesma distância
 
 #### Scenario: Nova prova-alvo substitui a anterior
 - **WHEN** o atleta já possui prova-alvo A e cria B com `provaAlvo = true`

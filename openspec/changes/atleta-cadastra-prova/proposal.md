@@ -44,7 +44,7 @@ nenhuma.
   distância ou alvo zera a flag; edição só de nome não. O `SugestaoCoachGeneratorJob` exclui o
   motivo explicitamente.
 - **Front do atleta**: rota nova `/athlete/races` ("Minhas provas": lista + formulário com nome,
-  data, distância com "outra" em km, terreno rua/trail, tempo objetivo, switch de prova-alvo;
+  data, distância com "outra" (`CUSTOMIZADA`) em km, terreno rua/trail, tempo objetivo, switch de prova-alvo;
   `tipoProva` derivado no front). Sem item novo na bottom nav: a faixa da prova-alvo no topo da
   página **Plano** abre a lista, e a linha "próxima prova" da home passa a "Sem próxima prova ·
   Cadastrar" em vez de mandar pedir ao coach.
@@ -78,8 +78,12 @@ nenhuma.
   `AthletePlanPage`, texto da linha de próxima prova em `WeekOverviewCard`, card na
   `CoachAthleteProfilePage`, `AttentionReason` + `REASON_LABEL`/`MOTIVO_TEXTO`, `ProvaService`
   (endpoint de ciente), tipos em `types/Prova.ts`.
-- **Banco**: uma migration Flyway aditiva (`revisada_pelo_coach boolean not null default true`
-  para não disparar alerta em massa nas provas já existentes).
+- **Banco**: uma migration Flyway aditiva, `V87` (V85 e V86 já existem): `revisada_pelo_coach`
+  (`default true`, para não disparar alerta em massa nas provas já existentes), `motivo_revisao` e
+  `alvo_anterior_nome`.
+- **Enum `DistanciaProva`** ganha `CUSTOMIZADA` como **último** valor (coluna persistida por
+  ordinal; anexar ao fim preserva os dados). Dois `switch` no backend e os tipos/labels do front
+  ganham o caso.
 - **Contrato de API**: `POST`/`PUT`/`DELETE` de provas passam a aceitar `ATLETA`; `GET`s passam
   a recusar atleta que não é dono (`404`, como o padrão de tenant). Endpoint novo de ciente.
 - **Sem dependência nova.** Sem mudança no prompt nem no `PeriodizationPlanner`.

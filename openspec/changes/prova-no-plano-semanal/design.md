@@ -50,7 +50,8 @@ Levantado em 2026-09-02:
 
 ### D1. Vínculo persistido `TreinoPlanejado.prova`
 
-Migration `V86`: `ALTER TABLE tb_treino_planejado ADD COLUMN prova_id uuid NULL REFERENCES
+Migration `V88` (após a `V87` de `atleta-cadastra-prova`; conferir o último número antes de
+criar): `ALTER TABLE tb_treino_planejado ADD COLUMN prova_id uuid NULL REFERENCES
 tb_prova(id) ON DELETE SET NULL` + índice parcial `WHERE prova_id IS NOT NULL`. Campo
 `@ManyToOne(optional = true) Prova prova` na entidade e `provaId` no DTO de saída.
 
@@ -99,7 +100,7 @@ garantia corrige o dia; a instrução corrige a semana.
 ### D4. Reabertura de revisão como transição própria
 
 `PlanoSemanal` ganha `motivoReabertura` (enum `MotivoReaberturaRevisao { PROVA_INSERIDA,
-PROVA_REMOVIDA }`, nullable) e `reabertoEm` (timestamp, nullable). Migration `V87` aditiva.
+PROVA_REMOVIDA }`, nullable) e `reabertoEm` (timestamp, nullable). Migration `V89` aditiva.
 
 `PlanoReviewServiceImpl.reabrirRevisao(planoId, motivo)`: permitido só de `APROVADO` para
 `AGUARDANDO_REVISAO` em semana não encerrada; grava motivo e `reabertoEm`; publica
@@ -187,7 +188,7 @@ dia quando o atleta registra com tipo `PROVA`. O front do registro manual precis
 
 ## Migration Plan
 
-1. `V86` (FK `prova_id`) e `V87` (`motivo_reabertura`, `reaberto_em`) aditivas.
+1. `V88` (FK `prova_id`) e `V89` (`motivo_reabertura`, `reaberto_em`) aditivas.
 2. Backend primeiro; o front tolera `provaId`/`motivoReabertura` ausentes.
 3. Rollback: reverter deploy; colunas ficam nulas e inertes.
 

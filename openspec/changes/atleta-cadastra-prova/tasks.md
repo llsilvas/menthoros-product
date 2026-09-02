@@ -10,6 +10,11 @@ Validação por bloco: backend `./mvnw clean test` em `apps/menthoros-backend`; 
       `inicioPreparacao`) com a tabela 8/10/12/16 e as faixas 7,5/15/30.
       *verify:* teste parametrizado cobre os 4 enums, os 4 limites de faixa (7,5 / 7,6 / 15 /
       15,1 / 30 / 30,1) e extremos (0,1 e 200 km); `./mvnw clean test`.
+- [ ] 1.1b `DistanciaProva.CUSTOMIZADA("OUTRA", "Outra", "Outra", 4)` **como último constante**, com
+      comentário sobre o ordinal; casos novos nos `switch` de `PeriodizacaoPromptFormatter.resolverDistanciaKm`
+      e `PlannerShadowService` (devolvem `distanciaKm`).
+      *verify:* teste: `DistanciaProva.CUSTOMIZADA.ordinal() == 4` e os quatro anteriores
+      inalterados; compilação dos dois `switch`; prova gravada com ordinal 2 lê `KM_21`.
 - [ ] 1.2 Criar `ProvaEnricher.aplicarDerivados(Prova)` e chamá-lo em `criarProva`,
       `atualizarProva` e `OnboardingServiceImpl.criarOuAtualizarProvaAlvo` antes do `save`;
       ignorar `semanasPreparacao`/`inicioPreparacao` vindos do DTO.
@@ -51,26 +56,30 @@ Validação por bloco: backend `./mvnw clean test` em `apps/menthoros-backend`; 
 
 ## 3. Backend — ciência do coach e fila de atenção
 
-- [ ] 3.1 Migration `V85__add_revisada_pelo_coach_to_tb_prova.sql`: coluna `boolean NOT NULL
-      DEFAULT true` + índice parcial em `atleta_id WHERE revisada_pelo_coach = false`; campo na
-      entidade `Prova`.
+- [ ] 3.1 Migration `V87__add_revisao_coach_to_tb_prova.sql` (V85 e V86 já existem — conferir
+      `ls db/migration | sort -V | tail -1` antes de criar): `revisada_pelo_coach boolean NOT NULL
+      DEFAULT true`, `motivo_revisao varchar(20) NULL`, `alvo_anterior_nome varchar(100) NULL`,
+      índice parcial em `atleta_id WHERE revisada_pelo_coach = false`; campos e enum
+      `MotivoRevisaoProva` na entidade.
       *verify:* teste de migration (Testcontainers, padrão `FoundingInviteMigrationTest`, roda no
-      CI); provas pré-existentes ficam `true`.
-- [ ] 3.2 Zerar a flag no service quando o ator é `ATLETA`: criação, cancelamento, e `PUT` que
-      mude `dataProva`, `distancia`, `distanciaKm` ou `provaAlvo`; edição só de nome/tempo não zera;
-      ator `TECNICO`/`ADMIN` nunca altera a flag.
-      *verify:* teste por caso (5 zeram, 2 não zeram, coach não altera).
+      CI); provas pré-existentes ficam `true` com motivo nulo.
+- [ ] 3.2 Zerar a flag e gravar `motivoRevisao` (+ `alvoAnteriorNome` em `ALVO_TROCADA`) no
+      service quando o ator é `ATLETA`: criação (`NOVA`), cancelamento (`CANCELADA`), `PUT` que
+      mude `provaAlvo` (`ALVO_TROCADA`) ou `dataProva`/`distancia`/`distanciaKm` (`DATA_ALTERADA`);
+      edição só de nome/tempo não zera; ator `TECNICO`/`ADMIN` nunca altera.
+      *verify:* teste por caso (5 zeram com o motivo certo, 2 não zeram, coach não altera).
 - [ ] 3.3 `PATCH /api/v1/atletas/{atletaId}/provas/{provaId}/ciente` (`TECNICO`/`ADMIN`,
-      idempotente, devolve `ProvaOutputDto`).
+      idempotente, limpa motivo e alvo anterior, devolve `ProvaOutputDto`).
       *verify:* `200` e flag `true`; segunda chamada `200`; `ATLETA` `403`; outro tenant `404`.
-- [ ] 3.4 `ProvaRepository.findPendentesRevisaoByAssessoria(tenantId)` (futuras ou canceladas com
-      flag `false`), agrupado por atleta no `CoachAttentionQueueServiceImpl`.
+- [ ] 3.4 `ProvaRepository.findPendentesRevisaoByAssessoria(tenantId)` e
+      `findPendentesRevisaoByAtleta(atletaId)` (futuras ou canceladas com flag `false`), a primeira
+      agrupada por atleta no `CoachAttentionQueueServiceImpl`, a segunda para o card do perfil.
       *verify:* teste de repositório com prova passada revisada (fora), futura pendente (dentro),
       cancelada pendente (dentro), outro tenant (fora).
 - [ ] 3.5 `MotivoAtencao.PROVA_ATLETA` (peso 45, ação sugerida) e
       `CoachAttentionSignalEvaluator.avaliarProvaPendente(...)`: `CRITICA` se preparação curta ou
-      alvo, senão `ALTA`; evidências Prova / Data / Distância / "N de M semanas"; integrar em
-      `montarItem`.
+      `ALVO_TROCADA`, senão `ALTA`; evidências Prova / Data / Distância / "N de M semanas" /
+      Motivo (com alvo anterior); integrar em `montarItem`.
       *verify:* `CoachAttentionSignalEvaluatorTest` cobre os três níveis e a ausência de sinal;
       teste do service mostra o atleta na fila com o motivo e sumindo após o ciente; atleta com
       fadiga `CRITICA` mantém um item só com a prova nas evidências.
@@ -84,10 +93,12 @@ Validação por bloco: backend `./mvnw clean test` em `apps/menthoros-backend`; 
 
 ## 4. Frontend — atleta
 
-- [ ] 4.1 Tipos e serviço: `types/Prova.ts` ganha `preparacaoCurta`, `semanasFaltando`,
-      `revisadaPeloCoach`; `ProvaService` ganha `marcarCiente`; `utils/racePreparation.ts` com a
+- [ ] 4.1 Tipos e serviço: `types/Prova.ts` ganha `'CUSTOMIZADA'` em `DistanciaProva` e em
+      `DISTANCIA_PROVA_LABELS` ("Outra"), `preparacaoCurta`, `semanasFaltando`, `revisadaPeloCoach`,
+      `motivoRevisao`, `alvoAnteriorNome`; `OnboardingProvaAlvoStep` filtra `CUSTOMIZADA`; `ProvaService` ganha `marcarCiente`; `utils/racePreparation.ts` com a
       mesma tabela e faixas.
-      *verify:* teste unitário de `racePreparation` com os mesmos casos da task 1.1.
+      *verify:* teste unitário de `racePreparation` com os mesmos casos da task 1.1; teste do
+      onboarding continua mostrando quatro distâncias.
 - [ ] 4.2 Rotas `/athlete/races`, `/athlete/races/new`, `/athlete/races/:provaId/edit` em
       `App.tsx` + `constants/routes.ts`; hook `useAthleteRaces` (CRUD sobre
       `/api/v1/atletas/{meuId}/provas`).
@@ -117,9 +128,10 @@ Validação por bloco: backend `./mvnw clean test` em `apps/menthoros-backend`; 
       `REASON_LABEL` e `MOTIVO_TEXTO` com "Prova do atleta".
       *verify:* `tsc` sem erro nos mapas exaustivos; teste do `AttentionOnlyRow` renderiza o
       motivo e as evidências da prova.
-- [ ] 5.2 `SectionCard` "Provas" na `CoachAthleteProfilePage`: provas futuras + canceladas
-      pendentes, chips Alvo / Preparação curta / Nova / Alterada / Cancelada, botão "Ciente" que
-      chama `marcarCiente`, recarrega a lista e a attention queue.
+- [ ] 5.2 `SectionCard` "Provas" na `CoachAthleteProfilePage` com `useProvas()` (`atletaId` por
+      chamada) + pendentes de `findPendentesRevisaoByAtleta`: provas futuras + canceladas
+      pendentes, chips Alvo / Preparação curta / Nova / Data alterada / Alvo trocada (antes X) /
+      Cancelada, botão "Ciente" que chama `marcarCiente`, recarrega a lista e a attention queue.
       *verify:* teste de componente: item pendente mostra "Ciente"; clique chama o endpoint e
       remove o marcador; item revisado não mostra botão.
 - [ ] 5.3 Lint, build e suíte do front verdes; E2E Playwright existente do perfil do coach
