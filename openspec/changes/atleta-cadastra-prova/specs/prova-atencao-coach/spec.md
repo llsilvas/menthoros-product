@@ -25,6 +25,10 @@ indicador. Provas existentes antes desta capability SHALL nascer com `revisadaPe
 - **WHEN** um atleta marca a prova B como alvo enquanto A era a alvo
 - **THEN** B fica com `revisadaPeloCoach = false`, `motivoRevisao = ALVO_TROCADA` e o nome de A registrado como alvo anterior
 
+#### Scenario: Atleta cria a prova já como alvo, substituindo outra
+- **WHEN** um atleta cria a prova B com `provaAlvo = true` enquanto A era a alvo
+- **THEN** B fica com `motivoRevisao = ALVO_TROCADA` (não `NOVA`) e o nome de A como alvo anterior
+
 #### Scenario: Atleta muda a data
 - **WHEN** um atleta altera a data de uma prova já vista pelo coach
 - **THEN** `revisadaPeloCoach` volta a `false`
