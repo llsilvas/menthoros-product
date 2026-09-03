@@ -148,7 +148,7 @@ Validação por bloco: backend `./mvnw clean test` em `apps/menthoros-backend`; 
 - [x] 6.2 Anotar em `add-macrociclo-structure/proposal.md` a dependência da tabela
       `RacePreparationRule`; criar a change irmã `prova-no-plano-semanal` com dependência desta.
       *verify:* os dois arquivos citam esta change.
-- [ ] 6.3 PRs backend e frontend (`feature/atleta-cadastra-prova` → `develop`), CI verde,
+- [~] 6.3 PRs abertos em 2026-09-03: backend #93, front #102 — aguardando CI e merge. PRs backend e frontend (`feature/atleta-cadastra-prova` → `develop`), CI verde,
       `tasks.md` atualizado, arquivar após merge.
       *verify:* `openspec validate --change atleta-cadastra-prova`; change em
       `changes/archive/2026-09/`.
