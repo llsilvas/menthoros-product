@@ -7,49 +7,77 @@ repos antes de qualquer código.
 
 ## 1. Backend — modelo e vínculo
 
-- [ ] 1.1 Migration `V88__add_prova_id_to_tb_treino_planejado.sql` (conferir o último número livre) (FK nullable `ON DELETE SET
+- [x] 1.1 Migration `V88__add_prova_id_to_tb_treino_planejado.sql` (FK nullable `ON DELETE SET
       NULL`, índice parcial) e campo `prova` em `TreinoPlanejado`; `provaId`, `descricao` e
       `zonaAlvo` em `TreinoPlanejadoLlmDto` (`NON_NULL`, nunca vêm do LLM) e `provaId` no DTO de
       saída; `TreinoMapper` copia os três para a entidade.
-      *verify:* teste de migration (Testcontainers, CI); mapper com e sem `provaId`; DTO LLM com
-      os campos nulos serializa igual a hoje (golden do prompt intacto).
-- [ ] 1.2 Migration `V89__add_reabertura_to_tb_plano_semanal.sql` (`motivo_reabertura` varchar
+      Achado do TDD: `@Mapping(target = "prova.id", source = "provaId")` do MapStruct instancia
+      `Prova` mesmo com `provaId` nulo (quebraria todo treino comum) — trocado por
+      `provaFromId(UUID)`, default method com guarda de nulo. `provaId` entrou no FIM dos dois
+      records (não no meio) para não quebrar ~24 call sites posicionais existentes; a
+      `TreinoPlanejadoLlmDto` ganhou um overload de 11 args (delegando com os 3 novos campos
+      nulos) pelo mesmo motivo — nenhum dos dois altera o formato de nenhum teste existente.
+      *verify:* `TreinoPlanejadoProvaVinculoTest` (Testcontainers): índice parcial existe,
+      vínculo sobrevive a reload, `ON DELETE SET NULL` desvincula o treino, mapper nos dois
+      sentidos com e sem `provaId`. Suíte completa: `./mvnw test` — 3134/3134 verde.
+- [x] 1.2 Migration `V89__add_reabertura_to_tb_plano_semanal.sql` (`motivo_reabertura` varchar
       nullable, `reaberto_em` timestamp nullable); enum `MotivoReaberturaRevisao`; campos na
       entidade e `motivoReabertura` em `PlanoSemanalOutputDto`.
-      *verify:* teste de migration; serialização do DTO com e sem motivo.
-- [ ] 1.3 Migration `V90__prova_tempos_para_interval.sql`: `DROP VIEW v_historico_provas_completadas`,
-      `ALTER TABLE tb_prova ALTER COLUMN tempo_objetivo TYPE interval USING (tempo_objetivo - TIME
-      '00:00')`, idem `tempo_realizado`, `CREATE VIEW` igual à V9. `Prova.tempoObjetivo` e
-      `tempoRealizado` viram `Duration` com `@JdbcTypeCode(SqlTypes.INTERVAL_SECOND)`; os quatro
-      campos de DTO (`ProvaInputDto`, `ProvaAtletaInputDto`, `ProvaOutputDto`) ganham
-      serializer/deserializer `Duration ↔ "HH:mm:ss"`; `PeriodizacaoPromptFormatter` e
-      `ProvaRepository` ajustados.
-      *verify:* teste de migration com linha `01:45:00` → `PT1H45M` e view recriada; teste de
-      serialização: `"01:45:00"` entra e sai igual, `null` idem; `ProvaControllerTest` e
-      `ProvaAtletaAccessIT` verdes sem mudar payload; front intacto (`npm test` de provas verde).
+      `motivoReabertura` entrou no FIM do record (2 call sites posicionais em teste, `+1 null`);
+      `PlanoSemanalMapper.toOutputDto` mapeia por nome automático — sem `@Mapping` explícito.
+      *verify:* `PlanoSemanalReaberturaMigrationTest` (Testcontainers): plano nasce com as duas
+      colunas nulas, motivo e carimbo sobrevivem a reload. `PlanoSemanalOutputDtoMotivoReaberturaTest`:
+      JSON inclui `motivoReabertura` só quando presente (`NON_NULL`).
+- [x] 1.3 Migration `V90__prova_tempos_para_interval.sql`: `DROP VIEW v_historico_provas_completadas`,
+      `ALTER TABLE tb_prova ALTER COLUMN tempo_objetivo TYPE interval USING (...)`, idem
+      `tempo_realizado`, `CREATE VIEW` igual à V9. `Prova.tempoObjetivo`/`tempoRealizado` viram
+      `Duration` (`@JdbcTypeCode(SqlTypes.INTERVAL_SECOND)`); os cinco campos de DTO
+      (`ProvaInputDto` ×2, `ProvaAtletaInputDto` ×1, `ProvaOutputDto` ×2) ganham
+      `DurationHhMmSsSerializer`/`Deserializer` novos (`dto/jackson/`) — contrato JSON continua
+      `"HH:mm:ss"`, front intacto.
+      Achado do TDD: `PeriodizacaoPromptFormatter.formatarProvas` usava `LocalTime.toString()`
+      (omite `:00` quando os segundos são zero — "01:28", não "01:28:00") e o golden
+      `taper-semana-prova.txt` trava esse formato exato. Trocar por
+      `DurationHhMmSsFormat.format` (sempre `HH:mm:ss`) quebrava o golden — fora do escopo desta
+      task (2.3 regenera o golden pela instrução nova, não por isso). Mantido um formatter
+      local no próprio `PeriodizacaoPromptFormatter` que replica o comportamento antigo;
+      `DurationHhMmSsFormat` ficou reservado ao contrato JSON. `ThresholdInferenceService` e
+      `RaceProjectionServiceImpl` trocaram `LocalTime.toSecondOfDay()` por `Duration.getSeconds()`.
+      6 arquivos de teste com `LocalTime.of(...)` literal migrados para `Duration`.
+      *verify:* `ProvaTemposIntervalMigrationTest` (Testcontainers): colunas são `interval`, view
+      sobrevive, round-trip com e sem tempo; `ProvaOutputDtoTempoDurationTest`: JSON sai
+      `"01:45:00"` (não `PT1H45M`), omite quando nulo; `PlanoTreinoPromptBuilderGoldenTest`
+      intacto (golden não regenerado). Suíte completa: `./mvnw test` — 3144/3144 verde.
 
 ## 2. Backend — garantia na geração
 
-- [ ] 2.1 `ProvaNoPlanoService.construirTreinoProva(Prova, contexto)`: `PROVA`, descrição =
-      nome, `distanciaKm`, `ritmoAlvo` e `duracaoMin` do tempo objetivo (`Duration`, após 1.3; fallback pace de limiar
-      × distância; sem limiar, 6:00 min/km), `zonaAlvo` do enum, sem etapas.
-      *verify:* testes: com tempo objetivo 1:45:00 em 21,1 km → ritmo 4:59; sem tempo objetivo
-      usa limiar; sem limiar usa 6:00.
-- [ ] 2.2 `ProvaNoPlanoService.garantirProvasNaSemana(List<TreinoPlanejadoLlmDto>, ctx)`:
-      busca as provas não canceladas da semana no `ProvaRepository` (query nova, tenant-scoped,
-      por intervalo de datas — o contexto só tem `proximaProva`), remove DTOs do dia de cada uma e
-      insere o `PROVA`; integrar em `PlanGenerationPersister.obterTreinosParaPlano` **depois** da
-      redistribuição e **antes** de `validarTreinosGerados`; `prepararMetadados` e
-      `atualizarProgressao` passam a usar o volume recalculado da lista final, não o do DTO.
-      *verify:* testes: LLM devolve LONGO no domingo → sai LONGO, entra PROVA; LLM já devolveu
-      PROVA → um só; duas provas → dois dias; prova cancelada → nada; modo `SEMANA_ATUAL` com
-      redistribuição mantém o PROVA no dia; `volumePlanejadoKm` e `PlanoMetaDados.volumePlanejado`
-      incluem a distância; prova de outro tenant na mesma data não entra.
-- [ ] 2.3 Prompt: `formatarEventoCompetitivoSemana` ganha a linha "Prescreva no dia … um único
-      treino do tipo PROVA … Não prescreva outro treino nesse dia" por prova; regenerar golden
-      `taper-semana-prova.txt` com `-Dgolden.update=true`.
-      *verify:* `PlanoTreinoPromptBuilderGoldenTest` verde; diff do golden mostra só as linhas
-      novas; teste unitário do formatter com duas provas gera duas linhas.
+- [x] 2.1 `ProvaNoPlanoService.construirTreinoProva(Prova, Atleta)`: `PROVA`, descrição =
+      nome, `distanciaKm`, `ritmoAlvo` e `duracaoMin` do tempo objetivo (`Duration`, após 1.3;
+      fallback pace de limiar × distância; sem limiar, 6:00 min/km), `zonaAlvo` = "Zona 3-4",
+      sem etapas, `provaId`.
+      *verify:* `ProvaNoPlanoServiceTest`: com tempo objetivo 1:45:00 em 21,1 km → ritmo 4:59;
+      sem tempo objetivo usa limiar; sem limiar usa 6:00; dia da semana vem da data da prova.
+- [x] 2.2 `ProvaNoPlanoService.garantirProvasNaSemana(List<TreinoPlanejadoLlmDto>, Atleta,
+      semanaInicio, semanaFim)`: reusou `ProvaRepository.findByAtletaAndDataProvaBetweenOrderByDataProvaAsc`
+      (já existia, já exclui `CANCELADA` — sem query nova); remove DTOs do dia de cada prova e
+      insere o `PROVA`; integrado em `PlanGenerationPersister.obterTreinosParaPlano` **depois** da
+      redistribuição e **antes** de `validarTreinosGerados`. `prepararMetadados` passou a receber
+      `(DadosPlanoDto, double volumePlanejadoKm)` — o volume recalculado da lista final de DTOs
+      (`calcularVolumeTotalPlanejadoDto`), não `planoDto.volumePlanejadoKm()` — fecha o Major do
+      DoR. `PlanGenerationPersister` ganhou o campo `ProvaNoPlanoService`; dois testes existentes
+      (`PlanoServiceImplTest`, `PlanoServiceTenantTest`) precisaram de um mock novo com stub
+      pass-through.
+      *verify:* `PlanGenerationPersisterProvaTest`: `garantirProvasNaSemana` chamado com
+      atleta/período corretos após a redistribuição; `volumePlanejadoKm` do plano inclui a
+      distância da prova; `PlanoMetaDados.volumePlanejado` usa o recalculado, não o bruto do LLM.
+      Suíte completa: `./mvnw test` — 3151/3151 verde.
+- [x] 2.3 Prompt: `formatarEventoCompetitivoSemana` ganha a linha "Prescreva no dia … um único
+      treino do tipo PROVA … Não prescreva outro treino nesse dia" por prova (todas as provas de
+      `eventosSemana`, não só a principal); golden `taper-semana-prova.txt` regenerado com
+      `-Dgolden.update=true`.
+      *verify:* `PeriodizacaoPromptFormatterEventoCompetitivoTest`: uma prova → uma linha; duas
+      provas → duas linhas; sem prova → nenhuma linha. `PlanoTreinoPromptBuilderGoldenTest` verde;
+      diff do golden mostrou só a linha nova. Suíte completa: `./mvnw test` — 3154/3154 verde.
 
 ## 3. Backend — semana já gerada e reabertura
 
