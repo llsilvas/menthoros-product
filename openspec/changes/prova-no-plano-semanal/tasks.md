@@ -81,32 +81,49 @@ repos antes de qualquer código.
 
 ## 3. Backend — semana já gerada e reabertura
 
-- [ ] 3.1 `PlanoReviewServiceImpl.reabrirRevisao(planoId, motivo)`: só de `APROVADO`, semana
-      não encerrada; grava motivo e `reabertoEm`; publica `PlanoReabertoEvent`; `aprovar` e
-      `rejeitar` limpam os dois campos.
-      *verify:* testes: APROVADO → AGUARDANDO com motivo; de AGUARDANDO nunca aprovado → recusa;
-      semana encerrada → recusa; aprovar limpa motivo e publica `PlanoAprovadoEvent`.
-- [ ] 3.2 Query do atleta em `PlanoServiceImpl`: último plano `APROVADO` **ou** (`AGUARDANDO_REVISAO`
-      com `motivoReabertura` não nulo).
-      *verify:* teste: plano da semana corrente reaberto é devolvido; plano da semana corrente
-      nunca aprovado continua invisível e cai no aprovado anterior.
-- [ ] 3.3 `ProvaNoPlanoService.aplicarProvaEmSemanaExistente(prova)`: localiza a semana por
+- [x] 3.1 `PlanoReviewServiceImpl.reabrirRevisao(plano, motivo, tenantId)`: recebe a entidade
+      já carregada (mesmo padrão de `aprovarTransicao`, não busca por id); só de `APROVADO`,
+      semana não encerrada; grava motivo e `reabertoEm`; publica `PlanoReabertoEvent`; `aprovar`
+      e `rejeitar` limpam os dois campos (`limparReabertura`).
+      *verify:* `PlanoReviewServiceReaberturaTest`: APROVADO → AGUARDANDO com motivo e evento;
+      AGUARDANDO/REJEITADO/semana `CONCLUIDO` → recusa sem salvar; aprovar e rejeitar limpam
+      motivo/carimbo de um plano reaberto.
+- [x] 3.2 `PlanoSemanalRepository.findVisiveisParaAtletaOrderBySemanaInicioDesc` (nova):
+      `APROVADO` **ou** (`AGUARDANDO_REVISAO` com `motivoReabertura` não nulo); `buscarPlanoPorAtleta`
+      (`apenasAprovados=true`, ramo do `ATLETA`) troca `findTopByAtletaIdAndAssessoriaIdAndReviewStatusOrderBySemanaInicioDesc`
+      por ela + `.stream().findFirst()`.
+      *verify:* `PlanoSemanalVisibilidadeAtletaTest` (Testcontainers): plano reaberto da semana
+      corrente vem primeiro (à frente do aprovado antigo); plano nunca aprovado não aparece;
+      isolamento de tenant. Dois testes existentes de `PlanoServiceImplTest` migrados para o
+      método novo.
+- [x] 3.3 `ProvaNoPlanoService.aplicarProvaEmSemanaExistente(prova)`: localiza a semana por
       `findSemanaAbertaParaProva(atletaId, tenantId, data)` (método novo: tenant, `status <>
-      CONCLUIDO`, `reviewStatus <> REJEITADO`), remove treinos `PENDENTE` do dia (mantém `PROVA` de outra
-      prova), cria o `PROVA` na entidade, recalcula volume, reabre com `PROVA_INSERIDA` se
-      `APROVADO`.
-      *verify:* testes: semana aprovada → substitui e reabre; semana aguardando nunca aprovada →
-      substitui sem mudar status; semana sem plano → no-op; semana encerrada → no-op; plano
-      rejeitado → no-op; teste de repositório da query nova com outro tenant.
-- [ ] 3.4 `ProvaNoPlanoService.removerProvaDeSemanaExistente(prova, dataAntiga)`: remove só o
-      `PROVA` vinculado se `PENDENTE`/`PERDIDO`, recalcula volume, reabre com `PROVA_REMOVIDA`.
-      *verify:* testes: remove e reabre; treino `REALIZADO` não é removido e plano não muda;
-      outros treinos do dia intactos.
-- [ ] 3.5 Integrar em `ProvaServiceImpl`: criar → aplicar; atualizar com data nova → remover da
-      antiga + aplicar na nova; atualizar só nome/tempo → atualiza descrição/ritmo/duração do
-      treino vinculado sem reabrir; cancelar → remover. Mesma transação.
-      *verify:* testes de service por caso; teste de integração: cadastro de prova na semana
-      corrente aprovada deixa o plano reaberto e o `GET` do atleta devolve o `PROVA`.
+      CONCLUIDO`, `reviewStatus <> REJEITADO`), remove treinos `PENDENTE` do dia (mantém `PROVA` de
+      outra prova), cria o `PROVA` na entidade via `TreinoMapper.toEntity(construirTreinoProva(...))`,
+      recalcula volume, reabre com `PROVA_INSERIDA` se `APROVADO`.
+      *verify:* `ProvaNoPlanoServiceAplicarTest`: semana aprovada → substitui e reabre; semana
+      aguardando nunca aprovada → substitui sem mudar status; mantém `PROVA` de outra prova no
+      mesmo dia; semana sem plano → no-op. `PlanoSemanalSemanaAbertaParaProvaTest`: query nova —
+      encontra semana aberta, exclui `CONCLUIDO` e `REJEITADO`, isolamento de tenant.
+- [x] 3.4 `ProvaNoPlanoService.removerProvaDeSemanaExistente(prova, dataAntiga)`: remove só o
+      `PROVA` vinculado (por `provaId`) se `PENDENTE`/`PERDIDO`, recalcula volume, reabre com
+      `PROVA_REMOVIDA`.
+      *verify:* `ProvaNoPlanoServiceRemoverTest`: remove e reabre; remove `PERDIDO` (não só
+      `PENDENTE`); treino `REALIZADO` não é removido e plano não muda; outros treinos do dia
+      intactos; sem semana aberta → no-op.
+- [x] 3.5 Integrado em `ProvaServiceImpl`, mesma transação: `criarProva` → `aplicarProvaEmSemanaExistente`
+      (se não nasce `CANCELADA`); `atualizarProva` com `dataProva` mudou → `removerProvaDeSemanaExistente`
+      (data antiga) + `aplicarProvaEmSemanaExistente` (data nova); `atualizarProva` com
+      `statusProva = CANCELADA` → `removerProvaDeSemanaExistente`; `atualizarProva` sem mudança de
+      data → `ProvaNoPlanoService.atualizarTreinoVinculado` (método novo: atualiza
+      descrição/zona/ritmo/duração/distância do treino vinculado, sem reabrir); `cancelarProva` →
+      `removerProvaDeSemanaExistente`.
+      *verify:* `ProvaNoPlanoServiceAtualizarVinculadoTest` (atualiza sem reabrir; não toca
+      `REALIZADO`); 4 testes novos em `ProvaServiceImplTest` verificando a chamada certa por
+      cenário. `ProvaNoPlanoSemanalIT` (Testcontainers, ponta a ponta): cadastro de prova na
+      semana corrente aprovada reabre o plano (`motivoReabertura = PROVA_INSERIDA`) e
+      `PlanoServiceImpl.buscarPlanoPorAtleta` devolve essa versão com o `PROVA`.
+      `./mvnw verify` completo: 3184 unitários + 171 de integração, 0 falhas.
 
 ## 4. Backend — resultado da prova pela execução
 
