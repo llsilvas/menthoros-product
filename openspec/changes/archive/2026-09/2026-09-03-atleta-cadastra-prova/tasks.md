@@ -134,21 +134,23 @@ Validação por bloco: backend `./mvnw clean test` em `apps/menthoros-backend`; 
       Cancelada, botão "Ciente" que chama `marcarCiente`, recarrega a lista e a attention queue.
       *verify:* teste de componente: item pendente mostra "Ciente"; clique chama o endpoint e
       remove o marcador; item revisado não mostra botão.
-- [ ] 5.3 Lint, build e suíte do front verdes (feito em 2026-09-02); E2E Playwright existente do perfil do coach
-      **pendente: só roda no CI do PR** — não há ambiente local com Keycloak/backend nesta sessão.
-      continua passando.
+- [x] 5.3 Lint, build e suíte do front verdes (2026-09-02); E2E Playwright do perfil do coach
+      passou no CI do PR front #102 (`E2E (Playwright)` verde em 2026-09-03).
       *verify:* `npm run lint && npm run build && npm test`; `npm run test:e2e` no CI.
 
 ## 6. Integração e encerramento
 
-- [ ] 6.1 Fluxo ponta a ponta em `develop` (Railway): atleta cadastra maratona em 8 semanas →
-      coach vê item `CRITICA` no Inbox com "8 de 16 semanas" → abre o perfil, card mostra a
-      prova → "Ciente" → item some; atleta muda a data → item volta.
+- [ ] 6.1 **ADIADA no arquivamento (2026-09-03)** — roteiro ponta a ponta em `develop` (Railway) não
+      executado nesta change: atleta cadastra maratona em 8 semanas → coach vê item `CRITICA` no
+      Inbox com "8 de 16 semanas" → abre o perfil, card mostra a prova → "Ciente" → item some;
+      atleta muda a data → item volta. Fica no Radar do `SPRINTS.md`, para rodar junto com o
+      smoke de `prova-no-plano-semanal`, que depende desta.
       *verify:* roteiro executado e registrado aqui com data.
 - [x] 6.2 Anotar em `add-macrociclo-structure/proposal.md` a dependência da tabela
       `RacePreparationRule`; criar a change irmã `prova-no-plano-semanal` com dependência desta.
       *verify:* os dois arquivos citam esta change.
-- [~] 6.3 PRs abertos em 2026-09-03: backend #93, front #102 — aguardando CI e merge. PRs backend e frontend (`feature/atleta-cadastra-prova` → `develop`), CI verde,
-      `tasks.md` atualizado, arquivar após merge.
+- [x] 6.3 PRs backend **#93** e front **#102** (`feature/atleta-cadastra-prova` → `develop`)
+      mergeados em 2026-09-03 com CI verde (backend `a5c4144`, front `1e9c8c3`); `tasks.md`
+      atualizado; arquivada em `changes/archive/2026-09/2026-09-03-atleta-cadastra-prova/`.
       *verify:* `openspec validate --change atleta-cadastra-prova`; change em
       `changes/archive/2026-09/`.

@@ -1,7 +1,7 @@
 # atleta-cadastra-prova — Atleta cadastra a própria prova e o coach é avisado quando a preparação é curta
 
 **Tamanho:** M · **Trilha:** Full
-**Status:** proposta (grilling concluído em 2026-09-02)
+**Status:** concluída e arquivada em 2026-09-03 (PRs backend #93 e front #102 mergeados em `develop`; task 6.1, o roteiro ponta a ponta no Railway, adiada para o Radar)
 **Criado:** 2026-09-02
 **Design visual:** [canvas "Provas do Atleta"](https://claude.ai/code/artifact/98c34b33-9ad1-4dca-83a2-53a8733eb81a)
 
