@@ -168,10 +168,18 @@ vínculo: `TreinoServiceImpl` (registro manual do atleta, `:584`; **`addTreino`*
 o `lancarTreino` de `:342` nunca vincula planejado e fica fora), `ReconciliationDecisionExecutor`
 (`:121`) e `ManualReconciliationServiceImpl.linkManually` (`:83`). Desvincular não mexe na prova.
 
-**Conversão do tempo:** `tempoRealizado` é `LocalTime` (`Prova.java:74`), como `tempoObjetivo`
-(`:60`); a duração do realizado é `Duration`. Regra: `LocalTime.MIDNIGHT.plus(duracao)`, com teto
-em `23:59:59` — prova acima de 24 h está fora do escopo do produto (distâncias até 42 km + "outra").
-Sem migration; o par objetivo/realizado continua comparável no front.
+**Tipo do tempo (decisão do founder, 2026-09-03):** `tempoObjetivo` e `tempoRealizado` são
+`LocalTime` em coluna `time` (`Prova.java:60,74`), mas os dois são durações — o que o atleta
+pretende fazer e o que fez — e a duração do realizado é `Duration`. Os dois migram para
+`Duration` com `@JdbcTypeCode(SqlTypes.INTERVAL_SECOND)`, a convenção que `TreinoBase.java:44` já
+usa. Migration `V90`: `DROP VIEW v_historico_provas_completadas` (V9, lê `tempo_realizado`; o
+Postgres não altera tipo de coluna usada por view), `ALTER COLUMN … TYPE interval USING
+(coluna - TIME '00:00')` nas duas colunas, e `CREATE VIEW` igual à V9. **Contrato JSON preservado:**
+os quatro campos de DTO (`ProvaInputDto`, `ProvaAtletaInputDto`, `ProvaOutputDto`) continuam
+trafegando `"HH:mm:ss"` via par serializer/deserializer `Duration ↔ HH:mm:ss` — o front
+(`types/Prova.ts:103-154`, 8 arquivos) não muda. `ritmoAlvo = tempoObjetivo / distanciaKm` (D2) e o
+`PeriodizacaoPromptFormatter.java:52` passam a formatar a partir de `Duration`. Descartado o teto
+de 23:59:59 da versão anterior: com `interval` não há limite artificial.
 
 **Isolamento no `linkManually`:** hoje carrega o planejado por `findById` e só compara o atleta
 (`ManualReconciliationServiceImpl.java:73-80`). Antes de ampliar esse ponto para fechar resultado

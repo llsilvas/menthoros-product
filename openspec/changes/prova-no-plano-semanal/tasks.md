@@ -17,11 +17,21 @@ repos antes de qualquer código.
       nullable, `reaberto_em` timestamp nullable); enum `MotivoReaberturaRevisao`; campos na
       entidade e `motivoReabertura` em `PlanoSemanalOutputDto`.
       *verify:* teste de migration; serialização do DTO com e sem motivo.
+- [ ] 1.3 Migration `V90__prova_tempos_para_interval.sql`: `DROP VIEW v_historico_provas_completadas`,
+      `ALTER TABLE tb_prova ALTER COLUMN tempo_objetivo TYPE interval USING (tempo_objetivo - TIME
+      '00:00')`, idem `tempo_realizado`, `CREATE VIEW` igual à V9. `Prova.tempoObjetivo` e
+      `tempoRealizado` viram `Duration` com `@JdbcTypeCode(SqlTypes.INTERVAL_SECOND)`; os quatro
+      campos de DTO (`ProvaInputDto`, `ProvaAtletaInputDto`, `ProvaOutputDto`) ganham
+      serializer/deserializer `Duration ↔ "HH:mm:ss"`; `PeriodizacaoPromptFormatter` e
+      `ProvaRepository` ajustados.
+      *verify:* teste de migration com linha `01:45:00` → `PT1H45M` e view recriada; teste de
+      serialização: `"01:45:00"` entra e sai igual, `null` idem; `ProvaControllerTest` e
+      `ProvaAtletaAccessIT` verdes sem mudar payload; front intacto (`npm test` de provas verde).
 
 ## 2. Backend — garantia na geração
 
 - [ ] 2.1 `ProvaNoPlanoService.construirTreinoProva(Prova, contexto)`: `PROVA`, descrição =
-      nome, `distanciaKm`, `ritmoAlvo` e `duracaoMin` do tempo objetivo (fallback pace de limiar
+      nome, `distanciaKm`, `ritmoAlvo` e `duracaoMin` do tempo objetivo (`Duration`, após 1.3; fallback pace de limiar
       × distância; sem limiar, 6:00 min/km), `zonaAlvo` do enum, sem etapas.
       *verify:* testes: com tempo objetivo 1:45:00 em 21,1 km → ritmo 4:59; sem tempo objetivo
       usa limiar; sem limiar usa 6:00.
@@ -73,10 +83,10 @@ repos antes de qualquer código.
 ## 4. Backend — resultado da prova pela execução
 
 - [ ] 4.1 `ProvaResultadoSyncer.aoVincular(planejado, realizado)`: se `PROVA` com prova
-      vinculada, `foiRealizada = true` e `tempoRealizado = LocalTime.MIDNIGHT.plus(duração)`, teto
-      `23:59:59`. Nunca desmarca.
+      vinculada, `foiRealizada = true` e `tempoRealizado = realizado.duracao` (`Duration`, após
+      1.3). Nunca desmarca.
       *verify:* testes: PROVA → marca; tipo diferente → nada; vínculo refeito → tempo segue;
-      desvincular → prova intacta; duração 1h45 → `01:45:00`; duração ≥ 24 h → `23:59:59`.
+      desvincular → prova intacta; duração 1h45 sai como `"01:45:00"` no DTO.
 - [ ] 4.2 Chamar o syncer nos pontos de vínculo: `TreinoServiceImpl.registrarTreinoManual` e
       `TreinoServiceImpl.addTreino` (o `lancarTreino` não vincula planejado e fica fora),
       `ReconciliationDecisionExecutor`, `ManualReconciliationServiceImpl.linkManually` — este

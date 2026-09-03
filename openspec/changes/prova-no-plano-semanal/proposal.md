@@ -62,9 +62,11 @@ acima.
 - **Frontend**: `theme.premium.ts` (`trainingType.PROVA`), `buildWeekAgenda.ts`,
   `WeekAgendaRow.tsx`, `AthletePlanPage` (faixa "Prova nesta semana"), `CoachPlanReviewPage`
   (motivo da reabertura visível ao coach).
-- **Banco**: duas migrations aditivas.
+- **Banco**: duas migrations aditivas (`V88`, `V89`) e uma de tipo (`V90`: `tempo_objetivo` e
+  `tempo_realizado` de `time` para `interval`, recriando a view `v_historico_provas_completadas`).
 - **Contrato de API**: `PlanoSemanalOutputDto` ganha `motivoReabertura`; `TreinoPlanejado` no
-  DTO ganha `provaId`. Sem breaking.
+  DTO ganha `provaId`. `tempoObjetivo`/`tempoRealizado` continuam `"HH:mm:ss"` no JSON, apesar de
+  virarem `Duration` no domínio. Sem breaking.
 - **Sem dependência nova.**
 
 ## Fora do escopo
