@@ -70,11 +70,25 @@ aplicarProvaEmSemanaExistente(Prova prova)         // chamado por ProvaServiceIm
 removerProvaDeSemanaExistente(Prova prova, LocalDate dataAntiga)  // após cancelar/mover
 ```
 
+**Fonte das provas (DoR Codex 2026-09-03):** o `PlanGenerationContext` carrega só `proximaProva`
+(`PlanGenerationContextLoader.java:116`) e **não muda**. `ProvaNoPlanoService` consulta o
+`ProvaRepository` diretamente — query nova, tenant-scoped, provas não canceladas com `dataProva`
+entre `semanaInicio` e `semanaFim` — nos dois caminhos (geração e semana existente).
+
+**DTO LLM:** `TreinoPlanejadoLlmDto` hoje não tem `descricao`, `zonaAlvo` nem `provaId`
+(`TreinoPlanejadoLlmDto.java:11-22`). Os três entram no record (`NON_NULL`, nunca preenchidos pelo
+LLM; o `TreinoMapper` passa a copiá-los para a entidade). Sem isso o `PROVA` construído em DTO não
+carregaria o nome da prova nem o vínculo.
+
 `garantirProvasNaSemana`: para cada prova não cancelada em `[semanaInicio, semanaFim]`, remove
 os DTOs do mesmo `diaSemana` e adiciona um `TreinoPlanejadoLlmDto` `PROVA` construído por
 `construirTreinoProva(prova, atleta)`. Marca o DTO com `provaId` para o mapper preencher o
 vínculo. Roda **depois** da redistribuição (`SEMANA_ATUAL`) e **antes** de `validarTreinosGerados`
 e do cálculo de volume, para que o volume inclua a prova e a validação veja o resultado final.
+**Metadados:** `prepararMetadados` e `atualizarProgressao` leem `planoDto.volumePlanejadoKm()`
+(`PlanGenerationPersister.java:407-420`), o volume que o LLM declarou — sem a prova. Passam a
+receber o volume recalculado a partir da lista final de treinos, senão `PlanoMetaDados` e o alerta
+de progressão ficam desatualizados em relação ao plano.
 
 *Por que em DTO e não na entidade:* é o mesmo nível em que a redistribuição já trabalha, o
 `TreinoMapper` continua sendo o único construtor de entidade, e o `volumePlanejadoKm` é calculado
@@ -123,8 +137,13 @@ circuito num plano que mudou de conteúdo — o oposto do coach-in-the-loop. Tam
 `ProvaServiceImpl.criarProva` / `atualizarProva` / `cancelarProva` chamam
 `ProvaNoPlanoService` **depois** do `save`, na mesma transação:
 
-- criar: `aplicarProvaEmSemanaExistente(prova)` se `findByAtletaIdAndSemana(atletaId, dataProva)`
-  encontra plano não encerrado.
+- criar: `aplicarProvaEmSemanaExistente(prova)` se a semana tem plano aberto.
+
+**Localização da semana:** `findByAtletaIdAndSemana` (`PlanoSemanalRepository.java:21-27`) não
+filtra tenant, `status` nem `reviewStatus` — serve para a geração, não para este gatilho. Entra
+um método novo, `findSemanaAbertaParaProva(atletaId, tenantId, data)`: `atleta.assessoria.id =
+:tenantId`, `:data between semanaInicio and semanaFim`, `status <> CONCLUIDO` e
+`reviewStatus <> REJEITADO`. Semana encerrada ou plano rejeitado não são tocados.
 - atualizar com mudança de data: `removerProvaDeSemanaExistente(prova, dataAntiga)` e depois
   `aplicarProvaEmSemanaExistente(prova)`; mudança só de nome/tempo objetivo: atualiza
   `descricao`/`ritmoAlvo`/`duracaoMin` do treino vinculado sem reabrir revisão.
@@ -144,16 +163,30 @@ notificação do coach, que a fila de atenção da change anterior já cobre.
 
 `ProvaResultadoSyncer.aoVincular(TreinoPlanejado planejado, TreinoRealizado realizado)`:
 se `planejado.tipoTreino == PROVA` e `planejado.prova != null`, grava `prova.foiRealizada =
-true` e `prova.tempoRealizado = realizado.duracao`. Chamado nos três pontos de vínculo:
-`TreinoServiceImpl` (manual, `:584`; coach, `:123`), `ReconciliationDecisionExecutor` (`:121`) e
-`ManualReconciliationServiceImpl` (`:83`). Desvincular não mexe na prova.
+true` e `prova.tempoRealizado` a partir da duração do realizado. Chamado nos três pontos de
+vínculo: `TreinoServiceImpl` (registro manual do atleta, `:584`; **`addTreino`** do coach, `:151` —
+o `lancarTreino` de `:342` nunca vincula planejado e fica fora), `ReconciliationDecisionExecutor`
+(`:121`) e `ManualReconciliationServiceImpl.linkManually` (`:83`). Desvincular não mexe na prova.
+
+**Conversão do tempo:** `tempoRealizado` é `LocalTime` (`Prova.java:74`), como `tempoObjetivo`
+(`:60`); a duração do realizado é `Duration`. Regra: `LocalTime.MIDNIGHT.plus(duracao)`, com teto
+em `23:59:59` — prova acima de 24 h está fora do escopo do produto (distâncias até 42 km + "outra").
+Sem migration; o par objetivo/realizado continua comparável no front.
+
+**Isolamento no `linkManually`:** hoje carrega o planejado por `findById` e só compara o atleta
+(`ManualReconciliationServiceImpl.java:73-80`). Antes de ampliar esse ponto para fechar resultado
+de prova, troca por `findByIdAndTenantId` com teste cross-tenant.
 
 *Por que não `TreinoRegistradoEvent`:* ele dispara na ingestão, antes de existir vínculo (FIT e
 Strava só vinculam na reconciliação). O ponto certo é onde `treinoPlanejado` é setado.
 
-**Match manual**: `findFirstForManualMatch(…, tipo = PROVA)` já encontra o planejado `PROVA` do
-dia quando o atleta registra com tipo `PROVA`. O front do registro manual precisa oferecer
-`PROVA` no seletor de tipo (verificar; se o seletor é fechado, adicionar).
+**Match manual**: `findFirstForManualMatch(…, tipo = PROVA)` encontra o planejado `PROVA` do dia
+quando o atleta registra com tipo `PROVA`, mas escolhe o primeiro por `criadoEm`
+(`TreinoPlanejadoRepository.java:81-95`). Com um `PROVA` vinculado a prova e um simulado `PROVA`
+adicionado pelo coach no mesmo dia, o vínculo cairia no errado: a ordenação passa a preferir
+`prova IS NOT NULL`. Duas provas no mesmo dia continuam "caso raro, sem regra especial" (Riscos).
+O seletor de tipo do registro manual do atleta **é fechado** (`types/TreinoManual.ts:11-20`, oito
+tipos, sem `PROVA`) — confirmado em 2026-09-03; a task 5.4 é obrigatória.
 
 ### D7. Front
 
@@ -196,5 +229,5 @@ dia quando o atleta registra com tipo `PROVA`. O front do registro manual precis
 
 - Duração do `PROVA` sem tempo objetivo: `paceLimiar × distância` assumido; se o contexto não
   tiver pace de limiar, usar 6:00 min/km. Não muda specs nem tasks.
-- Se o seletor de tipo do registro manual do atleta é fechado (verificar na task 4.4); se for,
-  entra `PROVA` nele.
+- ~~Se o seletor de tipo do registro manual do atleta é fechado~~ — é fechado (confirmado
+  2026-09-03); `PROVA` entra nele na task 5.4.

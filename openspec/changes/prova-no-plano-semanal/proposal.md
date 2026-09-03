@@ -81,7 +81,10 @@ acima.
 - **Depende de `atleta-cadastra-prova`**: usa `distanciaKm` sempre preenchido, a posse por
   `atletaId` e a flag `revisadaPeloCoach` (a reabertura da revisão e a ciência da prova são
   sinais independentes; o coach pode dar ciência da prova e ainda ter o plano para reaprovar).
-- Nenhuma outra change bloqueia.
+- Nenhuma outra change bloqueia. **`planner-engine-enforcement`** (Sprint 25, 0/27 tasks, sem
+  branch em 2026-09-03) vai transformar o `PeriodizacaoPromptFormatter` em renderer do skeleton;
+  esta change só acrescenta linhas ao bloco `[SIM]` de `formatarEventoCompetitivoSemana`. Esta
+  entra primeiro; quem implementar a outra rebaseia o bloco.
 
 ## Critérios de aceite
 
@@ -124,7 +127,8 @@ acima.
 - **100% dos planos gerados para semana com prova têm o treino `PROVA` no dia** (query
   semanal; hoje é 0%).
 - **Tempo do coach para reaprovar um plano reaberto por prova ≤ 1 dia**, medido de
-  `reabertoEm` até a aprovação, nos primeiros 30 dias.
+  `reabertoEm` até a aprovação, nos primeiros 30 dias — medição manual por query, sem task de
+  instrumentação nesta change.
 - Provas com `foiRealizada = true` passam a ser preenchidas sem intervenção do coach na
   maioria dos casos (meta: ≥ 80% das provas realizadas com tempo vindo da execução).
 
