@@ -28,15 +28,15 @@ Repo: `apps/menthoros-backend` · Branch: `feature/harden-backend-db-resilience`
 
 ## 2. Pool Hikari
 
-- [ ] 2.1 Orçamento total de conexões (achado convergente do DoR): `SHOW max_connections;` no
-      Postgres de produção E somar consumidores — pool × réplicas do backend + Keycloak + sessões
-      administrativas + demais serviços. Registrar a conta aqui; só subir o pool se o orçamento
-      fechar com folga.
-- [ ] 2.2 `application-cloud.yml`: `maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:10}`; atualizar o
+- [x] 2.1 Orçamento total de conexões (achado convergente do DoR). **Medido em produção
+      (2026-09-04):** `max_connections=100`; consumo observado ~10 (backend 3, Keycloak, 5 sessões
+      DBeaver + psql). Orçamento pós-change: backend 10 × 1 réplica + Keycloak (~10) + sessões
+      administrativas (~5) ≈ 25–30 de 100 — folga ampla.
+- [x] 2.2 `application-cloud.yml`: `maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:10}`; atualizar o
       comentário desatualizado sobre "free tier". **Decidido:** aplicar a mesma parametrização em
       `application-dev.yml` (paridade entre ambientes; o default por env var permite divergir por
       ambiente sem tocar código).
-- [ ] 2.3 Validação: `./mvnw clean verify` (sobe contexto com a config nova nos `*IT`).
+- [x] 2.3 Validação: `./mvnw clean verify` (sobe contexto com a config nova nos `*IT`).
 
 ## 3. Logging de produção
 
