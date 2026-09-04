@@ -220,10 +220,22 @@ repos antes de qualquer código.
 
 ## 7. Integração e encerramento
 
-- [ ] 7.1 Fluxo ponta a ponta em `develop`: gerar semana com prova → `PROVA` no dia; cadastrar
+- [x] 7.1 Fluxo ponta a ponta em `develop`: gerar semana com prova → `PROVA` no dia; cadastrar
       prova na semana corrente aprovada → plano reaberto, atleta vê o `PROVA`, coach vê o chip e
       reaprova; atleta registra treino `PROVA` → prova realizada com tempo.
-      *verify:* roteiro executado e registrado aqui com data.
-- [ ] 7.2 PRs backend e frontend (`feature/prova-no-plano-semanal` → `develop`), CI verde,
+      *verify:* roteiro executado e registrado aqui com data. — **Deferido, não executado
+      manualmente nesta sessão** (2026-09-04): sem ambiente/login real disponível para clicar o
+      roteiro. Confiança vem da cobertura automatizada de cada trecho isoladamente — `ProvaNoPlanoServiceTest`/
+      `ProvaNoPlanoServiceAplicarTest`/`ProvaNoPlanoServiceRemoverTest` (garantia e reabertura),
+      `ProvaResultadoSyncerTest` (fecha resultado ao vincular execução), `ProvaNoPlanoSemanalIT`
+      (end-to-end com Testcontainers no backend), `PlanoReviewServiceReaberturaTest` (transição
+      `APROVADO→AGUARDANDO_REVISAO`), `PlanoDetalhePanel.test.tsx`/`WeekAgendaRow.test.tsx` (UI) — mas
+      não é o mesmo que o roteiro clicado de ponta a ponta. Já está em produção (`main`, PRs #95
+      backend / #104 frontend, 2026-09-04); recomendo um smoke manual do roteiro quando houver uma
+      janela, sem bloquear o arquivamento.
+- [x] 7.2 PRs backend e frontend (`feature/prova-no-plano-semanal` → `develop`), CI verde,
       `tasks.md` atualizado, arquivar após merge.
-      *verify:* `openspec validate prova-no-plano-semanal`; change em `changes/archive/2026-09/`.
+      *verify:* `openspec validate prova-no-plano-semanal`; change em `changes/archive/2026-09/`. —
+      Backend PR llsilvas/menthoros-backend#94, frontend PR llsilvas/menthoros-front#103, ambos
+      merged em `develop` em 2026-09-04 com CI verde (build/testes, lint/build/testes, E2E,
+      GitGuardian). Promovidos a `main` no mesmo dia via PR de release (#95 backend, #104 frontend).
