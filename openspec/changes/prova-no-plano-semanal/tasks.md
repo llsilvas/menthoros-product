@@ -198,11 +198,25 @@ repos antes de qualquer código.
 
 ## 6. Frontend — coach
 
-- [ ] 6.1 `CoachPlanReviewPage`: chip "Reaberto: prova inserida" / "prova removida" a partir de
+- [x] 6.1 `CoachPlanReviewPage`: chip "Reaberto: prova inserida" / "prova removida" a partir de
       `motivoReabertura`; `PlanoDetalhePanel` mostra o `PROVA` com o mesmo destaque da agenda.
-      *verify:* teste de componente com e sem motivo.
-- [ ] 6.2 Lint, build, suíte e E2E do coach verdes.
-      *verify:* `npm run lint && npm run build && npm test`; `npm run test:e2e` no CI.
+      *verify:* teste de componente com e sem motivo. — `PlanoReview.ts` ganhou `descricao`/`provaId`
+      em `TreinoPlanejadoDto` e `motivoReabertura` em `PlanoSemanalDto`; `PlanoDetalhePanel.tsx` usa a
+      `descricao` da prova como rótulo do treino (em vez do tipo genérico), ícone de bandeira só no
+      treino `PROVA`, e chip "Reaberto: prova inserida/removida" no cabeçalho quando `motivoReabertura`
+      está setado. `PlanoDetalhePanel.test.tsx` novo, 6/6 passando (chip ausente sem motivo, os dois
+      textos de chip, nome da prova em vez de "PROVA", ícone só na prova, treino comum sem ícone/rótulo
+      trocado). `CoachPlanReviewPage.test.tsx` (existente) reconfirmado 16/16 sem regressão — os dois
+      campos novos são opcionais.
+- [x] 6.2 Lint, build, suíte e E2E do coach verdes.
+      *verify:* `npm run lint && npm run build && npm test`; `npm run test:e2e` no CI. — `npm run lint`
+      limpo; `npm run build` limpo (só o aviso pré-existente de chunk >500kB, não relacionado);
+      `npm run test:run` → 181 arquivos / 1501/1501 testes. E2E não executado localmente: Playwright
+      1.60.0 e o Chromium (`chromium-1223`) estão instalados no ambiente, mas o backend local não está
+      no ar (`curl http://localhost:8099/actuator/health` → conexão recusada), então não há como
+      exercitar o fluxo real de API/Keycloak nesta sessão. Fica para o CI, como já indicado pelo
+      próprio `verify:` desta task — mesmo tratamento dado à E2E do coach em `atleta-cadastra-prova`
+      (task 5.3).
 
 ## 7. Integração e encerramento
 
