@@ -4,9 +4,9 @@ Repo: `apps/menthoros-backend` · Branch: `feature/harden-backend-db-resilience`
 
 ## 1. Sync de usuário condicional + throttle
 
-- [ ] 1.1 Criar propriedade `app.security.user-sync.access-throttle` (Duration, default `PT5M`) com
+- [x] 1.1 Criar propriedade `app.security.user-sync.access-throttle` (Duration, default `PT5M`) com
       `@ConfigurationProperties` ou `@Value`, documentada no `application.yml`.
-- [ ] 1.2 Em `UsuarioSyncServiceImpl.syncUsuarioFromJwt`: calcular o diff dos campos espelhados do
+- [x] 1.2 Em `UsuarioSyncServiceImpl.syncUsuarioFromJwt`: calcular o diff dos campos espelhados do
       JWT (email, nome, sobrenome, emailVerificado, role, owner) **ANTES de qualquer setter** — a
       entidade é gerenciada e o método é `@Transactional`: setter + "não chamar save()" ainda
       flusharia o `UPDATE` por dirty checking. Só mutar quando a decisão já é escrever.
@@ -17,14 +17,14 @@ Repo: `apps/menthoros-backend` · Branch: `feature/harden-backend-db-resilience`
       todo ATLETA sem vínculo, **fora** da condição de escrita; role/owner reconciliam em toda
       requisição, nos dois sentidos (concessão E remoção de `PROPRIETARIO`).
       verify: teste 1.4 verde + zero `UPDATE` no caminho no-op (log de SQL em dev).
-- [ ] 1.3 Rebaixar `log.info("Usuário sincronizado...")` para `debug`.
+- [x] 1.3 Rebaixar `log.info("Usuário sincronizado...")` para `debug`.
       verify: nenhuma linha INFO do sync em requisição de leitura.
-- [ ] 1.4 Testes de unidade (`UsuarioSyncServiceImplTest`): sem diff + dentro da janela →
+- [x] 1.4 Testes de unidade (`UsuarioSyncServiceImplTest`): sem diff + dentro da janela →
       `verify(repo, never()).save(...)` E retorno do `Usuario` resolvido não-nulo; cada campo
       espelhado alterado → salva (parameterizado, incluindo **remoção** de `PROPRIETARIO`); acesso
       fora da janela → salva uma vez; usuário novo → salva; ATLETA órfão + caminho no-op →
       `vincularAtletaSeNecessario` ainda vincula.
-- [ ] 1.5 Validação: `./mvnw clean test`.
+- [x] 1.5 Validação: `./mvnw clean test`.
 
 ## 2. Pool Hikari
 
