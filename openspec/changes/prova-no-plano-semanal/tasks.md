@@ -127,26 +127,39 @@ repos antes de qualquer código.
 
 ## 4. Backend — resultado da prova pela execução
 
-- [ ] 4.1 `ProvaResultadoSyncer.aoVincular(planejado, realizado)`: se `PROVA` com prova
-      vinculada, `foiRealizada = true` e `tempoRealizado = realizado.duracao` (`Duration`, após
-      1.3). Nunca desmarca.
-      *verify:* testes: PROVA → marca; tipo diferente → nada; vínculo refeito → tempo segue;
-      desvincular → prova intacta; duração 1h45 sai como `"01:45:00"` no DTO.
-- [ ] 4.2 Chamar o syncer nos pontos de vínculo: `TreinoServiceImpl.registrarTreinoManual` e
-      `TreinoServiceImpl.addTreino` (o `lancarTreino` não vincula planejado e fica fora),
-      `ReconciliationDecisionExecutor`, `ManualReconciliationServiceImpl.linkManually` — este
-      último trocando `findById` por `findByIdAndTenantId` antes de ganhar a chamada.
-      *verify:* teste por ponto de entrada: registro manual tipo `PROVA` no dia da prova vincula
-      e fecha o resultado; `addTreino` do coach idem; reconciliação FIT idem; Strava idem;
-      `linkManually` com planejado de outro tenant → não encontrado.
-- [ ] 4.3 `findFirstForManualMatch` passa a ordenar `prova IS NOT NULL` primeiro (um simulado
-      `PROVA` do coach no mesmo dia não rouba o vínculo); `TreinoManualInputDto` já aceita o enum
-      inteiro — confirmar no teste do controller.
-      *verify:* teste de repositório com `PROVA` vinculado + `PROVA` sem prova no mesmo dia →
-      devolve o vinculado; teste do controller aceita `tipo = PROVA`.
-- [ ] 4.4 Suíte completa do backend verde; revisão de segurança dos pontos tocados (o gatilho do
-      CRUD roda com o principal do atleta e altera plano do próprio atleta apenas).
-      *verify:* `./mvnw clean test`; checklist de `security-reviewer` sem item aberto.
+- [x] 4.1 `ProvaResultadoSyncer.aoVincular(planejado, realizado)`: se `PROVA` com prova
+      vinculada, `foiRealizada = true` e `tempoRealizado = realizado.getDuracaoMin()`
+      (`Duration`, após 1.3). Nunca desmarca; sem query, muta só a `Prova` já carregada.
+      *verify:* `ProvaResultadoSyncerTest` (6): PROVA → marca; tipo diferente → nada; sem prova
+      vinculada → nada; planejado nulo → não lança; vínculo refeito → tempo segue o novo; a
+      serialização `"01:45:00"` já coberta por `ProvaOutputDtoTempoDurationTest` (1.3).
+- [x] 4.2 Syncer chamado nos 4 pontos de vínculo: `TreinoServiceImpl.addTreino` (coach),
+      `TreinoServiceImpl.registrarTreinoManualAtleta` (nome real do método — `registrarTreinoManual`
+      não existe), `ReconciliationDecisionExecutor.persistir` (FIT/Strava),
+      `ManualReconciliationServiceImpl.linkManually` — este ganhou `findByIdAndTenantId` no lugar
+      de `findById` (achado do DoR do Codex, 2026-09-03).
+      *verify:* `AtletaTreinoServiceImplTest` (registro manual: chama com match, não chama sem
+      match); `TreinoServiceImplTest` (addTreino: chama ao vincular explicitamente);
+      `ReconciliationDecisionExecutorTest` (VINCULADO_AUTOMATICO chama o syncer);
+      `ManualReconciliationServiceImplTest` (linkManually chama o syncer; planejado de outro
+      tenant → `IllegalArgumentException`, syncer nunca chamado).
+- [x] 4.3 `findFirstForManualMatch` ordena `prova IS NOT NULL` primeiro; `TreinoManualInputDto.tipo`
+      já era o enum inteiro (nenhuma mudança necessária), confirmado no teste do controller.
+      Achado do TDD: a query nunca tinha `LIMIT`/`Top1` apesar do nome — com 2+ candidatos no
+      mesmo dia/tipo lançava `IncorrectResultSizeDataAccessException` (500) em vez de escolher
+      um; adicionado `LIMIT 1` na mesma migração da ordenação (bug pré-existente, sem cobertura
+      de repositório antes desta task).
+      *verify:* `TreinoPlanejadoManualMatchProvaTest` (Testcontainers): PROVA vinculado ganha do
+      simulado mesmo criado depois; sem vinculado, devolve o mais antigo (comportamento anterior
+      preservado). `AtletaTreinoControllerTest`: `tipo = "PROVA"` → 201.
+- [x] 4.4 Suíte completa do backend verde; revisão de segurança dos pontos tocados pelo
+      `menthoros-workflow:security-reviewer` (subagente).
+      *verify:* `./mvnw clean test` — 3196/3196; `./mvnw verify` — +171 de integração, 0 falhas
+      (1 flake pré-existente de rede em `IntervalsIcuClientImplTest`, confirmado não-relacionado
+      ao rodar isolado). Security-reviewer: **aprovado**, sem achados bloqueantes — os 4 pontos de
+      vínculo continuam tenant-scoped, `ProvaResultadoSyncer` não faz query (só muta a `Prova` já
+      carregada tenant-scoped pelo chamador), nenhum caminho permite um atleta forçar
+      `foiRealizada` numa prova de outro atleta/tenant.
 
 ## 5. Frontend — atleta
 
