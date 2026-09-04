@@ -163,20 +163,38 @@ repos antes de qualquer código.
 
 ## 5. Frontend — atleta
 
-- [ ] 5.1 `theme.premium.ts` `trainingType.PROVA`; `buildWeekAgenda.ts` repassa `provaId`,
-      `distanciaKm`, `ritmoAlvo`, `descricao`; tipos de `TreinoPlanejado` ganham `provaId`.
-      *verify:* `activeTheme.test.ts` cobre `PROVA`; teste do adapter.
-- [ ] 5.2 `WeekAgendaRow`: ramo `PROVA` com bandeira, borda e fundo em lime, título = nome da
-      prova, meta "N km · Prova · meta hh:mm:ss" (meta só quando houver).
-      *verify:* testes de componente com e sem meta; snapshot dos demais tipos inalterado.
-- [ ] 5.3 `RaceTargetBanner`: estado "Prova nesta semana · nome · dia · faltam N dias" com
-      prioridade sobre o estado de prova-alvo.
-      *verify:* teste do estado novo; os três estados anteriores continuam verdes.
-- [ ] 5.4 `types/TreinoManual.ts`: `TipoTreino` e `TIPO_TREINO_LABELS` ganham `PROVA` ('Prova');
-      o seletor de `ManualTrainingForm` é fechado e passa a oferecê-lo (confirmado 2026-09-03).
-      *verify:* teste do formulário lista o tipo; payload envia `PROVA`.
-- [ ] 5.5 Lint, build e suíte do front verdes.
-      *verify:* `npm run lint && npm run build && npm test`.
+- [x] 5.1 `theme.premium.ts` `trainingType.PROVA = primary[500]` (lime da marca, reaproveitando
+      o mesmo vocabulário de "hoje"); `buildWeekAgenda.ts` repassa `provaId`, `ritmoAlvo` e
+      `duracaoMinRaw` (string "HH:MM:SS" bruta, para a meta da prova) em `AgendaWorkout`; `descricao`
+      já existia como `description`; tipos de `TreinoPlanejado` ganham `provaId`.
+      Achado: `limeDiscipline.test.ts` (guarda de CA2 de uma change anterior) trava vazamento do
+      lime fora de `primary.*`/sidebar — `trainingType.PROVA` precisou entrar na allowlist, com o
+      comentário explicando que é exceção deliberada (D7), não vazamento.
+      *verify:* `activeTheme.test.ts` cobre `PROVA`; `buildWeekAgenda.test.ts` cobre os três
+      campos novos com e sem prova; `limeDiscipline.test.ts` verde com o allowlist atualizado.
+- [x] 5.2 `WeekAgendaRow`: ramo `PROVA` com bandeira SVG no lugar do dot, borda
+      `alpha(primary[500], .45)` e fundo `alpha(primary[500], .10)`, título = nome da prova
+      (`description`), meta "N km · Prova · meta hh:mm:ss" (o trecho "meta hh:mm:ss" só quando
+      `duracaoMinRaw` existe).
+      *verify:* `WeekAgendaRow.test.tsx` (5 casos novos): título correto, meta com e sem duração,
+      `data-prova` marcado só na linha de prova; os testes existentes (análise pronta) continuam
+      verdes sem alteração.
+- [x] 5.3 `raceAdapters.ts` ganhou `selectRaceThisWeek` (prova não cancelada/realizada com
+      `dataProva` na semana corrente segunda→domingo); `RaceTargetBanner` ganhou o estado
+      `data-state="semana-atual"` — "Prova nesta semana · nome · dia da semana · faltam N dias" —
+      checado **antes** do estado de alvo.
+      *verify:* `raceAdapters.test.ts` (5 casos: encontra na semana, fora da semana, cancelada,
+      realizada, duas provas escolhe a mais próxima); `RaceTargetBanner.test.tsx` (4 casos novos:
+      prioridade sobre alvo, sem prova cai para alvo, cancelada não conta, realizada não conta) —
+      os três estados anteriores (alvo/sem-alvo/vazio) continuam verdes sem alteração.
+- [x] 5.4 `types/TreinoManual.ts`: `TipoTreino` e `TIPO_TREINO_LABELS` ganham `PROVA` ('Prova');
+      o seletor de `ManualTrainingForm` deriva os chips de `Object.keys(TIPO_TREINO_LABELS)` — sem
+      mudança de componente, só o tipo novo já aparece.
+      *verify:* `ManualTrainingForm.test.tsx` (2 casos novos): chip "Prova" listado; selecioná-lo
+      e submeter envia `tipo: 'PROVA'` no payload.
+- [x] 5.5 Lint, build e suíte do front verdes.
+      *verify:* `npm run lint` limpo; `npm run build` (tsc -b + vite build) sem erro; `npm run
+      test:run` — 180 arquivos, 1495/1495 testes verdes.
 
 ## 6. Frontend — coach
 
