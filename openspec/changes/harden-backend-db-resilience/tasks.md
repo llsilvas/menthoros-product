@@ -40,11 +40,11 @@ Repo: `apps/menthoros-backend` · Branch: `feature/harden-backend-db-resilience`
 
 ## 3. Logging de produção
 
-- [ ] 3.1 `logback-spring.xml`: loggers `br.com.menthoros.backend.security` e
+- [x] 3.1 `logback-spring.xml`: loggers `br.com.menthoros.backend.security` e
       `br.com.menthoros.backend.multitenancy` para `INFO` no default; movê-los para `DEBUG` apenas
       dentro de `<springProfile name="dev">`.
-- [ ] 3.2 Corrigir/remover o bloco `<springProfile name="prod">` (profile real de produção é `cloud`).
-- [ ] 3.3 **Teste automatizado** (gap do DoR — smoke manual não impede regressão): teste de
+- [x] 3.2 Corrigir/remover o bloco `<springProfile name="prod">` (profile real de produção é `cloud`).
+- [x] 3.3 **Teste automatizado** (gap do DoR — smoke manual não impede regressão): teste de
       contexto com profile `cloud` afirmando
       `LoggerFactory.getLogger("br.com.menthoros.backend.security").isDebugEnabled() == false`
       (idem `multitenancy`); com profile `dev`, `true`. Validação: `./mvnw clean verify`.
