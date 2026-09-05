@@ -23,25 +23,25 @@ Repos: `apps/menthoros-backend` (branch `feature/add-athlete-invite-token-link`)
 
 ## 2. Backend — lookup público e aceite provisionador
 
-- [ ] 2.1 `GET /api/public/athlete-invites/{token}` (espelho do `FoundingInviteController`):
+- [x] 2.1 `GET /api/public/athlete-invites/{token}` (espelho do `FoundingInviteController`):
       DTOs de output, 404/410. Adicionar `/api/public/athlete-invites/**` explicitamente ao
       `PublicEndpointRateLimitFilter` (achado do DoR: a cobertura não é automática); a isenção de
       tenant já vem do prefixo `/api/public/` no `JwtTenantFilter.shouldNotFilter`.
-- [ ] 2.2 `POST /api/public/athlete-invites/aceitar` (Decisão 2, molde do `CoachSignupServiceImpl`
+- [x] 2.2 `POST /api/public/athlete-invites/aceitar` (Decisão 2, molde do `CoachSignupServiceImpl`
       com pilha de compensação): validar token → `criarUsuario` (senha do form; e-mail do convite →
       `emailVerificado=true`, e-mail trocado → verificação pendente) → `atribuirRoleDeRealm(ATLETA)`
       → `adicionarMembroNaOrganization` → TX local curta (Usuario local + `atleta.usuario` +
       `accepted_at`). Tenant SEMPRE do `AthleteInvite`, nunca do `TenantContext`. 409 para e-mail
       já existente no realm ou atleta já vinculado.
-- [ ] 2.3 Testes de unidade (feliz com e-mail igual e divergente; expirado; consumido; 409 nos dois
+- [x] 2.3 Testes de unidade (feliz com e-mail igual e divergente; expirado; consumido; 409 nos dois
       sabores; falha de Keycloak em cada passo → compensação desfaz, zera `claimed_at` e o token
       continua válido; **duplo POST concorrente → só um provisiona, o outro recebe 410**) +
       `*IT` de contrato dos dois endpoints públicos (sem JWT — são rotas públicas; incluir o
       cenário rate limit).
-- [ ] 2.4 `*IT` do fluxo completo pós-aceite: com o usuário provisionado, um JWT simulando o
+- [x] 2.4 `*IT` do fluxo completo pós-aceite: com o usuário provisionado, um JWT simulando o
       primeiro login (subject = keycloakId, claim organization do tenant, ROLE_ATLETA) acessa
       `/api/v1/atletas/me/home` → 200 (o caminho que o incidente quebrou).
-- [ ] 2.5 Validação: `./mvnw clean verify`.
+- [x] 2.5 Validação: `./mvnw clean verify`.
 
 ## 3. Frontend — página de cadastro do atleta
 
