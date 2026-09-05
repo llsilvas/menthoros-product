@@ -1,3 +1,14 @@
+## R. Revisão dos achados — antes de qualquer implementação
+
+Relatório: [review.md](review.md), avaliação de 2026-09-05, achados IA-01 a IA-10.
+Esta seção é pré-requisito das seções 1 a 7; nenhuma correção foi implementada nesta revisão.
+
+- [ ] R.1 Revisar os dez achados e registrar para cada ID a decisão (corrigir, adiar com justificativa ou descartar com evidência); manter IA-01 como BLOCKER até resolução comprovada
+- [ ] R.2 Definir a change responsável e a ordem das correções IA-01 a IA-06, separando mudança de comportamento da decomposição estrutural; decidir também o destino de IA-08 e IA-10
+- [ ] R.3 Revisar impacto no schema LLM, vínculo de prova/tenant e contrato HTTP 422/503; se ampliar o escopo desta change, atualizar proposal/design/tasks e specs afetadas antes de implementar
+- [ ] R.4 Incorporar IA-07 à estratégia de caracterização: cobrir a composição das transformações e o fluxo público; distinguir baseline legado de expectativas corrigidas, sem consagrar defeitos conhecidos como comportamento desejado
+- [ ] R.5 Registrar a conclusão da revisão e a autorização para iniciar a implementação conforme o escopo decidido; manter a validação final com `./mvnw clean verify` (a evidência atual cobre somente `clean test`)
+
 ## Pré-requisitos
 
 - [ ] 0.1 Confirmar que `debito-tecnico-camada-ia` está mergeada em `develop` (esta change toca a mesma classe); rebase de `develop` antes de iniciar

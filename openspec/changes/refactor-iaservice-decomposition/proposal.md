@@ -13,6 +13,19 @@ Esta change é puramente **estrutural (sem mudança de comportamento)**: a saíd
 
 > Relação com `debito-tecnico-camada-ia`: aquela change torna explícito o **roteamento de modelo** do `IaServiceImpl` (bean nomeado via `ModelRouter`). Esta change trata da **decomposição estrutural** da classe. Recomenda-se executar esta change **depois** de `debito-tecnico-camada-ia` para evitar conflito na mesma classe.
 
+## Revisão pré-implementação (2026-09-05)
+
+**Status: aguardando revisão dos achados antes de implementar.** O relatório
+[review.md](review.md) registra dez achados (IA-01 a IA-10), evidências e verificações propostas.
+A avaliação do estado atual resultou em **NO-GO**, incluindo um BLOCKER no schema que exige
+`provaId` do LLM e problemas reproduzidos de FC, parsing e estrutura de etapas.
+
+A inclusão dos achados não amplia automaticamente o escopo estrutural desta proposta. Antes
+de implementar, concluir a seção R de [tasks.md](tasks.md): decidir o destino das correções,
+registrar o impacto de contrato e definir o baseline de caracterização. Se houver ampliação
+de escopo, revisar proposal/design/tasks e specs afetadas antes de escrever código.
+As correções de comportamento devem ser rastreadas separadamente da extração mecânica.
+
 ## What Changes
 
 **Extrair construção de schema:**
