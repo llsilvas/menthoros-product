@@ -2,7 +2,21 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-04 (**`harden-backend-db-resilience` entregue e arquivada** —
+**Última atualização:** 2026-09-05 (**`add-athlete-invite-token-link` entregue e arquivada** —
+backend PR **#97** e front PR **#105** mergeados em `develop`. M · Full, segunda change do
+incidente de 2026-09-04: o vínculo Usuario↔Atleta por match de e-mail deixou um atleta órfão com o
+painel inteiro em 404. O convite de atleta agora é token opaco do backend (padrão das fundadoras,
+`tb_athlete_invite` só com hash) e o aceite público **provisiona a conta** no molde do coach
+signup — claim atômico contra duplo POST, criarUsuario + ROLE_ATLETA + Organization do tenant do
+convite, compensação em pilha — então o primeiro login já nasce com tenant e role. Front:
+`/#/cadastro?convite=` detecta o tipo do convite e o formulário de atleta tem e-mail EDITÁVEL. O
+DoR reprovou o desenho original duas vezes (aceite autenticado morreria no JwtTenantFilter; corrida
+de aceite) e o E2E achou dois bugs reais de auth — remount da página perdendo o token e a
+restauração silenciosa de sessão destruindo o convite (valia também para o convite de coach; guard
+`haConvitePendente` restrito a `#/cadastro`). Pendências operacionais adiadas: smoke em develop
+(4.2) e auditoria de atletas órfãos em produção (4.3). Arquivada em
+`changes/archive/2026-09/2026-09-05-add-athlete-invite-token-link/`.) Antes,
+2026-09-04 (**`harden-backend-db-resilience` entregue e arquivada** —
 backend PR **#96** mergeado em `develop`. S · Fast, criada e entregue no mesmo dia a partir do
 incidente de produção da tarde: uma transação esquecida no DBeaver lockou uma linha de
 `tb_usuario` e derrubou a API inteira. Três amplificadores corrigidos: o sync do `JwtTenantFilter`

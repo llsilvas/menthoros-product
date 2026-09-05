@@ -64,9 +64,10 @@ Repos: `apps/menthoros-backend` (branch `feature/add-athlete-invite-token-link`)
       **Feito (2026-09-05):** QA com 5 reviewers (crítico convergente do claim vazado corrigido —
       validações antes do claim; guard do front restrito a `#/cadastro`); PRs abertos: backend
       **#97** e front **#105** (mergear o backend primeiro).
-- [ ] 4.2 Smoke em develop: convite real, aceite com e-mail divergente, painel do atleta carrega,
-      onboarding oferecido.
-- [ ] 4.3 Pós-deploy em produção: auditoria de atletas órfãos —
+- [ ] 4.2 **ADIADO para pós-deploy em develop:** smoke — convite real, aceite com e-mail
+      divergente, painel do atleta carrega, onboarding oferecido. Validação operacional; não
+      bloqueia o arquivamento.
+- [ ] 4.3 **ADIADO para pós-deploy em produção:** auditoria de atletas órfãos —
       `SELECT id, nome, email FROM tb_atleta WHERE usuario_id IS NULL` por tenant; para cada órfão
       com usuário ativo correspondente, reenviar convite pelo canal novo (o incidente de 2026-09-04
       pode não ter sido o único caso). Registrar o resultado aqui.
