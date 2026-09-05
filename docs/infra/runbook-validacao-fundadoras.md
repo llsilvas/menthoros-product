@@ -73,7 +73,15 @@ END $$;
       use" com o servidor vivo, e as flags `:env` evitam prompt interativo):
 
 ```bash
-railway ssh -e <env> --service menthoros-keycloak -- sh -c 'KC_HTTP_MANAGEMENT_PORT=9001 /opt/keycloak/bin/kc.sh bootstrap-admin user --username:env KC_BOOTSTRAP_ADMIN_USERNAME --password:env KC_BOOTSTRAP_ADMIN_PASSWORD'
+# Método validado (2026-09-05): container LOCAL apontando para o banco do Keycloak do ambiente —
+# sem conflito de porta com o servidor vivo (o bootstrap-admin via ssh no container falha com
+# "Address already in use"). Credenciais: KC_BOOTSTRAP_ADMIN_PASSWORD do serviço + senha do Postgres.
+docker run --rm \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD="<do serviço>" \
+  -e KC_DB=postgres -e KC_DB_URL="jdbc:postgresql://<host-publico-postgres>:<porta>/keycloak-db" \
+  -e KC_DB_USERNAME=postgres -e KC_DB_PASSWORD="<senha-postgres>" \
+  quay.io/keycloak/keycloak:26.6 bootstrap-admin user \
+  --username:env KC_BOOTSTRAP_ADMIN_USERNAME --password:env KC_BOOTSTRAP_ADMIN_PASSWORD
 ```
 - [ ] A1.4 **[A]** Restart do backend develop (`railway redeploy`) — caches de tenant/atleta zerados.
 - [ ] A1.5 **[F]** Recriar o usuário ADMIN do founder no Keycloak develop (equivalente ao 0.1).
