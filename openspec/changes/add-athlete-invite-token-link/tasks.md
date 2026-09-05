@@ -21,28 +21,40 @@ Repos: `apps/menthoros-backend` (branch `feature/add-athlete-invite-token-link`)
       `EmailDeliveryException` sem persistir `sent`; token ausente dos logs.
 - [ ] 1.5 Validação: `./mvnw clean test`.
 
-## 2. Backend — lookup público e aceite
+## 2. Backend — lookup público e aceite provisionador
 
 - [ ] 2.1 `GET /api/public/athlete-invites/{token}` (espelho do `FoundingInviteController`):
-      DTOs de output, 404/410, coberto pelo `PublicEndpointRateLimitFilter`; isenção já coberta
-      pelo prefixo `/api/public/` no `JwtTenantFilter.shouldNotFilter`.
-- [ ] 2.2 `POST /api/v1/athlete-invites/aceitar`: validar token → Keycloak Organization add (fora
-      de TX, timeouts padrão) → TX curta (vínculo + `accepted_at`), conforme Decisão 3. 409 quando
-      atleta já vinculado a outra conta.
-- [ ] 2.3 Divergência e-mail do convite × e-mail da conta: vincular + WARN (Decisão 4).
-- [ ] 2.4 Testes de unidade (cenários: feliz, expirado, consumido, 409, falha Keycloak → retry
-      idempotente) + `*IT` de contrato com JWT real (post-processor `jwt()`, subject UUID).
+      DTOs de output, 404/410. Adicionar `/api/public/athlete-invites/**` explicitamente ao
+      `PublicEndpointRateLimitFilter` (achado do DoR: a cobertura não é automática); a isenção de
+      tenant já vem do prefixo `/api/public/` no `JwtTenantFilter.shouldNotFilter`.
+- [ ] 2.2 `POST /api/public/athlete-invites/aceitar` (Decisão 2, molde do `CoachSignupServiceImpl`
+      com pilha de compensação): validar token → `criarUsuario` (senha do form; e-mail do convite →
+      `emailVerificado=true`, e-mail trocado → verificação pendente) → `atribuirRoleDeRealm(ATLETA)`
+      → `adicionarMembroNaOrganization` → TX local curta (Usuario local + `atleta.usuario` +
+      `accepted_at`). Tenant SEMPRE do `AthleteInvite`, nunca do `TenantContext`. 409 para e-mail
+      já existente no realm ou atleta já vinculado.
+- [ ] 2.3 Testes de unidade (feliz com e-mail igual e divergente; expirado; consumido; 409 nos dois
+      sabores; falha de Keycloak em cada passo → compensação desfaz e token continua válido) +
+      `*IT` de contrato dos dois endpoints públicos (sem JWT — são rotas públicas; incluir o
+      cenário rate limit).
+- [ ] 2.4 `*IT` do fluxo completo pós-aceite: com o usuário provisionado, um JWT simulando o
+      primeiro login (subject = keycloakId, claim organization do tenant, ROLE_ATLETA) acessa
+      `/api/v1/atletas/me/home` → 200 (o caminho que o incidente quebrou).
 - [ ] 2.5 Validação: `./mvnw clean verify`.
 
-## 3. Frontend — página de cadastro e efetivação
+## 3. Frontend — página de cadastro do atleta
 
-- [ ] 3.1 `/#/cadastro?convite=`: detectar convite de atleta via lookup; pré-preencher e-mail;
-      guardar token em `sessionStorage` antes de iniciar o fluxo Keycloak.
-- [ ] 3.2 Pós-login: chamar `aceitar` com o token; sucesso → redirecionar para o onboarding do
-      atleta; 409/410 → mensagem clara com ação (contatar o coach).
+- [ ] 3.1 `/#/cadastro?convite=`: detectar tipo do convite via lookup (atleta × coach) e renderizar
+      o formulário de atleta: nome pré-preenchido, e-mail **editável** (diferença deliberada do
+      fluxo de coach, que trava o campo), senha. Token permanece só em memória — o `useInviteToken`
+      atual serve como está (sem storage).
+- [ ] 3.2 Submissão → `POST /api/public/athlete-invites/aceitar`; 201 → tela de sucesso com botão
+      de login (e aviso de verificação de e-mail quando trocado); 409/410 → mensagem clara com
+      ação (contatar o coach). Após login, o atleta cai no onboarding existente.
 - [ ] 3.3 Cliente curado: portar os dois endpoints novos (não regenerar por cima).
-- [ ] 3.4 Testes de componente + **E2E Playwright do fluxo completo** (auth/onboarding é fluxo
-      crítico — E2E obrigatório): convite → cadastro com e-mail diferente → vínculo → painel 200.
+- [ ] 3.4 Testes de componente (lookup de atleta, e-mail editável, erros 409/410) + **E2E
+      Playwright do fluxo completo** (auth/onboarding é fluxo crítico — E2E obrigatório): convite →
+      aceite com e-mail diferente → login → painel carrega.
 - [ ] 3.5 Validação: `npm run lint && npm run build && npm run test:run && npm run test:e2e`.
 
 ## 4. Entrega

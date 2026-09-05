@@ -12,7 +12,14 @@ risco de segurança/multi-tenancy pelos critérios do `config.yaml`)
   do coach; escopo contido reusando padrão provado. Três pontos incorporados: a janela de
   transição virou decisão fechada no `design.md` (Decisão 6), a auditoria de atletas órfãos em
   produção entrou nas tasks (4.2), e as perguntas em aberto para o founder estão abaixo.
-- Pre-mortem cross-model (Codex): pendente — rodar antes do `/implement init`.
+- **DoR gate (2026-09-04): NOT READY na 1ª passada — redesenho das Decisões 1–3.** spec-reviewer +
+  pre-mortem Codex convergiram em 4 críticos do desenho original (aceite autenticado): o
+  `JwtTenantFilter` barraria o próprio aceite (JWT sem tenant antes da Organization); sem signup
+  livre não havia caminho de criação de conta; o token já emitido não ganha claim após o add na
+  Organization; e ninguém atribuía a role `ATLETA`. Novo desenho: **aceite público que provisiona
+  a conta server-side no molde do coach signup** (`criarUsuario` + `atribuirRoleDeRealm` +
+  `adicionarMembroNaOrganization` + compensação), eliminando também a dependência de
+  `sessionStorage` no front. Ver o preâmbulo do `design.md`.
 
 ## Why
 
@@ -48,19 +55,25 @@ persistido), e-mail próprio via `EmailSender`/Resend e aceite em `/#/cadastro?c
 - **Endpoint público de lookup** `GET /api/public/athlete-invites/{token}` (espelho do
   `FoundingInviteController`): retorna nome do atleta/assessoria e e-mail sugerido para a página de
   cadastro; 404/410 para token inválido/expirado/consumido. Coberto pelo
-  `PublicEndpointRateLimitFilter`.
-- **Aceite vincula por token, não por e-mail:** ao concluir o cadastro/primeiro login originado do
-  convite, o backend resolve `token → AthleteInvite → atletaId` e grava `atleta.usuario`,
-  **independente do e-mail usado na conta**. Marca `accepted_at` (consumo único).
+  `PublicEndpointRateLimitFilter` (paths adicionados explicitamente — a cobertura não é automática).
+- **Aceite público que provisiona a conta e vincula por token**
+  (`POST /api/public/athlete-invites/aceitar`, molde do coach signup): valida o token, cria o
+  usuário no Keycloak com a senha do formulário, atribui `ROLE_ATLETA`, adiciona à Organization do
+  tenant do convite, cria o `Usuario` local e grava `atleta.usuario` — **independente do e-mail
+  escolhido na conta** (o formulário permite trocar; e-mail trocado sai com verificação pendente).
+  Marca `accepted_at` (consumo único), com compensação em pilha em caso de falha parcial. O
+  primeiro login já nasce com `tenant_id` e role corretos — sem endpoint autenticado pré-tenant,
+  sem refresh forçado.
 - **Fallback preservado:** `vincularAtletaSeNecessario` (match por e-mail) continua existindo para
   logins sem token; quando os dois divergirem, o token vence e a divergência é logada em WARN.
 
 ### Frontend
 
 - Página `/#/cadastro?convite=` reconhece convite de **atleta** (além do de coach): consome o
-  lookup, pré-preenche o e-mail e, após signup no Keycloak, envia o token no fluxo de conclusão
-  para o backend efetivar o vínculo.
-- Após o vínculo, o atleta cai no **onboarding** (fluxo existente de
+  lookup, pré-preenche o e-mail (**editável**, ao contrário do fluxo de coach, que trava o campo) e
+  posta o aceite público com token + nome + senha — sem redirect do Keycloak no meio, sem token em
+  storage (o `useInviteToken` atual, memória-apenas, serve como está).
+- Após o aceite, direciona ao login; logado, o atleta cai no **onboarding** (fluxo existente de
   `athlete-onboarding-baseline`) — que agora sempre funciona, porque o vínculo é garantido.
 
 ## Non-goals
@@ -75,9 +88,14 @@ persistido), e-mail próprio via `EmailSender`/Resend e aceite em `/#/cadastro?c
 1. **Given** um atleta cadastrado com e-mail X, **when** o coach clica em convidar, **then** um
    e-mail é enviado para X com link contendo token opaco, e nenhum convite via Keycloak
    Organizations é disparado.
-2. **Given** o convidado abre o link e cria conta com e-mail **Y ≠ X**, **when** o cadastro
-   conclui com o token, **then** `atleta.usuario` aponta para a conta Y, o convite é marcado como
-   aceito, e o painel `/me/*` do atleta responde 200.
+2. **Given** o convidado abre o link e preenche o aceite com e-mail **Y ≠ X**, **when** o aceite
+   público conclui, **then** a conta Y é criada no Keycloak com `ROLE_ATLETA` e membership na
+   Organization do tenant do convite, `atleta.usuario` aponta para ela, o convite é marcado como
+   aceito com verificação de e-mail pendente, e **o primeiro login** já produz JWT com `tenant_id`
+   e role de atleta — o painel `/me/*` responde 200 sem relogin nem refresh forçado.
+2b. **Given** falha em passo intermediário do provisionamento (ex.: Keycloak fora após criar o
+   usuário), **when** o aceite retorna erro, **then** a compensação desfaz os passos anteriores e o
+   token permanece válido para retry.
 3. **Given** um token expirado ou já aceito, **when** o lookup ou aceite é chamado, **then**
    responde 410 (expirado/consumido) sem revelar dados do atleta.
 4. **Given** um token de convite de outro tenant, **when** o aceite tenta vincular, **then** o
@@ -96,11 +114,10 @@ persistido), e-mail próprio via `EmailSender`/Resend e aceite em `/#/cadastro?c
 
 ## Open Questions & Assumptions
 
-- **Assumido:** o cadastro da conta continua no Keycloak (registration flow atual); o token viaja
-  na URL da página de cadastro e é efetivado num endpoint autenticado pós-login (mesmo desenho do
-  aceite das fundadoras). Validar no design se o fragmento (`/#/`) sobrevive ao redirect do
-  Keycloak — decisão registrada em `radar_browser_router` indica que o token no fragmento é
-  sensível ao fluxo de auth.
+- **Resolvido no redesenho do DoR:** a conta é criada **server-side pelo aceite público** (admin
+  API do Keycloak, molde do coach signup) — não há registration flow do Keycloak, não há endpoint
+  autenticado pré-tenant, e o token não precisa sobreviver a redirect nenhum (fica em memória no
+  front, contrato atual do `useInviteToken`).
 - **Assumido:** 7 dias de expiração é suficiente; configurável em `app.invite.athlete.ttl`.
 - **Resolvido (product review):** convites Keycloak já enviados e não aceitos no deploy continuam
   válidos — o aceite deles segue o caminho antigo (login → fallback por e-mail). Nenhuma revogação
