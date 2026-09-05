@@ -2,7 +2,19 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-03 (**`atleta-cadastra-prova` entregue e arquivada** — PRs
+**Última atualização:** 2026-09-04 (**`harden-backend-db-resilience` entregue e arquivada** —
+backend PR **#96** mergeado em `develop`. S · Fast, criada e entregue no mesmo dia a partir do
+incidente de produção da tarde: uma transação esquecida no DBeaver lockou uma linha de
+`tb_usuario` e derrubou a API inteira. Três amplificadores corrigidos: o sync do `JwtTenantFilter`
+deixou de fazer UPDATE por requisição (diff dos campos do JWT calculado **antes** dos setters —
+dirty checking flusharia mesmo sem `save()` — + throttle de último acesso, default 5min,
+`PT0S` desliga); pool Hikari 5→10 via `HIKARI_MAX_POOL_SIZE` com orçamento medido em produção
+(max_connections=100); e o DEBUG incondicional de security/multitenancy no logback virou INFO,
+com teste estrutural impedindo regressão. DoR reprovou a 1ª passada (spec-reviewer + pre-mortem
+Codex, 2 críticos reais incorporados); QA sem crítico. Smoke pós-deploy (4.2) adiado — validação
+operacional no Railway. Arquivada em
+`changes/archive/2026-09/2026-09-04-harden-backend-db-resilience/`.) Antes,
+2026-09-03 (**`atleta-cadastra-prova` entregue e arquivada** — PRs
 backend **#93** (`a5c4144`) e front **#102** (`1e9c8c3`) mergeados em `develop`. M · Full, sexta
 change da trilha atleta e a primeira em que o atleta escreve no domínio do coach: cria, edita e
 cancela as próprias provas em `/atletas/{atletaId}/provas`, com posse por `atletaId` fechando de

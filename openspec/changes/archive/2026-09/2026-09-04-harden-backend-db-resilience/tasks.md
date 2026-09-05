@@ -51,6 +51,9 @@ Repo: `apps/menthoros-backend` · Branch: `feature/harden-backend-db-resilience`
 
 ## 4. Entrega
 
-- [ ] 4.1 `/qa` (review + testes) e PR `feature/harden-backend-db-resilience → develop`.
-- [ ] 4.2 Após merge + deploy em develop, smoke: carregar painel do atleta e conferir volume de logs
-      e `hikaricp.connections.active` no Prometheus.
+- [x] 4.1 `/qa` (review + testes) e PR `feature/harden-backend-db-resilience → develop`.
+      **Feito (2026-09-04):** QA com code/security/clean-code reviewers, nenhum crítico, acionáveis
+      corrigidos (`1487901`, `cc8ccea`); PR #96 mergeado em `develop` com CI verde.
+- [ ] 4.2 **ADIADO para o pós-deploy em develop:** smoke — carregar painel do atleta e conferir
+      volume de logs e `hikaricp.connections.active` no Prometheus. Não bloqueia o arquivamento
+      (validação operacional, sem código pendente).
