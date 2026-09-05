@@ -60,7 +60,10 @@ Repos: `apps/menthoros-backend` (branch `feature/add-athlete-invite-token-link`)
 
 ## 4. Entrega
 
-- [ ] 4.1 `/qa` nos dois repos; PR backend → develop, depois PR front → develop.
+- [x] 4.1 `/qa` nos dois repos; PR backend → develop, depois PR front → develop.
+      **Feito (2026-09-05):** QA com 5 reviewers (crítico convergente do claim vazado corrigido —
+      validações antes do claim; guard do front restrito a `#/cadastro`); PRs abertos: backend
+      **#97** e front **#105** (mergear o backend primeiro).
 - [ ] 4.2 Smoke em develop: convite real, aceite com e-mail divergente, painel do atleta carrega,
       onboarding oferecido.
 - [ ] 4.3 Pós-deploy em produção: auditoria de atletas órfãos —
