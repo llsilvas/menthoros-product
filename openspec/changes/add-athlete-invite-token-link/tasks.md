@@ -45,18 +45,18 @@ Repos: `apps/menthoros-backend` (branch `feature/add-athlete-invite-token-link`)
 
 ## 3. Frontend — página de cadastro do atleta
 
-- [ ] 3.1 `/#/cadastro?convite=`: detectar tipo do convite via lookup (atleta × coach) e renderizar
+- [x] 3.1 `/#/cadastro?convite=`: detectar tipo do convite via lookup (atleta × coach) e renderizar
       o formulário de atleta: nome pré-preenchido, e-mail **editável** (diferença deliberada do
       fluxo de coach, que trava o campo), senha. Token permanece só em memória — o `useInviteToken`
       atual serve como está (sem storage).
-- [ ] 3.2 Submissão → `POST /api/public/athlete-invites/aceitar`; 201 → tela de sucesso com botão
+- [x] 3.2 Submissão → `POST /api/public/athlete-invites/aceitar`; 201 → tela de sucesso com botão
       de login (e aviso de verificação de e-mail quando trocado); 409/410 → mensagem clara com
       ação (contatar o coach). Após login, o atleta cai no onboarding existente.
-- [ ] 3.3 Cliente curado: portar os dois endpoints novos (não regenerar por cima).
-- [ ] 3.4 Testes de componente (lookup de atleta, e-mail editável, erros 409/410) + **E2E
+- [x] 3.3 Cliente curado: portar os dois endpoints novos (não regenerar por cima).
+- [x] 3.4 Testes de componente (lookup de atleta, e-mail editável, erros 409/410) + **E2E
       Playwright do fluxo completo** (auth/onboarding é fluxo crítico — E2E obrigatório): convite →
       aceite com e-mail diferente → login → painel carrega.
-- [ ] 3.5 Validação: `npm run lint && npm run build && npm run test:run && npm run test:e2e`.
+- [x] 3.5 Validação: `npm run lint && npm run build && npm run test:run && npm run test:e2e`.
 
 ## 4. Entrega
 
