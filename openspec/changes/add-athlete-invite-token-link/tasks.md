@@ -5,21 +5,21 @@ Repos: `apps/menthoros-backend` (branch `feature/add-athlete-invite-token-link`)
 
 ## 0. Migrations
 
-- [ ] 0.1 `Vxx__cria_tb_athlete_invite.sql` conforme design (Decisão 5); conferir o último número em
+- [x] 0.1 `Vxx__cria_tb_athlete_invite.sql` conforme design (Decisão 5); conferir o último número em
       `db/migration/` antes de nomear.
 
 ## 1. Backend — entidade e serviço de convite
 
-- [ ] 1.1 Entidade `AthleteInvite` + `AthleteInviteRepository` (busca por `tokenHash`, por
+- [x] 1.1 Entidade `AthleteInvite` + `AthleteInviteRepository` (busca por `tokenHash`, por
       `atletaId` ativo).
-- [ ] 1.2 Template de e-mail `athlete-invite` (`.html` + `.txt`) — link com token cru; token nunca
+- [x] 1.2 Template de e-mail `athlete-invite` (`.html` + `.txt`) — link com token cru; token nunca
       logado (mesmo padrão de mascaramento do `FoundingInvite`).
-- [ ] 1.3 `AtletaServiceImpl.gerarConvite`: gerar `InviteToken`, expirar convite ativo anterior,
+- [x] 1.3 `AtletaServiceImpl.gerarConvite`: gerar `InviteToken`, expirar convite ativo anterior,
       persistir hash, enviar e-mail via `EmailSender` **fora** de transação; remover a chamada a
       `enviarConviteAtleta` do gateway Keycloak.
-- [ ] 1.4 Testes: reemissão invalida anterior; atleta sem e-mail → 422; falha de envio →
+- [x] 1.4 Testes: reemissão invalida anterior; atleta sem e-mail → 422; falha de envio →
       `EmailDeliveryException` sem persistir `sent`; token ausente dos logs.
-- [ ] 1.5 Validação: `./mvnw clean test`.
+- [x] 1.5 Validação: `./mvnw clean test`.
 
 ## 2. Backend — lookup público e aceite provisionador
 
