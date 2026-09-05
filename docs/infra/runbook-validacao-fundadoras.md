@@ -140,6 +140,14 @@ docker run --rm \
 
 ---
 
+## Procedimento de suporte — atleta digitou e-mail errado no aceite
+
+Visto no ensaio (2026-09-05): o atleta trocou o e-mail no aceite para um endereço inexistente e
+ficou preso na verificação (o link nunca chega). Conserto no console admin do Keycloak, realm
+`menthoros` → Users → usuário → Details: corrigir o **Email**, ligar **Email verified**, remover a
+required action de verificação se houver. O `tb_usuario` local se autocorrige no próximo login
+(sync por diff do JWT). O vínculo com o Atleta não é afetado — ele é pelo token, não pelo e-mail.
+
 ## Fase B — Produção (roteiro enxuto; sai limpa para o lançamento)
 
 Pré-requisito: Fase A concluída **sem defeito aberto**. 🛑 Cada passo destrutivo reconfirma.
