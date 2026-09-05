@@ -67,6 +67,11 @@ END $$;
 - [ ] A1.3 **[F]** Keycloak develop: remover TODOS os usuários do realm `menthoros` e todas as
       Organizations (console admin → Users / Organizations). O realm em si (clients, roles,
       scopes) fica — é gerido pelo `sync-realm.sh` e não é tocado.
+      ⚠️ **NÃO tocar no realm `master`** — apagar o `admin` de lá derruba o acesso ao console
+      inteiro (aconteceu no ensaio de 2026-09-05). Recuperação, se acontecer:
+      `railway ssh --service menthoros-keycloak -- /opt/keycloak/bin/kc.sh bootstrap-admin user
+      --username:env KC_BOOTSTRAP_ADMIN_USERNAME --password:env KC_BOOTSTRAP_ADMIN_PASSWORD`
+      (restart simples NÃO recria o admin).
 - [ ] A1.4 **[A]** Restart do backend develop (`railway redeploy`) — caches de tenant/atleta zerados.
 - [ ] A1.5 **[F]** Recriar o usuário ADMIN do founder no Keycloak develop (equivalente ao 0.1).
 
