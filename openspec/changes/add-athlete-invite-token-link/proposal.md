@@ -134,7 +134,11 @@ persistido), e-mail próprio via `EmailSender`/Resend e aceite em `/#/cadastro?c
 - **Risco:** token vazado vincula a conta errada. **Mitigação:** hash em repouso, TTL, consumo
   único, rate limit no endpoint público, e o token não dá acesso a dados (lookup expõe só
   nome/assessoria).
-- **Risco:** fluxo de cadastro do Keycloak perder o token no meio (redirects). **Mitigação:**
-  persistir o token em `sessionStorage` na entrada da página (mesma técnica do PKCE) e efetivar
-  pós-login; cobrir com E2E (fluxo crítico — auth/onboarding, E2E obrigatório pelo CLAUDE.md do
-  front).
+- **Risco aceito (major da rodada 2 do pre-mortem):** e-mail igual ao do convite sai com
+  `emailVerificado=true` — posse do link ≈ posse da caixa, o que um encaminhamento de e-mail
+  quebra. É o mesmo racional já aceito no convite das fundadoras ("o token já provou a posse");
+  o dano é limitado (a conta nasce vinculada ao atleta que o coach convidou, sem elevação de
+  privilégio) e e-mail trocado sempre exige verificação.
+- **Risco:** corrida de dois aceites simultâneos com o mesmo token. **Mitigação:** claim atômico
+  do convite antes do provisionamento (`claimed_at`, ver Decisão 2 do design), com teste de duplo
+  POST concorrente.

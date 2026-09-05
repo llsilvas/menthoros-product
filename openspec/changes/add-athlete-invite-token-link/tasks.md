@@ -34,7 +34,8 @@ Repos: `apps/menthoros-backend` (branch `feature/add-athlete-invite-token-link`)
       `accepted_at`). Tenant SEMPRE do `AthleteInvite`, nunca do `TenantContext`. 409 para e-mail
       já existente no realm ou atleta já vinculado.
 - [ ] 2.3 Testes de unidade (feliz com e-mail igual e divergente; expirado; consumido; 409 nos dois
-      sabores; falha de Keycloak em cada passo → compensação desfaz e token continua válido) +
+      sabores; falha de Keycloak em cada passo → compensação desfaz, zera `claimed_at` e o token
+      continua válido; **duplo POST concorrente → só um provisiona, o outro recebe 410**) +
       `*IT` de contrato dos dois endpoints públicos (sem JWT — são rotas públicas; incluir o
       cenário rate limit).
 - [ ] 2.4 `*IT` do fluxo completo pós-aceite: com o usuário provisionado, um JWT simulando o

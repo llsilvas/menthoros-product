@@ -41,6 +41,14 @@ com pilha de compensação `desfazer`). Sequência:
 6. Compensação em pilha (padrão do coach signup): falha em qualquer passo desfaz os anteriores e o
    token continua válido para retry.
 
+**Claim atômico contra corrida (blocker da rodada 2 do pre-mortem):** a compensação cobre falha
+sequencial, não dois POSTs simultâneos com o mesmo token — que criariam dois usuários no Keycloak.
+O passo 1 portanto **reivindica** o convite atomicamente ANTES de provisionar:
+`UPDATE tb_athlete_invite SET claimed_at = NOW() WHERE token_hash = ? AND claimed_at IS NULL AND
+accepted_at IS NULL` — rowcount 1 segue; rowcount 0 responde 410 (consumido/em processamento). A
+compensação, em caso de falha do provisionamento, **zera o `claimed_at`** para reabrir o retry.
+`accepted_at` só é gravado no passo 5, no sucesso. Teste obrigatório de duplo POST concorrente.
+
 Consequência que elimina os críticos 1–3: quando o atleta faz o **primeiro login**, a conta já é
 membro da Organization e já tem `ROLE_ATLETA` — o primeiro JWT nasce com `tenant_id` e role
 corretos, o `JwtTenantFilter` passa, e nenhum refresh forçado é necessário.
@@ -67,7 +75,8 @@ antes desta change. Aceite por token que encontrar o atleta já vinculado a outr
 ## Decisão 5 — Modelo de dados
 
 `tb_athlete_invite`: `id` UUID PK, `atleta_id` UUID NOT NULL FK CASCADE, `tenant_id` UUID NOT NULL,
-`token_hash` VARCHAR UNIQUE NOT NULL, `email_enviado` VARCHAR NOT NULL, `sent_at` TIMESTAMPTZ
+`token_hash` VARCHAR UNIQUE NOT NULL, `email_enviado` VARCHAR NOT NULL, `claimed_at` TIMESTAMPTZ
+(claim atômico do aceite, ver Decisão 2), `sent_at` TIMESTAMPTZ
 (preenchido só após envio bem-sucedido — falha de SMTP não persiste `sent_at`, semântica idêntica
 ao `FoundingInvite`), `expires_at` TIMESTAMPTZ NOT NULL, `accepted_at` TIMESTAMPTZ, `created_at`
 TIMESTAMPTZ NOT NULL DEFAULT NOW(). Índice composto `(tenant_id, atleta_id)`. Reemitir convite =
