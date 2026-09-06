@@ -33,12 +33,12 @@ antes de prosseguir (operação destrutiva).
       convite de fundadora (`POST /api/admin/waitlist/{id}/convite`). Criar via console admin do
       Keycloak (exceção documentada? NÃO — usuário não é config de realm; o `sync-realm.sh` não
       gerencia usuários) ou via `kcadm`. Registrar o e-mail usado aqui: ______
-- [ ] 0.2 **[A/F]** Vars `SMTP_HOST/PORT/USER/PASSWORD/STARTTLS/FROM` no serviço
+- [x] 0.2 **[A/F]** Vars `SMTP_HOST/PORT/USER/PASSWORD/STARTTLS/FROM` no serviço
       `menthoros-backend` do ambiente `production` (por referência das `KC_SMTP_*`, porta **2587**
       — ver `docs/infra/keycloak-smtp-resend.md`). Verificar: `railway variables --service
       menthoros-backend --kv | grep SMTP` no env production.
 - [ ] 0.3 **[F]** Resend: domínio verificado e segundo cliente SMTP permitido no plano.
-- [ ] 0.4 **[A]** Backups frescos dos dois Postgres antes de qualquer limpeza:
+- [x] 0.4 **[A]** (develop feito 2026-09-05: `~/backups/menthoros/backup-develop-20260905-1615.dump`) Backups frescos dos dois Postgres antes de qualquer limpeza:
       `pg_dump "$DATABASE_PUBLIC_URL" -Fc -f backup-<env>-$(date +%Y%m%d).dump` (guardar fora do
       workspace). 🛑 **Nenhuma fase de limpeza começa sem o backup do ambiente correspondente.**
 
@@ -48,8 +48,8 @@ antes de prosseguir (operação destrutiva).
 
 ### A1. Limpeza da base develop 🛑
 
-- [ ] A1.1 **[A]** Backup (0.4) confirmado para develop.
-- [ ] A1.2 **[A]** Postgres: truncar todas as tabelas de aplicação preservando o Flyway:
+- [x] A1.1 **[A]** Backup (0.4) confirmado para develop.
+- [x] A1.2 **[A]** ✅ 2026-09-05 (0 assessorias/usuários/atletas, 90 migrations preservadas) — Postgres: truncar todas as tabelas de aplicação preservando o Flyway:
 
 ```sql
 DO $$
@@ -64,7 +64,7 @@ END $$;
 -- conferir: SELECT count(*) FROM tb_assessoria;  -- 0
 ```
 
-- [ ] A1.3 **[F]** Keycloak develop: remover TODOS os usuários do realm `menthoros` e todas as
+- [x] A1.3 **[F]** ✅ 2026-09-05 (com o incidente do realm master — ver aviso abaixo) — Keycloak develop: remover TODOS os usuários do realm `menthoros` e todas as
       Organizations (console admin → Users / Organizations). O realm em si (clients, roles,
       scopes) fica — é gerido pelo `sync-realm.sh` e não é tocado.
       ⚠️ **NÃO tocar no realm `master`** — apagar o `admin` de lá derruba o acesso ao console
@@ -83,34 +83,34 @@ docker run --rm \
   quay.io/keycloak/keycloak:26.6 bootstrap-admin user \
   --username:env KC_BOOTSTRAP_ADMIN_USERNAME --password:env KC_BOOTSTRAP_ADMIN_PASSWORD
 ```
-- [ ] A1.4 **[A]** Restart do backend develop (`railway redeploy`) — caches de tenant/atleta zerados.
-- [ ] A1.5 **[F]** Recriar o usuário ADMIN do founder no Keycloak develop (equivalente ao 0.1).
+- [x] A1.4 **[A]** ✅ — Restart do backend develop (`railway redeploy`) — caches de tenant/atleta zerados.
+- [x] A1.5 **[F]** ✅ (usuário `menthoros`, role ADMIN; lição: criar JÁ com credencial) — Recriar o usuário ADMIN do founder no Keycloak develop (equivalente ao 0.1).
 
 ### A2. Assessoria do zero — fluxo de fundadora (fecha 5.1/5.2)
 
-- [ ] A2.1 **[F]** Inscrever um "coach de teste" na waitlist pela landing de develop
+- [x] A2.1 **[F]** ✅ (`carmaniacs1@hotmail.com`) — Inscrever um "coach de teste" na waitlist pela landing de develop
       (`app-develop.menthoros.com`), perfil TREINADOR, e-mail real que você acessa.
-- [ ] A2.2 **[F]** Logado como ADMIN, emitir o convite (UI da waitlist ou
+- [x] A2.2 **[A]** ✅ (202; `sent_at` preenchido — e-mail real pelo Resend) — Logado como ADMIN, emitir o convite (UI da waitlist ou
       `POST /api/admin/waitlist/{id}/convite` com o JWT do DevTools).
-- [ ] A2.3 **[F]** E-mail chega pelo Resend → abrir o link → aceitar: nome da assessoria + senha →
+- [x] A2.3 **[F]** ✅ (assessoria **Teste-RUN**, plano GRATUITO; exigiu o fix #98) — E-mail chega pelo Resend → abrir o link → aceitar: nome da assessoria + senha →
       "Assessoria criada".
-- [ ] A2.4 **[F]** Reenvio invalida o anterior: emitir de novo, conferir que o link antigo → tela
+- [x] A2.4 **[F]** ✅ dispensado nesta passada (convite convertido; comportamento coberto por teste; o reenvio do convite de ATLETA invalidou os anteriores na prática) — Reenvio invalida o anterior: emitir de novo, conferir que o link antigo → tela
       de convite inválido (404). *(Expiração: opcional — exige ajustar `FOUNDING_INVITE_VALIDITY_DAYS`.)*
-- [ ] A2.5 **[F]** Login do coach novo → consentimento LGPD → wizard de boas-vindas → dashboard.
+- [x] A2.5 **[F]** ✅ — Login do coach novo → consentimento LGPD → wizard de boas-vindas → dashboard.
       **Primeiro JWT já com tenant e roles — sem operação manual em lugar nenhum.**
 
 ### A3. Popular atletas — convite por token (fecha invite 4.2)
 
-- [ ] A3.1 **[F]** Como coach, cadastrar 3 atletas (nome + e-mail; pelo menos 2 com e-mails reais
+- [x] A3.1 **[F]** ✅ (Leandro Silva, Erivaldo, Hugo) — Como coach, cadastrar 3 atletas (nome + e-mail; pelo menos 2 com e-mails reais
       distintos que você acesse).
-- [ ] A3.2 **[F]** Convidar o atleta 1 → e-mail chega → aceitar **trocando o e-mail** (o cenário do
+- [x] A3.2 **[F]** ✅ (Erivaldo aceito com e-mail DIVERGENTE — o cenário do incidente — vinculado; painel `/me/*` 200; exigiu fixes #99 e SMTP do realm) — Convidar o atleta 1 → e-mail chega → aceitar **trocando o e-mail** (o cenário do
       incidente de 2026-09-04) → conta criada com aviso de verificação → login → **painel carrega**
       (`/me/home` 200) → onboarding/calibração oferecido → completar calibração.
-- [ ] A3.3 **[F]** Convidar o atleta 2 → aceitar com o e-mail do convite → login direto (sem
+- [x] A3.3 **[F]** ✅ (Leandro Silva, e-mail igual, verificado, login direto) — Convidar o atleta 2 → aceitar com o e-mail do convite → login direto (sem
       verificação pendente) → painel ok.
-- [ ] A3.4 **[F]** Duplo clique no aceite ou reuso do link → mensagem "convite não é mais válido /
+- [x] A3.4 **[F]** ✅ (link reaberto pós-aceite → 410 com orientação de login) — Duplo clique no aceite ou reuso do link → mensagem "convite não é mais válido /
       faça login" (410), sem segunda conta.
-- [ ] A3.5 **[A]** Auditoria: `SELECT id, nome, email FROM tb_atleta WHERE usuario_id IS NULL;`
+- [x] A3.5 **[A]** ✅ (único órfão = Hugo, deliberado; e-mail do Erivaldo autocorrigido pelo sync no login) — Auditoria: `SELECT id, nome, email FROM tb_atleta WHERE usuario_id IS NULL;`
       → deve retornar **apenas o atleta 3** (nunca convidado). Zero órfão inesperado.
 
 ### A4. Roteiro combinado de provas (fecha 6.1 + 7.1)
@@ -126,7 +126,7 @@ docker run --rm \
 
 ### A5. Smoke técnico (fecha harden 4.2)
 
-- [ ] A5.1 **[A]** Durante o A3/A4: `railway logs --service menthoros-backend` — **zero linha
+- [x] A5.1 **[A]** ✅ parcial (zero DEBUG, sem flood durante A2/A3; reconferir durante A4) — Durante o A3/A4: `railway logs --service menthoros-backend` — **zero linha
       DEBUG**, sem flood, INFO de "Usuário sincronizado" só em escrita real.
 - [ ] A5.2 **[A]** `hikaricp.connections.active` no Prometheus (ou `pg_stat_activity`) respirando
       com folga durante a navegação do painel.
@@ -172,3 +172,27 @@ Pré-requisito: Fase A concluída **sem defeito aberto**. 🛑 Cada passo destru
   exige conta real conectada; agrupar quando houver.
 - `resetPasswordAllowed` (recomendado ligar ANTES do lançamento — coach sem recuperação de senha).
 - Gate A1 de custo LLM (`weekly-review-llm-focus`) — precisa de tráfego real com a flag ligada.
+
+---
+
+## Registro de achados do ensaio (Fase A, 2026-09-05)
+
+Cinco defeitos reais de lançamento, nenhum visível para as suítes (padrão comum: caminho testado
+com mock, nunca executado inteiro contra Postgres/contexto/ambiente reais):
+
+1. **Chave de idempotência do convite de fundadora nunca coube na coluna** (`<hash>:<n>` = 66+
+   chars em varchar(64)) — o aceite de fundadora NUNCA funcionou; 409 com mensagem enganosa.
+   Backend PR **#98** (V92 + IT de regressão).
+2. **LazyInitializationException na emissão do convite de atleta** (assessoria por proxy LAZY em
+   serviço sem transação) — 500 no primeiro convite real. Backend PR **#99** (+ IT da emissão).
+3. **Login pós-aceite voltava para /cadastro com convite consumido** — "convite inválido" para quem
+   acabou de criar a conta. Front PR **#106**.
+4. **Realm develop sem SMTP** — verificação de e-mail nunca saía (`Invalid sender address 'null'`);
+   aceite com e-mail trocado ficava preso. Corrigido pelo `sync-realm.sh` (canônico).
+5. **Preflight do `sync-realm.sh` quebrava com senha com caracteres especiais** (curl sem
+   URL-encode). Infra PR **#15**.
+
+Operacionais: admin do realm master apagado na limpeza (recuperação documentada no A1.3);
+credencial `KC_ADMIN_PASSWORD` do backend divergente do admin real (alinhada por referência à
+`KC_BOOTSTRAP_ADMIN_PASSWORD`); atleta com e-mail digitado errado no aceite (procedimento de
+suporte documentado acima).
