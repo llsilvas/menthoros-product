@@ -1,7 +1,8 @@
 # add-waitlist-utm-attribution — Atribuir signups da waitlist à origem (UTM) do marketing
 
 **Tamanho:** S · **Trilha:** Fast
-**Status:** proposta — aguardando DoR / `/implement init`
+**Status:** DoR concluído (Codex adversarial review, 2026-09-07) — 2 achados corrigidos abaixo,
+pronta para `/implement init`.
 **Criado:** 2026-09-07
 
 ## Problema
@@ -54,6 +55,13 @@ de contrato.
   Then a leitura usa `window.location.search` (a query antes do `#`), não `useSearchParams`.
 - **CA5 — Sem quebra de contrato.** Given um payload de cliente antigo (sem `utm*`), When `POST`,
   Then resposta `201`/`200` e validação idênticas às de hoje.
+- **CA6 — UTM longo nunca bloqueia a inscrição.** Given uma URL com `utm_content` (ou qualquer dos 4
+  campos) acima de 255 caracteres — comum em UTM gerado por plataforma de mídia paga —, When o
+  `AccessForm` envia, Then o valor é truncado em 255 caracteres **antes** do envio (não descartado,
+  não rejeitado) e o `POST` responde `201` normalmente. *Achado do Codex adversarial review
+  (2026-09-07): implementado literalmente, `@Size(max=255)` no backend devolveria `400` para um
+  UTM comprido, e a mensagem genérica do formulário ("Verifique os dados informados") não deixa o
+  usuário corrigir um campo que ele nem preencheu — perderia o lead inteiro por metadado opcional.*
 
 ## Métrica de sucesso
 
@@ -70,8 +78,11 @@ de contrato.
 2. **Persistência do UTM na navegação.** O `createHashRouter` não limpa `window.location.search` ao
    trocar de rota hash, então a query permanece disponível no submit. Se isso mudar com a futura
    migração para browser router (`migrate-hash-to-browser-router`), a captura precisa ser revista.
-3. **Número da migration.** Último conhecido: **V90** (SPRINTS 2026-09-05). Confirmar contra o
-   `develop` atual do backend no `/implement init` — esta change usa o próximo número (V91).
+3. **Número da migration.** ~~Último conhecido: V90 (SPRINTS 2026-09-05).~~ **Confirmado em
+   2026-09-07 contra `develop` (`git fetch` + `ls db/migration`): já existem `V91__cria_tb_athlete_invite.sql`
+   e `V92__alarga_idempotency_key_signup_provisioning.sql`, mergeados depois desta proposta ser
+   escrita. Esta change usa **V93**, não V91. *Achado do Codex adversarial review (2026-09-07):
+   executar a task 1.1 literalmente colidiria com a V91 já existente, travando o Flyway no boot.*
 
 ## Non-goals
 

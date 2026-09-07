@@ -5,10 +5,12 @@
 
 ## Backend — persistir UTM na waitlist
 
-- [ ] **1.1** Migration `V91__Add_waitlist_utm_columns.sql`: adicionar `utm_source VARCHAR(255)`,
-  `utm_medium VARCHAR(255)`, `utm_campaign VARCHAR(255)`, `utm_content VARCHAR(255)` — todas NULL,
-  com `COMMENT ON COLUMN` no padrão da V43. Não editar a V43.
-  - Validação: subida do app aplica V91 sem erro; `\d tb_waitlist` mostra as 4 colunas.
+- [ ] **1.1** Migration `V93__Add_waitlist_utm_columns.sql` (**não V91** — já ocupada por
+  `V91__cria_tb_athlete_invite.sql`; `V92` também já existe em `develop`, confirmado 2026-09-07):
+  adicionar `utm_source VARCHAR(255)`, `utm_medium VARCHAR(255)`, `utm_campaign VARCHAR(255)`,
+  `utm_content VARCHAR(255)` — todas NULL, com `COMMENT ON COLUMN` no padrão da V43. Não editar a
+  V43 nem as V91/V92 existentes.
+  - Validação: subida do app aplica V93 sem erro; `\d tb_waitlist` mostra as 4 colunas.
 
 - [ ] **1.2** Entity `Waitlist.java`: adicionar os 4 campos mapeados às novas colunas (nullable, sem
   `@NotNull`), seguindo o padrão dos campos existentes (`origem`).
@@ -34,8 +36,13 @@
 
 - [ ] **2.2** Helper puro `src/landing/parseUtm.ts` (junto de `accessFormValidation.ts`, mesmo padrão):
   `parseUtmParams(search: string): Partial<UtmParams>` lendo `new URLSearchParams(search)` e
-  devolvendo só os 4 campos. Teste irmão `parseUtm.test.ts`.
-  - Validação: `npm run test -- parseUtm` verde (query com UTM, sem UTM e vazia).
+  devolvendo só os 4 campos. **Truncar cada valor em 255 caracteres** (mesmo limite do
+  `@Size(max = 255)` do backend, task 1.3) — nunca descartar o campo nem rejeitar o envio; UTM
+  gerado por mídia paga pode facilmente passar de 255 caracteres, e sem truncamento o backend
+  devolveria `400` para uma inscrição cujo único problema é um parâmetro de rastreamento opcional
+  (achado do Codex adversarial review, CA6 em `proposal.md`). Teste irmão `parseUtm.test.ts`.
+  - Validação: `npm run test -- parseUtm` verde (query com UTM, sem UTM, vazia, e um campo com
+    256+ caracteres truncado para exatamente 255).
 
 - [ ] **2.3** `AccessForm.tsx`: no `handleSubmit`, incluir `...parseUtmParams(window.location.search)`
   no payload. Importante: `window.location.search` (query **antes** do `#`), NÃO `useSearchParams`
