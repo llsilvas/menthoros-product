@@ -29,10 +29,10 @@ antes de prosseguir (operação destrutiva).
 
 ## Fase 0 — Pré-condições (uma vez, antes de tudo)
 
-- [ ] 0.1 **[F]** Usuário do founder com role `ADMIN` no Keycloak de **produção** — é quem emite o
+- [x] 0.1 **[F]** ✅ 2026-09-07 — Usuário do founder com role `ADMIN` no Keycloak de **produção** — é quem emite o
       convite de fundadora (`POST /api/admin/waitlist/{id}/convite`). Criar via console admin do
       Keycloak (exceção documentada? NÃO — usuário não é config de realm; o `sync-realm.sh` não
-      gerencia usuários) ou via `kcadm`. Registrar o e-mail usado aqui: ______
+      gerencia usuários) ou via `kcadm`. Registrado 2026-09-07: usuário `menthoros`, e-mail `lsilva.info@gmail.com`, role ADMIN (produção e develop).
 - [x] 0.2 **[A/F]** Vars `SMTP_HOST/PORT/USER/PASSWORD/STARTTLS/FROM` no serviço
       `menthoros-backend` do ambiente `production` (por referência das `KC_SMTP_*`, porta **2587**
       — ver `docs/infra/keycloak-smtp-resend.md`). Verificar: `railway variables --service
