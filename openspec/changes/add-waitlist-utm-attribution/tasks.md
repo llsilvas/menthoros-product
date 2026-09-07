@@ -5,28 +5,33 @@
 
 ## Backend — persistir UTM na waitlist
 
-- [ ] **1.1** Migration `V93__Add_waitlist_utm_columns.sql` (**não V91** — já ocupada por
+- [x] **1.1** Migration `V93__Add_waitlist_utm_columns.sql` (**não V91** — já ocupada por
   `V91__cria_tb_athlete_invite.sql`; `V92` também já existe em `develop`, confirmado 2026-09-07):
   adicionar `utm_source VARCHAR(255)`, `utm_medium VARCHAR(255)`, `utm_campaign VARCHAR(255)`,
   `utm_content VARCHAR(255)` — todas NULL, com `COMMENT ON COLUMN` no padrão da V43. Não editar a
   V43 nem as V91/V92 existentes.
-  - Validação: subida do app aplica V93 sem erro; `\d tb_waitlist` mostra as 4 colunas.
+  - Validação: subida do app aplica V93 sem erro; `\d tb_waitlist` mostra as 4 colunas. — aplicada
+    com sucesso via `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`; confirmado pelo `WaitlistControllerIT`
+    rodando contra Postgres real (Testcontainers).
 
-- [ ] **1.2** Entity `Waitlist.java`: adicionar os 4 campos mapeados às novas colunas (nullable, sem
+- [x] **1.2** Entity `Waitlist.java`: adicionar os 4 campos mapeados às novas colunas (nullable, sem
   `@NotNull`), seguindo o padrão dos campos existentes (`origem`).
-  - Validação: `./mvnw test` verde.
+  - Validação: `./mvnw test` verde. — 3235/3235.
 
-- [ ] **1.3** `WaitlistInputDto.java`: adicionar `utmSource`, `utmMedium`, `utmCampaign`,
+- [x] **1.3** `WaitlistInputDto.java`: adicionar `utmSource`, `utmMedium`, `utmCampaign`,
   `utmContent` opcionais (`@Size(max = 255)` + `@Schema` opcional). Não são `@NotNull`.
-  - Validação: `./mvnw test` verde; o OpenAPI gerado expõe os 4 campos como opcionais.
+  - Validação: `./mvnw test` verde; o OpenAPI gerado expõe os 4 campos como opcionais. — campos
+    adicionados no fim do record (evita quebrar os 3 call-sites posicionais de teste existentes).
 
-- [ ] **1.4** `WaitlistServiceImpl.registrar`: gravar os 4 campos no `Waitlist.builder()` de forma
+- [x] **1.4** `WaitlistServiceImpl.registrar`: gravar os 4 campos no `Waitlist.builder()` de forma
   null-safe (direto de `dto.utmSource()` etc.). Manter `origem = ORIGEM_LANDING` intacto.
-  - Validação: `./mvnw test` verde; `WaitlistServiceImplTest` cobre persistência com e sem UTM.
+  - Validação: `./mvnw test` verde; `WaitlistServiceImplTest` cobre persistência com e sem UTM. —
+    2 testes novos (`gravaUtmQuandoEnviado`, `semUtmGravaNull`).
 
-- [ ] **1.5** `WaitlistControllerIT`: cenário que envia `utmSource`/`utmCampaign` e asserta a linha
+- [x] **1.5** `WaitlistControllerIT`: cenário que envia `utmSource`/`utmCampaign` e asserta a linha
   gravada em `tb_waitlist` com os valores; e cenário sem UTM asserta as colunas `NULL`.
-  - Validação: `./mvnw test -Dtest=WaitlistControllerIT` verde.
+  - Validação: `./mvnw test -Dtest=WaitlistControllerIT` verde. — 8/8 (6 existentes + 2 novos),
+    round-trip real contra Postgres via Testcontainers.
 
 ## Frontend — capturar UTM e incluir no payload
 
