@@ -152,11 +152,16 @@ required action de verificação se houver. O `tb_usuario` local se autocorrige 
 
 Pré-requisito: Fase A concluída **sem defeito aberto**. 🛑 Cada passo destrutivo reconfirma.
 
-- [ ] B1 **[A]** Backup de produção (0.4) confirmado.
-- [ ] B2 **[A/F]** Limpeza: mesmo A1.2 (SQL) + A1.3 (Keycloak produção — remove a assessoria-demo,
+- [x] B1 **[A]** ✅ 2026-09-07 (railway 383K + keycloak-db 247K em ~/backups/menthoros) — Backup de produção (0.4) confirmado.
+- [x] B2 **[A/F]** ✅ 2026-09-07 — ⚠️ **LIÇÃO: a `tb_waitlist` de produção carrega LEADS REAIS e
+      foi truncada junto** (o TRUNCATE varre todas as `tb_*`); restaurada do backup do dia com
+      `pg_restore --data-only --table=tb_waitlist` minutos depois, sem perda (2 inscritos;
+      `tb_founding_invite` estava vazia — nenhum token real morreu). Em qualquer repetição:
+      **restaurar a waitlist do backup imediatamente após o TRUNCATE**, ou excluí-la do loop.
+      Limpeza: mesmo A1.2 (SQL) + A1.3 (Keycloak produção — remove a assessoria-demo,
       seus usuários e a Organization) + A1.4 (redeploy) + 0.1 (ADMIN do founder recriado). 🛑
       **Confirmar nominalmente antes do TRUNCATE em produção.**
-- [ ] B3 **[F]** `COACH_SIGNUP_ENABLED=false` no serviço backend de produção (fecha 5.3) →
+- [x] B3 **[A]** ✅ 2026-09-07 (default já era false; var explícita setada, deploy ok) — `COACH_SIGNUP_ENABLED=false` no serviço backend de produção (fecha 5.3) →
       `/cadastro` sem token mostra "O cadastro é por convite".
 - [ ] B4 **[F]** Roteiro enxuto: waitlist → convite de fundadora → aceite → login → 1 atleta
       cadastrado e convidado pelo canal novo → aceite → painel do atleta carrega.
