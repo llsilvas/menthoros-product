@@ -211,5 +211,6 @@ contrato de API, sem alteração de área autenticada.
       (CA-11 cobre isso: "nenhuma regra pendente foi inventada", não "nenhuma pendência pode
       existir"). — decisão tomada: **abrir o PR agora** com as tasks 4.3, 6.1, 7.2, 7.3
       (parcial), 7.4 e 8.1–8.4 em aberto; CA-04/CA-07/CA-10 registrados como não atendidos
-      integralmente. Arquivamento da change fica para quando as pendências forem resolvidas ou
-      formalmente aceitas como próxima change.
+      integralmente. PR llsilvas/menthoros-front**#108** mergeado em `develop` em 2026-09-07,
+      CI verde (lint/build/testes, E2E, GitGuardian). Arquivamento da change fica para quando as
+      pendências (D-01 a D-04, tasks 8.1–8.4) forem resolvidas.
