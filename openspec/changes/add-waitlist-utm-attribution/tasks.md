@@ -35,11 +35,11 @@
 
 ## Frontend — capturar UTM e incluir no payload
 
-- [ ] **2.1** `src/types/Waitlist.ts`: adicionar `utmSource?`, `utmMedium?`, `utmCampaign?`,
+- [x] **2.1** `src/types/Waitlist.ts`: adicionar `utmSource?`, `utmMedium?`, `utmCampaign?`,
   `utmContent?` a `WaitlistInput` (opcionais).
-  - Validação: `npm run lint` + `npm run build` limpos.
+  - Validação: `npm run lint` + `npm run build` limpos. — ok, junto com o portão final (2.4).
 
-- [ ] **2.2** Helper puro `src/landing/parseUtm.ts` (junto de `accessFormValidation.ts`, mesmo padrão):
+- [x] **2.2** Helper puro `src/landing/parseUtm.ts` (junto de `accessFormValidation.ts`, mesmo padrão):
   `parseUtmParams(search: string): Partial<UtmParams>` lendo `new URLSearchParams(search)` e
   devolvendo só os 4 campos. **Truncar cada valor em 255 caracteres** (mesmo limite do
   `@Size(max = 255)` do backend, task 1.3) — nunca descartar o campo nem rejeitar o envio; UTM
@@ -47,12 +47,16 @@
   devolveria `400` para uma inscrição cujo único problema é um parâmetro de rastreamento opcional
   (achado do Codex adversarial review, CA6 em `proposal.md`). Teste irmão `parseUtm.test.ts`.
   - Validação: `npm run test -- parseUtm` verde (query com UTM, sem UTM, vazia, e um campo com
-    256+ caracteres truncado para exatamente 255).
+    256+ caracteres truncado para exatamente 255). — 7/7, inclusive um caso de valor
+    percent-encoded e um de exatamente 255 caracteres intacto.
 
-- [ ] **2.3** `AccessForm.tsx`: no `handleSubmit`, incluir `...parseUtmParams(window.location.search)`
+- [x] **2.3** `AccessForm.tsx`: no `handleSubmit`, incluir `...parseUtmParams(window.location.search)`
   no payload. Importante: `window.location.search` (query **antes** do `#`), NÃO `useSearchParams`
   (o app usa `createHashRouter`).
   - Validação: `npm run test -- AccessForm` verde; submeter com UTM na URL inclui os campos no payload.
+    — 10/10 (8 existentes + 2 novos: com UTM na URL via `window.history.pushState`, e sem UTM
+    confirmando que os 4 campos não aparecem no payload).
 
-- [ ] **2.4** Portão final do módulo: `npm run lint` + `npm run build` (conforme `CLAUDE.md` do front).
-  - Validação: ambos limpos.
+- [x] **2.4** Portão final do módulo: `npm run lint` + `npm run build` (conforme `CLAUDE.md` do front).
+  - Validação: ambos limpos. — lint limpo; build limpo (só o aviso pré-existente de chunk
+    >500kB); `npm run test:run` → 185 arquivos / 1529 testes.
