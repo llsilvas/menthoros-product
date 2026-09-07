@@ -2,7 +2,21 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-05 (**`add-athlete-invite-token-link` entregue e arquivada** —
+**Última atualização:** 2026-09-07 (**`add-waitlist-utm-attribution` entregue e arquivada** —
+backend PR **#100** e front PR **#109** mergeados em `develop`. S · Fast: nenhum signup da
+waitlist carregava a origem do tráfego (link da bio do Instagram) — `origem` ficava hardcoded
+`"landing"` e não dava pra responder "quantos signups vieram do Instagram / da campanha X" sem
+atribuição, às vésperas do post de fundadora (2026-09-08). Migration `V93` adiciona
+`utm_source`/`utm_medium`/`utm_campaign`/`utm_content` (nullable) a `tb_waitlist`; front lê
+`window.location.search` — não `useSearchParams`, que não enxergaria a query por causa do
+`createHashRouter` — e trunca cada valor em 255 caracteres antes do envio. **Codex adversarial
+review (DoR) pegou dois problemas reais antes do código**: a proposta mirava a migration `V91`,
+que já tinha sido ocupada por outra change mergeada depois dela (corrigido para `V93`), e um UTM
+de mídia paga acima de 255 caracteres rejeitaria a inscrição inteira com 400 sem o truncamento no
+front. **`/code-review` (eixo standards) achou uma duplicação de tipo** entre `parseUtm.ts` e
+`WaitlistInput` — corrigida antes do merge. Arquivada em
+`changes/archive/2026-09/2026-09-07-add-waitlist-utm-attribution/`.) Antes,
+2026-09-05 (**`add-athlete-invite-token-link` entregue e arquivada** —
 backend PR **#97** e front PR **#105** mergeados em `develop`. M · Full, segunda change do
 incidente de 2026-09-04: o vínculo Usuario↔Atleta por match de e-mail deixou um atleta órfão com o
 painel inteiro em 404. O convite de atleta agora é token opaco do backend (padrão das fundadoras,

@@ -1,9 +1,10 @@
 # add-waitlist-utm-attribution — Atribuir signups da waitlist à origem (UTM) do marketing
 
 **Tamanho:** S · **Trilha:** Fast
-**Status:** Implementada — PRs backend llsilvas/menthoros-backend**#100** e frontend
-llsilvas/menthoros-front**#109** abertos em 2026-09-07, `/code-review` (standards + spec) aplicado
-nos dois com 1 achado real corrigido (duplicação de tipo no frontend). Aguardando CI/merge.
+**Status:** Concluída — PRs backend llsilvas/menthoros-backend**#100** e frontend
+llsilvas/menthoros-front**#109** mergeados em `develop` em 2026-09-07, CI verde
+(`./mvnw verify`/lint+build+testes/E2E/GitGuardian). `/code-review` (standards + spec) aplicado nos
+dois com 1 achado real corrigido (duplicação de tipo no frontend). Pronta para arquivamento.
 **Criado:** 2026-09-07
 
 ## Problema
