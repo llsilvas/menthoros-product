@@ -7,6 +7,10 @@ qual endpoint** o botão chama, não a regra.)
 ## Status
 
 - Proposta inicial (2026-09-08) — derivada do ensaio de validação em produção do mesmo dia.
+- **DoR (2026-09-08): NOT READY na 1ª passada, corrigido nesta revisão.** spec-reviewer + Codex,
+  achados convergentes e um BLOCKER, todos folded aqui e nas tasks. Premissas centrais
+  **confirmadas**: `BatchPlanProcessor` chama o mesmo `gerarPlanoTreino(atletaId, modo)`, `modo`
+  propagado, role TECNICO/ADMIN idêntica, terminal traz `planoId` por atleta.
 
 ## Why
 
@@ -55,11 +59,20 @@ Só `apps/menthoros-front`:
    504**, independente de a geração levar 35s ou 70s.
 2. **Given** o job concluído com sucesso, **when** o polling detecta o estado terminal, **then** o
    plano gerado aparece para o coach sem refresh manual.
-3. **Given** o job falha (ex.: LLM indisponível), **when** o estado terminal é de erro, **then** a
-   UI mostra mensagem acionável, não trava em "gerando".
+3. **Given** o job termina em `CONCLUIDO_COM_ERROS` (LLM indisponível, plano inválido), **when** o
+   polling atinge o estado terminal, **then** a UI mostra mensagem acionável lida de
+   `status.erros`/`errosDetalhes` — **não basta observar `error`** (o hook não o preenche nesse
+   estado; falha silenciosa é o risco).
 4. **Given** a geração em andamento, **when** o coach fecha e reabre o dialog, **then** o polling
-   não vaza (sem requisições órfãs) — o `useBatchPlanGeneration` já encadeia e tem timeout de
-   segurança; garantir o `reset`/cleanup no unmount.
+   não vaza (sem requisições órfãs) **e uma resposta 202 tardia após o reset não reinicia o
+   polling** (corrida do BLOCKER — a geração corrente tem de ser capturada antes do `await` e
+   respostas obsoletas descartadas, inclusive erros).
+5. **Given** um job já em acompanhamento para o atleta, **when** o coach clica em gerar de novo,
+   **then** o disparo é bloqueado durante o polling (evita segundo job e chamada LLM duplicada — o
+   backend só deduplica dentro de um lote, não entre requisições).
+6. **Given** já existe plano para a semana-alvo, **when** o job termina, **then** a UI comunica o
+   conflito (o lote devolve `MOTIVO_PLANO_JA_EXISTE` no relatório, **após** o polling — diferente
+   do síncrono, que hoje estoura exceção imediata).
 
 ## Métrica de sucesso
 
@@ -79,7 +92,22 @@ Só `apps/menthoros-front`:
 
 ## Riscos e mitigações
 
-- **Risco:** UX de "gerar um" piora se o polling for confuso (spinner infinito). **Mitigação:** o
-  `BatchPlanDialog` já tem UI de progresso de lote; reusar o mesmo padrão de estado terminal.
-- **Risco:** dois disparos concorrentes do mesmo atleta. **Mitigação:** o backend deduplica no lote
-  e o hook reseta o polling anterior a cada `gerarLote`.
+- **BLOCKER (Codex) — corrida no `useBatchPlanGeneration`:** a geração corrente é capturada depois
+  do `await` do POST; um 202 tardio após reset/unmount reinicia o polling, e o cleanup não cancela
+  a requisição em voo. **Mitigação:** capturar a geração **antes** do `await`, descartar respostas
+  (e erros) obsoletos, cancelar/ignorar in-flight no cleanup; teste de corrida. Corrige o hook, que
+  também é usado pelo `BatchPlanDialog` — regressão a cobrir lá.
+- **Convergente — `CONCLUIDO_COM_ERROS` não preenche `error`:** ler `status.erros`/`errosDetalhes`
+  para a mensagem; observar só `error` é falha silenciosa. Coberto pelo AC3.
+- **Redisparo durante o acompanhamento gera segundo job + LLM duplicado** (dedup é intra-lote).
+  **Mitigação:** bloquear o botão enquanto o job está em andamento (AC5).
+- **Trade-off aceito — perda da reserva interativa:** o síncrono usava a faixa interativa do
+  `LlmConcurrencyLimiter`; pelo lote, o gerar-de-um passa a disputar a fila batch e pode esperar
+  atrás de um lote grande. Aceito: async+espera é muito melhor que 504. Registrar; se a espera
+  incomodar, avaliar depois uma faixa interativa para lote de 1.
+- **Recovery de job órfão só no startup e > 30 min** (`BatchPlanRecoveryService`): reinício antes
+  disso deixa o job órfão, e o timeout de 5 min do front só encerra o acompanhamento. Fora do
+  escopo desta change — é o follow-up já no radar `batch-plan-recovery-by-state`; registrado como
+  limitação conhecida.
+- **Risco:** UX confusa (spinner infinito). **Mitigação:** reusar o padrão de estado terminal do
+  `BatchPlanDialog`.
