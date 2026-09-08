@@ -2,7 +2,7 @@
 
 ## Contexto
 
-A parte 1 (`deterministic-planner-engine`) deixou pronto: `PlannerEngine` completo em `domain/planner`, `SkeletonComplianceChecker` puro em `domain/compliance` (com `checkPreRedistribution`/`checkPostRedistribution`), migration V54, shadow mode coletando distribuicao de fases, taxa de review, violacoes hipoteticas e divergencia planner x formatter. Esta parte liga o enforcement.
+A parte 1 (`deterministic-planner-engine`) deixou pronto: `PlannerEngine` completo em `domain/planner`, `SkeletonComplianceChecker` puro em `domain/compliance` (com `checkPreRedistribution`/`checkPostRedistribution`), migration V58, shadow mode coletando distribuicao de fases, taxa de review, violacoes hipoteticas e divergencia planner x formatter. Esta parte liga o enforcement.
 
 Referencias (estado atual):
 - `services/helper/PlanoResilienceService.java:42-71` — `gerarComResiliencia(gerar, validar, promptBase)`, `MAX_TENTATIVAS=2`; retenta a geracao do LLM quando `validar` lanca excecao
@@ -86,7 +86,7 @@ O template (`plano-treino-otimizado-claude.txt`) declara "3-7 treinos" e "minimo
 minimo, nesta change:
 
 1. **DTO da visao do coach** expoe `plannerComplianceStatus`, `plannerRequiresCoachReview` (colunas
-   V54 ja persistidas) e um resumo legivel das `PlannerViolation` extraido do
+   V58 ja persistidas) e um resumo legivel das `PlannerViolation` extraido do
    `planner_metadata_json` — leitura apenas, nenhuma escrita nova.
 2. **Aba de plano do coach:** badge "Revisao obrigatoria" + motivos quando
    `requiresCoachReview=true` ou `compliance_status=FAILED`. Componente de apresentacao; logica no

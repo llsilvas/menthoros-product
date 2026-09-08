@@ -127,7 +127,7 @@ remain unchanged.
 - **Then** no mandatory-review highlight SHALL be displayed
 
 #### Scenario: Legacy plan without planner metadata renders safely
-- **Given** a plan generated before the planner engine (no V54 metadata populated)
+- **Given** a plan generated before the planner engine (no V58 metadata populated)
 - **When** the coach opens the plan view
 - **Then** the view SHALL render without errors and without a review highlight
 

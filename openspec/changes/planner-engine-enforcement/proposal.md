@@ -1,10 +1,10 @@
 **Tamanho:** M · **Trilha:** Full
 
-> Full porque altera o pipeline de geracao de plano (skeleton no prompt, compliance com retry, novo caminho de falha terminal) atras de feature flag. Zero migration nova (V54 vem da parte 1). Frontend minimo: superficie de review para planos marcados (achado do pre-mortem cross-model, ver abaixo).
+> Full porque altera o pipeline de geracao de plano (skeleton no prompt, compliance com retry, novo caminho de falha terminal) atras de feature flag. Zero migration nova (V58 vem da parte 1). Frontend minimo: superficie de review para planos marcados (achado do pre-mortem cross-model, ver abaixo).
 
 ## Split (2026-07-14)
 
-Parte 2 de 2 do que nasceu como `deterministic-planner-engine` (L). A parte 1 (`deterministic-planner-engine`, M) entrega o motor completo + `SkeletonComplianceChecker` como logica pura + shadow mode + auditoria V54 + nucleo `domain/`. **Esta parte torna o skeleton vinculante**: injeta no prompt, liga o compliance ao retry existente e transforma o `SessionSlot` em prescricao estrutural por sessao.
+Parte 2 de 2 do que nasceu como `deterministic-planner-engine` (L). A parte 1 (`deterministic-planner-engine`, M) entrega o motor completo + `SkeletonComplianceChecker` como logica pura + shadow mode + auditoria V58 + nucleo `domain/`. **Esta parte torna o skeleton vinculante**: injeta no prompt, liga o compliance ao retry existente e transforma o `SessionSlot` em prescricao estrutural por sessao.
 
 ## Pre-mortem cross-model (Codex, 2026-07-14)
 
@@ -71,7 +71,7 @@ Absorve o achado [alto] do pre-mortem cross-model — sem isso, `requiresCoachRe
 persistida que ninguem ve:
 
 - **DTO da visao do coach** passa a expor `plannerComplianceStatus`, `plannerRequiresCoachReview`
-  (ja persistidos pela V54) e um resumo legivel das `PlannerViolation` (extraido do
+  (ja persistidos pela V58) e um resumo legivel das `PlannerViolation` (extraido do
   `planner_metadata_json`).
 - **Aba de plano do coach:** plano com `requiresCoachReview=true` ou `compliance_status=FAILED`
   ganha destaque visual (badge "Revisao obrigatoria") com os motivos das violacoes. **Sem novo
@@ -106,7 +106,7 @@ Guard-rail operacional: `planner.fallback_legacy.count` e `planner.compliance.fa
 
 ## Impact
 
-- **Depende de (hard):** `deterministic-planner-engine` (parte 1 — motor, checker, V54, shadow calibrado)
+- **Depende de (hard):** `deterministic-planner-engine` (parte 1 — motor, checker, V58, shadow calibrado)
 - **Depende de (recomendado):** `refactor-iaservice-decomposition` mergeada — o estagio 1 e inserido em `PlanoLlmValidator` em vez do `IaServiceImpl` de ~1500 linhas. Se a ordem inverter, confirmar com o usuario antes de implementar a secao 4 das tasks.
 - **Coordena com:** `migrate-plan-prompt-to-skills` — esta change reescreve o bloco de periodizacao do prompt e reduz `PeriodizacaoPromptFormatter` a renderer; quando a migracao chegar la, o skill de periodizacao consome `WeekPlanSkeleton` em vez de reimplementar a decisao. Recomendado nota de coordenacao no proposal de la antes de abrir branch (fora do escopo desta editar sem autorizacao).
 - **Repos:** menthoros-backend + menthoros-front (superficie minima de review — badge e motivos na visao do coach). O follow-up de produto da superficie de review foi **absorvido nesta change** (achado do pre-mortem cross-model); fila/filtro dedicado de planos marcados permanece candidata pos-rollout.
