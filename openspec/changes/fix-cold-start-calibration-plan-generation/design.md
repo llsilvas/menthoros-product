@@ -173,3 +173,57 @@ Esta análise inicial não substitui o pré-mortem e as revisões de qualidade p
 5. Validar em ambiente de teste com dados sintéticos, medir coortes e registrar plano de ativação/reversão. Reversão não deve disponibilizar planos inválidos já rejeitados nem alterar o gate do coach.
 
 Não reparar dados de produção automaticamente. Eventual identificação/reparo de planos existentes requer escopo próprio, com inventário e revisão do treinador.
+
+## 13. Matriz de invariantes por tipo de treino — RASCUNHO (fecha a tarefa 1.3 / CA5)
+
+> Rascunho ancorado no código real (`IaServiceImpl.validarENormalizarPlanoGerado` e colaboradores;
+> paths e linhas confirmados por exploração 2026-09-08). **Requer aprovação de produto** nos pontos
+> marcados ⚠️ antes de virar oráculo de teste. A fronteira "obrigatória (fail-closed 422) × soft
+> (recomendação/revisão)" é a decisão que faltava — aqui proposta, não fechada.
+
+### 13.1 Fontes de verdade e unidades (do código, não negociável)
+
+- **Duração do treino** = **soma das durações das etapas** (override do LLM em `IaServiceImpl:487-498`,
+  `somarDuracoesMin`). Entidade persiste `duracaoMin` como `Duration`; DTO LLM manda String "mm:ss".
+- **Distância do treino** = **reconciliada com a soma das etapas** quando desvio > **10%**
+  (`reconciliarDistanciaComEtapas:686`, substitui `distanciaKm` pela soma).
+- **Pace (`ritmoAlvo`)** = **min/km** (mm:ss/km), intervalo "5:00-5:30/km" (`PaceValidator` regex :27).
+  Pace da **etapa/tiro** (`EtapaTreinoLlmDto.ritmoAlvo`) é distinto do pace **da sessão**
+  (`TreinoPlanejadoLlmDto.ritmoAlvo`) — CA5 exige não confundir os dois.
+- **TSS** vem do LLM/`fatorImpacto` do `TipoTreino`, **não** é derivado das etapas (não incluir no
+  invariante aritmético de etapas nesta change).
+- Enum real: `TipoTreino` = REGENERATIVO, INTERVALADO, CONTINUO, LONGO, TIRO, FARTLEK, TEMPO_RUN,
+  FACIL, SUBIDA, PROVA, DESCANSO. Etapas: AQUECIMENTO, PRINCIPAL, INTERVALADO, RECUPERACAO,
+  DESAQUECIMENTO. (TEMPO → `TEMPO_RUN`; "tiro" é etapa `INTERVALADO`, não etapa própria.)
+
+### 13.2 Matriz — hoje (bloqueante × warning) e proposta cold-start
+
+| Tipo | Estrutura de etapas | Hoje | Proposto cold-start (obrigatória=fail-closed) |
+|---|---|---|---|
+| INTERVALADO / TIRO | ≥ **6** etapas; inicia AQUECIMENTO, termina DESAQUECIMENTO; \|tiros−recuperações\|≤1; recuperação só após tiro; tiro 0,3–10 min | **bloqueante** (`validarTreinoIntervalado:1196`) | **obrigatória** (manter). ⚠️ Corrigir o bug 6/8: gate real é `<6` (`:1209`), mas log diz "mínimo 8" e exceção diz "mínimo 6". **Padronizar em 6** (implementado) e alinhar textos; subir para 8 é decisão de produto à parte. |
+| REGENERATIVO / CONTINUO / TEMPO_RUN / LONGO | **3** etapas AQUEC→PRINCIPAL→DESAQUEC (LONGO: só conta 3, sem exigir ordem) | **bloqueante** (`validarEstrutura3Etapas:1407`) | **obrigatória** (manter) |
+| FARTLEK / FACIL / SUBIDA / PROVA / DESCANSO | sem validação estrutural | nenhuma (`default → empty`) | **manter sem estrutura obrigatória** (⚠️ confirmar que PROVA/SUBIDA não precisam de piso) |
+| Todos | `repeticoes == 1` por etapa (repetição vai em `blocoRepeticoes`) | **bloqueante** (`validarRepeticoes:1440`) | **obrigatória** (manter) |
+
+### 13.3 Invariantes aritméticos/pace — a mudança central (hoje WARN → propor OBRIGATÓRIA)
+
+O plano quebrado de 70,6 s passou porque estes são **apenas warning** hoje:
+
+| Invariante | Regra/tolerância no código | Hoje | Proposto cold-start |
+|---|---|---|---|
+| Triângulo pace×distância×duração | `duracaoEsperada = paceMedia × distanciaKm` vs `duracaoMin`; desvio > **20%** (`validarTrianguloPaceDuracaoDistancia:1486`) — é o "~71%" do incidente (valor de runtime, não constante) | **WARN** (não corrige) | ⚠️ **OBRIGATÓRIA** após reparos, com tolerância a fechar por tipo (20% é o default atual; propor 15% p/ contínuos, mais folga p/ intervalado por causa da mistura de paces) |
+| Soma das etapas × distância planejada | tolerância **0,5 km** (intervalado `:1339`); reconciliação global a **10%** (`:705`) | WARN + reconciliação silenciosa | ⚠️ obrigatória **após** a reconciliação (a reconciliação é a fonte de verdade; o que sobra fora da tolerância é violação) |
+| Pace do tiro dentro do teto/piso por tipo | `PaceValidator.validar` corrige deslocando o intervalo; piso absoluto 0:30/km | corrige silenciosamente | manter correção; ⚠️ obrigatória só se a correção não conseguir trazer para a faixa |
+| Distribuição de carga (duros em dias consecutivos) | `validarDistribuicaoCargaSemanal:1599` | WARN | **manter soft** (é recomendação de qualidade, não estrutura) |
+| `PlanQualityChecker` (INTERVALADO_PROIBIDO, PACE_TETO, DIAS_PERMITIDOS, MAX_CONSECUTIVOS) | gera `ViolacaoQualidade` + métrica, **não** dispara retry | soft/offline | **manter soft** (revisão do coach), exceto onde coincidir com invariante obrigatória acima |
+
+### 13.4 Pontos que exigem decisão de produto (⚠️) antes de codificar 4.x
+
+1. Tolerância do triângulo por tipo (default 20% vira quanto para cada `TipoTreino`?).
+2. Padronizar o gate de etapas do intervalado em **6** (implementado) vs subir para 8.
+3. PROVA/SUBIDA/FARTLEK/FACIL seguem sem estrutura obrigatória? (hoje seguem.)
+4. Quais WARNINGS de 13.3 sobem para **obrigatória (fail-closed)** — a lista proposta é o mínimo para
+   fechar o incidente; ampliar é opcional.
+
+Fechados 1–4, a task 1.3 fica pronta e as regressões 4.1–4.2 ganham oráculo (fixtures válidas/inválidas
+nos limites de cada tolerância).
