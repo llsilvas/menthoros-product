@@ -89,7 +89,7 @@ Benefício ao treinador: reduzir propostas que exigem correção manual de estru
 
 1. **Identificação do incidente:** o relato define a coorte; confirmar commit do deploy, estado persistido CALIBRATION e ausência total de registros do atleta da requisição. O log só confirma ausência de métricas nas últimas seis semanas.
 2. **Semântica e tolerâncias:** inventariar o que `ritmoAlvo` significa por tipo e quais quantidades governam cada etapa. O aviso de 71% em intervalado não é, sozinho, uma regra de rejeição correta. Resolver antes do CA5.
-3. **Enforcement:** recomendação é falhar fechado para invariantes obrigatórias do cold-start, mesmo sob fail-open geral. É uma proposta de precedência que conflita com a change relacionada; resolver antes de implementar a integração.
+3. **Enforcement:** ~~recomendação é falhar fechado…~~ **RESOLVIDO (2026-09-08, ver design §8):** invariante obrigatória do cold-start **falha fechado (422)** mesmo sob fail-open geral; **`planner-engine-enforcement` é implementado primeiro** (dono do gate/flag/orçamento) e esta change assenta sobre ele reusando o orçamento único. As seções de código (2+) ficam bloqueadas até o enforcement estar em `develop`.
 4. **Ativação:** recomendar integração única, com rollout restrito à coorte e testes da matriz de flags. Não escolher nem ligar uma flag de produção implicitamente.
 5. **Histórico não vazio:** o atalho é restrito a ausência comprovada de treinos e métricas. Otimização incremental ampla será desdobrada se exigir schema, job ou nova infraestrutura.
 6. **Aprovação:** HTTP 200 não prova que o atleta viu o treino; não foi demonstrado bypass da revisão.

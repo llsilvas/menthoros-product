@@ -109,7 +109,29 @@ As duas tentativas contam gerações lógicas no orquestrador. Retentativas HTTP
 | Flag off preserva legado byte a byte | CA9 de `planner-engine-enforcement` | A proteção cold-start muda comportamento da coorte; fechar matriz de ativação sem prometer equivalência byte a byte nessa combinação. |
 | Decomposição sem mudar comportamento | `refactor-iaservice-decomposition` | Usar colaboradores extraídos se disponíveis; não misturar correção comportamental com movimento mecânico. |
 
-Não modificar automaticamente a outra change, não ligar flags e não contornar seus gates de rollout. A aprovação da integração deve registrar o que cada change entrega. O caminho vazio do baseline pode ser implementado de forma isolada após revisão; a integração de enforcement depende das decisões acima.
+Não modificar automaticamente a outra change, não ligar flags e não contornar seus gates de rollout. A aprovação da integração deve registrar o que cada change entrega. O caminho vazio do baseline pode ser implementado de forma isolada após revisão; a integração de enforcement depende das decisões abaixo.
+
+### Decisões de precedência e sequência (2026-09-08, fecham a Open Question 3 e a tarefa 1.2)
+
+Fechadas com o dono do produto após o DoR (spec-reviewer + Codex), que marcaram estas como blockers:
+
+1. **Precedência — fail-closed sempre nas invariantes obrigatórias.** Quando um plano cold-start viola
+   uma invariante **obrigatória** (estrutura, aritmética de etapas/totais, semântica de pace) após os
+   reparos, o sistema **falha fechado (422) e não persiste**, **independente** do `planner-engine.fail-open`
+   estar ligado. Aprovação manual não torna estrutura inválida aceitável; plano estruturalmente quebrado
+   não vale revisão. Consequência: o cenário "Stage 2 fails with fail-open on → persiste FAILED" do
+   `planner-engine-enforcement` **não se aplica** às invariantes obrigatórias desta coorte — só a
+   violações *não-obrigatórias* (soft). A fronteira obrigatória × soft sai da matriz da tarefa 1.3 (CA5).
+2. **Sequência/propriedade — `planner-engine-enforcement` primeiro.** Ele é o **dono** do gate de
+   compliance, do flag e do orçamento de gerações; entra antes. Esta change **assenta sobre** esse gate,
+   adicionando as invariantes obrigatórias que falham fechado, e **reusa o orçamento único** dele (não
+   cria um segundo contador). Enquanto o enforcement não estiver mergeado em `develop`, as seções de
+   código desta change (2+) ficam **bloqueadas**; só o caminho de baseline vazio (seção independente)
+   poderia ser adiantado, se desejado.
+3. **Orçamento único (deriva de 2).** O contador/relógio de "no máximo 2 gerações lógicas por
+   requisição" pertence ao gate do enforcement; esta change **consome** desse orçamento (tentativa
+   debitada **antes** da chamada à IA, não depois da resposta), sem reiniciá-lo. Detalhe operacional a
+   fechar junto com a implementação do enforcement.
 
 ## 9. API, revisão, persistência e segurança
 
