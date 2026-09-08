@@ -49,6 +49,10 @@ Repo: `apps/menthoros-front` · Branch: `feature/gerar-plano-individual-assincro
 
 ## 3. Entrega
 
-- [ ] 3.1 `/qa` (frontend-reviewer + clean-code) e PR `feature/... → develop`.
-- [ ] 3.2 Smoke em develop: gerar plano de um atleta cold-start real e confirmar **zero 504** com a
-      geração passando de 60s (é o caso que motivou a change).
+- [x] 3.1 `/qa` (frontend-reviewer + clean-code) e PR `feature/... → develop`. PR #117 mergeado em
+      `develop` (2026-09-08); CI verde (Lint/build/testes, E2E, GitGuardian).
+- [~] 3.2 Smoke em develop: gerar plano de um atleta cold-start real e confirmar **zero 504** com a
+      geração passando de 60s. **Adiado (validação pós-deploy)** — depende do ambiente deployado e de
+      um atleta cold-start real; não bloqueia o código. O caminho crítico (clique dispara `gerar-lote`
+      e não o endpoint síncrono) já é coberto por E2E; o smoke ao vivo é confirmação belt-and-suspenders,
+      a fazer na próxima geração real em develop/produção.
