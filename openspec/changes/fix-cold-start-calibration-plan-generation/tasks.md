@@ -1,0 +1,59 @@
+# Tasks — fix-cold-start-calibration-plan-generation
+
+**Estado:** proposta para revisão. Nenhuma task de implementação concluída. Criar estes artefatos não equivale a aprovar o design, resolver o incidente ou autorizar deploy.
+
+## 0. Evidência e proposta
+
+- [x] 0.1 Registrar diagnóstico, timeline de produção sanitizada, reprodução sintética e limitações em `investigation.md` e `evidence/`. **Validação:** rastreabilidade dos tempos/achados; distinguir produção de logs locais e fixture de payload real.
+- [x] 0.2 Criar proposal, design e spec delta com critérios CA1–CA12 e conflitos de integração explícitos. **Validação:** leitura cruzada entre escopo, decisões e requisitos.
+- [x] 0.3 Executar `openspec validate fix-cold-start-calibration-plan-generation --strict --no-interactive`, verificar links locais e diff. **Validação:** resultado anexado à investigação; nenhuma alteração no backend ou nas changes relacionadas.
+
+## 1. Revisão antes de implementar
+
+- [ ] 1.1 Confirmar commit do deploy e estado persistido do caso: CALIBRATION/estágio, baseline, quantidade total de treinos/métricas, plano final, status de revisão e eventual exportação. Consultas somente leitura, restritas ao tenant; anexar resumo sanitizado. **Validação:** diferenciar fatos confirmados de dados ainda indisponíveis; sem afirmar bypass com base em HTTP 200.
+- [ ] 1.2 Resolver sobreposição com `planner-engine-enforcement`: proprietário dos pontos pré/pós-IA, precedência de fail-closed da calibração, limite global de gerações lógicas e comportamento das flags. Registrar decisão neste design; coordenar alteração explícita da change relacionada quando necessária. **Validação:** tabela sem caminhos que retornem ao legado e iniciem geração extra ou salvem violação obrigatória.
+- [ ] 1.3 Aprovar matriz por tipo de treino: fonte de verdade de distância/duração, semântica de pace, unidades, tolerância/arredondamento, tipos/ordem/repetições de etapas e recomendação versus bloqueio. Conferir prompt/schema/validator, inclusive divergência de mínimo 6/8 nos logs. **Validação:** exemplos válidos e inválidos, limites e vizinhos; não usar 71% como regra universal.
+- [ ] 1.4 Fechar escopo de ativação e integração com políticas de fase/estágio; revisar o impacto 200→422 e experiência do coach. Realizar pré-mortem da trilha Full e registrar os achados. **Validação:** decisões revisáveis registradas, sem regra fisiológica nova implícita e sem flip operacional.
+- [ ] 1.5 Definir baseline e meta de latência/retry/edição por inconsistência, incluindo janela e amostra por coorte. **Validação:** tabela com p50/p95, sucesso/422, retry e denominadores; amostra insuficiente explicitada, nunca extrapolada do único trace.
+- [ ] 1.6 Registrar revisão da proposta e liberar as tasks dependentes; escolher branch/worktree conforme regras do workspace antes de código. **Validação:** decisões 1.2–1.4 resolvidas para integrar enforcement; não marcar aprovação por validação sintática da OpenSpec.
+
+## 2. Baseline vazio e re-baseline (CA1, CA2, CA11, CA12)
+
+- [ ] 2.1 Adicionar regressão de zero treinos/zero métricas: ESTIMATED, zero chamadas ao rebuild, sem série diária fictícia. **Validação:** teste falha pelo motivo esperado antes da correção.
+- [ ] 2.2 Implementar caminho vazio, preservando metadados e invalidação de cache necessários. **Validação:** teste 2.1 verde; execução repetida coerente; `./mvnw clean test`.
+- [ ] 2.3 Cobrir primeiro plano com atividade recente, semanasObservadas=0 com histórico não vazio, métricas antigas sem treinos, histórico removido e caso extenso. **Validação:** ausência de falso cold-start; resultados CTL/ATL preservados fora do ramo alterado; `./mvnw clean test`.
+- [ ] 2.4 Aplicar a mesma regra à avaliação semanal e evitar recomputação redundante do mesmo baseline no ciclo. Preservar entrada/saída e estágios de calibração. **Validação:** cenários OBSERVATION/CALIBRATION/STABILIZATION e transições com dados reais; `./mvnw clean test`.
+
+## 3. Contexto e restrições antes da IA (CA3, CA8, CA9, CA11)
+
+- [ ] 3.1 Cobrir ordem observável: contexto e política resolvidos antes do prompt; ausência de transação/lock durante chamada externa; mesma referência temporal até o save. **Validação:** testes unitários e de integração falham no ponto esperado.
+- [ ] 3.2 Integrar snapshot aos colaboradores existentes, respeitando fronteiras JPA/domínio e as decisões 1.2–1.4. **Validação:** 3.1 verde; prompt inclui restrições efetivas; `./mvnw clean test`.
+- [ ] 3.3 Eliminar reconstrução tardia conflitante no persister; documentar quais escritas de onboarding podem sobreviver a falha da IA. Preservar efeitos da avaliação semanal. **Validação:** nenhum plano, consumo de revisão ou evento de aprovação na falha; `./mvnw clean verify` para fronteiras transacionais.
+
+## 4. Estrutura, totais e resiliência (CA4, CA5, CA6, CA7)
+
+- [ ] 4.1 Converter a reprodução sintética em regressões mantidas no backend, respeitando a matriz 1.3. Incluir contínuo/longo incoerentes e intervalado válido com pace do tiro diferente da média. **Validação:** falhas corretas antes da implementação; não transplantar a AssertionError exploratória como regra fisiológica.
+- [ ] 4.2 Reconciliar e validar etapas/totais após normalizações, com idempotência, limites/unidades e sem duplicação de repetições. **Validação:** fixtures válidas passam; violações obrigatórias falham; recomendações isoladas não bloqueiam; `./mvnw clean test`.
+- [ ] 4.3 Inserir checks prévios no retry existente; garantir máximo de duas gerações lógicas, feedback sanitizado e orçamento existente sem novo fallback gerador. **Validação:** primeira válida=1 tentativa; inválida seguida de válida=2; inválida final=422; orçamento esgotado não inicia segunda; `./mvnw clean test`.
+- [ ] 4.4 Inserir check sobre a representação final após redistribuição/inclusão de prova e demais ajustes, antes de salvar. **Validação:** transformação que quebra invariantes causa falha terminal sem retry/plano parcial; `./mvnw clean verify`.
+- [ ] 4.5 Alinhar mensagens, prompt, schema e regras de etapas da coorte com a matriz aprovada. **Validação:** os limites comunicados não contradizem o validator; contagem de chamadas não cresce; `./mvnw clean test`.
+
+## 5. Contratos, segurança e concorrência (CA7, CA8, CA9)
+
+- [ ] 5.1 Cobrir o endpoint: sucesso com DTO vigente e falha obrigatória com 422/envelope vigente; falha de infraestrutura mantém seu contrato. **Validação:** testes de controller e `./mvnw clean test`.
+- [ ] 5.2 Cobrir plano de baixa confiança aguardando revisão, invisibilidade em consultas de aprovados e ausência de autoaprovação/exportação. **Validação:** testes com JWT/tenant reais de teste e `./mvnw clean verify`.
+- [ ] 5.3 Cobrir acesso cruzado de tenant, duas gerações concorrentes e alteração relevante do contexto durante a IA. **Validação:** nenhum vazamento/duplicata ativa e nenhum plano salvo com snapshot invalidado; `./mvnw clean verify`.
+- [ ] 5.4 Conferir consumidores do fluxo compartilhado, inclusive lote se atingir a mesma integração. **Validação:** erro individual sanitizado não aborta demais atletas e não cria retry adicional; `./mvnw clean verify`.
+
+## 6. Observabilidade e medição (CA10)
+
+- [ ] 6.1 Instrumentar etapas/tentativas/coorte e motivo categorizado; tornar logs de rebuild condicionais a intervalo real. **Validação:** sucesso, retry, falha e zero dias distinguíveis; sem prompt ou dados sensíveis em logs/labels; `./mvnw clean test`.
+- [ ] 6.2 Medir em ambiente de teste conforme 1.5 e registrar comparação com versão, amostra e taxas de sucesso/422. **Validação:** zero rebuild no vazio, máximo de duas gerações lógicas e ganho de latência atribuído à etapa correta; não declarar p95 sem amostra adequada.
+
+## 7. Gates e entrega futura
+
+- [ ] 7.1 Executar `./mvnw clean test` e anexar comando, commit, totais e resultado. **Validação:** zero falhas/erros.
+- [ ] 7.2 Executar `./mvnw clean verify`, incluindo `*IT`, e anexar evidência. **Validação:** zero falhas/erros; `clean test` sozinho não substitui este gate.
+- [ ] 7.3 Executar QA Full (revisões de código, segurança e testes), revisão de contrato e conferir CA1–CA12. **Validação:** findings classificados/resolvidos; decisão GO/NO-GO com evidências exigidas pelo AGENTS.md.
+- [ ] 7.4 Registrar plano de ativação/reversão e compatibilidade com gates da change de enforcement. **Validação:** nenhum rollout automático nesta tarefa documental; eventuais planos antigos tratados em escopo separado.
+- [ ] 7.5 Atualizar tasks e OpenSpec com implementação real, diff e impacto de contrato; executar novamente validação strict. **Validação:** documentação reflete entrega, sem marcar decisões pendentes como concluídas.

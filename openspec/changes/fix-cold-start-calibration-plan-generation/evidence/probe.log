@@ -1,0 +1,11 @@
+08:48:56.418 [main] INFO br.com.menthoros.backend.services.onboarding.impl.BaselineCalculatorImpl -- Baseline calculado para atleta 00000000-0000-0000-0000-000000000001: semanasObservadas=0, proporcaoHeuristica=1.0, ctl=25.0, atl=25.0, tsb=0.0, origem=ESTIMATED
+BASELINE sem historico: origem=ESTIMATED, fullRebuildCalls=1
+08:48:56.444 [main] ERROR br.com.menthoros.backend.services.impl.IaServiceImpl -- VALIDAÇÃO FALHOU [Atleta 00000000-0000-0000-0000-000000000001]: Treino INTERVALADO tem apenas 4 etapas (mínimo 8)
+08:48:56.448 [main] WARN br.com.menthoros.backend.services.helper.PlanoResilienceService -- Plano rejeitado na tentativa 1 (Treino INTERVALADO inválido: gerou apenas 4 etapas (mínimo 6 para intervalados)); re-gerando 1x com feedback
+08:48:56.449 [main] WARN br.com.menthoros.backend.services.impl.IaServiceImpl -- VALIDAÇÃO ALERTA [Atleta 00000000-0000-0000-0000-000000000001]: Treino INTERVALADO tem apenas 2 tiros (recomendado: 3+)
+08:48:56.449 [main] WARN br.com.menthoros.backend.services.impl.IaServiceImpl -- VALIDAÇÃO ALERTA [Atleta 00000000-0000-0000-0000-000000000001]: Soma das etapas (5.46 km) difere da distância planejada (4.0 km) em 1.46 km
+08:48:56.449 [main] INFO br.com.menthoros.backend.services.impl.IaServiceImpl -- VALIDAÇÃO OK [Atleta 00000000-0000-0000-0000-000000000001]: Treino INTERVALADO - 6 etapas (2 tiros, 2 recuperações, 5.46 km - tiros: 1.6 km, rec: 1.0 km)
+08:48:56.451 [main] WARN br.com.menthoros.backend.services.impl.IaServiceImpl -- TRIÂNGULO pace×dist×dur [INTERVALADO]: ritmoAlvo='5:00-5:30/km', dist=4.0 km, duracao=36.0 min → esperado 21,0 min (desvio 71%)
+REPLAY attempts=2 accepted=true duration=36.0 distance=4.00 pace=5:00-5:30/km deviation=71.4%
+Exception in thread "main" java.lang.AssertionError: RED: pipeline aceita treino apos retry com desvio acima do limite de aviso de 20%
+	at ColdStartProbe.main(ColdStartProbe.java:53)

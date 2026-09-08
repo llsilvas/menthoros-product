@@ -1,0 +1,81 @@
+{
+  "source": "Resumo sanitizado de logs Railway production consultados em 2026-09-08; não é payload original da IA.",
+  "trace_id": "752cabbf-660d-4935-9b9c-68f85ed17c7e",
+  "application_date": "2026-09-07",
+  "timestamp_basis": "Horário emitido pela aplicação; timezone não confirmado. Não usar horário de coleta Railway para estas durações.",
+  "route": "POST /api/v1/planos/atletas/{atletaId}/gerar",
+  "events": [
+    {
+      "application_time": "22:32:11.416",
+      "event": "request_started"
+    },
+    {
+      "application_time": "22:32:11.553",
+      "event": "readiness_absent"
+    },
+    {
+      "application_time": "22:32:46.338",
+      "event": "first_response_rejected_retry",
+      "interval_stages": 4,
+      "logged_minimum_stages": 8,
+      "exception_minimum_stages": 6
+    },
+    {
+      "application_time": "22:33:21.795",
+      "event": "continuous_consistency_warning",
+      "distance_km": 5.0,
+      "duration_min": 45,
+      "pace": "6:30-7:00/km",
+      "logged_deviation_percent": 33
+    },
+    {
+      "application_time": "22:33:21.796",
+      "event": "interval_repetition_warning",
+      "efforts": 2,
+      "recommended_efforts": 3
+    },
+    {
+      "application_time": "22:33:21.797",
+      "event": "interval_distance_warning",
+      "stages_distance_km": 4.86,
+      "planned_distance_km": 4.0
+    },
+    {
+      "application_time": "22:33:21.800",
+      "event": "interval_consistency_warning",
+      "distance_km": 4.0,
+      "duration_min": 36,
+      "pace": "5:00-5:30/km",
+      "logged_deviation_percent": 71
+    },
+    {
+      "application_time": "22:33:21.801",
+      "event": "long_run_consistency_warning",
+      "distance_km": 6.0,
+      "duration_min": 60,
+      "pace": "6:30-7:00/km",
+      "logged_deviation_percent": 48
+    },
+    {
+      "application_time": "22:33:21.825",
+      "event": "no_metrics_last_six_weeks"
+    },
+    {
+      "application_time": "22:33:21.863",
+      "event": "full_history_rebuild_warning"
+    },
+    {
+      "application_time": "22:33:22.014",
+      "event": "request_completed",
+      "status": 200,
+      "duration_ms": 70598
+    }
+  ],
+  "limitations": [
+    "IDs de atleta e tenant omitidos.",
+    "Ausência de métricas recentes não prova ausência total de histórico.",
+    "HTTP 200 não prova aprovação pelo coach, exposição ao atleta ou exportação.",
+    "151 ms é o intervalo do aviso de rebuild ao fim da requisição, não uma medição isolada do rebuild.",
+    "398 dias são de outro caso local."
+  ]
+}
