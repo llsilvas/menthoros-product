@@ -3,7 +3,7 @@
 > Backend + frontend minimo (superficie de review — design.md Decisao 8). Ordem: flags/contratos (1) -> SessionSlot prescritivo (2) -> prompt (3) -> estagio 1 (4) -> estagio 2 (5) -> batch (6) -> superficie de review (7) -> verificacao final (8).
 > Validacao: `./mvnw clean test` a cada etapa; golden set da parte 1 permanece bloqueante; frontend `npm run lint && npm run build`.
 > **Pre-requisitos:** `deterministic-planner-engine` (parte 1) mergeada — hard. `refactor-iaservice-decomposition` mergeada — recomendado (estagio 1 entra em `PlanoLlmValidator`); se nao estiver, confirmar com o usuario antes da secao 4 se implementa contra o `IaServiceImpl` atual.
-> **Gate de rollout (CA11):** taxa de divergencia de fase do shadow <= 2% em janela >= 2 semanas com >= 30 planos gerados (divergencias acima disso: explicadas e registradas aqui); metrica indisponivel = **nao liga** `enabled=true` (design.md Decisao 5; medicao na task 8.4).
+> **Gate de rollout (CA11) em DUAS PORTAS (design Decisao 5):** porta 1 (piloto) = divergencia do shadow <= 2% (>= 2 semanas, >= 30 planos) + defaults seguros; porta 2 (promocao geral) = metricas do piloto por coorte/fase (retry < 15%, FAILED < 5%, fallback < 5%, rejeicao do coach nao pior que baseline). Fail-closed em qualquer porta. Medicao na task 8.4 antes de cada porta.
 
 > **Revisao DoR (2026-09-08, Codex NOT READY):** incorporados design Decisao 2 (check final apos TODAS
 > as transformacoes, inclusive `garantirProvasNaSemana`), Decisao 3 (precedencia fail-closed das
@@ -82,14 +82,16 @@
 - [ ] 8.1 **verify:** `enabled=false` (default): `./mvnw clean test` BUILD SUCCESS, pipeline byte-a-byte legado (golden-master), zero regressao (CA9).
 - [ ] 8.2 **verify:** `enabled=true`: suite completa + golden set verdes; matriz fail-open (CA4) coberta.
 - [ ] 8.3 CA1-CA12 verificados em teste automatizado (CA11 e gate operacional — ver 8.4).
-- [ ] 8.4 **Gate de rollout (CA11 — ampliado na revisao DoR, Codex major 5):** registrar AQUI,
-      **por coorte e fase**, em janela >= 2 semanas com >= 30 planos gerados: (1) divergencia de fase
-      `planner.phase.divergence.count / planner.generated.count` **<= 2%**; (2) `planner.compliance.failure`
-      (PRE/POST) e `planner.fallback_legacy` dentro dos limiares (proposto: retry < 15%, `FAILED` < 5%,
-      fallback < 5% — fechar aqui); (3) taxa de edicao/rejeicao do coach (`SugestaoCoach` MODIFIED/
-      REJECTED) **nao pior** que o baseline pre-enforcement da coorte. Rollout **gradual** (coorte
-      restrita antes de geral). Qualquer criterio acima do limiar, metrica indisponivel ou amostra
-      insuficiente = **nao liga** (fail-closed). Nenhum flip antes deste registro.
+- [ ] 8.4 **Gate de rollout em DUAS PORTAS (CA11 — design Decisao 5):**
+      **Porta 1 — entrada no PILOTO (coorte restrita):** registrar a divergencia de fase do shadow
+      `planner.phase.divergence.count / planner.generated.count` **<= 2%** (>= 2 semanas, >= 30 planos)
+      + defaults seguros (`fail-open=true`). Nao exige as metricas de enforcement (ainda nao existem).
+      **Porta 2 — promocao GERAL:** registrar, **por coorte e fase**, as metricas coletadas no piloto —
+      retry < 15%, `FAILED` < 5%, fallback < 5% (`planner.compliance.failure` PRE/POST +
+      `planner.fallback_legacy`) e `SugestaoCoach` MODIFIED/REJECTED **nao pior** que o baseline
+      pre-enforcement. Limiares **fixados** (nao propostos). Qualquer criterio da porta aplicavel acima
+      do limiar / metrica indisponivel / amostra insuficiente = **fail-closed**, nao avanca. Registrar
+      valor, janela e veredito de cada porta AQUI antes do flip correspondente.
 - [ ] 8.5 Registrar follow-ups: fila/filtro de planos marcados para review (frontend),
       "prescription stamping" (candidata), gerador de estrutura de treino (v2).
 - [ ] 8.6 PRs backend e frontend abertos; CI verde.

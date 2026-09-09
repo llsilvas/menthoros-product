@@ -103,9 +103,12 @@ Consequencia no prompt: o bloco mandatorio passa a listar os slots (dia, tipo, T
 
 Na parte 1, o `PeriodizationPlanner` duplicou temporariamente a logica de fase do formatter, com metrica de divergencia. Nesta parte:
 
-1. o formatter para de calcular fase/TSS-alvo/step-back/tipo de semana;
+1. no caminho `enabled=true`, o formatter para de calcular fase/TSS-alvo/step-back/tipo de semana;
 2. passa a renderizar exclusivamente `WeekPlanSkeleton`/`WeeklyLoadTarget` como texto de prompt;
-3. a metrica `planner.phase.divergence.count` e removida (nao ha mais duas fontes);
+3. **só a divergência dual-calc do formatter** (as duas fontes no caminho `enabled=true`) deixa de
+   existir; a métrica de divergência do **shadow** (parte 1, independente do formatter, coletada
+   também com `enabled=false`) é **preservada** — o gate de rollout depende dela — e só é aposentada
+   após a promoção geral;
 4. a classe **nao e apagada** — `migrate-plan-prompt-to-skills` decide seu destino final (skill de periodizacao consumindo o skeleton).
 
 **Compatibilidade com CA9 (revisao DoR 2026-09-08, Codex major 6):** a virada do formatter para
@@ -124,7 +127,7 @@ janela de **>= 2 semanas** com **>= 30 planos gerados**:
 
 1. divergencia de fase (`planner.phase.divergence.count / planner.generated.count`) **<= 2%**;
 2. `planner.compliance.failure` (estagio 1 e 2) e `planner.fallback_legacy` dentro de limiares
-   concretos a fechar na task 8.4 (proposto: retry < 15%, `FAILED` < 5%, fallback < 5%);
+   **fixados**: retry < 15%, `FAILED` < 5%, fallback < 5%;
 3. taxa de rejeicao/edicao do coach (`SugestaoCoach` MODIFIED/REJECTED) **nao pior** que o baseline
    pre-enforcement da mesma coorte.
 
