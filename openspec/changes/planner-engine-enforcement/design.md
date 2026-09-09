@@ -57,7 +57,7 @@ o comportamento **acima** do flag `fail-open`:
 | Falha | fail-open=true | fail-open=false |
 |---|---|---|
 | Planner antes do LLM | pipeline legado + `planner.fallback_legacy.count` | erro de dominio |
-| Estagio 1 esgota o orcamento (ver Decisao 3b) | **sem nova geracao**: se sobra orcamento, uma unica tentativa legado (sem skeleton) + `compliance_status=FALLBACK`; se orcamento esgotado, erro de dominio (422) | erro de dominio antes de persistir |
+| Estagio 1 esgota o orcamento — contagem ou deadline (ver Decisao 3b) | erro de dominio (422), **sem nova geracao** (o orcamento ja foi consumido pelo estagio 1) | erro de dominio antes de persistir |
 | Estagio 2 falha — violacao **soft** | persiste plano com `compliance_status=FAILED` + `requiresCoachReview=true` | erro de dominio, nada persistido |
 | Qualquer estagio — violacao **obrigatoria (hard)** | **422, nada persistido** (precedencia sobre fail-open) | 422, nada persistido |
 
@@ -77,11 +77,13 @@ Contrato desta change (dona do orcamento):
    relogio `DEADLINE_TOTAL` preservado entre as etapas — nao reiniciado pelo fallback.
 2. **Debito antes da chamada** ao LLM, inclusive quando a chamada falha (uma resposta invalida ou uma
    falha de infra consomem tentativa).
-3. **Esgotado o orcamento, nenhuma nova geracao e iniciada** — nem pelo fallback. Como o "pipeline
-   legado" tambem gera via LLM (nao ha plano legado deterministico sem LLM neste codigo), orcamento
-   esgotado ⇒ **erro de dominio (422)**, tanto com `fail-open=true` quanto `false`. O fallback legado
-   so ocorre quando **ainda sobra orcamento** apos o estagio 1 (ex.: estagio 1 abortou por deadline
-   antes de gastar as 2 tentativas).
+3. **Depois que o estagio 1 roda, esgotar o orcamento (contagem de geracoes OU o relogio
+   `DEADLINE_TOTAL`) ⇒ nenhuma nova geracao e iniciada ⇒ erro de dominio (422)**, tanto com
+   `fail-open=true` quanto `false`. Como o "pipeline legado" tambem gera via LLM (nao ha plano legado
+   deterministico sem LLM neste codigo) e o estagio 1 ja consumiu o orcamento, **nao ha fallback com
+   geracao apos o estagio 1**. O `compliance_status=FALLBACK` fica reservado ao caso "planner falha
+   **antes** do LLM" (matriz Decisao 3, 1ª linha): ali o pipeline legado e a **primeira e unica**
+   geracao, dentro do orcamento.
 4. Implementacao: tornar o orcamento um objeto/parametro passado a `gerarComResiliencia` (ou o
    service com escopo de requisicao), de forma que o cold-start **consuma o mesmo contador** sem criar
    um segundo. Detalhe mecanico fechado na implementacao; o **contrato** (1–3) e o que a spec exige.

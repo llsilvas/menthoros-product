@@ -64,13 +64,19 @@ does not depend on that draft.
 
 For **reviewable (soft)** violations, the system SHALL apply `planner-engine.fail-open` to the two distinct terminal failure points, persisting the resulting `compliance_status`.
 
-#### Scenario: Stage 1 exhausts the retry with fail-open on
+#### Scenario: Stage 1 exhausts the budget with fail-open on
 - **Given** `planner-engine.fail-open = true`
-- **And** `checkPreRedistribution` fails on every retry attempt within the per-request generation budget
+- **And** stage 1 consumed the per-request generation budget (generation count or the `DEADLINE_TOTAL` clock)
 - **When** generation concludes
-- **Then** the system SHALL fall back to the legacy pipeline **only if the shared generation budget still has room**; the fallback SHALL NOT start a fresh budget
-- **And** if the budget is already exhausted, the system SHALL raise a domain error (422) and start no new generation
-- **And** on a successful fallback `planner_compliance_status` SHALL be `FALLBACK`
+- **Then** the system SHALL raise a domain error (422) and start no new generation
+- **And** it SHALL NOT run a legacy fallback generation after stage 1 (the budget is already spent)
+
+#### Scenario: Legacy fallback applies only when the planner fails before the LLM
+- **Given** `planner-engine.fail-open = true`
+- **And** the planner errors **before** any LLM generation
+- **When** the request proceeds
+- **Then** the legacy pipeline runs as the first and only generation (within budget)
+- **And** `planner_compliance_status` SHALL be `FALLBACK`
 
 ### Requirement: Single per-request generation budget (CA-budget)
 

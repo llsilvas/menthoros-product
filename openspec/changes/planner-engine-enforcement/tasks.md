@@ -36,12 +36,13 @@
 
 - [ ] 4.1 TDD: violacao de skeleton (fase, sessionCount, TSS, longo, intensidade, prova-na-semana, slot) lanca a mesma excecao de `validarENormalizarPlanoGerado` e aciona `PlanoResilienceService` (`MAX_TENTATIVAS=2`), com as `PlannerViolation` no feedback estruturado. **verify:** testes vermelhos.
 - [ ] 4.2 Implementar wrapper na camada de service (em `PlanoLlmValidator` pos-refactor, ou `IaServiceImpl` — confirmar com o usuario se o refactor nao estiver mergeado) que roda `checkPreRedistribution` dentro da funcao `validar`; converter violacoes em excecao + `planner.compliance.failure.count{stage=PRE}` + `planner.retry.count`. **verify:** teste de integracao com retry disparado por violacao.
-- [ ] 4.3 Fail-open do estagio 1 **respeitando o orcamento (Decisao 3b)**: retry esgotado com
-      `fail-open=true` -> fallback legado **so se sobra orcamento** (`compliance_status=FALLBACK` +
-      `planner.fallback_legacy.count`); orcamento esgotado -> erro de dominio (422), sem nova geracao;
-      `fail-open=false` -> erro de dominio. Violacao **obrigatoria (hard)** em qualquer ponto -> 422,
-      nada persistido, **mesmo com fail-open=true** (Decisao 3). **verify:** os caminhos testados,
-      incluindo "orcamento esgotado nao dispara fallback" e "hard invariant ignora fail-open".
+- [ ] 4.3 Fail-open **respeitando o orcamento unico (Decisao 3b)**: (i) **planner falha ANTES do LLM**
+      com `fail-open=true` -> pipeline legado como 1ª e unica geracao + `compliance_status=FALLBACK` +
+      `planner.fallback_legacy.count`; (ii) **estagio 1 esgota o orcamento** (contagem ou deadline) ->
+      erro de dominio (422), **sem nova geracao** (nao ha fallback apos o estagio 1); (iii)
+      `fail-open=false` -> erro de dominio; (iv) violacao **obrigatoria (hard)** em qualquer ponto ->
+      422, nada persistido, **mesmo com fail-open=true** (Decisao 3). **verify:** os caminhos testados,
+      incluindo "estagio 1 esgotado nao dispara fallback com geracao" e "hard invariant ignora fail-open".
 
 ## 5. Estagio 2 — compliance pos-redistribuicao, terminal
 
