@@ -37,7 +37,7 @@ Com a parte 1 em shadow, o sistema **sabe** o que a semana deveria ser (fase, TS
 ### Skeleton vira contrato no prompt
 
 - Com `planner-engine.enabled=true`, `PlanoServiceImpl` chama `PlannerEngine.planWeek()` **antes** do LLM e o `WeekPlanSkeleton` entra no prompt como bloco mandatorio (mesmo padrao do bloco [1] de Constraints).
-- **`PeriodizacaoPromptFormatter` vira renderer**: para de calcular fase/TSS-alvo/step-back e passa a renderizar a saida do planner. Remove a duplicacao temporaria da parte 1 e a metrica `planner.phase.divergence.count`. A classe **nao e apagada** (preserva o plano de `migrate-plan-prompt-to-skills`).
+- **`PeriodizacaoPromptFormatter` vira renderer (só no caminho `enabled=true`)**: para de calcular fase/TSS-alvo/step-back e passa a renderizar a saida do planner; com `enabled=false` o calculo legado e preservado byte-a-byte (CA9). Some só a divergencia dual-calc do formatter (caminho enabled); a metrica de divergencia do **shadow** (parte 1) e preservada para o gate de rollout. A classe **nao e apagada** (preserva o plano de `migrate-plan-prompt-to-skills`).
 
 ### Compliance em dois estagios, sem segundo mecanismo de retry
 
@@ -102,7 +102,7 @@ O template diz "3-7 treinos" e "minimo 7 etapas p/ intervalado"; o schema impoe 
 
 **North-star do par:** taxa MODIFIED/REJECTED das `SugestaoCoach` com PlannerEngine <= taxa sem ele, segmentada por `planner_version`, `planner_phase` e `compliance_status` (persistidos desde a parte 1). Sem esses metadados, a metrica nao e considerada implementada.
 
-Guard-rail operacional: `planner.fallback_legacy.count` e `planner.compliance.failure.count{stage=POST}` abaixo de threshold acordado apos 2 semanas de `enabled=true` em staging — acima disso, recalibrar thresholds antes do rollout.
+Guard-rail operacional (porta 2, limiares fixados — ver CA11): `planner.fallback_legacy.count` < 5% e `planner.compliance.failure.count{stage=POST}` (FAILED) < 5% na janela do piloto; acima disso, **fail-closed** — nao promove para geral.
 
 ## Impact
 

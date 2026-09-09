@@ -122,17 +122,19 @@ que nao muda comportamento pode valer nos dois modos.
 **Gate de rollout mensuravel (CA11 — achado [medio] do pre-mortem cross-model; ampliado na revisao
 DoR 2026-09-08, Codex major 5):** a divergencia de fase sozinha mede o acordo planner×formatter, **nao**
 a qualidade dos novos slots (dia/TSS/zona) para atletas COM historico — que esta parte tambem passa a
-prescrever. O gate de `enabled=true` em ambiente compartilhado exige, **por coorte e por fase**, numa
-janela de **>= 2 semanas** com **>= 30 planos gerados**:
+prescrever. Por isso os criterios sao **repartidos entre duas portas** (nao todos como pre-condicao
+de `enabled=true`), medidos **por coorte e por fase** em janela **>= 2 semanas** com **>= 30 planos
+gerados**:
 
-1. divergencia de fase (`planner.phase.divergence.count / planner.generated.count`) **<= 2%**;
+1. divergencia de fase (`planner.phase.divergence.count / planner.generated.count`) **<= 2%** — a
+   unica disponivel ANTES de ligar (vem do shadow da parte 1);
 2. `planner.compliance.failure` (estagio 1 e 2) e `planner.fallback_legacy` dentro de limiares
-   **fixados**: retry < 15%, `FAILED` < 5%, fallback < 5%;
+   **fixados**: retry < 15%, `FAILED` < 5%, fallback < 5% — só existem DEPOIS do piloto;
 3. taxa de rejeicao/edicao do coach (`SugestaoCoach` MODIFIED/REJECTED) **nao pior** que o baseline
-   pre-enforcement da mesma coorte.
+   pre-enforcement da mesma coorte — só existe DEPOIS do piloto.
 
-Rollout **gradual em duas portas** (resolve o ovo-e-galinha do Codex major 5: as metricas de
-enforcement/rejeicao so existem depois de ligar para alguem):
+Rollout **gradual em duas portas** (resolve o ovo-e-galinha: as metricas (2)/(3) so existem depois de
+ligar para alguem, entao nao podem gatear a entrada no piloto):
 
 - **Porta 1 — entrada no PILOTO (coorte restrita):** gated **apenas** na divergencia de fase do
   **shadow** (metrica da parte 1, disponivel com `enabled=false`) <= 2% + defaults seguros
