@@ -60,7 +60,7 @@ O papel do LLM colapsa para: preencher o conteudo de cada slot (estrutura fina d
 
 - `planner-engine.enabled=false` default; `planner-engine.fail-open=true` default inicial.
 - Falha do planner **antes** do LLM com `fail-open=true` -> pipeline legado + `planner.fallback_legacy.count`.
-- Estagio 1 esgota o orcamento (no maximo 2 geracoes/requisicao, design Decisao 3b): `fail-open=true` -> fallback legado **so se sobra orcamento** (`compliance_status=FALLBACK`); orcamento esgotado -> erro de dominio (422), sem nova geracao; `fail-open=false` -> erro de dominio. Violacao **obrigatoria (hard)** -> 422 sempre, acima do fail-open.
+- Estagio 1 esgota o orcamento — contagem ou deadline (no maximo 2 geracoes/requisicao, design Decisao 3b): **erro de dominio (422), sem nova geracao e sem fallback** (o orcamento ja foi consumido), tanto com `fail-open=true` quanto `false`. `FALLBACK` fica so para "planner falha ANTES do LLM" (1ª e unica geracao). Violacao **obrigatoria (hard)** -> 422 sempre, acima do fail-open.
 - Estagio 2 falha: `fail-open=true` -> persiste com `FAILED` + `requiresCoachReview=true`; `fail-open=false` -> erro de dominio, nada persistido. Nunca "volta" ao pipeline legado (o plano novo ja foi gerado e redistribuido).
 - Batch: falha de compliance apos retry vira erro individual sanitizado no `BatchPlanJob` (`CONCLUIDO_COM_ERROS`), sem abortar o lote.
 - Metricas novas: `planner.compliance.failure.count{reason,phase,stage}`, `planner.fallback_legacy.count{reason}`, `planner.retry.count{reason}`.
