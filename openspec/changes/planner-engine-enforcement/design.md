@@ -77,9 +77,11 @@ Contrato desta change (dona do orcamento):
    relogio `DEADLINE_TOTAL` preservado entre as etapas — nao reiniciado pelo fallback.
 2. **Debito antes da chamada** ao LLM, inclusive quando a chamada falha (uma resposta invalida ou uma
    falha de infra consomem tentativa).
-3. **Esgotado o orcamento, nenhuma nova geracao e iniciada** — nem pelo fallback. O resultado segue a
-   matriz da Decisao 3 (fail-open=true → `FALLBACK` sem geracao nova só se houver plano legado
-   determinístico sem LLM; caso contrario, erro de dominio).
+3. **Esgotado o orcamento, nenhuma nova geracao e iniciada** — nem pelo fallback. Como o "pipeline
+   legado" tambem gera via LLM (nao ha plano legado deterministico sem LLM neste codigo), orcamento
+   esgotado ⇒ **erro de dominio (422)**, tanto com `fail-open=true` quanto `false`. O fallback legado
+   so ocorre quando **ainda sobra orcamento** apos o estagio 1 (ex.: estagio 1 abortou por deadline
+   antes de gastar as 2 tentativas).
 4. Implementacao: tornar o orcamento um objeto/parametro passado a `gerarComResiliencia` (ou o
    service com escopo de requisicao), de forma que o cold-start **consuma o mesmo contador** sem criar
    um segundo. Detalhe mecanico fechado na implementacao; o **contrato** (1–3) e o que a spec exige.
