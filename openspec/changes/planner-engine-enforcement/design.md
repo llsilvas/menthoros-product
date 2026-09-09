@@ -103,6 +103,42 @@ O `SessionSlot` (record da parte 1) ganha, nesta parte, preenchimento completo p
 
 Consequencia no prompt: o bloco mandatorio passa a listar os slots (dia, tipo, TSS, zonas); o LLM preenche a estrutura fina de cada slot e os textos. Consequencia no compliance: estagio 1 valida tipo/TSS por slot; estagio 2 valida que o dia final == dia do slot (a redistribuicao no modo SEMANA_ATUAL ja ignora o dia do LLM — com slots, ela passa a receber os dias do skeleton como alvo em vez de recalcular do zero; mudanca minima no `RedistribuicaoTreinoHelper`, so a origem do dia-alvo).
 
+## Decisao 4b — Composicao de sessoes por fase (RASCUNHO — fecha a lacuna da secao 2)
+
+> A `WeeklyDistributionSkill` **redistribui sessoes que ja existem**; ela nao decide QUANTAS nem de
+> QUAIS tipos. O `PlannerEngine` (hoje passa `sessions=List.of()`) precisa gerar os slots ANTES de
+> alocar dia/TSS/zonas. Essa composicao nao estava especificada — rascunho abaixo, **requer aprovacao
+> de produto** (⚠️) por ser prescricao. Principio: treino polarizado (~80/20), maioria aerobica facil,
+> uma sessao-chave longa, sessoes duras crescendo por fase e **nunca adjacentes** (a alocacao ja
+> garante o espacamento). Tipos = enum `TipoTreino` real; a sessao dura conta contra o orcamento de
+> intensidade da fase.
+
+- **`sessionCount`** = nº de dias disponiveis do atleta (`AthleteConstraints.diasDisponiveis`),
+  **limitado** pelo teto da fase (evita overreaching). Piso 1 (o LONGO), exceto RECOVERY/POST_RACE.
+- **Sessao-chave**: 1 `LONGO` por semana em BASE/BUILD/PEAK (o longao que a skill ancora no dia
+  preferido); reduzido/omitido em TAPER/RACE_WEEK; ausente em RECOVERY/POST_RACE.
+- **Orcamento de sessoes duras** (INTERVALADO/TIRO/TEMPO_RUN/SUBIDA/FARTLEK), por fase:
+
+| Fase | sessionCount (teto) | Sessoes duras | Chave (LONGO) | Resto |
+|---|---|---|---|---|
+| BASE | dias disp. (≤6) | 0–1 (só TEMPO_RUN leve) | 1 | FACIL/CONTINUO/REGENERATIVO |
+| BUILD | dias disp. (≤6) | 1–2 (INTERVALADO/TEMPO_RUN) | 1 | FACIL/CONTINUO |
+| PEAK | dias disp. (≤6) | 2 (INTERVALADO + TEMPO_RUN/TIRO) | 1 | FACIL |
+| TAPER | ≤4 | ≤1 (afiamento curto) | reduzido | FACIL/REGENERATIVO |
+| RACE_WEEK | ≤3 | 0 | — | REGENERATIVO/FACIL + `PROVA` no dia |
+| RECOVERY / POST_RACE | ≤3 | 0 | — | REGENERATIVO/FACIL |
+| RETURN_TO_TRAINING | ≤4 | 0 | 1 (curto) | FACIL/CONTINUO |
+| CALIBRATION | — | — | — | reservada ao cold-start (nao emitida aqui) |
+
+- **`durationMinutes` por slot** deriva do TSS-alvo do slot e do IF do tipo (relacao inversa do TSS:
+  `duracao = tss × 60 / (IF^2 × 100)`), coerente com a reparticao da Decisao 4.
+- **Determinismo**: dada a mesma entrada (fase, dias, loadTarget, prova), a composicao e identica —
+  requisito de golden set (task 2.5). Empates resolvidos por ordem canonica de dias/tipos.
+
+**⚠️ Pontos de aprovacao de produto:** os tetos de `sessionCount` e o orcamento de duras por fase
+(numeros da tabela) e se `SUBIDA`/`FARTLEK` entram no mix de BUILD/PEAK. Sem isso fechado, a secao 2
+nao tem oraculo. Ajuste fino calibravel com o shadow (mesma porta 1 do rollout).
+
 ## Decisao 5 — PeriodizacaoPromptFormatter vira renderer (fim da duplicacao)
 
 Na parte 1, o `PeriodizationPlanner` duplicou temporariamente a logica de fase do formatter, com metrica de divergencia. Nesta parte:
