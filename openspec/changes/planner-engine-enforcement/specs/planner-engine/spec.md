@@ -41,16 +41,43 @@ The system SHALL validate the generated plan against the `WeekPlanSkeleton` in t
 - **When** `checkPreRedistribution` runs
 - **Then** compliance SHALL fail with a typed violation
 
-### Requirement: Fail-open policy governs both terminal failure points (CA4)
+### Requirement: Mandatory (hard) invariants fail closed regardless of fail-open (CA4)
 
-The system SHALL apply `planner-engine.fail-open` to the two distinct terminal failure points, persisting the resulting `compliance_status`.
+Compliance violations are classified as **mandatory (hard)** — step structure, step-vs-total
+arithmetic, pace×distance×duration coherence, pace semantics — or **reviewable (soft)** — phase
+divergence, out-of-band TSS, quality recommendations, distribution. A plan violating a **mandatory**
+invariant is not reviewable, and the classification takes precedence **over** the `fail-open` flag.
+The authoritative hard×soft list and per-type matrix live in
+`fix-cold-start-calibration-plan-generation` design §13; this change owns the gate that enforces it.
+
+#### Scenario: Mandatory invariant violated with fail-open on
+- **Given** `planner-engine.fail-open = true`
+- **And** a plan violates a mandatory (hard) invariant after repairs
+- **When** generation or persistence runs
+- **Then** a domain error SHALL be raised (HTTP 422) and no plan SHALL be persisted
+- **And** the system SHALL NOT persist it as `FAILED` for review (a structurally broken plan is not reviewable)
+
+### Requirement: Fail-open policy governs the two terminal failure points for SOFT violations (CA4)
+
+For **reviewable (soft)** violations, the system SHALL apply `planner-engine.fail-open` to the two distinct terminal failure points, persisting the resulting `compliance_status`.
 
 #### Scenario: Stage 1 exhausts the retry with fail-open on
 - **Given** `planner-engine.fail-open = true`
-- **And** `checkPreRedistribution` fails on every retry attempt
+- **And** `checkPreRedistribution` fails on every retry attempt within the per-request generation budget
 - **When** generation concludes
-- **Then** the system SHALL fall back to the full legacy pipeline (no skeleton in prompt)
-- **And** `planner_compliance_status` SHALL be `FALLBACK`
+- **Then** the system SHALL fall back to the legacy pipeline **only if the shared generation budget still has room**; the fallback SHALL NOT start a fresh budget
+- **And** if the budget is already exhausted, the system SHALL raise a domain error (422) and start no new generation
+- **And** on a successful fallback `planner_compliance_status` SHALL be `FALLBACK`
+
+### Requirement: Single per-request generation budget (CA-budget)
+
+The system SHALL enforce a single generation budget of at most **2 logical generations per request**, shared across the enforced path, retry, and any legacy fallback. Each LLM call SHALL debit the budget **before** the call (including calls that fail), the `DEADLINE_TOTAL` clock SHALL be preserved across stages (never reset by a fallback), and when the budget is exhausted no new generation SHALL start. `fix-cold-start-calibration-plan-generation` consumes this same budget without creating a second counter.
+
+#### Scenario: Budget is not renewed by the legacy fallback
+- **Given** stage 1 consumed the 2-generation budget
+- **When** the fallback path would run
+- **Then** no additional LLM generation SHALL be started
+- **And** the outcome SHALL follow the fail-open matrix without exceeding 2 total generations
 
 #### Scenario: Stage 1 exhausts the retry with fail-open off
 - **Given** `planner-engine.fail-open = false`

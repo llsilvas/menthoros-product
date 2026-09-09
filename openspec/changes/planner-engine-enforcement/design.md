@@ -19,9 +19,16 @@ Violacao lanca a **mesma excecao** que `validarENormalizarPlanoGerado` ja lanca 
 
 Ponto de insercao: `PlanoLlmValidator` (pos-refactor) ou `IaServiceImpl.geraPlanoSemanalAvancado` (pre-refactor — confirmar com o usuario antes, ver proposal Impact). O checker permanece puro em `domain/compliance`; o wrapper que converte `List<PlannerViolation>` em excecao + metrica vive na camada de service.
 
-## Decisao 2 — Estagio 2 pos-redistribuicao, terminal
+## Decisao 2 — Estagio 2 apos TODAS as transformacoes, terminal
 
-Apos `redistribuicaoHelper.redistribuirTreinos` retornar em `PlanoServiceImpl`, `checkPostRedistribution` roda sobre o plano persistivel. Cobre so o que a redistribuicao pode ter quebrado: dias permitidos, sessao pesada perto de prova apos reposicionamento, taper/race-week.
+**Revisao DoR (2026-09-08, Codex blocker 4):** o estagio 2 roda **depois de todas as transformacoes
+deterministicas que mexem em sessoes**, nao so a redistribuicao. Em particular, `PlanGenerationPersister`
+executa `garantirProvasNaSemana` **apos** `redistribuirTreinos`, podendo inserir/mover sessoes e
+invalidar contagem/TSS/slots que um check ancorado logo apos a redistribuicao teria aprovado. O gate
+do estagio 2 e o **ultimo passo antes de persistir/aprovar/emitir eventos**, e revalida todas as
+invariantes afetadas por qualquer transformacao (redistribuicao + prova-na-semana + demais ajustes).
+Cobre: dias permitidos, sessao pesada perto de prova apos reposicionamento, taper/race-week, e a
+coerencia dia/tipo/TSS por slot apos a inclusao de prova.
 
 **Sem retry** — o LLM ja nao esta em escopo; retenta-lo custaria uma geracao inteira nova, fora do padrao de resiliencia existente. Violacao e terminal e segue a matriz fail-open (Decisao 3).
 
@@ -31,13 +38,47 @@ Risco herdado registrado na parte 1 (design Decisao 17): `obterTreinosParaPlano:
 
 Flags: `planner-engine.enabled=false` default; `planner-engine.fail-open=true` default inicial.
 
+**Precedencia de invariantes obrigatorias (revisao DoR 2026-09-08, Codex blocker 2 + decisao conjunta
+com `fix-cold-start-calibration-plan-generation`):** ha duas classes de violacao, e a classe governa
+o comportamento **acima** do flag `fail-open`:
+
+- **Obrigatoria (hard)** — estrutura de etapas, aritmetica etapas×totais, coerencia pace×distancia×
+  duracao (o "triangulo"), semantica de pace. Um plano que viola isto **nao e revisavel** (estrutura
+  quebrada). **Falha fechado sempre: 422, nada persistido — inclusive com `fail-open=true`.** A lista
+  autoritativa hard×soft e a matriz por tipo vivem em `fix-cold-start-calibration-plan-generation`
+  design §13; esta change e a **dona do gate** que a aplica.
+- **Revisavel (soft)** — divergencia de fase, TSS fora de faixa, recomendacoes de qualidade,
+  distribuicao. Seguem a matriz `fail-open` abaixo (persistir `FAILED` + `requiresCoachReview`).
+
 | Falha | fail-open=true | fail-open=false |
 |---|---|---|
 | Planner antes do LLM | pipeline legado + `planner.fallback_legacy.count` | erro de dominio |
-| Estagio 1 esgota retry (`MAX_TENTATIVAS=2`) | pipeline legado inteiro (sem skeleton) + `compliance_status=FALLBACK` | erro de dominio antes de persistir |
-| Estagio 2 falha | persiste plano novo com `compliance_status=FAILED` + `requiresCoachReview=true` | erro de dominio, nada persistido |
+| Estagio 1 esgota o orcamento (ver Decisao 3b) | **sem nova geracao**: se sobra orcamento, uma unica tentativa legado (sem skeleton) + `compliance_status=FALLBACK`; se orcamento esgotado, erro de dominio (422) | erro de dominio antes de persistir |
+| Estagio 2 falha — violacao **soft** | persiste plano com `compliance_status=FAILED` + `requiresCoachReview=true` | erro de dominio, nada persistido |
+| Qualquer estagio — violacao **obrigatoria (hard)** | **422, nada persistido** (precedencia sobre fail-open) | 422, nada persistido |
 
 Estagio 2 **nunca** reusa o fallback do estagio 1 — nao ha como "voltar" ao pipeline legado depois que o plano novo foi gerado e redistribuido. `compliance_status` final = pior resultado entre os estagios (`PASSED`, `RETRIED_PASSED`, `FALLBACK`, `FAILED`).
+
+## Decisao 3b — Orcamento unico de geracao por requisicao (revisao DoR, Codex blocker 1)
+
+O `PlanoResilienceService` atual reinicia `MAX_TENTATIVAS` e o relogio (`DEADLINE_TOTAL`) **a cada
+invocacao**. Como o fallback do estagio 1 chamaria o pipeline legado — que invoca `gerarComResiliencia`
+de novo —, a composicao permitiria **ate 4 geracoes** numa requisicao, violando o limite de 2 acordado
+(e que o cold-start reusa).
+
+Contrato desta change (dona do orcamento):
+
+1. **Orcamento com escopo de requisicao**, nao de invocacao: `>= 2` geracoes logicas contadas por
+   requisicao inteira (enforced + fallback + qualquer caminho legado), com o relogio `DEADLINE_TOTAL`
+   preservado entre as etapas — nao reiniciado pelo fallback.
+2. **Debito antes da chamada** ao LLM, inclusive quando a chamada falha (uma resposta invalida ou uma
+   falha de infra consomem tentativa).
+3. **Esgotado o orcamento, nenhuma nova geracao e iniciada** — nem pelo fallback. O resultado segue a
+   matriz da Decisao 3 (fail-open=true → `FALLBACK` sem geracao nova só se houver plano legado
+   determinístico sem LLM; caso contrario, erro de dominio).
+4. Implementacao: tornar o orcamento um objeto/parametro passado a `gerarComResiliencia` (ou o
+   service com escopo de requisicao), de forma que o cold-start **consuma o mesmo contador** sem criar
+   um segundo. Detalhe mecanico fechado na implementacao; o **contrato** (1–3) e o que a spec exige.
 
 O caminho "estagio 2 falha com fail-open=true" (persistir `FAILED` + `requiresCoachReview=true`)
 so e aceitavel porque **esta change entrega a superficie de review** (Decisao 8): o coach ve o
@@ -63,13 +104,29 @@ Na parte 1, o `PeriodizationPlanner` duplicou temporariamente a logica de fase d
 3. a metrica `planner.phase.divergence.count` e removida (nao ha mais duas fontes);
 4. a classe **nao e apagada** — `migrate-plan-prompt-to-skills` decide seu destino final (skill de periodizacao consumindo o skeleton).
 
-**Gate de rollout mensuravel (CA11 — achado [medio] do pre-mortem cross-model):** `enabled=true`
-em ambiente compartilhado exige taxa de divergencia de fase
-(`planner.phase.divergence.count / planner.generated.count`, shadow da parte 1) **<= 2%** numa
-janela de **>= 2 semanas** com **>= 30 planos gerados**. Divergencias acima do threshold exigem
-explicacao caso a caso registrada no `tasks.md` (divergencia alta = regra transcrita errado em um
-dos lados). Metrica indisponivel ou amostra insuficiente = gate reprovado — **fail-closed**, nao
-liga. Medicao e veredito registrados na task 8.4 antes de qualquer flip.
+**Compatibilidade com CA9 (revisao DoR 2026-09-08, Codex major 6):** a virada do formatter para
+renderer e **condicionada ao flag** `planner-engine.enabled`. Com `enabled=false`, o caminho de prompt
+legado (formatter calculando fase/TSS/step-back) e preservado **sem alteracao observavel** — o
+formatter mantem os dois modos ate a remocao do legado ser decidida em `migrate-plan-prompt-to-skills`.
+Assim CA9 ("flag off preserva o legado") deixa de conflitar com a reescrita do bloco de contrato do
+prompt: a reescrita so vale no caminho `enabled=true`. Alinhamento de textos template×schema (Decisao 7)
+que nao muda comportamento pode valer nos dois modos.
+
+**Gate de rollout mensuravel (CA11 — achado [medio] do pre-mortem cross-model; ampliado na revisao
+DoR 2026-09-08, Codex major 5):** a divergencia de fase sozinha mede o acordo planner×formatter, **nao**
+a qualidade dos novos slots (dia/TSS/zona) para atletas COM historico — que esta parte tambem passa a
+prescrever. O gate de `enabled=true` em ambiente compartilhado exige, **por coorte e por fase**, numa
+janela de **>= 2 semanas** com **>= 30 planos gerados**:
+
+1. divergencia de fase (`planner.phase.divergence.count / planner.generated.count`) **<= 2%**;
+2. `planner.compliance.failure` (estagio 1 e 2) e `planner.fallback_legacy` dentro de limiares
+   concretos a fechar na task 8.4 (proposto: retry < 15%, `FAILED` < 5%, fallback < 5%);
+3. taxa de rejeicao/edicao do coach (`SugestaoCoach` MODIFIED/REJECTED) **nao pior** que o baseline
+   pre-enforcement da mesma coorte.
+
+Rollout **gradual** (coorte restrita antes de geral). Qualquer criterio acima do limiar, metrica
+indisponivel ou amostra insuficiente = gate reprovado — **fail-closed**, nao liga; a evidencia por
+coorte e preservada antes de remover qualquer metrica. Medicao e veredito na task 8.4 antes do flip.
 
 ## Decisao 6 — Batch: falha de compliance e erro individual
 
@@ -86,8 +143,11 @@ O template (`plano-treino-otimizado-claude.txt`) declara "3-7 treinos" e "minimo
 minimo, nesta change:
 
 1. **DTO da visao do coach** expoe `plannerComplianceStatus`, `plannerRequiresCoachReview` (colunas
-   V58 ja persistidas) e um resumo legivel das `PlannerViolation` extraido do
-   `planner_metadata_json` — leitura apenas, nenhuma escrita nova.
+   V58 ja persistidas) e um resumo legivel das `PlannerViolation` extraido do `planner_metadata_json`.
+   **Revisao DoR (2026-09-08, Codex blocker 3):** o `PlannerAuditMetadata` da parte 1 guarda hoje so
+   contagem + motivo geral; esta change **persiste a lista estruturada de `PlannerViolation`** (motivo
+   por violacao) no `planner_metadata_json` — mesma coluna, sem migration, so o conteudo JSON. Sem
+   isso o badge nao tem o que mostrar.
 2. **Aba de plano do coach:** badge "Revisao obrigatoria" + motivos quando
    `requiresCoachReview=true` ou `compliance_status=FAILED`. Componente de apresentacao; logica no
    hook/adapter (convencao do repo front).
@@ -95,6 +155,12 @@ minimo, nesta change:
    aprovar). Fila/filtro dedicado de planos marcados e follow-up pos-rollout.
 4. **Visao do atleta intacta** — o gate de consumo do atleta continua sendo o fluxo de aprovacao
    existente.
+5. **Veto a auto-aprovacao (revisao DoR 2026-09-08, Codex blocker 3):** hoje o `PlanGenerationPersister`
+   decide aprovacao/estado olhando o skeleton, **sem** consultar o resultado final de compliance. Esta
+   change torna obrigatorio: plano com `compliance_status=FAILED` ou `requiresCoachReview=true` **nunca**
+   e auto-aprovado — entra `AGUARDANDO_REVISAO`, fora das consultas de "apenas aprovados", ate o coach
+   agir. Editar/aprovar pelo fluxo existente reavalia o compliance e limpa o `requiresCoachReview` do
+   plano resultante (o badge some quando o motivo deixa de existir).
 
 ## Observabilidade
 
