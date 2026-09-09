@@ -12,10 +12,10 @@
 
 ## 1. Flags e contratos de enforcement
 
-- [ ] 1.1 Config: `planner-engine.enabled=false` e `planner-engine.fail-open=true` em `application.yml` (o `shadow` da parte 1 permanece independente).
-- [ ] 1.2 Estender `PlannerComplianceStatus` se necessario para o ciclo completo (`PASSED`, `RETRIED_PASSED`, `FALLBACK`, `FAILED`) e documentar a matriz fail-open + a precedencia hard×soft (design.md Decisao 3) no javadoc.
-- [ ] 1.3 **verify:** `./mvnw -q compile` verde; com ambos os flags default, `./mvnw clean test` sem regressao.
-- [ ] 1.4 **Orcamento unico por requisicao (design.md Decisao 3b):** tornar o orcamento de geracao (`MAX_TENTATIVAS`/`DEADLINE_TOTAL`) com escopo de requisicao — objeto/parametro passado a `gerarComResiliencia`, debitado antes da chamada (inclusive em falha), relogio preservado entre etapas, e nenhuma geracao nova quando esgotado. Expor de forma que `fix-cold-start-calibration` consuma o mesmo contador. **verify:** teste — 2 tentativas no estagio 1 + fallback NAO ultrapassa 2 geracoes; relogio nao reinicia; esgotado nao inicia nova geracao.
+- [x] 1.1 Config: `planner-engine.enabled=false` e `planner-engine.fail-open=true` em `application.yml` (o `shadow` da parte 1 permanece independente).
+- [x] 1.2 Estender `PlannerComplianceStatus` se necessario para o ciclo completo (`PASSED`, `RETRIED_PASSED`, `FALLBACK`, `FAILED`) e documentar a matriz fail-open + a precedencia hard×soft (design.md Decisao 3) no javadoc.
+- [x] 1.3 **verify:** `./mvnw -q compile` verde; com ambos os flags default, `./mvnw clean test` sem regressao.
+- [x] 1.4 **Orcamento unico por requisicao (design.md Decisao 3b):** tornar o orcamento de geracao (`MAX_TENTATIVAS`/`DEADLINE_TOTAL`) com escopo de requisicao — objeto/parametro passado a `gerarComResiliencia`, debitado antes da chamada (inclusive em falha), relogio preservado entre etapas, e nenhuma geracao nova quando esgotado. Expor de forma que `fix-cold-start-calibration` consuma o mesmo contador. **verify:** teste — 2 tentativas no estagio 1 + fallback NAO ultrapassa 2 geracoes; relogio nao reinicia; esgotado nao inicia nova geracao.
 
 ## 2. SessionSlot prescritivo (dia + TSS + zonas)
 
