@@ -139,6 +139,31 @@ Consequencia no prompt: o bloco mandatorio passa a listar os slots (dia, tipo, T
 (numeros da tabela) e se `SUBIDA`/`FARTLEK` entram no mix de BUILD/PEAK. Sem isso fechado, a secao 2
 nao tem oraculo. Ajuste fino calibravel com o shadow (mesma porta 1 do rollout).
 
+### Blockers do pre-mortem (Codex 2026-09-08) — resolver ANTES de implementar a secao 2
+
+Este rascunho recebeu **NO-GO** do Codex; a direcao e plausivel, mas faltam regras executaveis e
+seguras. A secao 2 fica **bloqueada** ate fechar (exige entrada de produto/ciencia do esporte, nao e
+invencao do implementador):
+
+1. **[BLOCKER] Repartição TSS×duração é circular** — `tss = duracao×IF²×100/60` e
+   `duracao = tss×60/(IF²×100)` sao inversas uma da outra; nenhuma ancora. Definir primeiro **pesos ou
+   duracoes independentes por slot**, normalizar ao alvo semanal, arredondamento e limites de duracao
+   (min/max por tipo); se os limites inviabilizarem o alvo, dizer como reduzir a carga.
+2. **[BLOCKER] Composição não-deterministica e inviavel** — faixas "0–1"/"1–2", "LONGO reduzido/
+   omitido" e `sessionCount` maior que os dias (ex.: PEAK exige 3 com 2 dias) nao sao executaveis.
+   Especificar **precedencia** (chave → duras → resto), reducao das duras conforme vagas, espacamento
+   real (inclusive dias consecutivos e a fronteira domingo→segunda), e a saida quando faltam dias.
+3. **[BLOCKER] `PROVA` sem contrato** — definir se conta no teto, se a carga entra no alvo semanal,
+   como tratar prova fora dos dias disponiveis, e a recuperacao ao redor (zero duras nao pode tornar a
+   prova "invisivel" a fadiga). Reservar data+carga da prova primeiro, compor o resto depois.
+4. **[MAJOR] RETURN_TO_TRAINING nao pode depender so de disponibilidade** — frequencia/duracao devem
+   depender da capacidade recente; LONGO opcional; regra conservadora sem historico.
+5. **[MAJOR] Polarizacao nao e provada por contagem de tipos** — definir a metrica de ~80/20 (por
+   tempo/carga em zona), intensidade explicita de "TEMPO_RUN leve"/CONTINUO, e recuperacao do LONGO.
+
+Recomendacao: tratar a composicao por fase como **artefato de design proprio** (revisado com o
+founder + shadow para calibrar), possivelmente uma sub-change; ate la, secoes 2–8 nao iniciam.
+
 ## Decisao 5 — PeriodizacaoPromptFormatter vira renderer (fim da duplicacao)
 
 Na parte 1, o `PeriodizationPlanner` duplicou temporariamente a logica de fase do formatter, com metrica de divergencia. Nesta parte:
