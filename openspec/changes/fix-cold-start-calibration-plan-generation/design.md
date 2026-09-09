@@ -178,8 +178,13 @@ Não reparar dados de produção automaticamente. Eventual identificação/repar
 
 > Rascunho ancorado no código real (`IaServiceImpl.validarENormalizarPlanoGerado` e colaboradores;
 > paths e linhas confirmados por exploração 2026-09-08). **Requer aprovação de produto** nos pontos
-> marcados ⚠️ antes de virar oráculo de teste. A fronteira "obrigatória (fail-closed 422) × soft
-> (recomendação/revisão)" é a decisão que faltava — aqui proposta, não fechada.
+> marcados ⚠️ antes de virar oráculo de teste.
+>
+> **Relação com `planner-engine-enforcement` (dona do gate, entra ANTES):** o **baseline obrigatório**
+> (estrutura de etapas por tipo, repetições=1 — o que já lança `LLMException` hoje) é definido e
+> aplicado **lá**. Esta §13 é a **EXTENSÃO**: promove a obrigatório checks que hoje são só WARN
+> (triângulo pace×distância×duração, soma-etapas×distância) — é aqui que mora o "novo", e é o que
+> precisa das decisões ⚠️ de produto. Sem circularidade: o enforcement não depende deste rascunho.
 
 ### 13.1 Fontes de verdade e unidades (do código, não negociável)
 

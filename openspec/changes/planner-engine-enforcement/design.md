@@ -42,11 +42,15 @@ Flags: `planner-engine.enabled=false` default; `planner-engine.fail-open=true` d
 com `fix-cold-start-calibration-plan-generation`):** ha duas classes de violacao, e a classe governa
 o comportamento **acima** do flag `fail-open`:
 
-- **Obrigatoria (hard)** — estrutura de etapas, aritmetica etapas×totais, coerencia pace×distancia×
-  duracao (o "triangulo"), semantica de pace. Um plano que viola isto **nao e revisavel** (estrutura
-  quebrada). **Falha fechado sempre: 422, nada persistido — inclusive com `fail-open=true`.** A lista
-  autoritativa hard×soft e a matriz por tipo vivem em `fix-cold-start-calibration-plan-generation`
-  design §13; esta change e a **dona do gate** que a aplica.
+- **Obrigatoria (hard)** — um plano que viola isto **nao e revisavel** (estrutura quebrada). **Falha
+  fechado sempre: 422, nada persistido — inclusive com `fail-open=true`.** Esta change **DEFINE a
+  lista minima obrigatoria** a partir do que **ja e bloqueante hoje no codigo** (lanca `LLMException`
+  em `IaServiceImpl`): estrutura de etapas por tipo (`validarEstrutura3Etapas`; intervalado
+  `validarTreinoIntervalado` >= 6 etapas + balanceamento), `repeticoes == 1` (`validarRepeticoes`).
+  O oraculo desses ja existe. `fix-cold-start-calibration-plan-generation` (§13) **ESTENDE** essa
+  lista depois — promovendo checks hoje WARN (triangulo pace×distancia×duracao, soma-etapas×distancia)
+  a obrigatorios —, sob aprovacao de produto. Ordem: enforcement primeiro (baseline), cold-start
+  estende. **Esta change nao depende do rascunho do cold-start.**
 - **Revisavel (soft)** — divergencia de fase, TSS fora de faixa, recomendacoes de qualidade,
   distribuicao. Seguem a matriz `fail-open` abaixo (persistir `FAILED` + `requiresCoachReview`).
 
@@ -68,9 +72,9 @@ de novo —, a composicao permitiria **ate 4 geracoes** numa requisicao, violand
 
 Contrato desta change (dona do orcamento):
 
-1. **Orcamento com escopo de requisicao**, nao de invocacao: `>= 2` geracoes logicas contadas por
-   requisicao inteira (enforced + fallback + qualquer caminho legado), com o relogio `DEADLINE_TOTAL`
-   preservado entre as etapas — nao reiniciado pelo fallback.
+1. **Orcamento com escopo de requisicao**, nao de invocacao: **no maximo 2** geracoes logicas por
+   requisicao inteira (enforced + fallback + qualquer caminho legado contam no mesmo teto), com o
+   relogio `DEADLINE_TOTAL` preservado entre as etapas — nao reiniciado pelo fallback.
 2. **Debito antes da chamada** ao LLM, inclusive quando a chamada falha (uma resposta invalida ou uma
    falha de infra consomem tentativa).
 3. **Esgotado o orcamento, nenhuma nova geracao e iniciada** — nem pelo fallback. O resultado segue a
@@ -124,9 +128,19 @@ janela de **>= 2 semanas** com **>= 30 planos gerados**:
 3. taxa de rejeicao/edicao do coach (`SugestaoCoach` MODIFIED/REJECTED) **nao pior** que o baseline
    pre-enforcement da mesma coorte.
 
-Rollout **gradual** (coorte restrita antes de geral). Qualquer criterio acima do limiar, metrica
-indisponivel ou amostra insuficiente = gate reprovado — **fail-closed**, nao liga; a evidencia por
-coorte e preservada antes de remover qualquer metrica. Medicao e veredito na task 8.4 antes do flip.
+Rollout **gradual em duas portas** (resolve o ovo-e-galinha do Codex major 5: as metricas de
+enforcement/rejeicao so existem depois de ligar para alguem):
+
+- **Porta 1 — entrada no PILOTO (coorte restrita):** gated **apenas** na divergencia de fase do
+  **shadow** (metrica da parte 1, disponivel com `enabled=false`) <= 2% + defaults seguros
+  (`fail-open=true`). Nao exige as metricas de enforcement, que ainda nao existem.
+- **Porta 2 — promocao GERAL:** gated nas metricas coletadas **durante o piloto** — criterios (2) e
+  (3) acima, por coorte/fase, com os limiares **fixados** (nao "propostos"): retry < 15%, `FAILED`
+  < 5%, fallback < 5%, e `SugestaoCoach` MODIFIED/REJECTED nao pior que o baseline.
+
+Qualquer criterio da porta aplicavel acima do limiar, metrica indisponivel ou amostra insuficiente =
+**fail-closed**, nao avanca; a evidencia por coorte e preservada antes de remover qualquer metrica.
+Medicao e veredito na task 8.4 antes de cada porta.
 
 ## Decisao 6 — Batch: falha de compliance e erro individual
 

@@ -60,7 +60,7 @@ O papel do LLM colapsa para: preencher o conteudo de cada slot (estrutura fina d
 
 - `planner-engine.enabled=false` default; `planner-engine.fail-open=true` default inicial.
 - Falha do planner **antes** do LLM com `fail-open=true` -> pipeline legado + `planner.fallback_legacy.count`.
-- Estagio 1 esgota retry: `fail-open=true` -> pipeline legado inteiro + `compliance_status=FALLBACK`; `fail-open=false` -> erro de dominio.
+- Estagio 1 esgota o orcamento (no maximo 2 geracoes/requisicao, design Decisao 3b): `fail-open=true` -> fallback legado **so se sobra orcamento** (`compliance_status=FALLBACK`); orcamento esgotado -> erro de dominio (422), sem nova geracao; `fail-open=false` -> erro de dominio. Violacao **obrigatoria (hard)** -> 422 sempre, acima do fail-open.
 - Estagio 2 falha: `fail-open=true` -> persiste com `FAILED` + `requiresCoachReview=true`; `fail-open=false` -> erro de dominio, nada persistido. Nunca "volta" ao pipeline legado (o plano novo ja foi gerado e redistribuido).
 - Batch: falha de compliance apos retry vira erro individual sanitizado no `BatchPlanJob` (`CONCLUIDO_COM_ERROS`), sem abortar o lote.
 - Metricas novas: `planner.compliance.failure.count{reason,phase,stage}`, `planner.fallback_legacy.count{reason}`, `planner.retry.count{reason}`.
@@ -109,6 +109,7 @@ Guard-rail operacional: `planner.fallback_legacy.count` e `planner.compliance.fa
 - **Depende de (hard):** `deterministic-planner-engine` (parte 1 — motor, checker, V58, shadow calibrado)
 - **Depende de (recomendado):** `refactor-iaservice-decomposition` mergeada — o estagio 1 e inserido em `PlanoLlmValidator` em vez do `IaServiceImpl` de ~1500 linhas. Se a ordem inverter, confirmar com o usuario antes de implementar a secao 4 das tasks.
 - **Coordena com:** `migrate-plan-prompt-to-skills` — esta change reescreve o bloco de periodizacao do prompt e reduz `PeriodizacaoPromptFormatter` a renderer; quando a migracao chegar la, o skill de periodizacao consome `WeekPlanSkeleton` em vez de reimplementar a decisao. Recomendado nota de coordenacao no proposal de la antes de abrir branch (fora do escopo desta editar sem autorizacao).
+- **Coordena com (esta change entra ANTES):** `fix-cold-start-calibration-plan-generation` — esta change e a **dona do gate de compliance, do flag e do orcamento unico de geracao** (Decisao 3b). Define a **lista minima obrigatoria (hard)** a partir do que ja bloqueia hoje no codigo; o cold-start **ESTENDE** essa lista depois (promovendo checks hoje WARN, sob aprovacao de produto — matriz §13 daquela change). **Esta change nao depende do rascunho do cold-start**: a inversao (baseline aqui, extensao la) resolve a circularidade apontada no DoR.
 - **Repos:** menthoros-backend + menthoros-front (superficie minima de review — badge e motivos na visao do coach). O follow-up de produto da superficie de review foi **absorvido nesta change** (achado do pre-mortem cross-model); fila/filtro dedicado de planos marcados permanece candidata pos-rollout.
 - **Change candidata relacionada:** "prescription stamping" (XS/S — carimbar `tsbInicio/Fim`, agregados, `fcAlvo`/`ritmoAlvo` no pos-processamento, removendo-os do contrato do LLM). Complementar a esta; apos o refactor.
 

@@ -43,12 +43,15 @@ The system SHALL validate the generated plan against the `WeekPlanSkeleton` in t
 
 ### Requirement: Mandatory (hard) invariants fail closed regardless of fail-open (CA4)
 
-Compliance violations are classified as **mandatory (hard)** — step structure, step-vs-total
-arithmetic, pace×distance×duration coherence, pace semantics — or **reviewable (soft)** — phase
+Compliance violations are classified as **mandatory (hard)** or **reviewable (soft)** — phase
 divergence, out-of-band TSS, quality recommendations, distribution. A plan violating a **mandatory**
 invariant is not reviewable, and the classification takes precedence **over** the `fail-open` flag.
-The authoritative hard×soft list and per-type matrix live in
-`fix-cold-start-calibration-plan-generation` design §13; this change owns the gate that enforces it.
+This change **defines the baseline mandatory set** from what already blocks in code today (throws
+`LLMException` in `IaServiceImpl`): per-type step structure (`validarEstrutura3Etapas`; interval
+`validarTreinoIntervalado`, ≥ 6 steps + balance) and `repeticoes == 1` (`validarRepeticoes`).
+`fix-cold-start-calibration-plan-generation` (§13) **extends** this set later (promoting today's WARN
+checks — the pace×distance×duration triangle, step-sum×distance — under product approval). This change
+does not depend on that draft.
 
 #### Scenario: Mandatory invariant violated with fail-open on
 - **Given** `planner-engine.fail-open = true`
@@ -123,15 +126,25 @@ With enforcement on, the `WeekPlanSkeleton` SHALL carry per-session `SessionSlot
 - **When** compliance runs
 - **Then** the violation SHALL be detected (stage 1 for type/TSS, stage 2 for final day placement)
 
-### Requirement: PeriodizacaoPromptFormatter only renders planner output (CA5)
+### Requirement: PeriodizacaoPromptFormatter renders planner output when enabled (CA5, CA9)
 
-With this change merged, `PeriodizacaoPromptFormatter` SHALL NOT compute phase, TSS target, step-back, or week type — it SHALL render the `PlannerEngine` output exclusively.
+With `planner-engine.enabled = true`, `PeriodizacaoPromptFormatter` SHALL render the `PlannerEngine`
+output exclusively (no phase, TSS target, step-back, or week-type calculation). With
+`planner-engine.enabled = false`, the legacy calculation path SHALL be preserved unchanged (CA9). The
+formatter's dual-calc divergence metric is retired only in the `enabled = true` path; the **shadow**
+phase-divergence metric from part 1 (independent of the formatter, collected with `enabled = false`
+too) is **preserved** because the rollout gate depends on it, and is retired only after general promotion.
 
-#### Scenario: Formatter has no independent calculation
-- **Given** the enforcement change is merged
-- **When** the prompt periodization block is built with `planner-engine.enabled = true`
+#### Scenario: Formatter renders exclusively when enabled
+- **Given** `planner-engine.enabled = true`
+- **When** the prompt periodization block is built
 - **Then** every phase/load figure in the block SHALL originate from the `WeekPlanSkeleton`
-- **And** the phase-divergence metric from part 1 SHALL no longer exist
+
+#### Scenario: Legacy formatter preserved when disabled (CA9)
+- **Given** `planner-engine.enabled = false`
+- **When** the prompt periodization block is built
+- **Then** the block SHALL be byte-for-byte identical to the pre-enforcement legacy output
+- **And** the shadow phase-divergence metric SHALL still be collected for the rollout gate
 
 ### Requirement: Plans requiring coach review are surfaced to the coach (CA12)
 
