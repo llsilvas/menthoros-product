@@ -103,66 +103,74 @@ O `SessionSlot` (record da parte 1) ganha, nesta parte, preenchimento completo p
 
 Consequencia no prompt: o bloco mandatorio passa a listar os slots (dia, tipo, TSS, zonas); o LLM preenche a estrutura fina de cada slot e os textos. Consequencia no compliance: estagio 1 valida tipo/TSS por slot; estagio 2 valida que o dia final == dia do slot (a redistribuicao no modo SEMANA_ATUAL ja ignora o dia do LLM — com slots, ela passa a receber os dias do skeleton como alvo em vez de recalcular do zero; mudanca minima no `RedistribuicaoTreinoHelper`, so a origem do dia-alvo).
 
-## Decisao 4b — Composicao de sessoes por fase (RASCUNHO — fecha a lacuna da secao 2)
+## Decisao 4b — Composicao de sessoes por fase (FECHADA — grilling 2026-09-09)
 
-> A `WeeklyDistributionSkill` **redistribui sessoes que ja existem**; ela nao decide QUANTAS nem de
-> QUAIS tipos. O `PlannerEngine` (hoje passa `sessions=List.of()`) precisa gerar os slots ANTES de
-> alocar dia/TSS/zonas. Essa composicao nao estava especificada — rascunho abaixo, **requer aprovacao
-> de produto** (⚠️) por ser prescricao. Principio: treino polarizado (~80/20), maioria aerobica facil,
-> uma sessao-chave longa, sessoes duras crescendo por fase e **nunca adjacentes** (a alocacao ja
-> garante o espacamento). Tipos = enum `TipoTreino` real; a sessao dura conta contra o orcamento de
-> intensidade da fase.
+Contrato deterministico que o `PlannerEngine` usa para GERAR os `SessionSlot` prescritivos, ANTES da
+alocacao de dias (Decisao 4). Fechado no grilling com o founder; os numeros sao calibraveis via shadow
+(porta 1 do rollout). Fundamentacao em ADR-0011.
 
-- **`sessionCount`** = nº de dias disponiveis do atleta (`AthleteConstraints.diasDisponiveis`),
-  **limitado** pelo teto da fase (evita overreaching). Piso 1 (o LONGO), exceto RECOVERY/POST_RACE.
-- **Sessao-chave**: 1 `LONGO` por semana em BASE/BUILD/PEAK (o longao que a skill ancora no dia
-  preferido); reduzido/omitido em TAPER/RACE_WEEK; ausente em RECOVERY/POST_RACE.
-- **Orcamento de sessoes duras** (INTERVALADO/TIRO/TEMPO_RUN/SUBIDA/FARTLEK), por fase:
+**1. Taxa de carga e reparticao (ancora — resolve a circularidade, ex-blocker 1).** `fatorImpacto` do
+enum `TipoTreino` e a **taxa de carga relativa por hora** (NAO um IF; valores >1). Modelo **linear**:
+`TSS_slot = fatorImpacto × TAXA_BASE × horas`, com `TAXA_BASE ≈ 50 TSS/h` (calibravel). Fluxo:
+(a) definir o mix da semana (item 3); (b) o peso do slot = `fatorImpacto` do tipo; reparte o
+`targetTss` proporcionalmente aos pesos, normalizado ao alvo; (c) deriva a duracao
+`duracao_min = TSS_slot / (fatorImpacto × TAXA_BASE) × 60`, clampada aos limites do item 5 e ao
+`AthleteConstraints.duracaoMaximaMinutos`; (d) residuo de TSS por clamp e redistribuido aos slots com
+folga; sobra final registrada no `rationale`. **Sem `IF²`** (fisicamente errado com fatorImpacto >1).
 
-| Fase | sessionCount (teto) | Sessoes duras | Chave (LONGO) | Resto |
-|---|---|---|---|---|
-| BASE | dias disp. (≤6) | 0–1 (só TEMPO_RUN leve) | 1 | FACIL/CONTINUO/REGENERATIVO |
-| BUILD | dias disp. (≤6) | 1–2 (INTERVALADO/TEMPO_RUN) | 1 | FACIL/CONTINUO |
-| PEAK | dias disp. (≤6) | 2 (INTERVALADO + TEMPO_RUN/TIRO) | 1 | FACIL |
-| TAPER | ≤4 | ≤1 (afiamento curto) | reduzido | FACIL/REGENERATIVO |
-| RACE_WEEK | ≤3 | 0 | — | REGENERATIVO/FACIL + `PROVA` no dia |
-| RECOVERY / POST_RACE | ≤3 | 0 | — | REGENERATIVO/FACIL |
-| RETURN_TO_TRAINING | ≤4 | 0 | 1 (curto) | FACIL/CONTINUO |
-| CALIBRATION | — | — | — | reservada ao cold-start (nao emitida aqui) |
+**2. `sessionCount`.** `min(diasDisponiveis, maxSessoesPorSemana ?? diasDisponiveis)`. Sem teto
+artificial por fase — a fase governa o mix e a carga (o `LoadTargetResolver` ja corta o alvo nas fases
+de contencao). Piso 1 (a sessao-chave), exceto RECOVERY/POST_RACE. Se `diasDisponiveis` < itens
+obrigatorios, corta na ordem inversa de prioridade (resto → duras → mantem a chave).
 
-- **`durationMinutes` por slot** deriva do TSS-alvo do slot e do IF do tipo (relacao inversa do TSS:
-  `duracao = tss × 60 / (IF^2 × 100)`), coerente com a reparticao da Decisao 4.
-- **Determinismo**: dada a mesma entrada (fase, dias, loadTarget, prova), a composicao e identica —
-  requisito de golden set (task 2.5). Empates resolvidos por ordem canonica de dias/tipos.
+**3. Composicao por fase** (ordem de prioridade; pega-se os primeiros `sessionCount`). Sessoes duras
+entram **so enquanto a fracao de TSS em zona alta ≤ topo da faixa da fase** (item 6), ate o teto de duras.
 
-**⚠️ Pontos de aprovacao de produto:** os tetos de `sessionCount` e o orcamento de duras por fase
-(numeros da tabela) e se `SUBIDA`/`FARTLEK` entram no mix de BUILD/PEAK. Sem isso fechado, a secao 2
-nao tem oraculo. Ajuste fino calibravel com o shadow (mesma porta 1 do rollout).
+| Fase | Ordem de prioridade | Duras (teto) | Faixa TSS alta |
+|---|---|---|---|
+| BASE | LONGO · FACIL · CONTINUO · FACIL · TEMPO_RUN · REGENERATIVO | ≤1 (TEMPO_RUN) | 5–12% |
+| BUILD | LONGO · INTERVALADO · FACIL · TEMPO_RUN · CONTINUO · REGENERATIVO | ≤2 | 15–22% |
+| PEAK | LONGO · INTERVALADO · TEMPO_RUN · FACIL · TIRO · REGENERATIVO | ≤2 | 20–28% |
+| TAPER | TEMPO_RUN(curto) · FACIL · REGENERATIVO · LONGO(reduzido) | ≤1 | ~10% |
+| RACE_WEEK | PROVA(ancora) · REGENERATIVO · FACIL | 0 (fora a prova) | — |
+| RECOVERY / POST_RACE | REGENERATIVO · FACIL | 0 | 0% |
+| RETURN_TO_TRAINING | FACIL · CONTINUO · LONGO(curto, so se `longoesRealizados21d`>0) · REGENERATIVO | 0 | 0% |
+| CALIBRATION | reservada ao cold-start (nao emitida aqui) | — | — |
 
-### Blockers do pre-mortem (Codex 2026-09-08) — resolver ANTES de implementar a secao 2
+SUBIDA/FARTLEK ficam **fora** do mix automatico (entram so por decisao explicita).
 
-Este rascunho recebeu **NO-GO** do Codex; a direcao e plausivel, mas faltam regras executaveis e
-seguras. A secao 2 fica **bloqueada** ate fechar (exige entrada de produto/ciencia do esporte, nao e
-invencao do implementador):
+**4. Sessao-chave (`SessionSlot.chave`).** LONGO e a chave nas fases com LONGO; PROVA e a chave na
+RACE_WEEK. Demais slots `chave=false`.
 
-1. **[BLOCKER] Repartição TSS×duração é circular** — `tss = duracao×IF²×100/60` e
-   `duracao = tss×60/(IF²×100)` sao inversas uma da outra; nenhuma ancora. Definir primeiro **pesos ou
-   duracoes independentes por slot**, normalizar ao alvo semanal, arredondamento e limites de duracao
-   (min/max por tipo); se os limites inviabilizarem o alvo, dizer como reduzir a carga.
-2. **[BLOCKER] Composição não-deterministica e inviavel** — faixas "0–1"/"1–2", "LONGO reduzido/
-   omitido" e `sessionCount` maior que os dias (ex.: PEAK exige 3 com 2 dias) nao sao executaveis.
-   Especificar **precedencia** (chave → duras → resto), reducao das duras conforme vagas, espacamento
-   real (inclusive dias consecutivos e a fronteira domingo→segunda), e a saida quando faltam dias.
-3. **[BLOCKER] `PROVA` sem contrato** — definir se conta no teto, se a carga entra no alvo semanal,
-   como tratar prova fora dos dias disponiveis, e a recuperacao ao redor (zero duras nao pode tornar a
-   prova "invisivel" a fadiga). Reservar data+carga da prova primeiro, compor o resto depois.
-4. **[MAJOR] RETURN_TO_TRAINING nao pode depender so de disponibilidade** — frequencia/duracao devem
-   depender da capacidade recente; LONGO opcional; regra conservadora sem historico.
-5. **[MAJOR] Polarizacao nao e provada por contagem de tipos** — definir a metrica de ~80/20 (por
-   tempo/carga em zona), intensidade explicita de "TEMPO_RUN leve"/CONTINUO, e recuperacao do LONGO.
+**5. Limites de duracao (min–max, minutos)** para o clamp do item 1: REGENERATIVO 20–45 · FACIL 30–75 ·
+CONTINUO 40–90 · LONGO 60–150 · TEMPO_RUN 30–75 · INTERVALADO 40–80 · TIRO 30–60 · FARTLEK 40–75 ·
+SUBIDA 30–60. Respeitar tambem `duracaoMaximaMinutos`. Calibraveis.
 
-Recomendacao: tratar a composicao por fase como **artefato de design proprio** (revisado com o
-founder + shadow para calibrar), possivelmente uma sub-change; ate la, secoes 2–8 nao iniciam.
+**6. Polarizacao (soft — metrica da Decisao 3).** Metrica = **fracao da carga semanal (TSS) em zona
+alta**. Alta: INTERVALADO, TIRO, TEMPO_RUN, SUBIDA, **FARTLEK**. Baixa: FACIL, CONTINUO, LONGO,
+REGENERATIVO. **PROVA excluida** da razao (evento, nao dose de treino). Faixa-alvo por fase (coluna da
+tabela). O planner gera dentro da faixa por construcao; o compliance a trata como **soft** (revisavel,
+segue fail-open) — nao e invariante hard.
+
+**7. Contrato da PROVA.** Ocupa um slot e **conta** no `sessionCount`. TSS estimado:
+`duracao_prova = distanciaKm / pace_limiar` (pace do atleta se disponivel; senao default por faixa de
+distancia) → `TSS_prova = fatorImpacto(PROVA=1.3) × TAXA_BASE × horas`. **Reservado do `targetTss`
+primeiro**; se exceder o alvo, a prova domina e o resto vira REGENERATIVO/DESCANSO (no `rationale`). A
+prova e **ancora fixa no dia real dela**, ignorando `diasDisponiveis`. **Janela de protecao:** sem
+sessao dura nas 48h antes; o dia seguinte e REGENERATIVO/DESCANSO (reusa a regra do
+`SkeletonComplianceChecker`).
+
+**8. Determinismo.** Dada a mesma entrada (fase, dias, loadTarget, prova, sinais de capacidade), a
+composicao e identica — requisito do golden set (task 2.5). Empates de dia/tipo resolvidos pela ordem
+canonica da semana e da lista de prioridade.
+
+**Zona do slot (`SessionSlot.intensityZone`):** string canonica `TipoTreino.zonaFcAlvo` (ex.: "Zona 4
+(Limiar)"). O `fcLimiar`/`paceLimiar` do atleta nao estao no snapshot do planner; os numeros reais de
+FC/pace entram no prompt pelos servicos existentes (`ZonaTreinoService`/`PaceZoneCalculator`), fora do slot.
+
+**Calibracao:** `TAXA_BASE`, faixas de TSS alta por fase, tetos de duras e limites de duracao sao
+calibraveis com o shadow (porta 1 do rollout).
+
 
 ## Decisao 5 — PeriodizacaoPromptFormatter vira renderer (fim da duplicacao)
 

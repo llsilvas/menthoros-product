@@ -19,9 +19,23 @@
 
 ## 2. SessionSlot prescritivo (dia + TSS + zonas)
 
-- [ ] 2.1 TDD: `SessionSlotAllocationTest` — alocacao de dias no `PlannerEngine`: longao ancorado no dia preferido/inferido, intensos nunca adjacentes, leves preenchem, dias indisponiveis respeitados (regras absorvidas da `WeeklyDistributionSkill` orfa — design.md Decisao 4). **verify:** testes vermelhos.
+> **DESBLOQUEADA (grilling 2026-09-09):** a composicao por fase esta fechada na **Decisao 4b** e no
+> **ADR-0011** — modelo de carga LINEAR (`TSS = fatorImpacto × TAXA_BASE × horas`, sem IF²), `targetTss`
+> como ancora, tabela de composicao por fase, contrato da PROVA, polarizacao soft, clamps de duracao.
+> As tasks abaixo implementam esse contrato; os numeros (TAXA_BASE, faixas, tetos) sao calibraveis.
+
+- [ ] 2.0 TDD do **motor de composicao** (novo): dado fase + `WeeklyLoadTarget` + dias + capacidade +
+      prova, gera a lista ordenada de `SessionSlot` (tipo/chave) conforme a tabela da Decisao 4b, com
+      `sessionCount` e teto de duras por fase. **verify:** golden por fase (BASE/BUILD/PEAK/TAPER/
+      RACE_WEEK/RECOVERY/RETURN_TO_TRAINING), incluindo poucos dias e sem historico.
+- [ ] 2.1 TDD: alocacao de dias no `PlannerEngine`: longao ancorado no dia preferido/inferido, intensos
+      nunca adjacentes (inclusive fronteira domingo→segunda), leves preenchem, dias indisponiveis
+      respeitados (regras absorvidas da `WeeklyDistributionSkill` orfa — design.md Decisao 4). **verify:** testes vermelhos.
 - [ ] 2.2 Absorver a logica de alocacao em `domain/planner` (sem depender do registry de skills); decidir destino da `WeeklyDistributionSkill` original (aposentar ou wrapper fino) e registrar a decisao. **verify:** `SessionSlotAllocationTest` verde + `DomainBoundaryArchTest` verde.
-- [ ] 2.3 TDD: reparticao de TSS por slot — `duracao x IF^2 x 100/60`, soma respeita `WeeklyLoadTarget` +-10%, tolerancia por slot +-20%. **verify:** vermelho -> verde.
+- [ ] 2.3 TDD: reparticao de TSS por slot pelo modelo LINEAR da Decisao 4b (`TSS = fatorImpacto ×
+      TAXA_BASE × horas`; peso do slot = `fatorImpacto`; normaliza ao `targetTss`; duracao derivada e
+      clampada aos limites por tipo + `duracaoMaximaMinutos`; residuo redistribuido). **NAO** usar IF².
+      **verify:** soma dos slots == `targetTss` (dentro da banda); duracoes dentro dos clamps; vermelho -> verde.
 - [ ] 2.4 Incluir `zonaFc`/`faixaPace` por slot (recorte das zonas de `ZonaTreinoService`/`PaceZoneCalculator`, calculadas na camada de service e passadas via snapshot). **verify:** teste unitario dos slots completos.
 - [ ] 2.5 Estender o golden set da parte 1 com casos de alocacao (semana com prova, atleta 3 dias disponiveis, longao inferido do historico). **verify:** `PlannerEngineGoldenSetTest` 100% verde.
 
