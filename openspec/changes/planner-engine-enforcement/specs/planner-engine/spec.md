@@ -123,7 +123,7 @@ With enforcement on, the `WeekPlanSkeleton` SHALL carry per-session `SessionSlot
 #### Scenario: Per-slot TSS partition respects the weekly target
 - **Given** a `WeeklyLoadTarget` with a weekly TSS target
 - **When** the slots are allocated
-- **Then** each slot SHALL carry a TSS target derived from `duration x IF^2 x 100/60`
+- **Then** each slot SHALL carry a TSS target derived from the linear load model `TSS = fatorImpacto x TAXA_BASE x hours` (ADR-0011; not `IF^2`)
 - **And** the sum of slot targets SHALL be within +-10% of the weekly target
 
 #### Scenario: Final plan deviates from a slot

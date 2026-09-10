@@ -98,7 +98,7 @@ do pre-mortem cross-model (Codex, 2026-07-14).
 O `SessionSlot` (record da parte 1) ganha, nesta parte, preenchimento completo pelo `PlannerEngine`:
 
 - **`diaSemana`** — alocacao deterministica com as regras da `WeeklyDistributionSkill` (hoje orfa): longao ancorado no dia preferido/inferido (`inferirDiaPrioritarioLongo` ja e deterministico), treinos intensos nunca adjacentes, leves preenchem, descanso respeitado. A logica e **movida/absorvida** para `domain/planner` (nao chamada via skill — o registry de skills nao pode virar dependencia do nucleo); a skill original e aposentada ou vira wrapper fino (decidir na implementacao).
-- **`tssAlvo`** — reparticao do `WeeklyLoadTarget.targetTss()` por slot: `duracao x IF^2 x 100/60`, IF da tabela de intensidade por tipo de treino. Tolerancia por slot +-20% (calibravel com dado do shadow).
+- **`tssAlvo`** — reparticao do `WeeklyLoadTarget.targetTss()` por slot pelo **modelo linear da Decisao 4b** (`TSS = fatorImpacto × TAXA_BASE × horas`; peso do slot = `fatorImpacto`), NAO por `IF²`. Tolerancia por slot +-20% (calibravel com dado do shadow).
 - **`zonaFc` / `faixaPace`** — referencia das zonas ja calculadas (`ZonaTreinoService`/`PaceZoneCalculator`), incluidas no slot para o compliance validar (a *fonte* continua sendo os services existentes; o slot so carrega o recorte da semana).
 
 Consequencia no prompt: o bloco mandatorio passa a listar os slots (dia, tipo, TSS, zonas); o LLM preenche a estrutura fina de cada slot e os textos. Consequencia no compliance: estagio 1 valida tipo/TSS por slot; estagio 2 valida que o dia final == dia do slot (a redistribuicao no modo SEMANA_ATUAL ja ignora o dia do LLM — com slots, ela passa a receber os dias do skeleton como alvo em vez de recalcular do zero; mudanca minima no `RedistribuicaoTreinoHelper`, so a origem do dia-alvo).
@@ -117,6 +117,11 @@ enum `TipoTreino` e a **taxa de carga relativa por hora** (NAO um IF; valores >1
 `duracao_min = TSS_slot / (fatorImpacto × TAXA_BASE) × 60`, clampada aos limites do item 5 e ao
 `AthleteConstraints.duracaoMaximaMinutos`; (d) residuo de TSS por clamp e redistribuido aos slots com
 folga; sobra final registrada no `rationale`. **Sem `IF²`** (fisicamente errado com fatorImpacto >1).
+**Minimos vencem (Q13):** nunca gerar um slot abaixo da duracao minima do tipo. Se a soma dos minimos
+dos `sessionCount` slots > `targetTss`, **reduz `sessionCount`** dropando na ordem inversa de prioridade
+(resto → duras → chave por ultimo) ate caber. Se um unico slot-chave no minimo ja excede o alvo (alvo
+minusculo de recuperacao), mantem-se esse slot no minimo e registra-se a sobra no `rationale`. O
+`LoadTargetResolver` **limita ao baseline** (nao forca reduzir); a composicao se ajusta ao alvo resolvido.
 
 **2. `sessionCount`.** `min(diasDisponiveis, maxSessoesPorSemana ?? diasDisponiveis)`. Sem teto
 artificial por fase — a fase governa o mix e a carga (o `LoadTargetResolver` ja corta o alvo nas fases
@@ -128,10 +133,10 @@ entram **so enquanto a fracao de TSS em zona alta ≤ topo da faixa da fase** (i
 
 | Fase | Ordem de prioridade | Duras (teto) | Faixa TSS alta |
 |---|---|---|---|
-| BASE | LONGO · FACIL · CONTINUO · FACIL · TEMPO_RUN · REGENERATIVO | ≤1 (TEMPO_RUN) | 5–12% |
+| BASE | LONGO · FACIL · CONTINUO · FACIL · TEMPO_RUN · REGENERATIVO | ≤1 (TEMPO_RUN) | 0–12% |
 | BUILD | LONGO · INTERVALADO · FACIL · TEMPO_RUN · CONTINUO · REGENERATIVO | ≤2 | 15–22% |
 | PEAK | LONGO · INTERVALADO · TEMPO_RUN · FACIL · TIRO · REGENERATIVO | ≤2 | 20–28% |
-| TAPER | TEMPO_RUN(curto) · FACIL · REGENERATIVO · LONGO(reduzido) | ≤1 | ~10% |
+| TAPER | TEMPO_RUN(curto) · FACIL · REGENERATIVO · LONGO(reduzido) | ≤1 | 0–12% |
 | RACE_WEEK | PROVA(ancora) · REGENERATIVO · FACIL | 0 (fora a prova) | — |
 | RECOVERY / POST_RACE | REGENERATIVO · FACIL | 0 | 0% |
 | RETURN_TO_TRAINING | FACIL · CONTINUO · LONGO(curto, so se `longoesRealizados21d`>0) · REGENERATIVO | 0 | 0% |
@@ -150,15 +155,27 @@ SUBIDA 30–60. Respeitar tambem `duracaoMaximaMinutos`. Calibraveis.
 alta**. Alta: INTERVALADO, TIRO, TEMPO_RUN, SUBIDA, **FARTLEK**. Baixa: FACIL, CONTINUO, LONGO,
 REGENERATIVO. **PROVA excluida** da razao (evento, nao dose de treino). Faixa-alvo por fase (coluna da
 tabela). O planner gera dentro da faixa por construcao; o compliance a trata como **soft** (revisavel,
-segue fail-open) — nao e invariante hard.
+segue fail-open) — nao e invariante hard. **Inviabilidade com slots discretos (Q14):** quando nenhuma
+contagem de duras cai dentro da faixa, escolhe-se a contagem cuja fracao fica **mais proxima da faixa**
+(preferindo dentro; empate → **menos duras**). Nunca falha (e soft). As faixas de BASE e TAPER incluem
+**0** (base puramente aerobica e taper leve sao validos), o que torna a escolha deterministica;
+BUILD/PEAK mantem piso >0 (a fase pede qualidade).
 
 **7. Contrato da PROVA.** Ocupa um slot e **conta** no `sessionCount`. TSS estimado:
-`duracao_prova = distanciaKm / pace_limiar` (pace do atleta se disponivel; senao default por faixa de
+`duracao_prova = distanciaKm × pace_limiar` (pace em **min/km**, então distancia×pace = minutos; pace do atleta se disponivel; senao default por faixa de
 distancia) → `TSS_prova = fatorImpacto(PROVA=1.3) × TAXA_BASE × horas`. **Reservado do `targetTss`
 primeiro**; se exceder o alvo, a prova domina e o resto vira REGENERATIVO/DESCANSO (no `rationale`). A
 prova e **ancora fixa no dia real dela**, ignorando `diasDisponiveis`. **Janela de protecao:** sem
 sessao dura nas 48h antes; o dia seguinte e REGENERATIVO/DESCANSO (reusa a regra do
-`SkeletonComplianceChecker`).
+`SkeletonComplianceChecker`). **Pace default (Q15):** quando o pace do atleta nao esta disponivel,
+tabela por faixa de distancia (recreativo conservador, min/km): ≤5k ~5:00 · ~10k ~5:15 · ~21k ~5:30 ·
+~42k ~6:00. Calibravel.
+
+**9. Preenchimento e substituicao (Q12).** (a) `sessionCount` > itens da lista → repete o ultimo tipo
+aerobico (FACIL, depois REGENERATIVO) para completar, nunca deixa lacuna. (b) Dura rebaixada (teto ou
+faixa de polarizacao) → vira o **proximo tipo aerobico** da lista, nao um buraco. (c) A **chave** e o
+slot #1 quando a fase tem chave e ha ≥1 slot, e o ultimo a ser cortado; em RETURN_TO_TRAINING com 1 dia,
+se o LONGO nao e elegivel (`longoesRealizados21d`=0) o slot #1 vira FACIL.
 
 **8. Determinismo.** Dada a mesma entrada (fase, dias, loadTarget, prova, sinais de capacidade), a
 composicao e identica — requisito do golden set (task 2.5). Empates de dia/tipo resolvidos pela ordem
