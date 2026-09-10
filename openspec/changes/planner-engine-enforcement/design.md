@@ -168,8 +168,9 @@ primeiro**; se exceder o alvo, a prova domina e o resto vira REGENERATIVO/DESCAN
 prova e **ancora fixa no dia real dela**, ignorando `diasDisponiveis`. **Janela de protecao:** sem
 sessao dura nas 48h antes; o dia seguinte e REGENERATIVO/DESCANSO (reusa a regra do
 `SkeletonComplianceChecker`). **Pace default (Q15):** quando o pace do atleta nao esta disponivel,
-tabela por faixa de distancia (recreativo conservador, min/km): ≤5k ~5:00 · ~10k ~5:15 · ~21k ~5:30 ·
-~42k ~6:00. Calibravel.
+funcao **por faixas** de `distanciaKm` (deterministica, cobre todo o dominio; min/km, recreativo
+conservador): `d ≤ 5` → 5:00 · `5 < d ≤ 10` → 5:15 · `10 < d ≤ 21` → 5:30 · `21 < d ≤ 42` → 6:00 ·
+`d > 42` → 6:30. Calibravel.
 
 **9. Preenchimento e substituicao (Q12).** (a) `sessionCount` > itens da lista → repete o ultimo tipo
 aerobico (FACIL, depois REGENERATIVO) para completar, nunca deixa lacuna. (b) Dura rebaixada (teto ou

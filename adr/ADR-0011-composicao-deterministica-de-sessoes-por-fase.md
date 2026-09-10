@@ -67,7 +67,8 @@ Uma 2a passada do Codex fechou os furos que impediam o golden set:
 
 7. **PROVA — formula/unidade corrigida.** Pace e min/km, entao `duracao_prova = distanciaKm × pace`
    (minutos), nao divisao. Sem pace do atleta no snapshot, tabela de **pace default por faixa de
-   distancia** (recreativo conservador: ≤5k ~5:00, ~10k ~5:15, ~21k ~5:30, ~42k ~6:00 min/km).
+   distancia** (funcao por faixas, min/km: d≤5 → 5:00; 5<d≤10 → 5:15; 10<d≤21 → 5:30; 21<d≤42 → 6:00;
+   d>42 → 6:30 — deterministica, cobre todo o dominio).
 8. **Minimos de duracao vencem o alvo.** Nunca gerar um slot abaixo do minimo do tipo; se a soma dos
    minimos excede o `targetTss`, **reduz `sessionCount`** (resto → duras → chave por ultimo) ate caber.
    Um unico slot-chave no minimo pode exceder um alvo minusculo (recuperacao), com a sobra no `rationale`.
