@@ -41,10 +41,10 @@
 
 ## 3. Skeleton no prompt + formatter como renderer
 
-- [ ] 3.1 TDD: golden-master do prompt — com `enabled=true`, o prompt contem o bloco mandatorio de slots (dia, tipo, TSS, zonas); com `enabled=false`, prompt identico ao legado. **verify:** testes vermelhos.
-- [ ] 3.2 Injetar `WeekPlanSkeleton` no contexto do prompt em `PlanoServiceImpl`/`PlanoTreinoPromptBuilder` (bloco mandatorio, padrao do bloco [1] de Constraints). **verify:** golden-master verde.
-- [ ] 3.3 Reduzir `PeriodizacaoPromptFormatter` a renderer **apenas no caminho `enabled=true`** (remove calculo de fase/TSS-alvo/step-back/tipo de semana); com `enabled=false`, preservar o calculo legado byte-a-byte (CA9). Classe preservada. **Preservar a metrica de divergencia do SHADOW (parte 1)** — o gate de rollout (8.4) depende dela; so a divergencia dual-calc do formatter no caminho enabled some. **verify:** `./mvnw clean test` sem regressao; golden-master do prompt legado (flag off) byte-a-byte; shadow ainda coletando divergencia.
-- [ ] 3.4 Alinhar template x schema (3-5 treinos, minimo de etapas) — design.md Decisao 7. **verify:** golden-master atualizado deliberadamente.
+- [x] 3.1 TDD: golden-master do prompt — com `enabled=true`, o prompt contem o bloco mandatorio de slots (dia, tipo, TSS, zonas); com `enabled=false`, prompt identico ao legado. **verify:** testes vermelhos.
+- [x] 3.2 Injetar `WeekPlanSkeleton` no contexto do prompt em `PlanoServiceImpl`/`PlanoTreinoPromptBuilder` (bloco mandatorio, padrao do bloco [1] de Constraints). **verify:** golden-master verde.
+- [x] 3.3 Reduzir `PeriodizacaoPromptFormatter` a renderer **apenas no caminho `enabled=true`** (remove calculo de fase/TSS-alvo/step-back/tipo de semana); com `enabled=false`, preservar o calculo legado byte-a-byte (CA9). Classe preservada. **Preservar a metrica de divergencia do SHADOW (parte 1)** — o gate de rollout (8.4) depende dela; so a divergencia dual-calc do formatter no caminho enabled some. **verify:** `./mvnw clean test` sem regressao; golden-master do prompt legado (flag off) byte-a-byte; shadow ainda coletando divergencia.
+- [x] 3.4 Alinhar template x schema (3-5 treinos, minimo de etapas) — design.md Decisao 7. **verify:** golden-master atualizado deliberadamente.
 
 ## 4. Estagio 1 — compliance pre-redistribuicao com retry existente
 
