@@ -24,7 +24,7 @@
 > como ancora, tabela de composicao por fase, contrato da PROVA, polarizacao soft, clamps de duracao.
 > As tasks abaixo implementam esse contrato; os numeros (TAXA_BASE, faixas, tetos) sao calibraveis.
 
-- [ ] 2.0 TDD do **motor de composicao** (novo): dado fase + `WeeklyLoadTarget` + dias + capacidade +
+- [x] 2.0 TDD do **motor de composicao** (novo): dado fase + `WeeklyLoadTarget` + dias + capacidade +
       prova, gera a lista ordenada de `SessionSlot` (tipo/chave) conforme a tabela da Decisao 4b, com
       `sessionCount` e teto de duras por fase. **verify:** golden por fase (BASE/BUILD/PEAK/TAPER/
       RACE_WEEK/RECOVERY/RETURN_TO_TRAINING), incluindo poucos dias e sem historico.
