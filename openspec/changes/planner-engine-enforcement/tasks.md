@@ -28,10 +28,10 @@
       prova, gera a lista ordenada de `SessionSlot` (tipo/chave) conforme a tabela da Decisao 4b, com
       `sessionCount` e teto de duras por fase. **verify:** golden por fase (BASE/BUILD/PEAK/TAPER/
       RACE_WEEK/RECOVERY/RETURN_TO_TRAINING), incluindo poucos dias e sem historico.
-- [ ] 2.1 TDD: alocacao de dias no `PlannerEngine`: longao ancorado no dia preferido/inferido, intensos
+- [x] 2.1 TDD: alocacao de dias no `PlannerEngine`: longao ancorado no dia preferido/inferido, intensos
       nunca adjacentes (inclusive fronteira domingo→segunda), leves preenchem, dias indisponiveis
       respeitados (regras absorvidas da `WeeklyDistributionSkill` orfa — design.md Decisao 4). **verify:** testes vermelhos.
-- [ ] 2.2 Absorver a logica de alocacao em `domain/planner` (sem depender do registry de skills); decidir destino da `WeeklyDistributionSkill` original (aposentar ou wrapper fino) e registrar a decisao. **verify:** `SessionSlotAllocationTest` verde + `DomainBoundaryArchTest` verde.
+- [x] 2.2 Absorver a logica de alocacao em `domain/planner` (sem depender do registry de skills); decidir destino da `WeeklyDistributionSkill` original (aposentar ou wrapper fino) e registrar a decisao. **verify:** `SessionSlotAllocationTest` verde + `DomainBoundaryArchTest` verde.
 - [ ] 2.3 TDD: reparticao de TSS por slot pelo modelo LINEAR da Decisao 4b (`TSS = fatorImpacto ×
       TAXA_BASE × horas`; peso do slot = `fatorImpacto`; normaliza ao `targetTss`; duracao derivada e
       clampada aos limites por tipo + `duracaoMaximaMinutos`; residuo redistribuido). **NAO** usar IF².
