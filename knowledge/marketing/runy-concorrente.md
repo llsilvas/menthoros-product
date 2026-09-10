@@ -39,6 +39,21 @@
 - Google Play: 1K+ downloads; iOS 17.6+, rating 4+ (categoria Health & Fitness).
 - IG `@runy.app`: 1.282 seguidores, grid ~100% carrossel.
 
+## Estratégia de conteúdo no Instagram (observado)
+
+- **Comunidade como apelo central:** slogan "nunca corra sozinho", CTA "compartilhe o seu",
+  resumo semanal de destaques do endurance (cadência semanal), desafios mensais com prêmios, e
+  UGC de atleta mostrando o app e marcando a assessoria. O produto é emoldurado como hub de
+  comunidade de corrida, não só ferramenta de gestão.
+- **Fotografia real de corredores nos carrosséis:** os posts usam fotos de pessoas correndo
+  (ambiente urbano/pista) com overlay de dados (distância, ritmo, tempo) e mensagem motivacional —
+  não gráficos vetoriais nem mockup puro. Ex.: post de treino concluído vira arte "CORRIDA ·
+  DISTÂNCIA 10,02 km · RITMO 06:05 · os melhores treinos são aqueles que fazem você voltar amanhã".
+  Verificado visualmente (2 posts analisados).
+- **Contraste com o Menthoros:** o pipeline atual do `@menthoros` gera **fundo sem pessoas**
+  (gpt-image) + texto/logo overlay e gráficos vetoriais (SVG). O runy aposta em **pessoa real
+  correndo** — hipótese de que fotografia humana converte mais (a validar por teste A/B; não é fato).
+
 ## Por que importa para o Menthoros
 
 - É concorrente real e operante no **mesmo ICP** (assessorias 10–200 atletas), com tração que

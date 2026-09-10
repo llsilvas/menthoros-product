@@ -102,13 +102,31 @@ incluída." Calibrar número de vagas à capacidade do founder solo.
 ## 4. Limitações da análise
 
 - Lido: grid completo (12 posts), bio, títulos dos highlights (`app`/`começar`/`ecossistema`), site
-  integral, captions + likes + comentários de 10/12 posts.
+  integral, captions + likes + comentários de 10/12 posts, e **2 posts inspecionados visualmente**
+  (fotografia real de corredores confirmada).
 - **Não lido:** conteúdo interno dos story highlights (login-wall); aba Reels retornou vazia (a
   conta é ~100% carrossel); métricas de visualização/salvamento e dados de perfil (exigem login).
 - Likes como proxy de engajamento: posts pinados 84–282; recentes 4–24; **o post collab (UGC) foi o
   de maior engajamento entre os recentes** — o sinal mais forte desta análise.
 
-## 5. Conhecimento durável extraído
+## 5. Aprendizados de comunidade e estética visual (feedback do founder)
+
+Duas observações do founder sobre o runy, incorporadas como hipótese a validar:
+
+**C1 — O runy constrói comunidade, não só ferramenta.** Slogan "nunca corra sozinho", CTA
+"compartilhe o seu", resumo semanal do endurance, desafios com prêmios e UGC de atleta. O
+Menthoros não deve virar feed social (anti-escopo), mas pode **emprestar o mecanismo de comunidade
+para o lado coach**: depoimento substantivo de assessoria, collab, "leitura do coach" no resumo
+semanal — comunidade de coaches, não de atletas.
+
+**C2 — Fotografia real de corredores pode converter mais que fundo gerado.** O runy usa fotos de
+pessoas correndo com overlay de dados; o `@menthoros` hoje usa fundo sem pessoas (gpt-image) +
+texto/logo. **Hipótese:** imagem humana real no carrossel aumenta retenção/engajamento vs. gráfico
+vetorial/gerado. **Ação sugerida:** teste A/B de 2–3 posts (um com foto real de corredor licenciada
+vs. um com fundo gerado) medindo likes/salvamentos antes de mudar o pipeline. Registrar resultado
+no `60-Growth/Content Register`. Não é fato comprovado — é direção a testar.
+
+## 6. Conhecimento durável extraído
 
 - `knowledge/marketing/runy-concorrente.md` — ficha do concorrente (feature set, pricing, tração).
 
