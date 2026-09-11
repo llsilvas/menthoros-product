@@ -153,12 +153,36 @@
       **STATUS: operacional, sem codigo** — o gate e medido em producao no piloto; nada a
       implementar/testar. Fica aberto ate a medicao das duas portas (defaults seguros: `enabled=false`,
       `fail-open=true` ja garantidos por 8.1). Preencher valor/janela/veredito aqui antes de cada flip.
+      **BLOQUEIO DE PORTA 1 (code review 2026-09-11):** nao ligar `enabled=true` antes de resolver os
+      itens 8.5.g/8.5.h abaixo — o skeleton do prompt/estagio-1 diverge do de redistribuicao/estagio-2
+      (onboarding context diferente), corrompendo justamente a coorte de onboarding/cold-start, e o
+      caminho de fallback pode enforcar estagio-2 contra um skeleton que o LLM nao viu.
 - [x] 8.5 Follow-ups registrados: (a) **§7.2 frontend** — badge "Revisao obrigatoria" + motivos na aba
       de plano do coach (o backend ja entrega `plannerComplianceStatus`/`plannerRequiresCoachReview`/
       `plannerReviewMotivos` no DTO); (b) fila/filtro de planos marcados para review (frontend);
       (c) "prescription stamping" (candidata); (d) gerador de estrutura de treino (v2);
       (e) `RETRIED_PASSED`/`FALLBACK` como status distintos na telemetria (hoje estagio 2 classifica
-      so `PASSED`/`FAILED`); (f) skeleton computado 2x por geracao no caminho `enabled=true`
-      (redistribuicao + shadow) — otimizavel passando o precomputado ao `aplicarShadow`.
+      so `PASSED`/`FAILED`); (f) skeleton computado ate 3x por geracao no caminho `enabled=true`
+      (prompt em `PlanoServiceImpl` + `diasAlvoDaRedistribuicao` + `aplicarShadow`) — colapsavel pelo
+      8.5.g.
+      **Achados do code review 2026-09-11 (bloqueiam porta 1, nao o merge atras do flag):**
+      (g) **[Important] Skeleton unico ponta-a-ponta:** hoje `PlanoServiceImpl.computarSkeletonSeHabilitado`
+      computa o skeleton do prompt/estagio-1 com `Optional.empty()` de onboarding, enquanto o persister
+      recomputa com o onboarding **real** para redistribuicao e estagio-2 → skeletons divergentes para
+      atleta em onboarding (coorte cold-start), gerando retry/`FAILED` espurios. Fix: computar o skeleton
+      **uma vez** com o onboarding correto e passa-lo a `iaService` (ja recebe) e ao persister (novo
+      parametro, em vez de recomputar em `aplicarShadow`/`diasAlvoDaRedistribuicao`). Resolve tambem (f)
+      e metade de (e) (`FALLBACK`). **Decisao de design pendente:** onde a resolucao de onboarding vive
+      (hoje so no persister) — cruza com `fix-cold-start-calibration-plan-generation`.
+      (h) **[Important] Fallback nao sinaliza o persister:** quando o planner falha ANTES do LLM
+      (fail-open → skeleton null, geracao legada), o persister ainda recomputa o skeleton e pode enforcar
+      estagio-2 contra um skeleton que o LLM nunca viu → `FAILED` espurio. Fix junto com (g): threa o
+      desfecho pre-LLM (skeleton ou sinal explicito de fallback) ao persister; persistir `FALLBACK`.
+      (i) **[Minor, aceito]** Wiring do closure de compliance no `gerarComResiliencia` (IaServiceImpl:347)
+      nao tem teste dedicado — a parede de fixture da God-class (refactor-iaservice-decomposition) impede
+      o teste de pipeline; coberto indiretamente por `IaServiceImplComplianceEstagio1Test` (unidade do
+      wrapper) + os `*IT` de plano. Lacuna nomeada aqui conforme aceito no review.
+      (j) **[Minor]** `PlanoSemanalMapper` usa `new ObjectMapper()` estatico em vez do bean gerenciado —
+      thread-safe e funcional, mas fora da convencao de DI do modulo.
 - [ ] 8.6 PRs backend e frontend abertos; CI verde. (backend: `feature/planner-engine-enforcement-s4`
       pronto para `/pr`; frontend: §7.2, repo `menthoros-front`.)
