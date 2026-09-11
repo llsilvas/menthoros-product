@@ -101,12 +101,13 @@
 
 ## 7. Superficie minima de review (design.md Decisao 8)
 
-- [ ] 7.1 Backend: **persistir a lista estruturada de `PlannerViolation` (motivo por violacao) no
-      `planner_metadata_json`** (Codex blocker 3 — hoje `PlannerAuditMetadata` guarda so contagem +
-      motivo geral; mesma coluna, sem migration) e **expor** `plannerComplianceStatus`,
-      `plannerRequiresCoachReview` + resumo legivel dos motivos no DTO da visao do coach — leitura
-      apenas na leitura. TDD do mapeamento, incluindo plano legado sem metadata (campos nulos, sem NPE).
-      **verify:** `./mvnw clean test` verde; o badge tem os motivos reais, nao so a contagem.
+- [x] 7.1 Backend: `PlannerAuditMetadata` ganhou `List<PlannerViolation> violations` (key + mensagem);
+      `persistirAuditoria` grava a lista no `planner_metadata_json` (mesma coluna, sem migration).
+      `PlanoSemanalOutputDto` expoe `plannerComplianceStatus` + `plannerRequiresCoachReview` (colunas =
+      verdict do enforcement) + `plannerReviewMotivos` (mensagens parseadas do JSON) — so leitura, via
+      `PlanoSemanalMapper`. Plano legado sem metadata / JSON ilegivel / status desconhecido -> campos
+      nulos, sem NPE. **verify:** `PlanoSemanalMapperPlannerTest` (4) verde; suite 3315 verde; motivos
+      reais no DTO, nao so a contagem.
 - [ ] 7.2 Frontend: badge "Revisao obrigatoria" + motivos na aba de plano do coach quando
       `requiresCoachReview=true` ou `compliance_status=FAILED`; plano `PASSED`/legado sem
       destaque; visao do atleta intacta (CA12). Logica no hook/adapter, componente so
