@@ -104,7 +104,7 @@
 - [x] 7.1 Backend: `PlannerAuditMetadata` ganhou `List<PlannerViolation> violations` (key + mensagem);
       `persistirAuditoria` grava a lista no `planner_metadata_json` (mesma coluna, sem migration).
       `PlanoSemanalOutputDto` expoe `plannerComplianceStatus` + `plannerRequiresCoachReview` (colunas =
-      verdict do enforcement) + `plannerReviewMotivos` (mensagens parseadas do JSON) — so leitura, via
+      verdict do enforcement) + `plannerReviewReasons` (mensagens parseadas do JSON) — so leitura, via
       `PlanoSemanalMapper`. Plano legado sem metadata / JSON ilegivel / status desconhecido -> campos
       nulos, sem NPE. **verify:** `PlanoSemanalMapperPlannerTest` (4) verde; suite 3315 verde; motivos
       reais no DTO, nao so a contagem.
@@ -159,7 +159,7 @@
       caminho de fallback pode enforcar estagio-2 contra um skeleton que o LLM nao viu.
 - [x] 8.5 Follow-ups registrados: (a) **§7.2 frontend** — badge "Revisao obrigatoria" + motivos na aba
       de plano do coach (o backend ja entrega `plannerComplianceStatus`/`plannerRequiresCoachReview`/
-      `plannerReviewMotivos` no DTO); (b) fila/filtro de planos marcados para review (frontend);
+      `plannerReviewReasons` no DTO); (b) fila/filtro de planos marcados para review (frontend);
       (c) "prescription stamping" (candidata); (d) gerador de estrutura de treino (v2);
       (e) `RETRIED_PASSED`/`FALLBACK` como status distintos na telemetria (hoje estagio 2 classifica
       so `PASSED`/`FAILED`); (f) skeleton computado ate 3x por geracao no caminho `enabled=true`
@@ -182,7 +182,19 @@
       nao tem teste dedicado — a parede de fixture da God-class (refactor-iaservice-decomposition) impede
       o teste de pipeline; coberto indiretamente por `IaServiceImplComplianceEstagio1Test` (unidade do
       wrapper) + os `*IT` de plano. Lacuna nomeada aqui conforme aceito no review.
-      (j) **[Minor]** `PlanoSemanalMapper` usa `new ObjectMapper()` estatico em vez do bean gerenciado —
-      thread-safe e funcional, mas fora da convencao de DI do modulo.
+      (j) **[Minor, parcial]** `PlanoSemanalMapper` usa `new ObjectMapper()` estatico em vez do bean
+      gerenciado — thread-safe e funcional; risco so se `PlannerAuditMetadata` ganhar `LocalDate`/`Instant`
+      sem `JavaTimeModule`. Mitigado: os `catch` agora logam (nao engolem em silencio). Injecao do bean
+      fica como follow-up.
+      **Resolvidos no proprio review (commit de fixes):**
+      - **[Important] ADR-0007 (identificador em ingles):** `plannerReviewMotivos` → `plannerReviewReasons`
+        no DTO/mapper/teste, antes do front consumir.
+      - **[Minor #5 / seguranca Low] logs de diagnostico:** `catch` do mapper (`resolvePlanner*`) e o
+        `catch (DomainRuleViolationException)` do `BatchPlanProcessor` passam a logar (`log.warn`) — sem
+        vazar detalhe ao cliente, so observabilidade.
+      - **[Important, aceito sem mudanca] crescimento do `IaServiceImpl`:** `aplicarComplianceEstagio1`
+        e metodo privado curto e coeso com o call site do `gerarComResiliencia` (retry/LLM); move-lo para
+        `PlannerShadowService` acoplaria o shadow a `LLMException`/retry (concern de IaService). Debt
+        segue rastreado em `refactor-iaservice-decomposition`.
 - [ ] 8.6 PRs backend e frontend abertos; CI verde. (backend: `feature/planner-engine-enforcement-s4`
       pronto para `/pr`; frontend: §7.2, repo `menthoros-front`.)
