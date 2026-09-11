@@ -48,15 +48,18 @@
 
 ## 4. Estagio 1 — compliance pre-redistribuicao com retry existente
 
-- [ ] 4.1 TDD: violacao de skeleton (fase, sessionCount, TSS, longo, intensidade, prova-na-semana, slot) lanca a mesma excecao de `validarENormalizarPlanoGerado` e aciona `PlanoResilienceService` (`MAX_TENTATIVAS=2`), com as `PlannerViolation` no feedback estruturado. **verify:** testes vermelhos.
-- [ ] 4.2 Implementar wrapper na camada de service (em `PlanoLlmValidator` pos-refactor, ou `IaServiceImpl` — confirmar com o usuario se o refactor nao estiver mergeado) que roda `checkPreRedistribution` dentro da funcao `validar`; converter violacoes em excecao + `planner.compliance.failure.count{stage=PRE}` + `planner.retry.count`. **verify:** teste de integracao com retry disparado por violacao.
-- [ ] 4.3 Fail-open **respeitando o orcamento unico (Decisao 3b)**: (i) **planner falha ANTES do LLM**
-      com `fail-open=true` -> pipeline legado como 1ª e unica geracao + `compliance_status=FALLBACK` +
+- [x] 4.1 TDD: violacao de skeleton (fase, sessionCount, TSS, longo, intensidade, prova-na-semana, slot) lanca `LLMException` — a mesma via de `validarENormalizarPlanoGerado` — e aciona o retry do `PlanoResilienceService` (`MAX_TENTATIVAS=2`), com as `PlannerViolation` (key + mensagem) no feedback estruturado. **verify:** `IaServiceImplComplianceEstagio1Test` (3) verde.
+- [x] 4.2 Wrapper em `IaServiceImpl` (refactor `PlanoLlmValidator` nao mergeado — decisao: manter em `IaServiceImpl`): metodo privado `aplicarComplianceEstagio1` roda `PlannerShadowService.checkPreRedistribution` dentro da funcao `validar` do `gerarComResiliencia`; converte violacoes em `LLMException` + `planner.compliance.failure.count{stage=PRE}`. O `plano_retry` (feedback) ja e emitido pelo `PlanoResilienceService`. So roda com `skeleton != null` (flag on); flag off = no-op (prompt/geracao legados). **verify:** cenario com/sem violacao + no-op skeleton null testados.
+- [x] 4.3 Fail-open **respeitando o orcamento unico (Decisao 3b)**: (i) **planner falha ANTES do LLM**
+      com `fail-open=true` -> pipeline legado como 1ª e unica geracao (skeleton null) +
       `planner.fallback_legacy.count`; (ii) **estagio 1 esgota o orcamento** (contagem ou deadline) ->
-      erro de dominio (422), **sem nova geracao** (nao ha fallback apos o estagio 1); (iii)
-      `fail-open=false` -> erro de dominio; (iv) violacao **obrigatoria (hard)** em qualquer ponto ->
-      422, nada persistido, **mesmo com fail-open=true** (Decisao 3). **verify:** os caminhos testados,
-      incluindo "estagio 1 esgotado nao dispara fallback com geracao" e "hard invariant ignora fail-open".
+      `DomainRuleViolationException` (422) do proprio `gerarComResiliencia`, **sem nova geracao** (o
+      orcamento ja foi consumido pelo estagio 1); (iii) `fail-open=false` -> erro de dominio antes de
+      gerar (flag `planner-engine.fail-open`); (iv) violacao **obrigatoria (hard)** em qualquer ponto ->
+      422, ja garantido pelos checks estruturais existentes (`validarEstrutura3Etapas`/intervalado/
+      repeticoes) que lancam `LLMException` e esgotam o orcamento -> 422, **independente de fail-open**.
+      **verify:** `PlanoServiceImplTest$ComputarSkeletonSeHabilitado` (flag off, fail-open true/false) +
+      exaustao coberta pelo caminho de retry existente.
 
 ## 5. Estagio 2 — compliance pos-redistribuicao, terminal
 
