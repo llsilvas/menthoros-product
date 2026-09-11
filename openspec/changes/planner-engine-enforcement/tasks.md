@@ -81,7 +81,13 @@
       **Veto a auto-aprovacao (Codex blocker 3):** `aplicarAutoApproveSeElegivel` bail quando o plano
       esta `FAILED` ou `requiresCoachReview=true`. **verify:** `PlanGenerationPersisterProvaTest$VetoAutoAprovacao` (2)
       + suite completa 3307 verde + `*IT` de plano/lote 9 verde.
-- [ ] 5.3 Redistribuicao recebe os dias-alvo dos `SessionSlot` (mudanca minima no `RedistribuicaoTreinoHelper`: origem do dia-alvo, sem alterar o algoritmo de fallback). **verify:** teste cobrindo modo SEMANA_ATUAL com slots.
+- [x] 5.3 Redistribuicao recebe os dias-alvo dos `SessionSlot` via novo overload
+      `redistribuirTreinos(..., Map<TipoTreino,DiaSemana> diasAlvoPorTipo)`: no loop, tenta o dia
+      prescrito primeiro (se valido, livre e sem conflito de adjacencia) e so entao cai no greedy
+      existente — **fallback inalterado**; mapa vazio = comportamento legado (CA9). O persister deriva
+      o mapa dos slots do skeleton (`computarSkeleton` recomputado antes da redistribuicao — `planWeek`
+      e puro/deterministico) so quando `enabled=true`. LONGO segue no `diaPreferidoLongo` existente.
+      **verify:** `RedistribuicaoTreinoHelperTest` (2 novos: SEMANA_ATUAL com slots + fallback) verde.
 
 ## 6. Batch
 
