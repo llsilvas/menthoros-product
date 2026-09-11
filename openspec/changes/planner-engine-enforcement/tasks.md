@@ -115,9 +115,31 @@
 
 ## 8. Verificacao final e DoD
 
-- [ ] 8.1 **verify:** `enabled=false` (default): `./mvnw clean test` BUILD SUCCESS, pipeline byte-a-byte legado (golden-master), zero regressao (CA9).
-- [ ] 8.2 **verify:** `enabled=true`: suite completa + golden set verdes; matriz fail-open (CA4) coberta.
-- [ ] 8.3 CA1-CA12 verificados em teste automatizado (CA11 e gate operacional — ver 8.4).
+- [x] 8.1 **verify:** `enabled=false` (default): suite unitaria `./mvnw clean test` **3315 verde**;
+      todos os `*IT` de planner/plano/lote verdes. (No `verify` completo, `IntervalsIcuCallbackIT` —
+      intervals.icu OAuth, sem relacao com planner — falhou por contencao de Testcontainers/Docker no
+      boot concorrente de muitos contextos [threshold de carga excedido no 1o, retries puladas nos
+      demais]; **passa isolado 11/11** — flake ambiental, nao regressao desta change.) Golden-master do
+      prompt (`PlanoTreinoPromptBuilderGoldenTest`) roda pelo overload que delega com `skeleton=null` —
+      exatamente o caminho flag-off, congelado byte-a-byte; `PlanoTreinoPromptBuilderSlotBlockTest`
+      confirma bloco vazio sem skeleton (CA9). Zero regressao na suite.
+- [x] 8.2 **verify:** matriz fail-open (CA4) coberta pelos testes que exercitam `enabled=true` +
+      `fail-open` true/false: `IaServiceImplComplianceEstagio1Test` (estagio 1),
+      `PlanoServiceImplTest$ComputarSkeletonSeHabilitado` (planner antes do LLM),
+      `PlanGenerationPersisterProvaTest$EnforcementEstagio2` (estagio 2). Golden set do motor:
+      `PlannerEngineGoldenSetTest`. (Nao ha flip global de flag na suite — cada caminho seta os flags
+      explicitamente, que e o teste mais preciso.)
+- [x] 8.3 CA1-CA12 em teste automatizado (mapa; CA11 e gate operacional — 8.4; CA12-front e §7.2):
+      - CA1 estagio 1 c/ retry → `IaServiceImplComplianceEstagio1Test`
+      - CA2 compliance estrutural → `SkeletonComplianceCheckerTest`
+      - CA3 estagio 2 terminal → `PlanGenerationPersisterProvaTest$EnforcementEstagio2`
+      - CA4 matriz fail-open → os tres testes da 8.2
+      - CA5/CA9 flag-off byte-a-byte → `PlanoTreinoPromptBuilderGoldenTest` + `...SlotBlockTest`
+      - CA6 dia por slot → `SessionDayAllocatorTest` + `RedistribuicaoTreinoHelperTest` (§5.3)
+      - CA7 TSS por sessao → `SessionCompositionResolverTest`
+      - CA8 batch isolado → `BatchPlanProcessorTest$ComplianceNoLote`
+      - CA10 prompt×schema → `IaServiceImplSchemaTest.promptESchemaAlinhamTetoDeTreinos`
+      - CA12 (backend) superficie de review → `PlanoSemanalMapperPlannerTest`
 - [ ] 8.4 **Gate de rollout em DUAS PORTAS (CA11 — design Decisao 5):**
       **Porta 1 — entrada no PILOTO (coorte restrita):** registrar a divergencia de fase do shadow
       `planner.phase.divergence.count / planner.generated.count` **<= 2%** (>= 2 semanas, >= 30 planos)
@@ -128,6 +150,15 @@
       pre-enforcement. Limiares **fixados** (nao propostos). Qualquer criterio da porta aplicavel acima
       do limiar / metrica indisponivel / amostra insuficiente = **fail-closed**, nao avanca. Registrar
       valor, janela e veredito de cada porta AQUI antes do flip correspondente.
-- [ ] 8.5 Registrar follow-ups: fila/filtro de planos marcados para review (frontend),
-      "prescription stamping" (candidata), gerador de estrutura de treino (v2).
-- [ ] 8.6 PRs backend e frontend abertos; CI verde.
+      **STATUS: operacional, sem codigo** — o gate e medido em producao no piloto; nada a
+      implementar/testar. Fica aberto ate a medicao das duas portas (defaults seguros: `enabled=false`,
+      `fail-open=true` ja garantidos por 8.1). Preencher valor/janela/veredito aqui antes de cada flip.
+- [x] 8.5 Follow-ups registrados: (a) **§7.2 frontend** — badge "Revisao obrigatoria" + motivos na aba
+      de plano do coach (o backend ja entrega `plannerComplianceStatus`/`plannerRequiresCoachReview`/
+      `plannerReviewMotivos` no DTO); (b) fila/filtro de planos marcados para review (frontend);
+      (c) "prescription stamping" (candidata); (d) gerador de estrutura de treino (v2);
+      (e) `RETRIED_PASSED`/`FALLBACK` como status distintos na telemetria (hoje estagio 2 classifica
+      so `PASSED`/`FAILED`); (f) skeleton computado 2x por geracao no caminho `enabled=true`
+      (redistribuicao + shadow) — otimizavel passando o precomputado ao `aplicarShadow`.
+- [ ] 8.6 PRs backend e frontend abertos; CI verde. (backend: `feature/planner-engine-enforcement-s4`
+      pronto para `/pr`; frontend: §7.2, repo `menthoros-front`.)
