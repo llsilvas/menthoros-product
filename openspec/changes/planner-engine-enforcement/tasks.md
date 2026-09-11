@@ -91,7 +91,13 @@
 
 ## 6. Batch
 
-- [ ] 6.1 TDD: `BatchPlanProcessorTest` — com `enabled=true`, um atleta falhando compliance apos retry vira erro individual sanitizado; o outro conclui; job `CONCLUIDO_COM_ERROS`; detalhe tecnico so em log estruturado. **verify:** vermelho -> verde.
+- [x] 6.1 TDD: `BatchPlanProcessorTest` — a falha de compliance (estagio 1 esgotado / estagio 2
+      fail-closed) chega ao lote como `DomainRuleViolationException`, que o processor **ja** trata:
+      erro individual sanitizado (`MOTIVO_ERRO_GERACAO`), o outro atleta conclui, job
+      `CONCLUIDO_COM_ERROS`, e o detalhe tecnico (keys/mensagens de `PlannerViolation`) fica **so no
+      log estruturado** — nunca no relatorio do job. Nenhuma mudanca de producao: comportamento ja
+      correto, travado por teste. Cobre tambem que a falha de compliance conta no corte por falhas
+      consecutivas (degradacao real). **verify:** `BatchPlanProcessorTest$ComplianceNoLote` (2) verde.
 
 ## 7. Superficie minima de review (design.md Decisao 8)
 
