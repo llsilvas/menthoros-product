@@ -108,10 +108,18 @@
       `PlanoSemanalMapper`. Plano legado sem metadata / JSON ilegivel / status desconhecido -> campos
       nulos, sem NPE. **verify:** `PlanoSemanalMapperPlannerTest` (4) verde; suite 3315 verde; motivos
       reais no DTO, nao so a contagem.
-- [ ] 7.2 Frontend: badge "Revisao obrigatoria" + motivos na aba de plano do coach quando
-      `requiresCoachReview=true` ou `compliance_status=FAILED`; plano `PASSED`/legado sem
-      destaque; visao do atleta intacta (CA12). Logica no hook/adapter, componente so
-      apresentacao. **verify:** `npm run lint && npm run build` + testes do repo front.
+- [x] 7.2 Frontend (`menthoros-front`, branch `feature/planner-engine-enforcement`): badge "Revisao
+      obrigatoria" + lista de motivos no `PlanoDetalhePanel` (aba de revisao de plano do coach) quando
+      `plannerRequiresCoachReview=true` ou `plannerComplianceStatus==='FAILED'`; `PASSED`/legado sem
+      destaque; visao do atleta intacta (CA12 — atleta usa outro tipo/endpoint, nao tocado). Logica no
+      adapter puro `resolvePlannerReviewBadge`/`resolvePlannerReviewReasons`; componente so apresenta
+      (`StatusBadge`). Campos adicionados a mao em `PlanoSemanalDto` (fachada curada; sem regen cega do
+      cliente). **verify:** `npm run lint` limpo, `npm run build` verde, `npm run test:run` 1570 verde
+      (adapter test 8 + `PlanoDetalhePanel.test` estendido + regressao `AthletePlanPage.test`).
+      **E2E DEFERIDO (com justificativa, per CLAUDE.md front):** badge e puramente aditivo de leitura —
+      nao altera o fluxo aprovar/rejeitar/editar e so aparece quando o backend seta os campos (flag
+      `planner-engine.enabled` default off → inerte em prod). Cobertura de display por teste de
+      componente. Adicionar spec E2E junto com o piloto (quando o flag ligar e o badge ficar visivel).
 
 ## 8. Verificacao final e DoD
 
