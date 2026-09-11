@@ -63,19 +63,24 @@
 
 ## 5. Estagio 2 — compliance pos-redistribuicao, terminal
 
-- [ ] 5.1 TDD: o estagio 2 roda **apos TODAS as transformacoes** (redistribuicao **e**
+- [x] 5.1 TDD: o estagio 2 roda **apos TODAS as transformacoes** (redistribuicao **e**
       `garantirProvasNaSemana` — design.md Decisao 2, Codex blocker 4), **sem retry**. Violacao **soft**
       (dia indisponivel, pesado perto de prova, taper): `fail-open=true` -> persiste `FAILED` +
       `requiresCoachReview=true`; `fail-open=false` -> erro de dominio. Violacao **obrigatoria (hard)**:
-      422, nada persistido, **independente do fail-open** (Decisao 3). Caso complementar: redistribuicao
-      corrige violacao do estagio 1 -> `RETRIED_PASSED`. Caso critico: `garantirProvasNaSemana` insere
-      sessao que quebra slot -> o check final pega (nao aprova plano invalido). **verify:** testes vermelhos.
-- [ ] 5.2 Implementar o estagio 2 em `PlanoServiceImpl` **como ultimo passo antes de persistir/aprovar/
-      emitir eventos** (depois de `garantirProvasNaSemana`), com o `referenceDate` do snapshot (nao
-      `LocalDate.now()`); persistir `compliance_status` final = pior dos estagios + `skeletonHash`.
-      **Veto a auto-aprovacao (Codex blocker 3):** plano `FAILED`/`requiresCoachReview` entra
-      `AGUARDANDO_REVISAO`, o persister NAO auto-aprova por skeleton. **verify:** testes de 5.1 verdes +
-      persistencia + teste de que plano FAILED nao aparece em consultas de aprovados.
+      422, nada persistido — nesta change **nao ha key hard no estagio 2** (o `checkPostRedistribution`
+      so emite keys soft; as hard sao os checks estruturais do estagio 1, ja fail-closed em `IaServiceImpl`).
+      Caso critico: `garantirProvasNaSemana` insere sessao que quebra slot -> o check final pega como
+      soft -> `FAILED` + `requiresCoachReview` -> **nao auto-aprova** (nao aprova plano invalido).
+      `RETRIED_PASSED` (redistribuicao corrige violacao do estagio 1) fica na §7 (leitura/telemetria) —
+      o estagio 2 classifica `PASSED`/`FAILED`. **verify:** `PlanGenerationPersisterProvaTest$EnforcementEstagio2` (3) verde.
+- [x] 5.2 Implementar o estagio 2 no `PlanGenerationPersister` (nao `PlanoServiceImpl` — apos o refactor
+      loader/persister e onde `garantirProvasNaSemana`/auto-approve/save/eventos vivem) **como ultimo
+      passo antes de aprovar/salvar/emitir eventos** (depois de `garantirProvasNaSemana`), com o
+      `referenceDate` = `periodo.inicio()` (nao `LocalDate.now()`); grava `compliance_status` final
+      (`PASSED`/`FAILED`) + `skeletonHash` (este via `persistirAuditoria` do shadow).
+      **Veto a auto-aprovacao (Codex blocker 3):** `aplicarAutoApproveSeElegivel` bail quando o plano
+      esta `FAILED` ou `requiresCoachReview=true`. **verify:** `PlanGenerationPersisterProvaTest$VetoAutoAprovacao` (2)
+      + suite completa 3307 verde + `*IT` de plano/lote 9 verde.
 - [ ] 5.3 Redistribuicao recebe os dias-alvo dos `SessionSlot` (mudanca minima no `RedistribuicaoTreinoHelper`: origem do dia-alvo, sem alterar o algoritmo de fallback). **verify:** teste cobrindo modo SEMANA_ATUAL com slots.
 
 ## 6. Batch
