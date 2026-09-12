@@ -43,9 +43,9 @@
 
 ## 6. Spec delta e validação
 
-- [ ] 6.1 Escrever/atualizar `specs/cold-start-load-model/spec.md` com os cenários (Given/When/Then)
+- [x] 6.1 Escrever/atualizar `specs/cold-start-load-model/spec.md` com os cenários (Given/When/Then)
       de CA1–CA6. **verify:** `openspec validate` (se aplicável) + revisão.
-- [ ] 6.2 **verify:** `./mvnw clean verify` verde (inclui `*IT`), com `enabled=false` (default) sem
+- [x] 6.2 **verify:** `./mvnw clean verify` verde (inclui `*IT`), com `enabled=false` (default) sem
       regressão (golden-master do prompt intacto — CA9).
 - [ ] 6.3 Piloto (Hugo/Maria zerados, `enabled=true`): cold-start com plano coerente vira `PASSED`,
       distâncias > 0, ordem sensata; divergência residual = `FAILED`+revisão (fail-open=true).
