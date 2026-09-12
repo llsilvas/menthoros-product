@@ -26,6 +26,7 @@ This index tracks all Architecture Decision Records (ADRs) for Menthoros, their 
 | [ADR-0009-gate-de-qualidade-em-pr.md](./ADR-0009-gate-de-qualidade-em-pr.md) | Gate de qualidade em Pull Requests | Aceito | 2026-05-01 | - | - |
 | [ADR-0010-expansao-agentes-ai-cron-otimizacao.md](./ADR-0010-expansao-agentes-ai-cron-otimizacao.md) | Expansao do time de agentes AI autonomos e otimizacao de custo | Aceito | 2026-07-29 | - | - |
 | [ADR-0011-composicao-deterministica-de-sessoes-por-fase.md](./ADR-0011-composicao-deterministica-de-sessoes-por-fase.md) | Composicao deterministica de sessoes por fase do planner | Aceito | 2026-09-09 | - | - |
+| [ADR-0012-modelo-de-carga-cold-start-e-recuperacao.md](./ADR-0012-modelo-de-carga-cold-start-e-recuperacao.md) | Modelo de carga do cold-start e reducao de RECOVERY no planner | Aceito | 2026-09-12 | - | - |
 
 ## Update Checklist
 

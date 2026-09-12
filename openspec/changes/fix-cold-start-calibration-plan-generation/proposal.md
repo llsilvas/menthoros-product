@@ -32,6 +32,8 @@ Evidências, limitações e reprodução estão em [investigation.md](investigat
 
 As decisões são propostas para revisão. Em particular, a precedência sobre o fail-open de `planner-engine-enforcement`, as tolerâncias por tipo de treino e o mecanismo de ativação precisam ser fechados nas tarefas 1.2–1.4 antes da implementação dependente.
 
+**Modelo de carga fechado (grilling 2026-09-12, ADR-0012, design §14).** O piloto local com o enforcement ligado expôs que o alvo semanal (`targetTss = ctlAtual×7`) colapsa a 0 no cold-start e não reduz em RECOVERY. Ficou decidido: **regime cold-start** enquanto o atleta está em calibração (CTL do baseline capado a ≤40, rampa por `CalibrationStage` 0,60/0,75/0,90, piso 120 em fase progressiva, banda ±25% soft); **redução ×0,5** de RECOVERY/POST_RACE; e **extensão da alocação de dias ao `PROXIMA_SEMANA`** com `enabled=true`. Tarefas em §8. O `ctlFallback` já codado (commit `463b0c8`) é a 1ª fatia, a ajustar para o CTL de calibração capado.
+
 ## Capabilities
 
 ### New Capabilities

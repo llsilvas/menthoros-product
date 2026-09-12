@@ -232,3 +232,38 @@ O plano quebrado de 70,6 s passou porque estes são **apenas warning** hoje:
 
 Fechados 1–4, a task 1.3 fica pronta e as regressões 4.1–4.2 ganham oráculo (fixtures válidas/inválidas
 nos limites de cada tolerância).
+
+## 14. Modelo de carga do cold-start e RECOVERY (grilling 2026-09-12, evidência de piloto) — ADR-0012
+
+Fecha as decisões que o piloto local (`enabled=true`, atletas zerados) expôs no `LoadTargetResolver`.
+Números canônicos e justificativa no **ADR-0012**; aqui o contrato para as tasks. Tudo atrás do flag
+`planner-engine.enabled`; carga/distribuição já são **soft** (estágio 2) por `planner-engine-enforcement`.
+
+**14.1 Regime cold-start (ativo enquanto o atleta está EM calibração — stage até graduar).**
+- CTL usado = o do `BaselineCalculator` (blend real+heurística), **capado a ≤ 40** até graduar.
+- Rampa por `CalibrationStage`: `OBSERVATION 0,60 · CALIBRATION 0,75 · STABILIZATION 0,90`.
+- `targetTss = min(ctlBaseline, 40) × 7 × rampa(stage) × (RECOVERY|POST_RACE ? 0,5 : 1)`.
+- Piso 120 TSS/sem **só em fase progressiva** (não em contenção).
+- Banda **±25%** no cold-start (vs ±10%), soft.
+- Saída: graduou → `LoadTargetResolver` normal (PMC `ctlAtual`, ±10%, sem rampa/cap).
+- Gatilho do regime = **estar em calibração** (não "sem PMC"): durante a calibração usa o baseline
+  blendado (PMC imaturo suavizado pela heurística), direção conservadora. Ver ADR-0012, opção (b).
+
+**14.2 Redução de RECOVERY/POST_RACE (transversal, qualquer causa).** Fator **×0,5** no
+`LoadTargetResolver` para essas fases — reduz, não só capa no baseline. Distinto do `TaperStrategy`
+(taper por `diasParaProva`); multiplicativo com a rampa. Sem piso em contenção.
+
+**14.3 Ordenação no `PROXIMA_SEMANA`.** Com `enabled=true`, a redistribuição/`SessionDayAllocator`
+roda em **ambos** os modos (hoje só `SEMANA_ATUAL`), aplicando a ordem prescrita (longão ancorado,
+duras não-adjacentes, leve pós-dura) via `diasAlvoPorTipo` do skeleton. `enabled=false` mantém os dias
+do LLM (preserva CA9).
+
+**14.4 Plumbing.** Threadar `CalibrationStage` + o CTL de calibração (baseline capado) ao
+`OnboardingContext`/`PlannerInputSnapshot`, resolvidos antes do prompt (§4). O `ctlFallback` já
+introduzido (commit `463b0c8`, branch de calibração) vira este "CTL de calibração", ajustado para o
+baseline capado em vez do onboarding puro.
+
+**14.5 Interação com o enforcement.** Após 14.1–14.3, o cold-start com plano coerente vira `PASSED`;
+divergência residual continua `FAILED` + `requiresCoachReview` (soft), nunca 422. Calibração fina dos
+números (rampa, cap, ×0,5, banda) é dirigida pelas métricas do shadow na porta 1 do rollout (ADR-0012,
+plano de revisão).
