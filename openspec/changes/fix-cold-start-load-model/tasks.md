@@ -36,7 +36,7 @@
 
 ## 5. Matriz fail-open (CA6)
 
-- [ ] 5.1 TDD dos dois caminhos de `fail-open` para divergência soft de carga no cold-start:
+- [x] 5.1 TDD dos dois caminhos de `fail-open` para divergência soft de carga no cold-start:
       `fail-open=true` → `FAILED` + `requiresCoachReview`, persiste; `fail-open=false` → erro de
       domínio (422), nada persistido (Decisão 3 do enforcement — sem exceção). **verify:** ambos os
       caminhos + hard invariante sempre 422.
