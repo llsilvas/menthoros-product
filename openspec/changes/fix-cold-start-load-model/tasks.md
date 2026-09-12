@@ -6,7 +6,7 @@
 
 ## 1. Plumbing do estágio de calibração no snapshot
 
-- [ ] 1.1 Threadar `CalibrationStage` + o CTL de calibração (baseline blendado, capado ≤ 40) ao
+- [x] 1.1 Threadar `CalibrationStage` + o CTL de calibração (baseline blendado, capado ≤ 40) ao
       `OnboardingContext` e ao `PlannerInputSnapshot`, resolvidos antes do prompt. **verify:** teste do
       snapshot com atleta em calibração (stage presente) vs graduado (ausente); sem calibração o campo
       é nulo e o resolver cai no caminho normal (PMC).
