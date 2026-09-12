@@ -13,11 +13,11 @@
 
 ## 2. Regime cold-start no LoadTargetResolver (CA1, CA2, CA3)
 
-- [ ] 2.1 TDD: rampa por `CalibrationStage` — `targetTss = min(ctlBaseline,40) × 7 × rampa(stage)`,
+- [x] 2.1 TDD: rampa por `CalibrationStage` — `targetTss = min(ctlBaseline,40) × 7 × rampa(stage)`,
       com OBSERVATION 0,60 / CALIBRATION 0,75 / STABILIZATION 0,90. Ajustar o `ctlFallback` (commit
       `463b0c8`) para o **CTL de calibração capado** em vez do onboarding puro. **verify:** os 3
       estágios; AVANÇADO (55) usa 40; graduado (PMC>0) ignora rampa/cap.
-- [ ] 2.2 TDD: piso 120 TSS/sem **só em fase progressiva** (ausente em contenção) + banda **±25%** no
+- [x] 2.2 TDD: piso 120 TSS/sem **só em fase progressiva** (ausente em contenção) + banda **±25%** no
       cold-start (min/max do `WeeklyLoadTarget`), mantida soft. **verify:** piso aplica em BASE/BUILD e
       não em RECOVERY/TAPER; banda ±25% vs ±10% do caminho normal.
 
