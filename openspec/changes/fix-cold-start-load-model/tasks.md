@@ -23,7 +23,7 @@
 
 ## 3. Redução de RECOVERY/POST_RACE (CA4)
 
-- [ ] 3.1 TDD: fator **×0,5** para RECOVERY/POST_RACE no `LoadTargetResolver` — reduz, não só capa;
+- [x] 3.1 TDD: fator **×0,5** para RECOVERY/POST_RACE no `LoadTargetResolver` — reduz, não só capa;
       multiplicativo com a rampa; distinto do `TaperStrategy`; sem piso em contenção. **verify:**
       RECOVERY ≈ 0,5×baseline; cold-start lesionado = rampa×0,5; taper por prova inalterado.
 
