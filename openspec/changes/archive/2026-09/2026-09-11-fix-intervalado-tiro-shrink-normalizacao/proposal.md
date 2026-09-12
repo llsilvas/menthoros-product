@@ -6,6 +6,9 @@ mudança de contrato de API nem de schema de banco, sem incerteza de design)
 ## Status
 
 - Proposta inicial (2026-09-11) — origem: log local de geração de plano + relato do founder.
+- ✅ **Entregue e arquivada (2026-09-11)** — PR backend [#110](https://github.com/llsilvas/menthoros-backend/pull/110)
+  mergeado em `develop`, CI verde (`Build e testes (verify)` + GitGuardian). QA (`code-reviewer` +
+  `security-reviewer` + `clean-code-reviewer` + `/codex:review`) sem finding Critical.
 
 ## Why
 
