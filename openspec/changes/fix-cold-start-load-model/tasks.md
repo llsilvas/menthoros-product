@@ -29,7 +29,7 @@
 
 ## 4. Ordenação no PROXIMA_SEMANA (CA5)
 
-- [ ] 4.1 Estender a alocação de dias ao `PROXIMA_SEMANA`, **gated por `enabled=true`**:
+- [x] 4.1 Estender a alocação de dias ao `PROXIMA_SEMANA`, **gated por `enabled=true`**:
       `obterTreinosParaPlano` roda a redistribuição em ambos os modos com o `diasAlvoPorTipo` do
       skeleton; `enabled=false` mantém os dias do LLM. **verify:** enabled=true aplica ordem (longão
       ancorado, duras não-adjacentes, leve pós-dura); enabled=false byte-a-byte (CA9).
