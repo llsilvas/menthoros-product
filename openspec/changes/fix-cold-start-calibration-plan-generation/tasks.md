@@ -58,27 +58,7 @@
 - [ ] 7.4 Registrar plano de ativação/reversão e compatibilidade com gates da change de enforcement. **Validação:** nenhum rollout automático nesta tarefa documental; eventuais planos antigos tratados em escopo separado.
 - [ ] 7.5 Atualizar tasks e OpenSpec com implementação real, diff e impacto de contrato; executar novamente validação strict. **Validação:** documentação reflete entrega, sem marcar decisões pendentes como concluídas.
 
-## 8. Modelo de carga cold-start e RECOVERY (design §14, ADR-0012 — grilling 2026-09-12)
 
-> Depende do enforcement calibrado (PR do `fix/planner-enforcement-calibration`) para validar
-> ponta-a-ponta. Tudo atrás de `planner-engine.enabled`. Ordem TDD; validar `./mvnw clean test`.
+## 8. Modelo de carga cold-start — MOVIDO para `fix-cold-start-load-model`
 
-- [ ] 8.1 Threadar `CalibrationStage` + CTL de calibração (baseline blendado, capado ≤ 40) ao
-      `OnboardingContext`/`PlannerInputSnapshot`, resolvidos antes do prompt (§4/§14.4). **verify:**
-      teste do snapshot com/sem calibração; sem calibração o campo é ausente/graduado.
-- [ ] 8.2 `LoadTargetResolver` — regime cold-start (§14.1): `targetTss = min(ctlBaseline,40) × 7 ×
-      rampa(stage) × (RECOVERY|POST_RACE ? 0,5 : 1)`; banda ±25% no cold-start; piso 120 só em fase
-      progressiva; saída = graduado → PMC/±10%. Ajustar o `ctlFallback` (commit `463b0c8`) para o CTL
-      de calibração capado. **verify:** OBSERVATION 0,6 / CALIBRATION 0,75 / STABILIZATION 0,9;
-      cap ≤40 (AVANÇADO 55→40); piso 120 progressiva e ausente em contenção; banda ±25%; graduado
-      ignora rampa/cap.
-- [ ] 8.3 `LoadTargetResolver` — redução ×0,5 de RECOVERY/POST_RACE (§14.2), multiplicativa com a
-      rampa, distinta do `TaperStrategy`, sem piso. **verify:** RECOVERY reduz a ~0,5×baseline;
-      lesionado cold-start = rampa×0,5; taper por prova inalterado.
-- [ ] 8.4 Estender a alocação de dias ao `PROXIMA_SEMANA` (§14.3), **gated por `enabled=true`**:
-      `obterTreinosParaPlano` roda a redistribuição em ambos os modos com o `diasAlvoPorTipo` do
-      skeleton; `enabled=false` mantém dias do LLM (CA9). **verify:** teste PROXIMA_SEMANA com
-      enabled=true aplica ordem (longão ancorado, duras não-adjacentes); enabled=false byte-a-byte.
-- [ ] 8.5 Validar no piloto (Hugo/Maria zerados) que cold-start com plano coerente vira `PASSED` e a
-      ordem faz sentido; divergência residual = `FAILED`+revisão (soft), nunca 422. **verify:** veredito
-      no banco (compliance_status, faixa real) + inspeção da ordem dos treinos.
+As tasks de modelo de carga saíram deste change (ver a change própria `fix-cold-start-load-model`). Aqui permanecem as seções 0–7 (baseline, contexto/restrições, invariantes/coerência, gates), que aguardam as decisões de produto do §13.4.

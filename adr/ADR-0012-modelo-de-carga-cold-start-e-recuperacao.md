@@ -30,9 +30,15 @@ semanal como `targetTss = ctlAtual × 7`:
 
 Os numeros de carga por fase/cold-start nao estavam especificados; este ADR os fixa (calibraveis,
 dirigidos depois pelas metricas do shadow numa coorte real). Escopo:
-`fix-cold-start-calibration-plan-generation`. Tudo atras do flag `planner-engine.enabled` (default
-false), com carga/distribuicao ja **soft** (estagio 2 → `FAILED` + `requiresCoachReview`, nunca 422 —
-ver `planner-engine-enforcement`).
+`fix-cold-start-load-model` (split de `fix-cold-start-calibration-plan-generation`). Tudo atras do
+flag `planner-engine.enabled` (default false), com carga/distribuicao ja **soft** (estagio 2 →
+`FAILED` + `requiresCoachReview`) — ver `planner-engine-enforcement`.
+
+**Precedencia da matriz fail-open (Decisao 3 do enforcement):** "soft → `FAILED` + revisao, sem 422"
+vale sob `fail-open=true` (o **default vigente**). Com `fail-open=false`, uma violacao soft vira erro
+de dominio (422, nada persistido), conforme a Decisao 3 — este ADR **nao** cria excecao a ela. A
+invariante **obrigatoria (hard)** continua fail-closed (422) acima do flag. Portanto "nunca 422" no
+cold-start e uma consequencia do default `fail-open=true`, nao uma garantia independente.
 
 ## Opções consideradas
 
