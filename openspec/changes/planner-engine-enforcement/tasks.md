@@ -165,6 +165,8 @@
       itens 8.5.g/8.5.h abaixo — o skeleton do prompt/estagio-1 diverge do de redistribuicao/estagio-2
       (onboarding context diferente), corrompendo justamente a coorte de onboarding/cold-start, e o
       caminho de fallback pode enforcar estagio-2 contra um skeleton que o LLM nao viu.
+      **8.5.g RESOLVIDO (2026-09-13, `fix-cold-start-load-model` #114)** — ver 8.5 abaixo. **8.5.h
+      segue aberto.** Porta 1 permanece bloqueada ate 8.5.h fechar.
 - [x] 8.5 Follow-ups registrados: (a) **§7.2 frontend** — badge "Revisao obrigatoria" + motivos na aba
       de plano do coach (o backend ja entrega `plannerComplianceStatus`/`plannerRequiresCoachReview`/
       `plannerReviewReasons` no DTO); (b) fila/filtro de planos marcados para review (frontend);
@@ -174,14 +176,18 @@
       (prompt em `PlanoServiceImpl` + `diasAlvoDaRedistribuicao` + `aplicarShadow`) — colapsavel pelo
       8.5.g.
       **Achados do code review 2026-09-11 (bloqueiam porta 1, nao o merge atras do flag):**
-      (g) **[Important] Skeleton unico ponta-a-ponta:** hoje `PlanoServiceImpl.computarSkeletonSeHabilitado`
-      computa o skeleton do prompt/estagio-1 com `Optional.empty()` de onboarding, enquanto o persister
-      recomputa com o onboarding **real** para redistribuicao e estagio-2 → skeletons divergentes para
-      atleta em onboarding (coorte cold-start), gerando retry/`FAILED` espurios. Fix: computar o skeleton
-      **uma vez** com o onboarding correto e passa-lo a `iaService` (ja recebe) e ao persister (novo
-      parametro, em vez de recomputar em `aplicarShadow`/`diasAlvoDaRedistribuicao`). Resolve tambem (f)
-      e metade de (e) (`FALLBACK`). **Decisao de design pendente:** onde a resolucao de onboarding vive
-      (hoje so no persister) — cruza com `fix-cold-start-calibration-plan-generation`.
+      (g) **[Important] RESOLVIDO — 2026-09-13, `fix-cold-start-load-model` #114 (achado do `/qa`
+      cross-model Codex sobre essa mesma change, nao planejado originalmente como fix deste item, mas
+      fecha exatamente ele).** `PlanGenerationContextLoader.load` agora resolve o `OnboardingContext`
+      **uma unica vez** (Fase 1, antes do prompt) e o propaga via novo campo em `PlanGenerationContext`
+      — reusado tanto por `PlanoServiceImpl.computarSkeletonSeHabilitado` (skeleton do prompt/estagio-1)
+      quanto por `PlanGenerationPersister` (redistribuicao/estagio-2/shadow), eliminando a divergencia.
+      `PlanGenerationPersister.resolverOnboardingContext` (a resolucao duplicada) foi removido. Nao
+      resolve (f) (skeleton ainda computado ate 3x — a duplicacao que sobrou e por design diferente,
+      nao por onboarding divergente) nem (e) (`FALLBACK` como status distinto). **Efeito colateral
+      aceito:** a escrita de baseline/historico de calibracao (`OnboardingService#montarContexto`)
+      passou a rodar em toda tentativa de geracao (inclusive falhas), nao so nas que persistem plano —
+      documentado e testado em `PlanGenerationContextLoader.load` (commit `9747458`).
       (h) **[Important] Fallback nao sinaliza o persister:** quando o planner falha ANTES do LLM
       (fail-open → skeleton null, geracao legada), o persister ainda recomputa o skeleton e pode enforcar
       estagio-2 contra um skeleton que o LLM nunca viu → `FAILED` espurio. Fix junto com (g): threa o
@@ -204,5 +210,7 @@
         e metodo privado curto e coeso com o call site do `gerarComResiliencia` (retry/LLM); move-lo para
         `PlannerShadowService` acoplaria o shadow a `LLMException`/retry (concern de IaService). Debt
         segue rastreado em `refactor-iaservice-decomposition`.
-- [ ] 8.6 PRs backend e frontend abertos; CI verde. (backend: `feature/planner-engine-enforcement-s4`
-      pronto para `/pr`; frontend: §7.2, repo `menthoros-front`.)
+- [x] 8.6 PRs backend e frontend abertos e mergeados — checkbox estava desatualizado.
+      `menthoros-backend` #107 (seção 1), #108 (seções 2–3), #109 (§4–§8), todos `MERGED` em
+      `develop`. `menthoros-front` #119 (§7.2, badge "Revisão obrigatória"), `MERGED`. Código de
+      §1–§8 e §8.5 integralmente em `develop` nos dois repos.
