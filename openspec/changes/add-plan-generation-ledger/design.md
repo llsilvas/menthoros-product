@@ -180,8 +180,13 @@ livres: o modelo pode reproduzi-los. Tratamento:
 - antes de gravar, o nome do atleta (e sobrenome) é substituído por `[ATLETA]` no texto da resposta
   (rota `plano`, que conhece o atleta); lesão em texto livre não é redigível com segurança e fica
   coberta pela retenção e pela exclusão abaixo;
-- exclusão do atleta anula `response_json` das linhas dele (listener/`@PreRemove` no mesmo ponto
-  que já trata a exclusão), além do `ON DELETE SET NULL` da FK;
+- exclusão do atleta anula `response_json` das linhas dele. **Correção de implementação
+  (2026-09-13): `Atleta` não tem hard delete** — `AtletaServiceImpl.deleteAtleta` é soft delete
+  (`AtletaStatus.INATIVO`; a linha em `tb_atleta` nunca é removida), então não existe o ponto de
+  `@PreRemove`/listener de exclusão física que este design previa. `deleteAtleta` chama
+  `LlmCallLedger.anonimizarRespostasDoAtleta(id)` logo após o `save`, best-effort. A FK
+  `ON DELETE SET NULL` continua declarada como piso defensivo para uma eventual erradicação física
+  futura (ex.: direito ao esquecimento LGPD via um fluxo próprio), sem call site hoje;
 - acesso só por SQL/admin; nenhum endpoint expõe a coluna;
 - CA6 deixa de prometer "nenhum trecho do prompt aparece" e passa a prometer: o prompt não é
   gravado, o nome é redigido, e a retenção/exclusão valem.

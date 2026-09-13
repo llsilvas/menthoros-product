@@ -127,16 +127,27 @@
 
 ## 5. Resposta bruta e purga (CA6, CA7)
 
-- [ ] 5.1 `response_json` recebe o JSON bruto do `ChatResponse` (texto do primeiro `Generation`)
+- [x] 5.1 `response_json` recebe o JSON bruto do `ChatResponse` (texto do primeiro `Generation`)
       antes do parse para DTO, com nome e sobrenome do atleta substituídos por `[ATLETA]` (D7);
       o prompt não é gravado. **verify:** teste do ledger com atleta "Maria Souza" e resposta que
       cita o nome → `[ATLETA]` no JSON gravado.
-- [ ] 5.3 Exclusão do atleta anula `response_json` das linhas dele, no mesmo ponto que já trata a
+- [x] 5.3 Exclusão do atleta anula `response_json` das linhas dele, no mesmo ponto que já trata a
       exclusão (`AtletaServiceImpl.delete` ou listener). **verify:** IT: excluir atleta →
       `atleta_id = NULL` e `response_json = NULL`.
-- [ ] 5.2 `LlmCallRetentionScheduler` (`@Scheduled` diário, padrão dos schedulers existentes):
+- [x] 5.2 `LlmCallRetentionScheduler` (`@Scheduled` diário, padrão dos schedulers existentes):
       anula `response_json` > 90 dias, loga total. **verify:** teste com `Clock` fixo e 3 linhas
       (2 velhas, 1 nova) → 2 anuladas, demais colunas intactas; segunda execução anula 0.
+
+> Ajuste de implementação da seção 5 (2026-09-13): `Atleta` **não tem hard delete** no domínio —
+> `AtletaServiceImpl.deleteAtleta` é soft delete (`AtletaStatus.INATIVO`), a linha em `tb_atleta`
+> nunca é removida. A task 5.3 previa anular `response_json` "no mesmo ponto que já trata a
+> exclusão" supondo um `DELETE` real; como esse ponto não existe, `deleteAtleta` (o único
+> "exclusão" real do domínio) chama `LlmCallLedger.anonimizarRespostasDoAtleta(id)` depois do
+> `save`. A FK `atleta_id ON DELETE SET NULL` fica como piso defensivo para uma eventual
+> erradicação física futura (LGPD/direito ao esquecimento), sem call site hoje. `LlmCallRepository`
+> ganhou `anonimizarRespostasDoAtleta` e `purgarRespostasAntesDe` (ambos `@Modifying` bulk update);
+> `LlmCallRetentionScheduler` roda às 3h15 (América/São Paulo), 15 min depois dos schedulers de
+> 3h/3h30 já existentes, para não competir pela mesma janela.
 
 ## 6. Glossário e documentação
 
