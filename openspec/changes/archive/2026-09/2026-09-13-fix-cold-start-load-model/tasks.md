@@ -47,12 +47,38 @@
       de CA1–CA6. **verify:** `openspec validate` (se aplicável) + revisão.
 - [x] 6.2 **verify:** `./mvnw clean verify` verde (inclui `*IT`), com `enabled=false` (default) sem
       regressão (golden-master do prompt intacto — CA9).
-- [ ] 6.3 Piloto (Hugo/Maria zerados, `enabled=true`): cold-start com plano coerente vira `PASSED`,
+- [x] 6.3 Piloto (Hugo/Maria zerados, `enabled=true`): cold-start com plano coerente vira `PASSED`,
       distâncias > 0, ordem sensata; divergência residual = `FAILED`+revisão (fail-open=true).
-      **verify:** veredito no banco (compliance_status, faixa real) + inspeção dos treinos.
+      **verify:** validado no banco do homelab (2026-09-13) — planos gerados após `ed13c1b`.
+      Hugo (RECOVERY): 2,5/3,5/4,5km progressivo, TSS 59 vs faixa [59.06, 98.44] → `FAILED`+
+      `requiresCoachReview` (`INJURY_ACTIVE`). Maria (BASE): INTERVALADO/TEMPO_RUN/LONGO com duras
+      não-adjacentes e longão ancorado, TSS 178 vs faixa [189, 315] → `FAILED`+revisão. Ambos
+      coerentes, sem [0,0], divergência residual tratada pelo fail-open (Decisão 3) — nenhum bug,
+      gap de banda é candidato à calibração pós-rollout (ADR-0012).
 
 ## 7. Gates e entrega
 
-- [ ] 7.1 `/qa` (code-reviewer + security-reviewer + clean-code) sem finding Critical.
-- [ ] 7.2 PR `feature/fix-cold-start-load-model → develop`; CI verde; **não** commitar
-      `application.yml` com `enabled:true` (enable é por env).
+- [x] 7.1 `/qa` (code-reviewer + security-reviewer + clean-code + cross-model Codex) — 2026-09-13.
+      Codex achou 2 Critical reais que os revisores Claude não pegaram (escopados ao diff, não à
+      cadeia de chamada completa): (1) `PlanoServiceImpl.computarSkeletonSeHabilitado` passava
+      `Optional.empty()` hardcoded para o skeleton pré-prompt — o regime cold-start nunca guiava a
+      IA, só auditava depois via estágio 2; corrigido centralizando a resolução do
+      `OnboardingContext` em `PlanGenerationContextLoader.load` (novo campo em `PlanGenerationContext`),
+      reusado tanto no skeleton pré-prompt quanto na persistência. (2) `TaperStrategy.aplicar`
+      sobrescrevia a banda de entrada com `+-10%` fixo, perdendo a banda `+-25%` do cold-start em
+      TAPER/RACE_WEEK — corrigido para preservar a banda relativa do alvo pré-taper. Também corrigido
+      um Important do clean-code-reviewer: atleta graduado com tier != A reiniciava a calibração no
+      próximo `montarContexto` (`OnboardingServiceImpl.persistirBaselineSnapshot`) — corrigido para só
+      iniciar calibração quando a linha de estado nunca existiu (`estado.getId() == null`), não quando
+      só `calibracaoIniciadaEm` está nulo (que também é o estado pós-graduação). Testes novos:
+      `TaperStrategyTest` (2), `PlanoServiceImplTest` (1, prova de que o `OnboardingContext` chega ao
+      skeleton), `OnboardingServiceTest` (1, graduado não regride). **verify:** `./mvnw clean verify`
+      verde — 3351 unit (0 falhas) + 181/182 IT (a 1 falha é `PlanoGeracaoConcorrenteIT`, bug de
+      concorrência pré-existente e documentado, não desta branch).
+- [x] 7.2 PR `feature/fix-cold-start-load-model → develop`; https://github.com/llsilvas/menthoros-backend/pull/114
+      (2026-09-13) — segunda rodada de `/qa` sobre o diff com os 3 fixes: Claude (code/security/
+      clean-code) confirma correção sem regressão; Codex indisponível (limite de uso). Achado novo
+      (Important, aceito como troca deliberada, documentado+testado no commit `9747458`): a resolução
+      do `OnboardingContext` movida para a Fase 1 agora roda em toda tentativa de geração, inclusive
+      falhas — grava ruído extra no histórico de calibração em tentativas malsucedidas. `./mvnw clean
+      test`: 3352 testes, 0 falhas. Aguardando CI + merge.

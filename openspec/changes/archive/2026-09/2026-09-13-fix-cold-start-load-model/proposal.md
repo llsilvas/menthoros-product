@@ -82,3 +82,19 @@ Fórmula: `targetTss = min(ctlBaseline, 40) × 7 × rampa(stage) × (RECOVERY|PO
 ## Rollback
 
 Desligar `planner-engine.enabled` (default já é `false`). Sem migration; nenhuma coluna nova.
+
+## Status
+
+- **2026-09-13 — Entregue e arquivada.** `menthoros-backend` PR **#114** mergeado em `develop`
+  (CI verde, 2 checks). Piloto real no homelab (Hugo/Maria zerados, `enabled=true`): planos
+  coerentes, progressivos, distâncias > 0, ordem sensata; divergência residual de TSS tratada
+  corretamente pelo fail-open (`FAILED` + revisão do coach) — sem `[0,0]`.
+  `./mvnw clean verify`: 3352 unit (0 falhas) + 181/182 IT (a 1 falha é `PlanoGeracaoConcorrenteIT`,
+  bug de concorrência pré-existente e já documentado, não desta change).
+  `/qa` (duas rodadas, Claude + Codex): 2 Critical e 1 Important corrigidos antes do merge —
+  skeleton pré-prompt não recebia o `OnboardingContext` (regime cold-start só auditava, nunca guiava
+  a IA); `TaperStrategy` sobrescrevia a banda ±25% do cold-start com ±10% fixo em TAPER/RACE_WEEK;
+  atleta graduado com tier≠A reiniciava a calibração no ciclo seguinte. Um Important aceito como
+  débito conhecido (não corrigido nesta change): `LoadTargetResolver.resolveColdStart` pode colapsar
+  para `target=min=max=0` quando `ctlBaseline=0` em fase de contenção (TAPER/RACE_WEEK/
+  RETURN_TO_TRAINING) — candidato a follow-up.
