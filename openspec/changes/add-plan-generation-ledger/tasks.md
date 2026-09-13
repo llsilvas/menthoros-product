@@ -165,8 +165,22 @@
 
 ## 7. QA e entrega
 
-- [ ] 7.1 `./mvnw clean verify` verde; `/qa` (code-reviewer + security-reviewer; atenção a
-      multi-tenancy do `tenant_id` nullable e a PII no `response_json`).
+- [x] 7.1 `./mvnw clean verify` verde; `/qa` (`code-reviewer` + `security-reviewer` +
+      `clean-code-reviewer`, em paralelo). **Um Critical achado e corrigido**:
+      `CostTrackingAdvisor.gravarNoLedger` registrava o `callId` no escopo também no caminho de
+      exceção, então `PlanoLlmLedgerHook.Sessao.chamar` sobrescrevia toda linha `LLM_ERROR`/
+      `TIMEOUT` da rota `plano` para `PARSE_ERROR` — violava CA3, nenhuma chamada real de provider
+      jamais persistia com o resultado certo. Fix: `registerCallId` só no caminho feliz
+      (`resultadoForcado == null`); fechado o gap de cobertura com
+      `PlanoLlmLedgerHookAdvisorIntegrationTest` (hook + advisor reais, só o `LlmCallLedger`
+      mockado — a fronteira exata onde o bug vivia). **Dois Important corrigidos**: regex de
+      redação de nome sem `(?U)` não tratava letra acentuada como borda de palavra — José, André,
+      Álvaro sozinhos no texto escapavam da redação (D7); 6 catches duplicados em
+      `PlanoServiceImpl.gerarPlanoTreino` viraram o helper `falhar()`. **Um Important registrado
+      como débito aceito, não corrigido nesta change**: `CostTrackingAdvisor` acumulou duas
+      responsabilidades (métricas + escrita no ledger) — extrair `LlmCallRegistroFactory` fica
+      para um follow-up, não bloqueia o merge. `./mvnw clean verify`: 3427 unitários + 182 de
+      integração, 0 falhas.
 - [ ] 7.2 Consulta de validação documentada no PR (custo, p50/p95, retry, `PENDING` residual,
       `request_outcome` e `REJEITADO` por tenant e `prompt_version`) executada contra o banco de dev.
 - [ ] 7.3 PR `feature/add-plan-generation-ledger` → `develop`; após merge, remover worktree.
