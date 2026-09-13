@@ -36,9 +36,9 @@
 
 ## 2. Versionamento (CA5)
 
-- [ ] 2.1 `PromptVersion.CURRENT = "plano-v1"` e `SchemaVersion.CURRENT = "schema-v1"` (pacote
+- [x] 2.1 `PromptVersion.CURRENT = "plano-v1"` e `SchemaVersion.CURRENT = "schema-v1"` (pacote
       `domain/compliance`, ao lado de `PlannerVersion`). **verify:** teste trivial de constante.
-- [ ] 2.2 `PromptHashCalculator`: SHA-256 do template estático no startup, logado em INFO, exposto
+- [x] 2.2 `PromptHashCalculator`: SHA-256 do template estático no startup, logado em INFO, exposto
       como bean. **verify:** teste com template fixo e hash conhecido; teste que compara o hash do
       classpath com `golden/plano-prompt/prompt.sha256` (arquivo novo, gerado junto do golden).
 
