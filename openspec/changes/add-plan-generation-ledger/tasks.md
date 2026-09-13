@@ -53,9 +53,9 @@
       devolve id), `registrarResultado(callId, resultado, violacoes)` e
       `registrarDesfecho(generationRequestId, outcome)` (atualiza a linha de maior `tentativa`).
       Cada método em `@Transactional(propagation = REQUIRES_NEW, timeout = 5)` e `try/catch` com
-      `warn` (CA8, D12). Redação do nome do atleta em `response_json` acontece aqui (recebe o nome
-      no contexto? não — recebe `atletaNome` como parâmetro opcional vindo do advisor via
-      `LlmCallContext.atletaNome`; adicionar o campo ao record). Javadoc com Idempotent/Side
+      `warn` (CA8, D12). Redação do nome
+      do atleta em `response_json` acontece aqui, a partir de `LlmCallContext.atletaNome`
+      (campo do record, preenchido pela rota `plano`). Javadoc com Idempotent/Side
       Effects/Tenant-aware. **verify:** teste com repositório lançando exceção — não propaga;
       `LlmCallLedgerIT`: chamador em `REQUIRES_NEW` faz rollback e a linha sobrevive.
 - [ ] 3.3 `CostTrackingAdvisor.paraRota(rota, pricing, meterRegistry, ledger)` — novo parâmetro,

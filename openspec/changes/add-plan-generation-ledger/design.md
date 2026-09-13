@@ -26,8 +26,9 @@ são coisas diferentes, e o `spec-reviewer` apontou que um record não pode ser 
 
 ```java
 // Imutável: quem chama o LLM descreve a tentativa antes da chamada.
-public record LlmCallContext(UUID generationRequestId, UUID atletaId, int tentativa,
+public record LlmCallContext(UUID generationRequestId, UUID atletaId, String atletaNome, int tentativa,
                              String promptVersion, String promptHash, String schemaVersion) {}
+// atletaNome só para redigir o nome na resposta antes de gravar (D7); nunca é persistido.
 
 // Holder com DOIS ThreadLocal (padrão TenantContext, ThreadLocal simples, nunca Inheritable):
 public final class LlmCallScope {

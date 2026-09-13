@@ -39,7 +39,8 @@ Fatos que motivam o desenho (levantamento 2026-09-13):
   `plano` (`generation_request_id`, `atleta_id`, `tentativa`, `prompt_version`, `prompt_hash`,
   `schema_version`, `violacoes` JSONB, `response_json` JSONB).
 - **Coluna `generation_request_id`** (UUID, nullable) em `tb_plano_semanal`, escrita no mesmo `save`
-  que já existe. A ligação chamada ↔ plano é por join nessa coluna; nada é copiado.
+  que já existe. A ligação chamada ↔ plano e o veredito do coach são por join nessa coluna; o
+  desfecho da geração (`request_outcome`) fica na última chamada (revisão do DoR, ver D6).
 - **`LlmCallContext`** (`ThreadLocal`, precedente `TenantContext`): preenchido pela rota `plano` antes
   da chamada com `generationRequestId`, `atletaId`, `tentativa`, `promptVersion`, `schemaVersion`.
   O `CostTrackingAdvisor` lê o contexto, grava a linha (único escritor) e devolve o `llmCallId` no
@@ -47,7 +48,7 @@ Fatos que motivam o desenho (levantamento 2026-09-13):
   contexto é setado **dentro** da virtual thread de cada atleta, como já se faz com o tenant.
 - **`PromptVersion.CURRENT = "plano-v1"`** e **`SchemaVersion.CURRENT = "schema-v1"`** como
   constantes, mais `prompt_hash` SHA-256 do template estático calculado no startup e logado.
-- **Tag `tenant`** no counter `llm.cost.estimated.usd` quando o contexto estiver presente.
+- **Tag `tenant`** sempre presente no counter `llm.cost.estimated.usd` (sentinela `none`).
 - **Purga**: `@Scheduled` diário anula `response_json` com mais de 90 dias. A linha de custo fica.
 - **Glossário**: termos **Chamada LLM** (`LlmCall`) e **Requisição de geração**
   (`GenerationRequest`) no `CONTEXT.md` do backend.
@@ -107,8 +108,9 @@ Fatos que motivam o desenho (levantamento 2026-09-13):
   segura o permit do `LlmConcurrencyLimiter`.
 - **CA9 — Lote.** Given um lote de N atletas, Then cada atleta tem seu próprio `generation_request_id`
   e `tenant_id` preenchido (contexto setado dentro da virtual thread).
-- **CA10 — Integridade.** `atleta_id` e `plano_id` são FK com `ON DELETE SET NULL`; `tenant_id` é
-  solto; índices `(tenant_id, created_at)` e `(generation_request_id)`.
+- **CA10 — Integridade.** `atleta_id` é FK com `ON DELETE SET NULL`; não há `plano_id` (a ligação
+  é por `generation_request_id`); `tenant_id` é solto; índices `(tenant_id, created_at)` e
+  `(generation_request_id)`.
 - **CA11 — Custo por tenant.** `llm.cost.estimated.usd` tem **sempre** a tag `tenant` (valor
   `none` quando ausente); as duas ordens de chamada (com tenant primeiro, sem tenant primeiro)
   registram num `PrometheusMeterRegistry` real sem erro.
