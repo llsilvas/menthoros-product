@@ -151,10 +151,17 @@
 
 ## 6. Glossário e documentação
 
-- [ ] 6.1 `apps/menthoros-backend/CONTEXT.md`: termos **Chamada LLM** (`LlmCall`) e **Requisição de
+- [x] 6.1 `apps/menthoros-backend/CONTEXT.md`: termos **Chamada LLM** (`LlmCall`) e **Requisição de
       geração** (`GenerationRequest`) — definição, relação 1:N, o que não são (não são evento de
       domínio; "tentativa" só existe na rota `plano`). **verify:** revisão no PR.
-- [ ] 6.2 Atualizar `docs/ia/ANALISE_GERACAO_PLANOS_LLM.md` §7 Fase 0 com o nome final da tabela.
+- [x] 6.2 Atualizar `docs/ia/ANALISE_GERACAO_PLANOS_LLM.md` §7 Fase 0 com o nome final da tabela.
+
+> Achado da seção 6 (2026-09-13): `docs/ia/ANALISE_GERACAO_PLANOS_LLM.md` tinha sido escrito
+> direto no checkout principal de `menthoros-backend`, nunca commitado. Uma segunda sessão nesse
+> mesmo checkout rodou uma operação que disparou auto-stash antes de trocar de branch (exatamente o
+> risco de "duas sessões no mesmo repositório" do `CLAUDE.md` raiz) e o arquivo sumiu do disco.
+> Recuperado do commit-índice do stash (`git show <sha>:docs/ia/...`, leitura, stash intocado) e
+> commitado nesta branch — não fica mais só em working tree de checkout compartilhado.
 
 ## 7. QA e entrega
 
