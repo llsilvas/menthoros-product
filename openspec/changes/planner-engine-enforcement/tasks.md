@@ -165,8 +165,9 @@
       itens 8.5.g/8.5.h abaixo — o skeleton do prompt/estagio-1 diverge do de redistribuicao/estagio-2
       (onboarding context diferente), corrompendo justamente a coorte de onboarding/cold-start, e o
       caminho de fallback pode enforcar estagio-2 contra um skeleton que o LLM nao viu.
-      **8.5.g RESOLVIDO (2026-09-13, `fix-cold-start-load-model` #114)** — ver 8.5 abaixo. **8.5.h
-      segue aberto.** Porta 1 permanece bloqueada ate 8.5.h fechar.
+      **8.5.g e 8.5.h RESOLVIDOS (2026-09-13)** — ver 8.5 abaixo. **Porta 1 desbloqueada** (bloqueio
+      original do code review de 2026-09-11 fechado); segue pendente a medicao operacional das duas
+      portas (gate CA11 em si, sem codigo pendente).
 - [x] 8.5 Follow-ups registrados: (a) **§7.2 frontend** — badge "Revisao obrigatoria" + motivos na aba
       de plano do coach (o backend ja entrega `plannerComplianceStatus`/`plannerRequiresCoachReview`/
       `plannerReviewReasons` no DTO); (b) fila/filtro de planos marcados para review (frontend);
@@ -188,10 +189,29 @@
       aceito:** a escrita de baseline/historico de calibracao (`OnboardingService#montarContexto`)
       passou a rodar em toda tentativa de geracao (inclusive falhas), nao so nas que persistem plano —
       documentado e testado em `PlanGenerationContextLoader.load` (commit `9747458`).
-      (h) **[Important] Fallback nao sinaliza o persister:** quando o planner falha ANTES do LLM
-      (fail-open → skeleton null, geracao legada), o persister ainda recomputa o skeleton e pode enforcar
-      estagio-2 contra um skeleton que o LLM nunca viu → `FAILED` espurio. Fix junto com (g): threa o
-      desfecho pre-LLM (skeleton ou sinal explicito de fallback) ao persister; persistir `FALLBACK`.
+      (h) **[Important] RESOLVIDO — 2026-09-13, `feature/planner-engine-enforcement-8-5-h`.** Fallback
+      nao sinalizava o persister: quando o planner falhava ANTES do LLM (fail-open → skeleton null,
+      geracao legada), o persister ainda recomputava o skeleton e podia enforcar o estagio-2 contra um
+      skeleton que o LLM nunca viu → `FAILED` espurio — a raiz era a fronteira de transacao (Fase 2
+      roda fora de transacao, Fase 3 dentro; um caminho lazy do Hibernate podia falhar so na Fase 2).
+      Fix: novo tipo `SkeletonPrePrompt` (record `skeleton` + `fallback`, invariante validada no
+      construtor — `fallback=true` exige `skeleton==null`), computado uma unica vez em
+      `PlanoServiceImpl.computarSkeletonSeHabilitado` e propagado ate `PlanGenerationPersister.persist`
+      — nunca mais recomputado la (`diasAlvoDaRedistribuicao` e o estagio-2 usam o MESMO objeto).
+      Fallback da fase 2 agora persiste `PlannerComplianceStatus.FALLBACK` (enum ja previa o valor,
+      nunca setado) e pula o estagio-2 inteiramente. `FALLBACK` foi adicionado ao veto de
+      `aplicarAutoApproveSeElegivel` (achado do security-reviewer no `/qa`: sem isso, um plano cujo
+      estagio-2 nunca rodou podia ser auto-aprovado com confianca alta se o shadow, recomputado dentro
+      da transacao, tivesse sucesso onde a fase 2 falhou — exatamente a divergencia que a change
+      corrige). Resolve (f) parcialmente: a recomputacao no persister (2 das 3 chamadas) sumiu; o
+      shadow (`aplicarShadow`) continua com sua propria computacao, por design (auditoria — CA12).
+      `/qa` (Claude code-reviewer + security-reviewer + clean-code-reviewer + Codex, duas rodadas):
+      2 achados Important corrigidos antes do merge (invariante do record nao validada; veto de
+      `FALLBACK` faltando). Efeito colateral positivo identificado pelo Codex e travado com teste
+      dedicado: o caminho `fail-open=false` antes ficava preso no `catch (Exception e)` generico de
+      `gerarPlanoSemanal` e virava `LLMException` (503) em vez de `DomainRuleViolationException` (422)
+      — o refactor corrige isso ao mover a chamada para o escopo de `gerarPlanoTreino`, que ja
+      propagava `DomainRuleViolationException` corretamente.
       (i) **[Minor, aceito]** Wiring do closure de compliance no `gerarComResiliencia` (IaServiceImpl:347)
       nao tem teste dedicado — a parede de fixture da God-class (refactor-iaservice-decomposition) impede
       o teste de pipeline; coberto indiretamente por `IaServiceImplComplianceEstagio1Test` (unidade do
