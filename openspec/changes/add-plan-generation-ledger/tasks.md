@@ -181,6 +181,9 @@
       responsabilidades (métricas + escrita no ledger) — extrair `LlmCallRegistroFactory` fica
       para um follow-up, não bloqueia o merge. `./mvnw clean verify`: 3427 unitários + 182 de
       integração, 0 falhas.
-- [ ] 7.2 Consulta de validação documentada no PR (custo, p50/p95, retry, `PENDING` residual,
-      `request_outcome` e `REJEITADO` por tenant e `prompt_version`) executada contra o banco de dev.
-- [ ] 7.3 PR `feature/add-plan-generation-ledger` → `develop`; após merge, remover worktree.
+- [x] 7.2 Consulta de validação documentada em `docs/ia/consulta-validacao-ledger.sql` e no PR
+      (custo, p50/p95, retry, `PENDING` residual, `request_outcome` e `REJEITADO` por tenant e
+      `prompt_version`). **Não executada** — exige schema migrado em dev com geração real de planos;
+      sem acesso ao banco de dev a partir desta sessão. Rodar pós-deploy.
+- [x] 7.3 PR `feature/add-plan-generation-ledger` → `develop` aberto:
+      `menthoros-backend#117`. Após merge, remover worktree.
