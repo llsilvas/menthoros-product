@@ -44,14 +44,14 @@
 
 ## 3. Contexto e advisor (CA1, CA2, CA3, CA11)
 
-- [ ] 3.1 `LlmCallContext` (record imutável: `generationRequestId`, `atletaId`, `tentativa`,
+- [x] 3.1 `LlmCallContext` (record imutável: `generationRequestId`, `atletaId`, `tentativa`,
       `promptVersion`, `promptHash`, `schemaVersion`) + `LlmCallScope` (holder com **três**
       `ThreadLocal` simples: contexto, `lastCallId` e `transportRetries`; `open(ctx)`, `current()`,
       `registerCallId(id)`, `lastCallId()`, `incrementTransportRetry()`, `transportRetries()`,
       `close()`), pacote `ai/ledger`. `LlmRetryConfig`: o `RetryListener.onError` chama
       `incrementTransportRetry()`. **verify:** `LlmCallScopeTest`: `close()` limpa os três; `open`
       zera os anteriores; isolamento entre threads; `LlmRetryConfigTest` conta 2 em 500→500→200.
-- [ ] 3.2 `LlmCallLedger` (service, `services/helper`): `registrarChamada(...)` (grava linha,
+- [x] 3.2 `LlmCallLedger` (service, `services/helper`): `registrarChamada(...)` (grava linha,
       devolve id), `registrarResultado(callId, resultado, violacoes)` e
       `registrarDesfecho(generationRequestId, outcome)` (atualiza a linha de maior `tentativa`).
       Cada método em `@Transactional(propagation = REQUIRES_NEW, timeout = 5)` e `try/catch` com
@@ -60,7 +60,7 @@
       (campo do record, preenchido pela rota `plano`). Javadoc com Idempotent/Side
       Effects/Tenant-aware. **verify:** teste com repositório lançando exceção — não propaga;
       `LlmCallLedgerIT`: chamador em `REQUIRES_NEW` faz rollback e a linha sobrevive.
-- [ ] 3.3 `CostTrackingAdvisor.paraRota(rota, pricing, meterRegistry, ledger)` — novo parâmetro,
+- [x] 3.3 `CostTrackingAdvisor.paraRota(rota, pricing, meterRegistry, ledger)` — novo parâmetro,
       atualizar `MultiModelConfig.advisorDeCusto` (injeta o bean `LlmCallLedger` uma vez, 5 rotas).
       Em `adviseCall`: após tokens/custo/latência, chama `registrarChamada` com `LlmCallScope.current()`
       (se houver), `TenantContext.getTenantId()` (nulo → `warn`), e o texto bruto
@@ -71,7 +71,7 @@
       `CostTrackingAdvisorTest` cobre `PENDING`/`SUCCESS`/`LLM_ERROR`/`TIMEOUT`, com e sem
       contexto; teste com `PrometheusMeterRegistry` real nas duas ordens (CA11); `MultiModelConfig`
       sobe.
-- [ ] 3.4 `PlanoResilienceService`: record `Tentativa(int numero, String prompt)`; `gerar` vira
+- [x] 3.4 `PlanoResilienceService`: record `Tentativa(int numero, String prompt)`; `gerar` vira
       `Function<Tentativa, PlanoSemanalLlmDto>` nas duas sobrecargas de `gerarComResiliencia`
       (único caller: `IaServiceImpl`). `IaServiceImpl.geraPlanoSemanalAvancado`: `LlmCallScope.open`
       com o número da tentativa antes da chamada, `close()` em `finally` guardando o `lastCallId`;
@@ -80,6 +80,17 @@
       VALIDATION_REJECTED, violacoes)`. **verify:** `PlanoResilienceServiceTest` com 1 retry entrega
       `Tentativa(1)` e `Tentativa(2)`; `IaServiceImpl*Test` prova REJECTED depois SUCCESS, e
       PARSE_ERROR quando o DTO não desserializa (CA1, CA3).
+
+> Ajustes de implementação da seção 3 (2026-09-13), sem mudar contrato: (a) `LlmCallScope` tem
+> dois níveis — `openRequest` (id da requisição, atleta; aberto por quem orquestra, seção 4) e
+> `openAttempt` (tentativa, versões; aberto pelo `PlanoLlmLedgerHook`) — porque a `IaServiceImpl`
+> não recebe o `PlanGenerationContext` e mudar a assinatura do `IaService` tocaria 35 chamadas de
+> teste; (b) `LlmCallLedger` (catch, best-effort) e `LlmCallLedgerWriter` (`REQUIRES_NEW`,
+> `timeout = 5`) são beans separados, senão a exceção dentro da transação marcaria rollback-only e
+> o commit falharia depois do `catch`; (c) `PlanoLlmLedgerHook.Sessao` é o seam que a
+> `IaServiceImpl` usa (`chamar`/`validar`), testável sem `ChatClient`;
+> (d) `PlanoNaoConformeException extends LLMException` carrega as violações do compliance com as
+> keys reais; rejeições estruturais genéricas gravam a key `VALIDACAO_ESTRUTURAL`.
 
 ## 4. Requisição de geração e ligação com o plano (CA4, CA9)
 
