@@ -20,17 +20,19 @@
 
 ## 1. Schema
 
-- [ ] 1.1 Migration `V94__Create_tb_llm_call.sql` conforme D10 (PK UUID, `created_at` TIMESTAMPTZ,
+- [x] 1.1 Migration `V94__Create_tb_llm_call.sql` conforme D10 (PK UUID, `created_at` TIMESTAMPTZ,
       `tenant_id` solto nullable, `atleta_id` FK `ON DELETE SET NULL`, `generation_request_id`,
       `route`, `model`, tokens, custo `NUMERIC(12,10)`, latência, `tentativa`, `prompt_version`,
       `prompt_hash`, `schema_version`, `resultado` com `CHECK` (6 valores), `request_outcome`
       nullable com `CHECK` (4 valores), `transport_retries`, `violacoes` JSONB, `response_json`
       JSONB; índices `(tenant_id, created_at)` e `(generation_request_id)`; bloco `RAISE NOTICE`).
       **verify:** teste de migration (`@DataJpaTest` + Testcontainers) confirma colunas, FK e índices.
-- [ ] 1.2 Migration `V95__Add_generation_request_id_to_tb_plano_semanal.sql`: coluna UUID nullable +
+- [x] 1.2 Migration `V95__Add_generation_request_id_to_tb_plano_semanal.sql`: coluna UUID nullable +
       índice. **verify:** teste de migration.
-- [ ] 1.3 Entidade `LlmCall` + `LlmCallRepository`; campo `generationRequestId` em `PlanoSemanal`.
-      **verify:** `./mvnw clean test`.
+- [x] 1.3 Entidade `LlmCall` + `LlmCallRepository`; campo `generationRequestId` em `PlanoSemanal`.
+      **verify:** `./mvnw clean test`. Nota ADR-0007: colunas e campos novos em inglês (`result`,
+      `attempt`, `violations`, `cost_usd`, `latency_ms`) — a spec usa os termos em PT-BR como
+      conceito; os identificadores seguem o CLAUDE.md do backend.
 
 ## 2. Versionamento (CA5)
 
