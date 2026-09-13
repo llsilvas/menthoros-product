@@ -46,8 +46,18 @@ dinâmico está no topo. O split não é neutro; é o que torna o prefixo cache�
 - **Dois recursos** em `src/main/resources/prompts/`:
   - `plano-treino-system.txt`: persona (linhas 1–4) + regras/estrutura/enums/checklist/instruções
     de saída (linhas 32–523), **em PT-BR como estão** (a tradução para inglês fica para a Fase 4,
-    quando o `system` é reescrito de qualquer jeito — decisão Q8). Sem placeholders; lido cru, sem
-    `String.format`; o literal `100%%%` da linha 505 vira `100%`.
+    quando o `system` é reescrito de qualquer jeito — decisão Q8). Lido cru
+    (`PromptTemplateLoader.loadTemplate`), sem `escapeTemplate` nem `String.format`. **Correção de
+    premissa (achado do Codex, verificado no arquivo real):** o bloco não é 100% sem placeholder —
+    a linha 167 (`O objetivo "%3$s" determina o treino-chave da semana`) tem um placeholder
+    posicional real dentro do que a versão anterior desta spec chamava de bloco estático. Hoje ele
+    já não interpola nada: `escapeTemplate` não reconhece `%3$s` (só `%s`/`%d`/`%%`) e o escapa para
+    `%%3$s`, que o `String.format` devolve como o literal `%3$s` — o prompt em produção já mostra
+    esse texto quebrado ao LLM, não o objetivo real. Esta change corrige isso reescrevendo a linha
+    167 sem placeholder (`O objetivo do atleta determina o treino-chave da semana` — o valor
+    concreto já chega pelo `user`, seção PERFIL DO ATLETA). Além disso, há **11 ocorrências** de
+    `%%%` no bloco 32–523 (linhas 91, 102, 153, 154, 156, 167, 169, 187, 189, 275, 276, 277, 465,
+    505 — não só a 505), todas viram `%` simples ao migrar para leitura crua.
   - `plano-treino-user.txt`: `### PERFIL DO ATLETA` + `### HISTÓRICO RECENTE` (linhas 5–30), com
     os 8 placeholders na mesma ordem.
 - **Poda segura** das "INSTRUÇÕES CRÍTICAS - FORMATO DE SAÍDA" (linhas 485–523): remove **apenas**
@@ -95,7 +105,12 @@ dinâmico está no topo. O split não é neutro; é o que torna o prefixo cache�
 **Risco principal — regressão de comportamento do LLM pela reordenação** (regras antes dos dados).
 Mitigação: golden re-baseline revisado; `IaServiceImplFcValidationTest` e demais validadores verdes;
 gate medido em produção pelo ledger (CA6) com comparação `plano-v1` × `plano-v2` de retry e
-`REJEITADO` por duas semanas.
+`REJEITADO` por duas semanas. **Limiar de alerta precoce (achado do spec-reviewer — CA7 não tinha
+gatilho antes desta correção):** nos primeiros 2–3 dias em produção, se a taxa de retry ou de
+`REJEITADO` de `plano-v2` piorar em ≥ 20% relativo a `plano-v1` (janela equivalente), investigar
+antes de esperar as duas semanas completas. **Rollback:** não há feature flag nesta change (só
+troca de arquivo lido e de `.system()`/`.user()` no `ChatClient`); a reversão é `git revert` do PR
+de merge — documentado aqui para não ficar implícito.
 
 ## Critérios de Aceite
 
@@ -114,8 +129,9 @@ gate medido em produção pelo ledger (CA6) com comparação `plano-v1` × `plan
 **CA3 — `system` cru e sem placeholders:**
 - Given `plano-treino-system.txt`
 - When carregado
-- Then não passa por `String.format`; um teste falha se contiver `%s`, `%d` ou `%%`; a linha do
-  `100%` está correta
+- Then não passa por `String.format`; um teste falha se contiver `%s`, `%d`, `%%` **ou qualquer
+  placeholder posicional** (`%\d+\$`, cobrindo o caso já visto na linha 167 original); todas as
+  ocorrências de `%%%` do bloco 32–523 (não só a linha 505) viraram `%`
 
 **CA4 — Feedback do retry só no `user`:**
 - Given uma 2ª geração com feedback
@@ -129,9 +145,14 @@ gate medido em produção pelo ledger (CA6) com comparação `plano-v1` × `plan
   argumentos; `prompt.sha256` bate com o hash do classpath
 
 **CA6 — Gate de cache (produção, via ledger):**
-- Given um lote de ≥ 5 atletas do mesmo tenant
-- When as chamadas da 2ª em diante terminam
-- Then a mediana de `cached_tokens / prompt_tokens` em `tb_llm_call` é ≥ 0,60 (decisão Q24)
+- Given um lote de ≥ 5 atletas **distintos** do mesmo tenant, ordenado por `created_at`
+- When se toma, por atleta, apenas a **primeira tentativa** (`tentativa = 1`) da rota `plano`
+- Then a mediana de `cached_tokens / prompt_tokens` entre a 2ª chamada do lote em diante (por
+  ordem de `created_at`, uma linha por atleta) é ≥ 0,60 (decisão Q24). **Correção (achado do
+  Codex):** a versão anterior usava "chamadas 2..N por `generation_request_id`" — como esse campo
+  é 1 por atleta, isso selecionava **retries** do mesmo atleta, não a reutilização de prefixo entre
+  atletas do lote; sem retry a amostra ficava vazia, e com retry o resultado media cache do mesmo
+  atleta consigo mesmo, não o ganho pretendido.
 
 **CA7 — Não-regressão funcional:**
 - Given um atleta com perfil e histórico
@@ -151,7 +172,10 @@ Latência p50 da rota `plano` cai ≥ 3 s e `cached_tokens` mediano no lote ≥ 
 ## Open Questions & Assumptions
 
 - O cache da OpenAI expira com 5 a 10 min de inatividade (até 1 h fora de pico): gerações
-  interativas espaçadas por horas podem não acertar; por isso o gate é medido no lote.
+  interativas espaçadas por horas podem não acertar; por isso o gate é medido no lote. **Precisão
+  do gate (achado do Codex):** "medido no lote" sozinho não garante o TTL — o lote precisa rodar
+  com concorrência/cadência que mantenha o intervalo entre chamadas do mesmo tenant abaixo de
+  ~5 min; a task 5.3 deve registrar a duração real do lote medido, não só o resultado da mediana.
 - `escapeTemplate` continua só no `user`.
 - `PromptVersion` e `prompt.sha256` existem a partir da Fase 0; se esta change entrar antes, cria
   as constantes aqui e a Fase 0 as consome.
