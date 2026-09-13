@@ -16,7 +16,7 @@
       `backoff.initial-interval: 1s`, `backoff.multiplier: 2`, `backoff.max-interval: 10s`,
       `on-client-errors: false`. `LlmRetryConfigTest` ganha o caso `naoHerdaDefaultDoSpringAi`
       (binding do `application.yml` real). **verify:** 5 testes verdes; PR `menthoros-backend#115`
-      aberto em 2026-09-13 (aguardando CI/merge).
+      mergeado em `develop` em 2026-09-13 (`365d475`). Branch da change rebaseada nele.
 
 ## 1. Schema
 
