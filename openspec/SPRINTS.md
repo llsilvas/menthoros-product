@@ -631,7 +631,7 @@ ENTREGUE:
                                    refactor-llm-call-outside-transaction ✅ ─▶ fair-llm-concurrency-per-tenant ✅ ─▶ fix-cold-start-load-model ✅
 
 EM VOO:
-  planner-engine-enforcement (27/29, gate 8.4)
+  (nada — planner-engine-enforcement ✅ entregue; gate 8.4 fica como acompanhamento operacional, sem codigo pendente)
 
 PRODUÇÃO AGORA (reduz latência e falha sem trocar modelo):
   F0 add-plan-generation-ledger ─▶ F1 system-user-prompt-split (reaberta; absorve llm-code-switching)
@@ -718,7 +718,7 @@ Ordem por retorno/esforço. Nada aqui troca modelo, adiciona tool calling ou mex
 | 23+ | `refine-inbox-mobile-breakpoint` *(M · Full, frontend)* | 0/6 | **Breakpoint mobile do Coach Inbox** — herdada da Fase 3 de `refine-inbox-visual-hierarchy`, destacada em 2026-08-16. Sidebar em `Drawer` abaixo de `md` (hoje 240px fixos ocupam 64% de um viewport de 390px), colunas em fluxo empilhado com volta explícita, CTA visível sem scroll em 390×844, e alinhamento do breakpoint do grid (colapsa em `lg`) com o do drawer (`md`), que hoje deixa a faixa 900–1200px subprojetada. **Despriorizada por decisão de uso, não por dado:** o coach não usa o inbox à beira de pista por enquanto. **Gatilho para repriorizar:** uso real de mobile no piloto. Auditoria deu **mobile 1/10** — o diagnóstico continua válido. |
 | 24+ | 🔧 **BLOCO DE ENGENHARIA — resequenciado 2026-09-13** | | Fonte: `apps/menthoros-backend/docs/ia/ANALISE_GERACAO_PLANOS_LLM.md`. Ordem: F0 ledger → F1 split → F2 decomposição → F3 turno de reparo → F4 schema semântico → F5 eval set → F6 bake-off → F7 RAG/skills. Cada fase = 1 PR com flag e gate. | |
 | 24 | 🤖 `add-plan-generation-ledger` *(S, backend)* — **F0** | ~10 | **Toda geração deixa rastro.** Migration `tb_plan_generation` (tenant, atleta, plano nullable, rota, modelo, `prompt_version`, `prompt_hash`, `schema_version`, tokens in/out/cached, custo, latência, tentativa, violações JSONB, resultado, `created_at`; sem prompt nem PII, como a V58). `PromptVersion.CURRENT` + hash SHA-256 do template no startup. Grava fora da transação do plano, best-effort. Liga `review_status` do plano à linha — fecha o loop com o veredito do coach (dataset de F5). Inclui `spring.ai.retry` explícito. | — |
-| 25 | 🤖 `planner-engine-enforcement` *(M · Full, backend+front)* — **27/29, desbloqueada** | ~29 | **Skeleton vinculante (parte 2/2 do planner).** §1–§8 mergeadas em `develop` (#109) e calibração (#113, 2026-09-12). **A Decisão 4b (composição por fase) foi fechada no grilling de 2026-09-09 e virou ADR-0011** — modelo linear `TSS_slot = fatorImpacto × 50 TSS/h × horas`, polarização 80/20 soft, PROVA como âncora. Restam **8.4** (gate de rollout em duas portas, fail-closed: divergência de fase ≤ 2% em ≥ 2 semanas/≥ 30 planos; depois retry < 15%, FAILED < 5%, fallback < 5%, MODIFIED/REJECTED não pior) e **8.6** (PRs). Alicerce de F4: o schema semântico é "por slot do skeleton". | `deterministic-planner-engine` ✅ |
+| 25 | 🤖 ~~`planner-engine-enforcement`~~ ✅ **entregue e arquivada** (2026-09-13) | 29/29 (8.4 deferida) | **Skeleton vinculante (parte 2/2 do planner).** §1–§8 e §8.5 completas — backend PR #107/#108/#109, frontend PR #119, todos `MERGED`. **A Decisão 4b (composição por fase) foi fechada no grilling de 2026-09-09 e virou ADR-0011** — modelo linear `TSS_slot = fatorImpacto × 50 TSS/h × horas`, polarização 80/20 soft, PROVA como âncora. Os dois bloqueios de código da porta 1 (8.5.g, 8.5.h) fechados — ver "Changes concluídas". **8.4** (gate de rollout em duas portas) fica deferida: operacional, sem código, aguarda piloto real com `enabled=true`. Alicerce de F4: o schema semântico é "por slot do skeleton". | `deterministic-planner-engine` ✅ |
 | 25 | 🤖 ~~`fix-cold-start-load-model`~~ ✅ **entregue e arquivada** (2026-09-13, `menthoros-backend` PR #114) | 11/11 | **Alvo de carga do cold-start.** `targetTss = min(ctlBaseline, 40) × 7 × rampa(stage) × (RECOVERY/POST_RACE ? 0,5 : 1)`, rampa 0,60/0,75/0,90, piso 120 só em fase progressiva, banda ±25% soft; alocação de dias também em `PROXIMA_SEMANA` sob `enabled=true`. Piloto real no homelab (Hugo/Maria) validado; `/qa` (Claude+Codex) corrigiu 2 Critical + 1 Important antes do merge. Reduz a 1ª rejeição do cold-start (70 s → ~40 s). Ver "Changes concluídas". | `planner-engine-enforcement` #109/#113 ✅ |
 | 25 | 🤖 `fix-cold-start-calibration-plan-generation` *(L · Full)* — **4/31, §13.4 aberto → absorvido por F4** | 31 → ~12 | **Reescopar.** Manter só o snapshot de calibração/baseline/fase/política **antes** do prompt (seções 2–3) e a observabilidade que separa custo histórico de custo da IA. Os quatro pontos de produto do §13.4 (tolerância do triângulo por tipo, gate de etapas 6 vs 8, tipos sem estrutura obrigatória, quais WARN viram hard) **deixam de existir com o schema semântico**: o LLM não emite mais distância/duração/pace, então não há aritmética a tolerar. | `fix-cold-start-load-model`, F4 |
 | 26 | 🔧 `refactor-iaservice-decomposition` *(M)* — **F2** | ~26 | **Re-revisar antes de codificar:** o `review.md` está em NO-GO por um bloqueador (`provaId` exigido do LLM) **já resolvido pelo PR #101** — o schema remove `provaId`/`descricao`/`zonaAlvo` e `ProvaNoPlanoService` preenche no servidor. Decompor **em torno de uma porta**, não "para ficar menor": `PlanoLlmClient` (prompt + schema → DTO com usage; adaptador OpenAI hoje, Anthropic depois), `PlanoLlmSchemaBuilder`, `PlanoLlmNormalizer` e `PlanoLlmValidator` puros (testes sem reflexão), `IaServiceImpl` < 200 linhas. Testes de caracterização com fixtures reais do ledger em WireMock. Remove código morto (`gerarPlanoSemanal`, `gerarPlanosEmLote`, `llmTaskExecutor`, `app.llm.*` órfãos). | F0 (fixtures), `planner-engine-enforcement` ✅ (a ordem inverteu: o estágio 1 já mora na `IaServiceImpl`) |
@@ -950,6 +950,52 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 ---
 
 ## Changes concluídas (fora de sprint)
+
+### `planner-engine-enforcement` ✅ **ARQUIVADA** — skeleton vinculante sobre o plano do LLM (2026-09-13)
+
+**Entregue:** backend `menthoros-backend` PR **#107** (seção 1: flags/ciclo de status/orçamento
+único), **#108** (seções 2–3: `SessionSlot` prescritivo + injeção no prompt), **#109** (§4–§8:
+estágios 1/2 de compliance, batch, superfície de review) — todos `MERGED`. Frontend
+`menthoros-front` PR **#119** (§7.2: badge "Revisão obrigatória" na aba de plano do coach) —
+`MERGED`. Arquivada em `changes/archive/2026-09/2026-09-13-planner-engine-enforcement/`.
+
+**O que faz:** transforma o `PlannerEngine` (shadow desde `deterministic-planner-engine`) em
+enforcement real — quando `planner-engine.enabled=true`, o skeleton (dia + TSS + zonas por sessão,
+ADR-0011) passa a ser um bloco mandatório no prompt e o plano final é validado contra ele em dois
+estágios (pré-redistribuição com retry, pós-redistribuição terminal), com matriz fail-open
+(`FAILED`+revisão do coach, ou 422 fail-closed) e superfície mínima de review no front.
+
+**Dois bloqueios de código para a porta 1 do rollout** (code review 2026-09-11), ambos fechados:
+
+- **8.5.g** — o skeleton do prompt/estágio-1 divergia do de redistribuição/estágio-2 (contexto de
+  onboarding resolvido só num dos dois pontos). Resolvido **por acidente**: achado da revisão
+  cross-model (Codex) no `/qa` de `fix-cold-start-load-model` #114, que centralizou a resolução do
+  `OnboardingContext` num único ponto (`PlanGenerationContextLoader.load`) por outro motivo, mas
+  fechou exatamente essa divergência.
+- **8.5.h** — quando o planner falhava *antes* do LLM (fail-open, pipeline legado), o persister ainda
+  recomputava um skeleton e podia enforçar o estágio 2 contra uma estrutura que o LLM nunca viu —
+  `FAILED` espúrio. Causa raiz: a Fase 2 (pré-prompt) roda fora de transação e a Fase 3 (persistência)
+  dentro; um caminho lazy do Hibernate podia falhar só numa das duas. Fechado em PR dedicado **#116**
+  (`feature/planner-engine-enforcement-8-5-h`): novo tipo `SkeletonPrePrompt` threadeia o skeleton
+  (ou o sinal de fallback) da Fase 2 até a Fase 3, nunca mais recomputado lá; fallback passa a
+  persistir `PlannerComplianceStatus.FALLBACK` (o enum já previa o valor, nunca tinha sido setado) e
+  pula o estágio 2. O `/qa` (duas rodadas, Claude + Codex) achou mais dois problemas antes do merge:
+  o record `SkeletonPrePrompt` não impedia a combinação inconsistente `fallback=true` + skeleton
+  presente, e `FALLBACK` não vetava a auto-aprovação — um plano cujo estágio 2 nunca rodou podia ser
+  aprovado com confiança alta se o shadow (recomputado dentro da transação) tivesse sucesso onde a
+  Fase 2 falhou, exatamente a divergência que a change corrige.
+
+**Efeito colateral positivo, travado com teste:** o caminho `fail-open=false` (planner falha antes do
+LLM, sem fallback) tinha um bug pré-existente — a exceção de domínio caía no `catch` genérico de
+`gerarPlanoSemanal` e virava `LLMException` (503) em vez de `DomainRuleViolationException` (422), o
+status que o design sempre documentou para esse caso. O refactor de 8.5.h corrige isso ao mover a
+chamada para o escopo de `gerarPlanoTreino`, que já propagava o tipo certo.
+
+**Ficou de fora, com motivo registrado:** a task **8.4** (gate de rollout em duas portas, CA11) fica
+deferida — é operacional, sem código: precisa de um piloto real com `enabled=true` para medir a
+divergência do shadow (porta 1) e depois as métricas de compliance/fallback (porta 2). Os defaults
+seguros (`enabled=false`, `fail-open=true`) já valem desde a task 8.1, então nada muda em produção
+sem o flip explícito do flag.
 
 ### `fix-cold-start-load-model` ✅ **ARQUIVADA** — regime de carga do cold-start e RECOVERY/POST_RACE (2026-09-13)
 

@@ -119,3 +119,20 @@ Guard-rail operacional (porta 2, limiares fixados — ver CA11): `planner.fallba
 - ✅ **SessionSlot prescritivo + absorcao da WeeklyDistributionSkill** — aprovado no split 2026-07-14
 - **Tolerancia de TSS por sessao** — nasce como +-20% por slot (mais frouxa que os +-10% semanais); calibrar com dado do shadow antes do rollout
 - **Destino da `WeeklyDistributionSkill` original** — absorvida a logica, a skill orfa e aposentada ou mantida como wrapper; decidir na implementacao com base no custo de manter o contrato de skill
+
+## Status
+
+- **2026-09-13 — Codigo entregue e arquivada.** Secoes 1-8.3 e 8.5 completas (backend
+  `menthoros-backend` PR **#107** seção 1, **#108** seções 2-3, **#109** §4-§8, todos `MERGED`;
+  frontend `menthoros-front` PR **#119** §7.2 badge "Revisão obrigatória", `MERGED`). Os dois
+  bloqueios de código da porta 1 (code review 2026-09-11) fechados: **8.5.g** resolvido por acidente
+  em `fix-cold-start-load-model` #114 (achado do `/qa` cross-model Codex sobre essa change); **8.5.h**
+  resolvido em PR dedicado **#116** (`feature/planner-engine-enforcement-8-5-h`) — `SkeletonPrePrompt`
+  threadeia o skeleton pré-prompt até a persistência, corrige `FALLBACK` nunca setado e o veto de
+  auto-aprovação faltando (achados do `/qa`, duas rodadas Claude + Codex).
+- **Task 8.4 (gate de rollout, CA11) fica DEFERIDA — não bloqueia o arquivamento.** É operacional,
+  sem código: a divergência do shadow e as métricas de compliance/fallback precisam ser medidas em
+  produção, num piloto real, depois que `planner-engine.enabled=true` for ligado num ambiente. Os
+  defaults seguros (`enabled=false`, `fail-open=true`) já estão em vigor desde a task 8.1 — nenhum
+  comportamento novo chega a produção sem o flip explícito do flag. Retomar via change/task própria
+  quando o piloto (Hugo/Maria ou coorte real) estiver pronto para medir a porta 1.
