@@ -94,17 +94,17 @@
 
 ## 4. Requisição de geração e ligação com o plano (CA4, CA9)
 
-- [ ] 4.1 `PlanGenerationContext` ganha `UUID generationRequestId` (obrigatório no compact
+- [x] 4.1 `PlanGenerationContext` ganha `UUID generationRequestId` (obrigatório no compact
       constructor); `PlanGenerationContextLoader.load` gera `UUID.randomUUID()` no início;
       `PlanGenerationPersister.salvarPlanoCompleto` escreve `plano.setGenerationRequestId(ctx.generationRequestId())`.
       Nenhuma assinatura de `gerarPlanoTreino`/`gerarPlanoSemanal`/`persist` muda. **verify:**
       `PlanGenerationContextLoaderIT` mostra id presente; `PlanGenerationPersisterTest` assegura o
       mesmo id no plano salvo; teste de 422/503 mostra chamadas sem plano.
-- [ ] 4.2 Lote: nada a mudar no `BatchPlanProcessor` — o id nasce no loader e o `LlmCallScope`
+- [x] 4.2 Lote: nada a mudar no `BatchPlanProcessor` — o id nasce no loader e o `LlmCallScope`
       abre/fecha dentro do lambda `gerar`, que roda na virtual thread do atleta (o `TenantContext`
       já é setado lá). **verify:** teste do processor com 2 atletas e `IaService` real mockado no
       nível do `ChatClient` → 2 ids distintos e `tenant_id` preenchido em ambos (CA9).
-- [ ] 4.3 Desfecho da requisição (CA4, D6): em `PlanoServiceImpl.gerarPlanoTreino`, declarar
+- [x] 4.3 Desfecho da requisição (CA4, D6): em `PlanoServiceImpl.gerarPlanoTreino`, declarar
       `PlanGenerationContext ctx = null` e `boolean llmAceito = false` **antes** do `try`; `llmAceito
       = true` logo após `gerarPlanoSemanal` devolver DTO não nulo. Nos `catch`, com `ctx != null`:
       `DomainRuleViolationException` + `llmAceito` → `REJECTED_POST_LLM`; `PlanoJaExistenteException`
@@ -113,10 +113,17 @@
       `ledger.registrarDesfecho(ctx.generationRequestId(), outcome)`, best-effort. **verify:**
       `PlanoServiceImplTest` cobre os quatro desfechos, o caso "falha do loader → sem desfecho" e
       "fast-path duplicado antes do LLM → sem desfecho".
-- [ ] 4.4 Tenant nos listeners (CA12): `WorkoutAnalysisListener` e `WeeklyFocusNarrativeService`
+- [x] 4.4 Tenant nos listeners (CA12): `WorkoutAnalysisListener` e `WeeklyFocusNarrativeService`
       fazem `TenantContext.setTenantId(tenantId)` antes da chamada ao LLM e `clear()` no `finally`
       (já recebem o id; hoje não o publicam). **verify:** testes existentes dos dois + asserção de
       que o `TenantContext` está limpo ao sair.
+
+> Seção 4 (2026-09-13): o escopo da requisição (`LlmCallScope.openRequest`) é aberto em
+> `PlanoServiceImpl.gerarPlanoSemanal`, em volta do `IaService`, com o id do contexto e o nome do
+> atleta, e fechado em `finally` — no lote isso roda na virtual thread do atleta. `PlanoJaExistente`
+> (subtipo de `DomainRuleViolation`) tem `catch` próprio para virar `CONFLICT`; `LLMException`,
+> `DomainNotFound` e `IllegalState` depois de `llmAceito` viram `PERSIST_ERROR`. CA9 coberto pelo
+> loader IT (ids distintos por carga) + processor chamando `gerarPlanoTreino` por atleta.
 
 ## 5. Resposta bruta e purga (CA6, CA7)
 
