@@ -78,29 +78,45 @@ Fatos que motivam o desenho (levantamento 2026-09-13):
   `LlmCallContext`, When ela termina, Then existe 1 linha com `route`, `model`, tokens, custo e
   latência preenchidos e todas as colunas de enriquecimento `NULL`, e um `warn` é logado se o
   `tenant_id` estiver ausente.
-- **CA3 — Resultado por chamada.** Given uma resposta rejeitada pela validação, Then a linha tem
-  `resultado = VALIDATION_REJECTED` e `violacoes` com a lista `{key, mensagem}`; Given uma resposta
-  aceita, Then `SUCCESS`; Given exceção do provider, Then `LLM_ERROR`; Given `SocketTimeoutException`
-  na cadeia de causas, Then `TIMEOUT`.
-- **CA4 — Ligação com o plano.** Given um plano persistido, Then `tb_plano_semanal.generation_request_id`
-  é igual ao `generation_request_id` das chamadas que o geraram; Given uma geração que terminou em
-  422 ou 503, Then as chamadas existem e nenhum plano tem aquele id.
+- **CA3 — Resultado por chamada.** Given a rota `plano`, Then a linha nasce `PENDING`; Given uma
+  resposta rejeitada pela validação, Then `VALIDATION_REJECTED` e `violacoes` com a lista
+  `{key, mensagem}`; Given uma resposta aceita, Then `SUCCESS`; Given HTTP 200 cuja conversão para
+  DTO falha, Then `PARSE_ERROR`; Given exceção do provider, Then `LLM_ERROR`; Given
+  `SocketTimeoutException` na cadeia de causas, Then `TIMEOUT`. Given crash entre a resposta e a
+  validação, Then a linha permanece `PENDING` e é contada como tal na consulta de validação.
+- **CA4 — Ligação e desfecho.** Given um plano persistido, Then `tb_plano_semanal.generation_request_id`
+  é igual ao `generation_request_id` das chamadas que o geraram e a última chamada tem
+  `request_outcome = PERSISTED`; Given corrida perdida no índice da V52, Then `CONFLICT`; Given
+  rejeição terminal depois de o LLM ter sido aceito (estágio 2 fail-closed), Then
+  `REJECTED_POST_LLM`; Given falha na persistência, Then `PERSIST_ERROR`; Given plano excluído
+  depois, Then o `request_outcome` permanece `PERSISTED` e o join deixa de encontrar o plano.
 - **CA5 — Versão e hash.** Given o template estático no classpath, When a aplicação sobe, Then o
   hash SHA-256 é calculado uma vez, logado em INFO e gravado em cada chamada da rota `plano` junto
   com `prompt_version` e `schema_version`; um teste falha se o hash do golden divergir do classpath.
-- **CA6 — Resposta bruta.** Given qualquer chamada da rota `plano`, Then `response_json` contém o
-  JSON como veio do modelo, **antes** do reparo; o prompt não aparece em nenhuma coluna.
+- **CA6 — Resposta bruta como dado sensível.** Given qualquer chamada da rota `plano`, Then
+  `response_json` contém o JSON como veio do modelo, **antes** do reparo, com o nome do atleta
+  substituído por `[ATLETA]`; o prompt não é gravado em coluna alguma; Given exclusão do atleta,
+  Then `response_json` das linhas dele é anulado (além de `atleta_id = NULL`).
 - **CA7 — Purga.** Given linhas com `created_at` há mais de 90 dias e `response_json` não nulo,
   When o job diário roda, Then `response_json` vira `NULL` e as demais colunas permanecem; o job é
   idempotente e loga o total anulado.
-- **CA8 — Best-effort.** Given o repositório do ledger lança exceção, When a geração roda, Then o
-  plano é gerado e persistido normalmente e a falha do ledger é logada em `warn`.
+- **CA8 — Best-effort e isolamento.** Given o repositório do ledger lança exceção, When a geração
+  roda, Then o plano é gerado e persistido normalmente e a falha é logada em `warn`; Given o
+  chamador está em `@Transactional(REQUIRES_NEW)` e faz rollback (caso dos listeners assíncronos),
+  Then a linha do ledger sobrevive; Given a escrita do ledger bloqueia, Then estoura em 5 s e não
+  segura o permit do `LlmConcurrencyLimiter`.
 - **CA9 — Lote.** Given um lote de N atletas, Then cada atleta tem seu próprio `generation_request_id`
   e `tenant_id` preenchido (contexto setado dentro da virtual thread).
 - **CA10 — Integridade.** `atleta_id` e `plano_id` são FK com `ON DELETE SET NULL`; `tenant_id` é
   solto; índices `(tenant_id, created_at)` e `(generation_request_id)`.
-- **CA11 — Custo por tenant.** Given contexto com tenant, Then `llm.cost.estimated.usd` recebe a
-  tag `tenant`; sem contexto, o counter segue sem a tag (sem explosão de cardinalidade).
+- **CA11 — Custo por tenant.** `llm.cost.estimated.usd` tem **sempre** a tag `tenant` (valor
+  `none` quando ausente); as duas ordens de chamada (com tenant primeiro, sem tenant primeiro)
+  registram num `PrometheusMeterRegistry` real sem erro.
+- **CA12 — Tenant nos listeners assíncronos.** Given uma chamada de `WorkoutAnalysisListener` ou
+  `WeeklyFocusNarrativeService`, Then a linha tem `tenant_id` preenchido (os dois já recebem o
+  `tenantId` e passam a publicá-lo no `TenantContext` em volta da chamada).
+- **CA13 — Retry de transporte visível.** Given uma sequência HTTP 500 → 500 → 200 numa chamada
+  da rota `plano`, Then existe **uma** linha com `transport_retries = 2`.
 
 ## Métrica de sucesso
 
@@ -114,9 +130,15 @@ reprova a Fase 1 (`cachedTokens ≥ 60%` no lote) e serve de baseline para a Fas
   `max-interval=10s`, `on-client-errors=false`) sai **antes** desta change como `chore` de uma linha
   em `application.yml` + asserção em `LlmRetryConfigTest`, para que o ledger já nasça medindo o
   comportamento novo.
-- `tenant_id` **nullable**: rotas assíncronas de análise podem chamar sem `TenantContext`.
-- Gravação síncrona na própria thread, transação curta e independente (a chamada ao LLM já roda fora
-  de transação). Sem fila, sem `@Async`.
+- `tenant_id` **nullable** apenas para chamadas comprovadamente sem tenant; os dois listeners
+  assíncronos passam a publicar o `TenantContext` (CA12).
+- Gravação síncrona na própria thread, em `@Transactional(REQUIRES_NEW, timeout = 5)` (D12): a rota
+  `plano` roda fora de transação, mas os listeners assíncronos não. Sem fila, sem `@Async`.
+- **Decisão revista após o DoR:** o grilling (Q14) tinha fechado "desfecho da requisição só por
+  join"; o Codex mostrou quatro casos indistinguíveis por join, e a spec passou a gravar
+  `request_outcome` na última chamada (D6). O veredito do coach continua sendo join (Q6).
+- "Chamada LLM" é a chamada **lógica**: o retry de transporte do Spring AI acontece dentro do
+  `ChatModel` e aparece como `transport_retries` na mesma linha (D13).
 - Migrations `V94__Create_tb_llm_call.sql` e `V95__Add_generation_request_id_to_tb_plano_semanal.sql`
   (conferir o V mais alto no momento do merge).
 - Volume: ~600 linhas/mês com 100 planos/semana. Irrelevante por anos.

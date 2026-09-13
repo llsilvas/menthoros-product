@@ -117,16 +117,36 @@ correto ("quanto gastamos em gerações que não viraram plano").
 é `JOIN tb_plano_semanal USING (generation_request_id)`. Copiar estado criaria a dúvida de qual
 cópia está certa.
 
-## D6 — `resultado` por chamada
+## D6 — `resultado` por chamada (revisado no DoR: estado pendente e falha de parse)
 
-Enum `LlmCallResult`: `SUCCESS`, `VALIDATION_REJECTED`, `LLM_ERROR`, `TIMEOUT`.
+Enum `LlmCallResult`: `PENDING`, `SUCCESS`, `VALIDATION_REJECTED`, `PARSE_ERROR`, `LLM_ERROR`,
+`TIMEOUT`.
+
+O Codex apontou (DoR 2026-09-13) que D3 insere a linha **antes** de o resultado existir e D10
+exigia `NOT NULL` com só estados terminais: a janela entre a resposta HTTP e o fim da validação não
+tinha representação, e uma falha de conversão em `responseEntity` (`IaServiceImpl.java:345-351`,
+antes de `validar`) deixaria um `SUCCESS` falso. Por isso:
+
+- Na rota `plano`, o advisor grava `PENDING`. A rota atualiza para `SUCCESS` /
+  `VALIDATION_REJECTED` após `validar`, ou para `PARSE_ERROR` no `catch` do lambda `gerar` quando
+  o `responseEntity` falha na desserialização (a resposta HTTP foi 200, mas não virou DTO).
+- Linhas que ficam `PENDING` (crash da JVM, falha do update) são **aceitas como tal**: a consulta
+  de validação (task 7.2) as conta separadamente; nenhum job as "conserta".
 
 - `SUCCESS` e `VALIDATION_REJECTED` são escritos pela rota `plano` depois da validação (update pelo
-  `callId`). Para as outras rotas, o advisor grava `SUCCESS` na hora (não há validação de domínio).
+  `callId`); `PARSE_ERROR` pela rota `plano` quando a conversão falha. Para as outras rotas, o
+  advisor grava `SUCCESS` na hora (não há validação de domínio nem estado pendente).
 - `LLM_ERROR` e `TIMEOUT` são escritos pelo advisor no caminho de exceção (`TIMEOUT` quando há
   `SocketTimeoutException` na cadeia de causas, mesma detecção do counter `llm.timeout`).
-- O desfecho da **requisição** (plano persistido, 422, 503) não é coluna: sai do join com o plano e
-  da última chamada do grupo.
+- **Desfecho da requisição** (`request_outcome`, nullable, escrito na **última** linha do
+  `generation_request_id`): o grilling (Q14) tinha decidido "só join"; o Codex mostrou quatro
+  casos em que a última chamada é `SUCCESS` e não há plano, indistinguíveis por join — corrida
+  perdida no índice da V52 (`PlanGenerationPersister.java:134-136`), rejeição terminal no estágio 2
+  (`:285-290`), falha de persistência, e exclusão posterior do plano
+  (`PlanoServiceImpl.deletePlanoSemanal`). Enum `GenerationOutcome`: `PERSISTED`, `CONFLICT`,
+  `REJECTED_POST_LLM`, `PERSIST_ERROR`. Escrito best-effort por `PlanoServiceImpl.gerarPlanoTreino`
+  no `finally`/`catch` via `ledger.registrarDesfecho(generationRequestId, outcome)`. O veredito do
+  coach continua sendo join (D5); o que deixa de ser join é o desfecho da geração em si.
 
 `violacoes JSONB`: lista de `{ "key": "...", "mensagem": "..." }`, mesmo formato de
 `PlannerViolation` e `ViolacaoQualidade`.
@@ -138,6 +158,44 @@ fixtures de caracterização da Fase 2 e do eval set da Fase 5; o plano persisti
 reparo, redistribuição e prova e não serve para isso. O schema de saída não tem campo de
 identificação do atleta. O prompt **não** é guardado (PII, tamanho, precedente da V58): só
 `prompt_version` e `prompt_hash`.
+
+**Dado sensível, não "sem PII" (correção do DoR).** O prompt envia nome e lesões do atleta
+(`PlanoTreinoPromptBuilder.java:371-387`) e o DTO de saída tem `justificativaIa` e `descricao`
+livres: o modelo pode reproduzi-los. Tratamento:
+- antes de gravar, o nome do atleta (e sobrenome) é substituído por `[ATLETA]` no texto da resposta
+  (rota `plano`, que conhece o atleta); lesão em texto livre não é redigível com segurança e fica
+  coberta pela retenção e pela exclusão abaixo;
+- exclusão do atleta anula `response_json` das linhas dele (listener/`@PreRemove` no mesmo ponto
+  que já trata a exclusão), além do `ON DELETE SET NULL` da FK;
+- acesso só por SQL/admin; nenhum endpoint expõe a coluna;
+- CA6 deixa de prometer "nenhum trecho do prompt aparece" e passa a prometer: o prompt não é
+  gravado, o nome é redigido, e a retenção/exclusão valem.
+
+## D12 — Escrita do ledger: transação própria, curta, com teto
+
+`LlmCallLedger` escreve com `@Transactional(propagation = REQUIRES_NEW, timeout = 5)`. Motivo
+(DoR): a premissa "o LLM roda fora de transação" vale para a rota `plano`, mas
+`WorkoutAnalysisListener.java:79-81` e `WeeklyFocusNarrativeService.java:73-75` chamam o LLM
+**dentro** de `@Transactional(REQUIRES_NEW)`; se o ledger participasse dessa transação, um
+rollback do chamador apagaria a linha apesar do `catch`. `REQUIRES_NEW` custa uma segunda conexão
+por alguns milissegundos nesses dois caminhos (o pool é 10; o follow-up
+`refactor-async-llm-listeners-outside-transaction` elimina a raiz). O `timeout = 5` garante que
+uma escrita bloqueada não retenha o permit do `LlmConcurrencyLimiter` nem consuma o orçamento de
+100 s: estoura, cai no `catch`, vira `warn`. Teste de integração: o chamador faz rollback e a
+linha do ledger sobrevive.
+
+Os dois listeners passam a setar/limpar `TenantContext` em volta da chamada ao LLM (eles já
+recebem `tenantId` e hoje não o publicam): sem isso, o custo deles ficaria sem assessoria para
+sempre, e `NULL` deve ficar reservado a chamadas comprovadamente sem tenant.
+
+## D13 — Chamada lógica ≠ tentativa HTTP
+
+O `OpenAiChatModel` do Spring AI 1.1.6 executa o `RetryTemplate` **por dentro** de
+`chatModel.call`, então o advisor observa uma chamada lógica: uma sequência 500 → 500 → 200 é uma
+linha. Para não esconder o retry de transporte, o `RetryListener` de `LlmRetryConfig` incrementa
+um contador no `LlmCallScope` (`transportRetries`, `ThreadLocal`), e o advisor grava a coluna
+`transport_retries INTEGER` (0 quando não houve retry, `NULL` sem escopo). "Chamada LLM" no
+glossário é a chamada lógica; a tentativa HTTP é detalhe de transporte.
 
 ## D8 — Retenção: linha para sempre, payload por 90 dias
 
@@ -171,14 +229,17 @@ Idempotente, uma linha de log com o total. As colunas de custo e latência ficam
   `idx_llm_call_generation_request (generation_request_id)`,
   `idx_plano_semanal_generation_request (generation_request_id)`.
 - `route VARCHAR(20) NOT NULL`, `model VARCHAR(80) NOT NULL`, `resultado VARCHAR(30) NOT NULL`
-  com `CHECK` nos quatro valores.
+  com `CHECK` nos seis valores de D6; `request_outcome VARCHAR(30) NULL` com `CHECK` nos quatro
+  de D6; `transport_retries INTEGER NULL` (D13).
 - Tokens e latência como `INTEGER`/`BIGINT`; custo como `NUMERIC(12,10)` (o advisor já calcula com
   10 casas).
 
 ## D11 — Exposição mínima
 
-Nenhuma UI nem endpoint. Acrescenta-se a tag `tenant` ao counter `llm.cost.estimated.usd` quando o
-contexto existir (cardinalidade limitada pelo número de assessorias). Um endpoint admin fica para
+Nenhuma UI nem endpoint. A tag `tenant` entra **sempre** em `llm.cost.estimated.usd`, com o
+sentinela `none` quando não há tenant — o Micrometer rejeita o mesmo meter com conjuntos de tags
+diferentes (o próprio `CostTrackingAdvisor.java:98-100` documenta isso), então tag condicional
+quebraria a série. Cardinalidade limitada pelo número de assessorias. Um endpoint admin fica para
 quando alguém pedir.
 
 ## Riscos e mitigação
@@ -187,8 +248,9 @@ quando alguém pedir.
   CA8 com repositório lançando exceção.
 - **`ThreadLocal` vazando entre chamadas no lote.** Mitigação: `clear()` em `finally` e teste no
   `BatchPlanProcessor` com dois atletas verificando ids distintos (CA9).
-- **Cardinalidade de métrica.** Tag `tenant` só quando presente; com 10 assessorias é irrelevante,
-  e a tabela é a fonte de verdade, não a métrica.
+- **Cardinalidade de métrica.** Tag `tenant` sempre presente (sentinela `none`); com 10
+  assessorias é irrelevante, e a tabela é a fonte de verdade, não a métrica. Teste com
+  `PrometheusMeterRegistry` real nas duas ordens (com/sem tenant primeiro).
 - **Crescimento do JSONB.** ~1,4k tokens de saída por chamada ≈ 6 KB; 600 linhas/mês ≈ 3,6 MB/mês
   antes da purga. Irrelevante.
 

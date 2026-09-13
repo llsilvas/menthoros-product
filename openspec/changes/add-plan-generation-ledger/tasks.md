@@ -5,8 +5,10 @@
 > Pré-requisito executado como `chore` separado: `spring.ai.retry` explícito — PR
 > `menthoros-backend#115`. **A seção 1 só começa depois do merge desse PR**, com a branch
 > rebaseada em `develop`.
-> DoR 2026-09-13: `spec-reviewer` apontou dois gaps de assinatura (D3/D4), fechados no `design.md`
-> na mesma data; as tasks 3.1, 3.3, 3.4 e 4.1 abaixo refletem as assinaturas fechadas.
+> DoR 2026-09-13: `spec-reviewer` apontou dois gaps de assinatura (D3/D4) e o Codex sete achados
+> (estado pendente, isolamento transacional, PII na resposta, desfecho da requisição, tenant dos
+> listeners, tags condicionais, retry de transporte) — todos fechados em D6, D7, D11, D12, D13 na
+> mesma data. As tasks abaixo refletem as decisões fechadas.
 
 ## 0. Pré-requisito (chore separado, antes desta change)
 
@@ -21,7 +23,8 @@
 - [ ] 1.1 Migration `V94__Create_tb_llm_call.sql` conforme D10 (PK UUID, `created_at` TIMESTAMPTZ,
       `tenant_id` solto nullable, `atleta_id` FK `ON DELETE SET NULL`, `generation_request_id`,
       `route`, `model`, tokens, custo `NUMERIC(12,10)`, latência, `tentativa`, `prompt_version`,
-      `prompt_hash`, `schema_version`, `resultado` com `CHECK`, `violacoes` JSONB, `response_json`
+      `prompt_hash`, `schema_version`, `resultado` com `CHECK` (6 valores), `request_outcome`
+      nullable com `CHECK` (4 valores), `transport_retries`, `violacoes` JSONB, `response_json`
       JSONB; índices `(tenant_id, created_at)` e `(generation_request_id)`; bloco `RAISE NOTICE`).
       **verify:** teste de migration (`@DataJpaTest` + Testcontainers) confirma colunas, FK e índices.
 - [ ] 1.2 Migration `V95__Add_generation_request_id_to_tb_plano_semanal.sql`: coluna UUID nullable +
@@ -40,30 +43,41 @@
 ## 3. Contexto e advisor (CA1, CA2, CA3, CA11)
 
 - [ ] 3.1 `LlmCallContext` (record imutável: `generationRequestId`, `atletaId`, `tentativa`,
-      `promptVersion`, `promptHash`, `schemaVersion`) + `LlmCallScope` (holder com **dois**
-      `ThreadLocal` simples: `open(ctx)`, `current()`, `registerCallId(id)`, `lastCallId()`,
-      `close()`), pacote `ai/ledger`. **verify:** `LlmCallScopeTest`: `close()` limpa os dois;
-      `open` zera o `lastCallId` anterior; isolamento entre threads (duas threads, dois ctx).
-- [ ] 3.2 `LlmCallLedger` (service, `services/helper`): `registrarChamada(...)` chamado pelo advisor
-      (grava linha, devolve id) e `registrarResultado(callId, resultado, violacoes)`. Toda escrita em
-      `try/catch` com `warn` (CA8). Javadoc com Idempotent/Side Effects/Tenant-aware. **verify:**
-      teste com repositório mockado lançando exceção — método não propaga.
+      `promptVersion`, `promptHash`, `schemaVersion`) + `LlmCallScope` (holder com **três**
+      `ThreadLocal` simples: contexto, `lastCallId` e `transportRetries`; `open(ctx)`, `current()`,
+      `registerCallId(id)`, `lastCallId()`, `incrementTransportRetry()`, `transportRetries()`,
+      `close()`), pacote `ai/ledger`. `LlmRetryConfig`: o `RetryListener.onError` chama
+      `incrementTransportRetry()`. **verify:** `LlmCallScopeTest`: `close()` limpa os três; `open`
+      zera os anteriores; isolamento entre threads; `LlmRetryConfigTest` conta 2 em 500→500→200.
+- [ ] 3.2 `LlmCallLedger` (service, `services/helper`): `registrarChamada(...)` (grava linha,
+      devolve id), `registrarResultado(callId, resultado, violacoes)` e
+      `registrarDesfecho(generationRequestId, outcome)` (atualiza a linha de maior `tentativa`).
+      Cada método em `@Transactional(propagation = REQUIRES_NEW, timeout = 5)` e `try/catch` com
+      `warn` (CA8, D12). Redação do nome do atleta em `response_json` acontece aqui (recebe o nome
+      no contexto? não — recebe `atletaNome` como parâmetro opcional vindo do advisor via
+      `LlmCallContext.atletaNome`; adicionar o campo ao record). Javadoc com Idempotent/Side
+      Effects/Tenant-aware. **verify:** teste com repositório lançando exceção — não propaga;
+      `LlmCallLedgerIT`: chamador em `REQUIRES_NEW` faz rollback e a linha sobrevive.
 - [ ] 3.3 `CostTrackingAdvisor.paraRota(rota, pricing, meterRegistry, ledger)` — novo parâmetro,
       atualizar `MultiModelConfig.advisorDeCusto` (injeta o bean `LlmCallLedger` uma vez, 5 rotas).
       Em `adviseCall`: após tokens/custo/latência, chama `registrarChamada` com `LlmCallScope.current()`
       (se houver), `TenantContext.getTenantId()` (nulo → `warn`), e o texto bruto
       `response.chatResponse().getResult().getOutput().getText()` **só com contexto**; grava
-      `SUCCESS` para rotas sem contexto, `LLM_ERROR`/`TIMEOUT` no `catch` antes do `throw e`;
-      `LlmCallScope.registerCallId(id)`; tag `tenant` em `llm.cost.estimated.usd` só com contexto.
-      **verify:** `CostTrackingAdvisorTest` cobre os quatro resultados, com e sem contexto, e o
-      `MultiModelConfig` sobe (teste de contexto existente).
+      `PENDING` com contexto e `SUCCESS` sem contexto, `LLM_ERROR`/`TIMEOUT` no `catch` antes do
+      `throw e`; `transport_retries` do escopo; `LlmCallScope.registerCallId(id)`; tag `tenant`
+      **sempre** em `llm.cost.estimated.usd` (sentinela `none`). **verify:**
+      `CostTrackingAdvisorTest` cobre `PENDING`/`SUCCESS`/`LLM_ERROR`/`TIMEOUT`, com e sem
+      contexto; teste com `PrometheusMeterRegistry` real nas duas ordens (CA11); `MultiModelConfig`
+      sobe.
 - [ ] 3.4 `PlanoResilienceService`: record `Tentativa(int numero, String prompt)`; `gerar` vira
       `Function<Tentativa, PlanoSemanalLlmDto>` nas duas sobrecargas de `gerarComResiliencia`
       (único caller: `IaServiceImpl`). `IaServiceImpl.geraPlanoSemanalAvancado`: `LlmCallScope.open`
       com o número da tentativa antes da chamada, `close()` em `finally` guardando o `lastCallId`;
-      após `validar`, `registrarResultado(callId, SUCCESS | VALIDATION_REJECTED, violacoes)`.
-      **verify:** `PlanoResilienceServiceTest` com 1 retry entrega `Tentativa(1)` e `Tentativa(2)`;
-      `IaServiceImpl*Test` prova dois `registrarResultado` (REJECTED depois SUCCESS) (CA1, CA3).
+      `catch` no lambda para falha de conversão do `responseEntity` → `registrarResultado(callId,
+      PARSE_ERROR)` e relança; após `validar`, `registrarResultado(callId, SUCCESS |
+      VALIDATION_REJECTED, violacoes)`. **verify:** `PlanoResilienceServiceTest` com 1 retry entrega
+      `Tentativa(1)` e `Tentativa(2)`; `IaServiceImpl*Test` prova REJECTED depois SUCCESS, e
+      PARSE_ERROR quando o DTO não desserializa (CA1, CA3).
 
 ## 4. Requisição de geração e ligação com o plano (CA4, CA9)
 
@@ -77,12 +91,26 @@
       abre/fecha dentro do lambda `gerar`, que roda na virtual thread do atleta (o `TenantContext`
       já é setado lá). **verify:** teste do processor com 2 atletas e `IaService` real mockado no
       nível do `ChatClient` → 2 ids distintos e `tenant_id` preenchido em ambos (CA9).
+- [ ] 4.3 Desfecho da requisição (CA4): `PlanoServiceImpl.gerarPlanoTreino` chama
+      `ledger.registrarDesfecho(ctx.generationRequestId(), outcome)` — `PERSISTED` após `persist`,
+      `CONFLICT` no `catch` de `PlanoJaExistenteException`/índice V52, `REJECTED_POST_LLM` quando
+      `DomainRuleViolationException` vem do persister (estágio 2), `PERSIST_ERROR` para as demais
+      exceções da fase 3; nada quando a falha foi antes de uma chamada `SUCCESS`. **verify:**
+      `PlanoServiceImplTest` cobre os quatro desfechos e o caso sem desfecho.
+- [ ] 4.4 Tenant nos listeners (CA12): `WorkoutAnalysisListener` e `WeeklyFocusNarrativeService`
+      fazem `TenantContext.setTenantId(tenantId)` antes da chamada ao LLM e `clear()` no `finally`
+      (já recebem o id; hoje não o publicam). **verify:** testes existentes dos dois + asserção de
+      que o `TenantContext` está limpo ao sair.
 
 ## 5. Resposta bruta e purga (CA6, CA7)
 
 - [ ] 5.1 `response_json` recebe o JSON bruto do `ChatResponse` (texto do primeiro `Generation`)
-      antes do parse para DTO; o prompt não é gravado em nenhuma coluna. **verify:** teste do advisor
-      assegura o conteúdo e a ausência de qualquer trecho do prompt.
+      antes do parse para DTO, com nome e sobrenome do atleta substituídos por `[ATLETA]` (D7);
+      o prompt não é gravado. **verify:** teste do ledger com atleta "Maria Souza" e resposta que
+      cita o nome → `[ATLETA]` no JSON gravado.
+- [ ] 5.3 Exclusão do atleta anula `response_json` das linhas dele, no mesmo ponto que já trata a
+      exclusão (`AtletaServiceImpl.delete` ou listener). **verify:** IT: excluir atleta →
+      `atleta_id = NULL` e `response_json = NULL`.
 - [ ] 5.2 `LlmCallRetentionScheduler` (`@Scheduled` diário, padrão dos schedulers existentes):
       anula `response_json` > 90 dias, loga total. **verify:** teste com `Clock` fixo e 3 linhas
       (2 velhas, 1 nova) → 2 anuladas, demais colunas intactas; segunda execução anula 0.
@@ -98,6 +126,6 @@
 
 - [ ] 7.1 `./mvnw clean verify` verde; `/qa` (code-reviewer + security-reviewer; atenção a
       multi-tenancy do `tenant_id` nullable e a PII no `response_json`).
-- [ ] 7.2 Consulta de validação documentada no PR (custo, p50/p95, retry e `REJEITADO` por tenant e
-      `prompt_version`) executada contra o banco de dev.
+- [ ] 7.2 Consulta de validação documentada no PR (custo, p50/p95, retry, `PENDING` residual,
+      `request_outcome` e `REJEITADO` por tenant e `prompt_version`) executada contra o banco de dev.
 - [ ] 7.3 PR `feature/add-plan-generation-ledger` → `develop`; após merge, remover worktree.
