@@ -3,7 +3,8 @@
 # Ledger de chamadas LLM — toda geração deixa rastro
 
 **Change-id:** `add-plan-generation-ledger`
-**Estado:** proposta pronta para implementação (DoR fechado — grilling 2026-09-13, Rodadas 1 e 2).
+**Estado:** ✅ entregue e arquivada. PR `menthoros-backend#117` mergeado em `develop`
+(2026-09-13T21:05:35Z). 22/22 tasks concluídas (DoR fechado — grilling 2026-09-13, Rodadas 1 e 2).
 **Data:** 2026-09-13.
 **Origem:** Fase 0 da análise arquitetural do motor de geração
 (`apps/menthoros-backend/docs/ia/ANALISE_GERACAO_PLANOS_LLM.md`, achados A4 e A5). Sprint 24.
