@@ -15,7 +15,7 @@ para o detalhe de cada correção.
 
 ## 1. Separar o template em system + user (CA2, CA3)
 
-- [ ] 1.1 Criar `src/main/resources/prompts/plano-treino-system.txt`: persona (linhas 1–4) + regras
+- [x] 1.1 Criar `src/main/resources/prompts/plano-treino-system.txt`: persona (linhas 1–4) + regras
       (linhas 32–523) do original, **em PT-BR como estão**, com duas correções: (a) normalizar as
       **11 ocorrências** de `%%%` para `%` (linhas 91, 102, 153, 154, 156, 167, 169, 187, 189, 275,
       276, 277, 465, 505 do original — não só a 505); (b) reescrever a linha 167
@@ -25,15 +25,31 @@ para o detalhe de cada correção.
       o literal quebrado `%3$s` em produção, achado do Codex no DoR).
   - `verify:` teste `PromptTemplateLoaderTest`/golden falha se o arquivo contiver `%s`, `%d`, `%%`
     ou qualquer placeholder posicional (`%\d+\$`); grep confirma zero `%%%` restante no arquivo.
-- [ ] 1.2 Criar `src/main/resources/prompts/plano-treino-user.txt`: `### PERFIL DO ATLETA` +
+- [x] 1.2 Criar `src/main/resources/prompts/plano-treino-user.txt`: `### PERFIL DO ATLETA` +
       `### HISTÓRICO RECENTE` (linhas 5–30), 8 placeholders na ordem Nome, Idade, Objetivo, Nível,
       Dias, Dia preferido, Provas, Histórico.
   - `verify:` união system+user cobre todas as seções `###`/`##` do original (lista no PR).
-- [ ] 1.3 Poda segura das "INSTRUÇÕES CRÍTICAS - FORMATO DE SAÍDA": remover só o que o schema
-      `strict` garante, com tabela no PR `linha removida → propriedade do schema`
-      (`buildSchemaTightInlineOrDefs`). Manter hífen/travessão, reticências, mínimo de 7 etapas,
-      expansão de tiros, `ordem` sequencial.
-  - `verify:` `IaServiceImplSchemaTest` confirma cada propriedade citada na tabela.
+- [x] 1.3 Poda segura das "INSTRUÇÕES CRÍTICAS - FORMATO DE SAÍDA": removidas 5 linhas, cada uma
+      coberta por propriedade do schema `strict` (`buildSchemaTightInlineOrDefs`,
+      `IaServiceImpl.java:156`). Tabela para o PR:
+
+      | Linha removida | Propriedade do schema |
+      |---|---|
+      | "Responda APENAS com 1 objeto JSON válido / Sem texto antes ou depois / Sem explicações" | `response_format.type=JSON_SCHEMA` + `strict:true` — a API já restringe a geração a exatamente o schema, não há como o modelo emitir texto fora do JSON |
+      | "NÃO inclua campos extras além dos listados" | `additionalProperties:false`, exigido pela própria OpenAI para `strict:true` funcionar |
+      | "Máximo 5 treinos, mínimo 3 treinos" (dentro de "Garantia de completude") | `treinosPlanejados.minItems=3` / `maxItems=5` |
+      | "Array etapas NUNCA vazio" | `etapas.minItems=2` |
+      | "Cada etapa com todos os campos obrigatórios" | `enforceAllRequired(etapaItems)` → `required` com todas as chaves |
+      | "repeticoes: 1 em cada etapa da série" | `reps.put("const", 1)` |
+
+      **Mantido de propósito** (achado do Codex no DoR — `required` permite string vazia,
+      `ritmoAlvo` da etapa aceita `null` via `anyOf`): "NÃO deixe campos vazios", "NÃO use null",
+      "NÃO use travessão", "NÃO use reticências", "100% completos (último treino também)", formato
+      de números (schema não valida casas decimais), mínimo de 7 etapas no intervalado (schema só
+      garante `minItems=2` genérico), `ordem` sequencial (schema só garante `minimum=1`), expansão
+      de tiros (contagem, não estrutura JSON).
+  - `verify:` `IaServiceImplSchemaTest` continua verde (schema inalterado nesta task — só o
+      template mudou); `PlanoTreinoPromptTemplatesTest` novo confirma CA2/CA3.
 - [ ] 1.4 Manter `plano-treino-otimizado-claude.txt` até o golden ser re-baselined; remover depois
       de 4.1 (`grep -rl` para confirmar ausência de consumidores).
 
