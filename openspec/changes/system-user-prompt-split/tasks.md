@@ -39,26 +39,62 @@ para o detalhe de cada correção.
 
 ## 2. Builder retorna system + user (CA1)
 
-- [ ] 2.1 `PromptGerado(String system, String user, List<Constraint> regras)`;
-      `buildOptimizedPrompt` carrega o `system` cru (`PromptTemplateLoader.loadTemplate` — **não**
-      `loadRaw`, que não existe na classe; `loadTemplate` já lê e cacheia sem aplicar
-      `escapeTemplate`/`String.format`, é exatamente o que este método precisa) e formata só o
-      `user` (`loadAndFormat`, que internamente chama `loadTemplate` + `escapeTemplate` +
-      `String.format`).
+**Refinado contra o código real (init 2026-09-13):** `PromptGerado` hoje é um record aninhado em
+`PlanoTreinoPromptBuilder` — `record PromptGerado(String prompt, List<Constraint> regras) {}`
+(linha 394), único consumidor é `IaServiceImpl.geraPlanoSemanalAvancado` (linhas 339, 370). O `%s`
+de "Histórico" (linha 23 do template, 8º argumento de `loadAndFormat`) já recebe TODO o contexto
+dinâmico computado em Java (`historicoFinal` — regras, slots do planner, alertas obrigatórios,
+hierarquia de decisão, evento competitivo, restrições, dados fisiológicos, readiness, métricas,
+histórico de treinos, etc.), não só uma lista curta de treinos — confirma que as linhas 5–30 do
+arquivo são de fato o bloco 100% dinâmico e 32–523 é o único candidato a `system`.
+`PromptHashCalculator` já lê o nome do template de `app.llm.plano.template` (`@Value` com default
+`plano-treino-otimizado-claude.txt`, sem override em nenhum `application*.yml`) — não precisa de
+mudança de código, só de config (task 2.4).
+
+- [ ] 2.1 `PromptGerado(String system, String user, List<Constraint> regras) {}`;
+      `buildOptimizedPrompt` carrega o `system` cru via `PromptTemplateLoader.loadTemplate(...)`
+      (método público já existente — lê e cacheia sem `escapeTemplate`/`String.format`; **não**
+      existe `loadRaw` na classe, não criar) e formata só o `user` via
+      `templateLoader.loadAndFormat("plano-treino-user.txt", nome, idade, objetivo, nivel, dias,
+      diaPreferidoLongo, provas, historicoFinal.toString())` — mesmos 8 argumentos, mesma ordem, só
+      troca o nome do arquivo-fonte.
   - `verify:` teste unitário: `system` sem placeholders; `user` com perfil/histórico formatados.
 - [ ] 2.2 `PromptVersion.CURRENT = "plano-v2"` (constante da Fase 0; criar aqui se a Fase 0 ainda
-      não estiver em `develop`).
-- [ ] 2.3 `./mvnw clean test` do pacote `services/prompt`.
+      não estiver em `develop` — **já está**, ver header desta task.md).
+- [ ] 2.3 `application.yml`: `app.llm.plano.template: plano-treino-system.txt` (hoje sem entrada,
+      usa o default da `@Value` em `PromptHashCalculator`; sem isso o hash continuaria do arquivo
+      antigo depois do split).
+  - `verify:` `PromptHashCalculatorTest` (se existir) ou log de startup `[llm-ledger] prompt_hash`
+      aponta para `plano-treino-system.txt`.
+- [ ] 2.4 `./mvnw clean test` do pacote `services/prompt`.
 
 ## 3. IaServiceImpl e resiliência (CA1, CA4)
 
-- [ ] 3.1 `geraPlanoSemanalAvancado`: `chatClient.prompt().system(system).user(user).options(...)`.
-      `defaultJsonSchemaOptions()`, `PlanoResilienceService` e `ModelRouter` inalterados.
-- [ ] 3.2 `PlanoResilienceService.gerarComResiliencia` passa a receber `system` e `user` separados
-      (ou o `PromptGerado`) e anexa o feedback de correção ao **fim do `user`**.
-  - `verify:` `PlanoResilienceServiceTest`: `system` byte-idêntico nas duas tentativas; feedback
-      presente só no `user` da 2ª.
-- [ ] 3.3 Caminho legado `gerarPlanoSemanal` intocado (CA8). `./mvnw clean test`.
+**Refinado contra o código real:** `PlanoResilienceService.gerarComResiliencia` recebe hoje
+`Function<Tentativa, PlanoSemanalLlmDto> gerar` + `String promptBase`; `Tentativa(int numero,
+String prompt)` carrega só o texto que varia por tentativa. **Não precisa mudar a assinatura
+pública de `PlanoResilienceService`** — `promptBase` passa a ser só o `user` (o que já hoje é
+"o prompt", já que não existe `system`); o `system` fica capturado por variável local no escopo de
+`geraPlanoSemanalAvancado` (que já monta o `promptGerado` antes do lambda) e vai direto no
+`chatClient.prompt().system(...)` dentro do lambda `gerar`, sem passar pelo `PlanoResilienceService`
+— exatamente o que CA4 pede (`system` nunca entra no que o retry reescreve) com a menor mudança de
+contrato possível.
+
+- [ ] 3.1 `geraPlanoSemanalAvancado`: capturar `promptGerado.system()` em variável local; dentro do
+      lambda de `sessao.chamar(...)` (linha ~354), trocar `chatClient.prompt().user(t.prompt())`
+      por `chatClient.prompt().system(promptGerado.system()).user(t.prompt())`; chamar
+      `gerarComResiliencia(gerar, validar, promptGerado.user())` (era `prompt` → agora `user()`).
+      `defaultJsonSchemaOptions()`, `ModelRouter`, `ledgerHook.novaSessao()` inalterados.
+- [ ] 3.2 `PlanoResilienceService` **sem alteração de assinatura** — o feedback de correção
+      (`## CORRECAO OBRIGATORIA`, linha 111-114 do serviço) já é concatenado só ao `promptBase`, que
+      agora é o `user`; o `system` nunca passa pelo `PlanoResilienceService`, então já nasce
+      byte-idêntico entre tentativas por construção.
+  - `verify:` `PlanoResilienceServiceTest` continua verde sem alteração (contrato não mudou); teste
+      novo em `IaServiceImplTest` (ou onde for adicionado) confirma `.system(...)` chamado com o
+      mesmo valor nas duas tentativas do lambda.
+- [ ] 3.3 Caminho legado `gerarPlanoSemanal` (linha 296) intocado (CA8) — continua usando
+      `promptBuilder.buildRequest(...)` (método separado, já retorna `String`, não `PromptGerado`).
+      `./mvnw clean test`.
 
 ## 4. Golden-master (CA5)
 
