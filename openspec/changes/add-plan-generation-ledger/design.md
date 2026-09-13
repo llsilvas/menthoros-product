@@ -19,41 +19,93 @@ análise de treino ou foco semanal.
 Consequência no nome: a tabela é `tb_llm_call`, não `tb_plan_generation`. O change-id mantém
 `add-plan-generation-ledger` por continuidade com o `SPRINTS.md`.
 
-## D3 — `LlmCallContext` em `ThreadLocal`
+## D3 — `LlmCallContext` em `ThreadLocal` (assinaturas fechadas na DoR de 2026-09-13)
 
-```
-LlmCallContext.set(new LlmCallContext(generationRequestId, atletaId, tentativa,
-                                      PromptVersion.CURRENT, promptHash, SchemaVersion.CURRENT));
-try {
-    resposta = chatClient.prompt()...call().responseEntity(PlanoSemanalLlmDto.class);
-    UUID callId = LlmCallContext.lastCallId();   // preenchido pelo advisor
-    ... validar ...
-    ledger.registrarResultado(callId, SUCCESS | VALIDATION_REJECTED, violacoes);
-} finally {
-    LlmCallContext.clear();
+Dois canais, não um. O contexto **imutável** por tentativa e o **id da chamada** que o advisor devolve
+são coisas diferentes, e o `spec-reviewer` apontou que um record não pode ser os dois.
+
+```java
+// Imutável: quem chama o LLM descreve a tentativa antes da chamada.
+public record LlmCallContext(UUID generationRequestId, UUID atletaId, int tentativa,
+                             String promptVersion, String promptHash, String schemaVersion) {}
+
+// Holder com DOIS ThreadLocal (padrão TenantContext, ThreadLocal simples, nunca Inheritable):
+public final class LlmCallScope {
+    private static final ThreadLocal<LlmCallContext> CONTEXT = new ThreadLocal<>();
+    private static final ThreadLocal<UUID> LAST_CALL_ID = new ThreadLocal<>();
+    public static void open(LlmCallContext ctx)   // set CONTEXT, limpa LAST_CALL_ID
+    public static Optional<LlmCallContext> current()
+    public static void registerCallId(UUID id)   // escrito pelo advisor
+    public static Optional<UUID> lastCallId()
+    public static void close()                   // remove os dois; sempre em finally
 }
 ```
 
-- Precedente: `TenantContext`. Mesma disciplina: `clear()` em `finally`, e no lote o `set` acontece
-  **dentro** da virtual thread de cada atleta (`BatchPlanProcessor` já faz isso com o tenant;
-  virtual threads não herdam `ThreadLocal`).
-- O advisor lê o contexto se existir; ausente, grava a linha genérica com enriquecimento nulo.
-- O advisor grava a linha **antes** de devolver a resposta à cadeia, então `lastCallId()` está
-  disponível quando o lambda de geração retorna. Em exceção do provider, o advisor grava a linha
-  com `LLM_ERROR` ou `TIMEOUT` e relança.
-- `tentativa` vem do `PlanoResilienceService`: o contador `geracoes` já existe; a função `gerar`
-  passa a receber o número da tentativa (ou o contexto é atualizado a cada volta do loop).
+`PlanoResilienceService.gerarComResiliencia` passa a entregar a tentativa a `gerar` — hoje a
+função é `Function<String, PlanoSemanalLlmDto>` e o contador vive só dentro do `while`
+(`PlanoResilienceService.java:87-106`). Nova assinatura (único caller: `IaServiceImpl`):
+
+```java
+public record Tentativa(int numero, String prompt) {}
+
+PlanoSemanalLlmDto gerarComResiliencia(Function<Tentativa, PlanoSemanalLlmDto> gerar,
+                                       Function<PlanoSemanalLlmDto, PlanoSemanalLlmDto> validar,
+                                       String promptBase);
+// + a variante com GenerationBudget, mesma mudança.
+```
+
+Fluxo em `IaServiceImpl.geraPlanoSemanalAvancado`:
+
+```java
+gerar = t -> {
+    LlmCallScope.open(new LlmCallContext(ctx.generationRequestId(), atleta.getId(), t.numero(),
+                                         PromptVersion.CURRENT, promptHash.valor(), SchemaVersion.CURRENT));
+    try {
+        var resposta = chatClient.prompt().user(t.prompt()).options(...).call()
+                                 .responseEntity(PlanoSemanalLlmDto.class);
+        return resposta.getEntity();
+    } finally {
+        callIdDaTentativa.set(LlmCallScope.lastCallId().orElse(null)); // guardado para o validar
+        LlmCallScope.close();
+    }
+};
+validar = plano -> { ... registrarResultado(callId, SUCCESS | VALIDATION_REJECTED, violacoes) ... };
+```
+
+- O advisor (`adviseCall`) lê `LlmCallScope.current()`; grava a linha com `registrarChamada(...)`
+  **antes** de devolver a resposta à cadeia e chama `registerCallId(id)`. Em exceção do provider,
+  grava `LLM_ERROR`/`TIMEOUT` e relança. Sem contexto (outras rotas), grava a linha genérica com
+  `SUCCESS` no caminho feliz.
+- O texto bruto da resposta vem de `response.chatResponse().getResult().getOutput().getText()` —
+  o advisor hoje só lê `getMetadata()` (`CostTrackingAdvisor.java:138`); passa a ler o corpo
+  também, só quando há contexto (rota `plano`).
+- `CostTrackingAdvisor.paraRota(rota, pricing, meterRegistry)` é fábrica estática chamada em
+  `MultiModelConfig.advisorDeCusto` para as 5 rotas: ganha o parâmetro `LlmCallLedger` (bean),
+  injetado uma vez no `MultiModelConfig`. O tenant vem de `TenantContext.getTenantId()` (pode ser
+  nulo).
+- No lote, `open`/`close` acontecem dentro da virtual thread de cada atleta porque o lambda
+  `gerar` roda lá; o `BatchPlanProcessor` não precisa conhecer o `LlmCallScope`.
 
 Alternativas rejeitadas: (b) segunda tabela de tentativas ligada por FK (duas escritas, dois
 modelos); (c) rota `plano` gravando tudo sozinha (duplica a extração de usage que o advisor já faz
 e deixa as outras rotas sem registro).
 
-## D4 — Ligação com o plano: coluna em `tb_plano_semanal`
+## D4 — Ligação com o plano: coluna em `tb_plano_semanal` (assinatura fechada na DoR)
 
 `tb_plano_semanal.generation_request_id UUID NULL`, escrita no `save` que já existe em
-`PlanGenerationPersister.salvarPlanoCompleto`. O id nasce em `PlanoServiceImpl.gerarPlanoTreino`
-(e no subtask do `BatchPlanProcessor`) e viaja até o persister pelo objeto de contexto que já cruza
-as três fases. Sem `UPDATE` posterior em `tb_llm_call`, sem corrida, sem segunda escrita.
+`PlanGenerationPersister.salvarPlanoCompleto`.
+
+**Onde o id nasce:** no `PlanGenerationContextLoader.load(atletaId, modo)`, que já é a fábrica do
+`PlanGenerationContext` (record com compact constructor, montado inteiro no loader —
+`PlanGenerationContext.java:39-56`). O record ganha o campo `UUID generationRequestId`, gerado
+com `UUID.randomUUID()` no início do `load`. Nenhuma assinatura de `gerarPlanoTreino`,
+`gerarPlanoSemanal` ou `persist` muda: os três já recebem o `ctx`. A requisição de geração começa
+quando o contexto é carregado, o que é semanticamente correto (o loader é a fase 1 das três).
+Alternativas rejeitadas: `gerarPlanoTreino` criar o id e passá-lo ao `load` (o loader só leria
+banco; o texto anterior deste design dizia isso e o `spec-reviewer` mostrou que não fecha com o
+código), ou parâmetro solto por todo o pipeline (três assinaturas mudam sem ganho).
+
+Sem `UPDATE` posterior em `tb_llm_call`, sem corrida, sem segunda escrita.
 
 Gerações que terminam em 422/503 não têm plano; as chamadas ficam órfãs de plano, e isso é o sinal
 correto ("quanto gastamos em gerações que não viraram plano").
@@ -142,6 +194,6 @@ quando alguém pedir.
 
 ## Dependências
 
-- Nenhuma change bloqueante. O `chore` de `spring.ai.retry` sai antes, separado.
+- **Bloqueante para a seção 1 em diante:** merge do PR `menthoros-backend#115` (`chore(config): spring.ai.retry explícito`, task 0.1). A branch desta change nasce de `develop` já com ele.
 - Desbloqueia: `system-user-prompt-split` (gate medido na tabela), Fase 2 (fixtures), Fase 5 (eval
   set).

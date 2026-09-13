@@ -2,14 +2,19 @@
 
 > Backend (Java/Spring). Trilha Full. Branch `feature/add-plan-generation-ledger` em **worktree**
 > (há outra sessão no repo). Validar `./mvnw clean verify` antes de entregar. TDD por item.
-> Pré-requisito executado como `chore` separado: `spring.ai.retry` explícito (ver proposal).
+> Pré-requisito executado como `chore` separado: `spring.ai.retry` explícito — PR
+> `menthoros-backend#115`. **A seção 1 só começa depois do merge desse PR**, com a branch
+> rebaseada em `develop`.
+> DoR 2026-09-13: `spec-reviewer` apontou dois gaps de assinatura (D3/D4), fechados no `design.md`
+> na mesma data; as tasks 3.1, 3.3, 3.4 e 4.1 abaixo refletem as assinaturas fechadas.
 
 ## 0. Pré-requisito (chore separado, antes desta change)
 
-- [ ] 0.1 `chore(config): spring.ai.retry explícito` — `application.yml`: `max-attempts: 3`,
+- [x] 0.1 `chore(config): spring.ai.retry explícito` — `application.yml`: `max-attempts: 3`,
       `backoff.initial-interval: 1s`, `backoff.multiplier: 2`, `backoff.max-interval: 10s`,
-      `on-client-errors: false`. `LlmRetryConfigTest` ganha asserção dos valores efetivos.
-      **verify:** `./mvnw test -Dtest=LlmRetryConfigTest`; PR próprio para `develop`.
+      `on-client-errors: false`. `LlmRetryConfigTest` ganha o caso `naoHerdaDefaultDoSpringAi`
+      (binding do `application.yml` real). **verify:** 5 testes verdes; PR `menthoros-backend#115`
+      aberto em 2026-09-13 (aguardando CI/merge).
 
 ## 1. Schema
 
@@ -34,33 +39,44 @@
 
 ## 3. Contexto e advisor (CA1, CA2, CA3, CA11)
 
-- [ ] 3.1 `LlmCallContext` (`ThreadLocal`): `set`, `get`, `lastCallId`, `clear`; record com
-      `generationRequestId`, `atletaId`, `tentativa`, `promptVersion`, `promptHash`, `schemaVersion`.
-      **verify:** teste de `clear()` e de isolamento entre threads.
+- [ ] 3.1 `LlmCallContext` (record imutável: `generationRequestId`, `atletaId`, `tentativa`,
+      `promptVersion`, `promptHash`, `schemaVersion`) + `LlmCallScope` (holder com **dois**
+      `ThreadLocal` simples: `open(ctx)`, `current()`, `registerCallId(id)`, `lastCallId()`,
+      `close()`), pacote `ai/ledger`. **verify:** `LlmCallScopeTest`: `close()` limpa os dois;
+      `open` zera o `lastCallId` anterior; isolamento entre threads (duas threads, dois ctx).
 - [ ] 3.2 `LlmCallLedger` (service, `services/helper`): `registrarChamada(...)` chamado pelo advisor
       (grava linha, devolve id) e `registrarResultado(callId, resultado, violacoes)`. Toda escrita em
       `try/catch` com `warn` (CA8). Javadoc com Idempotent/Side Effects/Tenant-aware. **verify:**
       teste com repositório mockado lançando exceção — método não propaga.
-- [ ] 3.3 `CostTrackingAdvisor`: após extrair tokens/custo/latência, chama `registrarChamada` com
-      contexto (se houver) e `tenant_id` do `TenantContext` (se houver; `warn` se ausente); grava
-      `SUCCESS` para rotas sem contexto, `LLM_ERROR`/`TIMEOUT` no caminho de exceção; põe o id em
-      `LlmCallContext.lastCallId`; tag `tenant` em `llm.cost.estimated.usd` só com contexto.
-      **verify:** `CostTrackingAdvisorTest` cobre os quatro resultados, com e sem contexto.
-- [ ] 3.4 `IaServiceImpl.geraPlanoSemanalAvancado`: seta o contexto por tentativa (número vindo do
-      `PlanoResilienceService`), e após `validar` chama `registrarResultado` com `SUCCESS` ou
-      `VALIDATION_REJECTED` + violações; `clear()` em `finally`. `PlanoResilienceService` expõe o
-      número da tentativa à função `gerar`. **verify:** `PlanoResilienceServiceTest` com 1 retry gera
-      dois registros com tentativas 1 e 2 (CA1, CA3).
+- [ ] 3.3 `CostTrackingAdvisor.paraRota(rota, pricing, meterRegistry, ledger)` — novo parâmetro,
+      atualizar `MultiModelConfig.advisorDeCusto` (injeta o bean `LlmCallLedger` uma vez, 5 rotas).
+      Em `adviseCall`: após tokens/custo/latência, chama `registrarChamada` com `LlmCallScope.current()`
+      (se houver), `TenantContext.getTenantId()` (nulo → `warn`), e o texto bruto
+      `response.chatResponse().getResult().getOutput().getText()` **só com contexto**; grava
+      `SUCCESS` para rotas sem contexto, `LLM_ERROR`/`TIMEOUT` no `catch` antes do `throw e`;
+      `LlmCallScope.registerCallId(id)`; tag `tenant` em `llm.cost.estimated.usd` só com contexto.
+      **verify:** `CostTrackingAdvisorTest` cobre os quatro resultados, com e sem contexto, e o
+      `MultiModelConfig` sobe (teste de contexto existente).
+- [ ] 3.4 `PlanoResilienceService`: record `Tentativa(int numero, String prompt)`; `gerar` vira
+      `Function<Tentativa, PlanoSemanalLlmDto>` nas duas sobrecargas de `gerarComResiliencia`
+      (único caller: `IaServiceImpl`). `IaServiceImpl.geraPlanoSemanalAvancado`: `LlmCallScope.open`
+      com o número da tentativa antes da chamada, `close()` em `finally` guardando o `lastCallId`;
+      após `validar`, `registrarResultado(callId, SUCCESS | VALIDATION_REJECTED, violacoes)`.
+      **verify:** `PlanoResilienceServiceTest` com 1 retry entrega `Tentativa(1)` e `Tentativa(2)`;
+      `IaServiceImpl*Test` prova dois `registrarResultado` (REJECTED depois SUCCESS) (CA1, CA3).
 
 ## 4. Requisição de geração e ligação com o plano (CA4, CA9)
 
-- [ ] 4.1 `PlanoServiceImpl.gerarPlanoTreino` cria `generationRequestId` (UUID) e o propaga pelo
-      objeto de contexto das três fases até `PlanGenerationPersister.salvarPlanoCompleto`, que o
-      escreve em `PlanoSemanal`. **verify:** `PlanoServiceImplTest` assegura o mesmo id na chamada e
-      no plano salvo; teste de 422/503 mostra chamadas sem plano.
-- [ ] 4.2 `BatchPlanProcessor`: id por atleta criado **dentro** da virtual thread, junto com o
-      `TenantContext`; `clear()` no `finally` do subtask. **verify:** teste com 2 atletas → ids
-      distintos e `tenant_id` preenchido.
+- [ ] 4.1 `PlanGenerationContext` ganha `UUID generationRequestId` (obrigatório no compact
+      constructor); `PlanGenerationContextLoader.load` gera `UUID.randomUUID()` no início;
+      `PlanGenerationPersister.salvarPlanoCompleto` escreve `plano.setGenerationRequestId(ctx.generationRequestId())`.
+      Nenhuma assinatura de `gerarPlanoTreino`/`gerarPlanoSemanal`/`persist` muda. **verify:**
+      `PlanGenerationContextLoaderIT` mostra id presente; `PlanGenerationPersisterTest` assegura o
+      mesmo id no plano salvo; teste de 422/503 mostra chamadas sem plano.
+- [ ] 4.2 Lote: nada a mudar no `BatchPlanProcessor` — o id nasce no loader e o `LlmCallScope`
+      abre/fecha dentro do lambda `gerar`, que roda na virtual thread do atleta (o `TenantContext`
+      já é setado lá). **verify:** teste do processor com 2 atletas e `IaService` real mockado no
+      nível do `ChatClient` → 2 ids distintos e `tenant_id` preenchido em ambos (CA9).
 
 ## 5. Resposta bruta e purga (CA6, CA7)
 
