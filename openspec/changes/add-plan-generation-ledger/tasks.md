@@ -91,12 +91,15 @@
       abre/fecha dentro do lambda `gerar`, que roda na virtual thread do atleta (o `TenantContext`
       já é setado lá). **verify:** teste do processor com 2 atletas e `IaService` real mockado no
       nível do `ChatClient` → 2 ids distintos e `tenant_id` preenchido em ambos (CA9).
-- [ ] 4.3 Desfecho da requisição (CA4): `PlanoServiceImpl.gerarPlanoTreino` chama
-      `ledger.registrarDesfecho(ctx.generationRequestId(), outcome)` — `PERSISTED` após `persist`,
-      `CONFLICT` no `catch` de `PlanoJaExistenteException`/índice V52, `REJECTED_POST_LLM` quando
-      `DomainRuleViolationException` vem do persister (estágio 2), `PERSIST_ERROR` para as demais
-      exceções da fase 3; nada quando a falha foi antes de uma chamada `SUCCESS`. **verify:**
-      `PlanoServiceImplTest` cobre os quatro desfechos e o caso sem desfecho.
+- [ ] 4.3 Desfecho da requisição (CA4, D6): em `PlanoServiceImpl.gerarPlanoTreino`, declarar
+      `PlanGenerationContext ctx = null` e `boolean llmAceito = false` **antes** do `try`; `llmAceito
+      = true` logo após `gerarPlanoSemanal` devolver DTO não nulo. Nos `catch`, com `ctx != null`:
+      `DomainRuleViolationException` + `llmAceito` → `REJECTED_POST_LLM`; `PlanoJaExistenteException`
+      ou índice V52 + `llmAceito` → `CONFLICT`; outra exceção + `llmAceito` → `PERSIST_ERROR`; sem
+      `llmAceito` → nada; retorno normal → `PERSISTED`. Tudo via
+      `ledger.registrarDesfecho(ctx.generationRequestId(), outcome)`, best-effort. **verify:**
+      `PlanoServiceImplTest` cobre os quatro desfechos, o caso "falha do loader → sem desfecho" e
+      "fast-path duplicado antes do LLM → sem desfecho".
 - [ ] 4.4 Tenant nos listeners (CA12): `WorkoutAnalysisListener` e `WeeklyFocusNarrativeService`
       fazem `TenantContext.setTenantId(tenantId)` antes da chamada ao LLM e `clear()` no `finally`
       (já recebem o id; hoje não o publicam). **verify:** testes existentes dos dois + asserção de

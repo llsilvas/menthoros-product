@@ -146,8 +146,22 @@ antes de `validar`) deixaria um `SUCCESS` falso. Por isso:
   (`:285-290`), falha de persistência, e exclusão posterior do plano
   (`PlanoServiceImpl.deletePlanoSemanal`). Enum `GenerationOutcome`: `PERSISTED`, `CONFLICT`,
   `REJECTED_POST_LLM`, `PERSIST_ERROR`. Escrito best-effort por `PlanoServiceImpl.gerarPlanoTreino`
-  no `finally`/`catch` via `ledger.registrarDesfecho(generationRequestId, outcome)`. O veredito do
-  coach continua sendo join (D5); o que deixa de ser join é o desfecho da geração em si.
+  via `ledger.registrarDesfecho(generationRequestId, outcome)`. O veredito do coach continua sendo
+  join (D5); o que deixa de ser join é o desfecho da geração em si.
+
+  **Como o `catch` sabe a fase (fechado na 2ª passada do DoR):** hoje `ctx` é declarado dentro do
+  `try` (`PlanoServiceImpl.java:128`) e o `catch` de `DomainRuleViolationException` (`:137`) recebe
+  tanto a falha do `contextLoader.load` (antes de qualquer chamada) quanto a rejeição do estágio 2
+  do persister. O método passa a ter duas variáveis locais declaradas **antes** do `try`:
+  `PlanGenerationContext ctx = null` e `boolean llmAceito = false`; `llmAceito` vira `true`
+  imediatamente após `gerarPlanoSemanal` devolver o DTO não nulo (a única chamada `SUCCESS` de uma
+  requisição é a que produz esse DTO). Regra nos `catch`, sempre `if (ctx != null)`:
+  - `DomainRuleViolationException` com `llmAceito` → `REJECTED_POST_LLM`; sem → nada;
+  - `PlanoJaExistenteException` / `DataIntegrityViolationException` do índice V52 com `llmAceito`
+    → `CONFLICT`; sem (fast-path/re-checagem antes do LLM) → nada;
+  - qualquer outra exceção com `llmAceito` → `PERSIST_ERROR`; sem → nada;
+  - retorno normal → `PERSISTED`.
+  Nenhum subtipo de exceção novo e nenhum wrapper: a fase é estado local do método.
 
 `violacoes JSONB`: lista de `{ "key": "...", "mensagem": "..." }`, mesmo formato de
 `PlannerViolation` e `ViolacaoQualidade`.
