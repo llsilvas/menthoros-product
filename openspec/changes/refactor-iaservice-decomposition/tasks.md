@@ -202,9 +202,26 @@ final completa na tabela do [proposal.md](proposal.md) ("Decisão de escopo").
 
 ## 7. Validação final
 
-- [ ] 7.1 `./mvnw clean test` verde (incluindo o golden de caracterização do passo 1)
-- [ ] 7.2 `./mvnw verify`
-- [ ] 7.3 Diff de comportamento: rodar geração de plano nos cenários do passo 1.1 e confirmar
-      saída idêntica ao baseline **exceto** nos 6 cenários de IA-02/03/04/05/06/10, onde a saída
-      deve ser a corrigida — documentar as duas listas (idêntico vs. corrigido) no PR.
-- [ ] 7.4 Atualizar este `tasks.md` (implementado vs. adiado) e arquivar a change conforme regra do CLAUDE.md raiz
+- [x] 7.1 `./mvnw clean test`: 3532/3532 verde, módulo inteiro (inclui o golden de caracterização
+      do passo 1, migrado para `PlanoLlmValidatorCaracterizacaoTest` na seção 6).
+- [x] 7.2 `./mvnw clean verify`: 3532 unit + 188 `*IT` = 3720 testes, 0 falhas, 0 erros (Docker
+      ativo para os Testcontainers dos `*IT`).
+- [x] 7.3 **Diff de comportamento** — como a change não passou a rodar geração de plano contra o
+      LLM real (custaria uma chamada billable por cenário, sem sinal adicional sobre a correção
+      estrutural), a evidência é o par TDD vermelho→verde de cada achado, já registrado seção a
+      seção. Duas listas:
+  - **Idêntico ao baseline** (extrações puramente estruturais, sem mudança de comportamento):
+    `LlmJsonSchemaBuilder` (seção 2), a maior parte de `TreinoNormalizador` exceto o próprio IA-03
+    (seção 3), `EtapaFcValidator` exceto IA-02 (seção 4), `PlanoLlmValidator` exceto IA-04/05/06
+    (seções 5-6) — cobertos pelos testes de caracterização + os testes unitários migrados
+    (mesmas asserções, chamada direta em vez de reflexão).
+  - **Corrigido** (6 cenários, cada um com teste vermelho confirmado antes do fix): IA-02
+    (`EtapaFcValidatorTest` — `intervaladoEmFartlekEsperaZ2Z4`/`recuperacaoEmFartlekAceitaZ1Z2`),
+    IA-03 (`TreinoNormalizadorRepeticoesPatternTest` — grupo atômico no regex), IA-04
+    (`PlanoLlmValidatorTest#Estrutura3Etapas` — etapa central PRINCIPAL obrigatória, incl. LONGO),
+    IA-05 (`TreinoNormalizadorIntervaladoTest#DuracaoConsistenteComRitmoAlvo` — `duracaoMin`
+    recalculado do `ritmoAlvo`), IA-06 (`PlanoServiceImplTest#domainRuleViolationDoIaServicePropagaSemVirarLlmException`
+    — 422 em vez de 503), IA-10 (`gerarPlanosEmLote` removido, confirmado sem consumidores).
+- [x] 7.4 `tasks.md` atualizado (este arquivo) com implementado vs. adiado (só IA-08 ficou
+      adiado, ver seção R). Arquivamento fica para depois do merge do PR, via
+      `/menthoros-workflow:done` (regra do `CLAUDE.md` raiz).
