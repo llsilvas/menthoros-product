@@ -1,3 +1,8 @@
+> **Change entregue e arquivada em 2026-09-14** — `menthoros-backend` PR #122, merge `34263f4`
+> em `develop`. 27/27 tasks implementadas, nada adiado. `/qa` 5× verde; CI verde. Radar herdado
+> (Codex): caracterização cobre os cenários exercitados, não todos — teto/piso de pace vazios,
+> sem cenário completo para TIRO/CONTINUO/TEMPO_RUN; vai para a F3.
+
 ## Pré-requisitos
 
 - [x] 0.1 PR de `refactor-iaservice-decomposition` (F2) mergeado em `develop` (PR #121, merge
