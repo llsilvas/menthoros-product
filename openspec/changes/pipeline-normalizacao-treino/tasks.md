@@ -55,18 +55,23 @@
 
 ## 1. Withers nos DTOs da LLM
 
-- [ ] 1.1 `TreinoPlanejadoLlmDto`: `comEtapas(List<EtapaTreinoLlmDto>)`, `comRitmo(String)`,
+> **Seção entregue em `2e9811b`** (2026-09-14): 1.1–1.5 abaixo `[x]`. Gate 1.3 medido: 0 construtores
+> de treino nos 3 arquivos; 7 `new EtapaTreinoLlmDto(` restantes, todos criações genuínas marcadas
+> (2 pares da expansão NxDist/fartlek, 1 par de tiro extra, 1 síntese de aquec/desaq do reparo).
+> `clean test` 3556/3556; baseline (`982731f`) com diff vazio.
+
+- [x] 1.1 `TreinoPlanejadoLlmDto`: `comEtapas(List<EtapaTreinoLlmDto>)`, `comRitmo(String)`,
       `comDistancia(Double)`, `comDuracao(String)` — **sempre pelo construtor canônico de 14
       campos** (o overload de 11 apaga `descricao`/`zonaAlvo`/`provaId`).
       `verify:` `TreinoPlanejadoLlmDtoTest` — `@ParameterizedTest` sobre um record de fixture com
       os 14 campos distintos: cada wither muda só o seu campo e preserva os outros 13 (`isEqualTo`
       contra o record montado à mão).
-- [ ] 1.2 `EtapaTreinoLlmDto`: `comDistancia(Double)`, `comDuracao(Integer)`, `comFc(String)`,
+- [x] 1.2 `EtapaTreinoLlmDto`: `comDistancia(Double)`, `comDuracao(Integer)`, `comFc(String)`,
       **`comOrdem(Integer)`** (achado do Codex, 3ª rodada: `TreinoNormalizador.reordenarEtapas`
       `:655-664` e `PlanoEstruturaReparador.comOrdem` `:96-98` renumeram `ordem` — sem esse wither a
       1.3 não fecha).
       `verify:` `EtapaTreinoLlmDtoTest`, mesmo formato, 8 campos, 4 withers.
-- [ ] 1.3 Substituir as **reconstruções de record existente** (cópia posicional que muda 1-2
+- [x] 1.3 Substituir as **reconstruções de record existente** (cópia posicional que muda 1-2
       campos): `PlanoLlmValidator.java` (4× treino), `TreinoNormalizador.java` (4× treino;
       etapas em `reordenarEtapas`, `clampDistanciaPorTipo`, `distribuirDeltaPorTipo`,
       `corrigirEtapaTemporal`), `PlanoEstruturaReparador.java` (`comOrdem`). **Criações genuínas
@@ -80,9 +85,9 @@
       = 0 nos 3 (treino nunca é criado do zero neles); para `new EtapaTreinoLlmDto(` nos 3, cada
       ocorrência restante está numa criação genuína e leva o comentário
       `// criação: sem record de origem` — listar as ocorrências no PR.
-- [ ] 1.4 `./mvnw clean test` verde; **baseline da 0.4 inalterado** (nenhum record esperado editado).
-      `verify:` `git diff --stat -- '*CaracterizacaoTest.java'` vazio.
-- [ ] 1.5 Commit `refactor(ia): withers em TreinoPlanejadoLlmDto/EtapaTreinoLlmDto (parte 1/3)`.
+- [x] 1.4 `./mvnw clean test` verde (3556/3556); **baseline da 0.4 inalterado** (nenhum record esperado editado).
+      `verify:` `git diff --stat -- '*CaracterizacaoTest.java'` vazio ✅.
+- [x] 1.5 Commit `2e9811b` — `refactor(ia): withers em TreinoPlanejadoLlmDto/EtapaTreinoLlmDto (parte 1/3)`.
 
 ## 2. O module `NormalizacaoDeTreino`
 
