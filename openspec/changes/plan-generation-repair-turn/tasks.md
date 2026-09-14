@@ -1,6 +1,6 @@
 ## 0. Pré-requisitos e verificação de API
 
-- [ ] 0.1 `.messages(...)` do `ChatClient` confirmado por bytecode (1ª rodada do pré-mortem). O
+- [x] 0.1 `.messages(...)` do `ChatClient` confirmado por bytecode (1ª rodada do pré-mortem). O
       mecanismo que quebrava a igualdade de prefixo — `BeanOutputConverter` injetando `OUTPUT_FORMAT`
       na última `UserMessage` via `ChatModelCallAdvisor.augmentWithFormatInstructions` — também já
       identificado e corrigido na Decisão 1/3 (abandona `.responseEntity`, task 4.0). Esta task é a
@@ -10,6 +10,9 @@
       advisor de formato. Se ainda divergir, algo na cadeia default do `ChatClient` continua tocando
       as mensagens e a Decisão 1 precisa de outra volta.
       `verify:` teste captura o `Prompt` real das duas tentativas; prefixo comum é byte-idêntico.
+      **Feito** (`ChatClientRepairTurnPrefixSpikeTest`, `config/external`): `ChatClient` real via
+      `MultiModelConfig.clienteDeRota` (cadeia de advisors default incluída), só `ChatModel`
+      mockado — 1 teste verde confirma prefixo `system+user` byte-idêntico sem `.responseEntity`.
 - [x] 0.2 DoR: `spec-reviewer` (READY) + Codex adversarial (NOT READY → corrigido: task 4.2
       reescrita para não mockar `ChatClient` — só `ChatModel`, preservando a cadeia real de
       advisors; task 6.2 corrigida — `AssistantMessage` não desaparece, mede-se volume total vs.
