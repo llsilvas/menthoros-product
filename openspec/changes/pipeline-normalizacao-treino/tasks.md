@@ -30,7 +30,10 @@
       `verify:` ✅ 4 rodadas registradas acima.
 - [x] 0.3 Branch `feature/pipeline-normalizacao-treino` a partir de `origin/develop` (`72304b9`), em
       worktree `.worktrees/pipeline-normalizacao-treino` (2026-09-14).
-- [ ] 0.4 **Baseline antes de qualquer refactor.** Reescrever `PlanoLlmValidatorCaracterizacaoTest`
+- [x] 0.4 (`982731f`, 12/12 verde em `72304b9`; capturado com um teste-rascunho que imprimia os
+      records em sintaxe Java, depois apagado. Congelado sem julgar: aquec/desaq sintetizados pelo
+      reparo saem com `distanciaKm = null`; no intervalado já expandido, gap +0.9 cresce tiros
+      1.0→1.1 e o IA-05 recalcula duração 4→5.) **Baseline antes de qualquer refactor.** Reescrever `PlanoLlmValidatorCaracterizacaoTest`
       contra o `PlanoLlmValidator` **atual** (`72304b9`): record completo escrito à mão por cenário
       (`isEqualTo`), colaboradores reais para `TreinoNormalizador`/`EtapaFcValidator`/
       `PaceValidator`/`PlanoEstruturaReparador`, mocks só para as fontes de dados. Cenários:
