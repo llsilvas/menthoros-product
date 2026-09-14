@@ -1,22 +1,23 @@
 ## 1. Corrigir o método de recálculo
 
-- [ ] 1.1 Em `IntervalsIcuActivityPersister.persistir`, trocar
+- [x] 1.1 Em `IntervalsIcuActivityPersister.persistir`, trocar
       `tsbService.atualizarTsbDia(atleta.getId(), salvo.getDataTreino())` por
       `tsbService.recalcularDesde(atleta.getId(), salvo.getDataTreino())`.
-      **Verify:** `./mvnw clean compile` sem erros.
+      **Verify:** `./mvnw clean compile` sem erros — confirmado.
 
 ## 2. Atualizar o teste existente (seam único, `IntervalsIcuActivityPersisterTest`)
 
-- [ ] 2.1 Trocar as quatro ocorrências de `atualizarTsbDia` por `recalcularDesde` em
+- [x] 2.1 Trocar as quatro ocorrências de `atualizarTsbDia` por `recalcularDesde` em
       `IntervalsIcuActivityPersisterTest.java` (linhas 107, 127, 219, 236 na versão atual),
       mantendo os argumentos e a semântica `never()`/com-argumentos de cada teste.
-      **Verify:** `./mvnw clean test -Dtest=IntervalsIcuActivityPersisterTest` verde.
+      **Verify:** `./mvnw clean test -Dtest=IntervalsIcuActivityPersisterTest` verde — confirmado
+      (TDD: vermelho antes do fix, verde depois).
 
 ## 3. Validação completa
 
-- [ ] 3.1 Rodar a suíte completa para garantir que nenhum outro teste dependia do comportamento
+- [x] 3.1 Rodar a suíte completa para garantir que nenhum outro teste dependia do comportamento
       antigo.
-      **Verify:** `./mvnw clean test` verde.
+      **Verify:** `./mvnw clean test` verde — confirmado, exit 0.
 
 ## 4. Fechar o registro nas duas specs relacionadas
 
