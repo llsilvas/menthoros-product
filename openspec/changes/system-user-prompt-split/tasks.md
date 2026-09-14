@@ -143,10 +143,25 @@ contrato possível.
 
 ## 5. QA e entrega
 
-- [ ] 5.1 `/qa` Fast: `code-reviewer` + `clean-code-reviewer`; atenção ao CA2 (tabela de poda) e ao
-      diff do golden.
-- [ ] 5.2 PR `feature/system-user-prompt-split` → `develop`; corpo com a tabela de poda e o diff
-      resumido do golden.
+- [x] 5.1 `/qa`: `code-reviewer` + `security-reviewer` + `clean-code-reviewer` (Claude, paralelo) +
+      `/codex:adversarial-review` (cross-model). Claude: zero Critical/Important nos três; só Minor
+      (2 pré-existentes fora de escopo — teto "3 a 7" no texto do prompt vs. schema real 3-5, e
+      `Provas planejadas: null`; mais nomenclatura/documentação). **Codex encontrou 2 achados reais,
+      verificados contra o código antes de aceitar e corrigidos** (commit `00b73b2`):
+      - **[BLOCKER] Precedência system×user.** A "PRIORIZAÇÃO POR OBJETIVO" (ex.: "Performance →
+        treino intervalado") foi pro `system`, enquanto a hierarquia de segurança ("NÍVEL 1 —
+        SEGURANÇA sempre vence: lesão ativa → máximo Z2, sem intervalados",
+        `AlertasPromptFormatter.gerarHierarquiaDecisao`) ficou inteira no `user` — verificado no
+        código real. Risco: papel `system` pesa mais que `user` na resolução de conflito do modelo,
+        o que o design anterior (tudo num `user` só) não tinha. Fix: frase de precedência explícita
+        no topo do `system.txt`, antes de qualquer regra de objetivo.
+      - **[MAJOR] `-Dgolden.update=true` não regenerava os `.user.txt`.** Cada `assertGolden`
+        separado falhava (de propósito) na 1ª chamada, nunca alcançando a 2ª na mesma invocação —
+        confirma o que a task 4.1 já tinha contornado manualmente. Fix:
+        `assertGoldenTodos(Map<String,String>)` grava/compara as duas partes juntas antes de falhar.
+      Golden, hash e `./mvnw clean verify` (3516+188, 0 falhas) re-confirmados após os dois fixes.
+- [x] 5.2 PR `menthoros-backend#118` (`feature/system-user-prompt-split` → `develop`) aberto, com a
+      tabela de poda, o achado de precedência system×user fechado e o resumo do QA no corpo.
 - [ ] 5.3 Pós-merge (gate CA6): após o primeiro lote de ≥ 5 atletas **distintos** em produção,
       executar a consulta em `tb_llm_call` que pega a **1ª tentativa** (`tentativa = 1`) da rota
       `plano` de cada atleta do lote, ordena por `created_at` e calcula a mediana de
