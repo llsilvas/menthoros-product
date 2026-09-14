@@ -180,9 +180,29 @@
 
 ## 4. Validação final
 
-- [ ] 4.1 Diff de comportamento: os 12 records/rejeições esperados da 0.4 são os mesmos em 3.1 (o
-      baseline foi capturado em `72304b9`, antes de qualquer refactor).
-- [ ] 4.2 `/qa` (3 reviewers + Codex). Pedir ao Codex: a receita `INTERVALADO_TIRO` com
+> **Seção fechada em 2026-09-14** (branch em `155982b`, 4 commits sobre `72304b9`). `/qa` com 5
+> revisões, todas verdes: `code-reviewer` APROVADO (0 Critical/Important; Minor: `Atleta` JPA no
+> `ContextoNormalizacao` — padrão pré-existente, candidato a record `AthleteProfile`-like numa
+> iteração futura; JavaDoc por método no formato Idempotent/Side Effects segue o precedente de
+> classe), `security-reviewer` APROVADO (singleton stateless, `atletaId` só como parâmetro; guardas
+> de null 1:1 com o original; "mínimo 8"→"mínimo 6" é a única mudança de texto), `clean-code-reviewer`
+> APROVADO (573 linhas = profundidade legítima; notas: ramos WARN de `gate-sequencia` sem asserção
+> de log, `validarDistribuicaoCargaSemanal` como extração futura se virar gate), Codex nativo **GO**
+> e Codex adversarial **GO** — **resposta à pergunta da 4.2: sim**, os três casos estão protegidos
+> (gate-contagem precede a síntese de pares; gate-duracao-tiros rejeita null/inválido antes e >10min
+> depois do crescimento; gate-sequencia rejeita RECUPERACAO antes do 1º tiro) e a cauda não altera a
+> duração individual dos tiros. **Ressalva registrada pelo Codex:** a caracterização sustenta a
+> equivalência dos cenários exercitados, não uma prova universal — teto/piso de pace ficam vazios em
+> todos os 12 e faltam cenários completos para TIRO/CONTINUO/TEMPO_RUN e entradas nulas. Fica como
+> radar para a F3 (a violação nasce com o nome do passo, e cada passo novo ganha o seu cenário).
+> `/pr` **não** rodado — aguarda confirmação explícita; arquivamento via `/done` após o merge.
+
+- [x] 4.1 Diff de comportamento: os 12 records/rejeições esperados da 0.4 são os mesmos em 3.1 (o
+      baseline foi capturado em `72304b9`, antes de qualquer refactor). Evidência: 8 records
+      esperados, 4 mensagens de rejeição e 12 fixtures de entrada byte a byte iguais entre
+      `982731f` e `155982b`.
+- [x] 4.2 `/qa` (3 reviewers + Codex). Pedir ao Codex: a receita `INTERVALADO_TIRO` com
       `gate-sequencia` e `gate-duracao-tiros` 2× fecha os dois achados da branch F2 (padding e
-      duração) e o do DoR desta (sequência)?
-- [ ] 4.3 `tasks.md` atualizado; `SPRINTS.md` (F2.5) marcado; arquivar via `/done` após merge.
+      duração) e o do DoR desta (sequência)? — **Sim** (Codex adversarial, verificado no código).
+- [x] 4.3 `tasks.md` atualizado; `SPRINTS.md` (F2.5) marcado; arquivar via `/done` após merge
+      (pendente: só o arquivamento, que depende do PR).
