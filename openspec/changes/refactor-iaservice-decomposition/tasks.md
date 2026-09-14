@@ -181,15 +181,24 @@ final completa na tabela do [proposal.md](proposal.md) ("Decisão de escopo").
 
 ## 6. Reduzir IaServiceImpl a orquestrador — inclui fix IA-10
 
-- [ ] 6.1 **Fix IA-10:** `gerarPlanosEmLote` — confirmado sem consumidores em `src/main/java`
-      (só a declaração na interface `IaService` e a implementação stub). A geração em lote real
-      usa outro caminho (`coach-batch-plan-generation`, virtual threads chamando
-      `geraPlanoSemanalAvancado` por atleta). **Remover o método de `IaService`/`IaServiceImpl`**
-      (contrato obsoleto, não fallback silencioso) — não criar `UnsupportedOperationException`
-      para um método que pode simplesmente não existir.
-- [ ] 6.2 Confirmar que `IaServiceImpl` só monta prompt → chama LLM (via `ModelRouter`) → delega validação → retorna DTO
-- [ ] 6.3 Conferir LOC bem abaixo de ~400 e nenhum método acima de ~80 linhas (ver CLAUDE.md "Service Size & Decomposition")
-- [ ] 6.4 Revisar JavaDoc de idempotência/side effects/tenant nos métodos públicos remanescentes
+- [x] 6.1 **Fix IA-10:** `gerarPlanosEmLote` — confirmado sem consumidores em `src/main/java`
+      (só a declaração na interface `IaService` e a implementação stub, e zero referências em
+      `src/test`). A geração em lote real usa outro caminho (`coach-batch-plan-generation`,
+      virtual threads chamando `geraPlanoSemanalAvancado` por atleta). **Método removido de
+      `IaService`/`IaServiceImpl`** (contrato obsoleto, não fallback silencioso).
+- [x] 6.2 Confirmado: a composição inteira de `validarENormalizarPlanoGerado` (dispatch por tipo,
+      normalização, validação estrutural/FC/pace, distribuição de carga) migrou pra
+      `PlanoLlmValidator.validarENormalizarPlano` (achado durante a seção: o `proposal.md`
+      original já previa isso — "`PlanoLlmValidator` orquestrador da validação... `IaServiceImpl`
+      vira orquestrador fino" — mas a seção 5 tinha extraído só os validadores-folha, deixando o
+      loop de composição em `IaServiceImpl`). `IaServiceImpl` ficou só com: monta prompt
+      (`PlanoTreinoPromptBuilder`) → chama LLM (`ModelRouter` + `PlanoResilienceService` +
+      `LlmJsonSchemaBuilder`) → resolve atleta + delega validação (`PlanoLlmValidator`) → aplica
+      compliance planner (estágio 1) → retorna DTO.
+- [x] 6.3 `IaServiceImpl.java`: 218 linhas (bem abaixo de ~400; era 1500+ antes da change, 839 após
+      a seção 4). Maior método é `geraPlanoSemanalAvancado` com ~55 linhas — nenhum acima de ~80.
+- [x] 6.4 JavaDoc de idempotência/side effects/tenant-aware confirmado em `geraPlanoSemanalAvancado`
+      (já existia) e adicionado em `gerarPlanoSemanal` (não tinha).
 
 ## 7. Validação final
 
