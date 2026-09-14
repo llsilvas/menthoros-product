@@ -6,6 +6,14 @@
   `apps/menthoros-backend/docs/ia/01-otimizacao-recalculo-tsb.md`, com causa raiz confirmada por
   leitura de código e investigação dedicada (ver "Further Notes"). Seam único identificado
   (`BaselineCalculatorTest`). Pronta para `/implement init remove-redundant-tsb-baseline-recalc`.
+- Pré-requisito 1/3 fechado (2026-09-14): a revisão adversarial do Codex sobre esta spec (DoR
+  NOT READY) apontou três lacunas que precisavam ser fechadas antes desta remoção ser segura —
+  gap do `IntervalsIcuActivityPersister`, `semanasProgressaoContinua` não recalculado pelo
+  caminho incremental, e backfill de TSS legado pendente em produção. A primeira foi corrigida
+  pela change `fix-intervals-icu-retroactive-tsb-recalc` (PR backend #119, mergeado `cf84117`) —
+  o persister agora usa `recalcularDesde`, fechando a defasagem que essa exceção documentada
+  deixava. **Ainda faltam as outras duas** (progressão + backfill) antes de reabrir esta change
+  para implementação.
 
 ## Problem Statement
 
@@ -87,9 +95,8 @@ valor já pronto em vez de reconstruir a série inteira do zero.
 
 ## Out of Scope
 
-- Corrigir o gap de `IntervalsIcuActivityPersister` (usa `atualizarTsbDia` em vez de
-  `recalcularDesde` para import retroativo) — bug real, mas distinto; fica registrado no radar
-  separadamente se/quando priorizado.
+- ~~Corrigir o gap de `IntervalsIcuActivityPersister`~~ — já corrigido pela change
+  `fix-intervals-icu-retroactive-tsb-recalc` (PR backend #119, mergeado `cf84117`).
 - Mudar o caminho incremental (`TsbService.recalcularDesde`) ou o caminho manual
   (`AtletaServiceImpl.recalcularMetricasAtleta`) — nenhum dos dois está errado.
 - Mover qualquer recálculo de TSB para fora do caminho síncrono de geração de plano — deixa de
@@ -113,9 +120,23 @@ log em gerações reais pós-deploy, e pela queda do p95 de latência de persist
   cair no futuro (um novo integrador que persista `TreinoRealizado` diretamente), o novo
   caminho precisa chamar `recalcularDesde` — não é motivo para reverter esta change, é uma
   responsabilidade do novo integrador.
-- **Open Question (não bloqueante):** por que a chamada a `recalcularHistoricoCompleto` foi
-  escrita originalmente em `BaselineCalculatorImpl`? Vale uma leitura rápida do histórico do PR
-  de `athlete-onboarding-baseline` antes de implementar, para checar se havia uma razão real
-  (ex.: o caminho incremental não existia ainda naquele momento) que a remoção precisaria
-  substituir por outra coisa. Se a leitura não revelar motivo válido, a remoção segue como
-  planejada.
+- **Open Question (bloqueante da implementação, não da aprovação da spec):** por que a chamada a
+  `recalcularHistoricoCompleto` foi escrita originalmente em `BaselineCalculatorImpl`? A task 1.1
+  exige ler o histórico do PR de `athlete-onboarding-baseline` **antes** de tocar em código —
+  se a leitura revelar um motivo de integridade real (ex.: o caminho incremental não existia
+  ainda naquele momento), a implementação para e reporta em vez de prosseguir para a remoção.
+  Se não revelar motivo válido, a remoção segue como planejada.
+
+## Rollback / Risco
+
+- **Rollback:** reverter o commit único desta change. Não há migration nem mudança de contrato
+  público — a reversão é puramente de código e teste, sem dado a migrar de volta.
+- **Risco principal:** a premissa "nenhum caminho de persistência de treino real ignora o
+  incremental" (ver Open Question acima) estar errada ou ficar errada no futuro. Mitigado pela
+  task 1.1 (gate antes de implementar) e pelo fato de que um novo integrador que quebrasse essa
+  premissa seria responsabilidade dele chamar `recalcularDesde`, não motivo para reverter esta
+  change.
+- **Risco secundário:** algum teste hoje esconde uma dependência de `TsbService` sendo estubado
+  nesse fluxo (ex.: em `OnboardingServiceTest` ou `CalibrationServiceTest`) e quebra
+  silenciosamente após a remoção. Mitigado pela task 4.1, que roda a suíte completa do módulo
+  antes de considerar a change concluída.
