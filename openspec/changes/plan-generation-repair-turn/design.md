@@ -209,6 +209,16 @@ grilling de produto. Em vez de forçar uma versão quebrada de B, `PlanQualityCh
 change** — continua exatamente como hoje (fora do loop, só métrica). Vira candidato de change própria
 se a F3, depois de medida, ainda deixar taxa de retry abaixo da meta.
 
+## Decisão 6 — JSON completo no `AssistantMessage` (fecha a Open Question, DoR 2026-09-14)
+
+O JSON da 1ª tentativa vai para a conversa **completo**, não recortado aos treinos que falharam.
+O `AssistantMessage` representa literalmente "o que o modelo respondeu" — enviar uma versão editada
+inventaria uma resposta que o modelo nunca deu, quebrando a premissa central do turno de reparo (o
+modelo corrige melhor vendo o próprio output verbatim, não um resumo). O schema `strict` já obriga
+o modelo a devolver o DTO completo em qualquer resposta, então recortar o `AssistantMessage` não
+economiza tokens de saída — só cria uma divergência entre "o que dizemos que ele disse" e o que ele
+de fato disse.
+
 ## Test surface
 
 - `RepairTurnMessageBuilder` — testável sem mock: `List<Violacao>` → `String`, casos: 1 violação, N

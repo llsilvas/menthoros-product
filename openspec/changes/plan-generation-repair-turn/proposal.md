@@ -116,10 +116,13 @@ comum entre `PlannerViolation` e `ViolacaoQualidade` — só falta ele viajar co
   Nenhum outro advisor da cadeia default mexe nas mensagens nesse caminho (verificado no pré-mortem).
   Task 0.1 continua como dupla checagem sobre o request real serializado, não mais sobre incerteza
   de API.
-- **Em aberto:** o JSON da 1ª tentativa vai para o prompt de correção **completo** ou só os treinos
-  que falharam? Completo é mais fiel ao "corrija isto, mantendo o resto"; parcial economiza tokens
-  mas exige o modelo reconstruir o plano inteiro na resposta de qualquer forma (o schema `strict`
-  exige o DTO completo).
+- **Decidido, fechando o DoR (2026-09-14):** o JSON da 1ª tentativa vai para o prompt de correção
+  **completo**, não só os treinos que falharam. Razão: o `AssistantMessage` representa literalmente
+  "o que o modelo respondeu" — truncar antes de reenviar inventaria uma resposta que o modelo nunca
+  deu, quebrando a premissa que faz o turno de reparo funcionar (o modelo corrige melhor vendo o
+  próprio output verbatim). Além disso, o schema `strict` já obriga o modelo a devolver o DTO
+  completo na resposta de qualquer forma — enviar parcial não economizaria a saída, só criaria uma
+  divergência entre "o que dizemos que ele disse" e o que ele disse de fato.
 - **Assumido:** nenhuma migration nova — a coluna `violations` já existe (V94) e já é JSONB.
 
 ## Métrica de sucesso
