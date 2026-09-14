@@ -38,12 +38,14 @@ final completa na tabela do [proposal.md](proposal.md) ("Decisão de escopo").
 
 ## 1. Rede de segurança (caracterização)
 
-- [ ] 1.1 Escrever teste de caracterização (golden) para `geraPlanoSemanalAvancado` com 2-3
-      cenários representativos (intervalado, longo, regenerativo), fixando o `PlanoSemanalLlmDto`
-      de saída — o LLM mockado/stub para tornar a saída determinística. **Não incluir** cenários de
-      fartlek/parser-de-repetições/lote no golden estático — esses vão mudar de propósito nas
-      seções 3-6 e ganham teste TDD dedicado lá, não aqui.
-- [ ] 1.2 Rodar `./mvnw clean test` e confirmar baseline verde
+- [x] 1.1 `IaServiceImplCaracterizacaoTest` — testa `validarENormalizarPlanoGerado` (não
+      `geraPlanoSemanalAvancado`; o fluxo público exige o `ChatClient` fluente do Spring AI,
+      inviável em unit test, mesmo padrão já usado por `IaServiceImplComplianceEstagio1Test`) via
+      reflexão, 3 cenários (intervalado, longo, regenerativo) parametrizados, atleta sem FC
+      cadastrada (fora do escopo desta rede — coberto isoladamente na seção 4). Cenários de
+      fartlek/parser-de-repetições/lote ficam fora do golden estático — TDD dedicado nas seções 3-6.
+- [x] 1.2 `./mvnw clean test` verde (3/3 na suíte nova; 1131/1131 em `services.impl` — 1 falha
+      transitória de OAuth não relacionada, não reproduziu numa 2ª rodada).
 
 ## 2. Extrair construção do JSON Schema
 
