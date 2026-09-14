@@ -4,7 +4,7 @@
       `72304b9`, 2026-09-14) e arquivado — esta change toca exatamente os arquivos que aquele PR
       criou (`PlanoLlmValidator`, `TreinoNormalizador`, `EtapaFcValidator`,
       `PlanoLlmValidatorTest`, `PlanoLlmValidatorCaracterizacaoTest`).
-- [ ] 0.2 DoR: `spec-reviewer` + Codex adversarial sobre `proposal.md` + `design.md`. **1ª rodada
+- [x] 0.2 DoR: `spec-reviewer` + Codex adversarial sobre `proposal.md` + `design.md`. **1ª rodada
       (2026-09-14): NOT READY nos dois**, achados convergentes e verificados contra o código —
       (a) a receita `INTERVALADO_TIRO` omitia `gate-sequencia` (hard-fail "recuperação sem tiro
       anterior"); (b) `reparar-3-etapas` aparecia duas vezes (cauda + `TRES_ETAPAS`) e as guardas
@@ -91,24 +91,35 @@
 
 ## 2. O module `NormalizacaoDeTreino`
 
-- [ ] 2.1 `record ContextoNormalizacao(atleta, atletaId, zonasFC, tetoPorTipo, pisoPorTipo)` em
+> **Seção entregue em `cdb9716`** (2026-09-14): 2.1–2.10 abaixo `[x]`. `clean test` 3591/3591;
+> baseline (`982731f`) com diff só no construtor de `validador()` (nenhum record esperado tocado).
+> **Desvios do plano, registrados:** (a) a função do passo é `Passo.Fn` (aninhada), não `Etapa` —
+> "etapa" já é a unidade do treino no domínio; (b) as receitas são montadas num método privado do
+> próprio module (os passos são lambdas de instância), sem a classe `ReceitasNormalizacao` — o
+> enum só nomeia, como decidido, com uma classe a menos; (c) `PlanoLlmValidator` ficou com **130
+> linhas, 17 de JavaDoc/comentário** (113 de código) — fallback da 2.8 aplicado: registrado, doc não
+> cortada; (d) `validarEstrutura3Etapas` fica público em `NormalizacaoDeTreino` até a 3.2 migrar
+> seus 6 casos para `normalizar`; (e) `corrigir-pace-teto-piso` captura só
+> `IllegalArgumentException`, como o original — `tipoTreino == null` continua estourando (fidelidade).
+
+- [x] 2.1 `record ContextoNormalizacao(atleta, atletaId, zonasFC, tetoPorTipo, pisoPorTipo)` em
       `services/helper`.
       `verify:` compila; nenhum colaborador (`@Component`) entre os campos (decisão Q15).
-- [ ] 2.2 `record Passo(String nome, Etapa fn)` + `@FunctionalInterface Etapa { TreinoPlanejadoLlmDto
+- [x] 2.2 `record Passo(String nome, Etapa fn)` + `@FunctionalInterface Etapa { TreinoPlanejadoLlmDto
       aplicar(TreinoPlanejadoLlmDto, ContextoNormalizacao); }` + `record Receita(List<Passo> passos)`
       com `nomes()`.
       `verify:` `ReceitaTest` — `nomes()` devolve os nomes na ordem de inserção; lista imutável.
-- [ ] 2.3 **TDD vermelho — golden da ordem:** `FamiliaTreinoTest` com a lista esperada de nomes por
+- [x] 2.3 **TDD vermelho — golden da ordem:** `FamiliaTreinoTest` com a lista esperada de nomes por
       família (transcrita do `design.md`, incluindo `gate-sequencia` e `gate-duracao-tiros` 2×) e
       `de(tipo)` para os 11 `TipoTreino`. Vermelho porque o enum não existe.
       `verify:` falha de compilação/asserção registrada antes de 2.4.
-- [ ] 2.4 `enum FamiliaTreino { INTERVALADO_TIRO, FARTLEK, TRES_ETAPAS, PADRAO }` com
+- [x] 2.4 `enum FamiliaTreino { INTERVALADO_TIRO, FARTLEK, TRES_ETAPAS, PADRAO }` com
       `static FamiliaTreino de(String tipoTreino)` (fechado; desconhecido → `PADRAO`). As receitas
       são montadas por um `ReceitasNormalizacao` package-private que recebe os colaboradores — o
       enum só nomeia; a lista concreta vem da instância do module (passos são lambdas de
       instância, decisão Q15).
       `verify:` `FamiliaTreinoTest` verde.
-- [ ] 2.5 Quebrar `validarTreinoIntervalado` nos passos nomeados da receita, **na ordem dos itens
+- [x] 2.5 Quebrar `validarTreinoIntervalado` nos passos nomeados da receita, **na ordem dos itens
       1-8 do método**: `gate-existencia`, `gate-contagem`, `gate-presenca-aquec-desaq`,
       `gate-ordem-aquec-desaq`, `alerta-poucos-tiros`, `gate-balanceamento`, `gate-sequencia`
       (hard-fail + 2 WARNs no mesmo laço), `alerta-distancias` (proporções só se
@@ -118,24 +129,24 @@
       com `etapas == null` e a aceitação de `repeticoes == null`.
       `verify:` `grep -c "validarTreinoIntervalado" src/main` = 0; os 4 cenários de rejeição e o
       de `repeticoes == null` do baseline continuam verdes.
-- [ ] 2.6 `NormalizacaoDeTreino` (`@Component`): campos `TreinoNormalizador`, `EtapaFcValidator`,
+- [x] 2.6 `NormalizacaoDeTreino` (`@Component`): campos `TreinoNormalizador`, `EtapaFcValidator`,
       `PlanoEstruturaReparador`, `PaceValidator`; `normalizar(bruto, ctx)` resolve a família, itera
       a receita, loga DEBUG `passo={} alterou={}` com `!antes.equals(depois)` (não identidade).
       `verify:` `NormalizacaoDeTreinoTest` — um passo que devolve record igual loga `alterou=false`
       (capturar log com `OutputCaptureExtension` ou `ListAppender`).
-- [ ] 2.7 **Os cenários de rejeição migram** de `PlanoLlmValidatorTest#ValidacaoPosNormalizacaoIA05`
+- [x] 2.7 **Os cenários de rejeição migram** de `PlanoLlmValidatorTest#ValidacaoPosNormalizacaoIA05`
       para `NormalizacaoDeTreinoTest`, chamando `normalizar` direto. Verdes na primeira execução
       (comportamento não muda) — se algum ficar vermelho, a cauda foi transcrita errada: parar e
       comparar com `normalizarTreino` em `72304b9`.
       `verify:` 3 rejeições verdes com `hasMessageContaining` específico.
-- [ ] 2.8 `PlanoLlmValidator` encolhe: monta `ContextoNormalizacao` uma vez, `map(normalizar)`,
+- [x] 2.8 `PlanoLlmValidator` encolhe: monta `ContextoNormalizacao` uma vez, `map(normalizar)`,
       `validarDistribuicaoCargaSemanal`, monta o DTO. Os 9 métodos públicos de validação por tipo
       saem (viram passos). `IaServiceImpl` não muda.
       `verify:` `wc -l PlanoLlmValidator.java` < 120 (fallback declarado: se ficar entre 120 e
       140 só por JavaDoc, registrar e não cortar documentação para bater número).
-- [ ] 2.9 `./mvnw clean test` verde; **baseline da 0.4 inalterado**.
+- [x] 2.9 `./mvnw clean test` verde; **baseline da 0.4 inalterado**.
       `verify:` `git diff --stat -- '*CaracterizacaoTest.java'` vazio.
-- [ ] 2.10 Commit `refactor(ia): NormalizacaoDeTreino — receita por familia, ordem como dado (parte 2/3)`.
+- [x] 2.10 Commit `refactor(ia): NormalizacaoDeTreino — receita por familia, ordem como dado (parte 2/3)`.
 
 ## 3. Testes: substituir, não empilhar
 
