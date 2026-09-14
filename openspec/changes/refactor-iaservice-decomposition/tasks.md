@@ -91,23 +91,39 @@ final completa na tabela do [proposal.md](proposal.md) ("Decisão de escopo").
 
 ## 4. Extrair validação de FC por zona — inclui fix IA-02
 
-- [ ] 4.1 **TDD vermelho (IA-02):** teste de `zonaEsperadaFC("INTERVALADO", "FARTLEK", zonas)`
-      esperando a faixa de fartlek (Z2-Z4, mesma regra de `zonaParaEtapaPrincipal` pra
-      `tipoTreino=FARTLEK`), não Z4-Z5 fixo — confirmar que falha no código atual.
-- [ ] 4.2 **TDD vermelho (IA-02b, achado do Codex na 2ª rodada de DoR):** teste de
+- [x] 4.1 **TDD vermelho (IA-02):** `IaServiceImplZonaEsperadaFcTest` (por reflexão, provisório) —
+      `zonaEsperadaFC("INTERVALADO", "FARTLEK", zonas)` esperando a faixa de fartlek (Z2-Z4, mesma
+      regra de `zonaParaEtapaPrincipal` pra `tipoTreino=FARTLEK`), não Z4-Z5 fixo — confirmado
+      vermelho antes do fix.
+- [x] 4.2 **TDD vermelho (IA-02b, achado do Codex na 2ª rodada de DoR):** mesmo arquivo —
       `zonaEsperadaFC("RECUPERACAO", "FARTLEK", zonas)` esperando faixa Z1-Z2 (a recuperação do
       fartlek já é computada com zona explícita em `expandirEtapasAgregadas` via
-      `zonaParaFc(fp.zonaRecuperacao(), zonas)`, ex. Z2) — confirmar que falha hoje (força Z1 fixo).
-- [ ] 4.3 **Fix IA-02 (completo — INTERVALADO + RECUPERACAO):** `zonaEsperadaFC` passa a resolver
+      `zonaParaFc(fp.zonaRecuperacao(), zonas)`, ex. Z2) — confirmado vermelho (força Z1 fixo)
+      antes do fix. 2/4 testes vermelhos no total (IA-02a + IA-02b), 2 regressões já verdes.
+- [x] 4.3 **Fix IA-02 (completo — INTERVALADO + RECUPERACAO):** `zonaEsperadaFC` passou a resolver
       a zona esperada de etapas `tipoEtapa=INTERVALADO` **e** `tipoEtapa=RECUPERACAO` também
       considerando `tipoTreino`: `INTERVALADO` via `zonaParaEtapaPrincipal(tipoTreino, zonasFC)`
       (mesma função já usada para `PRINCIPAL`); `RECUPERACAO` continua Z1 pra todo `tipoTreino`
-      **exceto** `FARTLEK`, que aceita Z1-Z2. Confirmar que um treino `tipoTreino=INTERVALADO` de
-      verdade continua exigindo Z4-Z5 na etapa `INTERVALADO`, e que fartlek passa a exigir Z2-Z4 na
-      aceleração e Z1-Z2 na recuperação.
-- [ ] 4.4 Mover `validarFcEtapa`, `zonaEsperadaFC` (corrigida), `zonaParaEtapaPrincipal`, `parseFcRange`, `bpmDaZona`, `zonaParaFc` para um colaborador (avaliar reuso de `ZonaTreinoService`/`PaceZoneCalculator` já existentes em `services/helper`)
-- [ ] 4.5 Teste unitário cobrindo etapa dentro/fora da faixa de FC esperada (BVA nas bordas da zona), incluindo os dois casos IA-02 (fartlek aceleração e recuperação) migrados pro novo colaborador
-- [ ] 4.6 `./mvnw clean test` verde
+      **exceto** `FARTLEK`, que aceita Z1-Z2. Confirmado: treino `tipoTreino=INTERVALADO` de
+      verdade continua exigindo Z4-Z5 na etapa `INTERVALADO`; fartlek passa a exigir Z2-Z4 na
+      aceleração e Z1-Z2 na recuperação. Achado um teste pré-existente
+      (`intervaladoEtapa_sempreZ4Z5`) que encodava o bug como comportamento esperado — corrigido e
+      renomeado (`intervaladoEtapa_emTreinoIntervalado_z4z5`, agora usa `tipoTreino=INTERVALADO`).
+- [x] 4.4 Criado `EtapaFcValidator` (`services/helper`) com `validarFcEtapa` (público),
+      `zonaEsperadaFC`, `zonaParaEtapaPrincipal`, `parseFcRange` (package-private, testáveis sem
+      reflexão) — movidos verbatim de `IaServiceImpl` (já com o fix IA-02). `bpmDaZona`/
+      `zonaParaFc` **não** entraram aqui — já vivem em `TreinoNormalizador` desde a seção 3, de
+      onde são consumidos pela expansão de fartlek; `EtapaFcValidator` não precisa deles.
+      `IaServiceImpl` injeta o colaborador e delega no único call site real (dentro de
+      `validarENormalizarPlanoGerado`).
+- [x] 4.5 `EtapaFcValidatorTest` novo (`services/helper`, sem reflexão): consolida os testes de
+      `parseFcRange`/`zonaEsperadaFC`/`zonaParaEtapaPrincipal`/`validarFcEtapa` antes espalhados em
+      `IaServiceImplFcValidationTest` (nested `ParseFcRange`/`ValidarFcEtapa`/
+      `ZonaEsperadaFcPorTipoTreino`/`BypassFcCorrigido`) + os 4 casos de
+      `IaServiceImplZonaEsperadaFcTest` (IA-02a/b + 2 regressões) — 30 casos no total, cobrindo BVA
+      nas bordas da zona. `IaServiceImplFcValidationTest` ficou só com `Estrutura3Etapas`
+      (território da seção 5). `IaServiceImplZonaEsperadaFcTest` removido (conteúdo migrado).
+- [x] 4.6 `./mvnw clean test`: 3526/3526 verde (módulo inteiro).
 
 ## 5. Extrair validadores por tipo de treino + distribuição de carga — inclui fix IA-04, IA-05, IA-06
 
