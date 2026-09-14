@@ -29,24 +29,28 @@
 
 ## 2. `PlanoResilienceService` — `Tentativa` carrega histórico
 
-- [ ] 2.1 `record Tentativa(int numero, String promptOriginal, @Nullable String jsonAnterior,
+- [x] 2.1 `record Tentativa(int numero, String promptOriginal, @Nullable String jsonAnterior,
       List<Violacao> violacoesAnteriores)` substitui `record Tentativa(int numero, String prompt)`.
-- [ ] 2.2 `gerarComResiliencia` para de reescrever `prompt` como string concatenada — monta o
+- [x] 2.2 `gerarComResiliencia` para de reescrever `prompt` como string concatenada — monta o
       `Tentativa` novo com o estado bruto da tentativa anterior (json + violações), sem truncar em
       300 chars.
-- [ ] 2.3 A função `gerar` passada por `IaServiceImpl` muda de `Function<Tentativa,
+- [x] 2.3 A função `gerar` passada por `IaServiceImpl` muda de `Function<Tentativa,
       PlanoSemanalLlmDto>` para `Function<Tentativa, ChamadaLlm>` (`record ChamadaLlm(PlanoSemanalLlmDto
       entidade, String jsonBruto)`) — `gerarComResiliencia` devolve `entidade` ao chamador final,
       mas repassa `jsonBruto` para a próxima `Tentativa` em caso de retry.
       `verify:` `PlanoResilienceServiceTest` adaptado — os testes existentes continuam verdes com a
       nova assinatura; teste novo: 2ª tentativa recebe `jsonAnterior` não-nulo e
-      `violacoesAnteriores` não-vazia quando a 1ª falha.
-- [ ] 2.4 Falha de `PARSE_ERROR`/infra na 1ª tentativa não gera 2ª tentativa nenhuma — a exceção do
+      `violacoesAnteriores` não-vazia quando a 1ª falha. **Feito**: 12/12 verde. `IaServiceImpl`
+      teve adoção mínima (não antecipada nas tasks): a lambda de `gerar` passou a devolver
+      `ChamadaLlm` para compilar, mas **ainda usa `.responseEntity()`** e não lê
+      `t.jsonAnterior()`/`t.violacoesAnteriores()` — isso é a task 4.0/4.2, não esta.
+- [x] 2.4 Falha de `PARSE_ERROR`/infra na 1ª tentativa não gera 2ª tentativa nenhuma — a exceção do
       `gerar` propaga fora do `catch` de retry (`PlanoResilienceService:116`), como hoje. Correção
       de wording pós pré-mortem: não é "2ª tentativa com comportamento antigo", é "não há 2ª
       tentativa nesse caminho" — comportamento inalterado, só documentado corretamente.
       `verify:` teste existente de `PlanoResilienceServiceTest` (`:171` "falha de geração propaga")
-      continua verde sem alteração de assinatura quebrar o caminho.
+      continua verde sem alteração de assinatura quebrar o caminho. **Feito**, mais um teste novo
+      para `LLMException` genérica (não `PlanoNaoConformeException`) virar 1 violação de fallback.
 
 ## 3. `PlanoLlmValidator` — coletar violações de TODOS os treinos (achado do pré-mortem)
 
