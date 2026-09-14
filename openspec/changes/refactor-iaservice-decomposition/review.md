@@ -1,6 +1,21 @@
 # Revisão pré-implementação — IaService
 
-Data: 2026-09-05. Status: **aguardando revisão e decisão de escopo**.
+Data: 2026-09-05. Status original: **aguardando revisão e decisão de escopo**.
+
+## Atualização 2026-09-14 — reverificação e decisão
+
+Cada achado foi reverificado contra `develop` real (pós `debito-tecnico-camada-ia`,
+`prova-no-plano-semanal` PR #101, `planner-engine-enforcement`, `add-plan-generation-ledger`,
+`system-user-prompt-split` PR #118) antes de iniciar a implementação. Os números de linha abaixo
+estão defasados por commits posteriores; a tabela de decisão atualizada, com as linhas atuais e
+a disposição de cada achado, está em [proposal.md](proposal.md) ("Decisão de escopo (2026-09-14)").
+
+Resumo: **IA-01 (BLOCKER) já resolvido** (PR #101). IA-02, IA-03, IA-04, IA-05, IA-10 confirmados
+presentes e **corrigidos nesta change**, dentro da extração do colaborador correspondente. IA-06
+confirmado presente em forma diferente do relatório original, mas **fora do escopo** (vive em
+`PlanoServiceImpl`, não em `IaServiceImpl`). IA-07 coberto pelo desenho de caracterização já
+previsto. IA-08 adiado (decisão de política própria). IA-09 é o próprio objetivo da change.
+Decisão de GO com escopo ampliado tomada pelo usuário em 2026-09-14.
 
 ## Decisão
 
