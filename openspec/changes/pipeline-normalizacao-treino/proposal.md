@@ -43,11 +43,14 @@ e `PlanoEstruturaReparador` são substituídas. O construtor canônico fica para
   distância-contínuo → triângulo) ao fim. `familiaDe(tipoTreino)` tem retorno fechado.
 - `record Passo(String nome, Etapa fn)` com `Etapa = (treino, ctx) -> treino`. Um tipo só: passo de
   validação devolve o treino intacto e lança `LLMException`.
-- `validarTreinoIntervalado` (~180 linhas, 7 checagens numeradas em comentário) **some**: vira 6
-  passos nomeados da receita `INTERVALADO_TIRO`; `gate-duracao-tiros` aparece **duas vezes** na lista
-  (antes e depois de `normalizar-intervalado`) — a regra do IA-05 lida direto no golden. A mensagem
-  "(mínimo 8)" que contradiz a regra `< 6` é corrigida de passagem.
-- O runner loga em DEBUG o nome de cada passo e se alterou o treino (identidade do record).
+- `validarTreinoIntervalado` (~180 linhas, 8 itens numerados em comentário) **some**: vira 10
+  passos nomeados da receita `INTERVALADO_TIRO`, item a item — incluindo `gate-sequencia`
+  (hard-fail "recuperação sem tiro imediatamente anterior", que a 1ª versão desta receita omitia e
+  o DoR pegou) e `log-validacao-ok` na posição de hoje; `gate-duracao-tiros` aparece **duas vezes**
+  na lista (antes e depois de `normalizar-intervalado`) — a regra do IA-05 lida direto no golden.
+  A mensagem "(mínimo 8)" que contradiz a regra `< 6` é corrigida de passagem.
+- O runner loga em DEBUG o nome de cada passo e se alterou o treino — por `Objects.equals`, não
+  identidade: o normalizador constrói record novo mesmo sem mudança.
 - `record ContextoNormalizacao(atleta, atletaId, zonasFC, tetoPorTipo, pisoPorTipo)` — só dados;
   os colaboradores (`TreinoNormalizador`, `EtapaFcValidator`, `PlanoEstruturaReparador`,
   `PaceValidator`) são campos do module e viram **internal seams**: nada mais os chama em produção.
@@ -92,7 +95,11 @@ e `PlanoEstruturaReparador` são substituídas. O construtor canônico fica para
 ## Métrica de sucesso
 
 - `IaServiceImpl` e `PlanoLlmValidator` não crescem; `PlanoLlmValidator` fica < 120 linhas.
-- Zero reconstruções posicionais de `TreinoPlanejadoLlmDto`/`EtapaTreinoLlmDto` em `services/helper`.
+- Zero **reconstruções** posicionais de `TreinoPlanejadoLlmDto`/`EtapaTreinoLlmDto` nos três
+  arquivos do pipeline (`PlanoLlmValidator`, `TreinoNormalizador`, `PlanoEstruturaReparador` —
+  `RedistribuicaoTreinoHelper` fica fora do escopo). **Criações genuínas** de etapa
+  (expansão de série, tiro+rec sintetizados, aquec/desaq do reparo) continuam pelo construtor
+  canônico e ficam marcadas — não há record de origem para um wither.
 - Um teste de ordem por família; os 2 testes de comportamento de ordem continuam verdes na nova
   interface; a caracterização assere records completos em 4 cenários.
 - `./mvnw clean verify` verde; nenhuma mudança na saída dos cenários de caracterização fora da

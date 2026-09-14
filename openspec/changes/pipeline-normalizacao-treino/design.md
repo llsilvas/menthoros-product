@@ -27,7 +27,7 @@ concentram num lugar).
 | Q14 | Tamanho/trilha | M · Full (`--step`) | Caminho quente da geração; o DoR cross-model já pagou duas vezes nesta área |
 | Q15 | Conteúdo do contexto | Só dados; colaboradores são campos do module, passos são lambdas de instância | Colaborador em record é o construtor de 8 argumentos voltando por outra porta |
 | Q16 | `PADRAO` e comportamento | **Sem mudança de comportamento**; o que `DESCANSO`/`PROVA` deveriam pular é follow-up | Uma change, um deepening; é decisão de domínio com dono |
-| Q17 | Withers em `EtapaTreinoLlmDto` | Sim: `comDistancia`, `comDuracao`, `comFc`, trocando as 6 reconstruções do normalizador | Mesmo mecanismo, mesmo commit; deixar metade das cópias é aprofundar pela metade |
+| Q17 | Withers em `EtapaTreinoLlmDto` | Sim: `comDistancia`, `comDuracao`, `comFc` e **`comOrdem`** (DoR 3ª rodada: `reordenarEtapas`/`PlanoEstruturaReparador.comOrdem` renumeram `ordem`), trocando as reconstruções do normalizador e do reparador. **Criações genuínas** de etapa (expansão, tiro+rec sintetizados, aquec/desaq do reparo) ficam no construtor canônico — não há record de origem | Mesmo mecanismo, mesmo commit; deixar metade das cópias é aprofundar pela metade. O gate "zero construtores" vale só para cópias, não para criações |
 | Q18 | Caracterização com DTO completo | `isEqualTo(esperado)` com o record escrito à mão por cenário, + cenário FARTLEK | O record à mão *é* a documentação; snapshot em arquivo esconde o esperado |
 | Q19 | Quando abrir a change | Agora, marcando dependência de merge de F2 | O design está fresco; o DoR roda quando a dependência fechar |
 
@@ -39,32 +39,77 @@ NormalizacaoDeTreino                              (services/helper, @Component)
   ─────────────────────────────────────────────────────────────────────────────
   implementation:
     FamiliaTreino.de(bruto.tipoTreino()).receita()   → List<Passo>
-    for (Passo p : receita) { antes = t; t = p.fn().aplicar(t, ctx); log.debug(p.nome(), antes != t) }
+    for (Passo p : receita) { antes = t; t = p.fn().aplicar(t, ctx); log.debug(p.nome(), !antes.equals(t)) }
     internal seams: TreinoNormalizador · EtapaFcValidator · PlanoEstruturaReparador · PaceValidator
 ```
 
 ```
 enum FamiliaTreino {
   INTERVALADO_TIRO  ( corrigir-temporais, expandir,
-                      gate-existencia, gate-contagem, gate-ordem-aquec-desaq, gate-balanceamento,
-                      alerta-distancias, gate-duracao-tiros,
+                      ── validarTreinoIntervalado, item a item (PlanoLlmValidator.java:248-448) ──
+                      gate-existencia,            // etapas null/vazio          → LLMException
+                      gate-contagem,              // size < 6                   → LLMException ("mínimo 6")
+                      gate-presenca-aquec-desaq,  // falta AQUECIMENTO/DESAQ    → LLMException
+                      gate-ordem-aquec-desaq,     // 1ª ≠ AQUEC ou última ≠ DESAQ → LLMException
+                      alerta-poucos-tiros,        // tiros < 3                  → WARN
+                      gate-balanceamento,         // |tiros − recs| > 1         → LLMException
+                      gate-sequencia,             // REC sem tiro imediatamente antes → LLMException;
+                                                  // AQUEC após tiro / DESAQ antes de tiro → WARN
+                      alerta-distancias,          // soma ≠ total ±0.5 → WARN; tiros < 20% e recs > 65%
+                                                  // só [se distanciaPlanejada > 0] → WARN
+                      gate-duracao-tiros,         // tiro com duracaoMin == null OU fora de [0.3, 10] min
+                                                  // → LLMException (null conta como inválido, :450)
+                      log-validacao-ok,           // INFO "VALIDAÇÃO OK … N etapas (T tiros, R recs, km…)"
+                                                  // com as contagens PRÉ-normalização, como hoje (:424-433)
+                      ────────────────────────────────────────────────────────────────────────
                       normalizar-intervalado, reconciliar-distancia,
-                      gate-duracao-tiros,                    ← 2ª vez: IA-05
+                      gate-duracao-tiros,                    ← 2ª vez: IA-05 (mesmo predicado, null incluso)
                       + CAUDA_COMUM ),
   FARTLEK           ( corrigir-temporais, expandir, reconciliar-distancia, + CAUDA_COMUM ),
   TRES_ETAPAS       ( reparar-3-etapas, validar-por-tipo, + CAUDA_COMUM ),
   PADRAO            ( + CAUDA_COMUM );
 
-  static FamiliaTreino de(String tipoTreino)   // fechado, nunca null
+  static FamiliaTreino de(String tipoTreino)   // fechado, nunca null; desconhecido → PADRAO
 }
 
-CAUDA_COMUM = ( reparar-3-etapas?, validar-repeticoes, validar-fc-zona, validar-pace-teto-piso,
-                recalcular-duracao, garantir-distancia-continuo, validar-triangulo )
+CAUDA_COMUM = ( validar-repeticoes,                       // [se etapas != null] repeticoes != null && ≠ 1
+                                                          // → LLMException; repeticoes == null é aceito (:517-520)
+                corrigir-fc-zona        [se zonasFC != null && etapas != null],
+                corrigir-pace-teto-piso,                  // paceValidator.validar; só reconstrói se mudou
+                recalcular-duracao      [se etapas não-vazia && somaDuracoesMin > 0],
+                garantir-distancia-continuo,
+                validar-triangulo )                       // só WARN
 ```
 
-> A cauda exata (incluindo se `reparar-3-etapas` é no-op nas outras famílias, como hoje) é fixada
-> na implementação a partir do código atual de `normalizarTreino` — a regra desta change é **ordem
-> idêntica à de hoje**, só que declarada.
+**Fidelidade à ordem atual (`normalizarTreino`, `PlanoLlmValidator.java:119-246`) — regras
+fixadas no DoR de 2026-09-14 (spec-reviewer + Codex, 2 achados convergentes):**
+
+- `reparar-3-etapas` roda **uma vez** por treino, e hoje roda incondicionalmente (linha 168) — mas é
+  **identidade fora de `TIPOS_3_ETAPAS`** (`PlanoEstruturaReparador.java:34-35`). Por isso ele mora
+  só em `TRES_ETAPAS`, não na cauda: chamá-lo nas outras famílias seria no-op, e listá-lo duas vezes
+  em `TRES_ETAPAS` seria um bug. A caracterização e a task 0.2 confirmam a identidade.
+- `validar-por-tipo` idem: só tem efeito em LONGO/REGENERATIVO/CONTINUO/TEMPO_RUN (linhas 170-184).
+- `gate-sequencia` **não estava na 1ª versão desta receita** — é o hard-fail "recuperações sem tiro
+  imediatamente anterior" (item 5 de `validarTreinoIntervalado`), com dois WARNs no mesmo laço.
+  `AQUECIMENTO, RECUPERACAO, INTERVALADO, INTERVALADO, RECUPERACAO, DESAQUECIMENTO` passa em
+  contagem, extremos e balanceamento e **hoje é rejeitado** — a receita sem esse passo aceitaria.
+- As guardas entre colchetes são parte do passo (o passo devolve o treino intacto quando a guarda
+  falha), não do runner.
+- `corrigir-fc-zona` e `corrigir-pace-teto-piso` são **transformações** (podem devolver um record
+  diferente), não validações — o nome diz isso.
+- O log "VALIDAÇÃO OK … N etapas (T tiros, R recuperações, …)" do fim de `validarTreinoIntervalado`
+  é o passo `log-validacao-ok`, **na mesma posição de hoje** (antes de `normalizar-intervalado`):
+  movê-lo para o fim da receita mudaria os valores logados (contagens e distâncias já
+  normalizadas) — divergência que a 2ª rodada do Codex apontou e que não vale a economia de um passo.
+- **Semântica de null é parte do predicado de cada passo**, não do runner: `gate-duracao-tiros`
+  rejeita `duracaoMin == null` (`:450`); `validar-repeticoes` é no-op com `etapas == null` e aceita
+  `repeticoes == null` (`:517-520`); `alerta-distancias` só avalia proporções com
+  `distanciaPlanejada > 0` (`:406`). O baseline (0.4) congela os três.
+
+**`alterou` por `Objects.equals`, não por identidade.** `TreinoNormalizador.recalcularDuracaoTreino`
+(linhas 366-386) e `normalizarTreinoIntervalado` sempre constroem um record novo, mesmo com valores
+iguais — por identidade o DEBUG diria `alterou=true` em no-op. O runner compara
+`!antes.equals(depois)`.
 
 ```
 record ContextoNormalizacao(Atleta atleta, UUID atletaId, List<ZonaFC> zonasFC,
@@ -78,15 +123,30 @@ montar o `PlanoSemanalLlmDto`. Os 9 métodos públicos de validação por tipo s
 
 ## Test surface
 
+**O baseline é capturado ANTES de qualquer refactor** (achado do Codex no DoR: capturar "o
+comportamento atual" depois das seções 1-2 congelaria uma regressão como esperado). A seção 0.4
+escreve a caracterização com records completos contra `PlanoLlmValidator` em `72304b9`, ela fica
+verde durante as seções 1-2, e só na seção 3 migra para a interface do module.
+
+- `PlanoLlmValidatorCaracterizacaoTest` (baseline, seção 0.4 → migra para
+  `NormalizacaoDeTreinoCaracterizacaoTest` na seção 3): record completo escrito à mão,
+  `isEqualTo`, para **intervalado, longo, regenerativo, fartlek** (com zonas FC — família nunca
+  coberta, onde IA-02 morava) e **um PADRAO** (`FACIL`); mais os cenários de **rejeição** já
+  existentes (padding de 4 etapas → "mínimo 6"; tiro > 10 min pós-crescimento → "duração
+  incoerente") e um novo para `gate-sequencia` (REC antes do 1º tiro → "recuperações sem tiro").
+  Colaboradores **reais** onde a transformação importa (`TreinoNormalizador`, `EtapaFcValidator`,
+  `PaceValidator`, `PlanoEstruturaReparador`); mocks só para `TreinoHistoricoProvider`/
+  `PaceHistoricoFormatter`/`ZonaTreinoService` (fontes de dados, não regras).
 - `FamiliaTreinoTest`: para cada família, `receita().nomes()` igual à lista esperada; `de(tipo)`
   cobre os 11 tipos.
-- `NormalizacaoDeTreinoTest`: os 2 cenários de ordem (padding com 4 etapas → `LLMException`
-  "mínimo 6"; tiro que passa de 10 min após crescimento → `LLMException` "duração incoerente"),
-  chamando `normalizar` direto.
-- `NormalizacaoDeTreinoCaracterizacaoTest`: intervalado, longo, regenerativo, **fartlek** — record
-  esperado escrito à mão, `isEqualTo`.
+- `NormalizacaoDeTreinoTest`: os cenários de rejeição acima chamando `normalizar` direto.
 - Mantidos como internal seam: `TreinoNormalizador*Test` (6), `EtapaFcValidatorTest`,
   `PlanoLlmValidatorTest#Estrutura3Etapas` (migra para o passo `validar-por-tipo`).
+
+**Limitação aceita:** igualdade de record não cobre o contrato JSON (nomes, `NON_NULL`,
+serializadores). Está fora do escopo porque a change não altera nenhum campo dos DTOs — withers
+são aditivos e o construtor canônico de 14 campos permanece (o overload de 11 apagaria
+`descricao`/`zonaAlvo`/`provaId`; os withers usam o canônico).
 
 ## O que não muda
 
