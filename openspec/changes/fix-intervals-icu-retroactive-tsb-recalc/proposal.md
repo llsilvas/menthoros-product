@@ -8,6 +8,12 @@
   (item 1 de 3 a fechar antes daquela remoção ser segura). Seam único identificado
   (`IntervalsIcuActivityPersisterTest`), pronta para `/implement init
   fix-intervals-icu-retroactive-tsb-recalc`.
+- DoR (2026-09-13): `spec-reviewer` — READY. Codex adversarial — NOT READY, 3 achados
+  (concorrência sem serialização por atleta, custo O(N²) em backfill, teste só verifica
+  delegação). Investigados e quantificados (ver "Open Questions & Assumptions" e "Risco/Rollback")
+  — nenhum é um risco novo introduzido por este fix; todos são propriedades já aceitas do caminho
+  canônico `IngestaoTreinoRealizadoServiceImpl.registrar`, usado hoje por Strava/`.fit`/reconciliação
+  manual. Decisão: prosseguir com a implementação.
 
 ## Problem Statement
 
@@ -98,3 +104,34 @@ import retroativo real em stage/HomeLab.
   encontrada nenhuma nota no design.md arquivado de `ingestao-treino-realizado` que justifique
   essa escolha especificamente (a decisão documentada lá é sobre não migrar para o seam
   `registrar()`, não sobre qual método de `TsbService` chamar dentro da implementação direta).
+
+## Risco/Rollback (investigação pós-Codex, 2026-09-13)
+
+**Rollback:** reverter o commit único. Sem migration, sem contrato externo.
+
+**Risco de concorrência (achado Codex #1):** `recalcularDesde` não serializa por atleta —
+verdade, mas não é um risco novo. `IngestaoTreinoRealizadoServiceImpl.registrar` (o seam
+canônico usado por Strava, `.fit` e reconciliação manual) já chama o mesmo método, sem
+serialização, há meses em produção. `IntervalsIcuActivitySyncScheduler.runDailyIncrementalSync`
+processa atletas e atividades em loop estritamente sequencial (sem `@Async`/paralelismo), então
+este fix não amplia a exposição própria desse caminho — só herda o risco sistêmico já aceito.
+
+**Risco de custo em backfill (achado Codex #2):** quantificado com números reais, não
+suposição. `IntervalsIcuProperties`: `syncDaysBack=90`, `syncMaxActivitiesPerCycle=6` (scheduler
+a cada 2h). Taxa empírica derivada de recálculo real em produção: ~57ms/dia (405 dias em ~23s,
+observado em `docs/ia/01-otimizacao-recalculo-tsb.md`). `persistir` é o único
+`@Transactional` da cadeia — cada atividade importada abre/fecha sua própria transação, não há
+transação única para o ciclo inteiro. Pior caso de uma única transação: atividade mais antiga de
+um backfill de 90 dias ≈ 90 × 57ms ≈ **5,1s**, num scheduler em background que nunca bloqueia
+requisição de usuário. Sem evidência nos logs reais de hoje de que o mesmo padrão (já em uso por
+Strava/`.fit`) tenha causado lentidão perceptível.
+
+**Cobertura de teste (achado Codex #3):** a semântica de propagação dia-a-dia de
+`recalcularDesde` já tem cobertura dedicada em `TsbServiceImplRecalculoSemanticaTest` e
+`TsbServiceImplRecalculoHistoricoTest`. `IntervalsIcuActivityPersisterTest` testa só a
+delegação — mesmo padrão de fronteira de teste usado no resto do código (ex.:
+`BaselineCalculatorTest` não testa o `TsbService` internamente).
+
+**Conclusão:** os três achados são reais como observações do sistema, mas nenhum é uma
+regressão introduzida por este fix — são propriedades já aceitas do caminho `recalcularDesde`,
+usado por todo outro canal de ingestão. Prosseguir com a implementação como planejada.
