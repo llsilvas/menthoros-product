@@ -225,3 +225,26 @@ final completa na tabela do [proposal.md](proposal.md) ("Decisão de escopo").
 - [x] 7.4 `tasks.md` atualizado (este arquivo) com implementado vs. adiado (só IA-08 ficou
       adiado, ver seção R). Arquivamento fica para depois do merge do PR, via
       `/menthoros-workflow:done` (regra do `CLAUDE.md` raiz).
+- [x] 7.5 **Gate `/qa`** — `code-reviewer` + `security-reviewer` + `clean-code-reviewer` (paralelo)
+      + Codex adversarial-review (cross-model). Security: nenhum achado (isolamento de tenant e
+      log hygiene preservados, `gerarPlanosEmLote` confirmado sem consumidores). Code-reviewer +
+      clean-code-reviewer: sem Critical; Important aplicados no mesmo commit —
+      `Object atletaId` → `UUID atletaId` em toda API pública de `PlanoLlmValidator`; JavaDoc
+      Idempotent/Side Effects/Tenant-aware adicionado em `PlanoLlmValidator`/`EtapaFcValidator`;
+      o corpo de 130 linhas do `.map()` em `validarENormalizarPlano` extraído pra
+      `normalizarTreino` (mecânico, sem mudança de comportamento). **Codex adversarial-review
+      achou um MAJOR real, verificado e corrigido:** `validarTreinoIntervalado` rodava ANTES de
+      `normalizarTreinoIntervalado`, então um tiro que só passa do teto de 10min *depois* do
+      crescimento de distância (efeito colateral do próprio fix IA-05 desta change) nunca era
+      revalidado — reproduzido com teste vermelho
+      (`PlanoLlmValidatorTest#ValidacaoPosNormalizacaoIA05`), corrigido movendo a chamada de
+      `validarTreinoIntervalado` para depois de `normalizarTreinoIntervalado`/
+      `reconciliarDistanciaComEtapas`, confirmado verde. O outro achado do Codex (BLOCKER na
+      rigidez da rede de caracterização — só verifica contagem/tipo, não igualdade completa de
+      DTO) é uma limitação de desenho já documentada desde a seção 1 (R.4: golden cobre
+      "não-mudança estrutural", correção fina fica nos testes TDD dedicados por colaborador) —
+      aceito como débito conhecido, não como bloqueio: a superfície de risco real (os 6 fixes)
+      já tem cobertura vermelho→verde dedicada por colaborador, e o gap de rigor da
+      caracterização não teria detectado o achado do Codex de qualquer forma (ele é sobre
+      composição entre dois colaboradores, não sobre um DTO final divergente).
+      `./mvnw clean verify` após o fix: 3721/3721 verde (3533 unit + 188 IT).
