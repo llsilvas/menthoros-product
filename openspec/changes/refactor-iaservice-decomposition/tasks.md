@@ -49,10 +49,17 @@ final completa na tabela do [proposal.md](proposal.md) ("Decisão de escopo").
 
 ## 2. Extrair construção do JSON Schema
 
-- [ ] 2.1 Criar `LlmJsonSchemaBuilder` com `buildSchemaTightInlineOrDefs` + `enforceAllRequired`, `putMin`, `putMax`, `putEnum`
-- [ ] 2.2 `IaServiceImpl` injeta `LlmJsonSchemaBuilder`; `defaultJsonSchemaOptions` passa a delegar
-- [ ] 2.3 Teste unitário de `LlmJsonSchemaBuilder` (schema gerado contém required/min/max/enum esperados)
-- [ ] 2.4 `./mvnw clean test` verde
+- [x] 2.1 Criado `LlmJsonSchemaBuilder` (`services/prompt`) com `buildSchemaTightInlineOrDefs` + `enforceAllRequired`, `putMin`, `putMax`, `putEnum` — movidos verbatim de `IaServiceImpl`.
+- [x] 2.2 `IaServiceImpl` injeta `LlmJsonSchemaBuilder`; o único call site real de
+      `defaultJsonSchemaOptions()` passa a `llmJsonSchemaBuilder.defaultJsonSchemaOptions()`.
+      `IaServiceImplSchemaTest` removido (conteúdo migrado pro teste do novo colaborador); os
+      outros 6 testes que instanciam `IaServiceImpl` diretamente ganharam
+      `new LlmJsonSchemaBuilder()` no construtor.
+- [x] 2.3 `LlmJsonSchemaBuilderTest` novo (TDD vermelho→verde): as 3 asserções que existiam em
+      `IaServiceImplSchemaTest` (provaId/descricao/zonaAlvo fora do schema, campos reais presentes,
+      CA10 teto de treinos) + 1 nova (`defaultJsonSchemaOptions` monta o `ResponseFormat`).
+- [x] 2.4 `./mvnw clean test`: 1216/1216 verdes em `services.impl` + `services.prompt` (nenhuma
+      regressão nos 6 testes que dependiam da assinatura antiga do construtor).
 
 ## 3. Extrair normalização de treino (intervalado/etapas) — inclui fix IA-03
 
