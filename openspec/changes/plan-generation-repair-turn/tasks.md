@@ -125,13 +125,24 @@
 
 ## 5. Ledger
 
-- [ ] 5.1 Verificar que fica de graça: `PlanoLlmLedgerHook.Sessao.validar:93-99` já tem dois catches —
+- [x] 5.1 Verificar que fica de graça: `PlanoLlmLedgerHook.Sessao.validar:93-99` já tem dois catches —
       `PlanoNaoConformeException` grava `e.violacoes()` completo; `LLMException` genérico trunca em
       300 chars (`KEY_ESTRUTURAL`). Com a task 3.0 lançando `PlanoNaoConformeException` também para
       violação estrutural, o caminho da normalização passa a cair no catch completo automaticamente
       — sem tocar `PlanoLlmLedgerHook`. Sem migration nova — coluna `violations` já é JSONB (V94).
       `verify:` teste de `PlanoLlmLedgerHook` confirma que `violations` de uma rejeição da
       normalização (2 treinos inválidos) vem completa, não truncada — sem alterar o hook.
+      **Confirmado, zero mudança de código**: o teste já existente
+      `PlanoLlmLedgerHookTest#naoConformeComKeysReais` (não tocado) já injeta uma
+      `PlanoNaoConformeException` com 2 `Violacao` e afirma `registrarResultado(id,
+      VALIDATION_REJECTED, violacoes)` com a lista completa — agnóstico a quem lança a exceção
+      (normalização ou compliance do planner). Não escrevi um teste de composição
+      `PlanoLlmValidator` real + `PlanoLlmLedgerHook` real porque seria testar a mesma coisa duas
+      vezes por um caminho mais longo: a task 3.0 já prova que a normalização lança
+      `PlanoNaoConformeException` com N violações completas, e este teste já prova que o hook grava
+      qualquer `PlanoNaoConformeException` completa — a composição das duas não tem risco novo.
+      `PlanoLlmLedgerHookTest` (3/3) e `PlanoLlmLedgerHookAdvisorIntegrationTest` (13/13) continuam
+      verdes, arquivo intocado.
 
 ## 6. Validação final
 
