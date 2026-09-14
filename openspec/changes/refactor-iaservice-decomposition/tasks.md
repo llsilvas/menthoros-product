@@ -248,3 +248,22 @@ final completa na tabela do [proposal.md](proposal.md) ("Decisão de escopo").
       caracterização não teria detectado o achado do Codex de qualquer forma (ele é sobre
       composição entre dois colaboradores, não sobre um DTO final divergente).
       `./mvnw clean verify` após o fix: 3721/3721 verde (3533 unit + 188 IT).
+- [x] 7.6 **Gate `/qa` — 2ª rodada** (pedida pelo usuário, sobre o diff com os 2 commits da 1ª).
+      Security: limpo (o reorder do Codex torna a validação mais restritiva, não menos). Codex
+      `/codex:review` nativo: **GO, sem achados bloqueantes**. **Code-reviewer achou um efeito
+      colateral real do fix da 1ª rodada (`da35f46`)**: mover `validarTreinoIntervalado` inteiro
+      pra depois da normalização fez o gate de contagem mínima (6 etapas) rodar depois de
+      `adicionarTiroERecuperacao` — um treino que a LLM gerou com 4 etapas passava completado por
+      padding sintético em vez de cair no retry com feedback. Reproduzido com teste vermelho e
+      corrigido cirurgicamente em `88ac004`: gate estrutural volta pra ANTES da normalização; só
+      a duração dos tiros (extraída em `validarDuracaoTiros`, a única checagem que o IA-05
+      invalida) é rechecada DEPOIS — os dois cenários (padding e duração) agora têm teste.
+      Clean-code-reviewer: asserção do teste de duração fortalecida
+      (`hasMessageContaining("duração incoerente")` — `isInstanceOf` só aceitaria qualquer
+      `LLMException`) e comentário do cenário corrigido pra refletir o clamp do DESAQUECIMENTO
+      pra 1.5km (a aritmética anterior chegava em 11min por coincidência de arredondamento).
+      Minors deixados como débito conhecido (não introduzidos pela change): mensagem "mínimo 8"
+      vs. regra `< 6` em `validarTreinoIntervalado`; FQN inline de `WeekPlanSkeleton` em
+      `IaServiceImpl`; `validarTreinoIntervalado` com ~180 linhas (movido verbatim); 4× reconstrução
+      posicional de `TreinoPlanejadoLlmDto` (candidato a wither). `./mvnw clean verify`:
+      3722/3722 verde (3534 unit + 188 IT).
