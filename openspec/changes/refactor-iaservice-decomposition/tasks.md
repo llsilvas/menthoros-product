@@ -127,42 +127,57 @@ final completa na tabela do [proposal.md](proposal.md) ("Decisão de escopo").
 
 ## 5. Extrair validadores por tipo de treino + distribuição de carga — inclui fix IA-04, IA-05, IA-06
 
-- [ ] 5.1 **TDD vermelho (IA-04):** dois testes de `validarEstrutura3Etapas` com
-      `AQUECIMENTO → RECUPERACAO → DESAQUECIMENTO` (etapa central que não é `PRINCIPAL`) esperando
-      `LLMException` — um para `validarOrdem=true` (REGENERATIVO/CONTINUO/TEMPO_RUN) e **um para
-      `validarTreinoLongo` especificamente** (achado do Codex na 2ª rodada: meu 1º fix só cobria
-      `validarOrdem=true`, e `validarTreinoLongo` chama com `validarOrdem=false`) — confirmar que
-      os dois passam incorretamente hoje.
-- [ ] 5.2 **Fix IA-04 (completo — inclui LONGO):** a checagem de que `etapas.get(1).tipoEtapa()`
-      é `PRINCIPAL` passa a ser **incondicional**, independente do parâmetro `validarOrdem` —
+- [x] 5.1 **TDD vermelho (IA-04):** dois testes de `validarEstrutura3Etapas` (então ainda em
+      `IaServiceImpl`) com `AQUECIMENTO → RECUPERACAO → DESAQUECIMENTO` (etapa central que não é
+      `PRINCIPAL`) esperando `LLMException` — um para `validarOrdem=true` (REGENERATIVO) e um para
+      `validarOrdem=false` (LONGO, achado do Codex na 2ª rodada: o 1º fix só cobria
+      `validarOrdem=true`) — confirmado vermelho (2/6 falhas) antes do fix.
+- [x] 5.2 **Fix IA-04 (completo — inclui LONGO):** a checagem de que `etapas.get(1).tipoEtapa()`
+      é `PRINCIPAL` passou a ser **incondicional**, independente do parâmetro `validarOrdem` —
       `PlanoEstruturaReparador` já trata os 4 tipos "3 etapas" (REGENERATIVO/CONTINUO/TEMPO_RUN/
       LONGO) identicamente (`TIPOS_3_ETAPAS`), sem razão de domínio pra LONGO ser exceção.
       `validarOrdem` continua controlando só a checagem de posição 0/2 (AQUECIMENTO/DESAQUECIMENTO).
-- [ ] 5.3 **TDD vermelho (IA-05):** teste de `clampDistanciaPorTipo`/`distribuirDeltaPorTipo` com
-      uma etapa que tem `ritmoAlvo` preenchido: after o clamp mudar `distanciaKm`, `duracaoMin`
-      deve refletir `distanciaKm ÷ paceMedio(ritmoAlvo)` — hoje a etapa retorna com distância nova
-      e duração antiga (inconsistente), o teste deve capturar isso antes do fix.
-- [ ] 5.4 **Fix IA-05 — regra decidida (fechava um gap do spec-reviewer, sem decisão executável
-      antes):** `ritmoAlvo` é a fonte de verdade quando presente na etapa. Após qualquer ajuste de
-      `distanciaKm` em `clampDistanciaPorTipo`/`distribuirDeltaPorTipo`, recalcular
-      `duracaoMin = distanciaKm ÷ paceMedio(ritmoAlvo)` (reusar `paceValidator.calcularPaceMedia`,
-      já usado por `validarTrianguloPaceDuracaoDistancia`). Se `ritmoAlvo` for `null`, `duracaoMin`
-      não é tocado (não há pace pra recalcular a partir dele). Manter
-      `validarTrianguloPaceDuracaoDistancia` como rede de segurança (`warn`) para o que escapar.
-- [ ] 5.5 **Fix IA-06 (fora da decomposição, em `PlanoServiceImpl` — pré-requisito funcional de
-      IA-04):** adicionar `catch (DomainRuleViolationException e) { throw e; }` em
-      `PlanoServiceImpl.gerarPlanoSemanal` (método privado), antes do `catch (Exception e)`
-      genérico que hoje converte a exceção em `LLMException` — espelha o catch que já existe no
-      método público `gerarPlanoTreino`. Sem esse fix, os planos que IA-04 passa a rejeitar
-      corretamente chegariam ao treinador como 503 (indisponibilidade) em vez de 422 (erro de
-      domínio).
-  - `verify:` teste de `PlanoServiceImpl` confirmando que `DomainRuleViolationException` lançada
-      por `iaService.geraPlanoSemanalAvancado` chega ao chamador de `gerarPlanoTreino` como
-      `DomainRuleViolationException`, não `LLMException`.
-- [ ] 5.6 Criar `PlanoLlmValidator` como orquestrador; mover `validarTreinoIntervalado`, `validarTreinoLongo`, `validarTreinoRegenerativo`, `validarTreinoContinuo`, `validarRepeticoes`, `validarTrianguloPaceDuracaoDistancia`, `validarDistribuicaoCargaSemanal` — já corrigidos
-- [ ] 5.7 `validarENormalizarPlanoGerado` passa a delegar a `PlanoLlmValidator`
-- [ ] 5.8 Testes unitários por tipo de treino (cada branch de violação dispara o erro esperado; cobertura de exceção conforme o padrão escolhido), incluindo os casos IA-04/IA-05 migrados
-- [ ] 5.9 `./mvnw clean test` verde
+      Teste pré-existente `longoSoContagem` (encodava a ausência da checagem) renomeado/ajustado
+      pra `longoIgnoraOrdemDeAquecDesaqMasExigeMeioPrincipal`, com etapa central PRINCIPAL.
+- [x] 5.3 **TDD vermelho (IA-05):** 3 testes em `TreinoNormalizadorIntervaladoTest` (nested
+      `DuracaoConsistenteComRitmoAlvo`) cobrindo `clampDistanciaPorTipo` (AQUECIMENTO clamped de
+      3.0→2.0km, ritmoAlvo="5:00-5:00/km", duracaoMin=99 deliberadamente errado) e
+      `distribuirDeltaPorTipo` (tiros crescendo 0.8→0.9km, ritmoAlvo="4:00-4:00/km", duracaoMin=1
+      deliberadamente errado) — confirmado vermelho (2/3 falhas; a 3ª é a regressão sem ritmoAlvo,
+      que já passava).
+- [x] 5.4 **Fix IA-05:** `TreinoNormalizador` passou a injetar `PaceValidator` (constructor
+      explícito, novo — antes implícito sem-arg) e ganhou `recalcularDuracaoDePace(ritmoAlvo,
+      distanciaKm, duracaoMinOriginal)`, chamado por `clampDistanciaPorTipo` e
+      `distribuirDeltaPorTipo` sempre que a etapa muda de `distanciaKm`: com `ritmoAlvo` presente,
+      `duracaoMin = round(distanciaKm × paceMedio(ritmoAlvo))` via
+      `paceValidator.calcularPaceMedia`; sem `ritmoAlvo`, `duracaoMin` original é preservado.
+      `validarTrianguloPaceDuracaoDistancia` mantida como rede de segurança (`warn`) inalterada.
+      9 arquivos de teste que construíam `TreinoNormalizador`/`IaServiceImpl` diretamente ganharam
+      `new PaceValidator()` no construtor (drift de assinatura, mesmo padrão das seções 2-4).
+- [x] 5.5 **Fix IA-06 (fora da decomposição, em `PlanoServiceImpl`):** adicionado
+      `catch (DomainRuleViolationException e) { throw e; }` em `PlanoServiceImpl.gerarPlanoSemanal`
+      (método privado), antes do `catch (Exception e)` genérico que convertia a exceção em
+      `LLMException` — espelha o catch já existente no método público `gerarPlanoTreino`. Sem esse
+      fix, o `DomainRuleViolationException` que `PlanoResilienceService.gerarComResiliencia` lança
+      ao esgotar o orçamento de retries (ex.: violações repetidas do IA-04) chegava ao treinador
+      como 503 (indisponibilidade) em vez de 422 (erro de domínio).
+  - `verify:` `domainRuleViolationDoIaServicePropagaSemVirarLlmException` em `PlanoServiceImplTest`
+      — `iaService.geraPlanoSemanalAvancado` lançando `DomainRuleViolationException` chega ao
+      chamador de `gerarPlanoTreino` como `DomainRuleViolationException`, não `LLMException`.
+      Confirmado vermelho (revertendo o fix via `git stash` temporário) antes de reaplicar.
+- [x] 5.6 Criado `PlanoLlmValidator` (`services/helper`) com `validarTreinoIntervalado`,
+      `validarEstrutura3Etapas`, `validarTreinoLongo`, `validarRepeticoes`,
+      `validarTrianguloPaceDuracaoDistancia`, `validarTreinoRegenerativo`, `validarTreinoContinuo`,
+      `validarTreinoTempoRun`, `validarDistribuicaoCargaSemanal` (+ privados
+      `contarViolacaoEstrutural`/`diaPorOrdem`) — movidos verbatim de `IaServiceImpl` (já com os
+      fixes IA-04/05/06 aplicados). Injeta `MeterRegistry` + `PaceValidator`.
+- [x] 5.7 `IaServiceImpl` injeta `PlanoLlmValidator` e `validarENormalizarPlanoGerado` delega nos
+      8 call sites reais (nenhuma lógica de validação restante em `IaServiceImpl`).
+- [x] 5.8 `PlanoLlmValidatorTest` novo (`services/helper`, sem reflexão): migra os 6 casos de
+      `validarEstrutura3Etapas` (incl. os 2 de IA-04) que estavam em `IaServiceImplFcValidationTest`
+      — arquivo removido (nada de IaServiceImpl restava nele). `IaServiceImplCaracterizacaoTest`/
+      `IaServiceImplComplianceEstagio1Test` ganharam `PlanoLlmValidator` no construtor.
+- [x] 5.9 `./mvnw clean test`: 3532/3532 verde (módulo inteiro).
 
 ## 6. Reduzir IaServiceImpl a orquestrador — inclui fix IA-10
 
