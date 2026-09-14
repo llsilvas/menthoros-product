@@ -150,20 +150,33 @@
 
 ## 3. Testes: substituir, não empilhar
 
-- [ ] 3.1 `PlanoLlmValidatorCaracterizacaoTest` → `NormalizacaoDeTreinoCaracterizacaoTest`: mesmos 12
+> **Seção entregue em `155982b`** (2026-09-14): 3.1–3.5 abaixo `[x]`. `clean verify` verde —
+> Surefire 3592 testcases (3591 da seção 2 + 1), Failsafe 188, 0 falhas. Diff da caracterização
+> contra a versão da 0.4: só imports, JavaDoc, nome da classe e o arranjo (`normalizar` direto com
+> `ContextoNormalizacao` montado à mão, sem mock) — nenhuma linha de record esperado ou fixture.
+> **Achado ao migrar a 3.2:** pela interface, `reparar-3-etapas` roda antes de `validar-por-tipo`,
+> então dos 6 casos antigos (que chamavam o gate direto) dois mudam de natureza: "fora de ordem com
+> os 3 tipos" vira asserção de **reordenação** (o reparo conserta, não rejeita) e a distinção
+> `validarOrdem` REGENERATIVO×LONGO só é observável com entrada não reparável
+> (`AQUECIMENTO→PRINCIPAL→PRINCIPAL`: 2 PRINCIPAL, o reparo não toca). Os 7 casos resultantes
+> vivem em `NormalizacaoDeTreinoTest#TresEtapas`; `validarEstrutura3Etapas` voltou a `private`
+> (fecha o desvio (d) da seção 2) e `PlanoLlmValidatorTest` foi apagado — só restava o nível do
+> treino; `validarDistribuicaoCargaSemanal` (WARN-only) segue sem teste dedicado, como antes.
+
+- [x] 3.1 `PlanoLlmValidatorCaracterizacaoTest` → `NormalizacaoDeTreinoCaracterizacaoTest`: mesmos 12
       cenários e **mesmos records esperados** da 0.4, agora chamando `normalizar` direto (sem
       `PlanoLlmValidator`, sem `TreinoHistoricoProvider`/`PaceHistoricoFormatter`).
       `verify:` o diff dos records esperados entre a versão da 0.4 e esta é vazio (só muda o
       arranjo/chamada).
-- [ ] 3.2 `PlanoLlmValidatorTest#Estrutura3Etapas` migra para testar o passo `validar-por-tipo`
+- [x] 3.2 `PlanoLlmValidatorTest#Estrutura3Etapas` migra para testar o passo `validar-por-tipo`
       via `normalizar` (família `TRES_ETAPAS`); `PlanoLlmValidatorTest` fica só com o nível do plano
       (carga semanal) ou é apagado se vazio.
       `verify:` nenhum teste referencia método removido de `PlanoLlmValidator`.
-- [ ] 3.3 Confirmar que `TreinoNormalizador*Test` (6) e `EtapaFcValidatorTest` continuam verdes sem
+- [x] 3.3 Confirmar que `TreinoNormalizador*Test` (6) e `EtapaFcValidatorTest` continuam verdes sem
       alteração — testes de internal seam.
       `verify:` `git diff --stat` não lista esses arquivos.
-- [ ] 3.4 `./mvnw clean verify` verde.
-- [ ] 3.5 Commit `test(ia): caracterizacao migra para a interface do module (parte 3/3)`.
+- [x] 3.4 `./mvnw clean verify` verde.
+- [x] 3.5 Commit `test(ia): caracterizacao migra para a interface do module (parte 3/3)`.
 
 ## 4. Validação final
 
