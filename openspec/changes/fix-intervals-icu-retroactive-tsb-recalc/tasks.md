@@ -19,6 +19,18 @@
       antigo.
       **Verify:** `./mvnw clean test` verde — confirmado, exit 0.
 
+## 3b. Corrigir achado Medium do `security-reviewer` (import manual sem limite de retroatividade)
+
+- [x] 3b.1 Tornar `IntervalsIcuActivityMapper.parseDataTreino` público e adicionar guard em
+      `IntervalsIcuActivityIngestionServiceImpl.importarAtividade` (Passo 5b): rejeitar com
+      `DomainRuleViolationException` (422) atividade anterior a `IntervalsIcuProperties.syncDaysBack`,
+      antes de chamar `persister.persistir`.
+      **Verify:** `./mvnw clean test -Dtest=IntervalsIcuActivityIngestionServiceImplTest` verde —
+      confirmado (3 novos testes: atividade muito antiga rejeita, dentro do limite segue, data
+      não parseável não bloqueia).
+- [x] 3b.2 Rodar a suíte completa novamente após a segunda correção.
+      **Verify:** `./mvnw clean test` verde — confirmado, exit 0.
+
 ## 4. Fechar o registro nas duas specs relacionadas
 
 - [ ] 4.1 Após merge em `develop`, atualizar
