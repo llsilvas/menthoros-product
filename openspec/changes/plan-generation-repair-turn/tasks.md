@@ -54,16 +54,18 @@
 
 ## 3. `PlanoLlmValidator` — coletar violações de TODOS os treinos (achado do pré-mortem)
 
-- [ ] 3.0 `validarENormalizarPlano:60-62` troca `.stream().map(normalizar).toList()` por um laço que
+- [x] 3.0 `validarENormalizarPlano:60-62` troca `.stream().map(normalizar).toList()` por um laço que
       tenta `normalizar` em cada treino, acumula os que passam e coleta uma `Violacao` por treino
       que lançar `LLMException` — sem abortar no primeiro. Ao fim, se houver 1+ violação, lança
       `PlanoNaoConformeException` com a lista completa (unifica o tipo com o que o compliance do
       planner já usa, em vez de manter `LLMException` de uma violação só).
       `verify:` teste com 2 treinos inválidos no mesmo plano → exceção carrega 2 `Violacao`, uma por
-      dia da semana; teste com 1 treino inválido continua funcionando (lista de 1).
-- [ ] 3.1 Confirmar que `NormalizacaoDeTreino` não muda — continua abortando na 1ª violação **dentro**
+      dia da semana; teste com 1 treino inválido continua funcionando (lista de 1). **Feito**:
+      `PlanoLlmValidatorTest` novo (a versão antiga tinha sido apagada na F2.5), 4/4 verde —
+      inclui também o caso "todos os treinos inválidos" (3/3 violações, nenhuma perdida).
+- [x] 3.1 Confirmar que `NormalizacaoDeTreino` não muda — continua abortando na 1ª violação **dentro**
       de um treino (F2.5, não reaberto).
-      `verify:` `git diff --stat` não lista `NormalizacaoDeTreino.java`.
+      `verify:` `git diff --stat` não lista `NormalizacaoDeTreino.java`. **Confirmado.**
 
 ## 4. `IaServiceImpl` — monta a conversa multi-mensagem
 
