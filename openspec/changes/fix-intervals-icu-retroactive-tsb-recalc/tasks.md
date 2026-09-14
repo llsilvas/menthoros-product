@@ -33,8 +33,10 @@
 
 ## 4. Fechar o registro nas duas specs relacionadas
 
-- [ ] 4.1 Após merge em `develop`, atualizar
+- [x] 4.1 Após merge em `develop`, atualizar
       `apps/menthoros-backend/docs/ia/01-otimizacao-recalculo-tsb.md` marcando o "achado
       colateral" como resolvido, com o link/número do PR.
-- [ ] 4.2 Atualizar `proposal.md` de `remove-redundant-tsb-baseline-recalc` marcando o
+      **Verify:** commit `ff829cd` na branch `docs/otimizacao-recalculo-tsb` — confirmado.
+- [x] 4.2 Atualizar `proposal.md` de `remove-redundant-tsb-baseline-recalc` marcando o
       pré-requisito 1 (deste fix) como fechado.
+      **Verify:** commit `8a88b7e` — confirmado.
