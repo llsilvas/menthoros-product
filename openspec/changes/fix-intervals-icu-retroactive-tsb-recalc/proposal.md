@@ -19,6 +19,12 @@
   agora rejeita com 422 (`DomainRuleViolationException`) atividades anteriores ao mesmo teto de
   `syncDaysBack`, usando `IntervalsIcuActivityMapper.parseDataTreino` (tornado público) para
   checar a data antes de chamar o persister.
+- Verificação final (2026-09-13): `security-reviewer` confirmou o achado Medium **fechado** —
+  ordem dos checks preservada, sem bypass, mensagem de erro sem PII. Achado residual Low aceito:
+  quando `parseDataTreino` não consegue parsear `startDateLocal` (ausente/formato não coberto), o
+  guard é pulado por design ("validação best-effort") e a atividade segue sem teto de
+  retroatividade. Exploração baixa — `startDateLocal` vem da resposta da API do intervals.icu, não
+  é input direto do coach na request. Aceito como está; não corrigido nesta change.
 - DoR (2026-09-13): `spec-reviewer` — READY. Codex adversarial — NOT READY, 3 achados
   (concorrência sem serialização por atleta, custo O(N²) em backfill, teste só verifica
   delegação). Investigados e quantificados (ver "Open Questions & Assumptions" e "Risco/Rollback")
