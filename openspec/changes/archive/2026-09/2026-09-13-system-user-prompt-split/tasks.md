@@ -1,6 +1,8 @@
 # Tasks: system-user-prompt-split
 
-**Status:** Reaberta 2026-09-13 (Fase 1 · Sprint 24) — pronta para implementação
+**Status:** ✅ entregue e arquivada (2026-09-13). PR `menthoros-backend#118` mergeado em `develop`
+(2026-09-14T00:57:25Z). 21/22 tasks concluídas — 4.3 (validação manual com chave OpenAI real)
+deferida, substituída pelo gate de produção da task 5.3.
 **Tamanho:** S · Trilha: Fast
 **Repos:** menthoros-backend (apenas), branch `feature/system-user-prompt-split` em **worktree**
 **Dependências:** `add-plan-generation-ledger` (F0) ✅ arquivada, PR `menthoros-backend#117`
@@ -132,11 +134,11 @@ contrato possível.
 - [x] 4.2 `IaServiceImplFcValidationTest`, `IaServiceImplComplianceEstagio1Test` e
       `PlanQualityCheckerTest` verdes sem alteração (77/77 na rodada combinada com `IaServiceImplSchemaTest`
       e `PlanoResilienceServiceTest`).
-- [ ] 4.3 Validação ponta a ponta local (chave OpenAI de dev): 2 planos reais → DTO válido; segunda
-      geração do mesmo tenant em < 10 min mostra `cachedTokens > 0` no `[llm-usage]`. **Não feita
-      nesta sessão** — exige stack de dev local (Postgres, Keycloak, chave OpenAI real) fora do
-      alcance do agente; fica para o founder confirmar manualmente antes do merge, ou como parte da
-      observação pós-merge (task 5.3, que já mede o mesmo sinal em produção via `tb_llm_call`).
+- [ ] 4.3 **DEFERIDA para acompanhamento pós-merge.** Validação ponta a ponta local (chave OpenAI
+      de dev): 2 planos reais → DTO válido; segunda geração do mesmo tenant em < 10 min mostra
+      `cachedTokens > 0` no `[llm-usage]`. Não feita nesta sessão — exige stack de dev local
+      (Postgres, Keycloak, chave OpenAI real) fora do alcance do agente. O mesmo sinal é medido em
+      produção via `tb_llm_call` na task 5.3 (gate CA6), que substitui esta validação manual.
 - [x] 4.4 `./mvnw clean verify` verde. 3516 unit + 188 integration, 0 falhas/erros (Docker subiu no
       meio da sessão; antes disso `test`/`verify` davam 194 erros idênticos de
       "Docker environment failed", ambiente e não regressão).
