@@ -63,22 +63,31 @@ final completa na tabela do [proposal.md](proposal.md) ("Decisão de escopo").
 
 ## 3. Extrair normalização de treino (intervalado/etapas) — inclui fix IA-03
 
-- [ ] 3.1 **TDD vermelho (IA-03):** escrever teste de `detectarRepeticoesNaDescricao`/
-      `extrairDistanciaUnitariaDaDescricao` com os casos reproduzidos do relatório —
-      `"5 x 10 min forte + 2 min leve"` (não deve casar como padrão de distância) e `"4x1.5km"`
-      (deve extrair `1.5`, não `1`) — confirmar que falha no código atual (prova do bug).
-- [ ] 3.2 **Fix IA-03 — regex verificada isoladamente (não é só a ideia, é a regex exata):**
-      `REPETICOES_PATTERN` atual é
-      `(\d{1,2})\s*[xX×]\s*(\d+)(?!\s*min)\s*(m|km)?` — o problema é que `(\d+)` faz backtrack
-      pro dígito errado pra satisfazer o `(?!\s*min)` (ex.: em "10 min", falha com "10" mas passa
-      com "1"). Trocar o grupo do número por **atômico**, que não permite esse backtrack:
-      `(\d{1,2})\s*[xX×]\s*(?>(\d+(?:\.\d+)?))(?!\s*min)\s*(m|km)?` — testado (`javac`/`java`
-      isolado) contra os 5 casos: `"5 x 10 min forte + 2 min leve"` → sem match (correto);
-      `"4x1.5km"` → grupo 2 = `"1.5"` (correto, antes extraía `"1"`); `"6x400m"`, `"8-12× 400m"`,
-      `"10-15× 200m"` → continuam batendo como antes.
-- [ ] 3.3 Mover `normalizarTreinoIntervalado`, `expandirEtapasAgregadas`, `reordenarEtapas`, `reconciliarDistanciaComEtapas` e helpers de parsing de descrição (`detectarRepeticoesNaDescricao`, `extrairDistanciaUnitariaDaDescricao`, `detectarFartlekNaDescricao`, `extrairZonaDaDescricao`) — já corrigidos — para um colaborador em `services/helper`
-- [ ] 3.4 Teste unitário do normalizador (entrada de etapas agregadas → etapas expandidas/reordenadas esperadas), incluindo os casos IA-03 movidos para o novo colaborador
-- [ ] 3.5 `./mvnw clean test` verde
+- [x] 3.1 **TDD vermelho (IA-03):** `IaServiceImplRepeticoesPatternTest` (depois migrado pro
+      colaborador — ver 3.4) com os casos do relatório: `"5 x 10 min forte + 2 min leve"` (não
+      deve casar como padrão de distância) e `"4x1.5km"` (deve extrair `1.5`, não `1`) —
+      confirmado vermelho (2/4 falhas) antes do fix.
+- [x] 3.2 **Fix IA-03 — regex verificada isoladamente:** `REPETICOES_PATTERN` trocou o grupo do
+      número por **atômico**: `(\d{1,2})\s*[xX×]\s*(?>(\d+(?:\.\d+)?))(?!\s*min)\s*(m|km)?` —
+      testado (`javac`/`java` isolado) contra os 5 casos: os 2 quebrados corrigidos, os 3 que já
+      funcionavam (`6x400m`, `8-12× 400m`, `10-15× 200m`) preservados.
+- [x] 3.3 Criado `TreinoNormalizador` (`services/helper`) com `normalizarTreinoIntervalado`,
+      `expandirEtapasAgregadas`, `reordenarEtapas`, `reconciliarDistanciaComEtapas`,
+      `corrigirDistanciasEtapasTemporais`, `garantirDistanciaContinuo`,
+      `detectarRepeticoesNaDescricao`, `extrairDistanciaUnitariaDaDescricao`,
+      `detectarFartlekNaDescricao`, `extrairZonaDaDescricao`, `bpmDaZona`, `zonaParaFc`,
+      `recalcularDuracaoTreino`, `somarDuracoesMin` e os helpers de distribuição de distância
+      (`clampDistanciaPorTipo`, `distribuirDeltaPorTipo`, `maxTirosPorNivel`,
+      `adicionarTiroERecuperacao`) — todos movidos verbatim (já com o fix do IA-03).
+      `bpmDaZona`/`zonaParaFc`/`adicionarTiroERecuperacao` ficaram package-private (testáveis
+      direto, sem reflexão). `IaServiceImpl` injeta o colaborador e delega nos 7 call sites reais.
+- [x] 3.4 Testes unitários migrados/criados no pacote `services/helper` (sem reflexão, chamando o
+      colaborador direto): `TreinoNormalizadorRepeticoesPatternTest` (IA-03),
+      `TreinoNormalizadorFartlekExpansaoTest`, `TreinoNormalizadorIntervaladoTest`,
+      `TreinoNormalizadorDistanciaContinuoTest`, `TreinoNormalizadorZonaHelpersTest`,
+      `TreinoNormalizadorCorrigirDistanciasTest` — substituem 5 arquivos antigos de
+      `services/impl` que reflexionavam sobre métodos privados de `IaServiceImpl`.
+- [x] 3.5 `./mvnw clean test`: 3524/3524 verde (módulo inteiro), 1 skip pré-existente.
 
 ## 4. Extrair validação de FC por zona — inclui fix IA-02
 
