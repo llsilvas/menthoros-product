@@ -1,9 +1,9 @@
 ## Pré-requisitos
 
-- [ ] 0.1 PR de `refactor-iaservice-decomposition` (F2) mergeado em `develop` e arquivado — esta
-      change toca exatamente os arquivos que aquele PR criou (`PlanoLlmValidator`,
-      `TreinoNormalizador`, `EtapaFcValidator`, `PlanoLlmValidatorTest`,
-      `PlanoLlmValidatorCaracterizacaoTest`).
+- [x] 0.1 PR de `refactor-iaservice-decomposition` (F2) mergeado em `develop` (PR #121, merge
+      `72304b9`, 2026-09-14) e arquivado — esta change toca exatamente os arquivos que aquele PR
+      criou (`PlanoLlmValidator`, `TreinoNormalizador`, `EtapaFcValidator`,
+      `PlanoLlmValidatorTest`, `PlanoLlmValidatorCaracterizacaoTest`).
 - [ ] 0.2 DoR: `spec-reviewer` + Codex adversarial sobre `proposal.md` + `design.md`. Pedir ao Codex
       explicitamente: (a) a cauda comum declarada no `design.md` reproduz a ordem atual de
       `normalizarTreino` linha a linha? (b) algum passo da receita `INTERVALADO_TIRO` depende de
