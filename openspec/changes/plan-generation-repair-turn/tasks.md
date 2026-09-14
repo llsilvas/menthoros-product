@@ -146,7 +146,19 @@
 
 ## 6. Validação final
 
-- [ ] 6.1 `./mvnw clean verify` verde.
+> **Seção fechada em 2026-09-14** (branch em `cf07bd3`, 6 commits sobre `34263f4`). `/qa` com 5
+> revisões: `code-reviewer` e `clean-code-reviewer` APROVADO COM RESSALVAS, `security-reviewer`
+> APROVADO, Codex nativo **NO-GO**, Codex adversarial **NO-GO** — todas as 5 convergiram
+> independentemente no mesmo achado: quando a 1ª tentativa devolve resposta vazia/sem `choices`,
+> `jsonAnterior` fica `null` e `gerarChamadaLlm` montava `new AssistantMessage(null)` — o Spring AI
+> aceita (só valida não-nulo para SYSTEM/USER), mas o `OpenAiChatModel` serializa uma mensagem
+> `assistant` sem `content` nem `tool_calls`, que a API da OpenAI rejeita. Corrigido com
+> `jsonAnteriorOuFallback`, que usa texto fixo não-vazio quando `jsonAnterior` é `null` **ou em
+> branco** (achado adicional de uma 2ª rodada de verificação: `content()` pode vir `""` ou só
+> espaços). `clean verify` pós-correção: 3610/3610 Surefire, 188/188 Failsafe. `/pr` **não**
+> rodado — aguarda confirmação explícita.
+
+- [x] 6.1 `./mvnw clean verify` verde.
 - [ ] 6.2 Medição manual de tokens (corrigida 2×, achados do DoR): o `AssistantMessage` **não**
       some — integra a 2ª chamada por design, sem 3ª tentativa para "desaparecer" nele.
       `CostTrackingAdvisor.extrairTokens` grava `input_tokens = prompt - cacheRead` (só o
@@ -163,7 +175,12 @@
         do tamanho só das mensagens novas (`assistant` + correção), não do prompt inteiro de novo.
       `verify:` os dois números acima, com o valor exato de cada tentativa registrado no relatório
       da task 6.3 — não é aprovação por "não explodiu" sem referência.
-- [ ] 6.3 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer + Codex). Pedir ao Codex:
+      **Pendente do usuário** (mesmo tratamento do CA6 da F1): exige um plano real que tenha
+      passado por retry em produção/staging. SQL entregue no report final desta seção.
+- [x] 6.3 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer + Codex). Pedir ao Codex:
       o `system`/`user` original permanecem byte-idênticos entre a 1ª e a 2ª tentativa (prefixo
       cacheável intacto) mesmo com as mensagens novas acrescentadas ao fim, no request real?
-- [ ] 6.4 `tasks.md` atualizado; `SPRINTS.md` (F3) marcado; arquivar via `/done` após merge.
+      **Feito**: sim — `IaServiceImplGerarChamadaLlmTest` prova isso contra o `ChatClient` real
+      (cadeia de advisors incluída), confirmado por 3 rodadas do Codex. 1 achado real (AssistantMessage
+      nulo/vazio), corrigido — ver nota da seção acima.
+- [x] 6.4 `tasks.md` atualizado; `SPRINTS.md` (F3) marcado; arquivar via `/done` após merge.
