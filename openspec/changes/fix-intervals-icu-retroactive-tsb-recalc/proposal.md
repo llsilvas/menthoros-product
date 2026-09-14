@@ -8,6 +8,17 @@
   (item 1 de 3 a fechar antes daquela remoção ser segura). Seam único identificado
   (`IntervalsIcuActivityPersisterTest`), pronta para `/implement init
   fix-intervals-icu-retroactive-tsb-recalc`.
+- Implementado (2026-09-13): fix principal commitado (`159268c`, troca `atualizarTsbDia` →
+  `recalcularDesde`). QA (`code-reviewer` aprovado sem ressalvas, `clean-code-reviewer` só Minor)
+  encontrou um achado Medium real do `security-reviewer`, não coberto pela análise de risco
+  original: o endpoint manual `POST /activities/import` não tinha limite de retroatividade, ao
+  contrário do scheduler (`syncDaysBack=90`) — uma atividade muito antiga faria `recalcularDesde`
+  reprocessar milhares de dias **dentro da transação síncrona do request HTTP** do coach (antes do
+  fix, `atualizarTsbDia` custava O(1) sempre; depois, o custo escala com a idade da atividade).
+  Corrigido no mesmo escopo (`1d92c5b`): `IntervalsIcuActivityIngestionServiceImpl.importarAtividade`
+  agora rejeita com 422 (`DomainRuleViolationException`) atividades anteriores ao mesmo teto de
+  `syncDaysBack`, usando `IntervalsIcuActivityMapper.parseDataTreino` (tornado público) para
+  checar a data antes de chamar o persister.
 - DoR (2026-09-13): `spec-reviewer` — READY. Codex adversarial — NOT READY, 3 achados
   (concorrência sem serialização por atleta, custo O(N²) em backfill, teste só verifica
   delegação). Investigados e quantificados (ver "Open Questions & Assumptions" e "Risco/Rollback")
