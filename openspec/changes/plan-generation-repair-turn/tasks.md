@@ -69,7 +69,7 @@
 
 ## 4. `IaServiceImpl` — monta a conversa multi-mensagem
 
-- [ ] 4.0 Trocar `.call().responseEntity(PlanoSemanalLlmDto.class)` (`:159`) por
+- [x] 4.0 Trocar `.call().responseEntity(PlanoSemanalLlmDto.class)` (`:159`) por
       `.call().content()` + `objectMapper.readValue(json, PlanoSemanalLlmDto.class)` — remove
       `BeanOutputConverter`/`ChatModelCallAdvisor` do caminho (achado da 2ª rodada do pré-mortem:
       o converter injeta texto de formato na última `UserMessage`, quebrando a igualdade de prefixo
@@ -81,9 +81,11 @@
       `verify:` teste com resposta válida → mesmo `PlanoSemanalLlmDto` de antes; teste com
       `content()` nulo/vazio → entidade nula chega a `validar` e dispara o retry existente (não
       lança dentro de `gerar`); teste com JSON malformado não-vazio → lança sem retry (task 2.4).
-- [ ] 4.1 Captura do texto bruto (`content()`, já disponível pela task 4.0) junto da entidade
+      **Feito**: usa `.call().chatResponse()` (não `.content()` puro, para não perder o `ChatResponse`
+      que `llmUsageLogger.registrar` precisa) + parse manual com `ObjectMapper` injetado.
+- [x] 4.1 Captura do texto bruto (`content()`, já disponível pela task 4.0) junto da entidade
       parseada; constrói `ChamadaLlm`.
-- [ ] 4.2 Quando `t.numero() == 1`: comportamento atual (`system(system).user(t.promptOriginal())`).
+- [x] 4.2 Quando `t.numero() == 1`: comportamento atual (`system(system).user(t.promptOriginal())`).
       Quando `t.numero() > 1`: `chatClient.prompt().messages(SystemMessage(system),
       UserMessage(t.promptOriginal()), AssistantMessage(t.jsonAnterior()),
       UserMessage(repairTurnMessageBuilder.construirCorrecao(t.violacoesAnteriores())))`.
@@ -94,14 +96,21 @@
       `ChatClient`/advisor chain reais. As duas tasks são complementares, não substitutas.
       `verify:` `ArgumentCaptor<Prompt>` sobre o `ChatClient` **mockado** confirma as 4 mensagens na
       2ª tentativa, na ordem certa, com o conteúdo `system`/`user` originais idêntico ao da 1ª
-      (igualdade de string, não de prefixo serializado — isso é a task 0.1).
-- [ ] 4.3 Agregação de violações no `validar` (Decisão 4 do design.md, revisada): `validarENormalizarPlanoGerado`
+      (igualdade de string, não de prefixo serializado — isso é a task 0.1). **Feito, e mais forte
+      que o pedido**: `IaServiceImplGerarChamadaLlmTest` usa `ChatClient.builder(chatModel).build()`
+      REAL (cadeia de advisors default incluída) com só o `ChatModel` mockado — mesma costura da
+      task 0.1 — então a prova de prefixo idêntico já é feita aqui mesmo, contra o request real.
+- [x] 4.3 Agregação de violações no `validar` (Decisão 4 do design.md, revisada): `validarENormalizarPlanoGerado`
       lança `PlanoNaoConformeException` com N violações (uma por treino malformado, task 3.0); se
       passar e `aplicarComplianceEstagio1` lançar → N violações do compliance. Sem tentar rodar os
       dois quando o primeiro já falhou.
       `verify:` teste com 2 treinos estruturalmente inválidos chegando como 2 `Violacao` ao builder
-      (não mais só o primeiro); teste com 3 violações do compliance chegando completas.
-- [ ] 4.4 **Revalidação íntegra do reparo** (achado do DoR, 2026-09-14 — critério de aceite do
+      (não mais só o primeiro); teste com 3 violações do compliance chegando completas. **Feito**:
+      já coberto pela task 3.0 (`PlanoLlmValidatorTest`) e pelo `IaServiceImplComplianceEstagio1Test`
+      existente (3 violações do compliance); a ordem sequencial (`aplicarComplianceEstagio1(
+      validarENormalizarPlanoGerado(p, ...), ...)`) já garante que o compliance não roda se a
+      normalização falhar — nenhum código novo necessário, só confirmação.
+- [x] 4.4 **Revalidação íntegra do reparo** (achado do DoR, 2026-09-14 — critério de aceite do
       proposal.md que não tinha task própria): a 2ª resposta da LLM corrige o treino apontado na
       violação da 1ª, mas introduz uma violação **diferente** num **outro** treino que passava antes.
       `validar` deve rejeitar — a revalidação roda sobre o plano inteiro devolvido pela 2ª tentativa,
@@ -111,6 +120,8 @@
       `verify:` teste: 1ª tentativa rejeitada por violação no treino de SEGUNDA; 2ª tentativa (mock)
       devolve um plano que corrige SEGUNDA mas quebra QUINTA de um jeito novo → `validar` lança de
       novo (com a violação de QUINTA, não a de SEGUNDA), e a falha final ainda é 422, não sucesso.
+      **Feito**: `RepairTurnRevalidationIntegrationTest` — composição real de `PlanoResilienceService`
+      + `PlanoLlmValidator` (sem `IaServiceImpl`, fixtures inviáveis em unit test), 1/1 verde.
 
 ## 5. Ledger
 
