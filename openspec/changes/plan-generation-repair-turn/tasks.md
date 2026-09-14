@@ -21,11 +21,11 @@
 
 ## 1. `RepairTurnMessageBuilder` — passo puro, TDD
 
-- [ ] 1.1 `record Violacao` (reaproveitar `ai/ledger/Violacao`, sem duplicar tipo).
-- [ ] 1.2 `RepairTurnMessageBuilder.construirCorrecao(List<Violacao>)` — 1 violação, N violações,
+- [x] 1.1 `record Violacao` (reaproveitar `ai/ledger/Violacao`, sem duplicar tipo).
+- [x] 1.2 `RepairTurnMessageBuilder.construirCorrecao(List<Violacao>)` — 1 violação, N violações,
       violação com mensagem vazia (defensivo), lista vazia (não deveria ser chamado, mas não deve
       lançar).
-      `verify:` `RepairTurnMessageBuilderTest` — todos os casos, sem mock.
+      `verify:` `RepairTurnMessageBuilderTest` — todos os casos, sem mock. **Feito**: 4/4 verde.
 
 ## 2. `PlanoResilienceService` — `Tentativa` carrega histórico
 
