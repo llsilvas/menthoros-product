@@ -261,13 +261,21 @@ dentro de `validar` — o `SessionResolver` (task 4) não valida nada, só resol
 
 ## 11. Arquivamento de changes supersedidas
 
-- [ ] 11.1 Confirmar (`git branch -a`, PRs abertos nos repos afetados) que
-      `validate-interval-workout-standards` e `fix-cold-start-calibration-plan-generation` não têm
-      trabalho em andamento antes de mover.
-- [ ] 11.2 Mover as duas para `changes/archive/2026-XX/` com nota "superseded by
-      semantic-session-schema" no topo do `proposal.md` de cada uma.
-      `verify:` `openspec/changes/` não lista mais as duas pastas; `archive/` lista as duas com a
-      nota.
+- [x] 11.1 Confirmado: `git branch -a`/`git ls-remote --heads` (backend e front) e `gh pr list`
+      (busca pelos dois nomes) não acham nenhuma branch nem PR aberto para
+      `validate-interval-workout-standards` nem `fix-cold-start-calibration-plan-generation`.
+- [x] 11.2 Movidas para `changes/archive/2026-09/2026-09-15-<change-id>/`. Nota de arquivamento
+      **corrigida do plano original** (achado ao reler as duas changes por inteiro):
+      `validate-interval-workout-standards` (0/79 tasks) é totalmente supersedida — a ideia de
+      "validação rigorosa + padronização" foi implementada sob outro desenho. Já
+      `fix-cold-start-calibration-plan-generation` é **só parcialmente** supersedida: sua §13
+      (invariantes aritméticos/pace×distância×duração) fica moot com o schema v2, mas §1-§12
+      (timing do snapshot de calibração/baseline antes do prompt, CA1-CA12) é um problema de
+      cold-start real e independente, sem relação com F4 — a nota no `proposal.md` arquivado deixa
+      isso explícito, para não perder a investigação (`investigation.md`/`evidence/`) se o incidente
+      for retomado.
+      `verify:` `openspec/changes/` não lista mais as duas pastas; `archive/2026-09/` lista as duas
+      com a nota; `SPRINTS.md` atualizado (linhas 723 e 727).
 
 ## 12. Validação final
 

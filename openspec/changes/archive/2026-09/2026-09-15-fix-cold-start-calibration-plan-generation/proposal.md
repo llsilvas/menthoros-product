@@ -1,5 +1,24 @@
 **Tamanho:** L · **Trilha:** Full
 
+> **Arquivada em 2026-09-15, parcialmente supersedida por `semantic-session-schema` (F4).** Só a
+> **§13** (`design.md`, "invariantes aritméticos/pace" — triângulo pace×distância×duração, tolerância
+> do gate de etapas do intervalado) fica *moot*: F4 tira da LLM o cálculo desses números — não há
+> mais o que tolerar/validar aritmeticamente, o Java resolve a partir da zona. A §13.4 (perguntas de
+> produto que bloqueavam NOT READY) some junto.
+>
+> **§1-§12 continuam um problema real, sem relação com F4** — resolver o snapshot de baseline/
+> calibração/confiança **antes** do prompt (hoje resolvido na persistência, depois da IA já ter
+> gerado), o caminho de baseline estimado sem rebuild completo para atleta sem histórico, e os CA1,
+> CA2, CA6-CA12 (isolamento de tenant, métricas de retry/latência por coorte, revisão obrigatória do
+> coach). Nada disso é resolvido por F4. Se o incidente de cold-start (70,6s, plano quebrado
+> aceito com 200) for retomado, isso é candidata a change própria, plantada nesta investigação
+> (`investigation.md`/`evidence/`) — não descartar o trabalho de diagnóstico já feito aqui.
+>
+> 4/31 tasks completas sob este desenho; nenhuma seção 2+ (código) foi implementada (bloqueada por
+> `planner-engine-enforcement`, que já está em `develop`).
+>
+> ---
+
 # Cold-start: geração de plano durante calibração
 
 **Change-id:** `fix-cold-start-calibration-plan-generation`
