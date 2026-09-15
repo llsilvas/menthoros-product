@@ -300,10 +300,12 @@ dentro de `validar` — o `SessionResolver` (task 4) não valida nada, só resol
       implementação, não durante o `/qa`).
       `verify:` 4 testes novos (overflow, divisão por zero, `diaSemana` malformado, `maximum` no
       schema) — `./mvnw clean test` 3674/3674 após as correções.
-- [ ] 12.3 Piloto: 2 tenants reais na allowlist por 2 semanas (fora desta sessão — requer
-      produção/staging). Gate quantitativo: retry ≤ 10%, violações estruturais ≤ 5%, aceitação sem
-      edição ≥ v1 + 10 p.p., p50 ≤ 20s (`tb_llm_call` filtrado por `schema_version`). Gate
-      qualitativo: feedback direto dos 2 coaches sobre percepção de planos genéricos/destoantes.
-      Registrar também % de treinos do piloto que caíram no fallback de `ZoneResolver` por falta de
-      FC cadastrada (design.md, riscos).
-- [ ] 12.4 `tasks.md` atualizado; `SPRINTS.md` (F4) marcado; arquivar via `/done` após merge.
+- [ ] 12.3 **Deferida pós-merge** (PR [#124](https://github.com/llsilvas/menthoros-backend/pull/124)
+      mergeado em `develop` em 2026-09-15). Piloto: 2 tenants reais na allowlist por 2 semanas —
+      requer produção/staging, fora do escopo de uma sessão de implementação. Gate quantitativo:
+      retry ≤ 10%, violações estruturais ≤ 5%, aceitação sem edição ≥ v1 + 10 p.p., p50 ≤ 20s
+      (`tb_llm_call` filtrado por `schema_version`). Gate qualitativo: feedback direto dos 2 coaches
+      sobre percepção de planos genéricos/destoantes. Registrar também % de treinos do piloto que
+      caíram no fallback de `ZoneResolver` por falta de FC cadastrada (design.md, riscos), e
+      calibrar o lookup zona→RPE (task 0.5, hoje estimado) com o dado real coletado.
+- [x] 12.4 `tasks.md` atualizado; `SPRINTS.md` (F4) marcado; arquivada via `/done` após merge.
