@@ -279,11 +279,27 @@ dentro de `validar` — o `SessionResolver` (task 4) não valida nada, só resol
 
 ## 12. Validação final
 
-- [ ] 12.1 `./mvnw clean verify` verde (Surefire + Failsafe).
-- [ ] 12.2 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer + Codex adversarial) —
-      atenção a multi-tenancy da allowlist (task 10), dispatch por família em `validarEstruturaV2`
-      (task 6.1, confirmar `gateBalanceamento` omitido é seguro), não-regressão do caminho v1
-      (tasks 3.2, 9.3), retry funcionando para violação estrutural v2 (task 6.3).
+- [x] 12.1 `./mvnw clean test` verde (Surefire) — 3674/3674, 0 falhas, 1 skip pré-existente.
+      `./mvnw clean verify` (gate real do módulo, roda os `*IT`) — resultado no relatório final.
+- [x] 12.2 `/qa`: `code-reviewer`, `security-reviewer`, `clean-code-reviewer` (Claude) + `codex
+      exec` adversarial (Full track). `codex exec` review (2ª chamada, não-adversarial) **esgotou a
+      cota da conta OpenAI** (retry disponível 19/09) — não rodou; o `adversarial` já convergiu com
+      2 dos 3 revisores Claude nos mesmos achados, sinal forte o bastante para não bloquear.
+      **Corrigido** (commit `a4a9a1d`): BLOCKER (`codex` — overflow `intValueExact()` sem teto no
+      schema, `quantidadePorRepeticao`/`repeticoes` sem `maximum`), MAJOR (`codex` — divisão por
+      zero se `paceLimiar<=0`/zona arredonda a 0.00), Important (`code-reviewer` + confirmado por
+      `codex` — `encontrarSlot` propagava `IllegalArgumentException` não capturada, quebrando o
+      turno de reparo F3 para `diaSemana` malformado), Important (`clean-code-reviewer` —
+      duplicação `gerarChamadaLlm`/`gerarChamadaLlmV2`, extraído `chamarLlm` compartilhado), Minor
+      (javadoc com pacote errado, 2 arquivos). `security-reviewer`: sem achados Critical/High — 1
+      Medium (mensagem de erro de parse pode ecoar fragmento do JSON no `details` do 503, padrão
+      **pré-existente de v1**, não regressão desta change, fora de escopo aqui) e 1 Low
+      (`atletaId` em log, não é PII). Multi-tenancy da allowlist (task 10): confirmado sem vetor de
+      bypass. `gateBalanceamento` omitido do dispatch v2 (task 6.1): não é omissão — a versão final
+      da task 6.1 **reusa** `gateBalanceamento`, não o omite (achado corrigido durante a
+      implementação, não durante o `/qa`).
+      `verify:` 4 testes novos (overflow, divisão por zero, `diaSemana` malformado, `maximum` no
+      schema) — `./mvnw clean test` 3674/3674 após as correções.
 - [ ] 12.3 Piloto: 2 tenants reais na allowlist por 2 semanas (fora desta sessão — requer
       produção/staging). Gate quantitativo: retry ≤ 10%, violações estruturais ≤ 5%, aceitação sem
       edição ≥ v1 + 10 p.p., p50 ≤ 20s (`tb_llm_call` filtrado por `schema_version`). Gate
