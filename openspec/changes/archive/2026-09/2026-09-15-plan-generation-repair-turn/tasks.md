@@ -159,7 +159,10 @@
 > rodado — aguarda confirmação explícita.
 
 - [x] 6.1 `./mvnw clean verify` verde.
-- [ ] 6.2 Medição manual de tokens (corrigida 2×, achados do DoR): o `AssistantMessage` **não**
+- [ ] 6.2 **Deferida pós-merge** (PR #123 mergeado em `develop` em 2026-09-15) — exige um plano real
+      que passe por retry em produção/staging; não bloqueia o merge nem o arquivamento desta change.
+      SQL de verificação abaixo permanece válido para quando houver dado real disponível.
+      Medição manual de tokens (corrigida 2×, achados do DoR): o `AssistantMessage` **não**
       some — integra a 2ª chamada por design, sem 3ª tentativa para "desaparecer" nele.
       `CostTrackingAdvisor.extrairTokens` grava `input_tokens = prompt - cacheRead` (só o
       **não-cacheado**) e `cache_read_tokens` separado (`ai/cost/CostTrackingAdvisor.java:264-266`)
