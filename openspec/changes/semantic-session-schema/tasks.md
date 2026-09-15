@@ -279,8 +279,8 @@ dentro de `validar` — o `SessionResolver` (task 4) não valida nada, só resol
 
 ## 12. Validação final
 
-- [x] 12.1 `./mvnw clean test` verde (Surefire) — 3674/3674, 0 falhas, 1 skip pré-existente.
-      `./mvnw clean verify` (gate real do módulo, roda os `*IT`) — resultado no relatório final.
+- [x] 12.1 `./mvnw clean verify` verde — Surefire 3674/3674 (1 skip pré-existente) + Failsafe
+      188/188, 0 falhas, 0 erros.
 - [x] 12.2 `/qa`: `code-reviewer`, `security-reviewer`, `clean-code-reviewer` (Claude) + `codex
       exec` adversarial (Full track). `codex exec` review (2ª chamada, não-adversarial) **esgotou a
       cota da conta OpenAI** (retry disponível 19/09) — não rodou; o `adversarial` já convergiu com
