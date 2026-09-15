@@ -1,0 +1,120 @@
+## Fatia 1 — Fundação (2 famílias de fixture + runner 2 modos + graders correspondentes)
+
+- [x] **1.1** `EvalPiiRedactor` (idade, nome de prova, cidade/clube) ao lado de
+      `LlmCallLedger.redigirNome`, mesmo padrão de regex Unicode-aware + marcador. Aceita qualquer
+      bloco de texto livre (não só `response_json`).
+      Verify: teste unitário cobrindo os 4 campos de PII, `./mvnw clean test`.
+- [x] **1.2** `EvalFixtureExtractor` (fixtures de auditoria) — query de amostragem estratificada
+      (arquétipo × cold-start × veredito) via `generation_request_id`. Congela `respostaHistorica`
+      (`response_json` + `schema_version` + `prompt_version`), `planoFinalPersistido` (snapshot de
+      `tb_plano_semanal`/`tb_treino_planejado`) e `zonasAtleta` (`AthleteZones` —
+      `fcMaxima`/`fcLimiar`/`paceLimiar` do atleta **no momento da extração**, rotulado
+      explicitamente como aproximação, não histórico exato — achado da rodada 3 de DoR) — **sem**
+      constraints/skeleton (não existem retroativamente, ver proposal.md "Correção de escopo").
+      Verify: teste com dataset sintético em memória validando estratificação; `EvalPiiRedactor`
+      chamado sobre os blocos de texto livre antes de gravar.
+- [x] **1.3** Rodar a extração uma vez contra o ledger real (execução manual/local, fora do CI) e
+      commitar as fixtures reais disponíveis em `src/test/resources/eval/plan-generation/auditoria/`
+      + `manifest.sha256`. **Achado na execução (2026-09-15):** o ambiente disponível (homelab) só
+      tinha 3 chamadas no ledger no total e 1 com join válido em `tb_plano_semanal` — muito abaixo
+      dos 40-60 que o proposal assumia (premissa de volume de produção real, ainda não atingida
+      nesse ambiente). Decisão do usuário: aceitar o volume real disponível agora (1 fixture),
+      documentar a revisão no proposal, e reavaliar quando houver mais uso real — ver proposal.md
+      "Correção de escopo" e CA1.
+      Verify: revisão manual da fixture única commitada — sem PII visível (nome/idade/prova/cidade
+      ausentes do conteúdo de origem, nada para redigir neste caso).
+- [ ] **1.4** Fixtures de candidato — estender os 5 arquétipos de `PlanoPromptArquetipos` expondo
+      ao runner de eval os parâmetros que hoje ficam internos ao teste golden (`provaAlvo`,
+      `diasEfetivos`, `decisaoProgressao`, `revisaoConsumida`, `ContextoTreino`); montar
+      `WeekPlanSkeleton`/`ComplianceContext`/`AthleteConstraints` frescos para os arquétipos com
+      `planner-engine.enabled` (mesma construção de `PlannerEngineGoldenSetTest`).
+      Verify: teste confirmando que os 5 (ou mais) arquétipos expostos produzem os mesmos
+      `system`/`user` que `PlanoTreinoPromptBuilderGoldenTest` já valida — garante que a exposição
+      não alterou o wiring existente.
+- [ ] **1.5** Profile Maven `-Peval` + tag JUnit `@Tag("eval")`, excluído por padrão do `surefire`,
+      incluído só sob `-Peval`. Propriedade `-Dmodo=candidato|auditoria` (default `auditoria`).
+      Verify: `./mvnw clean test` não executa nenhum teste `@Tag("eval")`; `./mvnw -Peval test`
+      executa em modo auditoria por default.
+- [ ] **1.6** `EvalDeterministicGrader` (só modo candidato) — despacha por `schema_version`: v2 passa
+      por `SessionResolver.resolverPlano` (com `AthleteZones` montado do perfil do arquétipo) antes
+      dos checkers; v1 desserializa direto. Chama `PlanQualityChecker.check(plano,
+      promptGerado.regras())` e, quando há skeleton, o método público
+      `PlannerShadowService.checkPreRedistribution(plano, skeleton, atleta, semanaInicio)` (mesmo
+      caminho de `IaServiceImpl:349-350` — reaproveita o `Atleta` sintético da fixture, não uma
+      reconstrução própria de `GeneratedPlanSnapshot`/`ComplianceContext`; achado da rodada 3 de
+      DoR: `SkeletonComplianceChecker.checkPreRedistribution` não aceita `PlanoSemanalLlmDto`
+      diretamente). `MeterRegistry` isolado (`SimpleMeterRegistry` descartável) só onde
+      `PlanQualityChecker` exige. `WeeklyFocusConsistencyChecker` fica fora do escopo.
+      Verify: teste com fixture de candidato v1 e v2 comparando saída do grader com chamada direta
+      a `PlanQualityChecker.check`/`PlannerShadowService.checkPreRedistribution` usando os mesmos
+      `regras`/`skeleton`/`atleta` (CA2, cobrindo os 2 branches).
+- [ ] **1.7** "Modo candidato" no runner — monta `PlanoTreinoPromptBuilder` manualmente (fora do
+      Spring, wiring de `PlanoPromptArquetipos`), mockando `TreinoHistoricoProvider` para devolver o
+      `ContextoTreino` congelado de cada fixture de candidato (task 1.4), chama `ChatClient` +
+      `LlmJsonSchemaBuilder` (v1 ou v2, pela flag do arquétipo) com o código atual do checkout,
+      produz resposta nova, roda o grader determinístico (1.6) + juiz-LLM (fatia 2) contra ela.
+      Verify: teste rodando o modo candidato duas vezes contra a mesma fixture — uma com o prompt
+      atual, outra com um prompt de teste deliberadamente alterado (troca do resource
+      `plano-treino-system.txt` por uma versão de teste) — e assere que as notas divergem (CA6).
+- [ ] **1.8** `EvalAgreementGrader` (só modo auditoria) — para `respostaHistorica` com
+      `schema_version=schema-v2`, resolve via `SessionResolver` (com `zonasAtleta` da fixture,
+      task 1.2) antes de comparar contra `planoFinalPersistido`; para v1, compara direto. % de
+      campos estruturais divergentes.
+      Verify: teste com fixture sintética de divergência conhecida, cobrindo os 2 branches de
+      `schema_version`.
+- [ ] **1.9** Runner de eval — carrega a família de fixture certa por modo (auditoria: juiz +
+      concordância; candidato: grader determinístico + juiz), imprime tabela em stdout (formato
+      fixo, colável em descrição de PR), custo agregado em memória.
+      Verify: `./mvnw -Peval verify` produz a tabela em modo auditoria contra as fixtures reais
+      (CA4, parcial — juiz ainda não implementado, fatia 2); `./mvnw -Peval verify -Dmodo=candidato`
+      roda contra as fixtures sintéticas (CA6, parcial).
+- [ ] **1.10** Checkpoint: commit da fatia 1, `./mvnw clean verify` (sem `-Peval`) continua verde —
+      zero regressão no pipeline de produção.
+
+## Fatia 2 — Grader LLM-juiz (roda nos dois modos)
+
+- [ ] **2.1** Decidir e documentar eixos da rubrica (4 originais: progressão, polarização,
+      especificidade para a prova, clareza; ou expandir para 6, incluindo exequibilidade de carga e
+      segurança/lesão — ver design.md §2, nota do `product-reviewer`). Prompt de rubrica + schema
+      JSON estruturado para a resposta do juiz.
+      Verify: teste unitário do schema (mesmo padrão de `LlmJsonSchemaBuilderTest`).
+- [ ] **2.2** `EvalLlmJudge` — chama a LLM real via `ChatClient`, `route=EVAL_JUDGE` no ledger (só
+      para auditoria/retenção — não é a fonte do custo agregado, ver 2.5). Roda contra
+      `respostaHistorica` (modo auditoria) ou a resposta candidata (modo candidato, task 1.7).
+      Verify: teste com `ChatClient` mockado validando parse da resposta e propagação de erro.
+- [ ] **2.3** Mecanismo de coleta da nota humana para as 20 fixtures de auditoria escolhidas para
+      calibração (decidir formato na implementação — planilha ou endpoint simples).
+      Verify: decisão documentada no `design.md` ou num ADR curto se envolver novo endpoint.
+      **Depende de disponibilidade de um coach real (Open Question do proposal) — se bloquear, a
+      fatia 2 pausa aqui e o restante segue com o juiz implementado mas não calibrado.**
+- [ ] **2.4** Cálculo de concordância de quadrante (juiz vs. coach) no runner, só para a rubrica
+      reduzida de auditoria; abaixo de 16/20, a coluna do juiz na tabela de auditoria é marcada "NÃO
+      CALIBRADO" (aviso, não bloqueio de build). A coluna do juiz em modo candidato (rubrica
+      completa) é marcada "NÃO CALIBRADO" incondicionalmente nesta versão — os 20 casos de auditoria
+      não validam progressão/segurança (achado da rodada 4 de DoR, Codex).
+      Verify: teste com fixtures sintéticas de calibração conhecida para auditoria (CA3); teste
+      confirmando que a coluna de candidato nunca sai de "NÃO CALIBRADO" nesta versão.
+- [ ] **2.5** Integrar o grader do juiz na tabela do runner, nos dois modos, com custo calculado em
+      memória via `LlmPricingRegistry.precoDe(modelo)` sobre o `Usage` de cada chamada real.
+      Verify: `./mvnw -Peval verify` (modo auditoria) e `-Dmodo=candidato` mostram a coluna do juiz +
+      custo total (CA4 completo).
+- [ ] **2.6** Checkpoint: commit da fatia 2, `./mvnw clean verify` (sem `-Peval`) continua verde.
+
+## Fatia 3 — Gate de PR
+
+- [ ] **3.1** Atualizar `apps/menthoros-backend/CLAUDE.md` — Delivery Checklist — exigindo a tabela
+      do **modo candidato** em PRs que tocam `resources/prompts/**`, `dto/llm/**` ou
+      `llm-pricing.yml`, com a nota explícita de que a coluna do juiz em modo candidato é "NÃO
+      CALIBRADO" por padrão nesta versão (a calibração de auditoria não valida a rubrica completa
+      — achado da rodada 4 de DoR) — usar grader determinístico como evidência primária do gate,
+      juiz como sinal complementar, nunca isolado (CA5).
+      Verify: revisão manual do texto adicionado.
+- [ ] **3.2** Checkpoint final: commit da fatia 3, `./mvnw clean verify` (sem `-Peval`) verde,
+      `./mvnw -Peval verify` (auditoria) e `-Dmodo=candidato` rodam de ponta a ponta.
+
+## Fechamento
+
+- [ ] **4.1** `/qa` — code-reviewer + security-reviewer (atenção a PII residual nas fixtures de
+      auditoria e a custo/rate-limit do modo candidato + grader LLM-juiz) + clean-code-reviewer +
+      Codex cross-model.
+- [ ] **4.2** Atualizar `openspec/SPRINTS.md` (linha da Sprint 30) e arquivar a change após merge.
