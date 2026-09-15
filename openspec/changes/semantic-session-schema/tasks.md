@@ -184,12 +184,20 @@ dentro de `validar` — o `SessionResolver` (task 4) não valida nada, só resol
 
 ## 7. Prompt v2
 
-- [ ] 7.1 `src/main/resources/prompts/plano-treino-system-v2.txt` novo (não sobrescreve v1) —
-      remove o bloco de fórmulas de contagem/recuperação (`plano-treino-system.txt:183-337`),
-      substitui por instruções sobre o schema de blocos. O bloco de skeleton do dia
-      (`formatarBlocoSlots`) não muda — igual em v1 e v2.
-      `verify:` teste confirma que v2 carrega o arquivo novo e v1 continua carregando o de sempre —
-      sem regressão de hash em v1 (`PromptHashCalculator`).
+- [x] 7.1 `src/main/resources/prompts/plano-treino-system-v2.txt` novo (não sobrescreve v1) —
+      preserva as seções de coaching (análise pré-planejamento, priorização por objetivo, matriz de
+      variabilidade, regras de distribuição/progressão), remove o bloco de fórmulas de expansão
+      etapa-por-etapa (`plano-treino-system.txt:183-337`, intervalado e fartlek) e os parâmetros de
+      intensidade que a LLM não calcula mais (`intensidadePlanejada`/`percepcaoEsforcoEsperada`),
+      substitui por uma seção "ESTRUTURA DO TREINO EM BLOCOS" descrevendo o schema (`papel`,
+      `repeticoes`, `quantidadePorRepeticao`, `unidade`, `zona`, `recuperacao`) com 2 exemplos JSON
+      completos. Enums/campos obrigatórios/checklist final atualizados para blocos. O bloco de
+      skeleton do dia (`formatarBlocoSlots`) não muda — fora deste arquivo, injetado separadamente
+      pelo `PlanoTreinoPromptBuilder` (igual em v1 e v2).
+      `verify:` `PromptHashCalculatorTest$SchemaV2`, 2/2 novos verde (6/6 no arquivo) — v2 carrega
+      via `PromptHashCalculator`/`ClassPathResource` sem afetar o hash de v1 (golden de v1
+      continua batendo, `ArquivoDoGolden` inalterado); v2 contém o vocabulário de blocos e não
+      contém as fórmulas de expansão de v1.
 
 ## 8. Versionamento de schema
 
