@@ -201,11 +201,19 @@ dentro de `validar` — o `SessionResolver` (task 4) não valida nada, só resol
 
 ## 8. Versionamento de schema
 
-- [ ] 8.1 `SchemaVersion` ganha um segundo valor (`"schema-v2"`) — enum ou equivalente.
-      `PlanoLlmLedgerHook.Sessao.chamar` (`:67`) recebe o valor resolvido em vez de
-      `SchemaVersion.CURRENT` fixo.
-      `verify:` teste do ponto de registro do ledger confirma `schema_version = "schema-v1"` no
-      caminho v1 (sem regressão) e `"schema-v2"` no caminho v2.
+- [x] 8.1 `SchemaVersion.V2 = "schema-v2"` — constante nova ao lado de `CURRENT` (não enum: mesmo
+      padrão de `PromptVersion`/`PlannerVersion`, string simples). `PlanoLlmLedgerHook.Sessao` ganha
+      overload `chamar(int tentativa, String schemaVersion, Supplier<T> chamada)` — o `chamar(int,
+      Supplier)` existente (todo o caminho v1) delega para ele com `SchemaVersion.CURRENT`, **sem
+      mudar assinatura nem comportamento**. O hash do prompt também varia por schema: `prompt_hash`
+      resolve `promptHashV2.valor()` quando `schemaVersion=V2`, senão `promptHash.valor()` (v1,
+      inalterado). `PromptHashCalculatorV2` novo (`ai/ledger/`) — gêmeo de `PromptHashCalculator`
+      dedicado ao template v2, **sem tocar a classe/constructor de v1** (evita quebrar os testes
+      existentes que a constroem direto com 2 args).
+      `verify:` `PlanoLlmLedgerHookTest`, 14/14 (17/17 com `PlanoLlmLedgerHookAdvisorIntegrationTest`)
+      — teste novo confirma `chamar(1, SchemaVersion.V2, ...)` grava `schema_version="schema-v2"` e
+      `prompt_hash` de `promptHashV2`, sem tocar `promptHash` (v1); suíte v1 existente 100% verde
+      sem alteração de assertions (`chamar(int, Supplier)` continua gravando `"schema-v1"`).
 
 ## 9. Wiring — `IaServiceImpl.gerarChamadaLlm`
 
