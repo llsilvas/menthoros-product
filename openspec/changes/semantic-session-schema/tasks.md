@@ -39,44 +39,49 @@
 
 ## 1. DTOs v2 — família paralela
 
-- [ ] 1.1 `enum Zona { Z1, Z2, Z3, Z4, Z5, LIMIAR }` — novo tipo, só v2.
-- [ ] 1.2 `dto/llm/v2/PlanoSemanalLlmDtoV2.java`, `dto/llm/v2/TreinoPlanejadoLlmDtoV2.java`,
-      `dto/llm/v2/BlocoDto.java`, `dto/llm/v2/RecuperacaoDto.java` — records. `BlocoDto(papel,
-      repeticoes: int, quantidadePorRepeticao: BigDecimal, unidade: MIN/SEG/KM/M, zona: Zona,
-      recuperacao: RecuperacaoDto?)`. `RecuperacaoDto(quantidade: BigDecimal, unidade: MIN/SEG/KM/M)`
-      — sem `zona` própria (resolve sempre em `Z1`, design.md Decisão 2).
-      `verify:` compila; Bean Validation básica (`@NotNull`/`@Min`) onde fizer sentido.
+- [x] 1.1 `dto/llm/v2/Zona.java` — enum `Z1..Z5, LIMIAR` com `indice()` (`LIMIAR` → 4, mesmo índice
+      de `Z4`). `dto/llm/v2/Papel.java` (`AQUEC/PRINCIPAL/RECUP/DESAQ`),
+      `dto/llm/v2/UnidadeQuantidade.java` (`MIN/SEG/KM/M`) — tipos auxiliares, só v2.
+- [x] 1.2 `dto/llm/v2/PlanoSemanalLlmDtoV2.java`, `dto/llm/v2/TreinoPlanejadoLlmDtoV2.java`,
+      `dto/llm/v2/BlocoDto.java`, `dto/llm/v2/RecuperacaoDto.java` — records, mesmo padrão de
+      `@JsonInclude(NON_NULL)` + `@Schema` que os DTOs v1. Sem Bean Validation (`@NotNull`/`@Min`) —
+      **consistente com v1**: `TreinoPlanejadoLlmDto`/`EtapaTreinoLlmDto` também não têm; a
+      validação real é o JSON Schema `strict` (task 2) + `validarEstruturaV2` (task 6), não Bean
+      Validation em DTO de saída de LLM.
+      `verify:` `./mvnw -o compile` verde.
 
 ## 2. `LlmJsonSchemaBuilder` v2
 
-- [ ] 2.1 Método novo (mesmo arquivo, mesmo padrão de `buildSchemaTightInlineOrDefs`) refletindo via
-      `BeanOutputConverter` sobre `PlanoSemanalLlmDtoV2.class`, com o mesmo pós-processamento manual
-      que v1 já tem (min/max, enums, `required` forçado) adaptado aos campos de `BlocoDto`.
-      `verify:` teste snapshot/estrutural do schema gerado — confirma que `blocos` é array com
-      `minItems` coerente, `zona`/`unidade`/`papel` viram enum no JSON Schema, `required` cobre os
-      campos obrigatórios.
+- [x] 2.1 `LlmJsonSchemaBuilder.buildSchemaV2()`/`v2JsonSchemaOptions()` — mesmo padrão de
+      `buildSchemaTightInlineOrDefs`, refletindo via `BeanOutputConverter` sobre
+      `PlanoSemanalLlmDtoV2.class`. `zona`/`papel`/`unidade` são enums Java reais nos DTOs v2 (não
+      `String` como em v1) — o `BeanOutputConverter` já gera `enum` no schema por reflexão, sem
+      `putEnum` manual para eles. `recuperacao` (opcional) usa `anyOf` com objeto/null, mesmo padrão
+      de `ritmoAlvo` nullable em v1.
+      `verify:` `LlmJsonSchemaBuilderTest$BuildSchemaV2` — 4 testes novos, 8/8 verde no arquivo
+      (4 v1 existentes + 4 v2 novos): `blocos` array `minItems=1` sem campos absolutos no treino,
+      `zona`/`papel` viram enum no schema, `required` cobre treino e bloco, `v2JsonSchemaOptions()`
+      envolve em `ResponseFormat` `strict:true`.
 
 ## 3. `ZoneResolver` v2
 
-- [ ] 3.1 `services/helper/ZoneResolver.java` (novo arquivo, `@Component`, injeta
-      `ZonaTreinoService` — não mexe em `TreinoNormalizador`): `bpm(Zona zona, Integer fcMaxima,
-      Integer fcLimiar): FaixaFc` delega para `zonaTreinoService.calcularZonasFC(fcMaxima,
-      fcLimiar)`; `pace(Zona zona, BigDecimal paceLimiar): FaixaPace` delega para
-      `zonaTreinoService.calcularZonasPace(paceLimiar)` — **já calibrado, achado durante a
-      implementação (design.md Decisão 6): não é fórmula nova, é o mesmo serviço que
-      `PlanoLlmValidator`/`PaceZoneCalculator` já usam hoje**. `Zona.indice()` mapeia `Z1..Z5=1..5`,
-      `LIMIAR=4`. Fallback de último recurso (atleta sem `fcMaxima`/`fcLimiar`/`paceLimiar`
-      algum — `ZonaTreinoService` devolve zona `(0,0)` nesse caso): cai para o fallback percentual
-      textual de v1 (FC, `TreinoNormalizador.java:351-355`) e os defaults fixos Z1/Z2 + extrapolação
-      linear (pace, mesma tabela estimada Z3=1.10/Z4=1.00/Z5=0.92/LIMIAR=1.00 documentada no design,
-      agora rebaixada a caso raro).
-      `verify:` `ZoneResolverTest` — Z1–Z5, `LIMIAR`, com `fcMaxima`/`fcLimiar`/`paceLimiar`
-      presentes (delega para `ZonaTreinoService`, valores batem com os calculados por ele
-      diretamente) e ausentes (fallback de último recurso) — mock só de `ZonaTreinoService` (é
-      `@Component`, não domínio 100% puro, mas sem `@Entity` cruzando a fronteira).
-- [ ] 3.2 Confirmar que `TreinoNormalizador.java` e `PaceValidator.java` não são tocados;
-      `NormalizacaoDeTreino.java` só ganha o método novo da task 6.1 (nenhuma visibilidade mudada).
-      `verify:` `git diff --stat` restrito ao que as tasks 4.x/6.x preveem.
+- [x] 3.1 `services/helper/ZoneResolver.java` — `@Component`, injeta `ZonaTreinoService` (não mexe
+      em `TreinoNormalizador`). `bpm(Zona, Integer fcMaxima, Integer fcLimiar): FaixaFc` delega para
+      `calcularZonasFC` — **`fcMaxima`/`fcLimiar` devem vir de `Atleta.getFcMaximaCalculada()`/
+      `getFcLimiarCalculada()`, que nunca retornam `null`** (achado durante a implementação: essas
+      duas accessor methods já têm fallback por idade/percentual embutido — não existe caso de FC
+      ausente em `ZoneResolver`, diferente do que o design supunha). `pace(Zona, @Nullable
+      BigDecimal paceLimiar): FaixaPace` delega para `calcularZonasPace` — `paceLimiar` (campo cru
+      de `Atleta`, sem accessor com fallback) pode ser `null` de verdade; nesse caso usa
+      `PACE_LIMIAR_FALLBACK_MIN_KM=5.83` (implícito pelos defaults fixos que v1 já tinha:
+      `PACE_Z2_DEFAULT_MIN_KM=7.0 ÷ FATOR_PACE_Z2=1.20`) e delega para o mesmo
+      `calcularZonasPace` — sem tabela separada. `Zona.indice()` mapeia `Z1..Z5=1..5`, `LIMIAR=4`.
+      `verify:` `ZoneResolverTest`, 6/6 verde — `bpm`/`pace` batem exatamente com
+      `ZonaTreinoService` chamado direto para as 5 zonas; `LIMIAR` == `Z4`; `pace` sem `paceLimiar`
+      nunca lança e mantém Z5 mais rápido que Z1 (coerência do fallback). `ZonaTreinoService` real
+      (não mock) — é puro e barato, mesmo padrão de `ZonaTreinoServiceTest`.
+- [x] 3.2 Confirmado: `git status` só lista `ZoneResolver.java`/`ZoneResolverTest.java` — nenhum
+      arquivo de v1 (`TreinoNormalizador`, `PaceValidator`, `NormalizacaoDeTreino`) tocado.
 
 ## 4. `SessionResolver` — domínio puro, roda uma vez por tentativa, dentro de `gerar` (sem validar)
 

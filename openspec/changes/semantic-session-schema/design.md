@@ -220,23 +220,25 @@ FaixaPace pace(Zona zona, BigDecimal paceLimiar) {
     return new FaixaPace(z.paceMin(), z.paceMax());
 }
 ```
-**Fallback quando o atleta não tem FC/pace cadastrado:** `ZonaTreinoService.calcularZonaFC`/
-`calcularZonaPace` já são null-safe — devolvem zona `(0, 0)` quando `fcBase`/`paceLimiar` é `null`
-(não lançam). Isso é diferente do fallback percentual textual de v1
-(`TreinoNormalizador:351-355`, `"60-70% FCmax"` etc.) — `(0,0)` é um valor-sentinela sem
-significado físico, não um número plausível. **Decisão:** `ZoneResolver` detecta esse caso
-(`fcMin==0 && fcMax==0`) e cai para o mesmo fallback percentual de v1 só nesse caso extremo (atleta
-sem NENHUM dado fisiológico) — não para pace, que não tinha fallback textual em v1 para nenhuma
-zona; nesse caso usa os defaults fixos que v1 já tinha para Z1/Z2
-(`PACE_Z1_DEFAULT_MIN_KM=8.0`/`PACE_Z2_DEFAULT_MIN_KM=7.0`) e extrapola linearmente para Z3-Z5/LIMIAR
-só como sentinela de último recurso (mesma tabela estimada da versão anterior desta decisão,
-rebaixada de "cálculo principal" para "fallback de fallback" — praticamente nunca deve ser
-exercitada em produção, já que a maioria dos atletas tem ao menos `fcMaxima` calculada por idade).
+**FC nunca precisa de fallback (achado durante a implementação, task 3.1):** `Atleta.getFcMaximaCalculada()`/
+`getFcLimiarCalculada()` (`entity/Atleta.java:207-238`) já **nunca retornam `null`** — sempre caem
+em `220-idade`/`180` fixo (FC máxima) ou `0.85 × fcMaximaCalculada` (FC limiar) quando o campo cru
+está ausente. Se o mapper de `AthleteZones` (service layer) passa essas duas "Calculada", não essas
+duas cruas, `ZoneResolver.bpm` nunca vê `fcMaxima`/`fcLimiar` nulos — sem necessidade do fallback
+`(0,0)`/percentual textual que a versão anterior desta decisão previa.
 
-Isso **fecha a maior parte da task 0.5** (calibração de pace) — não é mais uma estimativa a validar
-antes do piloto, é o mesmo cálculo que `PlanoLlmValidator`/`PaceValidator` já confiam para outras
-partes do pipeline hoje. Task 0.5 fica só para o lookup zona→RPE (`percepcaoEsforcoEsperada`), que
-de fato não tem precedente no código.
+**Pace precisa de fallback de verdade:** `Atleta.paceLimiar` (`entity/Atleta.java:79`) é campo cru
+**sem** accessor com fallback equivalente — pode ser `null` de verdade. `ZoneResolver.pace` cai para
+`PACE_LIMIAR_FALLBACK_MIN_KM=5.83` (constante única, implícita pelos defaults fixos que v1 já tinha
+— `PACE_Z2_DEFAULT_MIN_KM=7.0 ÷ FATOR_PACE_Z2=1.20`) e delega para o mesmo
+`zonaTreinoService.calcularZonasPace` — **não uma tabela separada por zona**: um só valor sintético
+alimentando o cálculo calibrado, mais simples que a extrapolação linear que a versão anterior desta
+decisão propunha.
+
+Isso **fecha a task 0.5 de pace** — não é mais uma estimativa a validar antes do piloto, é o mesmo
+cálculo que `PlanoLlmValidator`/`PaceZoneCalculator` já confiam hoje, com um único ponto sintético
+de entrada no caso raro de ausência. Task 0.5 fica só para o lookup zona→RPE
+(`percepcaoEsforcoEsperada`), que de fato não tem precedente no código.
 
 ## 8. Decisão 7 — Versionamento de schema (igual à versão anterior, confirmado sem mudança)
 
