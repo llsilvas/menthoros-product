@@ -173,14 +173,14 @@ dentro de `validar` — o `SessionResolver` (task 4) não valida nada, só resol
       skeleton) não compara, não lança; desvio > ±20% lança `LLMException` com a diferença exata.
       `verify:` `NormalizacaoDeTreinoValidarEstruturaV2Test$ValidarTssSlotV2`, 3/3 verde — dentro da
       faixa passa, fora rejeita com mensagem, slot sem alvo não lança.
-- [ ] 6.3 Compor `validarEstruturaV2` (6.1) + `validarTssSlotV2` (6.2) num método público que
-      substitui `validarENormalizarPlanoGerado` no caminho v2, chamado dentro de `validar` (a função
-      passada para `PlanoResilienceService.gerarComResiliencia`) — retry-aware, igual v1 (design.md
-      Decisão 3, ordem final). **Pendente** — depende do wiring da seção 9
-      (`IaServiceImpl.gerarChamadaLlm`), onde `SessionSlot` do dia está disponível via
-      `SkeletonPrePrompt`.
-      `verify:` teste de integração — 1ª tentativa v2 com violação estrutural aciona o turno de
-      reparo (F3) exatamente como v1 aciona hoje.
+- [x] 6.3 `PlanoLlmValidator.validarPlanoV2(PlanoSemanalLlmDto, Atleta, UUID, WeekPlanSkeleton)` —
+      público, compõe `validarEstruturaV2` (6.1) + `validarTssSlotV2` (6.2) por treino (reusa
+      `contexto()` privado existente para `ContextoNormalizacao`; resolve o `SessionSlot` do dia via
+      novo helper privado `encontrarSlot`, usando `Utils.converterParaDayOfWeek`), substitui
+      `validarENormalizarPlanoGerado` no caminho v2 dentro de `validar` (task 9.2) — retry-aware,
+      igual v1 (design.md Decisão 3, ordem final).
+      `verify:` `PlanoLlmValidatorTest$ValidarPlanoV2` (task 9.2) + `IaServiceImplGerarChamadaLlmV2Test`
+      (turno de reparo) — violação estrutural v2 aciona o mesmo mecanismo de retry (F3) que v1.
 
 ## 7. Prompt v2
 
@@ -217,31 +217,47 @@ dentro de `validar` — o `SessionResolver` (task 4) não valida nada, só resol
 
 ## 9. Wiring — `IaServiceImpl.gerarChamadaLlm`
 
-- [ ] 9.1 `usaV2` resolvido uma vez no início de `geraPlanoSemanalAvancado` (allowlist de tenant,
-      task 10) — não recalculado a cada retry.
-- [ ] 9.2 Dentro de `gerarChamadaLlm` (função `gerar`, roda **fora** do escopo de retry): branch v2
-      usa o schema v2 (task 2) na chamada, parseia a resposta em `PlanoSemanalLlmDtoV2` (novo
-      `parsearPlanoV2`, espelho de `parsearPlano` — erro de parse continua sem retry, mesmo
-      comportamento de v1), roda **só** `SessionResolver.resolverPlano` (task 4, sem validar) —
-      devolve `ChamadaLlm` com o `PlanoSemanalLlmDto` (v1-shaped) resultante. Dentro da função
-      `validar` (passada para `gerarComResiliencia`, protegida pelo retry): branch v2 chama
-      `validarEstruturaV2` + checagem de TSS (task 6.3) em vez de `validarENormalizarPlanoGerado`,
-      depois `aplicarComplianceEstagio1` (nível de dia, inalterado) igual v1.
-      `verify:` teste de integração (fixtures, sem LLM real) — plano v2 completo, do
-      `PlanoSemanalLlmDtoV2` (mock) até o `TreinoPlanejadoOutputDto` final, mesmo shape que um plano
-      v1 equivalente produziria; violação estrutural na 1ª tentativa aciona o turno de reparo (F3).
-- [ ] 9.3 Branch v1 inalterado — nenhum teste de `IaServiceImpl` existente muda de expectativa;
+- [x] 9.1 `usaV2 = schemaVersionResolver.usaV2(TenantContext.getRequiredTenantId())` resolvido uma
+      vez no início de `geraPlanoSemanalAvancado` (allowlist de tenant, task 10) — não recalculado a
+      cada retry; `schemaVersion` (`SchemaVersion.CURRENT`/`V2`) derivado junto.
+      `promptBuilder.buildOptimizedPrompt(..., usaV2)` (novo overload, task 7) seleciona o template.
+- [x] 9.2 `gerarChamadaLlmV2` novo (branch v2 de `gerarChamadaLlm`, função `gerar` — roda **fora** do
+      escopo de retry): usa `llmJsonSchemaBuilder.v2JsonSchemaOptions()` na chamada, parseia a
+      resposta em `PlanoSemanalLlmDtoV2` (`parsearPlanoV2`, espelho de `parsearPlano` — erro de
+      parse continua sem retry), roda **só** `SessionResolver.resolverPlano` (task 4, sem validar,
+      `AthleteZones` montado de `atleta.getFcMaximaCalculada()/getFcLimiarCalculada()/getPaceLimiar()`)
+      — devolve `ChamadaLlm` com o `PlanoSemanalLlmDto` (v1-shaped) resultante; `jsonBruto` continua
+      sendo o texto v2 cru (usado no turno de reparo como `AssistantMessage`, agnóstico a schema).
+      Dentro de `validar` (protegida pelo retry): branch v2 chama
+      `planoLlmValidator.validarPlanoV2(p, atleta, atleta.getId(), skeleton)` (task 6.3, novo método
+      em `PlanoLlmValidator` — reusa `contexto()` privado existente, compõe `validarEstruturaV2` +
+      `validarTssSlotV2` por treino, resolve o `SessionSlot` do dia via `Utils.converterParaDayOfWeek`)
+      em vez de `validarENormalizarPlanoGerado`, depois `aplicarComplianceEstagio1` (nível de dia,
+      inalterado) igual v1.
+      `verify:` `IaServiceImplGerarChamadaLlmV2Test`, 5/5 verde — `SessionResolver` real (compõe
+      `ZoneResolver`/`TssCalculatorService` reais) resolve um plano v2 completo (blocos) para o
+      shape v1 (3 etapas, `duracaoMin`/`tssPlanejado`/`fcAlvo` calculados); usa
+      `v2JsonSchemaOptions()`; `content()` nulo → entidade nula sem lançar; JSON malformado → lança
+      sem retry; turno de reparo (2ª tentativa) acrescenta `assistant(jsonAnterior v2)` +
+      `user(correção)`, `system`/`user` originais idênticos à 1ª. `PlanoLlmValidatorTest$ValidarPlanoV2`,
+      4/4 verde — plano válido sem skeleton passa; 2 treinos com estrutura inválida → 2 `Violacao`;
+      TSS fora/dentro de ±20% do slot rejeita/passa.
+- [x] 9.3 Branch v1 inalterado — `IaServiceImplComplianceEstagio1Test`/`IaServiceImplGerarChamadaLlmTest`
+      (F3) precisaram só do novo arg no construtor (2 mocks a mais), nenhuma assertion mudou;
       assinaturas públicas de `geraPlanoSemanalAvancado`, `PlanoResilienceService.ChamadaLlm`,
       `TreinoMapper` não mudam.
-      `verify:` suíte de `IaServiceImplTest`/`IaServiceImplGerarChamadaLlmTest` (F3) 100% verde sem
-      alteração de assertions.
+      `verify:` 153 testes (todo o pacote `services/helper` + `services/impl` afetado) + 3
+      (`PlanoLlmLedgerHookAdvisorIntegrationTest`) — 100% verde.
 
 ## 10. Flag — allowlist de tenant
 
-- [ ] 10.1 `app.llm.plano.schema-version-v2-tenants` (CSV de UUIDs, default vazio) — parseado como
-      `Set<UUID>`; resolução via `TenantContext.getRequiredTenantId()` contra o set.
-      `verify:` teste unitário — tenant no set → v2; fora → v1; set vazio (default) → todos v1; CSV
-      inválido não derruba o startup.
+- [x] 10.1 `services/helper/SchemaVersionResolver.java` — `app.llm.plano.schema-version-v2-tenants`
+      (CSV de UUIDs, default vazio) parseado como `Set<UUID>` no construtor (`@Value`);
+      `usaV2(UUID tenantId)` resolve contra o set. Token de CSV inválido é logado e ignorado
+      (`log.warn`), não derruba o startup — só os tokens válidos entram no set.
+      `verify:` `SchemaVersionResolverTest`, 6/6 verde — tenant no CSV → v2; fora → v1; CSV vazio
+      (default) → todos v1; múltiplos tenants com espaços resolvem todos; `tenantId` nulo nunca usa
+      v2 sem lançar; CSV com token inválido não derruba o construtor e mantém os tokens válidos.
 
 ## 11. Arquivamento de changes supersedidas
 
