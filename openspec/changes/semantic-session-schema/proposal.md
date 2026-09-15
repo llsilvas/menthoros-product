@@ -1,173 +1,202 @@
-**Tamanho:** L · **Trilha:** Full
+**Tamanho:** M · **Trilha:** Full
+
+## Correção de escopo (2026-09-15, 3 rodadas de DoR — histórico)
+
+**Rodada 3 (esta versão):** a rodada 2 assumia um loop de chamada à LLM por treino — não existe.
+`IaServiceImpl.geraPlanoSemanalAvancado` faz **uma única chamada por tentativa**, devolvendo o
+`PlanoSemanalLlmDto` da semana inteira de uma vez (`treinosPlanejados` já populado). O encaixe de v2
+corrigido: `SessionResolver` roda **uma vez por tentativa**, logo após o parse da resposta única,
+convertendo `PlanoSemanalLlmDtoV2` (blocos) em `PlanoSemanalLlmDto` (v1-shaped, etapas já
+resolvidas) — a partir daí todo o resto do pipeline (turno de reparo F3, validação, persistência)
+roda idêntico para v1 e v2, sem saber a diferença. Ver design.md §0-§1 para o fluxo completo e a
+correção contra o código real.
+
+A versão anterior deste proposal partia de uma premissa desatualizada: que o `WeekPlanSkeleton`
+ainda vivia em shadow-mode, e que F4 precisaria "promovê-lo a decisor" de tipo/foco/TSS por dia.
+**Isso já aconteceu** — `planner-engine-enforcement` (arquivada, PRs #107-109/#119, MERGED) já
+injeta o skeleton como bloco mandatório no `user` (`PlanoTreinoPromptBuilder.formatarBlocoSlots`,
+`":367,450-469"`, texto literal "não altere dia/tipo/TSS/zona; preencha apenas a estrutura fina de
+cada sessão") e já enforça em 2 estágios via `SkeletonComplianceChecker` (retry no estágio 1,
+`FAILED`+`requiresCoachReview` terminal no estágio 2). Os Javadocs de `SessionSlot`/`WeekPlanSkeleton`
+("não é prescritiva") ficaram desatualizados no merge — o comportamento real diverge deles.
+
+**Escopo real de F4, corrigido:** o skeleton já fixa **o quê** em nível de dia (tipo, foco, TSS
+alvo, zona da sessão). O que a LLM ainda decide livremente é **o quanto** dentro de cada dia já
+fixado — pace, FC, distância, duração por etapa (`EtapaTreinoLlmDto`). É aí, um nível abaixo do que
+a proposta original mirava, que F4 atua. Tamanho revisado de L para M — o escopo real é mais
+contido: não muda a **assinatura pública** de `IaServiceImpl.geraPlanoSemanalAvancado` nem de
+`PlanoResilienceService.ChamadaLlm` (que continuam operando no `PlanoSemanalLlmDto` de sempre) —
+o `SessionResolver` roda **dentro** de `gerarChamadaLlm` (privado), logo após o parse único da
+resposta da LLM, convertendo `PlanoSemanalLlmDtoV2` para o shape v1 antes de devolver ao resto do
+pipeline (ver design.md §1).
 
 ## Why
 
-Hoje a LLM decide **quanto** (pace, FC, distância, duração — números absolutos) e **o quê**
-(estrutura qualitativa do treino) na mesma resposta. O contrato de saída (`TreinoPlanejadoLlmDto`,
-`EtapaTreinoLlmDto`) pede à LLM para calcular `fcAlvo`, `ritmoAlvo`, `distanciaKm` e `duracaoMin`
-por etapa — aritmética que o Java já sabe fazer de forma determinística a partir das zonas do
-atleta (`zonaParaFc` em `TreinoNormalizador`, `PaceValidator`), e que a LLM erra com frequência
-suficiente para justificar ~155 linhas de `plano-treino-system.txt` (`183-337`) ensinando fórmulas
-de contagem de etapas e faixas percentuais de recuperação, mais um pipeline de correção pós-hoc em
-`NormalizacaoDeTreino` (`corrigirFcZona`, `corrigirPaceTetoPiso`, `recalcularDuracao`,
-`reconciliarDistanciaComEtapas`, `expandirEtapasAgregadas` — todo esse bloco existe só para
-consertar aritmética que a LLM não deveria ter feito).
+Dentro de cada slot do dia (já fixado pelo skeleton: tipo, foco, TSS-alvo, zona), a LLM ainda
+escreve a etapa inteira — `fcAlvo`, `ritmoAlvo`, `distanciaKm`, `duracaoMin` — como aritmética
+livre. Ela erra com frequência suficiente para justificar ~155 linhas de
+`plano-treino-system.txt:183-337` ensinando fórmulas de contagem de etapas
+(`3 + 2×tiros`) e faixas percentuais de recuperação, mais um pipeline de correção pós-hoc em
+`TreinoNormalizador`/`NormalizacaoDeTreino` (`expandirEtapasAgregadas`, `normalizarTreinoIntervalado`,
+`reconciliarDistanciaComEtapas`) que existe só para consertar aritmética que a LLM não deveria ter
+feito. Essa mistura tem custo direto: prompt maior, mais chance de erro, e um pipeline de correção
+que hoje **sempre insere recuperação após cada tiro, inclusive o último** (`TreinoNormalizador:126`)
+— uma decisão implícita no código, nunca revisada como regra de produto.
 
-Essa mistura tem um custo direto: prompt maior (mais tokens de instrução, mais chance de erro
-aritmético), validação maior (regras de tolerância como o triângulo pace×distância×duração,
-`validarTrianguloPaceDuracaoDistancia`, hoje WARN em 20% flat — ver `fix-cold-start-calibration-plan-generation`
-§13.3–13.4), e um `WeekPlanSkeleton`/`SessionSlot` (`domain/planner/`) que já tem quase o shape
-certo (`sessionType`, `intensityZone`, `targetTss`, `durationMinutes`) mas vive em shadow mode —
-audita o plano depois de pronto, não o determina.
-
-A separação de responsabilidade é o próximo salto de F1–F3 (system/user split, ledger, turno de
-reparo): tirar da LLM tudo que é cálculo determinístico e deixar só o julgamento qualitativo —
-que tipo de estímulo, em que ordem, com que peso relativo. O `SessionSlot` do skeleton passa a
-determinar tipo/foco de cada dia da semana (hoje é o LLM quem decide isso do zero); a LLM preenche
-o miolo (blocos por papel, zona relativa, racional); o Java resolve os números absolutos que o
-front já espera.
+A separação "quanto é do Java, o quê é do LLM" já valeu para o nível de dia (F planner-engine-enforcement);
+esta change estende a mesma lógica um nível abaixo, para dentro do treino: a LLM decide a estrutura
+qualitativa do treino (quantas repetições, em que zona, com que recuperação relativa); o Java
+resolve os números absolutos, do mesmo jeito determinístico que já faz hoje só que como correção —
+em v2, vira geração direta, sem o que corrigir.
 
 Esta change também fecha um gap de duas changes ativas e obsoletas: `validate-interval-workout-standards`
-(0/79 tasks — a ideia de "validação rigorosa + padronização automática" foi superada pelo
-`PlanoLlmValidator`/`NormalizacaoDeTreino` que já existem) e `fix-cold-start-calibration-plan-generation`
-§13.4 (as perguntas de produto sobre tolerância do triângulo pace×distância×duração e quais WARNs
-sobem para obrigatório ficam moot em v2 — não existe mais triângulo a tolerar quando o Java calcula
-os três números a partir da zona).
+(0/79 tasks — superada pelo `PlanoLlmValidator`/`NormalizacaoDeTreino` que já existem) e
+`fix-cold-start-calibration-plan-generation` §13.4 (as perguntas de produto sobre tolerância do
+triângulo pace×distância×duração ficam moot quando o Java calcula os três números a partir da
+zona, em vez de a LLM escrever e o Java tolerar/corrigir).
 
 ## What Changes
 
-**DTO v2 por slot do skeleton — a LLM para de calcular, o Java para de corrigir.**
-
-1. **`WeekPlanSkeleton`/`SessionSlot` sai do shadow mode e passa a determinar tipo/foco real de
-   cada dia.** Hoje `PlannerEngine.planWeek` gera o skeleton só para auditoria comparativa
-   (`SkeletonComplianceChecker`); em v2, sob a flag, o skeleton é montado **antes** do prompt e
-   `tipo`/`foco` de cada slot vão no `user` como contexto fixo — a LLM não escolhe mais o tipo do
-   treino do zero, só preenche o `SessionOutputV2` daquele slot.
-2. **Novo contrato de saída da LLM, por slot:** `tipo`, `foco`, `blocos: [{papel
-   AQUEC/PRINCIPAL/RECUP/DESAQ, quantidade, unidade MIN/KM/M/REP, zona Z1–Z5/LIMIAR, recuperacao?}]`,
-   `racional`, `notaCoach` — **sem pace, FC, distância ou duração**. Convive com o DTO v1
-   (`TreinoPlanejadoLlmDto`/`EtapaTreinoLlmDto`) por trás da flag; nenhum campo de v1 é removido
-   nesta change.
-3. **`SessionResolver` novo, domínio puro, sem Spring/IO.** Resolve cada bloco v2 em etapa(s)
-   absolutas — pace, FC, distância, duração — usando as zonas do atleta. Reusa a lógica de
-   `zonaParaFc` (hoje package-private em `TreinoNormalizador:341`, promovida a serviço público) e a
-   conversão zona→pace (hoje espalhada como constantes `FATOR_PACE_Z1/Z2` no mesmo arquivo,
-   extraída para módulo próprio, na linha do que `PaceValidator.calcularPaceMedia` já faz para
-   corrigir). Saída do `SessionResolver` é o mesmo formato absoluto que `TreinoMapper` já produz
-   hoje para o front (`TreinoPlanejadoOutputDto`/`EtapaTreinoDto`) — **o contrato com o front não
-   muda**.
-4. **Validador v2 cai para invariantes de estrutura + TSS do slot.** `PlanoLlmValidator`/
-   `NormalizacaoDeTreino` ganham um caminho v2 que valida: papéis obrigatórios por tipo de treino
-   (herdando a matriz descoberta em `fix-cold-start-calibration-plan-generation` §13.2 — intervalado
-   exige AQUEC→...→DESAQ com contagem mínima, contínuo exige 3 blocos na ordem, FARTLEK/FACIL/SUBIDA/PROVA
-   seguem sem estrutura obrigatória), e TSS do slot resolvido dentro de ±20% do `targetTss` do
-   `SessionSlot`. As regras de reconciliação/correção aritmética pós-hoc (item 3 do "Why") não se
-   aplicam a v2 — não há o que corrigir porque o Java nunca deixa o número sair errado.
-5. **Prompt v2** substitui o bloco "ESTRUTURA OBRIGATÓRIA DO TREINO INTERVALADO"
-   (`plano-treino-system.txt:183-337`, ~155 linhas de fórmulas de contagem de etapas e faixas de
-   recuperação) por instruções sobre o schema de blocos — texto novo, mais curto. Saída esperada
-   ~600–800 tokens (vs. o volume atual por treino com etapas absolutas).
-6. **Flag por tenant, `app.llm.plano.schema-version`** (`1` default, `2` opt-in). Sem
-   infraestrutura de feature flag por tenant hoje no projeto (precedente é `@Value` global, ex.
-   `planner-engine.enabled`) — nesta change o mecanismo é uma allowlist de tenant IDs via property
-   (`app.llm.plano.schema-version-v2-tenants`, CSV de UUIDs), suficiente para o piloto de 2 tenants;
-   generalizar para flag de produto fica fora de escopo.
-7. **Ledger.** `tb_llm_call.schema_version` já existe (V94) mas não é populado por nenhum
-   componente hoje — passa a ser preenchido em toda chamada (`"1"` ou `"2"`), permitindo comparar
-   v1×v2 pela mesma tabela sem migration nova.
-8. **Arquivamento de changes supersedidas.** `validate-interval-workout-standards` e
+1. **Família de DTOs v2 paralela**, não campos opcionais misturados em v1: `PlanoSemanalLlmDtoV2 {
+   ...campos de nível-plano..., treinosPlanejados: List<TreinoPlanejadoLlmDtoV2>}`,
+   `TreinoPlanejadoLlmDtoV2 {diaSemana, tipoTreino, justificativaIa, blocos: List<BlocoDto>}` — sem
+   `fcAlvo`/`duracaoMin`/`distanciaKm`/`ritmoAlvo`/`etapas`. `BlocoDto {papel
+   AQUEC/PRINCIPAL/RECUP/DESAQ, repeticoes (int, default 1), quantidadePorRepeticao, unidade
+   MIN/SEG/KM/M, zona enum Z1-Z5/LIMIAR, recuperacao? {quantidade, unidade}}` — sem zona própria na
+   recuperação (resolve sempre em `Z1`, mesma convenção implícita de v1). `repeticoes` e
+   `quantidadePorRepeticao` são campos separados (não um único `quantidade` com `unidade=REP`) —
+   resolve a ambiguidade "6 não distingue 6×400m de 6×2min". `zona` é um enum fechado, nunca texto
+   livre com range (`"Z2-Z3"`). Requer um método novo em `LlmJsonSchemaBuilder` (mesmo padrão do
+   atual, refletindo sobre `PlanoSemanalLlmDtoV2.class`). Convive com os DTOs v1 por trás da flag;
+   nenhum campo de v1 é removido.
+2. **`SessionResolver` novo, domínio puro, roda uma vez por tentativa dentro de `gerarChamadaLlm`.**
+   Logo após o parse único da resposta da LLM (`parsearPlano`, que em v2 produz
+   `PlanoSemanalLlmDtoV2`), `SessionResolver.resolverPlano(PlanoSemanalLlmDtoV2, AthleteZones):
+   PlanoSemanalLlmDto` converte a semana inteira para o shape v1 (etapas absolutas resolvidas +
+   campos de nível-treino agregados a partir delas, mesmo padrão que
+   `NormalizacaoDeTreino.recalcularDuracaoTreino` já faz hoje em v1). A partir daqui, **todo o resto
+   do pipeline roda idêntico para v1 e v2** — `PlanoResilienceService.ChamadaLlm`, o turno de reparo
+   (F3), `TreinoMapper`, persistência — sem mudança de assinatura pública em nenhum deles. Zona→absoluto
+   usa `ZoneResolver` novo, dedicado a v2 (não uma extração de `TreinoNormalizador.zonaParaFc`, que
+   hoje lida com texto livre e tem comportamento confuso em casos de borda — ver design.md Decisão
+   2); entrada já é o enum fechado do DTO v2. Para atleta sem FC cadastrada, `ZoneResolver` usa o
+   mesmo fallback percentual fixo que v1 já usa hoje (design.md Decisão 6) — não introduz
+   elegibilidade por atleta além da allowlist de tenant.
+3. **Validação v2 é toda pós-resolução, dentro de `validar` (protegida pelo retry F3) — `gerar` só
+   resolve, nunca valida.** `SessionResolver` (item 2) roda dentro de `gerar` sem lançar nada; a
+   estrutura só é checada depois, em `NormalizacaoDeTreino.validarEstruturaV2` (método novo,
+   package-private, despacha por `FamiliaTreino` para os gates corretos daquela família — reusa os
+   métodos `private` existentes sem mudar visibilidade de nenhum: intervalado usa os gates de
+   contagem/ordem/sequência, contínuo usa `validarEstrutura3Etapas`, tipos sem estrutura obrigatória
+   não validam nada), seguida da checagem de TSS do slot ±20% contra `SessionSlot.targetTss` (já
+   calculado pelo skeleton existente). Corrige um BLOCKER do pré-mortem: validar dentro de `gerar`
+   mataria a geração sem acionar o turno de reparo, porque `gerar` roda fora do escopo protegido
+   pelo retry (`PlanoResilienceService.java:129`).
+4. **Prompt v2** substitui o bloco de fórmulas de contagem de etapas/recuperação
+   (`plano-treino-system.txt:183-337`) por instruções sobre o schema de blocos. Convive com o prompt
+   v1 (arquivo novo, não sobrescreve).
+5. **Versionamento de schema, criado do zero.** Não existe hoje mecanismo de seleção — `SchemaVersion.CURRENT`
+   é uma constante fixa `"schema-v1"` (`domain/compliance/SchemaVersion.java`), único call site em
+   `PlanoLlmLedgerHook.java:67`. Esta change introduz a seleção real (enum ou resolução condicional)
+   e o valor `"schema-v2"`, mantendo o ledger já-existente como está (`tb_llm_call.schema_version`
+   já é gravado hoje — task de ledger é só passar o valor certo, não "ligar o fio", que já está
+   ligado).
+6. **Flag por tenant, `app.llm.plano.schema-version-v2-tenants`** (CSV de UUIDs via `@Value`, vazio
+   por default). Sem infraestrutura de flag por tenant no projeto — allowlist mínima para o piloto,
+   não um sistema de feature flags reutilizável. **Correção de rollback** (achado do pré-mortem): um
+   `@Value` sem `@RefreshScope`/endpoint de refresh não muda em runtime — tirar um tenant da
+   allowlist exige alterar a env var e **reiniciar** a aplicação (rolling restart), não é "sem
+   deploy" como a versão anterior deste proposal dizia. Ainda é ordens de magnitude mais barato que
+   reverter código.
+7. **Arquivamento de changes supersedidas.** `validate-interval-workout-standards` e
    `fix-cold-start-calibration-plan-generation` movem para `changes/archive/` com nota "superseded
-   by semantic-session-schema" ao fim desta change — a primeira porque sua proposta foi implementada
-   sob outro desenho (`PlanoLlmValidator`), a segunda porque a §13.4 (as perguntas de produto sobre
-   tolerância) deixa de fazer sentido quando não há mais triângulo pace×distância×duração para a
-   LLM errar.
+   by semantic-session-schema" — a primeira porque sua proposta foi implementada sob outro desenho,
+   a segunda porque a §13.4 (perguntas de produto sobre tolerância) deixa de fazer sentido quando o
+   Java calcula os números a partir da zona.
 
 **Fora de escopo, de propósito:**
-- **Remover o DTO v1 ou o prompt v1.** Convivem atrás da flag até o piloto validar v2; descomissionar
-  v1 é change própria, depois do gate.
+- **Qualquer mudança no nível de dia/skeleton** (tipo, foco, TSS-alvo, zona da sessão,
+  `SkeletonComplianceChecker`, `formatarBlocoSlots`) — já está resolvido por
+  `planner-engine-enforcement`; esta change não toca esse código.
+- **Remover o DTO v1 ou o prompt v1.** Convivem atrás da flag até o piloto validar v2.
 - **Mudar o contrato de saída para o front** (`TreinoPlanejadoOutputDto`/`EtapaTreinoDto`) — o
-  `SessionResolver` produz os mesmos campos absolutos que o front já recebe hoje.
-- **Flag de produto genérica por tenant** — o mecanismo aqui é uma allowlist mínima para o piloto,
-  não um sistema de feature flags reutilizável.
-- **`llm-code-switching`** (tradução do `system` para inglês) — reaberta no roadmap para depois de
-  F4, quando o `system` for reescrito de novo por outro motivo; não é objetivo desta change, mesmo
-  reescrevendo boa parte do prompt.
-- **Mudar o teto de 2 tentativas/100s do turno de reparo** (F3) — v2 usa a mesma
-  `PlanoResilienceService` sem alterar orçamento.
-- **`validar_plano` tool** (auto-checagem antes do `end_turn`) — mencionada no roadmap como
-  opcional, continua fora.
+  `SessionResolver` produz `EtapaTreinoLlmDto`, que já alimenta o `TreinoMapper` existente sem
+  adaptação.
+- **Consolidar `SkeletonComplianceChecker` sendo chamado 2x** (enforcement + shadow, achado desta
+  investigação) — débito pré-existente, não desta change.
+- **`PlannerComplianceStatus.RETRIED_PASSED` nunca setado** e **`GenerationBudget` não
+  compartilhado entre estágio 1 e fallback** (achados desta investigação, `planner-engine-enforcement`)
+  — débito pré-existente, fora de escopo.
+- **Flag de produto genérica por tenant**, **`llm-code-switching`**, **mudar o teto de 2
+  tentativas/100s do turno de reparo (F3)**, **`validar_plano` tool** — mesmos non-goals da versão
+  anterior, continuam válidos.
 
 ## Critérios de aceite
 
-- **Given** a flag `app.llm.plano.schema-version-v2-tenants` inclui o tenant do request, **when**
-  o plano semanal é gerado, **then** o `user` enviado à LLM inclui o skeleton (`tipo`/`foco` por
-  dia) como contexto fixo, e o schema de saída pedido é o v2 (blocos por papel/zona, sem
-  pace/FC/distância/duração).
-- **Given** a LLM devolve um `SessionOutputV2` válido para um slot INTERVALADO, **when**
-  `SessionResolver` processa o bloco `PRINCIPAL` (zona `Z4`, `quantidade=6`, `unidade=REP`),
-  **then** a etapa absoluta resultante usa o range de FC/pace da zona do atleta (via `zonaParaFc`
-  promovido), no mesmo formato (`fcAlvoEtapa`, `ritmoAlvo`) que `TreinoMapper` produz hoje para v1.
-- **Given** a resposta v2 de um treino INTERVALADO não tem o número mínimo de blocos exigido pela
-  matriz de estrutura (herdada de `fix-cold-start-calibration-plan-generation` §13.2), **when** o
-  validador v2 roda, **then** rejeita com violação estrutural — mesma família de exceção
+- **Given** a flag `app.llm.plano.schema-version-v2-tenants` inclui o tenant do request, **when** o
+  plano é gerado, **then** o prompt do treino usa o schema v2 (blocos por papel/repetições/zona, sem
+  pace/FC/distância/duração) — o bloco de skeleton no `user` (tipo/foco/TSS/zona do dia,
+  `planner-engine-enforcement`) não muda.
+- **Given** a LLM devolve um `TreinoPlanejadoLlmDtoV2` válido para um treino INTERVALADO com bloco
+  `PRINCIPAL` (`zona=Z4`, `repeticoes=6`, `quantidadePorRepeticao=400`, `unidade=M`,
+  `recuperacao={quantidade:90, unidade:SEG}`), **when** `SessionResolver.resolverPlano` processa o
+  bloco (dentro de `gerar`, sem validar), **then** produz 6 pares tiro+recuperação (12 etapas +
+  aquec/desaq) com FC/pace absolutos da zona do atleta e todos os campos de nível-treino (incl.
+  `tssPlanejado`), no mesmo shape `TreinoPlanejadoLlmDto` que a LLM produziria hoje em v1.
+- **Given** a resposta v2 de um treino INTERVALADO tem `repeticoes` insuficientes no bloco
+  `PRINCIPAL` para atingir a contagem mínima de etapas, **when**
+  `NormalizacaoDeTreino.validarEstruturaV2` roda **dentro de `validar`** (pós-resolução, protegido
+  pelo retry), **then** rejeita com violação estrutural — mesma família de exceção
   (`PlanoNaoConformeException`) e mesmo turno de reparo (F3) que v1.
-- **Given** o TSS resolvido de um slot foge de ±20% do `targetTss` do `SessionSlot`, **when** o
-  validador v2 roda, **then** rejeita como violação — nova checagem que não existe em v1.
-- **Given** um tenant fora da allowlist, **when** o plano é gerado, **then** o caminho é
-  exatamente o de hoje (v1), sem nenhuma diferença observável de prompt, DTO ou validação.
-- **Given** qualquer chamada de geração de plano (v1 ou v2), **when** ela é registrada no ledger,
-  **then** `tb_llm_call.schema_version` contém `"1"` ou `"2"` — nunca nulo.
+- **Given** o TSS resolvido de um treino foge de ±20% do `targetTss` do `SessionSlot` daquele dia,
+  **when** a checagem de TSS roda (dentro de `validar`, depois de `validarEstruturaV2` passar),
+  **then** rejeita como violação — checagem nova que não existe em v1.
+- **Given** um tenant fora da allowlist, **when** o plano é gerado, **then** o caminho é exatamente
+  o de hoje (v1 + skeleton do dia, sem diferença de schema de treino/etapa).
+- **Given** qualquer chamada de geração de plano (v1 ou v2), **when** registrada no ledger, **then**
+  `tb_llm_call.schema_version` contém `"schema-v1"` ou `"schema-v2"` — o campo já é gravado hoje,
+  esta change só corrige o valor.
 - **Given** o piloto roda 2 tenants × 2 semanas, **when** medido contra v1, **then** retry ≤ 10%,
-  violações estruturais ≤ 5%, aceitação sem edição ≥ v1 + 10 p.p., p50 ≤ 20s (gate do roadmap,
-  Sprint 28–29).
+  violações estruturais ≤ 5%, aceitação sem edição ≥ v1 + 10 p.p., p50 ≤ 20s (gate do roadmap) **e**
+  feedback qualitativo dos 2 coaches sobre percepção de planos genéricos coletado (achado do
+  `product-reviewer`).
 
 ## Open Questions & Assumptions
 
+- **Confirmado nesta investigação:** a recuperação hoje é **sempre** inserida após cada tiro,
+  inclusive o último (`TreinoNormalizador.expandirEtapasAgregadas:126`) — v2 herda essa regra por
+  default (bloco `recuperacao` do `PRINCIPAL` aplica a todas as repetições, incluindo a última),
+  mas é uma decisão de produto nunca revisada explicitamente — se o coach preferir omitir a
+  recuperação pós-última-repetição, é mudança de comportamento em v1 e v2 juntos, fora de escopo
+  aqui.
 - **Assumido:** a matriz de estrutura obrigatória por tipo (`fix-cold-start-calibration-plan-generation`
-  §13.2 — INTERVALADO ≥6 etapas AQUEC→...→DESAQ, contínuo 3 blocos na ordem, FARTLEK/FACIL/SUBIDA/PROVA
-  sem estrutura obrigatória) é o ponto de partida para o validador v2, reformulada em termos de
-  **blocos** em vez de etapas expandidas. Confirmar com o coach/produto se a pergunta 3 do §13.4
-  ("PROVA/SUBIDA/FARTLEK/FACIL seguem sem estrutura obrigatória?") já está decidida ou precisa de
-  grilling próprio antes da task de validador v2.
-- **Assumido:** o TSS do slot vem do `SessionSlot.targetTss` já calculado pelo `PlannerEngine`
-  existente — esta change não muda como o TSS alvo semanal é distribuído entre dias, só passa a
-  validar contra ele.
-- **Em aberto:** o mecanismo exato da allowlist por tenant (property CSV vs. tabela) — CSV é o
-  mínimo viável para 2 tenants; se o piloto crescer, revisitar.
-- **Em aberto (achado do `product-reviewer`, 2026-09-15, REFINE):** o `WeekPlanSkeleton` sai de
-  shadow-mode (só audita hoje) para decisor de tipo/foco do dia sem nunca ter sido validado nesse
-  papel — risco de produto distinto de "LLM parou de calcular números" (ver design.md §9). O gate
-  do piloto (task 11.3) passa a incluir feedback qualitativo direto dos 2 coaches, não só a métrica
-  de aceitação sem edição. Confirmar com produto se isso é suficiente ou se vale medir a taxa de
-  divergência skeleton×LLM (de `SkeletonComplianceChecker`, hoje já registrada em shadow) antes de
-  o piloto começar.
-- **Em aberto (achado do `product-reviewer`):** a decomposição em blocos por papel/zona habilita
-  sinal de edição mais fino (por bloco, não só por plano inteiro) para o `WeekSuggestion` — fora de
-  escopo nesta change (só `schema_version` é capturado para comparar v1×v2), mas candidato a change
-  seguinte depois que v2 estabilizar.
-- **Em aberto:** se `zonaParaFc`/conversão zona→pace saem como métodos públicos no mesmo arquivo
-  (`TreinoNormalizador`) ou migram para um serviço `services/helper` dedicado (`SessionResolver`
-  usaria via injeção) — decisão de design, não de produto; resolver no design.md.
-- **Pendente:** pré-mortem cross-model (`/adversarial-review` do plugin `codex`) não rodou nesta
-  sessão — plugin instalado 2026-09-15 após o início da sessão, não carregado na lista de skills.
-  Rodar manualmente antes do DoR (`/implement init`) numa sessão nova.
-- **Confirmado no levantamento desta proposta:** o contrato de saída para o front
-  (`TreinoPlanejadoOutputDto`/`EtapaTreinoDto`) já é absoluto hoje — o `SessionResolver` só precisa
-  alimentar o `TreinoMapper` existente com os mesmos campos, não criar um contrato novo de saída.
+  §13.2) é o ponto de partida para a validação de blocos v2. Confirmar com produto se a pergunta 3
+  do §13.4 ("PROVA/SUBIDA/FARTLEK/FACIL seguem sem estrutura obrigatória?") já está decidida.
+- **Assumido:** o TSS do slot vem do `SessionSlot.targetTss` já calculado hoje pelo skeleton
+  (`planner-engine-enforcement`) — esta change só passa a validar contra ele no nível de treino, não
+  muda como o TSS semanal é distribuído entre dias.
+- **Em aberto:** mecanismo exato de seleção de `SchemaVersion` (enum simples com valor resolvido no
+  call site vs. algo mais elaborado) — greenfield, decidir no design.md.
+- **Em aberto (achado do `product-reviewer`, mantido da versão anterior, mas agora sobre risco
+  menor):** mesmo com o nível de dia já fixado pelo skeleton, a LLM ainda tem menos liberdade
+  criativa no nível de etapa em v2. O piloto inclui feedback qualitativo dos 2 coaches, não só o
+  gate quantitativo — ver Métrica de sucesso.
+- **Em aberto:** sinal de edição por bloco (papel/zona) para o `WeekSuggestion` — fora de escopo
+  nesta change, candidato a change seguinte.
 
 ## Métrica de sucesso
 
-- Gate do piloto (roadmap Sprint 28–29): retry ≤ 10%, violações estruturais ≤ 5%, aceitação sem
-  edição ≥ v1 + 10 p.p., p50 ≤ 20s — medido via `tb_llm_call` filtrado por `schema_version`.
-- Tokens de saída por treino: v2 ~600–800 (alvo do roadmap) vs. volume atual de v1 com etapas
-  absolutas — medir via `tb_llm_call.output_tokens` por `schema_version`.
-- **Ligada à rotina do treinador:** aceitação sem edição é a métrica que importa para o coach — um
-  plano v2 que o coach aceita sem mexer é tempo economizado; a comparação v1×v2 no mesmo piloto é o
-  que decide se v2 vira default.
+- Gate do piloto: retry ≤ 10%, violações estruturais ≤ 5%, aceitação sem edição ≥ v1 + 10 p.p.,
+  p50 ≤ 20s — medido via `tb_llm_call` filtrado por `schema_version`, mais feedback qualitativo dos
+  coaches (não só o número — achado do `product-reviewer`).
+- Tokens de saída por treino: v2 ~600–800 vs. volume atual de v1 — medir via
+  `tb_llm_call.output_tokens` por `schema_version`.
+- **Ligada à rotina do treinador:** aceitação sem edição é a métrica que importa para o coach — a
+  comparação v1×v2 no mesmo piloto decide se v2 vira default.
 
 ## Rollback
 
-Sem migration de schema além do que já existe (V94). Reverter é remover o tenant da allowlist —
-volta ao caminho v1 imediatamente, sem deploy. Se o merge inteiro precisar reverter, `git revert`
-do commit de merge; nenhum dado gravado sob v2 (`schema_version="2"`) precisa de limpeza — fica
-como histórico no ledger.
+Sem migration de schema (`tb_llm_call.schema_version` já existe e já é gravado). Reverter é remover
+o tenant da allowlist e **reiniciar a aplicação** (não é instantâneo/sem deploy — `@Value` sem
+refresh scope; correção do proposal anterior). `git revert` do commit de merge se precisar reverter
+o código inteiro; nenhum dado gravado sob `schema-v2` precisa de limpeza.

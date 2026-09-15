@@ -1,146 +1,209 @@
 ## 0. Pré-requisitos
 
-- [ ] 0.1 Confirmar com produto/coach a Open Question do proposal.md: a matriz de estrutura
-      obrigatória por tipo (INTERVALADO ≥6 blocos AQUEC→...→DESAQ, contínuo 3 blocos na ordem,
-      FARTLEK/FACIL/SUBIDA/PROVA sem estrutura obrigatória — herdada de
-      `fix-cold-start-calibration-plan-generation` §13.2) vale como está para v2, ou precisa de
-      ajuste antes da task 4. Sem essa confirmação, a task 4 usa a matriz como está e documenta a
-      suposição.
-- [ ] 0.2 DoR: `spec-reviewer` (READY antes de iniciar task 1).
+- [x] 0.1 6 rodadas de DoR (spec-reviewer + codex exec pré-mortem, 2026-09-15). Rodada 1: NOT READY
+      (premissa de skeleton-shadow desatualizada). Rodada 2: spec-reviewer READY, codex NOT READY
+      (loop por treino inexistente, gates privados, TSS mal contado, recuperação sem zona, atleta
+      sem FC sem fallback). Rodada 3: arquitetura corrigida em cima do fluxo real de uma única
+      chamada semanal (design.md §0-§1). Rodada 4: codex NOT READY (validação precisava rodar dentro
+      de `validar`, não `gerar` — escapava do retry F3; gates aplicados por família, não
+      universalmente). Rodada 5: spec-reviewer READY; codex NOT READY (`gateBalanceamento` omitido
+      permitia intervalado sem nenhuma recuperação — fechado com `gateRecuperacaoEntreTiros` novo;
+      `FamiliaTreino` real corrigido para os 4 valores reais). Rodada 6: spec-reviewer READY; codex
+      NOT READY com 1 MAJOR final (`validarDuracaoTiros`, limites fisiológicos 0,3-10 min por tiro,
+      omitido do dispatch — a LLM ainda escolhe `quantidadePorRepeticao` livremente em v2, sem
+      garantia determinística de faixa plausível) — corrigido nesta versão (task 6.1).
+- [x] 0.2 DoR final: rodada 7 — `spec-reviewer` READY e `codex exec` READY, ambos confirmando a
+      correção de `validarDuracaoTiros` sem nova inconsistência. 7 rodadas ao todo (histórico
+      completo na task 0.1). Liberado para task 1.
+- [ ] 0.3 Confirmar com produto/coach: matriz de estrutura obrigatória por tipo (herdada de
+      `fix-cold-start-calibration-plan-generation` §13.2) vale para v2. Sem confirmação, a task 6
+      usa a matriz como está e documenta a suposição.
+- [ ] 0.4 Ler o ponto exato de cálculo de TSS por treino no código atual (não mapeado ainda) —
+      necessário antes da task 4 (`SessionResolver` calcula `tssPlanejado`).
+- [ ] 0.5 Calibrar com produto/fisiologia (ou dado histórico de treinos intervalados já registrados)
+      a tabela de fatores pace por zona Z3-Z5/LIMIAR (design.md Decisão 6 — hoje só estimada) e o
+      lookup zona→RPE de `percepcaoEsforcoEsperada` (design.md Decisão 4). Sem isso, tasks 3 e 4
+      usam os valores estimados documentados no design e o piloto (task 12.3) serve de segunda
+      camada de validação — não bloqueia início da implementação, mas bloqueia o piloto com
+      tenants reais.
 
-## 1. `ZoneResolver` — extrai zona→absoluto de `TreinoNormalizador`, sem mudar comportamento de v1
+## 1. DTOs v2 — família paralela
 
-- [ ] 1.1 `services/helper/ZoneResolver.java` novo: `bpmDaZona(String zona, List<ZonaFC> zonas):
-      FaixaFc` (mover lógica de `TreinoNormalizador.zonaParaFc:341-357`) e `paceDaZona(String zona,
-      BigDecimal paceLimiar): FaixaPace` (extrair de `FATOR_PACE_Z1/Z2`, `TreinoNormalizador:38-41`
-      e uso inline). Records `FaixaFc(int min, int max)`, `FaixaPace(BigDecimal min, BigDecimal
-      max)` novos ou reaproveitados se já existir tipo equivalente.
-      `verify:` `ZoneResolverTest` — mesmos casos que cobriam `zonaParaFc` hoje (Z1–Z5, fallback
-      sem `ZonaFC`), sem mock.
-- [ ] 1.2 `TreinoNormalizador` passa a chamar `ZoneResolver` em vez da lógica inline — refatoração
-      pura, nenhum teste de `NormalizacaoDeTreino`/`TreinoNormalizadorTest` muda de expectativa.
-      `verify:` suíte de `NormalizacaoDeTreino`/`TreinoNormalizador` existente continua 100% verde
-      sem alteração de assertions.
+- [ ] 1.1 `enum Zona { Z1, Z2, Z3, Z4, Z5, LIMIAR }` — novo tipo, só v2.
+- [ ] 1.2 `dto/llm/v2/PlanoSemanalLlmDtoV2.java`, `dto/llm/v2/TreinoPlanejadoLlmDtoV2.java`,
+      `dto/llm/v2/BlocoDto.java`, `dto/llm/v2/RecuperacaoDto.java` — records. `BlocoDto(papel,
+      repeticoes: int, quantidadePorRepeticao: BigDecimal, unidade: MIN/SEG/KM/M, zona: Zona,
+      recuperacao: RecuperacaoDto?)`. `RecuperacaoDto(quantidade: BigDecimal, unidade: MIN/SEG/KM/M)`
+      — sem `zona` própria (resolve sempre em `Z1`, design.md Decisão 2).
+      `verify:` compila; Bean Validation básica (`@NotNull`/`@Min`) onde fizer sentido.
 
-## 2. `SessionResolver` — domínio puro, resolve blocos v2 em etapas absolutas
+## 2. `LlmJsonSchemaBuilder` v2
 
-- [ ] 2.1 `record AthleteZones(List<ZonaFC> zonasFc, BigDecimal paceLimiar)` — mapeamento de
-      `Atleta`/`ZonaFC` para este record fica no service layer (mapper dedicado, sem `@Entity`
-      cruzando para o domínio — mesma regra de Skills Architecture do `CLAUDE.md`).
-- [ ] 2.2 `domain/planner/SessionResolver.java` (ou pacote equivalente definido no início da
-      implementação): `resolver(SessionOutputV2 saida, AthleteZones zonas): List<EtapaResolvida>`.
-      Para cada `BlocoDto`, resolve `zona` → `FaixaFc`/`FaixaPace` via `ZoneResolver`, calcula
-      duração/distância a partir de `quantidade`/`unidade` (MIN/KM/M/REP — REP delega para a mesma
-      regra de expansão de tiros que `NormalizacaoDeTreino.expandirEtapasAgregadas` usa hoje, mas
-      sem a etapa de correção — a contagem já vem certa do bloco).
-      `verify:` `SessionResolverTest` — 1 bloco por unidade (MIN/KM/M/REP), zona Z1–Z5/LIMIAR,
-      bloco com `recuperacao` presente/ausente, sem mock (domínio puro).
-- [ ] 2.3 `EtapaResolvida` (ou reaproveitar `EtapaTreinoLlmDto` se o shape bater) carrega os mesmos
-      campos absolutos que `TreinoMapper` já consome de v1 — confirmar com um teste de
-      "shape-compat" que o output de `SessionResolver` alimenta `TreinoMapper` sem adaptação extra.
-      `verify:` teste de composição `SessionResolver` → `TreinoMapper` (fixture v2) produz
-      `TreinoPlanejadoOutputDto` válido, mesmos campos que um `TreinoPlanejadoLlmDto` v1 equivalente
-      produziria.
+- [ ] 2.1 Método novo (mesmo arquivo, mesmo padrão de `buildSchemaTightInlineOrDefs`) refletindo via
+      `BeanOutputConverter` sobre `PlanoSemanalLlmDtoV2.class`, com o mesmo pós-processamento manual
+      que v1 já tem (min/max, enums, `required` forçado) adaptado aos campos de `BlocoDto`.
+      `verify:` teste snapshot/estrutural do schema gerado — confirma que `blocos` é array com
+      `minItems` coerente, `zona`/`unidade`/`papel` viram enum no JSON Schema, `required` cobre os
+      campos obrigatórios.
 
-## 3. DTO v2
+## 3. `ZoneResolver` v2
 
-- [ ] 3.1 `dto/llm/v2/SessionOutputV2.java`, `dto/llm/v2/BlocoDto.java` — records, `@Schema` por
-      campo (Swagger, mesma disciplina de DTO & Records Standards do `CLAUDE.md` mesmo não sendo
-      DTO de controller — documentação do contrato de saída da LLM).
-      `verify:` compila; sem lógica, sem teste dedicado além do que a task 4/2 já exercitam via
-      fixture.
+- [ ] 3.1 `services/helper/ZoneResolver.java` (novo arquivo, não mexe em `TreinoNormalizador`):
+      `bpm(Zona zona, @Nullable List<ZonaFC> zonas): FaixaFc` (fallback percentual **herdado de v1**,
+      `TreinoNormalizador.java:351-355`, cobre Z1-Z5 sem gap). `pace(Zona zona, @Nullable BigDecimal
+      paceLimiar): FaixaPace` — fatores **Z1/Z2 herdados de v1** (`FATOR_PACE_Z1=1.35`,
+      `FATOR_PACE_Z2=1.20`), **Z3/Z4/Z5/LIMIAR são tabela nova, greenfield** (design.md Decisão 6 —
+      valores estimados até a calibração da task 0.5: Z3=1.10, Z4=1.00, Z5=0.92, LIMIAR=1.00).
+      `verify:` `ZoneResolverTest` — Z1–Z5, `LIMIAR`, com/sem `paceLimiar`/`zonas` (fallback), sem
+      mock (domínio puro).
+- [ ] 3.2 Confirmar que `TreinoNormalizador.java` e `PaceValidator.java` não são tocados;
+      `NormalizacaoDeTreino.java` só ganha o método novo da task 6.1 (nenhuma visibilidade mudada).
+      `verify:` `git diff --stat` restrito ao que as tasks 4.x/6.x preveem.
 
-## 4. `PlanoLlmValidatorV2` — estrutura de blocos + TSS do slot
+## 4. `SessionResolver` — domínio puro, roda uma vez por tentativa, dentro de `gerar` (sem validar)
 
-- [ ] 4.1 `services/helper/PlanoLlmValidatorV2.java` novo (não um `if` dentro do validador v1 —
-      Decisão 4 do design.md). Reusa `FamiliaTreino` e a matriz de estrutura obrigatória por tipo
-      (task 0.1 confirma/ajusta) operando sobre `List<BlocoDto>`. Lança
-      `PlanoNaoConformeException` com `List<Violacao>` — mesmo tipo que v1, sem mudança em
-      `PlanoResilienceService`/turno de reparo (F3).
-      `verify:` `PlanoLlmValidatorV2Test` — INTERVALADO com blocos insuficientes → violação;
-      contínuo fora de ordem → violação; FARTLEK/FACIL sem estrutura → passa; 2 treinos inválidos
-      no mesmo plano → 2 violações (mesma garantia da task 3.0 de F3, não regredir).
-- [ ] 4.2 Checagem de TSS do slot: recebe `SessionSlot.targetTss` (do `WeekPlanSkeleton`) e o TSS
-      resolvido (calculado **depois** de `SessionResolver` rodar — ordem documentada na assinatura
-      pública, Decisão 5 do design.md); violação se desvio > ±20%.
-      `verify:` teste com TSS resolvido dentro de ±20% → passa; fora → violação com a diferença
-      exata na mensagem.
+- [ ] 4.1 `record AthleteZones(List<ZonaFC> zonasFc, BigDecimal paceLimiar)` — mapeamento de
+      `Atleta`/`ZonaFC` fica no service layer.
+- [ ] 4.2 `domain/planner/SessionResolver.java`: `resolverPlano(PlanoSemanalLlmDtoV2 planoV2,
+      AthleteZones zonas): PlanoSemanalLlmDto`. Itera `planoV2.treinosPlanejados()`; para cada
+      treino, resolve cada `BlocoDto` em `EtapaTreinoLlmDto`(s) via `ZoneResolver` (`repeticoes`
+      vira pares tiro+recuperação quando `recuperacao != null`, sempre incluindo a última
+      repetição — design.md Decisão 5), depois agrega **todos** os campos de nível-treino que v1
+      tem — `duracaoMin`, `distanciaKm`, `fcAlvo`, `ritmoAlvo` (soma/combina etapas, mesmo padrão de
+      `NormalizacaoDeTreino.recalcularDuracaoTreino`), **mais** `tssPlanejado` (soma do TSS por
+      etapa, fórmula da task 0.4), `intensidadePlanejada` (média ponderada por duração, fator de
+      zona da task 0.5), `percepcaoEsforcoEsperada` (lookup zona→RPE, task 0.5) — **nunca deixa
+      esses 3 campos nulos/default silenciosos**, achado da 4ª rodada de pré-mortem.
+      **`resolverPlano` não valida nada** — não lança para estrutura insuficiente, só produz o
+      resultado aritmético possível (design.md Decisão 3, correção do BLOCKER de retry).
+      `verify:` `SessionResolverTest` — treino com bloco `repeticoes=1` (sem expansão), `repeticoes=6`
+      com `recuperacao` (12 etapas), `repeticoes=6` sem `recuperacao` (6 etapas), cada `unidade`,
+      cada `zona` incluindo `LIMIAR`, todos os 7 campos de nível-treino (incl. `tssPlanejado` etc.)
+      calculados corretamente — sem mock. Caso `repeticoes` insuficiente para a estrutura mínima:
+      **não lança**, só produz um treino com menos etapas (será pego na task 6, não aqui).
+- [ ] 4.3 Teste de composição: `resolverPlano` com fixture de `PlanoSemanalLlmDtoV2` completa (2+
+      treinos) produz `PlanoSemanalLlmDto` que passa por `NormalizacaoDeTreino.validarEstruturaV2`
+      (task 6.1) sem erro de shape.
+      `verify:` teste de composição `SessionResolver` → `validarEstruturaV2`, fixture válida e
+      inválida (estrutural).
 
-## 5. Skeleton real — `PlannerEngine` determina tipo/foco antes do prompt
+## 5. (removida — validação de blocos pré-resolução não existe mais; ver task 6)
 
-- [ ] 5.1 O composer de `user` (v2) chama `PlannerEngine.planWeek` **antes** de montar o prompt e
-      serializa `tipo`/`foco` de cada `SessionSlot` como contexto fixo — a LLM recebe o dia já
-      classificado, não escolhe o tipo do zero. Caminho v1 não muda (skeleton continua shadow lá).
-      `verify:` teste de composição do `user` v2 — dado um `WeekPlanSkeleton` fixture, o texto
-      gerado contém tipo/foco de cada dia, na ordem da semana.
-- [ ] 5.2 Confirmar que `SkeletonComplianceChecker` (hoje audita v1 contra o skeleton) não roda no
-      caminho v2 — ficaria redundante (o skeleton virou a fonte, não há mais o que comparar).
-      `verify:` `git diff --stat` não lista `SkeletonComplianceChecker.java`; teste de wiring
-      confirma que o caminho v2 não o invoca.
+A versão anterior desta task (`BlocoEstruturaValidator`, pré-resolução) foi removida: validar
+estrutura antes do `SessionResolver` rodar exigiria lançar fora do escopo protegido pelo retry
+(mesmo BLOCKER da task 6 original). Toda validação estrutural agora roda pós-resolução (task 6),
+dentro de `validar` — o `SessionResolver` (task 4) não valida nada, só resolve aritmeticamente.
 
-## 6. Prompt v2
+## 6. Validação v2, pós-resolução — dentro de `validar`, dispatch por família, sem tocar visibilidade
 
-- [ ] 6.1 `src/main/resources/prompts/plano-treino-system-v2.txt` novo (não sobrescreve o v1) —
+- [ ] 6.1 Em `NormalizacaoDeTreino.java`: método novo, package-private,
+      `validarEstruturaV2(TreinoPlanejadoLlmDto treino, ContextoNormalizacao ctx)` — despacha por
+      `FamiliaTreino.de(treino.tipoTreino())` (enum real: `INTERVALADO_TIRO`, `FARTLEK`,
+      `TRES_ETAPAS`, `PADRAO` — confirmado em `FamiliaTreino.java:12-24`) para os gates corretos,
+      chamando os métodos `private` existentes **internamente** (sem mudar visibilidade de nenhum):
+      - `INTERVALADO_TIRO` → `gateExistencia`, `gateContagem`, `gatePresencaAquecDesaq`,
+        `gateOrdemAquecDesaq`, `gateSequencia`, `validarDuracaoTiros` (reusado sem mudança — já lê
+        `treino.etapas()`, compatível com a saída do `SessionResolver`; achado da 6ª rodada de
+        pré-mortem: geração determinística não garante tiro fisiologicamente plausível 0,3-10 min,
+        a LLM ainda escolhe `quantidadePorRepeticao`/`unidade` livremente), **mais
+        `gateRecuperacaoEntreTiros` (novo, não existe em v1)** — rejeita 2+ etapas `INTERVALADO`
+        consecutivas sem `RECUPERACAO` entre elas (fecha o MAJOR da 5ª rodada: `gateBalanceamento`
+        de v1 não é reusado por validar proporção de texto livre irrelevante em v2; este gate novo
+        fecha o mesmo risco — intervalado sem nenhuma recuperação — direto sobre as etapas
+        resolvidas).
+      - `TRES_ETAPAS` → `validarEstrutura3Etapas(treino, treino.tipoTreino(), ctx.atletaId(),
+        validarOrdem)`, com `validarOrdem = !"LONGO".equals(treino.tipoTreino())` (assinatura real
+        confirmada: `NormalizacaoDeTreino.java:381`, 4 parâmetros).
+      - `FARTLEK`, `PADRAO` → sem estrutura obrigatória (task 0.3 confirma a matriz).
+      Lança `LLMException`/`PlanoNaoConformeException` — mesmo contrato que os gates já lançam em v1.
+      `verify:` `NormalizacaoDeTreinoTest` (mesma classe, testes novos) — fixture INTERVALADO válida
+      (com recuperação em todo tiro, tiros entre 0,3-10 min) passa; INTERVALADO com um `PRINCIPAL`
+      sem recuperação (6 tiros consecutivos) → `gateRecuperacaoEntreTiros` rejeita; INTERVALADO com
+      tiro de 11 min → `validarDuracaoTiros` rejeita (fronteiras 0,3/10 min testadas); TRES_ETAPAS
+      válido de 3 etapas passa (não é mais rejeitado pelo gate de mínimo 6, que só roda para
+      `INTERVALADO_TIRO` agora); LONGO sem ordem AQUEC/DESAQ passa (`validarOrdem=false`); FARTLEK/
+      PADRAO sem estrutura passa sempre. Suíte `FamiliaTreinoTest` (golden de ordem) 100% verde sem
+      alteração de assertions — nenhuma receita de v1 muda.
+- [ ] 6.2 Checagem de TSS do slot: recebe `SessionSlot.targetTss` (já existe, threadado via
+      `SkeletonPrePrompt`) e `tssPlanejado` já calculado pelo `SessionResolver` (task 4.2, não
+      recalculado aqui); roda **depois** de `validarEstruturaV2` (task 6.1) — só se a estrutura
+      passou; violação se desvio > ±20%.
+      `verify:` teste com TSS dentro de ±20% → passa; fora → violação com a diferença exata na
+      mensagem; estrutura inválida impede a checagem de TSS de rodar (ordem testada explicitamente).
+- [ ] 6.3 Compor `validarEstruturaV2` (6.1) + checagem de TSS (6.2) num método público que
+      substitui/complementa `validarENormalizarPlanoGerado` no caminho v2, chamado dentro de
+      `validar` (a função passada para `PlanoResilienceService.gerarComResiliencia`) — retry-aware,
+      igual v1 (design.md Decisão 3, ordem final).
+      `verify:` teste de integração — 1ª tentativa v2 com violação estrutural aciona o turno de
+      reparo (F3) exatamente como v1 aciona hoje (mesmo mecanismo, `AssistantMessage` com o JSON
+      bruto v2 + `Violacao`); corrige o BLOCKER "validação fora do retry" da 4ª rodada.
+
+## 7. Prompt v2
+
+- [ ] 7.1 `src/main/resources/prompts/plano-treino-system-v2.txt` novo (não sobrescreve v1) —
       remove o bloco de fórmulas de contagem/recuperação (`plano-treino-system.txt:183-337`),
-      substitui por instruções sobre o schema de blocos (`papel`/`quantidade`/`unidade`/`zona`).
-      `app.llm.plano.template` (precedente já existe, `PromptHashCalculator:31`) resolve qual
-      arquivo usar por `schemaVersion`.
-      `verify:` teste de `PromptHashCalculator`/composer confirma que v2 carrega o arquivo novo e
-      v1 continua carregando o de sempre — sem regressão de hash em v1.
+      substitui por instruções sobre o schema de blocos. O bloco de skeleton do dia
+      (`formatarBlocoSlots`) não muda — igual em v1 e v2.
+      `verify:` teste confirma que v2 carrega o arquivo novo e v1 continua carregando o de sempre —
+      sem regressão de hash em v1 (`PromptHashCalculator`).
 
-## 7. `IaServiceImpl` — wiring v1/v2
+## 8. Versionamento de schema
 
-- [ ] 7.1 `schemaVersion` resolvido uma vez no início de `geraPlanoSemanalAvancado` (allowlist de
-      tenant, task 8) — não recalculado a cada tentativa de retry.
-- [ ] 7.2 Branch v2: monta prompt v2 (task 5+6), chama LLM, parseia `SessionOutputV2`, roda
-      `PlanoLlmValidatorV2` (estrutura), `SessionResolver` (resolve), `PlanoLlmValidatorV2` (TSS,
-      task 4.2), monta `TreinoPlanejadoOutputDto` via `TreinoMapper` — mesma saída para o front que
-      v1 produziria.
-      `verify:` teste de integração (fixtures, sem chamar LLM real) — plano v2 completo, do
-      `SessionOutputV2` da LLM (mock) até o `TreinoPlanejadoOutputDto` final, mesmo shape que um
-      plano v1 equivalente.
-- [ ] 7.3 Branch v1 inalterado — nenhum teste de `IaServiceImpl` existente muda de expectativa.
+- [ ] 8.1 `SchemaVersion` ganha um segundo valor (`"schema-v2"`) — enum ou equivalente.
+      `PlanoLlmLedgerHook.Sessao.chamar` (`:67`) recebe o valor resolvido em vez de
+      `SchemaVersion.CURRENT` fixo.
+      `verify:` teste do ponto de registro do ledger confirma `schema_version = "schema-v1"` no
+      caminho v1 (sem regressão) e `"schema-v2"` no caminho v2.
+
+## 9. Wiring — `IaServiceImpl.gerarChamadaLlm`
+
+- [ ] 9.1 `usaV2` resolvido uma vez no início de `geraPlanoSemanalAvancado` (allowlist de tenant,
+      task 10) — não recalculado a cada retry.
+- [ ] 9.2 Dentro de `gerarChamadaLlm` (função `gerar`, roda **fora** do escopo de retry): branch v2
+      usa o schema v2 (task 2) na chamada, parseia a resposta em `PlanoSemanalLlmDtoV2` (novo
+      `parsearPlanoV2`, espelho de `parsearPlano` — erro de parse continua sem retry, mesmo
+      comportamento de v1), roda **só** `SessionResolver.resolverPlano` (task 4, sem validar) —
+      devolve `ChamadaLlm` com o `PlanoSemanalLlmDto` (v1-shaped) resultante. Dentro da função
+      `validar` (passada para `gerarComResiliencia`, protegida pelo retry): branch v2 chama
+      `validarEstruturaV2` + checagem de TSS (task 6.3) em vez de `validarENormalizarPlanoGerado`,
+      depois `aplicarComplianceEstagio1` (nível de dia, inalterado) igual v1.
+      `verify:` teste de integração (fixtures, sem LLM real) — plano v2 completo, do
+      `PlanoSemanalLlmDtoV2` (mock) até o `TreinoPlanejadoOutputDto` final, mesmo shape que um plano
+      v1 equivalente produziria; violação estrutural na 1ª tentativa aciona o turno de reparo (F3).
+- [ ] 9.3 Branch v1 inalterado — nenhum teste de `IaServiceImpl` existente muda de expectativa;
+      assinaturas públicas de `geraPlanoSemanalAvancado`, `PlanoResilienceService.ChamadaLlm`,
+      `TreinoMapper` não mudam.
       `verify:` suíte de `IaServiceImplTest`/`IaServiceImplGerarChamadaLlmTest` (F3) 100% verde sem
       alteração de assertions.
 
-## 8. Flag — allowlist de tenant
+## 10. Flag — allowlist de tenant
 
-- [ ] 8.1 `app.llm.plano.schema-version-v2-tenants` (CSV de UUIDs, default vazio) — resolução via
-      `TenantContext.getRequiredTenantId()` contra a lista (Decisão 6 do design.md).
-      `verify:` teste unitário do resolver de flag — tenant na lista → v2; fora → v1; lista vazia
-      (default) → todos v1.
+- [ ] 10.1 `app.llm.plano.schema-version-v2-tenants` (CSV de UUIDs, default vazio) — parseado como
+      `Set<UUID>`; resolução via `TenantContext.getRequiredTenantId()` contra o set.
+      `verify:` teste unitário — tenant no set → v2; fora → v1; set vazio (default) → todos v1; CSV
+      inválido não derruba o startup.
 
-## 9. Ledger
+## 11. Arquivamento de changes supersedidas
 
-- [ ] 9.1 `tb_llm_call.schema_version` (V94, já existe) passa a ser populado em toda chamada —
-      `"1"` ou `"2"`, resolvido junto da task 7.1.
-      `verify:` teste do ponto de registro do ledger (mesmo padrão de F1-F3) confirma
-      `schema_version` não-nulo nas duas linhas (v1 e v2) de um teste de integração.
-
-## 10. Arquivamento de changes supersedidas
-
-- [ ] 10.1 Mover `validate-interval-workout-standards` e `fix-cold-start-calibration-plan-generation`
-      para `changes/archive/2026-XX/` com nota "superseded by semantic-session-schema" no topo do
-      `proposal.md` de cada uma (não apagar conteúdo — preserva o histórico de por que foram
-      propostas e por que ficaram obsoletas).
+- [ ] 11.1 Confirmar (`git branch -a`, PRs abertos nos repos afetados) que
+      `validate-interval-workout-standards` e `fix-cold-start-calibration-plan-generation` não têm
+      trabalho em andamento antes de mover.
+- [ ] 11.2 Mover as duas para `changes/archive/2026-XX/` com nota "superseded by
+      semantic-session-schema" no topo do `proposal.md` de cada uma.
       `verify:` `openspec/changes/` não lista mais as duas pastas; `archive/` lista as duas com a
       nota.
 
-## 11. Validação final
+## 12. Validação final
 
-- [ ] 11.1 `./mvnw clean verify` verde (Surefire + Failsafe).
-- [ ] 11.2 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer + Codex adversarial) —
-      atenção especial a multi-tenancy da allowlist (task 8) e a não-regressão do caminho v1
-      (tasks 1.2, 7.3).
-- [ ] 11.3 Piloto: 2 tenants reais na allowlist por 2 semanas (execução fora desta sessão — requer
+- [ ] 12.1 `./mvnw clean verify` verde (Surefire + Failsafe).
+- [ ] 12.2 `/qa` (code-reviewer + security-reviewer + clean-code-reviewer + Codex adversarial) —
+      atenção a multi-tenancy da allowlist (task 10), dispatch por família em `validarEstruturaV2`
+      (task 6.1, confirmar `gateBalanceamento` omitido é seguro), não-regressão do caminho v1
+      (tasks 3.2, 9.3), retry funcionando para violação estrutural v2 (task 6.3).
+- [ ] 12.3 Piloto: 2 tenants reais na allowlist por 2 semanas (fora desta sessão — requer
       produção/staging). Gate quantitativo: retry ≤ 10%, violações estruturais ≤ 5%, aceitação sem
-      edição ≥ v1 + 10 p.p., p50 ≤ 20s — medido via `tb_llm_call` filtrado por `schema_version`. SQL
-      de comparação v1×v2 documentado no relatório desta task quando o piloto rodar.
-      **Gate qualitativo (achado do `product-reviewer`):** "aceitação sem edição" não distingue
-      "plano ótimo" de "coach não notou o problema" — coletar feedback direto dos 2 coaches do
-      piloto sobre percepção de planos genéricos/destoantes do que esperavam, especialmente nos dias
-      em que o `WeekPlanSkeleton` decidiu tipo/foco de forma diferente do que a LLM teria escolhido
-      livremente (comparar contra o log de `SkeletonComplianceChecker` de v1 no mesmo tenant, se
-      houver histórico). Sem esse feedback, o gate quantitativo sozinho não decide se o piloto vira
-      default.
-- [ ] 11.4 `tasks.md` atualizado; `SPRINTS.md` (F4) marcado; arquivar via `/done` após merge.
+      edição ≥ v1 + 10 p.p., p50 ≤ 20s (`tb_llm_call` filtrado por `schema_version`). Gate
+      qualitativo: feedback direto dos 2 coaches sobre percepção de planos genéricos/destoantes.
+      Registrar também % de treinos do piloto que caíram no fallback de `ZoneResolver` por falta de
+      FC cadastrada (design.md, riscos).
+- [ ] 12.4 `tasks.md` atualizado; `SPRINTS.md` (F4) marcado; arquivar via `/done` após merge.
