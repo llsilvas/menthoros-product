@@ -134,47 +134,53 @@ dentro de `validar` — o `SessionResolver` (task 4) não valida nada, só resol
 
 ## 6. Validação v2, pós-resolução — dentro de `validar`, dispatch por família, sem tocar visibilidade
 
-- [ ] 6.1 Em `NormalizacaoDeTreino.java`: método novo, package-private,
-      `validarEstruturaV2(TreinoPlanejadoLlmDto treino, ContextoNormalizacao ctx)` — despacha por
-      `FamiliaTreino.de(treino.tipoTreino())` (enum real: `INTERVALADO_TIRO`, `FARTLEK`,
-      `TRES_ETAPAS`, `PADRAO` — confirmado em `FamiliaTreino.java:12-24`) para os gates corretos,
-      chamando os métodos `private` existentes **internamente** (sem mudar visibilidade de nenhum):
+- [x] 4.3 (movida para cá — dependia desta seção) Teste de composição `SessionResolver` →
+      `validarEstruturaV2`: fixture válida (12 etapas, tiros==recuperações) não lança; fixture com
+      estrutura insuficiente (1 bloco `PRINCIPAL` sem aquec/desaq) lança. `NormalizacaoDeTreinoValidarEstruturaV2Test$ComposicaoComSessionResolver`,
+      2/2 verde.
+- [x] 6.1 `NormalizacaoDeTreino.validarEstruturaV2(TreinoPlanejadoLlmDto, ContextoNormalizacao)` —
+      package-private, despacha por `FamiliaTreino.de(treino.tipoTreino())` (enum real:
+      `INTERVALADO_TIRO`, `FARTLEK`, `TRES_ETAPAS`, `PADRAO` — `FamiliaTreino.java:12-24`) para os
+      gates corretos, chamando os métodos `private` existentes **internamente** (sem mudar
+      visibilidade de nenhum):
       - `INTERVALADO_TIRO` → `gateExistencia`, `gateContagem`, `gatePresencaAquecDesaq`,
-        `gateOrdemAquecDesaq`, `gateSequencia`, `validarDuracaoTiros` (reusado sem mudança — já lê
-        `treino.etapas()`, compatível com a saída do `SessionResolver`; achado da 6ª rodada de
-        pré-mortem: geração determinística não garante tiro fisiologicamente plausível 0,3-10 min,
-        a LLM ainda escolhe `quantidadePorRepeticao`/`unidade` livremente), **mais
-        `gateRecuperacaoEntreTiros` (novo, não existe em v1)** — rejeita 2+ etapas `INTERVALADO`
-        consecutivas sem `RECUPERACAO` entre elas (fecha o MAJOR da 5ª rodada: `gateBalanceamento`
-        de v1 não é reusado por validar proporção de texto livre irrelevante em v2; este gate novo
-        fecha o mesmo risco — intervalado sem nenhuma recuperação — direto sobre as etapas
-        resolvidas).
+        `gateOrdemAquecDesaq`, **`gateBalanceamento`**, `gateSequencia`, `validarDuracaoTiros`.
+        **Simplificação achada durante a implementação**: a versão anterior desta task propunha um
+        gate novo (`gateRecuperacaoEntreTiros`) para fechar o MAJOR da 5ª rodada (intervalado sem
+        recuperação nenhuma), assumindo que `gateBalanceamento` "valida proporção de texto livre,
+        irrelevante em v2" sem ter lido o código. Lendo `gateBalanceamento` de verdade
+        (`NormalizacaoDeTreino.java:234-245`): ele compara `|count(INTERVALADO) - count(RECUPERACAO)|
+        > 1` — uma contagem simples sobre `tipoEtapa`, igualmente válida para etapas resolvidas
+        deterministicamente. **Reusar em vez de escrever gate novo** — 6 tiros/0 recuperações
+        (contraexemplo do pré-mortem) já falha `|6-0|=6 > 1`. Nenhum gate novo foi necessário.
       - `TRES_ETAPAS` → `validarEstrutura3Etapas(treino, treino.tipoTreino(), ctx.atletaId(),
-        validarOrdem)`, com `validarOrdem = !"LONGO".equals(treino.tipoTreino())` (assinatura real
+        validarOrdem)`, `validarOrdem = !"LONGO".equals(treino.tipoTreino())` (assinatura real
         confirmada: `NormalizacaoDeTreino.java:381`, 4 parâmetros).
-      - `FARTLEK`, `PADRAO` → sem estrutura obrigatória (task 0.3 confirma a matriz).
-      Lança `LLMException`/`PlanoNaoConformeException` — mesmo contrato que os gates já lançam em v1.
-      `verify:` `NormalizacaoDeTreinoTest` (mesma classe, testes novos) — fixture INTERVALADO válida
-      (com recuperação em todo tiro, tiros entre 0,3-10 min) passa; INTERVALADO com um `PRINCIPAL`
-      sem recuperação (6 tiros consecutivos) → `gateRecuperacaoEntreTiros` rejeita; INTERVALADO com
-      tiro de 11 min → `validarDuracaoTiros` rejeita (fronteiras 0,3/10 min testadas); TRES_ETAPAS
-      válido de 3 etapas passa (não é mais rejeitado pelo gate de mínimo 6, que só roda para
-      `INTERVALADO_TIRO` agora); LONGO sem ordem AQUEC/DESAQ passa (`validarOrdem=false`); FARTLEK/
-      PADRAO sem estrutura passa sempre. Suíte `FamiliaTreinoTest` (golden de ordem) 100% verde sem
-      alteração de assertions — nenhuma receita de v1 muda.
-- [ ] 6.2 Checagem de TSS do slot: recebe `SessionSlot.targetTss` (já existe, threadado via
-      `SkeletonPrePrompt`) e `tssPlanejado` já calculado pelo `SessionResolver` (task 4.2, não
-      recalculado aqui); roda **depois** de `validarEstruturaV2` (task 6.1) — só se a estrutura
-      passou; violação se desvio > ±20%.
-      `verify:` teste com TSS dentro de ±20% → passa; fora → violação com a diferença exata na
-      mensagem; estrutura inválida impede a checagem de TSS de rodar (ordem testada explicitamente).
-- [ ] 6.3 Compor `validarEstruturaV2` (6.1) + checagem de TSS (6.2) num método público que
-      substitui/complementa `validarENormalizarPlanoGerado` no caminho v2, chamado dentro de
-      `validar` (a função passada para `PlanoResilienceService.gerarComResiliencia`) — retry-aware,
-      igual v1 (design.md Decisão 3, ordem final).
+      - `FARTLEK`, `PADRAO` → sem estrutura obrigatória (mesmo comportamento de v1 — task 0.3
+        segue aberta só para confirmação formal de produto, não bloqueia).
+      Lança `LLMException` — mesmo contrato que os gates já lançam em v1.
+      `verify:` `NormalizacaoDeTreinoValidarEstruturaV2Test`, 15/15 verde: INTERVALADO válido (com
+      recuperação em todo tiro) passa; 6 tiros sem NENHUMA recuperação → `gateBalanceamento`
+      rejeita; <6 etapas → `gateContagem` rejeita; tiro de 11 min → `validarDuracaoTiros` rejeita;
+      REGENERATIVO válido de 3 etapas passa; REGENERATIVO fora de ordem rejeita; LONGO fora de
+      ordem passa (`validarOrdem=false`); contagem errada de `TRES_ETAPAS` rejeita; FACIL/FARTLEK
+      sem estrutura nunca lançam; 2 testes de composição com `SessionResolver` real. Suítes
+      `NormalizacaoDeTreinoTest`/`FamiliaTreinoTest` (golden de ordem), 44/44 verde sem alteração de
+      assertions — nenhuma receita de v1 muda.
+- [x] 6.2 `NormalizacaoDeTreino.validarTssSlotV2(TreinoPlanejadoLlmDto, SessionSlot, ContextoNormalizacao)`
+      — package-private, compara `treino.tssPlanejado()` (já calculado pelo `SessionResolver`, task
+      4.2, não recalculado aqui) contra `SessionSlot.targetTss()`; `targetTss<=0` (sem alvo do
+      skeleton) não compara, não lança; desvio > ±20% lança `LLMException` com a diferença exata.
+      `verify:` `NormalizacaoDeTreinoValidarEstruturaV2Test$ValidarTssSlotV2`, 3/3 verde — dentro da
+      faixa passa, fora rejeita com mensagem, slot sem alvo não lança.
+- [ ] 6.3 Compor `validarEstruturaV2` (6.1) + `validarTssSlotV2` (6.2) num método público que
+      substitui `validarENormalizarPlanoGerado` no caminho v2, chamado dentro de `validar` (a função
+      passada para `PlanoResilienceService.gerarComResiliencia`) — retry-aware, igual v1 (design.md
+      Decisão 3, ordem final). **Pendente** — depende do wiring da seção 9
+      (`IaServiceImpl.gerarChamadaLlm`), onde `SessionSlot` do dia está disponível via
+      `SkeletonPrePrompt`.
       `verify:` teste de integração — 1ª tentativa v2 com violação estrutural aciona o turno de
-      reparo (F3) exatamente como v1 aciona hoje (mesmo mecanismo, `AssistantMessage` com o JSON
-      bruto v2 + `Violacao`); corrige o BLOCKER "validação fora do retry" da 4ª rodada.
+      reparo (F3) exatamente como v1 aciona hoje.
 
 ## 7. Prompt v2
 

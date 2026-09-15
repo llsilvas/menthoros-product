@@ -109,22 +109,8 @@ void validarEstruturaV2(TreinoPlanejadoLlmDto treino, ContextoNormalizacao ctx) 
         case INTERVALADO_TIRO -> {
             gateExistencia(treino, ctx); gateContagem(treino, ctx);
             gatePresencaAquecDesaq(treino, ctx); gateOrdemAquecDesaq(treino, ctx);
-            gateSequencia(treino, ctx);
-            // validarDuracaoTiros — correção MAJOR (6ª rodada de pré-mortem): a geração
-            // determinística de v2 NÃO garante tiros fisiologicamente plausíveis (0,3-10 min) — a
-            // LLM ainda escolhe `quantidadePorRepeticao`/`unidade` livremente; um bloco com
-            // `quantidadePorRepeticao=11, unidade=MIN` passaria por todos os outros gates. Reusado
-            // sem mudança (já lê `treino.etapas()`, compatível com a saída do SessionResolver).
+            gateBalanceamento(treino, ctx); gateSequencia(treino, ctx);
             validarDuracaoTiros(treino, ctx);
-            // gateBalanceamento (v1) NÃO é reusado aqui — ele valida proporção tiro:recuperação
-            // típica de texto livre da LLM, irrelevante para blocos v2. Em vez disso, v2 fecha o
-            // mesmo risco (intervalado sem NENHUMA recuperação, achado do pré-mortem — contraexemplo:
-            // AQUEC + PRINCIPAL(repeticoes=6, recuperacao=null) + DESAQ, 8 etapas, passaria em todos
-            // os gates acima) com uma checagem NOVA sobre as ETAPAS JÁ RESOLVIDAS (não sobre o bloco
-            // original — `validarEstruturaV2` roda pós-resolução, só tem `treino.etapas()`
-            // disponível): rejeita se houver 2+ etapas `INTERVALADO` consecutivas sem uma
-            // `RECUPERACAO` entre elas.
-            gateRecuperacaoEntreTiros(treino, ctx);  // NOVO — não existe em v1
         }
         case TRES_ETAPAS -> {
             boolean validarOrdem = !"LONGO".equals(treino.tipoTreino());
@@ -134,6 +120,18 @@ void validarEstruturaV2(TreinoPlanejadoLlmDto treino, ContextoNormalizacao ctx) 
     }
 }
 ```
+
+**Simplificação achada durante a implementação (substitui o texto anterior desta Decisão):** a
+versão anterior excluía `gateBalanceamento` do dispatch, assumindo — sem ter lido o código — que
+ele "valida proporção de texto livre, irrelevante em v2", e propunha um gate novo
+(`gateRecuperacaoEntreTiros`) para fechar o MAJOR da 5ª rodada de pré-mortem (intervalado sem
+NENHUMA recuperação passando em todos os outros gates). Lendo `gateBalanceamento` de verdade
+(`NormalizacaoDeTreino.java:234-245`): ele só compara `|count(INTERVALADO) - count(RECUPERACAO)|
+> 1` — uma contagem simples sobre `tipoEtapa`, sem nenhuma dependência de texto livre, igualmente
+válida sobre etapas resolvidas deterministicamente pelo `SessionResolver`. O contraexemplo do
+pré-mortem (6 tiros, 0 recuperações) já falha `|6-0|=6 > 1` — **reusar `gateBalanceamento` fecha o
+MAJOR sem escrever gate novo nenhum**. Também remove `validarDuracaoTiros` do meio do bloco de
+comentário: ele é só mais um gate reusado na lista, sem tratamento especial.
 (Assinatura real confirmada: `validarEstrutura3Etapas(TreinoPlanejadoLlmDto treino, String tipo,
 UUID atletaId, boolean validarOrdem)` — `validarOrdem=false` só para `LONGO`, `true` para os
 demais membros de `TRES_ETAPAS`, replicando a regra que `montarReceitas()` já aplica hoje.)
