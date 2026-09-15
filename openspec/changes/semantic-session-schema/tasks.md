@@ -18,8 +18,17 @@
 - [ ] 0.3 Confirmar com produto/coach: matriz de estrutura obrigatória por tipo (herdada de
       `fix-cold-start-calibration-plan-generation` §13.2) vale para v2. Sem confirmação, a task 6
       usa a matriz como está e documenta a suposição.
-- [ ] 0.4 Ler o ponto exato de cálculo de TSS por treino no código atual (não mapeado ainda) —
-      necessário antes da task 4 (`SessionResolver` calcula `tssPlanejado`).
+- [x] 0.4 Ler o ponto exato de cálculo de TSS por treino. **Resolvido**: `TssCalculatorService.
+      calcularTssEstimado(Duration duracaoMin, Integer rpe): int` (`services/helper/
+      TssCalculatorService.java:52-56`) já é o pipeline canônico RPE→IF→TSS
+      (`h × IF² × 100`, RPE default 5), compartilhado entre planejado e realizado de propósito
+      (comentário cita BUG-CONF-001 — duas fórmulas divergindo 2,4×-6× antes da unificação).
+      `SessionResolver` **reusa esse método** para `tssPlanejado` — duração total resolvida +
+      `percepcaoEsforcoEsperada` (RPE, já calculado, task 0.5) — em vez de inventar uma fórmula
+      nova. `converterRpeParaIf(double rpe): double` (linha 370, `private`) é o mesmo pipeline que
+      dá `intensidadePlanejada` (o IF); precisa virar package-private (mesmo padrão de visibilidade
+      cirúrgica da task 6.1, mas em `TssCalculatorService`) para `SessionResolver` reusar em vez de
+      duplicar a tabela RPE→IF.
 - [ ] 0.5 Calibrar com produto/fisiologia (ou dado histórico de treinos intervalados já registrados)
       a tabela de fatores pace por zona Z3-Z5/LIMIAR (design.md Decisão 6 — hoje só estimada) e o
       lookup zona→RPE de `percepcaoEsforcoEsperada` (design.md Decisão 4). Sem isso, tasks 3 e 4
@@ -71,9 +80,11 @@
       repetição — design.md Decisão 5), depois agrega **todos** os campos de nível-treino que v1
       tem — `duracaoMin`, `distanciaKm`, `fcAlvo`, `ritmoAlvo` (soma/combina etapas, mesmo padrão de
       `NormalizacaoDeTreino.recalcularDuracaoTreino`), **mais** `tssPlanejado` (soma do TSS por
-      etapa, fórmula da task 0.4), `intensidadePlanejada` (média ponderada por duração, fator de
-      zona da task 0.5), `percepcaoEsforcoEsperada` (lookup zona→RPE, task 0.5) — **nunca deixa
-      esses 3 campos nulos/default silenciosos**, achado da 4ª rodada de pré-mortem.
+      etapa, task 0.5), depois **`tssPlanejado` via `TssCalculatorService.calcularTssEstimado`**
+      (reusado, task 0.4 — não uma fórmula nova) e **`intensidadePlanejada` via
+      `TssCalculatorService.converterRpeParaIf`** (reusado, visibilidade ampliada para
+      package-private) — **nunca deixa esses 3 campos nulos/default silenciosos**, achado da 4ª
+      rodada de pré-mortem.
       **`resolverPlano` não valida nada** — não lança para estrutura insuficiente, só produz o
       resultado aritmético possível (design.md Decisão 3, correção do BLOCKER de retry).
       `verify:` `SessionResolverTest` — treino com bloco `repeticoes=1` (sem expansão), `repeticoes=6`

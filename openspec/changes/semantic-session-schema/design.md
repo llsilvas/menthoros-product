@@ -157,18 +157,27 @@ existente, sem mudar visibilidade de nada.
 `ritmoAlvo` — esqueceu `tssPlanejado`, `intensidadePlanejada`, `percepcaoEsforcoEsperada`, campos
 que `TreinoPlanejadoLlmDto` (v1) também carrega e que a LLM gera hoje, mas `TreinoPlanejadoLlmDtoV2`
 não pede (Decisão 1). `SessionResolver` precisa calculá-los, não só os 4 campos originais:
-- `tssPlanejado`: soma do TSS de cada etapa resolvida (fórmula exata confirmada na task 0.4) — o
-  mesmo valor usado na checagem de TSS do slot (Decisão 3, passo 3), calculado uma vez só.
-- `intensidadePlanejada`: média das intensidades por zona ponderada pela duração de cada etapa
-  (fator de intensidade por zona — tabela a definir junto da Decisão 6, já que ambas dependem da
-  mesma calibração zona→número).
 - `percepcaoEsforcoEsperada`: lookup fixo zona-dominante→RPE (ex. `Z1=2, Z2=4, Z3=6, Z4=8, Z5=9,
   LIMIAR=7`) — **valores de exemplo, não confirmados**; precisa validação de produto/fisiologia
-  antes de fechar (task nova, junto da calibração de pace da Decisão 6).
+  antes de fechar (task 0.5, junto da calibração de pace).
+- `tssPlanejado`: **reusa `TssCalculatorService.calcularTssEstimado(Duration, Integer rpe)`**
+  (`services/helper/TssCalculatorService.java:52-56`, já existe, `@Component` público) com a
+  duração total resolvida e o `percepcaoEsforcoEsperada` acima — não uma fórmula nova. Esse método
+  é o pipeline RPE→IF→TSS unificado entre planejado e realizado (comentário no código cita
+  BUG-CONF-001: duas fórmulas duplicadas divergiam 2,4×-6× antes da unificação) — reusar em vez de
+  duplicar evita reabrir exatamente esse bug. É também o mesmo valor usado na checagem de TSS do
+  slot (Decisão 3, passo 3), calculado uma vez só.
+- `intensidadePlanejada`: **reusa `TssCalculatorService.converterRpeParaIf(double rpe)`** (mesmo
+  arquivo, linha 370, hoje `private`) — muda para package-private (mesmo padrão de visibilidade
+  cirúrgica da Decisão 3 em `NormalizacaoDeTreino`, agora em `TssCalculatorService`) para
+  `SessionResolver` reusar a tabela RPE→IF em vez de duplicá-la.
 
 `SessionResolver.resolverPlano(PlanoSemanalLlmDtoV2 planoV2, AthleteZones zonas): PlanoSemanalLlmDto`
-— domínio puro, roda **uma vez por tentativa**, dentro de `gerarChamadaLlm`, logo após
-`parsearPlano`. Internamente itera `planoV2.treinosPlanejados()` (mesmo padrão do loop já existente
+— roda **uma vez por tentativa**, dentro de `gerarChamadaLlm`, logo após `parsearPlano`. Não é
+domínio 100% puro no sentido de "zero dependência Spring" (injeta `TssCalculatorService`, um
+`@Component`) — segue a mesma convenção dos `DomainSkill` do projeto (CLAUDE.md, Skills Architecture
+Standards): pode ser `@Component`, só não recebe `@Entity` JPA como entrada (`AthleteZones` é
+record puro). Internamente itera `planoV2.treinosPlanejados()` (mesmo padrão do loop já existente
 em `PlanoLlmValidator.validarENormalizarPlano`), mas é trabalho Java síncrono sobre uma resposta já
 recebida — **não é uma 2ª chamada à LLM**.
 
