@@ -23,7 +23,7 @@
       "Correção de escopo" e CA1.
       Verify: revisão manual da fixture única commitada — sem PII visível (nome/idade/prova/cidade
       ausentes do conteúdo de origem, nada para redigir neste caso).
-- [ ] **1.4** Fixtures de candidato — estender os 5 arquétipos de `PlanoPromptArquetipos` expondo
+- [x] **1.4** Fixtures de candidato — estender os 5 arquétipos de `PlanoPromptArquetipos` expondo
       ao runner de eval os parâmetros que hoje ficam internos ao teste golden (`provaAlvo`,
       `diasEfetivos`, `decisaoProgressao`, `revisaoConsumida`, `ContextoTreino`); montar
       `WeekPlanSkeleton`/`ComplianceContext`/`AthleteConstraints` frescos para os arquétipos com
@@ -31,11 +31,11 @@
       Verify: teste confirmando que os 5 (ou mais) arquétipos expostos produzem os mesmos
       `system`/`user` que `PlanoTreinoPromptBuilderGoldenTest` já valida — garante que a exposição
       não alterou o wiring existente.
-- [ ] **1.5** Profile Maven `-Peval` + tag JUnit `@Tag("eval")`, excluído por padrão do `surefire`,
+- [x] **1.5** Profile Maven `-Peval` + tag JUnit `@Tag("eval")`, excluído por padrão do `surefire`,
       incluído só sob `-Peval`. Propriedade `-Dmodo=candidato|auditoria` (default `auditoria`).
       Verify: `./mvnw clean test` não executa nenhum teste `@Tag("eval")`; `./mvnw -Peval test`
       executa em modo auditoria por default.
-- [ ] **1.6** `EvalDeterministicGrader` (só modo candidato) — despacha por `schema_version`: v2 passa
+- [x] **1.6** `EvalDeterministicGrader` (só modo candidato) — despacha por `schema_version`: v2 passa
       por `SessionResolver.resolverPlano` (com `AthleteZones` montado do perfil do arquétipo) antes
       dos checkers; v1 desserializa direto. Chama `PlanQualityChecker.check(plano,
       promptGerado.regras())` e, quando há skeleton, o método público
@@ -48,7 +48,7 @@
       Verify: teste com fixture de candidato v1 e v2 comparando saída do grader com chamada direta
       a `PlanQualityChecker.check`/`PlannerShadowService.checkPreRedistribution` usando os mesmos
       `regras`/`skeleton`/`atleta` (CA2, cobrindo os 2 branches).
-- [ ] **1.7** "Modo candidato" no runner — monta `PlanoTreinoPromptBuilder` manualmente (fora do
+- [x] **1.7** "Modo candidato" no runner — monta `PlanoTreinoPromptBuilder` manualmente (fora do
       Spring, wiring de `PlanoPromptArquetipos`), mockando `TreinoHistoricoProvider` para devolver o
       `ContextoTreino` congelado de cada fixture de candidato (task 1.4), chama `ChatClient` +
       `LlmJsonSchemaBuilder` (v1 ou v2, pela flag do arquétipo) com o código atual do checkout,
@@ -56,20 +56,20 @@
       Verify: teste rodando o modo candidato duas vezes contra a mesma fixture — uma com o prompt
       atual, outra com um prompt de teste deliberadamente alterado (troca do resource
       `plano-treino-system.txt` por uma versão de teste) — e assere que as notas divergem (CA6).
-- [ ] **1.8** `EvalAgreementGrader` (só modo auditoria) — para `respostaHistorica` com
+- [x] **1.8** `EvalAgreementGrader` (só modo auditoria) — para `respostaHistorica` com
       `schema_version=schema-v2`, resolve via `SessionResolver` (com `zonasAtleta` da fixture,
       task 1.2) antes de comparar contra `planoFinalPersistido`; para v1, compara direto. % de
       campos estruturais divergentes.
       Verify: teste com fixture sintética de divergência conhecida, cobrindo os 2 branches de
       `schema_version`.
-- [ ] **1.9** Runner de eval — carrega a família de fixture certa por modo (auditoria: juiz +
+- [x] **1.9** Runner de eval — carrega a família de fixture certa por modo (auditoria: juiz +
       concordância; candidato: grader determinístico + juiz), imprime tabela em stdout (formato
       fixo, colável em descrição de PR), custo agregado em memória.
       Verify: `./mvnw -Peval verify` produz a tabela em modo auditoria contra as fixtures reais
       (CA4, parcial — juiz ainda não implementado, fatia 2); `./mvnw -Peval verify -Dmodo=candidato`
       roda contra as fixtures sintéticas (CA6, parcial).
-- [ ] **1.10** Checkpoint: commit da fatia 1, `./mvnw clean verify` (sem `-Peval`) continua verde —
-      zero regressão no pipeline de produção.
+- [x] **1.10** Checkpoint: commit da fatia 1, `./mvnw clean verify` (sem `-Peval`) continua verde —
+      zero regressão no pipeline de produção. Confirmado 2026-09-15: `BUILD SUCCESS`.
 
 ## Fatia 2 — Grader LLM-juiz (roda nos dois modos)
 
