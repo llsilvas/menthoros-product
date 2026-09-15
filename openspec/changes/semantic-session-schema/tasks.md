@@ -29,12 +29,13 @@
       dá `intensidadePlanejada` (o IF); precisa virar package-private (mesmo padrão de visibilidade
       cirúrgica da task 6.1, mas em `TssCalculatorService`) para `SessionResolver` reusar em vez de
       duplicar a tabela RPE→IF.
-- [ ] 0.5 Calibrar com produto/fisiologia (ou dado histórico de treinos intervalados já registrados)
-      a tabela de fatores pace por zona Z3-Z5/LIMIAR (design.md Decisão 6 — hoje só estimada) e o
-      lookup zona→RPE de `percepcaoEsforcoEsperada` (design.md Decisão 4). Sem isso, tasks 3 e 4
-      usam os valores estimados documentados no design e o piloto (task 12.3) serve de segunda
-      camada de validação — não bloqueia início da implementação, mas bloqueia o piloto com
-      tenants reais.
+- [ ] 0.5 **Reduzida (achado durante a implementação):** pace por zona não precisa mais de
+      calibração nova — `ZoneResolver` delega para `ZonaTreinoService.calcularZonasPace`, já
+      calibrado e já usado por `PaceZoneCalculator`/`PlanoLlmValidator` (FC) hoje (design.md Decisão
+      6). Só falta calibrar o lookup zona→RPE de `percepcaoEsforcoEsperada` (design.md Decisão 4,
+      sem precedente no código) com produto/fisiologia. Sem isso, task 4 usa o lookup estimado
+      documentado no design e o piloto (task 12.3) serve de segunda camada — não bloqueia início da
+      implementação, mas bloqueia o piloto com tenants reais.
 
 ## 1. DTOs v2 — família paralela
 
@@ -57,14 +58,22 @@
 
 ## 3. `ZoneResolver` v2
 
-- [ ] 3.1 `services/helper/ZoneResolver.java` (novo arquivo, não mexe em `TreinoNormalizador`):
-      `bpm(Zona zona, @Nullable List<ZonaFC> zonas): FaixaFc` (fallback percentual **herdado de v1**,
-      `TreinoNormalizador.java:351-355`, cobre Z1-Z5 sem gap). `pace(Zona zona, @Nullable BigDecimal
-      paceLimiar): FaixaPace` — fatores **Z1/Z2 herdados de v1** (`FATOR_PACE_Z1=1.35`,
-      `FATOR_PACE_Z2=1.20`), **Z3/Z4/Z5/LIMIAR são tabela nova, greenfield** (design.md Decisão 6 —
-      valores estimados até a calibração da task 0.5: Z3=1.10, Z4=1.00, Z5=0.92, LIMIAR=1.00).
-      `verify:` `ZoneResolverTest` — Z1–Z5, `LIMIAR`, com/sem `paceLimiar`/`zonas` (fallback), sem
-      mock (domínio puro).
+- [ ] 3.1 `services/helper/ZoneResolver.java` (novo arquivo, `@Component`, injeta
+      `ZonaTreinoService` — não mexe em `TreinoNormalizador`): `bpm(Zona zona, Integer fcMaxima,
+      Integer fcLimiar): FaixaFc` delega para `zonaTreinoService.calcularZonasFC(fcMaxima,
+      fcLimiar)`; `pace(Zona zona, BigDecimal paceLimiar): FaixaPace` delega para
+      `zonaTreinoService.calcularZonasPace(paceLimiar)` — **já calibrado, achado durante a
+      implementação (design.md Decisão 6): não é fórmula nova, é o mesmo serviço que
+      `PlanoLlmValidator`/`PaceZoneCalculator` já usam hoje**. `Zona.indice()` mapeia `Z1..Z5=1..5`,
+      `LIMIAR=4`. Fallback de último recurso (atleta sem `fcMaxima`/`fcLimiar`/`paceLimiar`
+      algum — `ZonaTreinoService` devolve zona `(0,0)` nesse caso): cai para o fallback percentual
+      textual de v1 (FC, `TreinoNormalizador.java:351-355`) e os defaults fixos Z1/Z2 + extrapolação
+      linear (pace, mesma tabela estimada Z3=1.10/Z4=1.00/Z5=0.92/LIMIAR=1.00 documentada no design,
+      agora rebaixada a caso raro).
+      `verify:` `ZoneResolverTest` — Z1–Z5, `LIMIAR`, com `fcMaxima`/`fcLimiar`/`paceLimiar`
+      presentes (delega para `ZonaTreinoService`, valores batem com os calculados por ele
+      diretamente) e ausentes (fallback de último recurso) — mock só de `ZonaTreinoService` (é
+      `@Component`, não domínio 100% puro, mas sem `@Entity` cruzando a fronteira).
 - [ ] 3.2 Confirmar que `TreinoNormalizador.java` e `PaceValidator.java` não são tocados;
       `NormalizacaoDeTreino.java` só ganha o método novo da task 6.1 (nenhuma visibilidade mudada).
       `verify:` `git diff --stat` restrito ao que as tasks 4.x/6.x preveem.

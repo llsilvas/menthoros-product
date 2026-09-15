@@ -194,45 +194,49 @@ tiro, inclusive o último — v2 herda esse comportamento por default explícito
 sem tratamento especial da última repetição. Revisar essa regra de produto (se a última recuperação
 deveria ser omitida) é decisão que afeta v1 e v2 igualmente — fora de escopo aqui.
 
-## 7. Decisão 6 — `ZoneResolver` v2: fallback de FC herdado de v1; fallback de pace Z3-Z5 é NOVO (não existe em v1)
+## 7. Decisão 6 — `ZoneResolver` v2: delega para `ZonaTreinoService` (já calibrado), não inventa fatores
 
-Achado do pré-mortem (MAJOR): `PlanoLlmValidator.contexto:98-109` mostra que hoje, quando o atleta
-não tem `fcLimiar` nem `fcMaxima` cadastrados, `zonasFC = null` e `corrigirFcZona` (v1) vira no-op
-silencioso. Em v2 não há "o que a LLM escreveu" para cair de volta — o `SessionResolver` **precisa**
-produzir um valor sempre.
+**Correção durante a implementação (achado que muda a Decisão 6 original):** existe
+`ZonaTreinoService` (`services/helper/ZonaTreinoService.java`, `@Component`, já usado por
+`PlanoLlmValidator.contexto()` hoje para FC) com `calcularZonasFC(fcMaxima, fcLimiar):
+List<ZonaFC>` **e** `calcularZonasPace(paceLimiar): List<ZonaPace>` — as 5 zonas completas (FC e
+pace, min/max calibrados por % de FC-limiar/pace-limiar, modelo LTHR/Friel), documentadas com
+tabela de referência no Javadoc da classe. `ZonaPace` já cobre Z1-Z5 (+Z6 sprint) com min/max — a
+tabela de fatores de pace Z3-Z5/LIMIAR que a versão anterior desta decisão estimava do zero **não
+precisa ser inventada**: `ZoneResolver` delega para `ZonaTreinoService`, que já é a fonte calibrada.
+`Zona.LIMIAR` mapeia para o índice 4 do `ZonaTreinoService` ("Limiar anaeróbico", 94-100% FC
+limiar) — sem ambiguidade de "ponto médio Z4/Z5" como a versão anterior propunha.
 
-**FC — fallback herdado de v1, sem mudança:** `ZoneResolver.bpm(Zona zona, @Nullable List<ZonaFC>
-zonas)` usa o mesmo fallback percentual fixo que v1 já usa (`"90-95% FCmax"`...`"60-70% FCmax"`,
-`TreinoNormalizador.java:351-355`) quando `zonas == null` — cobre Z1-Z5 completo hoje, sem gap.
+`ZoneResolver` (novo, `@Component`, injeta `ZonaTreinoService`) fica fino:
+```java
+FaixaFc bpm(Zona zona, Integer fcMaxima, Integer fcLimiar) {
+    var zonas = zonaTreinoService.calcularZonasFC(fcMaxima, fcLimiar);  // null-safe, zera se ambos null
+    var z = zonas.get(zona.indice() - 1);  // LIMIAR → índice 4
+    return new FaixaFc(z.fcMin(), z.fcMax());
+}
+FaixaPace pace(Zona zona, BigDecimal paceLimiar) {
+    var zonas = zonaTreinoService.calcularZonasPace(paceLimiar);  // null-safe, zera se paceLimiar null
+    var z = zonas.get(zona.indice() - 1);
+    return new FaixaPace(z.paceMin(), z.paceMax());
+}
+```
+**Fallback quando o atleta não tem FC/pace cadastrado:** `ZonaTreinoService.calcularZonaFC`/
+`calcularZonaPace` já são null-safe — devolvem zona `(0, 0)` quando `fcBase`/`paceLimiar` é `null`
+(não lançam). Isso é diferente do fallback percentual textual de v1
+(`TreinoNormalizador:351-355`, `"60-70% FCmax"` etc.) — `(0,0)` é um valor-sentinela sem
+significado físico, não um número plausível. **Decisão:** `ZoneResolver` detecta esse caso
+(`fcMin==0 && fcMax==0`) e cai para o mesmo fallback percentual de v1 só nesse caso extremo (atleta
+sem NENHUM dado fisiológico) — não para pace, que não tinha fallback textual em v1 para nenhuma
+zona; nesse caso usa os defaults fixos que v1 já tinha para Z1/Z2
+(`PACE_Z1_DEFAULT_MIN_KM=8.0`/`PACE_Z2_DEFAULT_MIN_KM=7.0`) e extrapola linearmente para Z3-Z5/LIMIAR
+só como sentinela de último recurso (mesma tabela estimada da versão anterior desta decisão,
+rebaixada de "cálculo principal" para "fallback de fallback" — praticamente nunca deve ser
+exercitada em produção, já que a maioria dos atletas tem ao menos `fcMaxima` calculada por idade).
 
-**Pace — correção MAJOR (4ª rodada):** v1 só define fatores de conversão pace↔zona para **Z1/Z2**
-(`FATOR_PACE_Z1=1.35`, `FATOR_PACE_Z2=1.20`, `TreinoNormalizador.java:38-41`) — não existe fórmula
-para Z3/Z4/Z5/LIMIAR porque v1 nunca precisou (a LLM escrevia o pace direto para essas zonas mais
-intensas, só corrigido por teto/piso do histórico via `PaceValidator`, não derivado de zona). Em v2,
-`SessionResolver` **precisa** de um pace para toda zona, inclusive Z3-Z5/LIMIAR (usado no bloco
-`PRINCIPAL` de treinos intervalados, que são justamente Z4/Z5). **Não há fórmula existente para
-herdar aqui — é greenfield.** Decisão: definir uma tabela de fatores (`paceZona = paceLimiar ×
-fator`), extrapolando a proporção de v1 (fatores decrescem conforme a zona sobe — mais intensa =
-mais rápida = fator menor que 1 perto do limiar):
-
-| Zona | Fator (× paceLimiar) | Origem |
-|---|---|---|
-| Z1 | 1.35 | v1, herdado |
-| Z2 | 1.20 | v1, herdado |
-| Z3 | 1.10 | **novo, estimado — precisa calibração** |
-| Z4 | 1.00 | **novo, estimado — precisa calibração** |
-| Z5 | 0.92 | **novo, estimado — precisa calibração** |
-| LIMIAR | 1.00 | **novo, estimado** (mesmo que Z4, ponto de referência) |
-
-**Os valores Z3-Z5/LIMIAR são estimativas, não dado calibrado** — precisam de validação com dado
-histórico real (paces de treinos intervalados já registrados, comparados à zona que o coach
-classificou) ou confirmação de um fisiologista/coach antes de ir para produção. Task nova (0.5)
-cobre essa calibração como pré-requisito, separado da implementação do `SessionResolver` em si (que
-pode ser codificada e testada com os valores estimados, ajustados depois sem mudar a estrutura).
-
-Quando `paceLimiar == null`: usar os mesmos defaults fixos de v1 (`PACE_Z2_DEFAULT_MIN_KM=7.0`,
-`PACE_Z1_DEFAULT_MIN_KM=8.0`) para Z1/Z2, e aplicar os mesmos fatores da tabela acima sobre esse
-pace-base estimado para Z3-Z5/LIMIAR (mesma lógica, só sem `paceLimiar` real).
+Isso **fecha a maior parte da task 0.5** (calibração de pace) — não é mais uma estimativa a validar
+antes do piloto, é o mesmo cálculo que `PlanoLlmValidator`/`PaceValidator` já confiam para outras
+partes do pipeline hoje. Task 0.5 fica só para o lookup zona→RPE (`percepcaoEsforcoEsperada`), que
+de fato não tem precedente no código.
 
 ## 8. Decisão 7 — Versionamento de schema (igual à versão anterior, confirmado sem mudança)
 
@@ -252,14 +256,14 @@ restart (sem `@RefreshScope`) — documentado corretamente no proposal.md.
 - **Risco:** `SessionResolver`/`ZoneResolver` fallback percentual de FC (Decisão 6) produz FC menos
   precisa que v1 para atletas sem zonas cadastradas — mesma imprecisão que v1 já tem hoje (fallback
   idêntico), não é regressão: nomear no relatório do piloto quantos % caíram nesse fallback.
-- **Risco real, não mitigado — tabela de pace Z3-Z5/LIMIAR é estimada, não calibrada** (Decisão 6):
-  paces de treinos intervalados em v2 podem sair sistematicamente rápidos ou lentos demais até
-  calibrar contra dado real. Mitigação: task 0.5 calibra antes do piloto começar com tenants reais;
-  o piloto mede exatamente isso (retry/violações/aceitação) e serve como segunda camada de
-  validação mesmo se a calibração inicial errar.
-- **Risco:** `intensidadePlanejada`/`percepcaoEsforcoEsperada` (Decisão 4) usam lookup fixo
-  zona→número não confirmado com produto/fisiologia — mesma mitigação: task 0.5, piloto como
-  segunda camada.
+- **Risco, reduzido (achado durante a implementação):** pace por zona (Decisão 6) já delega para
+  `ZonaTreinoService.calcularZonasPace`, o mesmo cálculo calibrado que outras partes do pipeline
+  (`PaceZoneCalculator`, `PlanoLlmValidator` para FC) já confiam hoje — não é mais uma estimativa
+  nova a validar. Risco residual só no fallback de último recurso (atleta sem NENHUM dado
+  fisiológico, caso raro).
+- **Risco:** `percepcaoEsforcoEsperada` (Decisão 4) usa lookup fixo zona→RPE não confirmado com
+  produto/fisiologia — sem precedente no código, ao contrário de FC/pace. Mitigação: task 0.5,
+  piloto como segunda camada de validação.
 - **Risco:** fórmula de TSS do slot (Decisão 3, passo 3) diverge da estimativa do skeleton.
   Mitigação: tolerância ±20% absorve o gap esperado; task 0.4 mapeia o ponto de cálculo exato antes
   de escrever o teste.
