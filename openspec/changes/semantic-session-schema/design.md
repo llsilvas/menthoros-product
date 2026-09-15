@@ -153,6 +153,11 @@ existente, sem mudar visibilidade de nada.
 
 ## 5. Decisão 4 — `SessionResolver` produz `PlanoSemanalLlmDto` (v1-shaped) COMPLETO, campos omitidos incluídos
 
+**Pacote (decidido durante a implementação):** `services/helper/SessionResolver.java`, não
+`domain/planner/` como os placeholders anteriores sugeriam — mesmo pacote de `ZoneResolver` e
+`TssCalculatorService`, onde as mudanças de visibilidade cirúrgica (`converterRpeParaIf`, os gates
+de `NormalizacaoDeTreino`) fazem efeito sem precisar alargar para `public`.
+
 **Correção MAJOR (4ª rodada):** a versão anterior só agregava `duracaoMin`/`distanciaKm`/`fcAlvo`/
 `ritmoAlvo` — esqueceu `tssPlanejado`, `intensidadePlanejada`, `percepcaoEsforcoEsperada`, campos
 que `TreinoPlanejadoLlmDto` (v1) também carrega e que a LLM gera hoje, mas `TreinoPlanejadoLlmDtoV2`

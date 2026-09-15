@@ -85,30 +85,43 @@
 
 ## 4. `SessionResolver` — domínio puro, roda uma vez por tentativa, dentro de `gerar` (sem validar)
 
-- [ ] 4.1 `record AthleteZones(List<ZonaFC> zonasFc, BigDecimal paceLimiar)` — mapeamento de
-      `Atleta`/`ZonaFC` fica no service layer.
-- [ ] 4.2 `domain/planner/SessionResolver.java`: `resolverPlano(PlanoSemanalLlmDtoV2 planoV2,
-      AthleteZones zonas): PlanoSemanalLlmDto`. Itera `planoV2.treinosPlanejados()`; para cada
-      treino, resolve cada `BlocoDto` em `EtapaTreinoLlmDto`(s) via `ZoneResolver` (`repeticoes`
-      vira pares tiro+recuperação quando `recuperacao != null`, sempre incluindo a última
-      repetição — design.md Decisão 5), depois agrega **todos** os campos de nível-treino que v1
-      tem — `duracaoMin`, `distanciaKm`, `fcAlvo`, `ritmoAlvo` (soma/combina etapas, mesmo padrão de
-      `NormalizacaoDeTreino.recalcularDuracaoTreino`), **mais** `tssPlanejado` (soma do TSS por
-      etapa, task 0.5), depois **`tssPlanejado` via `TssCalculatorService.calcularTssEstimado`**
-      (reusado, task 0.4 — não uma fórmula nova) e **`intensidadePlanejada` via
-      `TssCalculatorService.converterRpeParaIf`** (reusado, visibilidade ampliada para
-      package-private) — **nunca deixa esses 3 campos nulos/default silenciosos**, achado da 4ª
-      rodada de pré-mortem.
-      **`resolverPlano` não valida nada** — não lança para estrutura insuficiente, só produz o
-      resultado aritmético possível (design.md Decisão 3, correção do BLOCKER de retry).
-      `verify:` `SessionResolverTest` — treino com bloco `repeticoes=1` (sem expansão), `repeticoes=6`
-      com `recuperacao` (12 etapas), `repeticoes=6` sem `recuperacao` (6 etapas), cada `unidade`,
-      cada `zona` incluindo `LIMIAR`, todos os 7 campos de nível-treino (incl. `tssPlanejado` etc.)
-      calculados corretamente — sem mock. Caso `repeticoes` insuficiente para a estrutura mínima:
-      **não lança**, só produz um treino com menos etapas (será pego na task 6, não aqui).
+- [x] 4.1 `services/helper/AthleteZones.java` — `record AthleteZones(Integer fcMaxima, Integer
+      fcLimiar, @Nullable BigDecimal paceLimiar)`. **Ajuste de assinatura durante a implementação**:
+      não carrega `List<ZonaFC>` pré-computada — `ZoneResolver.bpm` recebe `fcMaxima`/`fcLimiar`
+      crus e delega para `ZonaTreinoService` ele mesmo (task 3.1), então `AthleteZones` só precisa
+      passar os 3 valores fisiológicos adiante. `fcMaxima`/`fcLimiar` devem vir de
+      `Atleta.getFcMaximaCalculada()`/`getFcLimiarCalculada()` (nunca `null`); mapeamento
+      `Atleta`→`AthleteZones` fica no service layer (task 9).
+- [x] 4.2 `services/helper/SessionResolver.java` (**pacote ajustado**: `services/helper`, não
+      `domain/planner` — consistente com `ZoneResolver`/`TssCalculatorService`, mesmo pacote onde as
+      visibilidades cirúrgicas das tasks 0.4/6.1 fazem efeito). `resolverPlano(PlanoSemanalLlmDtoV2,
+      AthleteZones): PlanoSemanalLlmDto`. Itera `planoV2.treinosPlanejados()`; para cada bloco,
+      resolve `repeticoes` etapa(s) — `PRINCIPAL` com `repeticoes>1` vira `INTERVALADO` por
+      repetição (intercalado com `RECUPERACAO` quando `recuperacao != null`, sempre incluindo a
+      última — design.md Decisão 5); `repeticoes==1` vira etapa única do tipo correspondente ao
+      papel (`AQUEC→AQUECIMENTO`, `DESAQ→DESAQUECIMENTO`, `RECUP→RECUPERACAO`,
+      `PRINCIPAL→PRINCIPAL`). Agrega os 7 campos de nível-treino: `duracaoMin`/`distanciaKm`
+      (soma), `fcAlvo`/`ritmoAlvo` (união das faixas min/max de todos os blocos),
+      `tssPlanejado`/`intensidadePlanejada` via `TssCalculatorService` reusado (task 0.4),
+      `percepcaoEsforcoEsperada` via lookup zona-dominante→RPE (a maior RPE entre os blocos, task
+      0.5) — nunca nulos. **`resolverPlano` não valida nada** — não lança para estrutura
+      insuficiente, só produz o resultado aritmético possível (design.md Decisão 3, BLOCKER de
+      retry fechado). **Achado durante a implementação**: durações sub-minuto (ex. tiro de 90 SEG)
+      arredondam para 0 min sem piso — corrigido com `Math.max(1, ...)`, mesma convenção de
+      `TreinoNormalizador.expandirEtapasAgregadas:115`.
+      `verify:` `SessionResolverTest`, 17/17 verde — `repeticoes=1` sem expansão; `repeticoes=6` com
+      `recuperacao` (12 etapas, última repetição também com recuperação); `repeticoes=6` sem
+      `recuperacao` (6 etapas); os 4 papéis resolvem o `tipoEtapa` certo; cada `unidade`
+      (`@CsvSource` com quantidade realista por unidade, não um valor genérico — evita o
+      falso-negativo de duração sub-minuto); cada `zona` incluindo `LIMIAR`; `repeticoes`
+      insuficientes não lança, só produz menos etapas; os 7 campos de nível-treino corretos
+      (incluindo RPE dominante = zona mais intensa); plano com múltiplos treinos resolve todos
+      preservando campos de nível-plano. Sem mock — `ZonaTreinoService`/`ZoneResolver`/
+      `TssCalculatorService` reais.
 - [ ] 4.3 Teste de composição: `resolverPlano` com fixture de `PlanoSemanalLlmDtoV2` completa (2+
       treinos) produz `PlanoSemanalLlmDto` que passa por `NormalizacaoDeTreino.validarEstruturaV2`
-      (task 6.1) sem erro de shape.
+      (task 6.1) sem erro de shape. **Depende da task 6.1** (ainda não implementada) — fica pendente
+      até lá, não bloqueia o restante da seção 4.
       `verify:` teste de composição `SessionResolver` → `validarEstruturaV2`, fixture válida e
       inválida (estrutural).
 
