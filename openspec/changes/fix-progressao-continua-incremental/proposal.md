@@ -110,14 +110,21 @@ reversão é puramente de código e teste (mover a chamada de volta para
 
 ## Riscos e mitigações
 
-- **Risco:** `recalcularSemanasProgressao` faz uma query de todo o histórico de `MetricasDiarias`
-  do atleta (`findByAtletaIdOrderByDataAsc`) e agrupa em memória por semana — hoje só roda 1x por
-  geração de plano (via o recálculo completo); passa a rodar a cada treino real registrado
-  (Strava sync, webhook, `.fit`, reconciliação). Mais frequente, mas muito mais barato que o
-  recálculo completo que está sendo evitado (não recalcula CTL/ATL, não toca `TreinoRealizado`,
-  só agrega `volumeKm` já persistido). Sem otimização adicional nesta change — se o volume de
-  chamadas incrementais em produção mostrar custo real, otimizar fica como follow-up (ex.: limitar
-  a query às últimas N semanas em vez do histórico completo).
+- **Risco (achado do `/qa`, code-reviewer — Important):** `recalcularSemanasProgressao` faz uma
+  query de todo o histórico de `MetricasDiarias` do atleta (`findByAtletaIdOrderByDataAsc`) e
+  agrupa em memória por semana — hoje só roda 1x por geração de plano (via o recálculo completo);
+  passa a rodar a cada treino real registrado. **Amplificação concreta identificada**: o batch
+  scheduler (`IntervalsIcuActivitySyncScheduler`) itera atividades pendentes chamando
+  `registrar`/`recalcularDesde` por atividade — um backfill inicial de um atleta novo (dezenas ou
+  centenas de atividades históricas importadas em sequência) dispara o full-scan uma vez por
+  atividade, cada vez relendo o histórico já acumulado: O(n²) no número de treinos, dentro de
+  transações que seguram conexão do pool por mais tempo. Mais barato por chamada que o recálculo
+  completo que está sendo evitado (não recalcula CTL/ATL, só agrega `volumeKm` já persistido), mas
+  o padrão de acesso (por atividade, não por batch) é o mesmo perfil de custo que motivou a change
+  original. **Aceito deliberadamente para esta change (XS)**: mitigar exigiria debounce (rodar só
+  na última atividade de um lote) ou tornar o cálculo do streak incremental — redesenho fora do
+  escopo XS. Se o volume de backfills em produção mostrar custo real, otimizar fica como follow-up
+  explícito (não implícito, como estava antes desta rodada de QA).
 - **Risco:** duplicar a chamada (deixar em `recalcularHistoricoCompleto` E em
   `atualizarMetaDados`) faria o streak ser recalculado 2x na mesma operação — sem bug funcional
   (idempotente), mas custo desnecessário. CA2 cobre isso explicitamente.
