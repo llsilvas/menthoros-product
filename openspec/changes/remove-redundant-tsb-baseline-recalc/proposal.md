@@ -20,9 +20,25 @@
   recálculo completo. Prova por `TsbServiceProgressaoContinuaIT` (streak reflete via ingestão real,
   sem `recalcularHistoricoCompleto`) + 2 testes de unidade novos (CA2: recálculo roda exatamente
   1x; atomicidade: falha no recálculo do streak propaga, não é engolida). `./mvnw clean test`
-  (3716+ testes) e a suíte completa de `*IT` verdes. **Ainda falta** o backfill de TSS legado em
-  produção (pré-requisito 3/3, `backfill-tss-legado-producao`) antes de reabrir esta change para
-  implementação.
+  (3716+ testes) e a suíte completa de `*IT` verdes.
+- Pré-requisito 3/3 fechado (2026-09-16): backfill de TSS legado — change
+  `backfill-tss-legado-producao`. Diagnóstico rodado contra o HomeLab (decisão do usuário —
+  produção real ainda sem dado relevante nessa data): 0 `TreinoRealizado` com `tssCalculado` nulo
+  entre os que contam na carga. Fallback removido de `TsbServiceImpl.somarTssContabilizado`;
+  `tssCalculado` nulo agora conta como 0, sem cálculo/persistência on-the-fly. Achado real durante
+  a implementação: 2 `*IT` (`TsbRecalculoEquivalenciaIT`, `TsbServiceRecalcularDesdeIT`) tinham
+  fixtures que dependiam silenciosamente do fallback — corrigidas para simular o treino já
+  ingerido (`TssCalculatorService.calcularTss` explícito antes do save). CA5 (garantia de que a
+  ingestão nunca persiste `tssCalculado` nulo) já estava coberta pelo teste existente
+  `IngestaoTreinoRealizadoServiceRegistrarIT.TodaFonteGravaTss.gravaTssECarga` — não duplicado.
+  `./mvnw clean test` + suíte completa de `*IT` verdes.
+
+**Os 3 pré-requisitos do pre-mortem do Codex estão fechados — esta change está liberada para
+reabertura (`/implement init remove-redundant-tsb-baseline-recalc`).** Nota: o diagnóstico do
+pré-requisito 3/3 rodou contra o HomeLab, não Railway — reexecutar contra produção real quando
+houver dado de treino lá, antes de considerar a lacuna de TSS legado fechada em produção de fato
+(não bloqueia a reabertura desta change, que trata de um problema diferente — o recálculo
+redundante no fluxo de plano).
 
 ## Problem Statement
 

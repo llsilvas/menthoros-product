@@ -180,10 +180,12 @@
   uma por método, com as duas exceções documentadas em design.md (`TsbServiceImpl` self-calls,
   `IntervalsIcuActivityPersister`) explicitamente permitidas via `DescribedPredicate`. Estendida
   na task 8.3 para uma 4ª regra (`TreinoDedupHelper.saveIdempotent`)
-- [~] 8.2 Remover o fallback "nulo → calcular" de 4.1 (backfill já rodou em produção)
-  verify: **bloqueada** — depende do backfill já ter rodado em produção (task 6.2, parte prod), que
-  ainda não aconteceu nesta sessão (só stage/HomeLab). Fica pendente até o deploy + backfill de
-  produção; a query de verificação da task 6.2 é o gate antes de remover
+- [x] 8.2 Remover o fallback "nulo → calcular" de 4.1 (backfill já rodou em produção)
+  verify: **fechada em 2026-09-16 pela change `backfill-tss-legado-producao`.** Diagnóstico contra
+  o HomeLab (produção real ainda sem dado relevante nessa data) confirmou 0 `tssCalculado` nulo —
+  fallback removido em `TsbServiceImpl.somarTssContabilizado`. Reexecutar o diagnóstico contra
+  Railway quando produção tiver dado de treino real (ver `backfill-tss-legado-producao/tasks.md`
+  task 1.2, nota).
 - [x] 8.3 `TreinoDedupHelper` sem `public`; `TssCalculatorService.calcularTssDia` removido ou privado
   verify: **`TreinoDedupHelper` não pode ficar package-private** — `services`/`services.impl`/
   `services.helper` são pacotes distintos e vários tipos cruzam essa fronteira (a interface do seam
