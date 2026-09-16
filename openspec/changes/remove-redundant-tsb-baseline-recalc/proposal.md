@@ -12,8 +12,17 @@
   caminho incremental, e backfill de TSS legado pendente em produção. A primeira foi corrigida
   pela change `fix-intervals-icu-retroactive-tsb-recalc` (PR backend #119, mergeado `cf84117`) —
   o persister agora usa `recalcularDesde`, fechando a defasagem que essa exceção documentada
-  deixava. **Ainda faltam as outras duas** (progressão + backfill) antes de reabrir esta change
-  para implementação.
+  deixava.
+- Pré-requisito 2/3 fechado (2026-09-16): `semanasProgressaoContinua` agora é recalculado pelo
+  caminho incremental — change `fix-progressao-continua-incremental`,
+  `TsbServiceImpl.recalcularSemanasProgressao` movido para dentro de `atualizarMetaDados` (chamado
+  tanto por `recalcularDesde` quanto por `recalcularHistoricoCompleto`), em vez de só pelo
+  recálculo completo. Prova por `TsbServiceProgressaoContinuaIT` (streak reflete via ingestão real,
+  sem `recalcularHistoricoCompleto`) + 2 testes de unidade novos (CA2: recálculo roda exatamente
+  1x; atomicidade: falha no recálculo do streak propaga, não é engolida). `./mvnw clean test`
+  (3716+ testes) e a suíte completa de `*IT` verdes. **Ainda falta** o backfill de TSS legado em
+  produção (pré-requisito 3/3, `backfill-tss-legado-producao`) antes de reabrir esta change para
+  implementação.
 
 ## Problem Statement
 
