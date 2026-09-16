@@ -40,9 +40,7 @@
 
 ## 5. Fechar o registro do achado
 
-- [ ] 5.1 Após merge em `develop`, atualizar
-      `apps/menthoros-backend/docs/ia/01-otimizacao-recalculo-tsb.md` marcando o achado como
-      resolvido, com o link/número do PR.
-- [ ] 5.2 Atualizar a linha correspondente no radar de `menthoros-product/openspec/SPRINTS.md`
-      (seção "Radar — specs no horizonte") para refletir a entrega, ou removê-la se o padrão do
-      radar for não manter itens entregues.
+- [x] 5.1 `apps/menthoros-backend/docs/ia/01-otimizacao-recalculo-tsb.md` atualizado —
+      seção "Resolvido (2026-09-16)" com link do PR #128.
+- [x] 5.2 Radar de `SPRINTS.md` atualizado — linha original (rastro do achado) aponta pra
+      entrega; nova linha 29d na tabela de sprints com o resumo completo da entrega.
