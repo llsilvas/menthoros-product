@@ -119,7 +119,14 @@
 
 ## Fechamento
 
-- [ ] **4.1** `/qa` — code-reviewer + security-reviewer (atenção a PII residual nas fixtures de
-      auditoria e a custo/rate-limit do modo candidato + grader LLM-juiz) + clean-code-reviewer +
-      Codex cross-model.
+- [x] **4.1** `/qa` — code-reviewer + security-reviewer + clean-code-reviewer + Codex cross-model,
+      em paralelo. Achados reais corrigidos: 5 classes `@Component` indevidas removidas; dispatch
+      por `schema_version` duplicado extraído (`EvalPlanoJsonParser`); estado mutável do
+      `EvalLlmJudge` trocado por retorno em record; `PlannerShadowService` mockado sem stub no
+      runner real trocado por `SkeletonComplianceChecker` real; mismatch skeleton
+      prompt-vs-avaliação corrigido; contexto do juiz completo enriquecido; modelo do runner real
+      configurável (`EVAL_MODEL`); `EvalCandidateRunner` ganhou suporte a v2 (`usaV2`, nenhum
+      arquétipo o usa ainda — Open Question); `EvalFixtureExtractionRunner` corrigido (nomeProva
+      via join `tb_prova`, idade calculada na data da geração). Revalidado com LLM real nos dois
+      modos após os fixes. `./mvnw clean test`: 3714/3714.
 - [ ] **4.2** Atualizar `openspec/SPRINTS.md` (linha da Sprint 30) e arquivar a change após merge.
