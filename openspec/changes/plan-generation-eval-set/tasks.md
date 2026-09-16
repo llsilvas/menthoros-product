@@ -73,32 +73,36 @@
 
 ## Fatia 2 — Grader LLM-juiz (roda nos dois modos)
 
-- [ ] **2.1** Decidir e documentar eixos da rubrica (4 originais: progressão, polarização,
-      especificidade para a prova, clareza; ou expandir para 6, incluindo exequibilidade de carga e
-      segurança/lesão — ver design.md §2, nota do `product-reviewer`). Prompt de rubrica + schema
-      JSON estruturado para a resposta do juiz.
+- [x] **2.1** Decidido: rubrica expandida para 6 eixos (nota do `product-reviewer`, GO) — mas só
+      em **modo candidato** (`NotaJuizCompleta`); modo auditoria usa `NotaJuizReduzida` (3 eixos
+      observáveis a partir da resposta isolada), nunca inventando progressão/segurança sem
+      histórico (achado da rodada 3 de DoR). Schema JSON estruturado via `EvalJudgeSchemaBuilder`
+      (mesmo padrão de `LlmJsonSchemaBuilder`, `BeanOutputConverter` por reflexão).
       Verify: teste unitário do schema (mesmo padrão de `LlmJsonSchemaBuilderTest`).
-- [ ] **2.2** `EvalLlmJudge` — chama a LLM real via `ChatClient`, `route=EVAL_JUDGE` no ledger (só
+- [x] **2.2** `EvalLlmJudge` — chama a LLM real via `ChatClient`, `route=EVAL_JUDGE` no ledger (só
       para auditoria/retenção — não é a fonte do custo agregado, ver 2.5). Roda contra
       `respostaHistorica` (modo auditoria) ou a resposta candidata (modo candidato, task 1.7).
       Verify: teste com `ChatClient` mockado validando parse da resposta e propagação de erro.
-- [ ] **2.3** Mecanismo de coleta da nota humana para as 20 fixtures de auditoria escolhidas para
-      calibração (decidir formato na implementação — planilha ou endpoint simples).
-      Verify: decisão documentada no `design.md` ou num ADR curto se envolver novo endpoint.
-      **Depende de disponibilidade de um coach real (Open Question do proposal) — se bloquear, a
-      fatia 2 pausa aqui e o restante segue com o juiz implementado mas não calibrado.**
-- [ ] **2.4** Cálculo de concordância de quadrante (juiz vs. coach) no runner, só para a rubrica
+- [x] **2.3** Bloqueado por dois motivos concretos (não hipotéticos): (a) só 1 fixture de auditoria
+      no total, não 20 — ver task 1.3; (b) nenhum coach disponível agora. Decisão: pular a
+      calibração real por ora — `EvalJudgeCalibration` (task 2.4) já trata "dado insuficiente"
+      como caso de primeira classe, não erro, e a coluna do juiz fica "NÃO CALIBRADO" em ambos os
+      modos até (a)+(b) resolverem. Mecanismo de coleta (planilha/endpoint) fica sem implementar —
+      não há o que coletar ainda.
+      Verify: decisão documentada aqui e em `proposal.md` Open Questions.
+- [x] **2.4** Cálculo de concordância de quadrante (juiz vs. coach) no runner, só para a rubrica
       reduzida de auditoria; abaixo de 16/20, a coluna do juiz na tabela de auditoria é marcada "NÃO
       CALIBRADO" (aviso, não bloqueio de build). A coluna do juiz em modo candidato (rubrica
       completa) é marcada "NÃO CALIBRADO" incondicionalmente nesta versão — os 20 casos de auditoria
       não validam progressão/segurança (achado da rodada 4 de DoR, Codex).
       Verify: teste com fixtures sintéticas de calibração conhecida para auditoria (CA3); teste
       confirmando que a coluna de candidato nunca sai de "NÃO CALIBRADO" nesta versão.
-- [ ] **2.5** Integrar o grader do juiz na tabela do runner, nos dois modos, com custo calculado em
+- [x] **2.5** Integrar o grader do juiz na tabela do runner, nos dois modos, com custo calculado em
       memória via `LlmPricingRegistry.precoDe(modelo)` sobre o `Usage` de cada chamada real.
       Verify: `./mvnw -Peval verify` (modo auditoria) e `-Dmodo=candidato` mostram a coluna do juiz +
       custo total (CA4 completo).
-- [ ] **2.6** Checkpoint: commit da fatia 2, `./mvnw clean verify` (sem `-Peval`) continua verde.
+- [x] **2.6** Checkpoint: commit da fatia 2, `./mvnw clean verify` (sem `-Peval`) continua verde.
+      Confirmado 2026-09-15: `BUILD SUCCESS`, 3714 testes.
 
 ## Fatia 3 — Gate de PR
 
