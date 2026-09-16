@@ -30,9 +30,16 @@
 ## 4. Validação completa
 
 - [ ] 4.1 Rodar a suíte completa do módulo para garantir que nenhum outro teste dependia do
-      comportamento removido (ex.: testes de `OnboardingServiceImpl` ou `CalibrationServiceImpl`
-      que porventura estubem `TsbService` para esse fluxo).
-      **Verify:** `./mvnw clean test` verde.
+      comportamento removido. **Achado do pre-mortem (confirmado no código):**
+      `BaselineCalculatorImpl.calcular` roda **duas vezes** por geração de plano para atleta em
+      calibração — via `OnboardingServiceImpl.montarContexto:115` (sempre) e via
+      `PlanGenerationPersister:191` → `OnboardingServiceImpl.avaliarCalibracaoSeAplicavel:367` →
+      `CalibrationServiceImpl.avaliarSemana:72` (quando aplicável). Os dois call sites
+      compartilham o mesmo `BaselineCalculatorImpl` — a remoção resolve ambos de uma vez, mas
+      **conferir especificamente `CalibrationServiceImplTest`** (não só confiar em "suíte
+      completa") por um mock de `TsbService` estubado nesse fluxo.
+      **Verify:** `./mvnw clean test` verde, com `CalibrationServiceImplTest` citado
+      nominalmente no relatório de validação.
 
 ## 5. Fechar o registro do achado
 

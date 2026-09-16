@@ -40,6 +40,21 @@ houver dado de treino lá, antes de considerar a lacuna de TSS legado fechada em
 (não bloqueia a reabertura desta change, que trata de um problema diferente — o recálculo
 redundante no fluxo de plano).
 
+- DoR fechado (2026-09-16, spec-reviewer + pre-mortem adversarial — Codex sem crédito de uso,
+  subagente Claude no lugar): ambos READY. **Achado real do pre-mortem, confirmado no código**:
+  `BaselineCalculatorImpl.calcular` roda **duas vezes** por geração de plano para atleta em
+  calibração — via `OnboardingServiceImpl.montarContexto:115` (sempre) e via
+  `PlanGenerationPersister:191` → `avaliarCalibracaoSeAplicavel:367` →
+  `CalibrationServiceImpl.avaliarSemana:72` (quando aplicável). O custo de "26-28s extras" medido
+  no HomeLab pode estar subestimado para esses atletas — os dois call sites compartilham o mesmo
+  `BaselineCalculatorImpl`, então a remoção resolve ambos de uma vez, sem mudar o escopo desta
+  change. Task 4.1 atualizada para conferir `CalibrationServiceImplTest` nominalmente. Task 1.1
+  (Open Question) já tem resposta encontrada pelo pre-mortem: commit de origem `f43c9b9` (PR #47,
+  `athlete-onboarding-baseline`), `design.md` Decisão 11 (arquivado em
+  `2026-07-22-athlete-onboarding-baseline`) documenta a fórmula sem justificativa de integridade
+  para o recálculo completo — trata como só "a fonte de `ctlReal`/`atlReal`", sem menção a
+  staleness ou caminho incremental ausente. Sem motivo real encontrado.
+
 ## Problem Statement
 
 Toda vez que o motor gera um plano semanal para um atleta que já tem baseline calibrado, a
