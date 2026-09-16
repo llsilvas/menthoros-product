@@ -106,15 +106,16 @@
 
 ## Fatia 3 — Gate de PR
 
-- [ ] **3.1** Atualizar `apps/menthoros-backend/CLAUDE.md` — Delivery Checklist — exigindo a tabela
+- [x] **3.1** Atualizar `apps/menthoros-backend/CLAUDE.md` — Delivery Checklist — exigindo a tabela
       do **modo candidato** em PRs que tocam `resources/prompts/**`, `dto/llm/**` ou
       `llm-pricing.yml`, com a nota explícita de que a coluna do juiz em modo candidato é "NÃO
       CALIBRADO" por padrão nesta versão (a calibração de auditoria não valida a rubrica completa
       — achado da rodada 4 de DoR) — usar grader determinístico como evidência primária do gate,
       juiz como sinal complementar, nunca isolado (CA5).
       Verify: revisão manual do texto adicionado.
-- [ ] **3.2** Checkpoint final: commit da fatia 3, `./mvnw clean verify` (sem `-Peval`) verde,
-      `./mvnw -Peval verify` (auditoria) e `-Dmodo=candidato` rodam de ponta a ponta.
+- [x] **3.2** Checkpoint final: commit da fatia 3, `./mvnw clean verify` (sem `-Peval`) verde,
+      `./mvnw -Peval verify` (auditoria) e `-Dmodo=candidato` rodam de ponta a ponta. Confirmado
+      2026-09-15 com chamadas reais à LLM em ambos os modos.
 
 ## Fechamento
 
