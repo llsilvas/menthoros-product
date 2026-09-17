@@ -139,16 +139,19 @@ backend, "External Call Resilience" → "Expose metrics"). Task dedicada em `tas
   não quebra clientes existentes); endpoint novo pro atleta.
 - **Banco:** nenhuma migration.
 - **Externo:** nova chamada ao intervals.icu, usa o token já armazenado — `ACTIVITY:READ` (escopo
-  já concedido na conexão) deve cobrir `pace-curves`; task 1.1 confirma contra a API real antes de
-  codar o resto.
+  já concedido na conexão) **confirmado suficiente** contra a API real (task 1.1, 2026-09-18).
 
 ## Open Questions & Assumptions
 
-**Premissas assumidas:**
-- `ACTIVITY:READ` cobre `pace-curves` — a confirmar na task 1.1 (chamada real contra a conta de
-  teste, Leandro).
-- O `DataCurve` tem pontos finos o bastante pra achar algo próximo dos 7 alvos dentro de uma
-  tolerância razoável — mesma task 1.1 confirma/ajusta a tolerância do design.md.
+**Resolvido (task 1.1, 2026-09-18):**
+- `ACTIVITY:READ` cobre `pace-curves` — confirmado com chamada real contra a conta de teste
+  (Leandro).
+- O `DataCurve` tem pontos **exatos** (desvio 0,00%) nas 7 distâncias-alvo — não é amostra esparsa;
+  tolerância de 1% no design.md é folga de arredondamento, não compensação de amostragem.
+
+**Em aberto:**
+- D5 (`use-best-effort-for-threshold-inference`) fica registrada como change de sequência —
+  proposta separada, só depois desta em produção. Não bloqueia esta change.
 
 **Em aberto:**
 - D5 (`use-best-effort-for-threshold-inference`) fica registrada como change de sequência —

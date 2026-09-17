@@ -5,10 +5,13 @@ Dois repositórios: `apps/menthoros-backend` e `apps/menthoros-front`, branches
 
 ## 1. Backend — client HTTP e serviço compartilhado
 
-- [ ] 1.1 Validar contra a conta de teste (Leandro, já conectado): chamar manualmente
-      `GET /api/v1/athlete/{id}/pace-curves.json?type=Run&curves=42d` com o token real — confirma
-      forma exata da resposta (`distance`/`values` do primeiro `DataCurve`) e se `ACTIVITY:READ`
-      basta, antes de escrever código. Ajusta a tolerância do design.md se necessário.
+- [x] 1.1 **Feito (2026-09-18).** Validado contra a conta de teste (Leandro): `ACTIVITY:READ`
+      cobre `pace-curves` (Bearer funcionou); `DataCurve` tem pontos exatos (desvio 0,00%) nas 7
+      distâncias-alvo — tolerância ajustada pra 1% (design.md §5). Achado operacional: chamadas
+      sem User-Agent de navegador batem no bot-protection do Cloudflare do intervals.icu (403,
+      "error code: 1010") — não é falha de auth. `IntervalsIcuClientImpl` já roda sobre
+      `WebClient`, que manda um `User-Agent` padrão sensato; confirmar em 1.4 que isso não repete
+      (se repetir, setar `User-Agent` explícito no `WebClient` da integração).
 - [ ] 1.2 `IcuPaceCurveDto` (`dto/intervalsicu/`) — mapeia só `list[].distance`/`list[].values`.
 - [ ] 1.3 Teste (WireMock): `IntervalsIcuClient.buscarPaceCurves` — GET com Bearer, query
       `type=Run&curves=42d`, desserializa a resposta.

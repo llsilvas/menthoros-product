@@ -66,16 +66,19 @@ Alvos fixos: `{400, 800, 1500, 1609.34, 3000, 5000, 10000}` metros.
 
 Para cada alvo, varrer `distance[]` do primeiro `DataCurve` da resposta (índice 0 — o curve sem
 filtro) e escolher o índice `i` cujo `distance[i]` está mais próximo do alvo, **com tolerância
-máxima de 5%** (ex.: pra 5000m, aceita `distance[i]` entre 4750 e 5250). Fora da tolerância, a marca
-não entra na lista — é isso que resolve CA3 (sem dado suficiente, sem inventar).
+máxima de 1%**. Fora da tolerância, a marca não entra na lista — é isso que resolve CA3 (sem dado
+suficiente, sem inventar).
 
 `pace` = `tempoSegundos / (distanciaMetros / 1000)`, formatado `mm:ss/km` (mesmo formatador já usado
 em `IntervalsIcuTargetParser`/telas existentes de pace).
 
-**Por que tolerância de 5%, não distância exata:** o `DataCurve` do intervals.icu é amostrado nos
-pontos reais das atividades do atleta — não vai ter exatamente 5000,00m salvo coincidência. 5% é o
-ponto de partida; a task de implementação valida contra a resposta real da conta de teste e ajusta
-se necessário (Open Question do proposal).
+**Validado contra a API real (2026-09-18, conta de teste — task 1.1):** o `DataCurve` do
+intervals.icu **já traz pontos exatos** nas 7 distâncias-alvo (`400/800/1500/1609.34/3000/5000/
+10000` → desvio 0,00% em todos), não é amostra orgânica só das atividades do atleta — o provedor
+pré-computa checkpoints padrão. Curve com 107 pontos no total, indo até 21000m. Tolerância de 1% é
+folga suficiente (cobre arredondamento de ponto flutuante), não uma tolerância "larga" para
+compensar amostragem esparsa como se imaginava antes da validação. `ACTIVITY:READ` (escopo Bearer
+já concedido na conexão) confirmado suficiente — sem necessidade de novo consentimento do atleta.
 
 ## 6. Cache
 
