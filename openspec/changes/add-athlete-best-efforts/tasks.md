@@ -34,6 +34,12 @@ Dois repositórios: `apps/menthoros-backend` e `apps/menthoros-front`, branches
       `CoachAthleteProfileServiceImpl.buscarPerfil` via `buscarLista`, janela fixa `42d`.
       *verify:* os 2 testes (2.1–2.2) passam.
 - [ ] 2.4 `@Schema` no campo novo do DTO (convenção do `CLAUDE.md` do backend).
+- [ ] 2.5 Teste que falha: `buscarPerfil` incrementa o contador Micrometer
+      `melhores_esforcos.perfil.exibido` com tag `preenchido=true` quando `melhoresEsforcos` não é
+      vazio, `preenchido=false` quando é vazio (instrumentação da métrica de sucesso, proposal.md).
+      Implementação junto (mesmo padrão de métrica já usado no módulo — ver
+      "External Call Resilience" no `CLAUDE.md` do backend).
+      *verify:* o teste passa.
 
 ## 3. Backend — endpoint do atleta
 

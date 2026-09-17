@@ -108,6 +108,27 @@ Ligada à rotina do coach (`config.yaml`): % de perfis de atleta abertos pelo co
 está realmente disponível pra calibração, pré-condição pra D5 fazer sentido. Métrica secundária
 (atleta): % de atletas conectados que abrem a aba Esforços pelo menos uma vez.
 
+**Instrumentação:** contador Micrometer `melhores_esforcos.perfil.exibido` (tags `preenchido=true|
+false`), incrementado em `CoachAthleteProfileServiceImpl.buscarPerfil` toda vez que o campo
+`melhoresEsforcos` é montado — mesmo padrão de métrica já usado no módulo (ver `CLAUDE.md` do
+backend, "External Call Resilience" → "Expose metrics"). Task dedicada em `tasks.md` (2.5).
+
+## Rollback & Risco
+
+- **Reverter é trivial:** sem migration, sem dado persistido pelo Menthoros — reverter o PR (back e
+  front) volta ao estado anterior sem qualquer limpeza de banco. O campo novo em
+  `AtletaPerfilCoachOutputDto` é `@JsonInclude(NON_NULL)`; um cliente front mais antigo (durante um
+  deploy backend-primeiro) simplesmente não lê o campo — sem quebra de contrato.
+- **Rate limit do intervals.icu:** mitigado pelo cache em memória de 5 min por (atleta, janela)
+  (design.md §6). Se mesmo assim o rate limit for atingido em produção, o efeito é degradado (a
+  seção some/mostra erro localizado — CA5), nunca quebra o resto da tela.
+- **Risco do escopo OAuth:** se a task 1.1 descobrir que `ACTIVITY:READ` **não** cobre
+  `pace-curves` (403 na chamada real), o plano B é: (a) verificar se existe escopo adicional
+  documentado na API do intervals.icu e, se sim, avaliar se pedir esse escopo novo exige
+  reconsentimento do atleta (afeta quem já conectou); (b) se não houver escopo viável, a change para
+  aqui — reportar ao founder antes de prosseguir para as tasks 1.2+. Não é um risco que aborta em
+  silêncio: task 1.1 é a primeira do plano exatamente para decidir isso antes de qualquer código.
+
 ## Impact
 
 - **Repositórios:** `apps/menthoros-backend` (client novo, campo novo no DTO do perfil, endpoint
