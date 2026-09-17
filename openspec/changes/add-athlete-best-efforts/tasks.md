@@ -12,11 +12,12 @@ Dois repositórios: `apps/menthoros-backend` e `apps/menthoros-front`, branches
       Cloudflare do intervals.icu (403, "error code: 1010") — não é falha de auth, e não afeta
       `IntervalsIcuClientImpl` (mesmo `WebClient`/Reactor Netty já usado pelos outros métodos em
       produção, sem esse problema).
-- [ ] 1.2 `IcuPaceCurveDto` (`dto/intervalsicu/`) — mapeia só `list[].distance`/`list[].values`.
-- [ ] 1.3 Teste (WireMock): `IntervalsIcuClient.buscarPaceCurves` — GET com Bearer, query
-      `type=Run&curves=42d`, desserializa a resposta.
-- [ ] 1.4 `IntervalsIcuClientImpl.buscarPaceCurves` — implementação, mesmo estilo de
-      `listarAtividades`.
+- [x] 1.2 **Feito.** `IcuPaceCurveDto` (`dto/intervalsicu/`) — mapeia só
+      `list[].distance`/`list[].values`.
+- [x] 1.3 **Feito** (2 testes, `IntervalsIcuClientImplTest$BuscarPaceCurves`, WireMock). GET com
+      Bearer, query `type=Run&curves=42d`, desserializa; erro HTTP → `IntervalsIcuApiException`.
+- [x] 1.4 **Feito.** `IntervalsIcuClientImpl.buscarPaceCurves` — mesmo estilo de `listarAtividades`.
+      *verify:* 32/32 em `IntervalsIcuClientImplTest`.
 - [ ] 1.5 `MelhorEsforcoDto` (`dto/output/`) — record compartilhado (design.md §1).
 - [ ] 1.6 Teste que falha: `MelhorEsforcoServiceImpl.buscar(atletaId, janela)` — curve com pontos
       próximos dos 7 alvos → 7 `MelhorEsforcoDto` com tempo/pace corretos.
