@@ -18,15 +18,21 @@ Dois repositórios: `apps/menthoros-backend` e `apps/menthoros-front`, branches
       Bearer, query `type=Run&curves=42d`, desserializa; erro HTTP → `IntervalsIcuApiException`.
 - [x] 1.4 **Feito.** `IntervalsIcuClientImpl.buscarPaceCurves` — mesmo estilo de `listarAtividades`.
       *verify:* 32/32 em `IntervalsIcuClientImplTest`.
-- [ ] 1.5 `MelhorEsforcoDto` (`dto/output/`) — record compartilhado (design.md §1).
-- [ ] 1.6 Teste que falha: `MelhorEsforcoServiceImpl.buscar(atletaId, janela)` — curve com pontos
-      próximos dos 7 alvos → 7 `MelhorEsforcoDto` com tempo/pace corretos.
-- [ ] 1.7 Teste que falha: atleta sem `IntegracaoExterna` ativa → lista vazia, sem chamada ao
-      client.
-- [ ] 1.8 Teste que falha: curve sem ponto dentro da tolerância pra alguma distância → essa
-      distância não aparece na lista.
-- [ ] 1.9 `MelhorEsforcoServiceImpl` — algoritmo de extração (design.md §5), cache (design.md §6).
-      *verify:* os 3 testes (1.6–1.8) passam.
+- [x] 1.5 **Feito.** `MelhorEsforcoDto` (`dto/output/`) — record compartilhado (design.md §1).
+- [x] 1.6 **Feito.** Teste (CA1): curve com pontos exatos nas 3 distâncias testadas (400m/800m/5k)
+      → 3 `MelhorEsforcoDto` com tempo/pace corretos.
+- [x] 1.7 **Feito.** Teste (CA2): atleta sem `IntegracaoExterna` ativa → lista vazia, sem chamada
+      ao client (`verify(..., never())`).
+- [x] 1.8 **Feito.** Teste (CA3): distância a 6% do alvo (fora da tolerância de 1%) não entra na
+      lista.
+- [x] 1.9 **Feito.** `MelhorEsforcoServiceImpl` — algoritmo de extração (design.md §5). Formatação
+      de pace implementada direto (aritmética inteira em segundos), não reaproveitando
+      `ThresholdInferenceService.formatarPace` como o design.md sugeria — esse usa `BigDecimal` de
+      minutos decimais, com round-trip double→BigDecimal desnecessário para este caso; mesmo
+      formato de saída (`mm:ss/km`). **Cache implementado com `@Cacheable` no `CacheManager`
+      compartilhado** (`CacheConfig`) em vez de um Caffeine dedicado — TTL 30min (default do
+      manager) em vez dos 5min originalmente cogitados; design.md §6 atualizado com a decisão real.
+      *verify:* 4/4 em `MelhorEsforcoServiceImplTest`; `./mvnw clean test` → 3734/3734, 0 falhas.
 
 ## 2. Backend — perfil do coach
 

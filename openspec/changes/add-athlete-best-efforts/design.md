@@ -82,12 +82,15 @@ já concedido na conexão) confirmado suficiente — sem necessidade de novo con
 
 ## 6. Cache
 
-**TTL de 5 minutos por (atletaId, janela)**, em memória (Caffeine, já é dependência do projeto —
-confirmar em `pom.xml` antes de assumir; se não for, usar cache simples `ConcurrentHashMap` com
-expiração manual, sem introduzir dependência nova). Motivo: evitar bater o rate limit do
-intervals.icu a cada re-render da tela do atleta (o front não deveria precisar, mas um refresh
-acidental ou StrictMode duplicando o efeito não pode virar duas chamadas externas). Sem
-persistência — cache é só otimização de tráfego, não fonte de verdade.
+**Implementado com o `CacheManager` (Caffeine) já existente** (`CacheConfig`), não um Caffeine
+dedicado — mais simples e consistente com o resto do módulo. Cache nomeado `melhores-esforcos`,
+chave `atletaId + '_' + janela + '_' + tenantId` (mesmo padrão de `AtletaServiceImpl`), TTL o
+**default compartilhado de 30min** (`CacheProperties.defaultTtl` — TTL por cache não é
+implementado nesse manager hoje; 30min em vez dos 5min originalmente cogitados, aceito porque o
+objetivo é só evitar chamadas duplicadas, não frescor agressivo). Seguro cachear: `buscar` é
+leitura pura, sem escrita — não tem o risco do incidente de 2026-08-15
+(`PlanoMetadadosServiceImpl.buscarOuCriarMetadados`, cache de um get-or-create que gravava ID
+fantasma após rollback).
 
 ## 7. Tratamento de erro (CA5)
 
