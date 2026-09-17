@@ -36,4 +36,5 @@ Repositório único: `apps/menthoros-backend`, branch `feature/sync-fc-atleta-in
 ## 3. Validação e fechamento
 
 - [x] 3.1 **Feito.** `./mvnw clean verify` verde — 190 testes de integração, 0 falhas.
-- [ ] 3.2 PR `feature/sync-fc-atleta-intervals-icu-sport-settings` → `develop`.
+- [x] 3.2 **Feito.** PR **#132** `feature/sync-fc-atleta-intervals-icu-sport-settings` → `develop`,
+      mergeado em 2026-09-17.

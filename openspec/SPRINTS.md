@@ -2,7 +2,22 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-17 (**`fix-plano-volume-nao-atualiza-ao-editar-treino` entregue e
+**Última atualização:** 2026-09-17 (**`sync-fc-atleta-intervals-icu-sport-settings` entregue e
+arquivada** — backend PR **#132** mergeado em `develop`. S · Fast: investigação de um bug relatado
+— treino chegou no relógio de um atleta com FC alvo bem acima do prescrito (`210`/`228`/`210` bpm
+vs. `107-121`/`121-126`/`107-121` enviados). A matemática bateu quase exata com o intervals.icu
+tratando o bpm absoluto enviado como **percentual bruto de FC máx**, expandido contra a **FC máx
+configurada na conta do atleta lá** (`lthr=168`/`max_hr=185`) — divergente da do Menthoros
+(`fcLimiar=142`/`fcMaxima=172`). Sem resposta do fórum do intervals.icu pra confirmar a causa (1)
+(se `units:"bpm"` é honrado como absoluto), esta change ataca a causa (2), que o Menthoros controla:
+`IntervalsIcuOAuthServiceImpl.exchangeCodeForToken` passa a sincronizar `fcLimiar`/`fcMaxima` pro
+intervals.icu (`lthr`/`max_hr` via `PUT sport-settings`) logo após a conexão OAuth, best-effort —
+nunca sobrescreve com `null`, nunca derruba o `SUCESSO` se falhar. Fora do escopo: não sincroniza na
+edição do perfil (não existe esse fluxo hoje) nem resincroniza quem já conectou antes. Se o padrão
+`210/228/210` persistir mesmo com FC sincronizada, a causa (1) fica confirmada e reabre a discussão
+de mudar `montarHr` pra `%lthr` nativo. Arquivada em
+`changes/archive/2026-09/2026-09-17-sync-fc-atleta-intervals-icu-sport-settings/`.) Antes,
+2026-09-17 (**`fix-plano-volume-nao-atualiza-ao-editar-treino` entregue e
 arquivada** — backend PR **#131** mergeado em `develop`. S · Fast: `editarTreino` nunca chamava
 `ajustarVolumePlano` (só `adicionarTreino`/`excluirTreino` faziam), então
 `PlanoSemanal.volumePlanejadoKm`/`volumeAlvoKm` ficava congelado no valor de quando o plano foi
