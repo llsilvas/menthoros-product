@@ -52,8 +52,9 @@ o dado mais atual do atleta, não só a última prova cadastrada ou a média gen
 - **Backend — atleta:** novo endpoint `GET /api/v1/atletas/me/melhores-esforcos?janela={42d|1y|all}`
   reaproveitando o mesmo client/algoritmo, pro atleta ver a própria tabela na tela de Progresso.
 - **Frontend:**
-  - Perfil do atleta visto pelo coach: nova seção "Melhores Esforços" ao lado de onde `recordes`
-    (PRs) já aparece hoje.
+  - Perfil do atleta visto pelo coach (`CoachAthleteProfilePage`): nova seção "Melhores Esforços".
+    `recordes` (PRs) existe no DTO mas não tem UI própria hoje (só fixture de teste) — sem
+    precedente visual a copiar; a task de implementação escolhe o painel certo (ver design.md §8).
   - Tela de Progresso do atleta: nova aba/seção "Esforços", com seletor de janela (42 dias / 1 ano
     / histórico) e tabela distância × tempo × pace. Sem integração conectada: CTA "Conectar
     intervals.icu" (reaproveita o fluxo já existente).

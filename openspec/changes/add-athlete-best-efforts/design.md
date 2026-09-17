@@ -98,8 +98,14 @@ persistência — cache é só otimização de tráfego, não fonte de verdade.
 
 ## 8. Frontend
 
-- **Perfil do coach:** nova seção "Melhores Esforços" no componente que já renderiza `recordes`
-  (PRs) — mesmo padrão visual, ao lado. Sem seletor de janela (fixo `42d`, vem pronto do backend).
+- **Perfil do coach:** nova seção "Melhores Esforços" em `CoachAthleteProfilePage`
+  (`features/coach/pages/`). **Correção (2026-09-18, verificado contra o código real):** `recordes`
+  existe no DTO (`AtletaPerfilCoach.ts:99`) mas **não é renderizado em nenhum componente do coach
+  hoje** — só aparece em fixtures de teste (`CoachAthleteProfilePage.test.tsx`,
+  `CoachInboxPage.test.tsx`). Não há "ao lado de" pra reaproveitar; a task de implementação escolhe
+  o painel certo (provável candidato: `DiagnosisTabPanel.tsx`, que já agrega dados fisiológicos do
+  atleta) e decide sozinha o layout, sem precedente visual a copiar. Sem seletor de janela (fixo
+  `42d`, vem pronto do backend).
 - **Tela de Progresso do atleta:** componente novo `MelhoresEsforcosCard` (ou aba — a task de
   implementação escolhe o ponto de encaixe exato ao ver o layout atual), com seletor de janela (3
   opções: `42d`/`1y`/`all`) e três estados: carregando, `integracaoConectada=false` (CTA conectar),

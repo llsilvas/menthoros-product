@@ -56,8 +56,9 @@ Dois repositórios: `apps/menthoros-backend` e `apps/menthoros-front`, branches
 
 - [ ] 4.1 Cliente da API (`src/api` curado — **NÃO** rodar `generate:api`, ver memória do projeto):
       tipo pro campo novo `melhoresEsforcos` do perfil.
-- [ ] 4.2 Teste que falha: seção "Melhores Esforços" renderiza ao lado de `recordes` (PRs) no
-      componente de perfil do atleta que o coach já usa.
+- [ ] 4.2 Teste que falha: seção "Melhores Esforços" renderiza em `CoachAthleteProfilePage`
+      (provável `DiagnosisTabPanel.tsx` — confirmar ao ver o layout; `recordes` NÃO está
+      renderizado em nenhum lugar hoje, é DTO sem UI, então não há precedente visual pra copiar).
 - [ ] 4.3 Implementação. *verify:* teste de 4.2 passa; `npm run lint && npm run build`.
 
 ## 5. Frontend — tela do atleta
