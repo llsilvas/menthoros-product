@@ -4,30 +4,27 @@ Repositório único: `apps/menthoros-backend`, branch `feature/fix-plano-volume-
 
 ## 1. Fix
 
-- [ ] 1.1 Teste que falha (CA1): `TreinoPlanejadoServiceTest` — novo teste dentro do nested
-      `editarTreino` cobrindo que editar `distanciaKm` de `5` para `8` num plano com
-      `volumePlanejadoKm=10` resulta em `plano.volumePlanejadoKm=13` e
-      `volumeAlvoKm=13`, com `verify(planoSemanalRepository).save(plano)`.
-      *verify:* `./mvnw test -Dtest=TreinoPlanejadoServiceTest` — falha (comportamento atual não
-      ajusta o plano).
-- [ ] 1.2 Teste que falha (CA2): reduzir `distanciaKm` de `8` para `3` num plano com
-      `volumePlanejadoKm=10` resulta em `volumePlanejadoKm=5`.
-- [ ] 1.3 Teste que falha (CA3): patch sem `distanciaKm` (só `descricao`/`percepcaoEsforcoEsperada`)
-      não altera `volumePlanejadoKm` e **não** chama `planoSemanalRepository.save(plano)` — só
-      `treinoPlanejadoRepository.save(treino)`.
-- [ ] 1.4 Teste que falha (CA4): `distanciaKm` nulo → `4` (e o caminho inverso `4` → nulo) não lança
-      `NullPointerException` e ajusta o volume corretamente (nulo tratado como zero).
-- [ ] 1.5 Implementação em `TreinoPlanejadoServiceImpl.editarTreino`: depois de `aplicarPatch` e
-      antes do `treinoPlanejadoRepository.save(treino)`, comparar `distanciaAnterior` (já capturada
-      em `:127`) com `treino.getDistanciaKm()` pós-patch; se diferentes, chamar
-      `ajustarVolumePlano(plano, distanciaAnterior, false)` seguido de
-      `ajustarVolumePlano(plano, treino.getDistanciaKm(), true)` e `planoSemanalRepository.save(plano)`.
-      Sem mudar a assinatura de `ajustarVolumePlano`.
-      *verify:* os 4 testes (1.1–1.4) passam. `./mvnw clean test`.
-- [ ] 1.6 JavaDoc de `editarTreino` atualizado — `Side Effects` passa a citar também o ajuste do
-      volume do plano quando a distância muda (hoje só menciona "Database update (TreinoPlanejado)").
+- [x] 1.1 **Feito.** Teste RED confirmado antes do fix (CA1): `aumentarDistanciaSomaDeltaNoVolumeDoPlano`
+      — plano `volumePlanejadoKm=20`, treino `distanciaKm=10` → `18`, resultado esperado `28`,
+      `verify(planoSemanalRepository).save(plano)`.
+- [x] 1.2 **Feito.** Teste RED confirmado (CA2): `reduzirDistanciaSubtraiDeltaNoVolumeDoPlano` —
+      `distanciaKm=10` → `3` num plano com `volumePlanejadoKm=20`, resultado `13`.
+- [x] 1.3 **Feito.** Teste (CA3): `patchSemDistanciaNaoMexeNoVolumeDoPlano` — patch só com
+      `descricao`, volume inalterado e `planoSemanalRepository` nunca salvo. Já passava antes do
+      fix (hoje nunca mexe no plano); serve de regressão daqui pra frente.
+- [x] 1.4 **Feito.** Teste RED confirmado (CA4): `distanciaAnteriorNulaNaoLancaNpe` —
+      `distanciaKm` nulo → `4.0`, sem NPE, volume ajustado.
+- [x] 1.5 **Feito.** `TreinoPlanejadoServiceImpl.editarTreino` — depois de salvar o treino, compara
+      `distanciaAnterior` (`:127`) com `treino.getDistanciaKm()` pós-patch (tratando nulo como
+      ausência de mudança/zero); se mudou, chama `ajustarVolumePlano(plano, distanciaAnterior, false)`
+      seguido de `ajustarVolumePlano(plano, distanciaNova, true)` e
+      `planoSemanalRepository.save(plano)`. Sem mudar a assinatura de `ajustarVolumePlano`.
+      *verify:* os 4 testes (1.1–1.4) passam — `./mvnw test -Dtest='TreinoPlanejadoServiceTest$EditarTreino'`
+      → 51/51 verdes (suíte completa da classe, sem regressão).
+- [x] 1.6 **Feito.** JavaDoc de `editarTreino` atualizado — `Side Effects` cita o ajuste do volume
+      do plano quando a distância muda.
 
 ## 2. Validação e fechamento
 
-- [ ] 2.1 `./mvnw clean verify` verde (inclui os `*IT`, não só `test`).
+- [x] 2.1 **Feito.** `./mvnw clean verify` verde — 190 testes de integração (`*IT`), 0 falhas.
 - [ ] 2.2 PR `feature/fix-plano-volume-nao-atualiza-ao-editar-treino` → `develop`.
