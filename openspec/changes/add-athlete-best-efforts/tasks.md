@@ -94,15 +94,24 @@ Dois repositórios: `apps/menthoros-backend` e `apps/menthoros-front`, branches
 
 ## 5. Frontend — tela do atleta
 
-- [ ] 5.1 Cliente da API: tipo + função pro endpoint `/atletas/me/melhores-esforcos`.
-- [ ] 5.2 Teste que falha: componente `MelhoresEsforcosCard` — 3 estados (carregando, sem
-      integração/CTA, lista de marcas).
-- [ ] 5.3 Teste que falha (CA4): trocar o seletor de janela dispara nova chamada com a janela certa.
-- [ ] 5.4 Teste que falha (CA5): erro na chamada mostra estado de erro localizado à seção, com botão
-      de tentar de novo.
-- [ ] 5.5 Implementação do componente + encaixe na tela de Progresso do atleta (escolher o ponto
-      exato ao ver o layout atual).
-      *verify:* os testes de 5.2–5.4 passam; `npm run lint && npm run build`.
+- [x] 5.1 **Feito.** `AthleteMelhorEsforco`/`AthleteMelhoresEsforcos`/`MelhoresEsforcosJanela`
+      (`types/AthleteProgress.ts`) + `AthleteProgressService.getMelhoresEsforcos(janela?)`.
+- [x] 5.2 **Feito** (4 testes, `progressBlocks.test.tsx`). `EffortsBlock` — marcas com tempo/pace
+      formatados + janela ativa marcada; conectado sem marcas ("nenhum esforço nessa janela", sem
+      CTA); sem integração (CTA "Conectar intervals.icu", sem seletor).
+- [x] 5.3 **Feito** (CA4, incluído no teste acima + no teste de página). Trocar o seletor de janela
+      chama `onJanelaChange`/`fetchMelhoresEsforcos` com o valor novo.
+- [x] 5.4 **Feito.** Reaproveita o `BlockState` já existente (erro > carregando > vazio > conteúdo,
+      mesmo padrão dos outros 4 blocos) — "Não foi possível carregar seus melhores esforços" +
+      "Tentar novamente", sem componente/teste dedicado extra.
+- [x] 5.5 **Feito.** `useAthleteMelhoresEsforcos.ts` (hook, 4 testes) + `effortsAdapter.ts`
+      (`buildEffortsReading`/`formatTempoEsforco`) + `EffortsBlock.tsx` + encaixe como 5º bloco em
+      `AthleteProgressPage.tsx` (efeito próprio, refaz só quando `janela` muda). CTA de "sem
+      integração" linka pra `ROUTES.ATHLETE_PROFILE` (onde `IntervalsIcuConnectionCard` já vive) em
+      vez de duplicar o fluxo OAuth inline. Subtítulo da página e comentário de design atualizados
+      de "quatro perguntas" pra "cinco perguntas" (decisão do founder).
+      *verify:* `npm run lint && npm run build` limpos; `npm run test:run` → 192 arquivos / 1582
+      testes, 0 falhas.
 
 ## 6. Validação e fechamento
 
