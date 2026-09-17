@@ -1,5 +1,12 @@
 # Tasks — landing-oferta-fundadora-clareza
 
+🟠 **ARQUIVADA INCOMPLETA em 2026-09-17, por decisão do founder.** PR **#108** mergeado em
+`develop` em 2026-09-07 (CI verde). Pendências que seguem **explicitamente em aberto**: 4.3 e 6.1
+(bloqueadas por decisões do founder D-01 e D-03, ver seção 8), 7.2/7.3/7.4 (exigem navegador real
+— não têm evidência registrada nesta sessão) e 8.1–8.4 (registrar D-01 a D-04 quando saírem). Se
+alguma dessas decisões/validações vier depois, abrir change nova — reabrir a arquivada é pior que
+uma pequena e específica.
+
 Repositório único: `apps/menthoros-front` (`src/landing/**`). Sem migration, sem mudança de
 contrato de API, sem alteração de área autenticada.
 

@@ -2,7 +2,21 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-17 (**`expandir-serie-timeline-revisao` entregue e arquivada** —
+**Última atualização:** 2026-09-17 (🟠 **`landing-oferta-fundadora-clareza` ARQUIVADA INCOMPLETA,
+por decisão do founder** — front PR **#108** mergeado em `develop` em 2026-09-07, CI verde. XS ·
+Fast: remove o plano Gratuito e a hierarquia por opacidade da comparação de planos, acrescenta o
+bloco dedicado à oferta fundadora antes da grade de preços (10 vagas, 60 dias sem cartão,
+continuidade no Basic), reforça a oferta no hero com link para a seção de preços, atualiza duas
+perguntas do FAQ e audita os estados do `AccessForm`/`useWaitlist` (nenhuma lacuna encontrada).
+**Pendências que seguem em aberto:** 4.3 e 6.1, bloqueadas por decisões do founder ainda não
+tomadas (D-01 — caminho para fundador com >20 atletas; D-03 — canal/prazo/seleção do retorno após
+"Solicitar acesso"); 7.2/7.3/7.4, validações manuais de contraste sobre o vídeo do hero, navegação
+só por teclado/leitor de tela e responsividade em 4 larguras + zoom 200%, nenhuma com evidência
+registrada nesta sessão (só verificadas por leitura de código); 8.1–8.4, registrar D-01 a D-04
+quando saírem. Se alguma decisão/validação vier depois, abre-se change nova — reabrir a arquivada é
+pior que uma pequena e específica. Arquivada em
+`changes/archive/2026-09/2026-09-17-landing-oferta-fundadora-clareza/`.) Antes,
+2026-09-17 (**`expandir-serie-timeline-revisao` entregue e arquivada** —
 front PR **#78** mergeado em `develop` (`10b622a`). XS · Fast: a timeline de revisão de um treino
 com série (ex.: fartlek com repetições) desenhava dois blocos agregados por `duração × repetições`
 em vez de uma barra por repetição — `liveBlocks` (`TreinoEditDialog.tsx`) corrigido para emitir um
