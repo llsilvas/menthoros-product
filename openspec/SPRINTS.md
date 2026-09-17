@@ -2,7 +2,20 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-13 (**análise arquitetural do motor de geração de planos +
+**Última atualização:** 2026-09-17 (**`convite-assessorias-fundadoras` entregue e arquivada** —
+backend PR **#87** e front PR **#99** mergeados em `develop` em 2026-08-29. L · Full: convite de
+assessorias fundadoras por token opaco (`tb_founding_invite`), e-mail transacional próprio do
+backend (`EmailSender`/`SmtpEmailSender`/`FileEmailSender`, antes só o Keycloak enviava) e modo
+fundadora no signup (`Assessoria GRATUITO 10/1 fundadora=true`, e-mail pré-verificado, sem gate de
+verificação). QA (2026-08-28) sem Critical — corrigidos corrida no índice único do convite (dois
+ADMINs no mesmo inscrito), header injection em `EmailMessage` e ordem de compensação da saga
+(consumo do convite antes do rastro virar `ACTIVE`). Pré-condições operacionais (ADMIN do founder
+no Keycloak de produção, vars `SMTP_*` no Railway, domínio verificado no Resend) e a validação
+ponta a ponta em `develop` + rollout (`COACH_SIGNUP_ENABLED=false` em produção) confirmadas
+concluídas pelo founder. E2E Playwright (4.5) cortado por decisão do founder — a validação manual
+com conta real cobriu o caminho feliz de ponta a ponta. Arquivada em
+`changes/archive/2026-09/2026-09-17-convite-assessorias-fundadoras/`.) Antes,
+2026-09-13 (**análise arquitetural do motor de geração de planos +
 repriorização do bloco de IA** — ver `apps/menthoros-backend/docs/ia/ANALISE_GERACAO_PLANOS_LLM.md`. Números reais de produção (2026-09-07): 12,8k
 tokens de prompt por plano, `cachedTokens=0` em 3 de 4 chamadas, 31–40 s por plano (70 s no cold-start),
 ≈ US$ 0,05/plano. Conclusão: custo não é o problema; latência e retrabalho são. Causa raiz: o schema
