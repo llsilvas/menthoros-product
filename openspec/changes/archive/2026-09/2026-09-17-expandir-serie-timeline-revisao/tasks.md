@@ -24,7 +24,7 @@ Repo afetado: `apps/menthoros-front` · branch `feature/expandir-serie-timeline-
 
 ## 2. E2E — deferido, com motivo
 
-- [ ] **2.1** **Deferido.** O `CLAUDE.md` do front lista "editar um treino planejado" como fluxo
+- [x] **2.1** **Deferido — decisão final, sem E2E.** O `CLAUDE.md` do front lista "editar um treino planejado" como fluxo
       crítico com E2E obrigatório. Não há spec E2E da tela de revisão hoje (`tests/e2e/` cobre
       auth, atletas, dashboard e coach/inbox), e criar a primeira exigiria seed de plano + auth —
       escopo próprio, maior que esta change.
@@ -36,7 +36,8 @@ Repo afetado: `apps/menthoros-front` · branch `feature/expandir-serie-timeline-
 
 ## 3. Fechamento
 
-- [ ] **3.1** PR `feature/expandir-serie-timeline-revisao` → `develop`
+- [x] **3.1** **Feito.** PR **#78** `feature/expandir-serie-timeline-revisao` → `develop`, mergeado
+      (commit `10b622a`).
 
 ## Follow-ups fora do escopo
 

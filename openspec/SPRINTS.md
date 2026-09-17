@@ -2,7 +2,16 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-17 (**`convite-assessorias-fundadoras` entregue e arquivada** —
+**Última atualização:** 2026-09-17 (**`expandir-serie-timeline-revisao` entregue e arquivada** —
+front PR **#78** mergeado em `develop` (`10b622a`). XS · Fast: a timeline de revisão de um treino
+com série (ex.: fartlek com repetições) desenhava dois blocos agregados por `duração × repetições`
+em vez de uma barra por repetição — `liveBlocks` (`TreinoEditDialog.tsx`) corrigido para emitir um
+par esforço/recuperação por repetição, reaproveitando o mesmo `WorkoutTimelineChart` das duas
+telas. E2E deferido por decisão registrada — mudança é puramente de renderização, não toca
+hidratação/serialização/API. Segue aberto (fora do escopo): o editor ainda colapsa séries
+heterogêneas num único par ao salvar. Arquivada em
+`changes/archive/2026-09/2026-09-17-expandir-serie-timeline-revisao/`.) Antes,
+2026-09-17 (**`convite-assessorias-fundadoras` entregue e arquivada** —
 backend PR **#87** e front PR **#99** mergeados em `develop` em 2026-08-29. L · Full: convite de
 assessorias fundadoras por token opaco (`tb_founding_invite`), e-mail transacional próprio do
 backend (`EmailSender`/`SmtpEmailSender`/`FileEmailSender`, antes só o Keycloak enviava) e modo
