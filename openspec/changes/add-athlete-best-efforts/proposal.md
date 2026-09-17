@@ -141,6 +141,19 @@ backend, "External Call Resilience" → "Expose metrics"). Task dedicada em `tas
 - **Externo:** nova chamada ao intervals.icu, usa o token já armazenado — `ACTIVITY:READ` (escopo
   já concedido na conexão) **confirmado suficiente** contra a API real (task 1.1, 2026-09-18).
 
+**Dívida técnica conhecida, aceita conscientemente (2026-09-18):** `CoachAthleteProfileServiceImpl
+.buscarPerfil` é `@Transactional(readOnly = true)`; `melhorEsforcoService.buscar` roda **dentro**
+dessa transação e faz uma chamada HTTP externa real (intervals.icu, timeout 5s/10s configurado em
+`IntervalsIcuWebClientConfig`) — diferente dos demais campos do perfil, que são só leitura de
+banco. Isso segura uma conexão do pool pelo tempo da chamada externa, a mesma classe de risco já
+documentada no `CLAUDE.md` (ADR-0008, "External Call Resilience"). Mitigado por: timeout limitado
+(nunca indefinido), cache compartilhado (`melhores-esforcos`, TTL 30min — repete pouco), e o
+padrão partial-failure (`buscarLista`) já isola a falha sem quebrar o resto do perfil. **Não
+corrigido agora** porque a correção correta (tirar a chamada de dentro da transação) exige extrair
+boa parte da lógica de `buscarPerfil` pra uma classe própria — self-invocation não respeita
+`@Transactional` no Spring, então não dá pra só "chamar antes" dentro da mesma classe. Se isso
+virar problema real em produção (esgotamento de pool sob carga), a extração vira change própria.
+
 ## Open Questions & Assumptions
 
 **Resolvido (task 1.1, 2026-09-18):**
