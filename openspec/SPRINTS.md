@@ -2,7 +2,18 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-17 (🟠 **`landing-oferta-fundadora-clareza` ARQUIVADA INCOMPLETA,
+**Última atualização:** 2026-09-17 (**`fix-plano-volume-nao-atualiza-ao-editar-treino` entregue e
+arquivada** — backend PR **#131** mergeado em `develop`. S · Fast: `editarTreino` nunca chamava
+`ajustarVolumePlano` (só `adicionarTreino`/`excluirTreino` faziam), então
+`PlanoSemanal.volumePlanejadoKm`/`volumeAlvoKm` ficava congelado no valor de quando o plano foi
+gerado, mesmo depois do coach editar a distância de um treino em revisão — divergência visível
+inclusive em telas do **atleta** (`AthletePlanPage`, `WeekOverviewCard`), que não tinham o
+workaround client-side que duas telas do coach já usavam. Corrigido reaproveitando
+`ajustarVolumePlano` (sem mudar assinatura): subtrai a distância anterior, soma a nova, só quando
+ela de fato muda. TDD com RED confirmado antes do fix (4 testes novos, CA1–CA4);
+`./mvnw clean verify` verde (190 IT). Arquivada em
+`changes/archive/2026-09/2026-09-17-fix-plano-volume-nao-atualiza-ao-editar-treino/`.) Antes,
+2026-09-17 (🟠 **`landing-oferta-fundadora-clareza` ARQUIVADA INCOMPLETA,
 por decisão do founder** — front PR **#108** mergeado em `develop` em 2026-09-07, CI verde. XS ·
 Fast: remove o plano Gratuito e a hierarquia por opacidade da comparação de planos, acrescenta o
 bloco dedicado à oferta fundadora antes da grade de preços (10 vagas, 60 dias sem cartão,

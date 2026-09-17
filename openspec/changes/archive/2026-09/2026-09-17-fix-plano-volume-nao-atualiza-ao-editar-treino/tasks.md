@@ -27,4 +27,5 @@ Repositório único: `apps/menthoros-backend`, branch `feature/fix-plano-volume-
 ## 2. Validação e fechamento
 
 - [x] 2.1 **Feito.** `./mvnw clean verify` verde — 190 testes de integração (`*IT`), 0 falhas.
-- [ ] 2.2 PR `feature/fix-plano-volume-nao-atualiza-ao-editar-treino` → `develop`.
+- [x] 2.2 **Feito.** PR **#131** `feature/fix-plano-volume-nao-atualiza-ao-editar-treino` → `develop`,
+      mergeado em 2026-09-17.
