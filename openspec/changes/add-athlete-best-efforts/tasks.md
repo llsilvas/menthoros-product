@@ -55,14 +55,24 @@ Dois repositórios: `apps/menthoros-backend` e `apps/menthoros-front`, branches
 
 ## 3. Backend — endpoint do atleta
 
-- [ ] 3.1 Teste que falha (CA2): atleta sem integração → `integracaoConectada=false`, `marcas=[]`,
-      `200`.
-- [ ] 3.2 Teste que falha (CA3): atleta conectado sem dados suficientes na janela → lista parcial,
-      sem 500.
-- [ ] 3.3 Teste que falha: chamada ao intervals.icu falha → `502` com corpo padrão.
-- [ ] 3.4 `MelhoresEsforcosOutputDto` + controller `GET /api/v1/atletas/me/melhores-esforcos?janela=`.
-      *verify:* os 3 testes (3.1–3.3) passam.
-- [ ] 3.5 `@Operation`/`@ApiResponses`/`@Tag` no controller (convenção do `CLAUDE.md` do backend).
+- [x] 3.1 **Feito** (`MelhorEsforcoServiceImplTest$BuscarParaAtleta`). Teste (CA2): atleta sem
+      integração → `integracaoConectada=false`, `marcas=[]`, sem chamar o client.
+- [x] 3.2 **Feito.** Teste (CA3): atleta conectado sem dados suficientes na janela →
+      `integracaoConectada=true`, `marcas=[]`.
+- [x] 3.3 **Feito** (`AtletaTreinoControllerTest$GetMelhoresEsforcos`, 5 testes). Chamada ao
+      intervals.icu falha → `502` com corpo padrão (novo `@ExceptionHandler(IntervalsIcuApiException
+      .class)` em `GlobalExceptionHandler` — não existia antes, essa exceção só era usada em
+      caminhos assíncronos/best-effort até agora).
+- [x] 3.4 **Feito.** `MelhoresEsforcosOutputDto` (dto/output/) +
+      `MelhorEsforcoService.buscarParaAtleta` (novo método, cache próprio
+      `melhores-esforcos-atleta` — key format diferente do `buscar` usado pelo coach, sem colisão)
+      + `GET /api/v1/atletas/me/melhores-esforcos?janela=` em `AtletaTreinoController`.
+      *verify:* 7/7 em `MelhorEsforcoServiceImplTest`, 31/31 em `AtletaTreinoControllerTest`.
+- [x] 3.5 **Feito.** `@Operation`/`@ApiResponses`/`@Tag` (reaproveita o `@Tag` já existente do
+      controller, `atleta-treinos`).
+      **Efeito colateral:** `AtletaWorkoutAnalysisControllerTest` (outra slice `@WebMvcTest` do
+      mesmo `AtletaTreinoController`) quebrou por faltar o `@MockitoBean` novo — corrigido.
+      *verify:* `./mvnw clean verify` → 3744 testes unitários + 190 IT, 0 falhas.
 
 ## 4. Frontend — perfil do coach
 
