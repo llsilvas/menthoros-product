@@ -76,12 +76,21 @@ Dois repositórios: `apps/menthoros-backend` e `apps/menthoros-front`, branches
 
 ## 4. Frontend — perfil do coach
 
-- [ ] 4.1 Cliente da API (`src/api` curado — **NÃO** rodar `generate:api`, ver memória do projeto):
-      tipo pro campo novo `melhoresEsforcos` do perfil.
-- [ ] 4.2 Teste que falha: seção "Melhores Esforços" renderiza em `CoachAthleteProfilePage`
-      (provável `DiagnosisTabPanel.tsx` — confirmar ao ver o layout; `recordes` NÃO está
-      renderizado em nenhum lugar hoje, é DTO sem UI, então não há precedente visual pra copiar).
-- [ ] 4.3 Implementação. *verify:* teste de 4.2 passa; `npm run lint && npm run build`.
+- [x] 4.1 **Feito.** `MelhorEsforcoDto` + campo `melhoresEsforcos: MelhorEsforcoDto[]` em
+      `AtletaPerfilCoachDto` (`src/types/AtletaPerfilCoach.ts`) — nenhum service novo (o
+      `CoachAthleteProfileService.getProfile` já retorna o DTO inteiro).
+- [x] 4.2 **Feito** (2 testes). `MelhoresEsforcosPanel.test.tsx` — estado vazio + renderização de
+      distância/tempo formatado (`mm:ss`/`h:mm:ss`)/pace.
+      **Correção de premissa:** `CoachAthleteProfilePage.tsx` **não usa `DiagnosisTabPanel`** (são
+      duas telas distintas) e **não tem abas** — é um `Grid` de `SectionCard`s. `recordes` nunca
+      teve UI própria (só DTO). Encaixe real: novo `<SectionCard title="Melhores esforços">` no
+      grid principal, ao lado de "Treinos recentes"/"Provas".
+- [x] 4.3 **Feito.** `MelhoresEsforcosPanel.tsx` (mesmo padrão de `RecentSignalsPanel.tsx`) +
+      integração em `CoachAthleteProfilePage.tsx`. 3 fixtures de teste (`CoachAthleteProfilePage
+      .test.tsx`, `CoachInboxPage.test.tsx`, `useAthleteProfile.test.ts`) ganharam
+      `melhoresEsforcos: []` — o campo é obrigatório no tipo, `npm run build` achou os 3 pontos.
+      *verify:* `npm run lint && npm run build` limpos; `npm run test:run` → 191 arquivos / 1572
+      testes, 0 falhas.
 
 ## 5. Frontend — tela do atleta
 
