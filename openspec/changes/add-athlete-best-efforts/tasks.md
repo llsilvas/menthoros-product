@@ -36,20 +36,22 @@ Dois repositórios: `apps/menthoros-backend` e `apps/menthoros-front`, branches
 
 ## 2. Backend — perfil do coach
 
-- [ ] 2.1 Teste que falha (CA1): `CoachAthleteProfileServiceImpl.buscarPerfil` — atleta conectado
-      com dados → `melhoresEsforcos` preenchido.
-- [ ] 2.2 Teste que falha (CA5): `MelhorEsforcoServiceImpl.buscar` lança → `avisos` inclui
-      `"melhoresEsforcos"`, resto do perfil carrega normal (mesmo padrão de `recordes`).
-- [ ] 2.3 `AtletaPerfilCoachOutputDto` ganha o campo `melhoresEsforcos`; wiring em
-      `CoachAthleteProfileServiceImpl.buscarPerfil` via `buscarLista`, janela fixa `42d`.
-      *verify:* os 2 testes (2.1–2.2) passam.
-- [ ] 2.4 `@Schema` no campo novo do DTO (convenção do `CLAUDE.md` do backend).
-- [ ] 2.5 Teste que falha: `buscarPerfil` incrementa o contador Micrometer
-      `melhores_esforcos.perfil.exibido` com tag `preenchido=true` quando `melhoresEsforcos` não é
-      vazio, `preenchido=false` quando é vazio (instrumentação da métrica de sucesso, proposal.md).
-      Implementação junto (mesmo padrão de métrica já usado no módulo — ver
-      "External Call Resilience" no `CLAUDE.md` do backend).
-      *verify:* o teste passa.
+- [x] 2.1 **Feito.** Teste (CA1): `melhoresEsforcosPreenchidoQuandoAtletaConectado` — atleta
+      conectado com dados → `melhoresEsforcos` preenchido.
+- [x] 2.2 **Feito.** Teste (CA5): `melhoresEsforcosFalhaNaoQuebraPerfil` — serviço lança →
+      `avisos` inclui `"melhoresEsforcos"`, resto do perfil carrega normal.
+- [x] 2.3 **Feito.** `AtletaPerfilCoachOutputDto` ganha o campo `melhoresEsforcos`; wiring em
+      `buscarPerfil` via `buscarLista`, janela fixa `42d`.
+      *verify:* 26/26 em `CoachAthleteProfileServiceImplTest`.
+- [x] 2.4 **Feito.** `@Schema` no campo novo do DTO.
+- [x] 2.5 **Feito.** Contador Micrometer `melhores_esforcos.perfil.exibido` (tag
+      `preenchido=true|false`), incrementado em `buscarPerfil` — cobrado pelos mesmos 2 testes de
+      2.1/2.2 (verificam a contagem via `SimpleMeterRegistry`).
+      **Efeito colateral necessário:** `CoachAthleteProfileServiceImplTest` trocou `@InjectMocks`
+      por construção manual do service (padrão já usado em outros testes com `MeterRegistry` real —
+      `AtletaWorkoutAnalysisServiceImplTest`, `AtletaTreinoFeedbackServiceImplTest` — porque um
+      `SimpleMeterRegistry` real não é um `@Mock`, e `@InjectMocks` só resolve campos mockados).
+      *verify:* `./mvnw clean test` → 3736/3736, 0 falhas.
 
 ## 3. Backend — endpoint do atleta
 
