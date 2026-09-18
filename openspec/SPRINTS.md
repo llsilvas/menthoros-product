@@ -2,7 +2,28 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-18 (**`add-athlete-best-efforts` entregue e arquivada** —
+**Última atualização:** 2026-09-18 (**`refactor-threshold-call-outside-transaction` entregue e
+arquivada** — backend PR **#135** mergeado em `develop`. S · Full: change puramente mecânica, sem
+mudança de comportamento observável — separa a decisão de qual fonte de pace limiar vence (prova >
+quintil) da fase de aplicação/persistência de `TsbServiceImpl`, movendo a fase transacional pra um
+novo bean `TsbDiaPersister`; os 2 pontos de entrada (`atualizarTsbDia`, `recalcularDesde`) passam a
+resolver a fonte de pace **antes** de abrir qualquer transação. Motivação: prepara o terreno pra
+`use-best-effort-for-threshold-inference` (3ª fonte — melhor esforço via chamada HTTP externa ao
+intervals.icu) sem repetir, numa transação de alta frequência (todo sync de treino), o mesmo padrão
+de risco já aceito como dívida em `add-athlete-best-efforts` (lá a chamada externa só acontece na
+abertura do perfil). Levou 4 rodadas de pre-mortem (DeepSeek, Codex indisponível por limite de uso)
+antes de codar — corrigiu de design um risco de auto-invocação do Spring (tirar `@Transactional`
+sem trocar de bean não encolhe nada) e uma suposição de entidade carregada fora da transação onde
+ela ainda não existe. Na implementação, mais 2 achados não previstos: `atualizarLimiares` misturava
+FC e pace no mesmo método (extraído `atualizarFcLimiar`); `contarDiasConsecutivosTreino`/
+`recalcularSemanasProgressao` também usados pela consolidação de `recalcularHistoricoCompleto`
+(fora de escopo, D2b) — reaproveitados via injeção em vez de duplicados. QA (code-reviewer +
+security-reviewer + clean-code-reviewer) sem achados Críticos — corrigida duplicação real de query;
+documentada (não corrigida) uma janela de concorrência entre decisão e aplicação de pace, já que
+`PlanoMetaDados` não tem `@Version`. `./mvnw clean verify` verde (190 IT). Destrava
+`use-best-effort-for-threshold-inference`. Arquivada em
+`changes/archive/2026-09/2026-09-18-refactor-threshold-call-outside-transaction/`.) Antes,
+2026-09-18 (**`add-athlete-best-efforts` entregue e arquivada** —
 backend PR **#133** e front PR **#120** mergeados em `develop`. M · Full: melhor esforço por
 distância (400m–10k, janela configurável 42d/1y/all) sourced do `pace-curves` do intervals.icu,
 exposto no perfil do atleta visto pelo coach (`AtletaPerfilCoachOutputDto.melhoresEsforcos`) e num
