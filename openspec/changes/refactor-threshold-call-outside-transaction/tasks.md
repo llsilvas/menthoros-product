@@ -107,8 +107,30 @@ ela chamava mudou de endereço, comportamento idêntico).
       *verify:* suíte completa (`./mvnw clean test`) → 3772/3772 verde; `./mvnw clean verify`
       (com os `*IT`) → 190 IT, 0 falhas.
 
+## 4.6 QA (2026-09-18) — `code-reviewer` + `security-reviewer` + `clean-code-reviewer` em paralelo
+
+Nenhum achado Crítico. 2 revisores independentes convergiram na mesma área
+(duplicação/`processarDiasDescanso`), 1 achado real de concorrência:
+
+- [x] Corrigido (`clean-code-reviewer`): `TsbServiceImpl.resolverPaceSeNecessario` duplicava a
+      query "treinos 30d que contam na carga" que já existia em
+      `AthleteThresholdUpdater.buscarTreinos30d` (privado). Exposto `public` (pacotes diferentes —
+      `services.helper` vs. `services.impl` — package-private não alcança) e reaproveitado.
+- [x] Documentado, não corrigido (`security-reviewer`, achado M1): decisão de pace roda fora de
+      transação e é aplicada depois sem revalidar staleness nem comparar com o estado atual —
+      `PlanoMetaDados` não tem `@Version`, sem detecção de escrita concorrente. Dois disparos quase
+      simultâneos do mesmo atleta podem persistir a decisão mais antiga por último. Documentado no
+      JavaDoc de `atualizarTsbDia` como janela aceita (mesma classe de trade-off já documentada pra
+      leitores concorrentes); adicionar `@Version` fica fora do escopo desta change mecânica.
+- [x] Documentado, não corrigido (`code-reviewer`, Importante #1): FC sempre resolve staleness com
+      `LocalDate.now()`, pace usa a `data` recebida — só diverge se `processarDiasDescanso`
+      (código morto, sem caller de produção nem na interface `TsbService`) for reativado.
+      Documentado no JavaDoc de `atualizarTsbDia`.
+
+*verify:* `./mvnw clean test` → 3772/3772 verde após os fixes.
+
 ## 5. Encerramento
 
 - [x] 5.1 **Feito.** `./mvnw clean verify` verde.
-- [ ] 5.2 Atualizar este `tasks.md` (entregue vs. adiado) e abrir o PR.
+- [x] 5.2 **Feito.** `tasks.md` atualizado (entregue vs. adiado, QA em 4.6). PR aberto a seguir.
 - [ ] 5.3 Depois do merge: destravar `/implement init use-best-effort-for-threshold-inference`.
