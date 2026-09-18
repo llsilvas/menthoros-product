@@ -46,16 +46,27 @@ prevê).
 
 ## 3. `TsbDiaPersister` — novo bean pra fase transacional
 
+- [ ] 3.0 **Inventário de dependências (achado da 4ª rodada de pre-mortem, DeepSeek) — fazer ANTES
+      de 3.1.** `grep`/leitura completa do corpo do método privado de 3 argumentos
+      `atualizarTsbDia(atletaId, data, atualizarMetaDadosHoje)` e de tudo que
+      `atualizarMetaDados` (`:301-336`) chama, listando TODOS os campos/beans usados —
+      `metricasAlertaService.analisarMetricas`, `contarDiasConsecutivosTreino`, o trecho de
+      `semanasProgressaoContinua`, `planoMetadadosService`, `planoMetaDadosRepository`, etc. Uma
+      extração "limpando" side effects que pareçam não relacionados a pace/fc perderia
+      comportamento em silêncio — o gate de regressão só pega isso se a lista de dependências do
+      construtor de `TsbDiaPersister` for a mesma lista, não uma versão editada.
 - [ ] 3.1 Novo `@Component TsbDiaPersister` — extrai o corpo do método privado de 3 argumentos
-      `atualizarTsbDia(atletaId, data, atualizarMetaDadosHoje)` de `TsbServiceImpl`, com um
-      parâmetro a mais: `PaceLimiarResolvido paceResolvido` (pode ser `null`/vazio quando
-      `!paceStale`), repassado pra `athleteThresholdUpdater.aplicarPaceLimiar` em vez de
-      `atualizarLimiares` chamar `resolverFontePace` de novo. Método
-      `atualizarDiaTransacional(UUID atletaId, LocalDate data, boolean atualizarMetaDadosHoje,
-      PaceLimiarResolvido paceResolvido)`, `@Transactional` (design.md D2 — bean novo evita
-      auto-invocação).
+      `atualizarTsbDia(atletaId, data, atualizarMetaDadosHoje)` de `TsbServiceImpl` **literalmente**
+      (lista de 3.0, sem remover nem "limpar" nada), com um parâmetro a mais: `PaceLimiarResolvido
+      paceResolvido` (pode ser `null`/vazio quando `!paceStale`), repassado pra
+      `athleteThresholdUpdater.aplicarPaceLimiar` em vez de `atualizarLimiares` chamar
+      `resolverFontePace` de novo. Método `atualizarDiaTransacional(UUID atletaId, LocalDate data,
+      boolean atualizarMetaDadosHoje, PaceLimiarResolvido paceResolvido)`, `@Transactional`
+      (design.md D2 — bean novo evita auto-invocação).
       *verify:* `TsbDiaPersisterTest` novo, cobrindo os cenários que `TsbServiceImplTest` já cobre
-      pro método privado extraído (mover os testes relevantes, não duplicar).
+      pro método privado extraído (mover os testes relevantes, não duplicar) — inclusive os que
+      cobrem `metricasAlertaService`/dias consecutivos/progressão contínua da lista de 3.0, não só
+      os de pace/fc.
 
 ## 4. `TsbServiceImpl` — 2 pontos de entrada viram orquestradores sem `@Transactional`
 
