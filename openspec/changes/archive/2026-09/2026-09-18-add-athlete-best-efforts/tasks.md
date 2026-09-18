@@ -140,10 +140,17 @@ build && npm run test:run` → 193 arquivos / 1585 testes, 0 falhas.
 
 - [x] 6.1 Backend: `./mvnw clean verify` verde.
 - [x] 6.2 Frontend: `npm run lint && npm run build && npm run test:run` verdes.
-- [ ] 6.3 Smoke manual em `develop` com a conta do Leandro: perfil do coach mostra os mesmos valores
-      da tela de Progresso do atleta, e ambos batem com o que aparece direto no intervals.icu
-      (janela 42 dias).
-- [ ] 6.4 PR backend `feature/add-athlete-best-efforts` → `develop`.
-- [ ] 6.5 PR front `feature/add-athlete-best-efforts` → `develop`.
-- [ ] 6.6 Registrar em `SPRINTS.md` a change de sequência `use-best-effort-for-threshold-inference`
-      (D5 do proposal) como candidata a próxima, depois desta em produção.
+- [ ] 6.3 **Deferido.** Smoke manual em `develop` com a conta do Leandro (perfil do coach x tela de
+      Progresso x intervals.icu, janela 42 dias) não foi executado nesta sessão — requer conta real
+      e checagem visual, fora do que o agente confirma sozinho. Fazer antes de anunciar a feature.
+- [x] 6.4 **Feito.** PR backend `feature/add-athlete-best-efforts` → `develop`:
+      [menthoros-backend#133](https://github.com/llsilvas/menthoros-backend/pull/133), mergeado
+      2026-09-18.
+- [x] 6.5 **Feito.** PR front `feature/add-athlete-best-efforts` → `develop`:
+      [menthoros-front#120](https://github.com/llsilvas/menthoros-front/pull/120), mergeado
+      2026-09-18. CI quebrou na primeira rodada (e2e de Progresso mockava `GET
+      /me/melhores-esforcos` como array vazio em vez de `{marcas, integracaoConectada}`, derrubando
+      a página inteira) — corrigido no mesmo PR, mock específico + contagem de blocos/links
+      atualizada de 4 pra 5, e um `fontSize` fora da escala tipográfica (`0.72rem`) ajustado pra
+      `11px`.
+- [x] 6.6 **Feito.** Registrado em `SPRINTS.md`.

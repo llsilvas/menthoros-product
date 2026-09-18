@@ -2,7 +2,27 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-17 (**`sync-fc-atleta-intervals-icu-sport-settings` entregue e
+**Última atualização:** 2026-09-18 (**`add-athlete-best-efforts` entregue e arquivada** —
+backend PR **#133** e front PR **#120** mergeados em `develop`. M · Full: melhor esforço por
+distância (400m–10k, janela configurável 42d/1y/all) sourced do `pace-curves` do intervals.icu,
+exposto no perfil do atleta visto pelo coach (`AtletaPerfilCoachOutputDto.melhoresEsforcos`) e num
+5º bloco na tela de Progresso do próprio atleta. Pivotou de "atleta-only" pra dual (coach + atleta)
+depois de um `product-reviewer` "Reconsider" — melhor esforço isolado, sem o coach ver, não muda a
+rotina de quem decide o plano. `use-best-effort-for-threshold-inference` (usar essas marcas pra
+inferir limiar/threshold) foi deliberadamente cortada pra fora desta change — ainda 🔴 NOT READY,
+candidata a próxima da sequência. QA (2026-09-18, 5 revisores paralelos) sem Critical — 5
+Important corrigidos: validação de `janela`, guard contra arrays de tamanhos diferentes na
+resposta do intervals.icu, dedup entre os dois métodos do serviço, `formatDuracaoEsforco`
+compartilhado no front, e exposição de `integracaoConectada` pro coach distinguir "atleta sem PRs
+ainda" de "atleta nunca conectou". CI do front quebrou na primeira rodada — e2e de Progresso
+mockava o endpoint novo como array vazio em vez de `{marcas, integracaoConectada}`, derrubando a
+página inteira — corrigido no mesmo PR. Débito técnico aceito e documentado (não corrigido): a
+chamada ao intervals.icu em `buscarPerfil` roda dentro de contexto transacional de leitura, mesmo
+tratamento já usado por outras dependências externas dessa aggregation. Smoke manual (perfil do
+coach × Progresso do atleta × intervals.icu, janela 42 dias) fica pendente — não executado nesta
+sessão, fazer antes de anunciar a feature. Arquivada em
+`changes/archive/2026-09/2026-09-18-add-athlete-best-efforts/`.) Antes,
+2026-09-17 (**`sync-fc-atleta-intervals-icu-sport-settings` entregue e
 arquivada** — backend PR **#132** mergeado em `develop`. S · Fast: investigação de um bug relatado
 — treino chegou no relógio de um atleta com FC alvo bem acima do prescrito (`210`/`228`/`210` bpm
 vs. `107-121`/`121-126`/`107-121` enviados). A matemática bateu quase exata com o intervals.icu
