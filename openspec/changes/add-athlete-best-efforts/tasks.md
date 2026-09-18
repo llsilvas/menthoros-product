@@ -113,10 +113,33 @@ Dois repositórios: `apps/menthoros-backend` e `apps/menthoros-front`, branches
       *verify:* `npm run lint && npm run build` limpos; `npm run test:run` → 192 arquivos / 1582
       testes, 0 falhas.
 
+## 5.6 QA (2026-09-18) — 5 achados "Important" corrigidos
+
+Revisão paralela (3 revisores backend + 2 frontend) sobre o diff completo da change. Nenhum
+Critical; 5 Important, todos corrigidos:
+
+- [x] QA1 `@Pattern(regexp = "42d|1y|all")` no parâmetro `janela` de
+      `GET /me/melhores-esforcos` — antes repassava string arbitrária pro client do intervals.icu.
+- [x] QA2 `extrairMarcas` valida `distance`/`values` do mesmo tamanho antes de iterar
+      (payload inconsistente do intervals.icu podia causar `IndexOutOfBounds`).
+- [x] QA3 `buscar`/`buscarParaAtleta` deduplicados via `buscarMarcas`/`buscarMarcasComConexao`;
+      JavaDoc do cache corrigido — os dois caches (`melhores-esforcos`,
+      `melhores-esforcos-atleta`) não são compartilhados entre si.
+- [x] QA4 `formatDuracaoEsforco` extraído pra `src/utils/duration.ts` (front) — eliminava
+      duplicação entre `effortsAdapter` e `MelhoresEsforcosPanel` com risco de divergir.
+- [x] QA5 `melhoresEsforcosIntegracaoConectada` exposto no `AtletaPerfilCoachOutputDto` e
+      propagado ao `MelhoresEsforcosPanel` — coach agora distingue "atleta sem PRs ainda" de
+      "atleta nunca conectou o intervals.icu" (antes usava a mesma mensagem pros dois casos).
+      Resolvido uma vez em `buscarPerfil` e reaproveitado em `resolverPlanoVigente` (evita 2ª
+      consulta, mesmo cuidado anti-N+1 já aplicado aos treinos do plano).
+
+*verify:* backend `./mvnw clean verify` → 190 IT, 0 falhas; frontend `npm run lint && npm run
+build && npm run test:run` → 193 arquivos / 1585 testes, 0 falhas.
+
 ## 6. Validação e fechamento
 
-- [ ] 6.1 Backend: `./mvnw clean verify` verde.
-- [ ] 6.2 Frontend: `npm run lint && npm run build && npm run test:run` verdes.
+- [x] 6.1 Backend: `./mvnw clean verify` verde.
+- [x] 6.2 Frontend: `npm run lint && npm run build && npm run test:run` verdes.
 - [ ] 6.3 Smoke manual em `develop` com a conta do Leandro: perfil do coach mostra os mesmos valores
       da tela de Progresso do atleta, e ambos batem com o que aparece direto no intervals.icu
       (janela 42 dias).
