@@ -2,8 +2,8 @@
 
 **Tamanho:** S · **Trilha:** Full (mexe em fronteira transacional de um fluxo
 sensível/de alta frequência)
-**Status:** 🟡 EM REVISÃO — design.md v3 (2026-09-18, 2 rodadas de pre-mortem DeepSeek), aguardando
-novo DoR
+**Status:** 🟢 READY — design.md v4 (2026-09-18, 4 rodadas de pre-mortem DeepSeek + spec-reviewer
+READY), pronta pra `/implement init`
 **Criado:** 2026-09-18
 
 > Destacada de `use-best-effort-for-threshold-inference` por decisão do founder em 2026-09-18: a
