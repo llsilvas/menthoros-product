@@ -47,17 +47,53 @@ Levantamento de código (2026-09-18, `/implement init`):
       (roster), não na fila.
       *verify:* RED confirmado antes do fix (2 testes novos); `npm run test:run -- QueueRow` →
       11/11; suíte completa 193 arquivos/1587 testes; lint+build limpos.
-- [ ] 1.3 Strip de KPIs do cabeçalho (`CoachInboxPage.tsx:756-773,776-803`): consultar
-      `selected.quickStats.hasWindowData` nos tiles de Aderência e Carga (7d) — sem dado renderiza
-      neutro ("—"/mensagem curta, sem ícone de estado positivo); zero legítimo continua numérico.
-      Forma/ACWR: alinhar o "—" existente pra também refletir `hasWindowData` (hoje é só `null`
-      técnico). Testes de adapter/componente cobrindo zero legítimo vs. ausência nos 4 KPIs.
-      *verify:* `npm run test:run -- CoachInboxPage coachInboxAdapters` + lint+build.
-- [ ] 1.4 `src/App.tsx`: `errorElement` no nó raiz do router (ou por seção, se o layout exigir) —
-      componente de erro no tema (`elevation`/`surface` tokens), mensagem PT-BR e botão "Voltar ao
-      inbox"; cobre rota inexistente e erro de render, primeira introdução do conceito no repo (sem
-      precedente a seguir). Teste de página para a rota 404.
-      *verify:* `npm run test:run` + lint+build + navegação manual em
-      `/#/coach/rota-que-nao-existe`.
-- [ ] 1.5 Encerramento: atualizar este `tasks.md` (entregue vs. adiado, incluindo a nota de escopo
-      de 1.2) e abrir o PR.
+- [x] 1.3 **Feito, escopo restrito ao strip (grade de `MetricTile`).** Os 4 tiles (Aderência,
+      Carga (7d), Forma, ACWR) agora consultam `selected.quickStats.hasWindowData` — sem dado
+      renderiza `'—'`/`'Sem dado na janela'`/tom `neutral` (sem ícone); com dado, mantém a lógica
+      de tom original (zero legítimo continua numérico). Achado adicional durante a implementação:
+      Forma já caía em `'—'` no fixture de teste padrão porque `roster.statusForma` também estava
+      ausente — mas `roster.statusForma` É um fallback usado mesmo sem PMC (`coachInboxAdapters.ts
+      :214`), então o gate por `hasWindowData` era necessário mesmo assim, só não observável nesse
+      fixture específico. **Não tocado:** o bloco maior acima do strip ("Aderência geral"/"Carga
+      semanal", `CoachInboxPage.tsx:756-773`) tem o mesmo problema mas não é chamado de "strip" na
+      proposta nem no critério de aceite 3 — fica de fora, mesmo raciocínio de escopo da 1.2.
+      *verify:* RED confirmado (bug reproduzido: chip "0%" com ícone `WarningAmberIcon` "Atenção"
+      antes do fix); `npm run test:run -- CoachInboxPage` → 2/2 novos; suíte completa 193/1589;
+      lint+build limpos.
+- [x] 1.4 **Feito.** Novo `src/pages/error/ErrorPage.tsx` (tema, PT-BR, botão "Voltar ao inbox").
+      Dois mecanismos, porque o array de rotas de `App.tsx` não tem um único nó raiz: (1)
+      catch-all `{ path: '*', element: <ErrorPage kind="not-found" /> }` ao final do array — cobre
+      qualquer hash sem rota correspondente; (2) `errorElement={<ErrorPage />}` no nó
+      `<ProtectedRoute />` — cobre erro de render em qualquer rota autenticada (Dashboard/Coach/
+      Athlete). `kind` é explícito porque o catch-all usa `element` (rota combina normalmente,
+      `useRouteError()` não carrega nada) — sem o prop, cairia na mensagem genérica de "erro de
+      render" também pro 404.
+      *verify:* 2 testes novos (`ErrorPage.test.tsx`, via `createMemoryRouter`: catch-all e
+      `errorElement` separadamente) verdes; navegação manual real em
+      `http://localhost:5174/#/coach/rota-que-nao-existe` confirmou a página no tema (via Chrome
+      automation); suíte completa 194 arquivos/1591 testes; lint+build limpos.
+## 1.6 QA (2026-09-18) — `frontend-reviewer` + `clean-code-reviewer` em paralelo
+
+Nenhum achado Crítico. Corrigidos:
+- `ErrorPage.tsx`: erro de render capturado pelo `errorElement` não era logado em lugar nenhum —
+  pior que o fallback default do React Router (que ao menos aparece no console). Adicionado
+  `console.error` guardado por `!rotaInexistente` (não loga 404, que é navegação normal, não falha).
+- `ErrorPage.tsx`: `h4` sem `color` explícito (padrão do resto de `src/pages/*` é sempre token
+  explícito) → `surface[0]`; import de `elevation`/`surface` unificado pra fonte canônica que o
+  resto do app usa (`theme/tokens`, exceto `elevation` que só existe em `shared/design-tokens`).
+- `CoachInboxPage.tsx`: comentários explicando dois branches que pareciam duplicação por acidente
+  mas são intencionais — o `'—'` de Forma alcançável por dois caminhos (sem dado vs. faixa fora do
+  mapa), e a checagem extra do tile ACWR (`quickStats.acwr` pode faltar mesmo com
+  `hasWindowData=true`, já que só usa o último ponto do PMC).
+
+**Aceito como dívida, não corrigido** (XS/Fast, custo de extração > benefício agora):
+- Duplicação do padrão `semDadoNaJanela ? ... : ...` nos 4 `MetricTile` do strip — extrair um
+  helper só se um 5º tile nascer com a mesma necessidade.
+- `QueueRow.tsx` reconstrói inline o shape de paleta que `statusPalette` já encapsula (não dá pra
+  reusar direto — `statusPalette` recebe `CoachAtletaStatus`, não uma cor solta); promover pra um
+  `paletteFromColor` compartilhado só se um 3º lugar precisar do mesmo cálculo.
+
+*verify:* `npm run test:run` → 194 arquivos/1591 testes; lint+build limpos.
+
+- [x] 1.5 **Feito.** `tasks.md` atualizado (entregue vs. adiado, notas de escopo de 1.2/1.3, QA em
+      1.6). PR aberto a seguir.
