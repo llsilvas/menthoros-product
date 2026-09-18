@@ -1,87 +1,135 @@
 # Design — refactor-threshold-call-outside-transaction
 
 > Anchors verificados em 2026-09-18 contra `develop` do backend (`TsbServiceImpl`,
-> `AthleteThresholdUpdater`, `ThresholdInferenceService`). Precedente seguido:
-> `refactor-llm-call-outside-transaction` (D1 — "três fases, orquestrador sem transação,
+> `AthleteThresholdUpdater`, `ThresholdInferenceService`, `PlanoMetadadosService`). Precedente
+> seguido: `refactor-llm-call-outside-transaction` (D1 — "três fases, orquestrador sem transação,
 > colaboradores transacionais").
+>
+> **Revisão 2 (2026-09-18)** — pre-mortem (DeepSeek, fallback do Codex indisponível por limite de
+> uso) derrubou a v1 deste design com 2 achados reais, verificados contra o código:
+> 1. `PlanoMetaDados` só é carregado (`planoMetadadosService.buscarOuCriarMetadados(...)`) **dentro**
+>    de `atualizarMetaDados` (`TsbServiceImpl.java:307`), já dentro da transação — a v1 assumia
+>    poder "resolver a fonte antes da transação" recebendo a entidade como parâmetro, o que não
+>    fecha: a entidade não existe ainda nesse ponto.
+> 2. Mover a chamada pra fora da `@Transactional` de `TsbServiceImpl` **sem trocar de bean** cai em
+>    auto-invocação — a mesma armadilha já documentada no `CLAUDE.md` do backend para o idiom
+>    "catch de `DataIntegrityViolationException` fora de `@Transactional`": chamar um método anotado
+>    através de `this.` dentro da mesma classe não passa pelo proxy do Spring, a anotação é
+>    ignorada em silêncio.
+>
+> Os dois exigem revisão de design, não só de documentação — refeito abaixo. Achados menores do
+> mesmo pre-mortem (FC sem fonte externa não precisa da mesma simetria; `recalcularDesde` precisa
+> da janela certa, não "resolver uma vez" vago) também incorporados.
 
-## D1 — Sem interface/strategy: o seam é um parâmetro, não uma abstração nova
+## D1 — O seam não recebe a entidade: recebe primitivos, e faz sua própria consulta de tenant
 
-**Pergunta em aberto do proposal:** a decisão "preciso buscar fonte externa?" vira uma
-interface/strategy que `use-best-effort-for-threshold-inference` implementa depois, ou fica um
-pré-check simples?
+**v1 (derrubada):** `resolverFontePace(atletaId, tenantId, PlanoMetaDados metaDados, hoje,
+treinos30d)` — dependia de `metaDados` já carregado.
 
-**Decisão: pré-check simples, sem interface.** Hoje existe exatamente **um** consumidor conhecido
-do seam (`use-best-effort-for-threshold-inference`, já com proposal escrito). Uma
-`ExternalThresholdSourceStrategy` genérica seria abstração para um problema de um caso só — o
-próprio `CLAUDE.md` do backend pede duplicar até a 3ª ocorrência antes de extrair (mesmo raciocínio
-já aplicado em D2/D2b de `infer-threshold-from-race-result`, que duplicou a fórmula de Riegel e a
-resolução de distância em vez de criar uma abstração compartilhada). Se um 3º tipo de fonte externa
-aparecer no futuro, promover pra uma abstração então.
+**v2:** `resolverFontePace(UUID atletaId, UUID tenantId, LocalDate hoje, List<TreinoRealizado>
+treinos30d, BigDecimal paceLimiarAnterior)` — só primitivos e uma lista já em memória. Não recebe
+nem `Atleta` nem `PlanoMetaDados`:
+- A decisão (prova válida? quintil?) só precisa de `atletaId`/`tenantId`/`hoje`/`treinos30d` —
+  nenhum desses vem da entidade `Atleta`/`PlanoMetaDados`, são parâmetros de query
+  (`provaRepository.findProvasRealizadasRecentes`, já assim hoje).
+- `paceLimiarAnterior` substitui `metaDados.getPaceLimiarEstimado()` — só o valor usado pelo log de
+  outlier (`logSinalizacaoOutlierPace`, design.md v1 D5 herdado de `infer-threshold-from-race-result`),
+  não a entidade inteira.
+- Retorna `PaceLimiarResolvido` (record: `fonte`, `valor`, `confianca`) — puro, sem mutação, sem
+  acessar nada gerenciado pelo JPA.
 
-**O que muda concretamente:** `AthleteThresholdUpdater.atualizarPaceLimiarInferido` (privado hoje)
-para de fazer tudo inline — separa em duas fases:
+**`tenantId` sem carregar `Atleta`:** hoje só existe via `atleta.getAssessoria().getId()`. Nova
+query de projeção, `AtletaRepository.findAssessoriaIdById(UUID atletaId): Optional<UUID>` — 1
+método, sem carregar o agregado inteiro. `paceLimiarAnterior` vem de uma projeção equivalente em
+`PlanoMetaDadosRepository` (`findPaceLimiarEstimadoByAtletaId`, ou reaproveitar
+`buscarOuCriarMetadados` só pra leitura — decisão de implementação, sem impacto de design; ambas
+são leituras baratas, indiferente pro objetivo desta change).
 
-1. **Decisão** (`resolverFontePace`, novo método): dado `atletaId`, `tenantId`, `hoje`, retorna um
-   `PaceLimiarResolvido` (record: `fonte: FonteLimiarInferencia`, `valor: BigDecimal`,
-   `confianca: ConfiancaInferencia`, ou vazio se nenhuma fonte disponível) — **sem** persistir nada.
-   Hoje só olha prova válida e quintil (ambos leitura de banco, nenhuma chamada externa). Esta é a
-   função que `use-best-effort-for-threshold-inference` vai estender pra também considerar melhor
-   esforço, ANTES de decidir entre prova/quintil.
-2. **Aplicação** (`aplicarPaceLimiar`, novo método): dado `PlanoMetaDados` e um
-   `PaceLimiarResolvido`, seta os campos (`paceLimiarEstimado`/`confiancaInferenciaPace`/
-   `fonteLimiarPace`/`dataInferenciaLimiar`) e chama `logSinalizacaoOutlierPace`. Mutação em
-   memória, mesma responsabilidade de hoje — chamador ainda persiste via `save()`.
+**Fase de aplicação (`aplicarPaceLimiar`) fica como estava** — recebe `PlanoMetaDados` (já
+carregado dentro da transação, como hoje) e um `PaceLimiarResolvido`, seta os campos. Sem mudança
+aqui: essa fase **precisa** estar dentro da transação (é a mutação que será persistida).
 
-`atualizarLimiares` (método público) passa a chamar `resolverFontePace(...)` seguido de
-`aplicarPaceLimiar(...)` em vez do bloco único de hoje — **mesmo resultado, mesma ordem de
-execução**, só a fronteira de responsabilidade muda.
+## D2 — Sem troca de bean, o entry point de `TsbServiceImpl` perde `@Transactional` no nível certo
 
-## D2 — `TsbServiceImpl`: a decisão roda antes da transação da métrica do dia
+**Achado #2 do pre-mortem:** não dá pra "encolher" a transação de um método simplesmente tirando
+código de dentro dele se ele continua `@Transactional` — tudo que roda durante sua execução,
+inclusive chamadas a outros beans, roda na mesma transação. A única forma real de excluir algo é o
+método **público, anotado, chamado de fora** não envolver aquele trecho.
 
-**Problema real que isso resolve, mesmo sem fonte externa ainda:** hoje `atualizarLimiares` roda
-**depois** de `metricasDiariasRepository.save(metricasHoje)`, dentro da mesma transação
-(`atualizarTsbDia`, `TsbServiceImpl.java:96-117`). Se a decisão de pace (fase 1, D1) puder
-eventualmente envolver uma chamada de rede (a próxima change), ela precisa acontecer **antes** de
-qualquer escrita — senão a escrita da métrica do dia fica presa esperando uma chamada HTTP externa
-dentro da mesma transação, e um timeout de rede reverte também o TSB do dia (efeito colateral que
-não deveria existir).
+**Decisão:** os 3 pontos de entrada (`atualizarTsbDia` 2-arg `:68`, `recalcularDesde` `:80`, e o de
+`:379`) **perdem `@Transactional` no próprio método** e passam a orquestrar:
 
-**Decisão:** os 3 pontos de entrada de `TsbServiceImpl` (`atualizarTsbDia` 2-arg, `recalcularDesde`,
-e o terceiro em `:379`) passam a chamar `athleteThresholdUpdater.resolverFontePace(...)`
-**antes** de entrar no `@Transactional` que atualiza a métrica do dia, guardando o resultado
-(`PaceLimiarResolvido`, e o equivalente de FC — que já não tem fonte externa nem nesta nem na
-próxima change, mas segue o mesmo padrão de simetria) numa variável local. O `@Transactional`
-continua envolvendo a leitura/escrita de `MetricasDiarias` e a chamada a `aplicarPaceLimiar` (fase
-2), agora recebendo o valor já resolvido em vez de recalculá-lo.
+```java
+public void atualizarTsbDia(UUID atletaId, LocalDate data) {           // sem @Transactional
+    PaceLimiarResolvido paceResolvido = resolverPaceSeNecessario(atletaId, data); // fora de tx
+    atualizarTsbDiaTransacional(atletaId, data, true, paceResolvido);   // @Transactional, bean próprio
+}
+```
 
-**`recalcularDesde` (laço multi-dia):** a resolução de fonte só é relevante no último dia
-(`dia.equals(fim)`, onde `atualizarMetaDadosHoje=true`) — resolvida **uma vez antes do laço
-inteiro**, não a cada iteração. Isso preserva o comentário existente
-(`TsbServiceImpl.java:57-62`) sobre a fronteira transacional do recálculo histórico ser o bloco de
-`DIAS_POR_BLOCO`, não o dia — este design não mexe nisso, só antecipa a resolução de pace pro
-começo do método público, antes do `@Transactional` do laço abrir.
+`resolverPaceSeNecessario` primeiro checa `thresholdInferenceService.isPaceLimiarDesatualizado`
+(leitura simples, sem tx explícita — Spring Data já envolve cada chamada de repositório numa
+transação curta própria, `SimpleJpaRepository` default) e só chama `resolverFontePace` se
+`paceStale=true`; senão retorna `null`/`Optional.empty()` sem nenhuma query extra.
 
-## D3 — Sem mudança de comportamento observável, gate é o teste de regressão
+**Sem auto-invocação:** a parte que precisa do proxy (`@Transactional`) migra para um **novo bean**
+— `TsbDiaPersister` (`@Component`, mesmo padrão de `AthleteThresholdUpdater` já extraído de
+`TsbServiceImpl` em `refactor-threshold-orchestration`) — com o método
+`atualizarTsbDiaTransacional(atletaId, data, atualizarMetaDadosHoje, PaceLimiarResolvido)`
+carregando **o corpo que hoje é o método privado de 3 argumentos** (`buscarAtleta` →
+`buscarTreinosDia` → ... → `athleteThresholdUpdater.aplicarPaceLimiar(metaDados, paceResolvido)` →
+`save`). `TsbServiceImpl` passa a **injetar** `TsbDiaPersister` e chamá-lo — chamada real entre
+beans via proxy Spring, não `this.`, então `@Transactional` funciona.
 
-Nenhuma fonte nova, nenhum campo novo, nenhuma migration. O teste de aceite é: para os mesmos
-inputs (atleta, treinos, provas), `paceLimiarEstimado`/`fonteLimiarPace`/`confiancaInferenciaPace`
-persistidos são **idênticos** antes e depois desta change, nos 3 pontos de entrada. Cobertura:
-- `AthleteThresholdUpdaterTest`: `resolverFontePace` cobrindo os mesmos 3 cenários que
-  `atualizarPaceLimiarInferido` já cobre hoje (prova válida, só quintil, nenhuma fonte) — mesmas
-  asserções, método diferente.
-- `TsbServiceImplTest`: teste de integração/unit garantindo que os 3 pontos de entrada ainda
-  produzem o mesmo `PlanoMetaDados` persistido que produziam antes (fixture com prova válida e
-  fixture só com quintil, para pelo menos `atualizarTsbDia` e `recalcularDesde`).
+**`recalcularDesde` (laço multi-dia):** mesma lógica — perde `@Transactional` no nível do método
+público; o `resolverPaceSeNecessario` roda **uma vez, com `hoje=fim`** (o único dia que persiste,
+`dia.equals(fim)`, não `data` nem cada iteração — precisão que a v1 deixou implícita e o pre-mortem
+corretamente cobrou). O laço em si passa a chamar `tsbDiaPersister.atualizarTsbDiaTransacional(...)`
+por dia — **o bloco de `DIAS_POR_BLOCO` como fronteira transacional documentado em
+`TsbServiceImpl.java:57-62` continua existindo**, só que agora é a fronteira do
+`TsbRecalculoExecutor` (que já envolve o laço externamente, ver `TsbServiceImplTest`/
+`TsbRecalculoExecutor` atual) — nenhuma mudança no comportamento de blocos, só em quem chama o quê.
+
+**Correção sobre o "3º ponto de entrada":** o proposal original citava `:379` — na prática esse é
+`processarDiasDescanso` (`TsbServiceImpl.java:379-395`), que só faz um laço chamando o
+`atualizarTsbDia(UUID, LocalDate)` público em cada dia sem treino; corrigido automaticamente ao
+corrigir esse método, sem trabalho extra. **O 3º ponto de entrada real e distinto** é
+`recalcularHistoricoCompleto` (`:433`), cuja consolidação final chama `atualizarMetaDados`
+**diretamente** (não via `atualizarTsbDia`) dentro de `tsbRecalculoExecutor.consolidar(() -> {...})`
+(`:456-464`). Esse caminho precisa do mesmo tratamento: resolver `PaceLimiarResolvido` **antes** de
+`recalcularPeriodoComProgresso` (passo 2, que já é a parte custosa/demorada) e passá-lo pro lambda
+de consolidação, em vez de resolver dentro dela.
+
+## D3 — FC não ganha a mesma separação (achado #4 do pre-mortem — YAGNI)
+
+**v1 (derrubada):** "mesma simetria" pro FC, sem fonte externa nenhuma cogitada pra ele.
+**v2:** FC continua exatamente como está — `AthleteThresholdUpdater.atualizarLimiares` só separa a
+parte de **pace** em decisão/aplicação; a parte de FC (`inferirFcLimiar`, dentro do mesmo método
+público) não muda. Sem 3ª fonte de FC no roadmap, dividir essa parte agora seria abstração sem uso
+(mesmo racional de D1 do proposal — duplicar/expandir só até a 3ª ocorrência real).
+
+## D4 — Sem mudança de comportamento observável, gate é regressão + teste estrutural
+
+Critérios de aceite revisados (empurram pro tasks.md/proposal):
+1. **Regressão de valor:** mesmos inputs → mesmo `paceLimiarEstimado`/`fonteLimiarPace`/
+   `confiancaInferenciaPace` persistidos, nos 3 pontos de entrada (achado #3 do pre-mortem: precisa
+   de fixture com prova válida E fixture só-quintil pra cada um dos 3).
+2. **Regressão estrutural (novo, resolve achado #3 do pre-mortem — "critério 2 não testável"):**
+   teste com `@MockitoSpyBean`/`ArgumentCaptor` em `TsbDiaPersister` comprovando que
+   `resolverFontePace`/`resolverPaceSeNecessario` roda e retorna **antes** de qualquer interação
+   com `metricasDiariasRepository`/`planoMetaDadosRepository` — não "parece certo", uma
+   `InOrder`/spy real.
+3. `./mvnw clean verify` verde.
 
 ## Riscos e mitigações
 
-- **Área sensível, já refatorada uma vez** (`refactor-threshold-orchestration` extraiu
-  `AthleteThresholdUpdater` de `TsbServiceImpl`). Mitigado por D3 (teste de regressão byte-a-byte
-  do resultado persistido) — não "parece certo", precisa provar que o resultado é idêntico.
-- **`recalcularDesde` processa muitos dias por chamada** (recálculo histórico) — mover a resolução
-  de pace pra antes do laço é seguro porque ela já só importa no último dia; nenhuma mudança na
-  quantidade de leituras de banco por dia recalculado.
-- **Seam sem uso real ainda** (D1): aceito deliberadamente — o valor desta change isolada é
-  encolher a transação de alta frequência ANTES de introduzir a chamada externa, não depois. Sem
-  isso, a próxima change teria que fazer as duas coisas juntas (mesmo risco que motivou o split).
+- **Novo bean (`TsbDiaPersister`) é superfície nova** — mitigado por ser extração mecânica do
+  método privado já existente, mesmo padrão já usado uma vez nesta área
+  (`refactor-threshold-orchestration` extraiu `AthleteThresholdUpdater` da mesma forma).
+- **Área sensível, já refatorada duas vezes agora** — mitigado por D4 (regressão de valor +
+  regressão estrutural), e por manter o comentário existente sobre a fronteira de
+  `DIAS_POR_BLOCO` intacto (D2, `recalcularDesde` não muda o que já era true lá).
+- **Query de projeção nova (`findAssessoriaIdById`)** — baixo risco, leitura simples, mesmo padrão
+  de outras projeções já existentes no repositório.
+- **Rollback:** revert do PR único — sem migration, sem dado persistido em formato novo (o schema
+  de `PlanoMetaDados`/`FonteLimiarInferencia` não muda nesta change). Reverter o código volta ao
+  comportamento anterior sem nenhum passo de limpeza de dado.
