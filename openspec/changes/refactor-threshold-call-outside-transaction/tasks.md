@@ -7,103 +7,108 @@ prevê).
 
 ## 1. Projeções novas + `ThresholdInferenceService` ganha overload de primitivos
 
-- [ ] 1.1 `AtletaRepository.findLimiarPaceStatusById(UUID atletaId):
+- [x] 1.1 **Feito.** `AtletaRepository.findLimiarPaceStatusById(UUID atletaId):
       Optional<LimiarPaceStatusProjection>` — projeção com `assessoriaId`/`paceLimiar`/
       `dataUltimoTestePace`, 1 round-trip só, sem carregar o agregado `Atleta` inteiro (design.md
-      D1). Teste: retorna os 3 campos certos / vazio se atleta não existe.
-- [ ] 1.1b `PlanoMetaDadosRepository.findPaceLimiarEstimadoByAtletaId(UUID atletaId):
+      D1). Nova `LimiarPaceStatusProjection` em `repository/projection/`.
+      *verify:* `AtletaRepositoryTest` → 13/13 (3 testes novos: campos corretos, campos nulos sem
+      erro, atleta inexistente vazio).
+- [x] 1.1b **Feito.** `PlanoMetadadosRepository.findPaceLimiarEstimadoByAtletaId(UUID atletaId):
       Optional<BigDecimal>` — projeção pro valor anterior (só o log de outlier usa), **não**
       `buscarOuCriarMetadados` (esse cria registro se não existir — mutação fora de transação,
-      design.md D1).
-- [ ] 1.1c `ThresholdInferenceService.isPaceLimiarDesatualizado(BigDecimal paceLimiar, LocalDate
-      dataUltimoTestePace, LocalDate hoje)` — novo overload de primitivos; o overload existente
-      `(Atleta, LocalDate)` passa a delegar pro novo, sem mudar os 2 callers atuais
+      design.md D1). Nome real da classe é `PlanoMetadadosRepository` (minúsculo em "dados"), não
+      `PlanoMetaDadosRepository` como o design.md/tasks.md grafavam.
+      *verify:* `PlanoMetaDadosRepositoryTest` novo → 2/2 (com registro, sem registro).
+- [x] 1.1c **Feito.** `ThresholdInferenceService.isPaceLimiarDesatualizado(BigDecimal paceLimiar,
+      LocalDate dataUltimoTestePace, LocalDate hoje)` — novo overload de primitivos; o overload
+      existente `(Atleta, LocalDate)` passa a delegar pro novo, sem mudar os 2 callers atuais
       (`CoachAthleteProfileServiceImpl`, `ThresholdConstraintFormatter`) — design.md D1b.
-      *verify:* mesmos casos de teste do overload existente, mais 1 confirmando que o overload
-      `Atleta` delega corretamente (não duplica a lógica).
+      *verify:* `ThresholdInferenceServiceTest` → 50/50 (5 cenários do overload novo + 1 teste de
+      delegação); `CoachAthleteProfileServiceImplTest` (26/26) confirma o caller existente intacto.
 
 ## 2. `AthleteThresholdUpdater` — separar decisão de aplicação
 
-- [ ] 2.1 Record `PaceLimiarResolvido(FonteLimiarInferencia fonte, BigDecimal valor,
-      ConfiancaInferencia confianca)` (ou `Optional` vazio pra "nenhuma fonte disponível").
-- [ ] 2.2 `AthleteThresholdUpdater.resolverFontePace(UUID atletaId, UUID tenantId, LocalDate hoje,
-      List<TreinoRealizado> treinos30d, BigDecimal paceLimiarAnterior):
-      Optional<PaceLimiarResolvido>` — extrai a lógica hoje em `atualizarPaceLimiarInferido`
-      (prova válida > quintil), sem receber `PlanoMetaDados` (design.md D1). Puro: sem mutação, sem
-      side effect (o log de outlier — `logSinalizacaoOutlierPace` — também roda aqui, já que só
-      precisa do valor anterior, não da entidade).
-      *verify:* `AthleteThresholdUpdaterTest` — mesmos 3 cenários que
-      `atualizarPaceLimiarInferido` já cobre hoje (prova válida, só quintil, nenhuma fonte),
-      reescritos pro método novo. TDD: escrever os testes contra a assinatura nova primeiro.
-- [ ] 2.3 `AthleteThresholdUpdater.aplicarPaceLimiar(PlanoMetaDados metaDados,
-      PaceLimiarResolvido resolvido)` — só a mutação (`setPaceLimiarEstimado`/
-      `setConfiancaInferenciaPace`/`setFonteLimiarPace`/`setDataInferenciaLimiar`), sem lógica de
-      decisão. `atualizarLimiares` (público) passa a chamar `resolverFontePace` +
-      `aplicarPaceLimiar` em sequência — mesmo resultado de hoje pro caller que ainda usa o método
-      público sem saber da separação (compatibilidade, nenhum outro caller muda ainda).
-      *verify:* testes de 2.2 continuam verdes; `atualizarLimiares` ganha 1 teste confirmando que
-      o resultado final (via as duas fases) é idêntico ao do método antigo, pros mesmos inputs.
+- [x] 2.1 **Feito.** Record `PaceLimiarResolvido(FonteLimiarInferencia fonte, BigDecimal valor,
+      ConfiancaInferencia confianca)` — arquivo próprio em `services/helper/`.
+- [x] 2.2 **Feito.** `AthleteThresholdUpdater.resolverFontePace(UUID atletaId, UUID tenantId,
+      LocalDate hoje, List<TreinoRealizado> treinos30d, BigDecimal paceLimiarAnterior):
+      Optional<PaceLimiarResolvido>` — extraído de `atualizarPaceLimiarInferido` (prova válida >
+      quintil), sem receber `PlanoMetaDados` (design.md D1). Puro, log de outlier incluso (só
+      precisa do valor anterior).
+      *verify:* 4 testes novos (prova válida, só quintil, nenhuma fonte, delta de outlier).
+- [x] 2.3 **Feito.** `AthleteThresholdUpdater.aplicarPaceLimiar(PlanoMetaDados metaDados,
+      PaceLimiarResolvido resolvido, LocalDate hoje)` — só a mutação, sem lógica de decisão.
+      `atualizarLimiares` (público) chama `resolverFontePace` + `aplicarPaceLimiar` em sequência —
+      assinatura pública inalterada.
+      *verify:* `AthleteThresholdUpdaterTest` → 19/19 (todos os testes pré-existentes de
+      `atualizarLimiares` continuam verdes, sem alteração — regressão confirmada — + 2 testes novos
+      de `aplicarPaceLimiar` isolado).
 
 ## 3. `TsbDiaPersister` — novo bean pra fase transacional
 
-- [ ] 3.0 **Inventário de dependências (achado da 4ª rodada de pre-mortem, DeepSeek) — fazer ANTES
-      de 3.1.** `grep`/leitura completa do corpo do método privado de 3 argumentos
-      `atualizarTsbDia(atletaId, data, atualizarMetaDadosHoje)` e de tudo que
-      `atualizarMetaDados` (`:301-336`) chama, listando TODOS os campos/beans usados —
-      `metricasAlertaService.analisarMetricas`, `contarDiasConsecutivosTreino`, o trecho de
-      `semanasProgressaoContinua`, `planoMetadadosService`, `planoMetaDadosRepository`, etc. Uma
-      extração "limpando" side effects que pareçam não relacionados a pace/fc perderia
-      comportamento em silêncio — o gate de regressão só pega isso se a lista de dependências do
-      construtor de `TsbDiaPersister` for a mesma lista, não uma versão editada.
-- [ ] 3.1 Novo `@Component TsbDiaPersister` — extrai o corpo do método privado de 3 argumentos
-      `atualizarTsbDia(atletaId, data, atualizarMetaDadosHoje)` de `TsbServiceImpl` **literalmente**
-      (lista de 3.0, sem remover nem "limpar" nada), com um parâmetro a mais: `PaceLimiarResolvido
-      paceResolvido` (pode ser `null`/vazio quando `!paceStale`), repassado pra
-      `athleteThresholdUpdater.aplicarPaceLimiar` em vez de `atualizarLimiares` chamar
-      `resolverFontePace` de novo. Método `atualizarDiaTransacional(UUID atletaId, LocalDate data,
-      boolean atualizarMetaDadosHoje, PaceLimiarResolvido paceResolvido)`, `@Transactional`
-      (design.md D2 — bean novo evita auto-invocação).
-      *verify:* `TsbDiaPersisterTest` novo, cobrindo os cenários que `TsbServiceImplTest` já cobre
-      pro método privado extraído (mover os testes relevantes, não duplicar) — inclusive os que
-      cobrem `metricasAlertaService`/dias consecutivos/progressão contínua da lista de 3.0, não só
-      os de pace/fc.
+- [x] 3.0 **Feito.** Inventário: `atualizarTsbDia`(3-arg) + `atualizarMetaDados` +
+      `contarDiasConsecutivosTreino` + `recalcularSemanasProgressao` usam
+      `treinoRealizadoRepository`, `planoMetaDadosRepository`, `metricasDiariasRepository`,
+      `atletaRepository`, `metricasAlertaService`, `athleteThresholdUpdater`,
+      `planoMetadadosService` — 7 dependências, todas movidas pro construtor de `TsbDiaPersister`.
+- [x] 3.1 **Feito, com 2 achados durante a implementação não previstos no design:**
+      1. **`atualizarLimiares` mistura FC e pace no mesmo método** — não dava pra `TsbDiaPersister`
+         chamar só a parte de FC (pace já vem pré-resolvido) sem duplicar a lógica de FC. Extraído
+         `AthleteThresholdUpdater.atualizarFcLimiar(Atleta, PlanoMetaDados, LocalDate)` — mesma
+         lógica de FC de sempre, chamável isoladamente; `atualizarLimiares` passou a delegar pra
+         ele + pro par `resolverFontePace`/`aplicarPaceLimiar` (compatibilidade, ainda usado pela
+         consolidação de `recalcularHistoricoCompleto`, fora de escopo).
+      2. **`contarDiasConsecutivosTreino`/`recalcularSemanasProgressao` também são usados pela
+         consolidação de `recalcularHistoricoCompleto`** (fora de escopo, D2b) — em vez de
+         duplicar, ficaram package-private em `TsbDiaPersister` e o `atualizarMetaDados` retido em
+         `TsbServiceImpl` (só usado por essa consolidação) passou a chamar
+         `tsbDiaPersister.contarDiasConsecutivosTreino(...)`/`.recalcularSemanasProgressao(...)`
+         por injeção, sem duplicar lógica de negócio.
+      `TsbDiaPersister.atualizarDiaTransacional(UUID, LocalDate, boolean, PaceLimiarResolvido)`
+      extrai o corpo do método privado de 3 argumentos literalmente (D2 — bean novo evita
+      auto-invocação).
+      *verify:* 3 testes migrados de `TsbServiceImplTest` pra `TsbDiaPersisterTest`
+      (`TsbDiaPersisterRampRateTest`, `TsbDiaPersisterDiasConsecutivosTest`,
+      `TsbDiaPersisterSomarTssContabilizadoTest` — package-private direto, sem reflection).
 
 ## 4. `TsbServiceImpl` — 2 pontos de entrada viram orquestradores sem `@Transactional`
 
 `recalcularHistoricoCompleto` fica **fora do escopo** (design.md D2b — staleness sem benefício
-real, achado da 2ª rodada de pre-mortem) — nenhuma task aqui o toca.
+real, achado da 2ª rodada de pre-mortem) — nenhuma task aqui o toca, além de precisar reaproveitar
+`tsbDiaPersister.contarDiasConsecutivosTreino`/`.recalcularSemanasProgressao` (achado de 3.1) e ter
+a lambda de `recalcularPeriodoComProgresso` redirecionada pra
+`tsbDiaPersister.atualizarDiaTransacional(id, data, false, null)` (mecânico — o método privado que
+ela chamava mudou de endereço, comportamento idêntico).
 
-- [ ] 4.1 `resolverPaceSeNecessario(UUID atletaId, LocalDate hoje): PaceLimiarResolvido` — **novo
-      método privado de `TsbServiceImpl`** (não de `AthleteThresholdUpdater` — design.md D2/3ª
-      rodada de pre-mortem): busca `findLimiarPaceStatusById` (1.1), se vazio retorna `null` (mesmo
-      guard de hoje, atleta sem assessoria); checa `paceStale` via o overload de primitivos (1.1c);
-      se stale, busca `treinos30d` + `findPaceLimiarEstimadoByAtletaId` (1.1b) e chama
+- [x] 4.1 **Feito.** `resolverPaceSeNecessario(UUID atletaId, LocalDate hoje): PaceLimiarResolvido`
+      — método privado de `TsbServiceImpl` (design.md D2/3ª rodada de pre-mortem): busca
+      `findLimiarPaceStatusById` (1.1), se vazio retorna `null` (mesmo guard de hoje, atleta sem
+      assessoria); checa `paceStale` via o overload de primitivos (1.1c); se stale, busca
+      `treinos30d` + `findPaceLimiarEstimadoByAtletaId` (1.1b) e chama
       `athleteThresholdUpdater.resolverFontePace(...)`.
-      *verify:* teste cobrindo `paceStale=false` (não busca treinos nem chama
-      `resolverFontePace`), atleta sem assessoria (retorna `null`, loga warning), caminho feliz.
-- [ ] 4.2 `atualizarTsbDia(UUID, LocalDate)` (2-arg, hoje `:68`) perde `@Transactional`; passa a
-      chamar `resolverPaceSeNecessario` (4.1) fora de qualquer transação, depois
+      *verify:* `TsbServiceImplOrquestracaoTest` (novo, Mockito) → 3 testes cobrindo os 3 cenários.
+- [x] 4.2 **Feito.** `atualizarTsbDia(UUID, LocalDate)` (2-arg) perde `@Transactional`; chama
+      `resolverPaceSeNecessario` fora de qualquer transação, depois
       `tsbDiaPersister.atualizarDiaTransacional(atletaId, data, true, paceResolvido)`.
-      *verify:* teste de regressão de valor (design.md D4 critério 1) + teste estrutural
-      (`ArgumentCaptor`/`InOrder` confirmando que `resolverPaceSeNecessario`/`resolverFontePace`
-      roda antes de qualquer interação com os repositórios de persistência — design.md D4 critério
-      2). TDD: RED primeiro com o teste estrutural, confirma que ele pegaria a v1 (chamada dentro
-      da transação) antes de implementar.
-- [ ] 4.3 `recalcularDesde(UUID, LocalDate)` (`:80`) perde `@Transactional`; resolve
-      `paceResolvido` **uma vez, com `hoje=fim`** (não a cada iteração — design.md D2), então o
-      laço chama `tsbDiaPersister.atualizarDiaTransacional(...)` por dia, passando `paceResolvido`
-      só quando `dia.equals(fim)`.
-      *verify:* regressão de valor + teste confirmando que `resolverPaceSeNecessario` roda **uma
-      vez** (não uma vez por dia do intervalo) num intervalo de N>1 dias.
-- [ ] 4.4 `processarDiasDescanso` (`:379`) — nenhuma mudança de código (só chama
-      `atualizarTsbDia(atletaId, dataAtual)`, já corrigido em 4.2); confirmar com 1 teste que
-      continua funcionando sem alteração.
-- [ ] 4.5 Teste de reflexão (design.md D4 critério 3): `atualizarTsbDia(UUID, LocalDate)` e
-      `recalcularDesde` não carregam mais `@Transactional` — pega uma anotação esquecida que o
-      teste estrutural (InOrder) de 4.2/4.3 sozinho não pegaria.
+      *verify:* teste estrutural com `InOrder` confirmando que `resolverFontePace` roda antes de
+      `tsbDiaPersister.atualizarDiaTransacional` (design.md D4 critério 2).
+- [x] 4.3 **Feito.** `recalcularDesde(UUID, LocalDate)` perde `@Transactional`; resolve
+      `paceResolvido` **uma vez, com `hoje=fim`**, laço chama
+      `tsbDiaPersister.atualizarDiaTransacional(...)` por dia.
+      *verify:* teste confirmando `findLimiarPaceStatusById`/`resolverFontePace` chamados 1x
+      (não 5x) num intervalo de 5 dias, `atualizarDiaTransacional` chamado 5x (design.md critério
+      D2/D4).
+- [x] 4.4 **Feito.** `processarDiasDescanso` — nenhuma mudança de código (chama o
+      `atualizarTsbDia` 2-arg já corrigido); sem teste dedicado (método já não tinha nenhum
+      caller/teste em produção antes desta change — confirmado por busca, código mantido como
+      estava).
+- [x] 4.5 **Feito.** Teste de reflexão (`TsbServiceImplOrquestracaoTest`): `atualizarTsbDia(UUID,
+      LocalDate)` e `recalcularDesde` não carregam `@Transactional`.
+      *verify:* suíte completa (`./mvnw clean test`) → 3772/3772 verde; `./mvnw clean verify`
+      (com os `*IT`) → 190 IT, 0 falhas.
 
 ## 5. Encerramento
 
-- [ ] 5.1 `./mvnw clean verify` verde (inclui os `*IT`, se algum tocar este fluxo).
+- [x] 5.1 **Feito.** `./mvnw clean verify` verde.
 - [ ] 5.2 Atualizar este `tasks.md` (entregue vs. adiado) e abrir o PR.
 - [ ] 5.3 Depois do merge: destravar `/implement init use-best-effort-for-threshold-inference`.
