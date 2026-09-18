@@ -20,6 +20,20 @@
 > Os dois exigem revisão de design, não só de documentação — refeito abaixo. Achados menores do
 > mesmo pre-mortem (FC sem fonte externa não precisa da mesma simetria; `recalcularDesde` precisa
 > da janela certa, não "resolver uma vez" vago) também incorporados.
+>
+> **Revisão 3 (2026-09-18)** — 2ª rodada de pre-mortem (DeepSeek) achou mais 3 pontos reais na v2,
+> todos fechados abaixo: `recalcularHistoricoCompleto` saiu do escopo (D2b, staleness sem
+> benefício), teste de reflexão adicionado (D4 critério 3), grafo de injeção verificado sem ciclo.
+>
+> **Revisão 4 (2026-09-18)** — 3ª rodada achou que **o mesmo problema do achado #1 (entidade não
+> carregada) também se aplica a `isPaceLimiarDesatualizado`**, que a v3 não tinha notado: ele
+> recebe `Atleta` inteiro (`thresholdInferenceService.isPaceLimiarDesatualizado(atleta, hoje)`),
+> não só os 2 campos que usa. Fechado no D1b abaixo. Também corrigidas 2 ambiguidades: onde
+> `resolverPaceSeNecessario` mora (D2 dizia implicitamente `TsbServiceImpl`, `tasks.md` dizia
+> `AthleteThresholdUpdater` — resolvido: `TsbServiceImpl`), e a opção "reaproveitar
+> `buscarOuCriarMetadados`" pra `paceLimiarAnterior` (D1 v3 tratava como indiferente; na verdade
+> esse método **cria** o registro se não existir — mutação fora de transação, não é opção válida,
+> removida).
 
 ## D1 — O seam não recebe a entidade: recebe primitivos, e faz sua própria consulta de tenant
 
@@ -38,16 +52,36 @@ nem `Atleta` nem `PlanoMetaDados`:
 - Retorna `PaceLimiarResolvido` (record: `fonte`, `valor`, `confianca`) — puro, sem mutação, sem
   acessar nada gerenciado pelo JPA.
 
-**`tenantId` sem carregar `Atleta`:** hoje só existe via `atleta.getAssessoria().getId()`. Nova
-query de projeção, `AtletaRepository.findAssessoriaIdById(UUID atletaId): Optional<UUID>` — 1
-método, sem carregar o agregado inteiro. `paceLimiarAnterior` vem de uma projeção equivalente em
-`PlanoMetaDadosRepository` (`findPaceLimiarEstimadoByAtletaId`, ou reaproveitar
-`buscarOuCriarMetadados` só pra leitura — decisão de implementação, sem impacto de design; ambas
-são leituras baratas, indiferente pro objetivo desta change).
+**Uma única projeção nova, não duas:** `AtletaRepository.findLimiarPaceStatusById(UUID atletaId):
+Optional<LimiarPaceStatusProjection>` (interface projection do Spring Data, 3 getters:
+`getAssessoriaId()`, `getPaceLimiar()`, `getDataUltimoTestePace()`) — 1 round-trip só, cobre
+`tenantId` (hoje só via `atleta.getAssessoria().getId()`) **e** os 2 campos que
+`isPaceLimiarDesatualizado` precisa (D1b, abaixo), sem carregar o agregado `Atleta` inteiro.
+
+**`paceLimiarAnterior` (valor usado só pelo log de outlier):** vem de
+`PlanoMetaDadosRepository.findPaceLimiarEstimadoByAtletaId` (projeção nova, análoga) — **não**
+`planoMetadadosService.buscarOuCriarMetadados`, que **cria** o registro se não existir (mutação
+fora de transação, achado da 3ª rodada de pre-mortem — não é uma opção equivalente, é um bug se
+usado aqui).
 
 **Fase de aplicação (`aplicarPaceLimiar`) fica como estava** — recebe `PlanoMetaDados` (já
 carregado dentro da transação, como hoje) e um `PaceLimiarResolvido`, seta os campos. Sem mudança
 aqui: essa fase **precisa** estar dentro da transação (é a mutação que será persistida).
+
+## D1b — `isPaceLimiarDesatualizado` ganha overload de primitivos (achado da 3ª rodada de pre-mortem)
+
+**Achado:** `ThresholdInferenceService.isPaceLimiarDesatualizado(Atleta atleta, LocalDate hoje)`
+recebe a entidade inteira — mesmo problema do D1, só que num caller que a v3 não tinha notado
+(`resolverPaceSeNecessario` precisa chamar isso ANTES de decidir se vale a pena buscar
+`treinos30d`/chamar `resolverFontePace`).
+
+**Decisão:** novo overload `isPaceLimiarDesatualizado(BigDecimal paceLimiar, LocalDate
+dataUltimoTestePace, LocalDate hoje)` — primitivos, mesma lógica. O overload existente
+`(Atleta, LocalDate)` passa a **delegar** pro novo (`return
+isPaceLimiarDesatualizado(atleta.getPaceLimiar(), atleta.getDataUltimoTestePace(), hoje)`) — os 2
+outros callers (`CoachAthleteProfileServiceImpl:208`, `ThresholdConstraintFormatter:45`, ambos com
+a entidade já carregada no contexto deles) não mudam nada. `isFcLimiarDesatualizado` não precisa do
+mesmo tratamento — FC não é tocado por esta change (D3).
 
 ## D2 — Sem troca de bean, o entry point de `TsbServiceImpl` perde `@Transactional` no nível certo
 
@@ -56,29 +90,36 @@ código de dentro dele se ele continua `@Transactional` — tudo que roda durant
 inclusive chamadas a outros beans, roda na mesma transação. A única forma real de excluir algo é o
 método **público, anotado, chamado de fora** não envolver aquele trecho.
 
-**Decisão:** os 3 pontos de entrada (`atualizarTsbDia` 2-arg `:68`, `recalcularDesde` `:80`, e o de
-`:379`) **perdem `@Transactional` no próprio método** e passam a orquestrar:
+**Decisão:** os 2 pontos de entrada em escopo (`atualizarTsbDia` 2-arg `:68`, `recalcularDesde`
+`:80`) **perdem `@Transactional` no próprio método** e passam a orquestrar, via um novo método
+**privado de `TsbServiceImpl`** (não de `AthleteThresholdUpdater` — só a lógica de domínio
+prova/quintil mora lá; decidir SE vale a pena chamá-la é orquestração de `TsbServiceImpl`, mesmo
+nível de responsabilidade de hoje):
 
 ```java
 public void atualizarTsbDia(UUID atletaId, LocalDate data) {           // sem @Transactional
-    PaceLimiarResolvido paceResolvido = resolverPaceSeNecessario(atletaId, data); // fora de tx
+    PaceLimiarResolvido paceResolvido = resolverPaceSeNecessario(atletaId, data); // fora de tx, privado desta classe
     tsbDiaPersister.atualizarDiaTransacional(atletaId, data, true, paceResolvido); // @Transactional, bean próprio
+}
+
+private PaceLimiarResolvido resolverPaceSeNecessario(UUID atletaId, LocalDate hoje) {
+    var status = atletaRepository.findLimiarPaceStatusById(atletaId);
+    if (status.isEmpty()) return null; // sem assessoria/atleta — mesmo guard de hoje (:56-59)
+    if (!thresholdInferenceService.isPaceLimiarDesatualizado(
+            status.get().getPaceLimiar(), status.get().getDataUltimoTestePace(), hoje)) return null;
+
+    List<TreinoRealizado> treinos30d = /* mesma query de hoje */;
+    BigDecimal paceAnterior = planoMetaDadosRepository.findPaceLimiarEstimadoByAtletaId(atletaId).orElse(null);
+    return athleteThresholdUpdater.resolverFontePace(
+            atletaId, status.get().getAssessoriaId(), hoje, treinos30d, paceAnterior).orElse(null);
 }
 ```
 
-`resolverPaceSeNecessario` primeiro checa `thresholdInferenceService.isPaceLimiarDesatualizado`
-(leitura simples, sem tx explícita — Spring Data já envolve cada chamada de repositório numa
-transação curta própria, `SimpleJpaRepository` default) e só chama `resolverFontePace` se
-`paceStale=true`; senão retorna `null`/`Optional.empty()` sem nenhuma query extra. Se
-`findAssessoriaIdById` vier vazio (atleta sem assessoria — mesmo guard que
-`AthleteThresholdUpdater.atualizarLimiares` já faz hoje, `:56-59`), `resolverPaceSeNecessario`
-retorna vazio direto, sem chamar `resolverFontePace` — mesmo comportamento de hoje (log de warning
-+ inferência ignorada), só que verificado antes em vez de dentro da transação.
-
-**As 3 leituras que compõem `resolverPaceSeNecessario` (`isPaceLimiarDesatualizado`,
-`findAssessoriaIdById`, `paceLimiarAnterior`) não são atômicas entre si** (achado #2 da 2ª rodada
-de pre-mortem) — cada uma é uma transação curta própria do Spring Data, não uma foto única do
-estado. Aceito: o único uso de `paceLimiarAnterior` é o **log** de outlier
+**As 2 leituras que compõem `resolverPaceSeNecessario` (`findLimiarPaceStatusById`,
+`findPaceLimiarEstimadoByAtletaId`) não são atômicas entre si** (achado #2 da 2ª rodada de
+pre-mortem, agora com uma leitura a menos já que `tenantId` e o status de pace vieram pra uma
+projeção só, D1) — cada uma é uma transação curta própria do Spring Data, não uma foto única do
+estado. Aceito: o único uso de `paceLimiarAnterior` (a 2ª leitura) é o **log** de outlier
 (`logSinalizacaoOutlierPace`, cosmético/observabilidade), não a decisão de qual fonte vence —
 mesmo se ele estiver 1 leitura "atrasado" em relação ao `paceStale` calculado, o pior caso é uma
 mensagem de log com o delta levemente impreciso, nunca um valor persistido errado.

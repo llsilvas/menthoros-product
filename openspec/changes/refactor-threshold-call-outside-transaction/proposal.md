@@ -24,7 +24,8 @@ novo DoR
 ## Why
 
 `AthleteThresholdUpdater.atualizarLimiares` é chamado de dentro de `TsbServiceImpl.atualizarMetaDados`,
-que por sua vez roda dentro de `@Transactional` em **3 pontos de entrada**:
+que por sua vez roda dentro de `@Transactional`. Existiam 3 candidatos a ponto de entrada no
+levantamento inicial; **2 ficam em escopo**:
 
 1. `atualizarTsbDia(UUID, LocalDate)` — `TsbServiceImpl.java:68`, único dia.
 2. `recalcularDesde(UUID, LocalDate)` — `TsbServiceImpl.java:80`, laço multi-dia (recálculo
@@ -51,11 +52,11 @@ Só `apps/menthoros-backend`, sem contrato de API, sem migration.
 - `AthleteThresholdUpdater` ganha uma separação de fases: um passo de **decisão** (é preciso buscar
   uma fonte externa? hoje sempre "não" — prova e quintil são só leitura de banco) que roda antes da
   transação, e um passo de **aplicação** (grava em `metaDados`) que continua dentro dela.
-- Os 3 pontos de entrada de `TsbServiceImpl` passam a orquestrar essas duas fases em vez de fazer
-  tudo dentro de um único `@Transactional`.
+- Os 2 pontos de entrada em escopo (`atualizarTsbDia`, `recalcularDesde`) de `TsbServiceImpl`
+  passam a orquestrar essas duas fases em vez de fazer tudo dentro de um único `@Transactional`.
 - Nenhuma fonte de limiar nova é adicionada aqui — o comportamento observável (prova > quintil,
   valores calculados, campos persistidos) fica idêntico. O teste de aceite principal é "nada mudou
-  pro usuário", com um teste de regressão comparando resultado antes/depois pra cada um dos 3
+  pro usuário", com um teste de regressão comparando resultado antes/depois pra cada um dos 2
   pontos de entrada.
 
 ## Non-Goals
@@ -109,8 +110,8 @@ Só `apps/menthoros-backend`, sem contrato de API, sem migration.
 
 Nenhuma métrica de produto (sem comportamento observável) — o critério é a suíte de regressão
 (critérios 1-4) e a redução mensurável do escopo da transação de alta frequência (a resolução de
-fonte passa a rodar fora do `@Transactional` dos 3 pontos de entrada, verificável pelo teste
-estrutural do critério 3).
+fonte passa a rodar fora do `@Transactional` dos 2 pontos de entrada em escopo, verificável pelo
+teste estrutural do critério 3).
 
 ## Rollback
 
