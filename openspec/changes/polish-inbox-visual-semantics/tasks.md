@@ -29,16 +29,24 @@ Levantamento de código (2026-09-18, `/implement init`):
   criar flag nova** — a premissa do proposal se confirma: é consumir `hasWindowData` que já chega
   no mesmo objeto `selected`.
 
-- [ ] 1.1 Migrar os secundários do rodapé do painel (Enviar mensagem / Ajustar plano / Mais ações)
-      de lime outline para outline neutro; migrar o estado selecionado do toggle do PMC
-      (Simples/Avançado + período) de lime sólido para neutro.
-      *verify:* `npm run lint && npm run build` + inspeção visual (dev server) confirmando accent
-      restrito a CTA primário + nav ativa (sidebar/tab).
-- [ ] 1.2 `AthleteRow.tsx` (badge, via `StatusBadge`) + `QueueRow.tsx` (card, via
-      `coachInboxHelpers.ts`): status "Alerta" migra pra paleta `error`; "Atenção" permanece
-      `warning`. Atualizar `STATUS_LABEL`/`statusPalette` e os testes que assertem cor/variante
-      desses dois componentes.
-      *verify:* `npm run test:run -- AthleteRow QueueRow` + lint+build.
+- [x] 1.1 **Feito.** Novo mixin `SECONDARY_OUTLINE_SX` (`shared/components/actionButtonSx.ts`) —
+      `color: surface[400]`, `borderColor: surface[600]` — aplicado aos 3 botões do rodapé
+      (`CoachInboxPage.tsx`). Toggle do PMC (`PMCChart.tsx` `ToggleButton`) trocado de
+      `primary[500]`/navy pra `surface[700]`/`surface[50]` no estado selecionado.
+      *verify:* lint+build limpos; `npm run test:run -- CoachInboxPage` → 21/21 (sem teste
+      dedicado de `PMCChart`, sem asserção de cor pra quebrar).
+- [x] 1.2 **Feito, com correção de escopo.** A ambiguidade badge×card do Why #2 está inteira
+      dentro de `QueueRow.tsx`, não entre `AthleteRow.tsx` e `QueueRow.tsx` como o levantamento
+      inicial assumiu: o Chip (badge, topo-direita) usa `athlete.status` (roster/backend) e a
+      moldura do card + linha de motivo usam `attention.severity` (fila) — duas fontes
+      independentes que podem divergir pro mesmo atleta (`status='warning'` com
+      `severity='CRITICA'` mostrava chip âmbar numa moldura vermelha). Corrigido fazendo o Chip
+      seguir o sinal (`attention`) quando ele existe, mesma precedência que a moldura já usava
+      ("o sinal domina a moldura do card" — comentário pré-existente). `AthleteRow.tsx` não foi
+      tocado — o mapeamento dele (`StatusBadge`) já estava correto e é usado noutra tela
+      (roster), não na fila.
+      *verify:* RED confirmado antes do fix (2 testes novos); `npm run test:run -- QueueRow` →
+      11/11; suíte completa 193 arquivos/1587 testes; lint+build limpos.
 - [ ] 1.3 Strip de KPIs do cabeçalho (`CoachInboxPage.tsx:756-773,776-803`): consultar
       `selected.quickStats.hasWindowData` nos tiles de Aderência e Carga (7d) — sem dado renderiza
       neutro ("—"/mensagem curta, sem ícone de estado positivo); zero legítimo continua numérico.
