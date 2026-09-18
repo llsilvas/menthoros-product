@@ -62,28 +62,47 @@ método **público, anotado, chamado de fora** não envolver aquele trecho.
 ```java
 public void atualizarTsbDia(UUID atletaId, LocalDate data) {           // sem @Transactional
     PaceLimiarResolvido paceResolvido = resolverPaceSeNecessario(atletaId, data); // fora de tx
-    atualizarTsbDiaTransacional(atletaId, data, true, paceResolvido);   // @Transactional, bean próprio
+    tsbDiaPersister.atualizarDiaTransacional(atletaId, data, true, paceResolvido); // @Transactional, bean próprio
 }
 ```
 
 `resolverPaceSeNecessario` primeiro checa `thresholdInferenceService.isPaceLimiarDesatualizado`
 (leitura simples, sem tx explícita — Spring Data já envolve cada chamada de repositório numa
 transação curta própria, `SimpleJpaRepository` default) e só chama `resolverFontePace` se
-`paceStale=true`; senão retorna `null`/`Optional.empty()` sem nenhuma query extra.
+`paceStale=true`; senão retorna `null`/`Optional.empty()` sem nenhuma query extra. Se
+`findAssessoriaIdById` vier vazio (atleta sem assessoria — mesmo guard que
+`AthleteThresholdUpdater.atualizarLimiares` já faz hoje, `:56-59`), `resolverPaceSeNecessario`
+retorna vazio direto, sem chamar `resolverFontePace` — mesmo comportamento de hoje (log de warning
++ inferência ignorada), só que verificado antes em vez de dentro da transação.
+
+**As 3 leituras que compõem `resolverPaceSeNecessario` (`isPaceLimiarDesatualizado`,
+`findAssessoriaIdById`, `paceLimiarAnterior`) não são atômicas entre si** (achado #2 da 2ª rodada
+de pre-mortem) — cada uma é uma transação curta própria do Spring Data, não uma foto única do
+estado. Aceito: o único uso de `paceLimiarAnterior` é o **log** de outlier
+(`logSinalizacaoOutlierPace`, cosmético/observabilidade), não a decisão de qual fonte vence —
+mesmo se ele estiver 1 leitura "atrasado" em relação ao `paceStale` calculado, o pior caso é uma
+mensagem de log com o delta levemente impreciso, nunca um valor persistido errado.
+
+**Sem risco de ciclo de injeção (verificado, 2ª rodada de pre-mortem):** `AthleteThresholdUpdater`
+depende só de `TreinoRealizadoRepository`/`ProvaRepository`/`ThresholdInferenceService` — nenhuma
+dependência de volta pra `TsbServiceImpl`/`TsbDiaPersister`. `TsbRecalculoExecutor` depende só de
+`MetricasDiariasRepository`/`CacheManager`/`MeterRegistry` — mesma coisa. `TsbDiaPersister` →
+`AthleteThresholdUpdater` e `TsbServiceImpl` → `TsbDiaPersister` são as duas únicas arestas novas,
+ambas unidirecionais.
 
 **Sem auto-invocação:** a parte que precisa do proxy (`@Transactional`) migra para um **novo bean**
 — `TsbDiaPersister` (`@Component`, mesmo padrão de `AthleteThresholdUpdater` já extraído de
 `TsbServiceImpl` em `refactor-threshold-orchestration`) — com o método
-`atualizarTsbDiaTransacional(atletaId, data, atualizarMetaDadosHoje, PaceLimiarResolvido)`
-carregando **o corpo que hoje é o método privado de 3 argumentos** (`buscarAtleta` →
-`buscarTreinosDia` → ... → `athleteThresholdUpdater.aplicarPaceLimiar(metaDados, paceResolvido)` →
-`save`). `TsbServiceImpl` passa a **injetar** `TsbDiaPersister` e chamá-lo — chamada real entre
-beans via proxy Spring, não `this.`, então `@Transactional` funciona.
+`atualizarDiaTransacional(atletaId, data, atualizarMetaDadosHoje, PaceLimiarResolvido)` carregando
+**o corpo que hoje é o método privado de 3 argumentos** (`buscarAtleta` → `buscarTreinosDia` → ...
+→ `athleteThresholdUpdater.aplicarPaceLimiar(metaDados, paceResolvido)` → `save`).
+`TsbServiceImpl` passa a **injetar** `TsbDiaPersister` e chamá-lo — chamada real entre beans via
+proxy Spring, não `this.`, então `@Transactional` funciona.
 
 **`recalcularDesde` (laço multi-dia):** mesma lógica — perde `@Transactional` no nível do método
 público; o `resolverPaceSeNecessario` roda **uma vez, com `hoje=fim`** (o único dia que persiste,
 `dia.equals(fim)`, não `data` nem cada iteração — precisão que a v1 deixou implícita e o pre-mortem
-corretamente cobrou). O laço em si passa a chamar `tsbDiaPersister.atualizarTsbDiaTransacional(...)`
+corretamente cobrou). O laço em si passa a chamar `tsbDiaPersister.atualizarDiaTransacional(...)`
 por dia — **o bloco de `DIAS_POR_BLOCO` como fronteira transacional documentado em
 `TsbServiceImpl.java:57-62` continua existindo**, só que agora é a fronteira do
 `TsbRecalculoExecutor` (que já envolve o laço externamente, ver `TsbServiceImplTest`/
@@ -92,12 +111,31 @@ por dia — **o bloco de `DIAS_POR_BLOCO` como fronteira transacional documentad
 **Correção sobre o "3º ponto de entrada":** o proposal original citava `:379` — na prática esse é
 `processarDiasDescanso` (`TsbServiceImpl.java:379-395`), que só faz um laço chamando o
 `atualizarTsbDia(UUID, LocalDate)` público em cada dia sem treino; corrigido automaticamente ao
-corrigir esse método, sem trabalho extra. **O 3º ponto de entrada real e distinto** é
-`recalcularHistoricoCompleto` (`:433`), cuja consolidação final chama `atualizarMetaDados`
-**diretamente** (não via `atualizarTsbDia`) dentro de `tsbRecalculoExecutor.consolidar(() -> {...})`
-(`:456-464`). Esse caminho precisa do mesmo tratamento: resolver `PaceLimiarResolvido` **antes** de
-`recalcularPeriodoComProgresso` (passo 2, que já é a parte custosa/demorada) e passá-lo pro lambda
-de consolidação, em vez de resolver dentro dela.
+corrigir esse método, sem trabalho extra. Já `recalcularHistoricoCompleto` (`:433`), que chama
+`atualizarMetaDados` diretamente dentro de `tsbRecalculoExecutor.consolidar(...)`, fica **fora do
+escopo** — ver D2b abaixo.
+
+## D2b — `recalcularHistoricoCompleto` fica FORA do escopo (2ª rodada de pre-mortem, DeepSeek)
+
+**Achado:** pré-resolver `paceResolvido` antes do passo 2 (`recalcularPeriodoComProgresso`, que
+pode levar minutos) e só aplicá-lo na consolidação final introduz uma janela de staleness que
+**não existe hoje** — se um sync concorrente do mesmo atleta gravar um `paceLimiarEstimado` novo
+durante esse passo custoso, o valor pré-resolvido sobrescreveria dado mais recente na consolidação.
+Comportamento atual resolve a fonte **dentro** da consolidação (o mais tarde possível), sem essa
+janela.
+
+**Decisão revisada: `recalcularHistoricoCompleto` NÃO é tocado por esta change.** Ele é
+"operação custosa, usar apenas em caso de migração" (JavaDoc do método já existente) — não é o
+caminho de alta frequência (por sync de treino) que motiva esta change inteira. Continua resolvendo
+a fonte de pace **dentro** de `tsbRecalculoExecutor.consolidar(...)`, como hoje — quando
+`use-best-effort-for-threshold-inference` chegar, a chamada externa aí dentro é rara (recálculo
+histórico não roda por sync) e não tem o problema de segurar o pool sob carga real que motivou o
+split desta change. Fica registrado como dívida aceita, não ignorada: se `recalcularHistoricoCompleto`
+alguma vez passar a rodar com frequência real, revisitar.
+
+**Consequência:** os "3 pontos de entrada" do proposal viram **2** que esta change realmente muda —
+`atualizarTsbDia`/`recalcularDesde` (que convergem no mesmo `TsbDiaPersister`) — mais
+`processarDiasDescanso`, que já era só um delegate do primeiro (corrigido de graça).
 
 ## D3 — FC não ganha a mesma separação (achado #4 do pre-mortem — YAGNI)
 
@@ -111,14 +149,18 @@ público) não muda. Sem 3ª fonte de FC no roadmap, dividir essa parte agora se
 
 Critérios de aceite revisados (empurram pro tasks.md/proposal):
 1. **Regressão de valor:** mesmos inputs → mesmo `paceLimiarEstimado`/`fonteLimiarPace`/
-   `confiancaInferenciaPace` persistidos, nos 3 pontos de entrada (achado #3 do pre-mortem: precisa
-   de fixture com prova válida E fixture só-quintil pra cada um dos 3).
-2. **Regressão estrutural (novo, resolve achado #3 do pre-mortem — "critério 2 não testável"):**
-   teste com `@MockitoSpyBean`/`ArgumentCaptor` em `TsbDiaPersister` comprovando que
-   `resolverFontePace`/`resolverPaceSeNecessario` roda e retorna **antes** de qualquer interação
-   com `metricasDiariasRepository`/`planoMetaDadosRepository` — não "parece certo", uma
-   `InOrder`/spy real.
-3. `./mvnw clean verify` verde.
+   `confiancaInferenciaPace` persistidos, nos 2 pontos de entrada em escopo (`atualizarTsbDia`,
+   `recalcularDesde` — `recalcularHistoricoCompleto` fora, D2b; fixture com prova válida E fixture
+   só-quintil pra cada um).
+2. **Regressão estrutural:** teste com `@MockitoSpyBean`/`ArgumentCaptor` em `TsbDiaPersister`
+   comprovando que `resolverFontePace`/`resolverPaceSeNecessario` roda e retorna **antes** de
+   qualquer interação com `metricasDiariasRepository`/`planoMetaDadosRepository` — `InOrder`/spy
+   real, não "parece certo".
+3. **Ausência de `@Transactional` residual (novo, resolve achado #6 da 2ª rodada de pre-mortem):**
+   teste de reflexão confirmando que `atualizarTsbDia(UUID, LocalDate)` e `recalcularDesde` não
+   carregam mais `@Transactional` — o critério 2 (InOrder) sozinho não pegaria uma anotação
+   esquecida que ainda envolvesse tudo na mesma transação apesar da reorganização de código.
+4. `./mvnw clean verify` verde.
 
 ## Riscos e mitigações
 

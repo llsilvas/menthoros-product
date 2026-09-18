@@ -2,8 +2,8 @@
 
 **Tamanho:** S · **Trilha:** Full (mexe em fronteira transacional de um fluxo
 sensível/de alta frequência)
-**Status:** 🟡 EM REVISÃO — design.md v2 (2026-09-18, pre-mortem DeepSeek derrubou v1: entidade
-não carregada no ponto assumido, risco de auto-invocação), aguardando novo DoR
+**Status:** 🟡 EM REVISÃO — design.md v3 (2026-09-18, 2 rodadas de pre-mortem DeepSeek), aguardando
+novo DoR
 **Criado:** 2026-09-18
 
 > Destacada de `use-best-effort-for-threshold-inference` por decisão do founder em 2026-09-18: a
@@ -30,10 +30,12 @@ que por sua vez roda dentro de `@Transactional` em **3 pontos de entrada**:
 2. `recalcularDesde(UUID, LocalDate)` — `TsbServiceImpl.java:80`, laço multi-dia (recálculo
    histórico); `atualizarMetaDados` só dispara na última iteração (`dia.equals(fim)`), então já é
    eficiente nesse ponto — mas o `@Transactional` envolve o laço inteiro.
-3. `recalcularHistoricoCompleto` (`:433`) — a consolidação final chama `atualizarMetaDados`
-   diretamente dentro de `tsbRecalculoExecutor.consolidar(...)` (`:456-464`), caminho distinto dos
-   outros dois. (`processarDiasDescanso`, `:379`, só delega pro item 1 — corrigido automaticamente
-   junto, sem trabalho extra; não é um 4º ponto.)
+
+(`processarDiasDescanso`, `:379`, só delega pro item 1 — corrigido automaticamente junto, sem
+trabalho extra. `recalcularHistoricoCompleto`, `:433`, também chama a mesma inferência mas fica
+**fora do escopo** desta change — ver design.md D2b: pré-resolver antes de um passo que pode levar
+minutos introduz staleness sem benefício real, já que esse caminho é raro/admin-only, não o de
+alta frequência que motiva esta change.)
 
 Hoje, dentro dessa fronteira, só há leitura de banco (prova/treinos, sem chamada externa) — o risco
 de "chamada externa presa numa transação de alta frequência" ainda não existe no código. Ele **vai**
@@ -85,19 +87,23 @@ Só `apps/menthoros-backend`, sem contrato de API, sem migration.
 ## Critérios de aceite
 
 1. Given os mesmos inputs (atleta, treinos, provas) de antes desta change, When
-   `atualizarTsbDia`/`recalcularDesde`/`recalcularHistoricoCompleto` rodam, Then
-   `paceLimiarEstimado`/`fonteLimiarPace`/`confiancaInferenciaPace` persistidos são idênticos a
-   antes — teste de regressão, não "parece certo" (design.md D4).
+   `atualizarTsbDia`/`recalcularDesde` rodam, Then `paceLimiarEstimado`/`fonteLimiarPace`/
+   `confiancaInferenciaPace` persistidos são idênticos a antes — teste de regressão, não "parece
+   certo" (design.md D4). `recalcularHistoricoCompleto` fora do escopo (D2b), comportamento
+   inalterado por definição.
 2. Given uma prova válida recente, When a fase de decisão (`resolverFontePace`) roda, Then o
    resultado tem a mesma precedência de hoje (prova > quintil), numa função pura sem mutação e sem
    receber `Atleta`/`PlanoMetaDados` como parâmetro (design.md D1).
-3. Given qualquer um dos 3 pontos de entrada, When rodam, Then a resolução de fonte
+3. Given qualquer um dos 2 pontos de entrada em escopo, When rodam, Then a resolução de fonte
    (`resolverFontePace`) acontece **antes** de qualquer interação com
    `metricasDiariasRepository`/`planoMetaDadosRepository` — verificável por teste estrutural
    (`InOrder`/`ArgumentCaptor`), não só pela leitura do código (design.md D4 critério 2).
 4. Given um intervalo de N>1 dias em `recalcularDesde`, When o laço roda, Then
    `resolverFontePace` é chamado exatamente 1 vez, não uma vez por dia (design.md D2).
-5. `./mvnw clean verify` verde.
+5. Given os 2 métodos de entrada em escopo, When inspecionados via reflexão, Then nenhum carrega
+   `@Transactional` — pega uma anotação esquecida que o critério 3 sozinho não detectaria
+   (design.md D4 critério 3).
+6. `./mvnw clean verify` verde.
 
 ## Métrica de sucesso
 

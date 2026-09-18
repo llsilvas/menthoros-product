@@ -21,6 +21,12 @@ prevê).
       *verify:* `AthleteThresholdUpdaterTest` — mesmos 3 cenários que
       `atualizarPaceLimiarInferido` já cobre hoje (prova válida, só quintil, nenhuma fonte),
       reescritos pro método novo. TDD: escrever os testes contra a assinatura nova primeiro.
+- [ ] 1.3b `resolverPaceSeNecessario` (novo, orquestra o pré-check): checa `paceStale`
+      (`isPaceLimiarDesatualizado`), busca `tenantId` (via 1.1) — se vier vazio (atleta sem
+      assessoria), retorna vazio direto, mesmo guard que `atualizarLimiares` já faz hoje
+      (`:56-59`), sem chamar `resolverFontePace` (design.md D2).
+      *verify:* teste cobrindo `paceStale=false` (não chama nada), atleta sem assessoria (retorna
+      vazio, loga warning), e o caminho feliz (chama `resolverFontePace`).
 - [ ] 1.4 `AthleteThresholdUpdater.aplicarPaceLimiar(PlanoMetaDados metaDados,
       PaceLimiarResolvido resolvido)` — só a mutação (`setPaceLimiarEstimado`/
       `setConfiancaInferenciaPace`/`setFonteLimiarPace`/`setDataInferenciaLimiar`), sem lógica de
@@ -43,7 +49,10 @@ prevê).
       *verify:* `TsbDiaPersisterTest` novo, cobrindo os cenários que `TsbServiceImplTest` já cobre
       pro método privado extraído (mover os testes relevantes, não duplicar).
 
-## 3. `TsbServiceImpl` — 3 pontos de entrada viram orquestradores sem `@Transactional`
+## 3. `TsbServiceImpl` — 2 pontos de entrada viram orquestradores sem `@Transactional`
+
+`recalcularHistoricoCompleto` fica **fora do escopo** (design.md D2b — staleness sem benefício
+real, achado da 2ª rodada de pre-mortem) — nenhuma task aqui o toca.
 
 - [ ] 3.1 `atualizarTsbDia(UUID, LocalDate)` (2-arg, hoje `:68`) perde `@Transactional`; passa a:
       checar `paceStale` via `thresholdInferenceService.isPaceLimiarDesatualizado` (leitura
@@ -65,12 +74,9 @@ prevê).
 - [ ] 3.3 `processarDiasDescanso` (`:379`) — nenhuma mudança de código (só chama
       `atualizarTsbDia(atletaId, dataAtual)`, já corrigido em 3.1); confirmar com 1 teste que
       continua funcionando sem alteração.
-- [ ] 3.4 `recalcularHistoricoCompleto` (`:433`) — resolve `paceResolvido` **antes** do passo 2
-      (`recalcularPeriodoComProgresso`, a parte custosa), usando `hoje=intervalo.fim()`; passa o
-      valor resolvido pro lambda de `tsbRecalculoExecutor.consolidar(...)` (passo 3), que chama
-      `tsbDiaPersister.atualizarDiaTransacional(...)` em vez de `atualizarMetaDados` diretamente.
-      *verify:* teste de regressão do fluxo de recálculo histórico completo (fixture pequena,
-      poucos dias) + teste estrutural equivalente a 3.1.
+- [ ] 3.4 Teste de reflexão (design.md D4 critério 3): `atualizarTsbDia(UUID, LocalDate)` e
+      `recalcularDesde` não carregam mais `@Transactional` — pega uma anotação esquecida que o
+      teste estrutural (InOrder) de 3.1/3.2 sozinho não pegaria.
 
 ## 4. Encerramento
 
