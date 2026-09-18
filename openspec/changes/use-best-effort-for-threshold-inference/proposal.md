@@ -1,7 +1,9 @@
 # use-best-effort-for-threshold-inference — usar o melhor esforço atual como insumo de limiar/projeção de prova
 
-**Tamanho:** provável M · **Trilha:** Full · **Status:** 🔴 **NÃO PRONTA — bloqueada por
-`refactor-threshold-call-outside-transaction`**
+**Tamanho:** provável M · **Trilha:** Full · **Status:** 🟢 **DESTRAVADA** —
+`refactor-threshold-call-outside-transaction` mergeada em `develop`
+([backend#135](https://github.com/llsilvas/menthoros-backend/pull/135), 2026-09-18); pré-requisito
+técnico resolvido, pronta pra DoR/`/implement init`
 **Criado:** 2026-09-18
 
 > Destacada de `add-athlete-best-efforts` (D5) por decisão do founder em 2026-09-18: mudar o insumo
