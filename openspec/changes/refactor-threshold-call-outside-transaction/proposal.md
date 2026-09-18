@@ -1,8 +1,8 @@
 # refactor-threshold-call-outside-transaction — abre um ponto de extensão seguro pra chamada externa na inferência de limiares
 
-**Tamanho:** provável S/M · **Trilha:** Full (mexe em fronteira transacional de um fluxo
+**Tamanho:** S · **Trilha:** Full (mexe em fronteira transacional de um fluxo
 sensível/de alta frequência)
-**Status:** 🔴 NÃO PRONTA — proposal em rascunho, sem design.md ainda
+**Status:** 🟡 EM REVISÃO — design.md escrito (2026-09-18), aguardando DoR
 **Criado:** 2026-09-18
 
 > Destacada de `use-best-effort-for-threshold-inference` por decisão do founder em 2026-09-18: a
@@ -71,10 +71,26 @@ Só `apps/menthoros-backend`, sem contrato de API, sem migration.
 
 ## Open Questions
 
-- A decisão "preciso buscar fonte externa?" fica em `AthleteThresholdUpdater` (repetindo a checagem
-  de prova válida) ou vira uma interface/strategy que `use-best-effort-for-threshold-inference`
-  implementa depois, sem essa change conhecer "melhor esforço" nenhum? Resolver no design.md —
-  tender pro mais simples que não vaze conhecimento de uma fonte futura nesta change.
-- `recalcularDesde` precisa da mesma separação de fases, ou o comportamento de recálculo histórico
-  (raramente dispara pace-stale numa janela que precise de fonte externa, dado que só a última
-  iteração persiste) permite uma solução mais simples ali?
+- ~~A decisão "preciso buscar fonte externa?" vira interface/strategy ou pré-check simples?~~ —
+  resolvida no design.md (D1): pré-check simples, sem abstração nova (duplicar até a 3ª
+  ocorrência).
+- ~~`recalcularDesde` precisa da mesma separação de fases?~~ — resolvida no design.md (D2): sim,
+  mas resolvida uma vez antes do laço inteiro (só importa no último dia), sem mudar a fronteira do
+  bloco de `DIAS_POR_BLOCO` já documentada.
+
+## Critérios de aceite
+
+1. Given os mesmos inputs (atleta, treinos, provas) de antes desta change, When
+   `atualizarTsbDia`/`recalcularDesde`/o 3º ponto de entrada rodam, Then `paceLimiarEstimado`/
+   `fonteLimiarPace`/`confiancaInferenciaPace` persistidos são idênticos a antes — teste de
+   regressão, não "parece certo" (design.md D3).
+2. Given uma prova válida recente, When a fase de decisão roda, Then o resultado tem a mesma
+   precedência de hoje (prova > quintil), só numa função pura sem mutação.
+3. `./mvnw clean verify` verde.
+
+## Métrica de sucesso
+
+Nenhuma métrica de produto (sem comportamento observável) — o critério é a suíte de regressão
+(critério 1) e a redução mensurável do escopo da transação de alta frequência (nº de statements
+entre a abertura da transação e a chamada que poderia envolver I/O externo, hoje 0 mas preparado
+pra próxima change).
