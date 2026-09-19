@@ -1,8 +1,9 @@
 # use-best-effort-for-threshold-inference — usar o melhor esforço atual como insumo de limiar/projeção de prova
 
-**Tamanho:** provável M · **Trilha:** Full · **Status:** 🟡 **EM REVISÃO** — design.md v2 +
-proposal.md com critérios de aceite/non-goals/rollback (2026-09-19, pre-mortem DeepSeek), aguardando
-novo DoR
+**Tamanho:** provável M · **Trilha:** Full · **Status:** 🟡 **EM REVISÃO** — 3ª rodada de pre-mortem
+DeepSeek incorporada (2026-09-19: correção do rollback do enum STRING, correção da suposição de
+cadência de 90 dias, AC4 com asserção observável, métrica com piso de amostra nas 2 coortes),
+aguardando novo DoR
 **Criado:** 2026-09-18
 
 > Destacada de `add-athlete-best-efforts` (D5) por decisão do founder em 2026-09-18: mudar o insumo
@@ -67,8 +68,17 @@ recente (42d) é mais atual e mais controlado que a mediana passiva de treinos i
 - Não adiciona retry/circuit-breaker pra chamada ao intervals.icu — decisão já registrada em
   ADR-0008 (aplica igualmente aqui).
 - Não recalcula limiares retroativamente pra atletas já com fonte `MEDIA_TREINOS`/`PROVA_REGISTRADA`
-  persistida — a migração de fonte acontece organicamente no próximo ciclo de
-  `isPaceLimiarDesatualizado` (90 dias sem teste oficial), não numa varredura em lote.
+  persistida — a migração de fonte acontece organicamente, não numa varredura em lote. **Correção
+  (3ª rodada de pre-mortem, DeepSeek + verificado em código):** a suposição original de "próximo
+  ciclo de 90 dias" não se sustenta pra maioria dos atletas — `Atleta.dataUltimoTestePace` não tem
+  nenhum escritor em `src/main` hoje (só leitores), e `isPaceLimiarDesatualizado` retorna `true`
+  imediatamente quando `dataUltimoTestePace` é `null`. Na prática, pra qualquer atleta sem essa data
+  populada (o caso comum, já que não existe fluxo que a grave), a migração
+  `MEDIA_TREINOS → MELHOR_ESFORCO` acontece no **próximo sync** em que houver um melhor esforço
+  elegível, não em 90 dias. O gate de 90 dias só se aplica ao subconjunto de atletas que já tiverem
+  `dataUltimoTestePace` recente de algum fluxo legado/futuro. Non-goal permanece válido (não há
+  varredura em lote), mas a cadência esperada muda — ver "Métrica de sucesso" (amostra maior e mais
+  cedo do que se imaginava).
 
 ## Critérios de aceite
 
@@ -83,11 +93,14 @@ recente (42d) é mais atual e mais controlado que a mediana passiva de treinos i
 3. Given um atleta com prova válida E melhor esforço válido, When a fonte é resolvida, Then a prova
    vence (precedência inalterada, regressão coberta).
 4. Given uma falha na chamada ao intervals.icu (timeout, erro HTTP, exceção qualquer), When a
-   resolução de pace roda, Then cai pro quintil passivo sem propagar a exceção nem quebrar a
-   atualização de TSB do dia. Given adicionalmente que o quintil também não tem dado suficiente
-   (nenhuma das 3 fontes disponível), Then a resolução retorna `Optional.empty()` — nenhuma fonte é
-   aplicada, `paceLimiarEstimado`/`fonteLimiarPace` permanecem no valor anterior (mesmo
-   comportamento já testado hoje pra "nenhuma fonte", sem mudança).
+   resolução de pace roda, Then cai pro quintil passivo sem propagar a exceção — **observável**: a
+   linha de TSB do dia é persistida normalmente por `TsbDiaPersister.atualizarDiaTransacional`
+   (asserção sobre o efeito, não só sobre a ausência de exceção — achado da 3ª rodada de pre-mortem:
+   `buscarMelhorEsforcoSeguro` devolver `List.of()` não prova, por si só, que a persistência do TSB
+   ocorreu). Given adicionalmente que o quintil também não tem dado suficiente (nenhuma das 3 fontes
+   disponível), Then a resolução retorna `Optional.empty()` — nenhuma fonte é aplicada,
+   `paceLimiarEstimado`/`fonteLimiarPace` permanecem no valor anterior (mesmo comportamento já
+   testado hoje pra "nenhuma fonte", sem mudança).
 5. Given os 2 schedulers que chamam `TsbService` fora de request HTTP
    (`StravaActivitySyncScheduler`, `IntervalsIcuActivitySyncScheduler`), When processam um atleta,
    Then `TenantContext` já está setado antes de `resolverPaceSeNecessario` rodar (regressão —
@@ -102,19 +115,31 @@ primeiros 30 dias após deploy, comparar a **taxa de outlier** (D7, `|Δ| > 20s/
 migrações `MEDIA_TREINOS → MELHOR_ESFORCO` e as migrações históricas `MEDIA_TREINOS →
 PROVA_REGISTRADA` no mesmo período (baseline já existente, mesmo mecanismo de log — achado da 2ª
 rodada de pre-mortem: sem essa comparação, "% sem outlier" não tem patamar de referência pra dizer
-se é bom ou ruim). **Threshold de ação:** se a taxa de outlier de `MELHOR_ESFORCO` for
-consistentemente (>10 casos) mais que o dobro da taxa de `PROVA_REGISTRADA` no mesmo período,
-revisar a seleção 10k/5k (D2) — sinal de que o mecanismo de tie-break está aceitando marcas
-espúrias com frequência acima do esperado pra uma fonte "quase tão confiável quanto prova".
+se é bom ou ruim). **Threshold de ação:** se a taxa de outlier de `MELHOR_ESFORCO` for consistentemente mais que o
+dobro da taxa de `PROVA_REGISTRADA` no mesmo período, com **ambas as coortes** tendo pelo menos 10
+casos (piso de amostra dos dois lados da comparação, não só do lado novo — achado da 3ª rodada de
+pre-mortem: comparar 11 casos novos contra uma baseline de 500 é válido, mas comparar 11 contra 3 não
+diz nada), revisar a seleção 10k/5k (D2) — sinal de que o mecanismo de tie-break está aceitando
+marcas espúrias com frequência acima do esperado pra uma fonte "quase tão confiável quanto prova".
 Acompanhamento via log, não painel (mesma abordagem já usada em `infer-threshold-from-race-result`
 D5).
 
 ## Rollback
 
-Revert do PR único — sem migration (enum novo cabe na coluna `VARCHAR(20)` existente,
-`fonteLimiarPace` nunca terá `MELHOR_ESFORCO` gravado antes do deploy). Reverter o código volta ao
-comportamento de 2 fontes (prova/quintil); atletas que já tiverem `MELHOR_ESFORCO` persistido
-continuam lendo esse valor normalmente (é só um enum a mais, sem semântica que quebre leitura).
+Revert do PR único — sem migration de schema (enum novo cabe na coluna `VARCHAR(20)` existente,
+`fonteLimiarPace` nunca terá `MELHOR_ESFORCO` gravado antes do deploy).
+
+**Correção (3ª rodada de pre-mortem, DeepSeek + verificado em código):** o parágrafo anterior estava
+errado sobre leitura pós-revert. `PlanoMetaDados.fonteLimiarPace` é `@Enumerated(EnumType.STRING)` —
+se o revert remover a constante `MELHOR_ESFORCO` do enum Java mas linhas no banco ainda tiverem essa
+string gravada, `Enum.valueOf` lança `IllegalArgumentException` ao hidratar a entidade, quebrando a
+leitura desses atletas (500, não silencioso). Isso só é risco se houve deploy real com
+`MELHOR_ESFORCO` em produção antes do revert — se o revert acontecer antes do primeiro deploy (ou
+com 0 linhas migradas), não há linhas a proteger. **Mitigação:** se o revert acontecer após linhas
+reais existirem, rodar um `UPDATE` de saneamento (`fonte_limiar_pace = 'MEDIA_TREINOS' WHERE
+fonte_limiar_pace = 'MELHOR_ESFORCO'`) **antes** de remover a constante do enum Java — mesmo padrão
+de "revert com saneamento de dado" já usado nesta base pra enums `STRING`. Registrar esse passo no
+runbook do PR de revert, não como migration Flyway (não é alteração de schema).
 
 ## Impact (provisório)
 

@@ -34,7 +34,11 @@ Repo: `apps/menthoros-backend`. Validação padrão: `./mvnw clean test` (inner 
       esforço quando ambos disponíveis (regressão da precedência já testada); sem nenhuma das 3
       fontes disponível retorna `Optional.empty()` (mesmo comportamento já testado hoje pra
       "nenhuma fonte", sem mudança); log INFO com fonte/marca dispara sempre que
-      `fonte=MELHOR_ESFORCO`, com ou sem `paceLimiarAnterior`, com ou sem delta de outlier.
+      `fonte=MELHOR_ESFORCO`, com ou sem `paceLimiarAnterior`, com ou sem delta de outlier; **e** o
+      WARN de outlier existente pra `fonte=PROVA_REGISTRADA` continua disparando sem alteração
+      (teste de não-regressão — achado da 3ª rodada de pre-mortem: estender
+      `logSinalizacaoOutlierPace` pro novo degrau pode acidentalmente mover/silenciar o `if` que
+      protege o caminho de prova já existente).
 
 ## 3. `TsbServiceImpl` — busca best-effort, fora de transação
 
@@ -44,7 +48,11 @@ Repo: `apps/menthoros-backend`. Validação padrão: `./mvnw clean test` (inner 
       `melhorEsforcoService.buscar(atletaId, JANELA_MELHOR_ESFORCO)`, captura `RuntimeException` e
       devolve lista vazia em caso de falha (design.md D5, best-effort — nunca propaga).
       *verify:* sucesso devolve a lista; exceção (simular `IntervalsIcuApiException` e uma
-      `RuntimeException` genérica) devolve lista vazia sem propagar, com log WARN.
+      `RuntimeException` genérica) devolve lista vazia sem propagar, com log WARN — **e**, no nível
+      de `TsbServiceImplOrquestracaoTest` (não neste teste isolado), asserção adicional de que
+      `TsbDiaPersister.atualizarDiaTransacional` é chamado mesmo quando `buscarMelhorEsforcoSeguro`
+      falha (efeito observável, AC4 do proposal — achado da 3ª rodada de pre-mortem: não propagar
+      não prova, por si só, que a persistência de TSB do dia ocorreu).
 - [ ] 3.3 `resolverPaceSeNecessario` passa a chamar `buscarMelhorEsforcoSeguro` (fora de
       transação, confirmado no design.md D4 que a pré-condição já está satisfeita por
       `refactor-threshold-call-outside-transaction`) e repassa o resultado pra
