@@ -1,9 +1,8 @@
 # use-best-effort-for-threshold-inference — usar o melhor esforço atual como insumo de limiar/projeção de prova
 
-**Tamanho:** provável M · **Trilha:** Full · **Status:** 🟢 **DESTRAVADA** —
-`refactor-threshold-call-outside-transaction` mergeada em `develop`
-([backend#135](https://github.com/llsilvas/menthoros-backend/pull/135), 2026-09-18); pré-requisito
-técnico resolvido, pronta pra DoR/`/implement init`
+**Tamanho:** provável M · **Trilha:** Full · **Status:** 🟡 **EM REVISÃO** — design.md v2 +
+proposal.md com critérios de aceite/non-goals/rollback (2026-09-19, pre-mortem DeepSeek), aguardando
+novo DoR
 **Criado:** 2026-09-18
 
 > Destacada de `add-athlete-best-efforts` (D5) por decisão do founder em 2026-09-18: mudar o insumo
@@ -57,6 +56,53 @@ recente (42d) é mais atual e mais controlado que a mediana passiva de treinos i
   superfície pequena já mapeada por `infer-threshold-from-race-result` (só
   `CoachAthleteProfileServiceImpl`, `ThresholdConstraintFormatter`, `AthleteThresholdUpdater`),
   confirmado no levantamento de código de 2026-09-18 — sem novo consumidor downstream.
+
+## Non-Goals
+
+- Não altera as outras 5 distâncias de `MelhorEsforcoService` (400m/800m/1.5k/1mi/3k) — só 5k/10k
+  entram na inferência de limiar (fisiologicamente aptas, D2 do design).
+- Não expõe a janela de 42 dias como configuração pro usuário — fixa por decisão de produto.
+- Não muda `infer-threshold-from-race-result` (fonte "prova") nem sua precedência sobre as outras
+  duas fontes — só insere um degrau novo entre prova e quintil.
+- Não adiciona retry/circuit-breaker pra chamada ao intervals.icu — decisão já registrada em
+  ADR-0008 (aplica igualmente aqui).
+- Não recalcula limiares retroativamente pra atletas já com fonte `MEDIA_TREINOS`/`PROVA_REGISTRADA`
+  persistida — a migração de fonte acontece organicamente no próximo ciclo de
+  `isPaceLimiarDesatualizado` (90 dias sem teste oficial), não numa varredura em lote.
+
+## Critérios de aceite
+
+1. Given um atleta sem prova válida recente e com um melhor esforço de 10k na janela de 42 dias,
+   When o pace limiar é recalculado (sync de treino), Then `fonteLimiarPace=MELHOR_ESFORCO` e
+   `paceLimiarEstimado` é calculado pela fórmula de Riegel a partir do tempo/distância do 10k.
+2. Given um atleta com melhor esforço de 5k e de 10k na mesma janela, When a fonte é resolvida,
+   Then o 10k é usado (não o 5k).
+3. Given um atleta com prova válida E melhor esforço válido, When a fonte é resolvida, Then a prova
+   vence (precedência inalterada, regressão coberta).
+4. Given uma falha na chamada ao intervals.icu (timeout, erro HTTP, exceção qualquer), When a
+   resolução de pace roda, Then cai pro quintil passivo sem propagar a exceção nem quebrar a
+   atualização de TSB do dia.
+5. Given os 2 schedulers que chamam `TsbService` fora de request HTTP
+   (`StravaActivitySyncScheduler`, `IntervalsIcuActivitySyncScheduler`), When processam um atleta,
+   Then `TenantContext` já está setado antes de `resolverPaceSeNecessario` rodar (regressão —
+   verificado no levantamento de 2026-09-19 que o padrão set/clear por atleta já cobre isso; teste
+   dedicado trava o comportamento).
+6. `./mvnw clean verify` verde.
+
+## Métrica de sucesso
+
+Sem métrica de produto (mudança de infraestrutura de inferência, não visível na UI) — proxy: nos
+primeiros 30 dias após deploy, % de atletas cujo `fonteLimiarPace` migra de `MEDIA_TREINOS` pra
+`MELHOR_ESFORCO` **sem** disparar o log de outlier (D7, `|Δ| > 20s/km`) — sinal de que a nova fonte
+ficou mais precisa sem introduzir ruído que o coach precise investigar manualmente. Acompanhamento
+via log, não painel (mesma abordagem já usada em `infer-threshold-from-race-result` D5).
+
+## Rollback
+
+Revert do PR único — sem migration (enum novo cabe na coluna `VARCHAR(20)` existente,
+`fonteLimiarPace` nunca terá `MELHOR_ESFORCO` gravado antes do deploy). Reverter o código volta ao
+comportamento de 2 fontes (prova/quintil); atletas que já tiverem `MELHOR_ESFORCO` persistido
+continuam lendo esse valor normalmente (é só um enum a mais, sem semântica que quebre leitura).
 
 ## Impact (provisório)
 
