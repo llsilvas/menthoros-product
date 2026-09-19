@@ -3,6 +3,17 @@
 Repo: `apps/menthoros-backend`. Validação padrão: `./mvnw clean test` (inner loop),
 `./mvnw clean verify` antes de entregar.
 
+**Refinado contra o código real em `develop` (2026-09-19, `/implement init`).** Anchors
+confirmados: `FonteLimiarInferencia` hoje só tem `{PROVA_REGISTRADA, MEDIA_TREINOS}`
+(`enums/FonteLimiarInferencia.java:3`); `AthleteThresholdUpdater.resolverFontePace`
+(`services/helper/AthleteThresholdUpdater.java:140-160`) e `logSinalizacaoOutlierPace`
+(`:183-199`, `private`, assinatura atual `(UUID atletaId, BigDecimal paceAntigo, BigDecimal
+paceNovo, UUID provaId)`); `TsbServiceImpl` tem 10 campos injetados via `@RequiredArgsConstructor`
+(`services/impl/TsbServiceImpl.java:34-43`) e `resolverPaceSeNecessario` privado em `:133`;
+`MelhorEsforcoDto(String distanciaLabel, double distanciaMetros, int tempoSegundos, String
+paceLabel)` (`dto/output/MelhorEsforcoDto.java`); `MelhorEsforcoService.buscar(UUID atletaId,
+String janela): List<MelhorEsforcoDto>` (`services/MelhorEsforcoService.java:24`).
+
 ## 1. `ThresholdInferenceService` — fórmula e enum
 
 - [ ] 1.1 `FonteLimiarInferencia` ganha `MELHOR_ESFORCO` (design.md D6) — sem migration
@@ -23,10 +34,16 @@ Repo: `apps/menthoros-backend`. Validação padrão: `./mvnw clean test` (inner 
 - [ ] 2.2 `resolverFontePace` ganha parâmetro `List<MelhorEsforcoDto> melhoresEsforcos` — novo
       degrau entre prova e quintil (design.md D1): sem prova válida, tenta melhor esforço válido
       (2.1) antes do quintil; retorna `PaceLimiarResolvido` com `fonte=MELHOR_ESFORCO`,
-      `confianca=ALTA`. Reaproveita `logSinalizacaoOutlierPace` pro novo degrau, estendido pra
-      sempre logar INFO com fonte/marca usada — não só no caso "primeira vez"/outlier (design.md
-      D7, achado da 2ª rodada de pre-mortem: sem isso, um atleta sem `paceLimiarAnterior` não deixa
-      rastro auditável se a marca usada for espúria).
+      `confianca=ALTA`. **Decisão de assinatura (observação do DoR):** `logSinalizacaoOutlierPace`
+      hoje é `private (UUID atletaId, BigDecimal paceAntigo, BigDecimal paceNovo, UUID provaId)` —
+      o último parâmetro é específico de prova. Generaliza pra
+      `logSinalizacaoOutlierPace(UUID atletaId, BigDecimal paceAntigo, BigDecimal paceNovo, String
+      origemDescricao)`, onde o caller de prova passa `"provaId=" + prova.getId()` (preserva o texto
+      de log atual) e o caller de melhor esforço passa `"distanciaLabel=" + marca.distanciaLabel() +
+      ", tempoSegundos=" + marca.tempoSegundos()` — um único método, sem overload, sem duplicar a
+      lógica de outlier/INFO. Estende esse método pra sempre logar INFO com fonte/marca usada — não
+      só no caso "primeira vez"/outlier (design.md D7, achado da 2ª rodada de pre-mortem: sem isso,
+      um atleta sem `paceLimiarAnterior` não deixa rastro auditável se a marca usada for espúria).
       *verify:* estende `AthleteThresholdUpdaterTest$ResolverFontePace` — melhor esforço vence
       sobre quintil quando sem prova, com asserção explícita de que `paceLimiarEstimado` reflete o
       tempo/distância da marca de 10k usada (não só a `fonte`, achado de pre-mortem — um bug que
@@ -42,8 +59,16 @@ Repo: `apps/menthoros-backend`. Validação padrão: `./mvnw clean test` (inner 
 
 ## 3. `TsbServiceImpl` — busca best-effort, fora de transação
 
-- [ ] 3.1 `MelhorEsforcoService` injetado em `TsbServiceImpl` (novo campo). Constante
-      `JANELA_MELHOR_ESFORCO = "42d"` (design.md D8).
+- [ ] 3.1 `MelhorEsforcoService` injetado em `TsbServiceImpl` (11º campo `private final`, junto dos
+      10 existentes em `services/impl/TsbServiceImpl.java:34-43`, via `@RequiredArgsConstructor` —
+      atualizar todos os testes que constroem `TsbServiceImpl` manualmente, ex.
+      `TsbServiceImplOrquestracaoTest.construirService()`). Constante `JANELA_MELHOR_ESFORCO =
+      "42d"` (design.md D8). **Efeito colateral:** `AthleteThresholdUpdater.resolverFontePace`
+      ganha o parâmetro `melhoresEsforcos` (task 2.2) — atualizar a assinatura em
+      `AthleteThresholdUpdaterTest` e no único caller real, `TsbServiceImpl.resolverPaceSeNecessario`
+      (`:133`), e no caller de `atualizarLimiares` (`AthleteThresholdUpdater.java:68-69`, chamado
+      internamente — passa lista vazia, esse caminho não tem acesso a `MelhorEsforcoService` e
+      permanece fora de escopo, ver design.md D4).
 - [ ] 3.2 `buscarMelhorEsforcoSeguro(UUID atletaId): List<MelhorEsforcoDto>` — chama
       `melhorEsforcoService.buscar(atletaId, JANELA_MELHOR_ESFORCO)`, captura `RuntimeException` e
       devolve lista vazia em caso de falha (design.md D5, best-effort — nunca propaga).
