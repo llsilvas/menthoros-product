@@ -23,11 +23,18 @@ Repo: `apps/menthoros-backend`. Validação padrão: `./mvnw clean test` (inner 
 - [ ] 2.2 `resolverFontePace` ganha parâmetro `List<MelhorEsforcoDto> melhoresEsforcos` — novo
       degrau entre prova e quintil (design.md D1): sem prova válida, tenta melhor esforço válido
       (2.1) antes do quintil; retorna `PaceLimiarResolvido` com `fonte=MELHOR_ESFORCO`,
-      `confianca=ALTA`. Reaproveita `logSinalizacaoOutlierPace` pro novo degrau (design.md D7).
+      `confianca=ALTA`. Reaproveita `logSinalizacaoOutlierPace` pro novo degrau, estendido pra
+      sempre logar INFO com fonte/marca usada — não só no caso "primeira vez"/outlier (design.md
+      D7, achado da 2ª rodada de pre-mortem: sem isso, um atleta sem `paceLimiarAnterior` não deixa
+      rastro auditável se a marca usada for espúria).
       *verify:* estende `AthleteThresholdUpdaterTest$ResolverFontePace` — melhor esforço vence
-      sobre quintil quando sem prova; prova continua vencendo sobre melhor esforço quando ambos
-      disponíveis (regressão da precedência já testada); sem prova nem melhor esforço cai pro
-      quintil (regressão); log de outlier dispara pro novo degrau igual já dispara pra prova.
+      sobre quintil quando sem prova, com asserção explícita de que `paceLimiarEstimado` reflete o
+      tempo/distância da marca de 10k usada (não só a `fonte`, achado de pre-mortem — um bug que
+      seleciona 10k mas calcula com 5k precisa falhar aqui); prova continua vencendo sobre melhor
+      esforço quando ambos disponíveis (regressão da precedência já testada); sem nenhuma das 3
+      fontes disponível retorna `Optional.empty()` (mesmo comportamento já testado hoje pra
+      "nenhuma fonte", sem mudança); log INFO com fonte/marca dispara sempre que
+      `fonte=MELHOR_ESFORCO`, com ou sem `paceLimiarAnterior`, com ou sem delta de outlier.
 
 ## 3. `TsbServiceImpl` — busca best-effort, fora de transação
 
@@ -50,8 +57,15 @@ Repo: `apps/menthoros-backend`. Validação padrão: `./mvnw clean test` (inner 
       convenção): confirmar que `StravaActivitySyncScheduler` e
       `IntervalsIcuActivitySyncScheduler` continuam setando `TenantContext` antes de descer até
       `TsbService.recalcularDesde` — critério de aceite 5 do proposal.
-      *verify:* teste (unit ou `*IT`, o que for mais direto sem reescrever os schedulers) que falha
-      se o set de `TenantContext` for removido/reordenado por engano numa mudança futura.
+      *verify:* teste (unit ou `*IT`, o que for mais direto sem reescrever os schedulers) que prova
+      o **binding correto tenant→atleta**, não só ordenação/não-nulidade (achado da 2ª rodada de
+      pre-mortem: um teste que só verifica `TenantContext` setado antes da chamada passaria mesmo
+      se o scheduler setasse o tenant do atleta errado numa iteração de loop com múltiplos
+      atletas/tenants). Cenário mínimo: processar 2 atletas de tenants diferentes no mesmo laço do
+      scheduler e capturar (via spy/captor em `MelhorEsforcoService.buscar` ou equivalente) o
+      `tenantId` efetivamente lido por `TenantContext.getRequiredTenantId()` durante o
+      processamento de cada um — assert que bate com o tenant do atleta daquela iteração, não do
+      anterior (regressão de vazamento entre iterações do loop).
 
 ## 4. Encerramento
 

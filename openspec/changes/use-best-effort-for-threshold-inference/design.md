@@ -170,6 +170,19 @@ reaproveita o mesmo helper (mesma razão: uma marca de treino mal registrada ou 
 sincronização do intervals.icu pode produzir um salto grande, vale sinalizar pra revisão manual) —
 sem criar um segundo limiar/mecanismo.
 
+**Achado da 2ª rodada de pre-mortem (DeepSeek):** o WARN só dispara comparando contra
+`paceLimiarAnterior` — um atleta **sem** limiar anterior (primeira inferência) ou cujo valor
+anterior já estava errado no mesmo sentido não geram nenhum sinal, mesmo se o "10k" for espúrio
+(D2). Diferente do "prova mal cadastrada" (que tem data/evento auditável no cadastro da prova em
+si), um segmento de treino intervalado mal identificado como 10k contínuo não tem outro rastro.
+**Decisão:** `logSinalizacaoOutlierPace` já loga INFO no caso "primeira vez" (`paceAntigo == null`,
+linha 130-134 do código atual) — **estender esse INFO pra sempre incluir a fonte** (`MELHOR_ESFORCO`
+vs. `PROVA_REGISTRADA`) e o `distanciaLabel`/`tempoSegundos` usados, não só o valor calculado.
+Garante rastro auditável pra QUALQUER inferência via melhor esforço (outlier ou não, com ou sem
+valor anterior) — sem exigir `paceLimiarAnterior` presente pra aceitar a fonte (isso excluiria
+exatamente os atletas novos, que são quem mais se beneficia de ter uma inferência real em vez de
+nenhuma).
+
 ## D8 — Janela fixa `"42d"`, não configurável
 
 Já resolvido no proposal ("atual" = a mesma semântica da change original). Constante nomeada

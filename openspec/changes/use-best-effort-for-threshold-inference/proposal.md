@@ -76,12 +76,18 @@ recente (42d) é mais atual e mais controlado que a mediana passiva de treinos i
    When o pace limiar é recalculado (sync de treino), Then `fonteLimiarPace=MELHOR_ESFORCO` e
    `paceLimiarEstimado` é calculado pela fórmula de Riegel a partir do tempo/distância do 10k.
 2. Given um atleta com melhor esforço de 5k e de 10k na mesma janela, When a fonte é resolvida,
-   Then o 10k é usado (não o 5k).
+   Then o 10k é usado (não o 5k) — E `paceLimiarEstimado` reflete o tempo/distância do 10k, não do
+   5k (asserção explícita sobre o valor calculado, não só sobre `fonte=MELHOR_ESFORCO`; achado da
+   2ª rodada de pre-mortem: um bug que seleciona a marca certa mas calcula com a outra precisa
+   falhar aqui).
 3. Given um atleta com prova válida E melhor esforço válido, When a fonte é resolvida, Then a prova
    vence (precedência inalterada, regressão coberta).
 4. Given uma falha na chamada ao intervals.icu (timeout, erro HTTP, exceção qualquer), When a
    resolução de pace roda, Then cai pro quintil passivo sem propagar a exceção nem quebrar a
-   atualização de TSB do dia.
+   atualização de TSB do dia. Given adicionalmente que o quintil também não tem dado suficiente
+   (nenhuma das 3 fontes disponível), Then a resolução retorna `Optional.empty()` — nenhuma fonte é
+   aplicada, `paceLimiarEstimado`/`fonteLimiarPace` permanecem no valor anterior (mesmo
+   comportamento já testado hoje pra "nenhuma fonte", sem mudança).
 5. Given os 2 schedulers que chamam `TsbService` fora de request HTTP
    (`StravaActivitySyncScheduler`, `IntervalsIcuActivitySyncScheduler`), When processam um atleta,
    Then `TenantContext` já está setado antes de `resolverPaceSeNecessario` rodar (regressão —
@@ -92,10 +98,16 @@ recente (42d) é mais atual e mais controlado que a mediana passiva de treinos i
 ## Métrica de sucesso
 
 Sem métrica de produto (mudança de infraestrutura de inferência, não visível na UI) — proxy: nos
-primeiros 30 dias após deploy, % de atletas cujo `fonteLimiarPace` migra de `MEDIA_TREINOS` pra
-`MELHOR_ESFORCO` **sem** disparar o log de outlier (D7, `|Δ| > 20s/km`) — sinal de que a nova fonte
-ficou mais precisa sem introduzir ruído que o coach precise investigar manualmente. Acompanhamento
-via log, não painel (mesma abordagem já usada em `infer-threshold-from-race-result` D5).
+primeiros 30 dias após deploy, comparar a **taxa de outlier** (D7, `|Δ| > 20s/km`) entre as
+migrações `MEDIA_TREINOS → MELHOR_ESFORCO` e as migrações históricas `MEDIA_TREINOS →
+PROVA_REGISTRADA` no mesmo período (baseline já existente, mesmo mecanismo de log — achado da 2ª
+rodada de pre-mortem: sem essa comparação, "% sem outlier" não tem patamar de referência pra dizer
+se é bom ou ruim). **Threshold de ação:** se a taxa de outlier de `MELHOR_ESFORCO` for
+consistentemente (>10 casos) mais que o dobro da taxa de `PROVA_REGISTRADA` no mesmo período,
+revisar a seleção 10k/5k (D2) — sinal de que o mecanismo de tie-break está aceitando marcas
+espúrias com frequência acima do esperado pra uma fonte "quase tão confiável quanto prova".
+Acompanhamento via log, não painel (mesma abordagem já usada em `infer-threshold-from-race-result`
+D5).
 
 ## Rollback
 
