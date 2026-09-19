@@ -28,10 +28,10 @@ String janela): List<MelhorEsforcoDto>` (`services/MelhorEsforcoService.java:24`
 
 ## 2. `AthleteThresholdUpdater` — seleção e precedência
 
-- [ ] 2.1 `encontrarMelhorEsforcoValido(List<MelhorEsforcoDto> marcas): Optional<MelhorEsforcoDto>`
+- [x] 2.1 `encontrarMelhorEsforcoValido(List<MelhorEsforcoDto> marcas): Optional<MelhorEsforcoDto>`
       — filtra por rótulo `"10k"`/`"5k"` (design.md D2), 10k vence quando ambos presentes.
       *verify:* 4 cenários (só 10k, só 5k, os dois → 10k vence, nenhum dos dois → vazio).
-- [ ] 2.2 `resolverFontePace` ganha parâmetro `List<MelhorEsforcoDto> melhoresEsforcos` — novo
+- [x] 2.2 `resolverFontePace` ganha parâmetro `List<MelhorEsforcoDto> melhoresEsforcos` — novo
       degrau entre prova e quintil (design.md D1): sem prova válida, tenta melhor esforço válido
       (2.1) antes do quintil; retorna `PaceLimiarResolvido` com `fonte=MELHOR_ESFORCO`,
       `confianca=ALTA`. **Decisão de assinatura (observação do DoR):** `logSinalizacaoOutlierPace`
