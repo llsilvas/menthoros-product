@@ -16,9 +16,9 @@ String janela): List<MelhorEsforcoDto>` (`services/MelhorEsforcoService.java:24`
 
 ## 1. `ThresholdInferenceService` — fórmula e enum
 
-- [ ] 1.1 `FonteLimiarInferencia` ganha `MELHOR_ESFORCO` (design.md D6) — sem migration
+- [x] 1.1 `FonteLimiarInferencia` ganha `MELHOR_ESFORCO` (design.md D6) — sem migration
       (`VARCHAR(20)` já comporta).
-- [ ] 1.2 `ThresholdInferenceService.inferirPaceLimiarDeMelhorEsforco(MelhorEsforcoDto
+- [x] 1.2 `ThresholdInferenceService.inferirPaceLimiarDeMelhorEsforco(MelhorEsforcoDto
       melhorEsforco): BigDecimal` — réplica isolada da fórmula de Riegel de
       `inferirPaceLimiarDeProva` (design.md D3), mesmas constantes `EXPONENTE_RIEGEL`/
       `OFFSET_LIMIAR_SEC_KM` já package-private na classe.
