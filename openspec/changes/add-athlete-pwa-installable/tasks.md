@@ -165,7 +165,15 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
 
 ## 5. Regressão com SW ativo (gate de CI)
 
-- [ ] 1.7 Novo E2E `tests/e2e/pwa/service-worker.spec.ts` sobre a fixture PKCE existente
+- [x] 1.7 *Entregue (commit `94de7a2`):* 3 `test()` isolados — (a)+(b)+(c) num só (SW controlando
+      após ready→reload; Cache Storage sem `/api/`, `/auth/`, `env-config.js`; sonda same-origin
+      `/auth/realms/...` com `fromServiceWorker()===false` e volta a `/`), (d1) casca offline
+      (`#root` não-vazio, URL same-origin, sem hop pro IdP — depende da guarda 1.4b), (d2) offline
+      sem reload (sessão sobrevive, nenhuma resposta de `/api` via SW). `npm run test:e2e` (build
+      + preview, 21 arquivos de spec, SW ativo em todos) **exit 0** — suíte inteira verde; a
+      contagem exata não ficou no log porque o comando em background guardou só as 60 últimas
+      linhas (ruído do proxy `/api/v1/strava/sync-status` sem backend, pré-existente).
+      Novo E2E `tests/e2e/pwa/service-worker.spec.ts` sobre a fixture PKCE existente
       (`tests/fixtures/pkceAuth.ts` + `idp.ts`; mesmo `webServer` de produção dos outros specs).
       **Ordem obrigatória** (com `registerType: 'prompt'` e sem `clientsClaim`, o SW só controla a
       página a partir da **2ª navegação** — sem isso a asserção (a) fica flaky): `page.goto('/')` →
@@ -217,5 +225,10 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
 
 ## 6. Encerramento
 
-- [ ] 1.9 `npm run lint && npm run build && npm run test:run && npm run test:e2e` verde (CA6-ci);
+- [x] 1.9 *Entregue:* `npm run lint` limpo; `npm run build` OK (`dist/sw.js` + `workbox-*.js` +
+      manifest, precache 19 entradas; aviso de chunk >500 kB é pré-existente); `npm run test:run`
+      **197 arquivos / 1607 testes verdes**; `npm run test:e2e` **exit 0** (21 specs, SW ativo).
+      "`npm run dev` não registra SW" garantido pelo guard `import.meta.env.PROD` no `main.tsx`
+      (inspecionável; dev server não foi subido). QA gate a seguir.
+      `npm run lint && npm run build && npm run test:run && npm run test:e2e` verde (CA6-ci);
       atualizar este `tasks.md` (entregue vs. adiado) e abrir o PR.
