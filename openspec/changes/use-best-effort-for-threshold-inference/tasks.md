@@ -59,7 +59,7 @@ String janela): List<MelhorEsforcoDto>` (`services/MelhorEsforcoService.java:24`
 
 ## 3. `TsbServiceImpl` — busca best-effort, fora de transação
 
-- [ ] 3.1 `MelhorEsforcoService` injetado em `TsbServiceImpl` (11º campo `private final`, junto dos
+- [x] 3.1 `MelhorEsforcoService` injetado em `TsbServiceImpl` (11º campo `private final`, junto dos
       10 existentes em `services/impl/TsbServiceImpl.java:34-43`, via `@RequiredArgsConstructor` —
       atualizar todos os testes que constroem `TsbServiceImpl` manualmente, ex.
       `TsbServiceImplOrquestracaoTest.construirService()`). Constante `JANELA_MELHOR_ESFORCO =
@@ -69,7 +69,7 @@ String janela): List<MelhorEsforcoDto>` (`services/MelhorEsforcoService.java:24`
       (`:133`), e no caller de `atualizarLimiares` (`AthleteThresholdUpdater.java:68-69`, chamado
       internamente — passa lista vazia, esse caminho não tem acesso a `MelhorEsforcoService` e
       permanece fora de escopo, ver design.md D4).
-- [ ] 3.2 `buscarMelhorEsforcoSeguro(UUID atletaId): List<MelhorEsforcoDto>` — chama
+- [x] 3.2 `buscarMelhorEsforcoSeguro(UUID atletaId): List<MelhorEsforcoDto>` — chama
       `melhorEsforcoService.buscar(atletaId, JANELA_MELHOR_ESFORCO)`, captura `RuntimeException` e
       devolve lista vazia em caso de falha (design.md D5, best-effort — nunca propaga).
       *verify:* sucesso devolve a lista; exceção (simular `IntervalsIcuApiException` e uma
@@ -78,7 +78,7 @@ String janela): List<MelhorEsforcoDto>` (`services/MelhorEsforcoService.java:24`
       `TsbDiaPersister.atualizarDiaTransacional` é chamado mesmo quando `buscarMelhorEsforcoSeguro`
       falha (efeito observável, AC4 do proposal — achado da 3ª rodada de pre-mortem: não propagar
       não prova, por si só, que a persistência de TSB do dia ocorreu).
-- [ ] 3.3 `resolverPaceSeNecessario` passa a chamar `buscarMelhorEsforcoSeguro` (fora de
+- [x] 3.3 `resolverPaceSeNecessario` passa a chamar `buscarMelhorEsforcoSeguro` (fora de
       transação, confirmado no design.md D4 que a pré-condição já está satisfeita por
       `refactor-threshold-call-outside-transaction`) e repassa o resultado pra
       `athleteThresholdUpdater.resolverFontePace`.
