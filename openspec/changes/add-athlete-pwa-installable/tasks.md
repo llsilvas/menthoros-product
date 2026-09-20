@@ -142,7 +142,11 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
 
 ## 4. Prompt de instalação (Android/Chromium)
 
-- [ ] 1.6 Hook `useInstallPrompt` em `src/features/athlete/hooks/`: captura `beforeinstallprompt`
+- [x] 1.6 *Entregue (commit `e2db028`; retomada inline depois de o fork cair por limite de gasto
+      da conta):* `useInstallPrompt` (9 testes), `InstallPromptBanner` (2), `AthleteLayout` (+3:
+      sem evento não há banner; com evento ele precede a `navigation` na ordem do DOM; "Agora não"
+      remove). lint limpo, build OK (precache 19 entradas).
+      Hook `useInstallPrompt` em `src/features/athlete/hooks/`: captura `beforeinstallprompt`
       (`preventDefault`, guarda o evento, expõe `canInstall`, `promptInstall()` e `dismiss()`),
       limpa em `appinstalled`, e retorna `canInstall=false` quando `matchMedia('(display-mode:
       standalone)')` bate (já instalado) **ou** quando `localStorage['menthoros:pwa-install-dismissed']`
