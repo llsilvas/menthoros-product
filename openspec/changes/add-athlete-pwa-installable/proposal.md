@@ -26,12 +26,55 @@ risks:
     descricao: SW registrado em dev quebra HMR e deixa build de desenvolvimento com cache fantasma.
     mitigacao: Registrar o SW só em produção (import.meta.env.PROD); dev segue sem SW.
   - id: R3
-    descricao: Token em memória + PKCE — o SW não pode interferir no fluxo OIDC nem cachear o redirect.
-    mitigacao: /auth e /api network-only; SW não intercepta navigations do fluxo de login (skipWaiting + clients.claim controlados).
+    descricao: >
+      (Critical, DoR) O Keycloak é proxyado em /auth/ no MESMO origin do SPA (nginx em prod, proxy
+      Vite em dev). Um navigateFallback genérico responderia o index.html precacheado à navegação
+      do browser para /auth/realms/.../protocol/openid-connect/auth — a tela de login do IdP nunca
+      carregaria. O callback OIDC em si é seguro: redirect_uri é a raiz (`${origin}/`, oidc-client-ts
+      lê ?code=&state= no cliente), ou seja, servir index.html nessa navegação é o comportamento
+      correto.
+    mitigacao: >
+      navigateFallbackDenylist: [/^\/auth\//, /^\/api\//] + runtimeCaching NetworkOnly para
+      /api/**, /auth/** e /env-config.js. registerType 'prompt' (nunca autoUpdate: um reload
+      automático no meio do fluxo PKCE perderia o state). Gate: E2E com SW ativo (ver CA4).
   - id: R4
     descricao: iOS não tem prompt automático — depende de "Adicionar à Tela de Início" manual.
     mitigacao: Limitação de plataforma documentada como non-goal; a entrega cobre o que iOS permite (ícone + tela cheia via meta tags).
+  - id: R5
+    descricao: >
+      public/env-config.js é config de RUNTIME — reescrito pelo docker-entrypoint a cada startup do
+      container (nginx serve com no-store) e lido em window.__RUNTIME_CONFIG__ antes do bundle
+      React (apiBaseUrl, keycloakUrl). O glob padrão do vite-plugin-pwa (**/*.{js,css,html}) o
+      precachearia: após um redeploy que troque a URL do backend/IdP, o SW serviria a versão
+      antiga até o próximo update do SW — app apontando pro ambiente errado, sem erro visível.
+    mitigacao: >
+      workbox.globIgnores: ['**/env-config.js'] + NetworkOnly em runtime para o mesmo path.
+      Verificação mecânica: o precache manifest dentro de dist/sw.js NÃO pode conter env-config.js.
+  - id: R6
+    descricao: >
+      A assunção original ("hash router dispensa navigation fallback") era falsa: deep links de
+      PATH públicos (/waitlist, /cadastro, /privacidade, /termos) chegam como navegação real e são
+      traduzidos pra hash em src/config/deepLinkRedirect.ts. Sem fallback, esses links não abririam
+      offline (e um fallback sem denylist reintroduz R3).
+    mitigacao: navigateFallback: 'index.html' (cobre os 4 paths + a raiz) COM a denylist de R3.
 ---
+
+> **Revisão 1 (DoR, 2026-09-20 — Codex adversarial, 6 achados, todos verificados no código):**
+> (1) **Critical:** o Keycloak é proxyado em `location /auth/` no **mesmo origin** do SPA
+> (`docker/nginx.conf.template`, e o proxy Vite em dev faz o mesmo) — um `navigateFallback`
+> genérico serviria o `index.html` precacheado no lugar da tela de login do IdP. R3 reescrito com
+> `navigateFallbackDenylist` explícito. (2) A assunção "hash router dispensa fallback" era falsa:
+> `src/config/deepLinkRedirect.ts` traduz 4 paths públicos (`/waitlist`, `/cadastro`,
+> `/privacidade`, `/termos`) no bootstrap — o fallback é **necessário** pra eles (R6). (3) Achado
+> próprio, não do Codex: `public/env-config.js` é reescrito a cada startup do container (nginx
+> `no-store`, lido em `window.__RUNTIME_CONFIG__` antes do React) — o glob padrão do plugin o
+> precachearia e serviria URL de backend/IdP obsoleta após redeploy (R5). (4) Q1 fechada:
+> `vite-plugin-pwa@1.3.0` declara peer `vite ^7.0.0` (projeto usa `^7.1.2`). (5) A fonte de
+> ícone citada estava errada (`logo_menthoros_128x128.png` mede 142×128; `menthoros_icon.png`,
+> 32×32) — mas `logo_transparent.png` é 500×500 RGBA, fonte quadrada adequada. (6) CA2/CA3 não
+> eram falsificáveis em CI (Playwright só tem `Desktop Chrome`): critérios separados em
+> CI-falsificável × evidência manual. Bônus: o `webServer` do Playwright roda `build && preview`
+> (produção), então o SW passa a ser exercitado por TODOS os E2E de auth/coach existentes.
 
 ## Why
 
@@ -44,8 +87,8 @@ menor esforço para dar ao atleta o que um app de loja daria no essencial (ícon
 custo de rewrite nativo (8–10 semanas) nem de Capacitor (4–6 semanas).
 
 `index.html` já tem `viewport` e `referrer strict-origin-when-cross-origin`, mas **não tem** manifest,
-theme-color, apple-touch-icon nem service worker. Os ícones de marca já existem em
-`src/assets/icons/` (`logo_menthoros_128x128.png`, `menthoros_icon.png`, `menthoros_mark.png`).
+theme-color, apple-touch-icon nem service worker. A fonte de ícone adequada já existe em
+`src/assets/icons/logo_transparent.png` (500×500 RGBA — ver item 5 e a Revisão 1 acima).
 
 ## What Changes
 
@@ -55,12 +98,27 @@ Somente `apps/menthoros-front`:
    theme/background color, ícones 192/512 + maskable), linkado no `index.html`.
 2. **Meta tags iOS** — `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`,
    `apple-touch-icon` (180×180), `theme-color` no `index.html`.
-3. **Service worker** — precache do app-shell (index.html + hashed assets + fontes + ícones), com
-   estratégia network-first para navegação e **network-only para `/api` e `/auth`** (guardrail de
-   multi-tenancy/LGPD). Registro condicional a `import.meta.env.PROD`.
+3. **Service worker** — `vite-plugin-pwa@^1.3.0` (peer `vite ^7.0.0`, compatível com o `^7.1.2`
+   do projeto; **sem** `@vite-pwa/assets-generator` — ícones gerados à mão, item 5). Config
+   fechada na DoR (R3/R5/R6):
+   - `registerType: 'prompt'`, `injectRegister: false` (registro manual em `src/main.tsx`).
+   - `workbox.globPatterns: ['**/*.{js,css,html,png,svg,woff2}']` +
+     **`globIgnores: ['**/env-config.js']`**.
+   - `workbox.navigateFallback: 'index.html'` + **`navigateFallbackDenylist: [/^\/auth\//,
+     /^\/api\//]`**.
+   - `workbox.runtimeCaching`: **`NetworkOnly`** para `/api/**`, `/auth/**` e `/env-config.js`.
+     Nenhuma outra estratégia de runtime — dados continuam network-only (non-goal).
+   - `manifest` gerado pelo plugin (fonte única; **não** manter `public/manifest.webmanifest`
+     manual em paralelo — evita drift).
+   Registro condicional a `import.meta.env.PROD`, **depois** do `redirectPathDeepLink()` (se ele
+   redirecionar, não registra nessa passada).
 4. **Prompt de instalação** — captura `beforeinstallprompt` e expõe um botão/CTA discreto de
    "Instalar app" (Android/Chromium); iOS fica coberto pelas meta tags (non-goal: hint customizado).
-5. **Ícones PWA** — gera os tamanhos necessários a partir de `logo_menthoros_128x128.png`/`menthoros_icon.png`.
+5. **Ícones PWA** — gerados a partir de **`src/assets/icons/logo_transparent.png` (500×500 RGBA)**,
+   a única fonte quadrada de alta resolução (DoR: `logo_menthoros_128x128.png` mede 142×128 e
+   `menthoros_icon.png` 32×32 — upscaling cumpriria a dimensão formal, não a qualidade). Saída em
+   `public/icons/`: 192, 512, 512 maskable (marca dentro dos 80% centrais — zona segura) e
+   apple-touch-icon 180. Geração por script one-off (`sips`/`sharp`), **sem dependência nova**.
 
 ## Impact
 
@@ -71,17 +129,36 @@ Somente `apps/menthoros-front`:
 
 ## Critérios de aceite
 
-- **CA1** — Given o build de produção, When o Lighthouse PWA audit roda, Then `installable` passa
-  (manifest válido, ícones ≥192px, service worker registrado, start_url resolve).
-- **CA2** — Given Android Chrome, When o usuário abre o app, Then `beforeinstallprompt` dispara e o
-  CTA "Instalar" aparece; ao instalar, o app abre em `standalone` com o ícone de marca.
-- **CA3** — Given iOS Safari, When "Adicionar à Tela de Início" é usado, Then o app abre em tela
-  cheia (`apple-mobile-web-app-capable`) com `apple-touch-icon` correto.
-- **CA4** — Given um login Keycloak (PKCE) e dados de atleta, When o SW está ativo, Then `/api` e
-  `/auth` não entram em cache (verificar no DevTools que nenhuma resposta dessas origens está no
-  Cache Storage) e o login/troca de tenant seguem funcionando.
-- **CA5** — Given o app-shell precacheado, When a rede cai após primeiro load, Then o app carrega a
-  casca (splash/tela) e dados mostram estado de erro — sem tela branca (app-shell cache hit).
+Separados em **CI-falsificáveis** (gate de merge) e **evidência manual** (obrigatória antes de
+anunciar, não bloqueia merge) — DoR: o Playwright só tem o project `Desktop Chrome`, e
+`beforeinstallprompt`/"Adicionar à Tela de Início" não são reproduzíveis nele.
+
+**CI (Playwright roda contra `npm run build && npm run preview` = produção → o SW está ativo em
+TODOS os E2E existentes de auth/coach, que viram gate de regressão do login PKCE de graça):**
+
+- **CA1-ci** — Given o build de produção, Then `dist/manifest.webmanifest` é JSON válido, linkado no
+  `dist/index.html`, com ícones ≥192px e 512 `maskable`; `dist/sw.js` existe e seu precache
+  manifest contém `index.html` e **não** contém `env-config.js`.
+- **CA4-ci** — Given o SW controlando a página (`navigator.serviceWorker.controller != null`) e um
+  login PKCE via fixture E2E + navegação que busca dados, Then (a) `caches` não contém nenhuma
+  entrada com `/api/`, `/auth/` ou `env-config.js`; (b) uma requisição a `/auth/**` **não** é
+  respondida pelo SW (`response.fromServiceWorker() === false`) — o IdP mockado a recebe; (c)
+  `tests/e2e/auth/login.spec.ts` continua verde.
+- **CA5-ci** — Given o app-shell precacheado, When `context.setOffline(true)` e reload, Then o
+  `#root` renderiza a casca (sem tela branca) e a área de dados mostra estado de erro.
+- **CA2-ci** — Given um evento `beforeinstallprompt` sintético (unit test), Then o hook faz
+  `preventDefault`, expõe `canInstall=true` e `promptInstall()` chama `prompt()`; o CTA só
+  renderiza com `canInstall` e some após `appinstalled`/`display-mode: standalone`.
+- **CA6-ci** — `npm run lint && npm run build && npm run test:run && npm run test:e2e` verde;
+  `npm run dev` **não** registra SW.
+
+**Evidência manual (staging, screenshots no PR):**
+
+- **CA1-man** — Lighthouse PWA `installable = true`.
+- **CA2-man** — Android Chrome: prompt dispara, CTA aparece, app instalado abre em `standalone`
+  com o ícone de marca.
+- **CA3-man** — iOS Safari: "Adicionar à Tela de Início" → tela cheia
+  (`apple-mobile-web-app-capable`) com `apple-touch-icon` correto.
 
 ## Métrica de sucesso
 
@@ -93,9 +170,17 @@ Somente `apps/menthoros-front`:
 
 ## Open Questions & Assumptions
 
-- **Q1:** adotar `vite-plugin-pwa` (Workbox, ~1 dep) ou SW manual (zero dep, mais código)? Assumo
-  `vite-plugin-pwa` por maturidade e por gerar precache hasheado correto; validar na DoR.
-- **Q2:** o SW roda sob o mesmo domínio público (`menthoros.com`)? Assumo sim (mesmo deploy Railway do
-  front); sem subpath — start_url `.` resolve na raiz.
-- **Assunção:** hash router (`createHashRouter`) não exige navigation fallback especial no SW, pois a
-  navegação interna é por fragmento, não por path — precache do único `index.html` cobre tudo.
+- ~~**Q1:** `vite-plugin-pwa` ou SW manual?~~ **Resolvida na DoR:** `vite-plugin-pwa@^1.3.0` —
+  peer `vite ^3.1||^4||^5||^6||^7||^8`, compatível com o `^7.1.2` do projeto; precache hasheado
+  correto de graça; `workbox-build`/`workbox-window` vêm como peers (conferir `npm ls`). **Sem**
+  `@vite-pwa/assets-generator` (ícones à mão, zero dep extra).
+- ~~**Q2:** mesmo origin?~~ **Confirmada:** `vite.config.ts` não define `base`; o nginx serve o SPA
+  na raiz e proxya `/api/` e `/auth/` no mesmo origin (`docker/nginx.conf.template`); o proxy
+  Vite em dev espelha os dois. `start_url: '.'`/`scope: '.'` resolvem na raiz.
+- ~~**Assunção:** hash router dispensa navigation fallback.~~ **Refutada (R6):** os deep links de
+  PATH públicos de `src/config/deepLinkRedirect.ts` exigem o fallback — que, por sua vez, exige a
+  denylist de `/auth/**` e `/api/**` (R3). O callback OIDC (`redirect_uri = ${origin}/`, query
+  `?code=&state=`) cai na raiz e é corretamente servido pelo `index.html` precacheado —
+  `oidc-client-ts` lê o code no cliente.
+- **Assunção nova (a confirmar no `/implement init`):** `theme_color`/`background_color` saem dos
+  tokens existentes em `src/theme/tokens` (surface/primary) — não inventar cor nova.
