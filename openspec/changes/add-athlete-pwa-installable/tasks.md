@@ -39,12 +39,18 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
       **`workbox.globIgnores: ['**/env-config.js']`** (R5),
       `workbox.navigateFallback: 'index.html'`,
       **`workbox.navigateFallbackDenylist: [/^\/auth\//, /^\/api\//]`** (R3 Critical, R6),
-      `workbox.runtimeCaching` com **`NetworkOnly`** pra `/api/**`, `/auth/**` e `/env-config.js`
-      — nenhuma outra estratégia de runtime.
+      **sem `workbox.runtimeCaching`** (DoR rodada 2, Critical: uma rota `NetworkOnly` ainda
+      responde pelo `fetch` handler do SW — `fromServiceWorker()` ficaria `true` sempre e a sonda
+      da 1.7 não discriminaria; sem rota casando, o SW não chama `respondWith`, o browser vai à
+      rede e nada é cacheado). `/api/**`, `/auth/**` e `/env-config.js` ficam fora de qualquer
+      rota; a denylist de navegação é o único mecanismo.
       *verify:* `npm run build` emite `dist/sw.js`, `dist/workbox-*.js`, `dist/manifest.webmanifest`;
       `node -e "JSON.parse(require('fs').readFileSync('dist/manifest.webmanifest'))"` OK;
-      `grep -c env-config dist/sw.js` = **0** (precache manifest não o contém); `grep -c index.html
-      dist/sw.js` ≥ 1; o `dist/sw.js` contém as regexes da denylist (CA1-ci).
+      inspecionar o array passado a `precacheAndRoute([...])` em `dist/sw.js` (script one-off
+      com regex sobre o literal, ou `node -e` extraindo o array): contém uma entry `index.html`
+      e **nenhuma** entry `env-config.js` — DoR rodada 2: o grep textual no arquivo inteiro não
+      é a asserção certa, o que importa é o precache manifest; o `dist/sw.js` contém as regexes
+      da denylist e **nenhuma** ocorrência de `registerRoute`/`NetworkOnly` (CA1-ci).
 - [ ] 1.4 Registro em `src/main.tsx` **depois** do `if (!redirectPathDeepLink())` (dentro do ramo
       que monta o React), guardado por `import.meta.env.PROD`, via `registerSW` de
       `virtual:pwa-register` (`onNeedRefresh` no-op por ora — update aplicado no próximo load,
@@ -103,13 +109,25 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
       (c) **sonda same-origin** — o IdP da fixture é **cross-origin** (`http://127.0.0.1:9099`,
       `idp.ts`), então o hop OIDC dos specs existentes nunca passa pelo SW e a suíte **não cobre o
       R3 sozinha**: `const r = await page.goto('/auth/realms/menthoros/protocol/openid-connect/auth')`
-      → `expect(r.fromServiceWorker()).toBe(false)` (sob `vite preview` não há proxy — `server.proxy`
-      é só dev — e o corpo pode até ser o `index.html` do SPA fallback do preview; o que importa é a
-      **origem** da resposta: rede, não SW. Com a denylist errada, vira `true` e o teste falha);
-      (d) `context.setOffline(true)` + `page.reload()` → `#root` renderiza a casca (sem tela branca)
-      e a área de dados mostra erro (CA5-ci). Esperado e **não é falha**: o `<script
-      src="/env-config.js">` falha offline (NetworkOnly) e a cadeia de fallback de `src/config/env.ts`
-      absorve (`window.__RUNTIME_CONFIG__` indefinido → `import.meta.env`/`'/auth'`).
+      → `expect(r.fromServiceWorker()).toBe(false)`. **Discriminante só porque não há rota de
+      runtime** (DoR rodada 2): com a denylist certa nenhuma rota casa, o SW não chama
+      `respondWith` e o browser vai à rede (`false`); com a denylist quebrada a rota de navegação
+      serve o `index.html` precacheado (`true`). Sob `vite preview` não há proxy (`server.proxy` é
+      só dev) e o corpo pode até ser o SPA fallback — irrelevante, só a **origem** importa. Não usar
+      `page.route` nessa sonda (não intercepta fetch emitido por SW; e aqui não deve haver SW no
+      caminho);
+      (d1) **casca offline (CA5a-ci):** `context.setOffline(true)` + `page.reload()` → `#root`
+      não-vazio (sem tela branca) e a **tela de login/landing** visível. Não asserte "dados com
+      erro" aqui: o token vive em memória, o reload perde a sessão, o `AuthProvider` tenta restaurar
+      contra o IdP (inalcançável), falha e a rota protegida cai no login. Esperado e **não é
+      falha**: o `<script src="/env-config.js">` falha offline (sem rota no SW → rede → erro) e a
+      cadeia de fallback de `src/config/env.ts` absorve (`window.__RUNTIME_CONFIG__` indefinido →
+      `import.meta.env`/`'/auth'`);
+      (d2) **dados offline sem reload (CA5b-ci):** logado (fixture) em `/#/atletas` com
+      `MOCK_ATLETAS` renderizado → `context.setOffline(true)` → navegar pra outra rota de dados e
+      voltar **sem** reload → a área de dados mostra o estado de erro por consulta já existente (a
+      sessão em memória sobrevive). Um único spec com os dois casos, ou dois `test()` no mesmo
+      arquivo.
       Confirmar que `tests/e2e/auth/login.spec.ts` e o resto da suíte continuam verdes com o SW
       ativo (CA4-ci).
       *verify:* `npm run test:e2e` verde.

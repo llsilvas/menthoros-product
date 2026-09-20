@@ -34,8 +34,10 @@ risks:
       lê ?code=&state= no cliente), ou seja, servir index.html nessa navegação é o comportamento
       correto.
     mitigacao: >
-      navigateFallbackDenylist: [/^\/auth\//, /^\/api\//] + runtimeCaching NetworkOnly para
-      /api/**, /auth/** e /env-config.js. registerType 'prompt' (nunca autoUpdate: um reload
+      navigateFallbackDenylist: [/^\/auth\//, /^\/api\//] e NENHUMA rota de runtime para
+      /api/**, /auth/** ou /env-config.js (DoR rodada 2: uma rota NetworkOnly ainda responde pelo
+      SW e mataria a testabilidade; sem rota, o browser vai direto à rede e nada é cacheado).
+      registerType 'prompt' (nunca autoUpdate: um reload
       automático no meio do fluxo PKCE perderia o state). Custo aceito (grill Q4): sem UI de
       refresh, uma versão nova do app-shell só ativa no próximo cold start (todas as abas
       fechadas) — janela de horas num PWA de celular; documentar pra ninguém "consertar" com
@@ -51,8 +53,11 @@ risks:
       precachearia: após um redeploy que troque a URL do backend/IdP, o SW serviria a versão
       antiga até o próximo update do SW — app apontando pro ambiente errado, sem erro visível.
     mitigacao: >
-      workbox.globIgnores: ['**/env-config.js'] + NetworkOnly em runtime para o mesmo path.
-      Verificação mecânica: o precache manifest dentro de dist/sw.js NÃO pode conter env-config.js.
+      workbox.globIgnores: ['**/env-config.js'] e nenhuma rota de runtime para esse path (sem rota,
+      o SW não intercepta e o browser busca na rede a cada load — que é exatamente o contrato do
+      nginx no-store). Verificação mecânica (DoR rodada 2): inspecionar o array passado a
+      precacheAndRoute([...]) dentro de dist/sw.js — nenhuma entry com url 'env-config.js'; não
+      basta grep textual no arquivo inteiro.
   - id: R6
     descricao: >
       A assunção original ("hash router dispensa navigation fallback") era falsa: deep links de
@@ -78,6 +83,20 @@ risks:
 > eram falsificáveis em CI (Playwright só tem `Desktop Chrome`): critérios separados em
 > CI-falsificável × evidência manual. Bônus: o `webServer` do Playwright roda `build && preview`
 > (produção), então o SW passa a ser exercitado por TODOS os E2E de auth/coach existentes.
+>
+> **Revisão 2 (DoR, 2026-09-20 — Codex rodada 2, 4 achados, todos confirmados):** (1) **Critical:**
+> a sonda R3 era não-discriminante — Workbox `NetworkOnly` ainda responde pelo `fetch` handler do
+> SW, então `fromServiceWorker()` daria `true` com a denylist certa ou errada. **`runtimeCaching`
+> removido por completo**: sem rota casando, o SW não chama `respondWith` e o browser vai direto à
+> rede (`false`); com a denylist quebrada, a rota de navegação serve o `index.html` (`true`). A
+> denylist passa a ser o único mecanismo — e testável. (2) **Critical:** CA5 assumia "dados com
+> erro" após reload offline, mas o token vive em memória: o reload perde a sessão, o `AuthProvider`
+> tenta restaurar, falha, e a rota protegida cai no login. CA5 dividido em reload offline (casca +
+> login visível) e falha de dados offline sem reload (logado). (3) item 1/Impact ainda falavam em
+> manifest manual — fonte única é o gerado pelo plugin. (4) o `grep env-config dist/sw.js = 0` era
+> inválido enquanto havia `NetworkOnly` no SW; a checagem certa é o array `precacheAndRoute`.
+> Confirmado correto pelo Codex: API do `vite-plugin-pwa@1.3`, injeção automática do
+> `<link rel=manifest>`, referência `vite-plugin-pwa/client`, semântica de cold start.
 
 ## Why
 
@@ -97,8 +116,12 @@ theme-color, apple-touch-icon nem service worker. A fonte de ícone adequada já
 
 Somente `apps/menthoros-front`:
 
-1. **Manifest** — `public/manifest.webmanifest` (name, short_name, start_url `.`, display `standalone`,
-   theme/background color, ícones 192/512 + maskable), linkado no `index.html`.
+1. **Manifest** — **gerado pelo `vite-plugin-pwa`** a partir da opção `manifest` em
+   `vite.config.ts` (name/short_name "Menthoros", `start_url: '.'`, `scope: '.'`, `display:
+   'standalone'`, `theme_color`/`background_color` `#0A1628`, ícones 192/512 `any` + 512
+   `maskable`); o plugin emite `dist/manifest.webmanifest` e **injeta o `<link rel="manifest">`
+   sozinho** (confirmado na DoR rodada 2). **Nenhum `public/manifest.webmanifest` manual** — fonte
+   única, sem drift.
 2. **Meta tags iOS** — `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`,
    `apple-touch-icon` (180×180), `theme-color` no `index.html`.
 3. **Service worker** — `vite-plugin-pwa@^1.3.0` (peer `vite ^7.0.0`, compatível com o `^7.1.2`
@@ -109,8 +132,12 @@ Somente `apps/menthoros-front`:
      **`globIgnores: ['**/env-config.js']`**.
    - `workbox.navigateFallback: 'index.html'` + **`navigateFallbackDenylist: [/^\/auth\//,
      /^\/api\//]`**.
-   - `workbox.runtimeCaching`: **`NetworkOnly`** para `/api/**`, `/auth/**` e `/env-config.js`.
-     Nenhuma outra estratégia de runtime — dados continuam network-only (non-goal).
+   - **Sem `workbox.runtimeCaching`** (DoR rodada 2, Critical): uma rota `NetworkOnly` ainda
+     responde pelo `fetch` handler do SW, o que (a) tornaria a sonda R3 não-discriminante
+     (`fromServiceWorker()` sempre `true`) e (b) não acrescenta nada — sem rota casando, o SW não
+     chama `respondWith` e o browser vai direto à rede, sem cache. `/api/**`, `/auth/**` e
+     `/env-config.js` ficam **fora de qualquer rota do SW**; a denylist de navegação é o único
+     mecanismo, e por isso testável. Dados continuam network-only (non-goal).
    - `manifest` gerado pelo plugin (fonte única; **não** manter `public/manifest.webmanifest`
      manual em paralelo — evita drift).
    Registro condicional a `import.meta.env.PROD`, **depois** do `redirectPathDeepLink()` (se ele
@@ -132,9 +159,12 @@ Somente `apps/menthoros-front`:
 
 ## Impact
 
-- `apps/menthoros-front`: `index.html`, `public/manifest.webmanifest`, `public/` (ícones + `sw.js`),
-  `src/main.tsx` (registro do SW), novo componente de prompt de instalação no shell do atleta,
-  `vite.config.ts` (se adotar `vite-plugin-pwa`; alternativa: SW manual sem dependência nova).
+- `apps/menthoros-front`: `index.html` (meta tags iOS), `public/icons/` (ícones gerados),
+  `vite.config.ts` (`VitePWA` — manifest inline + workbox; `dist/sw.js` e
+  `dist/manifest.webmanifest` são **emitidos no build**, não commitados), `src/main.tsx` (registro
+  do SW), `src/vite-env.d.ts` (referência de tipos), `src/features/athlete/hooks/useInstallPrompt`
+  + `src/features/athlete/layout/InstallPromptBanner`, `tests/e2e/pwa/service-worker.spec.ts`.
+  Dependência nova: `vite-plugin-pwa@^1.3.0` (dev). **Sem `public/manifest.webmanifest` manual.**
 - **Backend: zero diffs.** Nenhum contrato de API, schema ou auth muda.
 
 ## Critérios de aceite
@@ -151,11 +181,22 @@ TODOS os E2E existentes de auth/coach, que viram gate de regressão do login PKC
   manifest contém `index.html` e **não** contém `env-config.js`.
 - **CA4-ci** — Given o SW controlando a página (`navigator.serviceWorker.controller != null`) e um
   login PKCE via fixture E2E + navegação que busca dados, Then (a) `caches` não contém nenhuma
-  entrada com `/api/`, `/auth/` ou `env-config.js`; (b) uma requisição a `/auth/**` **não** é
-  respondida pelo SW (`response.fromServiceWorker() === false`) — o IdP mockado a recebe; (c)
+  entrada com `/api/`, `/auth/` ou `env-config.js`; (b) uma **navegação same-origin** a
+  `/auth/realms/menthoros/protocol/openid-connect/auth` **não** é respondida pelo SW
+  (`response.fromServiceWorker() === false`). Discriminante porque **não há rota de runtime**
+  (DoR rodada 2): com a denylist certa nenhuma rota casa e o browser vai à rede; com a denylist
+  quebrada a rota de navegação serve o `index.html` precacheado e o valor vira `true`. O corpo da
+  resposta é irrelevante (sob `vite preview` pode ser o SPA fallback) — só a origem importa; (c)
   `tests/e2e/auth/login.spec.ts` continua verde.
-- **CA5-ci** — Given o app-shell precacheado, When `context.setOffline(true)` e reload, Then o
-  `#root` renderiza a casca (sem tela branca) e a área de dados mostra estado de erro.
+- **CA5a-ci (casca offline)** — Given o app-shell precacheado, When `context.setOffline(true)` e
+  `reload`, Then o `#root` renderiza (sem tela branca) e a **tela de login/landing** fica visível.
+  Não "dados com erro": o token vive em memória, o reload perde a sessão, o `AuthProvider` tenta
+  restaurar contra o IdP (inalcançável), falha e a rota protegida cai no login — esse é o estado
+  realmente observável (DoR rodada 2).
+- **CA5b-ci (dados offline sem reload)** — Given logado em `/#/atletas` com dados carregados, When
+  `context.setOffline(true)` e uma nova busca é disparada (navegar pra outra rota de dados e
+  voltar, **sem** reload), Then a área de dados mostra o estado de erro por consulta já existente
+  — a sessão em memória sobrevive porque não houve reload.
 - **CA2-ci** — Given um evento `beforeinstallprompt` sintético (unit test), Then o hook faz
   `preventDefault`, expõe `canInstall=true` e `promptInstall()` chama `prompt()`; o CTA só
   renderiza com `canInstall` e some após `appinstalled`/`display-mode: standalone`.
