@@ -86,7 +86,7 @@ String janela): List<MelhorEsforcoDto>` (`services/MelhorEsforcoService.java:24`
       resolvido corretamente no caminho feliz; teste estrutural (4.2 existente) continua provando
       que a resolução roda antes do persister, agora incluindo a chamada ao `MelhorEsforcoService`;
       teste de reflexão (4.5 existente) continua verde (nenhum `@Transactional` novo).
-- [ ] 3.4 Teste de regressão pro achado do pre-mortem (design.md Riscos, `TenantContext` por
+- [x] 3.4 Teste de regressão pro achado do pre-mortem (design.md Riscos, `TenantContext` por
       convenção): confirmar que `StravaActivitySyncScheduler` e
       `IntervalsIcuActivitySyncScheduler` continuam setando `TenantContext` antes de descer até
       `TsbService.recalcularDesde` — critério de aceite 5 do proposal.
@@ -99,6 +99,9 @@ String janela): List<MelhorEsforcoDto>` (`services/MelhorEsforcoService.java:24`
       `tenantId` efetivamente lido por `TenantContext.getRequiredTenantId()` durante o
       processamento de cada um — assert que bate com o tenant do atleta daquela iteração, não do
       anterior (regressão de vazamento entre iterações do loop).
+      *Entregue:* `StravaActivitySyncSchedulerTest.tenantContextBindingCorretoPorAtletaNoLaco`
+      (novo). `IntervalsIcuActivitySyncSchedulerTest` já tinha essa cobertura exata (teste 2.9,
+      `tenantContextPorAtleta`, pré-existente à esta change) — nenhum teste novo necessário lá.
 
 ## 4. Encerramento
 
