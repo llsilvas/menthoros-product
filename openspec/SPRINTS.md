@@ -2,7 +2,29 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-18 (**`refactor-threshold-call-outside-transaction` entregue e
+**Última atualização:** 2026-09-20 (**`use-best-effort-for-threshold-inference` entregue e
+arquivada** — backend PR **#136** mergeado em `develop`. M · Full: 3ª fonte de
+`paceLimiarEstimado` — melhor esforço recente do atleta (5k/10k, janela rolante de 42 dias, via
+`MelhorEsforcoService`/intervals.icu), inserida entre prova registrada e a inferência passiva por
+quintil (`prova > melhor esforço > quintil`, mesma lógica de "fonte mais confiável vence" de
+`infer-threshold-from-race-result`). Destravada por `refactor-threshold-call-outside-transaction`
+(2026-09-18), que moveu a resolução de pace pra fora da transação de alta frequência. Levou 4
+rodadas de pre-mortem adversarial (DeepSeek, Codex indisponível por limite de uso na sessão inteira)
+antes de codar — corrigiu no design um rollback inseguro do enum `FonteLimiarInferencia`
+(`EnumType.STRING`, revert sem saneamento de dado quebraria leitura), uma suposição errada de
+cadência de migração de fonte ("~90 dias" — na prática, no próximo sync, já que
+`Atleta.dataUltimoTestePace` não tem escritor no código), critérios de aceite não-falsificáveis, e
+um piso de amostra ausente na métrica de sucesso. QA (code-reviewer + security-reviewer +
+clean-code-reviewer, 2026-09-20) sem achados Críticos — corrigida duplicação exata da fórmula de
+Riegel e do esqueleto dos ramos prova/melhor-esforço em `resolverFontePace`; adicionada defesa em
+profundidade no `TenantContext` (achado convergente de 2 revisores: `buscarMelhorEsforcoSeguro`
+resolvia tenant só via `TenantContext` ambiente, sem conferir contra o `tenantId` já resolvido —
+seguro hoje só por convenção dos 2 schedulers, agora também por mecanismo); documentado (não
+corrigido) que o caminho admin `recalcularHistoricoCompleto` pode rebaixar `fonteLimiarPace` de
+volta pra `MEDIA_TREINOS` (só prova/quintil, fora de escopo por decisão). `./mvnw clean verify`
+verde. Arquivada em
+`changes/archive/2026-09/2026-09-20-use-best-effort-for-threshold-inference/`.) Antes, 2026-09-18
+(**`refactor-threshold-call-outside-transaction` entregue e
 arquivada** — backend PR **#135** mergeado em `develop`. S · Full: change puramente mecânica, sem
 mudança de comportamento observável — separa a decisão de qual fonte de pace limiar vence (prova >
 quintil) da fase de aplicação/persistência de `TsbServiceImpl`, movendo a fase transacional pra um

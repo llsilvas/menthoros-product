@@ -1,9 +1,11 @@
 # use-best-effort-for-threshold-inference — usar o melhor esforço atual como insumo de limiar/projeção de prova
 
-**Tamanho:** provável M · **Trilha:** Full · **Status:** 🟡 **EM REVISÃO** — 3ª rodada de pre-mortem
-DeepSeek incorporada (2026-09-19: correção do rollback do enum STRING, correção da suposição de
-cadência de 90 dias, AC4 com asserção observável, métrica com piso de amostra nas 2 coortes),
-aguardando novo DoR
+**Tamanho:** M · **Trilha:** Full · **Status:** ✅ **CONCLUÍDA** — mergeada em `develop`
+([PR #136](https://github.com/llsilvas/menthoros-backend/pull/136), 2026-09-20). DoR READY após 4
+rodadas de pre-mortem adversarial (DeepSeek, Codex indisponível por limite de uso na sessão) +
+`spec-reviewer`. QA (code-reviewer/security-reviewer/clean-code-reviewer em paralelo) sem achados
+Critical; achados Important corrigidos antes do PR (duplicação de fórmula/esqueleto, defesa em
+profundidade de `TenantContext`).
 **Criado:** 2026-09-18
 
 > Destacada de `add-athlete-best-efforts` (D5) por decisão do founder em 2026-09-18: mudar o insumo
