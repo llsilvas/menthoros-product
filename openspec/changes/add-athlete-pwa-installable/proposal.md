@@ -36,7 +36,10 @@ risks:
     mitigacao: >
       navigateFallbackDenylist: [/^\/auth\//, /^\/api\//] + runtimeCaching NetworkOnly para
       /api/**, /auth/** e /env-config.js. registerType 'prompt' (nunca autoUpdate: um reload
-      automático no meio do fluxo PKCE perderia o state). Gate: E2E com SW ativo (ver CA4).
+      automático no meio do fluxo PKCE perderia o state). Custo aceito (grill Q4): sem UI de
+      refresh, uma versão nova do app-shell só ativa no próximo cold start (todas as abas
+      fechadas) — janela de horas num PWA de celular; documentar pra ninguém "consertar" com
+      autoUpdate. Gate: E2E com SW ativo (ver CA4).
   - id: R4
     descricao: iOS não tem prompt automático — depende de "Adicionar à Tela de Início" manual.
     mitigacao: Limitação de plataforma documentada como non-goal; a entrega cobre o que iOS permite (ícone + tela cheia via meta tags).
@@ -112,8 +115,15 @@ Somente `apps/menthoros-front`:
      manual em paralelo — evita drift).
    Registro condicional a `import.meta.env.PROD`, **depois** do `redirectPathDeepLink()` (se ele
    redirecionar, não registra nessa passada).
-4. **Prompt de instalação** — captura `beforeinstallprompt` e expõe um botão/CTA discreto de
-   "Instalar app" (Android/Chromium); iOS fica coberto pelas meta tags (non-goal: hint customizado).
+4. **Prompt de instalação** (Android/Chromium; decisões do grill, Q3/Q7/Q9) — captura
+   `beforeinstallprompt` e renderiza um **banner fino logo acima do `AthleteBottomNav`**, só no
+   shell do atleta: "Instalar o Menthoros na tela inicial" + botão "Instalar" + "Agora não".
+   Dispensa persistida em `localStorage` (`menthoros:pwa-install-dismissed`, mesmo prefixo de
+   `menthoros:restauracao-tentada`), **sem** lógica de retorno. Some após `appinstalled` ou quando
+   `matchMedia('(display-mode: standalone)')` bate. Aparece onde o evento disparar — **sem gate de
+   breakpoint** (atleta no desktop é raro e instalar lá não é errado; menos condição, menos teste).
+   Texto sem termo de persona (glossário: "Atleta", nunca "aluno" — e o CTA fala do app, não da
+   pessoa). iOS fica coberto só pelas meta tags — hint customizado é non-goal (ver follow-up).
 5. **Ícones PWA** — gerados a partir de **`src/assets/icons/logo_transparent.png` (500×500 RGBA)**,
    a única fonte quadrada de alta resolução (DoR: `logo_menthoros_128x128.png` mede 142×128 e
    `menthoros_icon.png` 32×32 — upscaling cumpriria a dimensão formal, não a qualidade). Saída em
@@ -152,13 +162,42 @@ TODOS os E2E existentes de auth/coach, que viram gate de regressão do login PKC
 - **CA6-ci** — `npm run lint && npm run build && npm run test:run && npm run test:e2e` verde;
   `npm run dev` **não** registra SW.
 
-**Evidência manual (staging, screenshots no PR):**
+**Evidência manual (grill Q8 — pelo founder, em `develop`/Railway "testes", screenshots no PR ou
+em follow-up). Não bloqueia o merge da feature em `develop`; BLOQUEIA a promoção `develop → main`
+até os três itens estarem registrados:**
 
 - **CA1-man** — Lighthouse PWA `installable = true`.
 - **CA2-man** — Android Chrome: prompt dispara, CTA aparece, app instalado abre em `standalone`
   com o ícone de marca.
 - **CA3-man** — iOS Safari: "Adicionar à Tela de Início" → tela cheia
   (`apple-mobile-web-app-capable`) com `apple-touch-icon` correto.
+
+## Decisões de design (grill, 2026-09-20 — 11 decisões, entendimento confirmado pelo founder)
+
+1. **Persona:** "aluno" = **Atleta** (glossário `CONTEXT.md`, que lista "aluno" em *Avoid*). CTA só
+   no shell do atleta; o Treinador não vê instalação (usa o inbox no desktop).
+2. **iOS:** non-goal desta change — sem hint customizado. **Anotado pra próxima:** follow-up
+   `add-athlete-pwa-ux-hints` (XS · Fast) com (a) hint estático em iOS Safari fora de `standalone`
+   ("Compartilhar → Adicionar à Tela de Início") e (b) estado explícito "Você está offline" no
+   shell. iOS é o gargalo real de adoção (Apple não expõe `beforeinstallprompt`); a change nasce
+   quando o founder mandar, não junto desta.
+3. **CTA Android:** banner fino acima do `AthleteBottomNav`, "Instalar o Menthoros na tela inicial"
+   + "Instalar" + "Agora não".
+4. **Dispensa:** persistida em `localStorage` (`menthoros:pwa-install-dismissed`), nunca volta.
+   Conveniência por dispositivo — não é estado de domínio.
+5. **Sem gate de breakpoint:** aparece onde o evento disparar, dentro do shell do atleta.
+6. **Atualização:** `registerType: 'prompt'` sem UI de refresh — versão nova ativa no próximo cold
+   start. Aceito; nunca trocar por `autoUpdate` (R3).
+7. **Offline:** só a promessa "não fica em tela branca" (CA5). Sem banner offline (→ follow-up).
+8. **Manifest:** `display: standalone`, sem lock de orientação, `theme_color` =
+   `background_color` = `#0A1628`.
+9. **Ícones:** fonte `logo_transparent.png` (500×500); maskable 512 e apple-touch 180 com fundo
+   navy `#0A1628` e marca lime centrada na zona segura de 80%.
+10. **Evidência manual = gate de promoção, não de merge:** Lighthouse + Android real + iPhone real,
+    pelo founder, em `develop` (Railway "testes"), **antes** do PR `develop → main`.
+11. **Sem ADR, sem `CONTEXT.md`:** PWA não é decisão difícil de reverter (Capacitor depois é
+    aditivo) e nada aqui é vocabulário de domínio — "app-shell", "instalação", "service worker"
+    são implementação.
 
 ## Métrica de sucesso
 
@@ -182,5 +221,8 @@ TODOS os E2E existentes de auth/coach, que viram gate de regressão do login PKC
   denylist de `/auth/**` e `/api/**` (R3). O callback OIDC (`redirect_uri = ${origin}/`, query
   `?code=&state=`) cai na raiz e é corretamente servido pelo `index.html` precacheado —
   `oidc-client-ts` lê o code no cliente.
-- **Assunção nova (a confirmar no `/implement init`):** `theme_color`/`background_color` saem dos
-  tokens existentes em `src/theme/tokens` (surface/primary) — não inventar cor nova.
+- ~~**Assunção nova:** cores do manifest a confirmar.~~ **Resolvida (grill Q6/Q11, confirmada na
+  fonte `src/shared/design-tokens/colors.ts`):** `theme_color` = `background_color` = **`#0A1628`**
+  (`surface[900]`, navy canônico; `elevation.base` aponta pra ele). O lime `#BDDE5A`
+  (`primary[500]`) fica só na marca do ícone — na status bar do sistema inundaria a tela. Fundo
+  dos ícones opacos (maskable/apple-touch) também navy, marca lime na zona segura de 80%.
