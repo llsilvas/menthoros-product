@@ -14,7 +14,7 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
 
 ## 1. Ícones
 
-- [ ] 1.1 Gerar em `public/icons/` a partir de `src/assets/icons/logo_transparent.png` (500×500
+- [x] 1.1 Gerar em `public/icons/` a partir de `src/assets/icons/logo_transparent.png` (500×500
       RGBA — R/DoR: os arquivos citados originalmente não eram quadrados): `icon-192.png`,
       `icon-512.png`, `icon-512-maskable.png` (marca lime reduzida pra caber nos 80% centrais — zona
       segura de máscara — sobre fundo **navy `#0A1628`**, grill Q11) e `apple-touch-icon-180.png`
@@ -25,9 +25,18 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
 
 ## 2. Service worker + manifest (`vite-plugin-pwa`)
 
-- [ ] 1.2 `npm i -D vite-plugin-pwa@^1.3.0`. Confirmar com `npm ls workbox-build workbox-window`
+- [x] 1.2 `npm i -D vite-plugin-pwa@^1.3.0`. Confirmar com `npm ls workbox-build workbox-window`
       que os peers resolveram; **não** instalar `@vite-pwa/assets-generator`.
       *verify:* `npm run build` continua verde sem o plugin configurado ainda (só a dep).
+      *Entregue (commit `9812f1d`):* `vite-plugin-pwa@1.3.0`, `workbox-build`/`workbox-window`
+      7.4.1. **Drift transitivo no lockfile, pra o revisor saber:** `workbox-build` puxa
+      `@babel/preset-env` (+248 pacotes novos, 519 → 767) e o npm 11 deduplicou o que já existia —
+      **46 de 518 pacotes pré-existentes mudaram de versão dentro dos ranges `^`** (os `@babel/*`
+      7.27/7.28 → 7.29, `rollup` 4.50.1 → 4.63.4 e seus binários `@rollup/rollup-*`). Núcleo do
+      toolchain inalterado: `vite` 7.1.5, `@babel/core` 7.28.4, `@vitejs/plugin-react` 5.0.2,
+      `esbuild` 0.25.9, `typescript` 5.8.3. Inevitável sem duplicar cópias (o npm só nesta quando
+      nenhuma versão única satisfaz todos os ranges); lint+build+test:run verdes (194/1591).
+      O `package.json` foi reordenado alfabeticamente pelo npm — só `vite-plugin-pwa` é adição.
 - [ ] 1.3 `VitePWA({...})` em `plugins` de `vite.config.ts`, ao lado de `react()` — bloco `test`
       intocado. Config fechada no `proposal.md` (item 3 de What Changes):
       `registerType: 'prompt'`, `injectRegister: false`,
