@@ -71,13 +71,19 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
       no comentário (o *porquê*): num PWA instalado reaberto sem rede o `sessionStorage` vem vazio,
       e a navegação de topo pro IdP terminaria na página de erro do navegador. Sem detecção de
       "voltou a rede" (non-goal).
-      *verify (TDD, RED antes):* unit test em `AuthProvider.test.tsx` (ou o arquivo de teste já
-      existente do provider — reaproveitar o setup): com `navigator.onLine` stubado em `false`
-      (`vi.spyOn(navigator, 'onLine', 'get')`), sem usuário e sem a marca → `signinRedirect` **nunca**
-      é chamado, o provider conclui anônimo (`carregando=false`, usuário `null`) e
-      `sessionStorage['menthoros:restauracao-tentada']` **não** é gravada; com `onLine=true` o
-      comportamento atual é preservado (`signinRedirect` chamado com `prompt: 'none'`). Os testes
-      existentes de `AuthProvider`/`oidcConfig`/`authFlow` continuam verdes.
+      *verify (TDD, RED antes):* **não existe `AuthProvider.test.tsx`** — criar
+      `src/context/auth/restauracaoOffline.test.tsx` (irmão de `restauracaoDeSessao.test.ts`, que
+      é teste de função pura dos helpers e não monta o provider) **copiando o setup de
+      `renovacaoSilenciosa.test.tsx`**: `vi.spyOn(userManager, 'getUser').mockResolvedValue(null)`
+      (sem usuário), `vi.spyOn(userManager, 'signinRedirect').mockResolvedValue(undefined)`, os
+      seis stubs de `userManager.events.add*/remove*` (o provider registra handlers ao montar),
+      `sessionStorage.clear()` no `beforeEach`, `vi.restoreAllMocks()` no `afterEach`;
+      `render(<AuthProvider>{null}</AuthProvider>)` + `waitFor(() => expect(userManager.getUser)
+      .toHaveBeenCalled())`. Caso offline: `vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)`
+      → `signinRedirect` **nunca** é chamado e `sessionStorage.getItem('menthoros:restauracao-tentada')`
+      é `null`. Caso controle (`onLine` → `true`): `signinRedirect` chamado uma vez com
+      `expect.objectContaining({ prompt: 'none' })` — prova que a guarda não quebrou o fluxo atual.
+      `restauracaoDeSessao`/`renovacaoSilenciosa`/`oidcConfig`/`authFlow` continuam verdes.
 
 ## 3. `index.html` — meta tags iOS
 
