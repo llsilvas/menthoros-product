@@ -105,8 +105,11 @@ String janela): List<MelhorEsforcoDto>` (`services/MelhorEsforcoService.java:24`
 
 ## 4. Encerramento
 
-- [ ] 4.1 `./mvnw clean verify` verde (inclui os `*IT` — checar se algum `*IT` de TSB/limiar
-      precisa de fixture nova pro cenário de melhor esforço).
-- [ ] 4.2 Atualizar este `tasks.md` (entregue vs. adiado) e abrir o PR.
+- [x] 4.1 `./mvnw clean verify` verde (inclui os `*IT` — checar se algum `*IT` de TSB/limiar
+      precisa de fixture nova pro cenário de melhor esforço). *Entregue:* nenhum `*IT` existente
+      precisou de fixture nova — a cobertura de melhor esforço ficou toda em nível de unit test
+      (Mockito), consistente com o resto da suíte de `TsbServiceImpl`/`AthleteThresholdUpdater`.
+- [x] 4.2 Atualizar este `tasks.md` (entregue vs. adiado) e abrir o PR. Tudo entregue conforme
+      escopo — nenhum item adiado.
 - [ ] 4.3 Depois do merge: item de fechamento do proposal (conferir valores reais em produção
       quando `add-athlete-best-efforts` for promovida a `main`) fica registrado, não bloqueia.
