@@ -11,13 +11,15 @@ motivation: >
 scope:
   repos: [apps/menthoros-front]
   inclui: >
-    manifest.webmanifest + ícones; meta tags iOS (apple-touch-icon, apple-mobile-web-app-*);
-    service worker de precache do app-shell; prompt de instalação (beforeinstallprompt no Android).
+    manifest (gerado pelo vite-plugin-pwa) + ícones; meta tags iOS (apple-touch-icon,
+    apple-mobile-web-app-*); service worker de precache do app-shell; prompt de instalação
+    (beforeinstallprompt no Android, banner dispensável); guarda mínima `!navigator.onLine` na
+    restauração de sessão do AuthProvider (única mudança de auth — ver item 6 e Revisão 3).
   exclui: >
     presença em App Store/Play Store (rota Capacitor — decisão pós-MVP separada); web push
     notifications (exige VAPID + subscription no backend); sync de dados offline (app-shell só,
     dados continuam network-only); qualquer mudança de backend/contrato de API/schema.
-acceptance_criteria: [CA1 manifest válido + instalável, CA2 ícone na home em Android e iOS, CA3 app-shell precacheado offline, CA4 sem regressão de auth/tenant, CA5 regressão lint+build+test]
+acceptance_criteria: [CA1 manifest válido + instalável (ci+man), CA2 prompt/instalação Android (ci+man), CA3 tela cheia iOS (man), CA4 SW nunca intercepta /api e /auth nem cacheia env-config.js (ci), CA5a casca offline após reload (ci), CA5b erro de dados offline sem reload (ci), CA6 lint+build+test+e2e verde e sem SW em dev (ci)]
 risks:
   - id: R1
     descricao: Service worker cachear respostas de /api violaria multi-tenancy (dado de um tenant servido a outro) e LGPD.
@@ -97,6 +99,19 @@ risks:
 > inválido enquanto havia `NetworkOnly` no SW; a checagem certa é o array `precacheAndRoute`.
 > Confirmado correto pelo Codex: API do `vite-plugin-pwa@1.3`, injeção automática do
 > `<link rel=manifest>`, referência `vite-plugin-pwa/client`, semântica de cold start.
+>
+> **Revisão 3 (DoR, 2026-09-20 — Codex rodada 3, 3 achados, todos confirmados):** (1) **Critical,
+> bug real da spec:** CA5a assumia que a restauração de sessão offline "falha de volta no React";
+> mas `src/context/auth/AuthProvider.tsx:130-139` faz `signinRedirect({prompt:'none'})` —
+> **navegação de topo pro IdP** — sempre que não há usuário em memória nem a marca
+> `menthoros:restauracao-tentada` no `sessionStorage`. Offline, isso termina na página de erro do
+> navegador. E num PWA instalado, fechar/reabrir zera o `sessionStorage`: a reabertura offline
+> (o caso mais comum) cairia exatamente aí — a promessa "sem tela branca" seria falsa em
+> produção. **Decisão do founder:** guarda mínima `!navigator.onLine` → pula a restauração e
+> conclui anônimo (item 6, task 1.4b, unit test). (2) **Critical:** a sonda (c) da task 1.7
+> deixava a URL em `/auth/...` e o reload de (d1) recarregava uma rota da denylist — corrigida a
+> ordem (voltar a `/` antes de ficar offline; casos isolados). (3) lista yaml
+> `acceptance_criteria` estava desalinhada dos critérios detalhados — normalizada (CA1–CA6).
 
 ## Why
 
@@ -156,6 +171,17 @@ Somente `apps/menthoros-front`:
    `menthoros_icon.png` 32×32 — upscaling cumpriria a dimensão formal, não a qualidade). Saída em
    `public/icons/`: 192, 512, 512 maskable (marca dentro dos 80% centrais — zona segura) e
    apple-touch-icon 180. Geração por script one-off (`sips`/`sharp`), **sem dependência nova**.
+6. **Guarda offline na restauração de sessão** (DoR rodada 3, Critical; decisão do founder) — em
+   `src/context/auth/AuthProvider.tsx`, imediatamente antes do bloco
+   `if (!jaTentouRestaurar() && !haConvitePendente())` que chama
+   `userManager.signinRedirect({prompt:'none'})`: **se `!navigator.onLine`, não tenta restaurar —
+   conclui anônimo (`aplicarUsuario(null)`) e segue**. É a única mudança de comportamento de auth
+   da change, e é o mínimo que torna CA5a verdadeiro em produção: sem ela, um PWA instalado
+   reaberto sem rede faz uma navegação de topo pro IdP e o navegador mostra a própria página de
+   erro — tela "branca" por definição. `navigator.onLine === false` é confiável (só é `false` sem
+   interface de rede); `true` pode mentir (portal cativo), mas nesse caso o fluxo segue como hoje.
+   Não há detecção de "voltou a rede" nem re-restauração automática (non-goal: cresceria a change
+   e adicionaria estado ao `AuthProvider`; o atleta recarrega quando a rede voltar).
 
 ## Impact
 
@@ -165,6 +191,9 @@ Somente `apps/menthoros-front`:
   do SW), `src/vite-env.d.ts` (referência de tipos), `src/features/athlete/hooks/useInstallPrompt`
   + `src/features/athlete/layout/InstallPromptBanner`, `tests/e2e/pwa/service-worker.spec.ts`.
   Dependência nova: `vite-plugin-pwa@^1.3.0` (dev). **Sem `public/manifest.webmanifest` manual.**
+  Auth: `src/context/auth/AuthProvider.tsx` (guarda `!navigator.onLine` antes do
+  `signinRedirect`, item 6) + unit test correspondente — única mudança de comportamento de
+  autenticação; `oidcConfig`/`userManager` intocados.
 - **Backend: zero diffs.** Nenhum contrato de API, schema ou auth muda.
 
 ## Critérios de aceite
@@ -188,11 +217,15 @@ TODOS os E2E existentes de auth/coach, que viram gate de regressão do login PKC
   quebrada a rota de navegação serve o `index.html` precacheado e o valor vira `true`. O corpo da
   resposta é irrelevante (sob `vite preview` pode ser o SPA fallback) — só a origem importa; (c)
   `tests/e2e/auth/login.spec.ts` continua verde.
-- **CA5a-ci (casca offline)** — Given o app-shell precacheado, When `context.setOffline(true)` e
-  `reload`, Then o `#root` renderiza (sem tela branca) e a **tela de login/landing** fica visível.
-  Não "dados com erro": o token vive em memória, o reload perde a sessão, o `AuthProvider` tenta
-  restaurar contra o IdP (inalcançável), falha e a rota protegida cai no login — esse é o estado
-  realmente observável (DoR rodada 2).
+- **CA5a-ci (casca offline)** — Given o app-shell precacheado e a página em `/` (não numa rota da
+  denylist), When `context.setOffline(true)` **antes** do `reload` e **sem** pré-setar a marca
+  `menthoros:restauracao-tentada`, Then o `#root` renderiza (sem tela branca), a **tela de
+  login/landing** fica visível e **nenhuma navegação de topo pro IdP acontece** (a URL permanece
+  same-origin; `signinRedirect` não é chamado). Só é verdadeiro por causa da guarda
+  `!navigator.onLine` do item 6 (DoR rodada 3): sem ela, o `AuthProvider` faria
+  `signinRedirect({prompt:'none'})` e o navegador mostraria a própria página de erro — o caso mais
+  comum num PWA instalado reaberto sem rede, já que fechar o app zera o `sessionStorage`. Não
+  asserte "dados com erro" aqui: o token vive em memória e o reload perde a sessão.
 - **CA5b-ci (dados offline sem reload)** — Given logado em `/#/atletas` com dados carregados, When
   `context.setOffline(true)` e uma nova busca é disparada (navegar pra outra rota de dados e
   voltar, **sem** reload), Then a área de dados mostra o estado de erro por consulta já existente
@@ -239,6 +272,12 @@ até os três itens estarem registrados:**
 11. **Sem ADR, sem `CONTEXT.md`:** PWA não é decisão difícil de reverter (Capacitor depois é
     aditivo) e nada aqui é vocabulário de domínio — "app-shell", "instalação", "service worker"
     são implementação.
+12. **Guarda offline na restauração de sessão (rodada 3 da DoR, decidido pelo founder):** única
+    mudança de auth da change — `!navigator.onLine` pula o `signinRedirect({prompt:'none'})` e
+    conclui anônimo. Alternativas rejeitadas: manter auth intocada (CA5a viraria limitação
+    documentada — PWA instalado reaberto sem rede cairia na página de erro do navegador, o oposto
+    da promessa da change) e restauração consciente de rede com evento `online` (S → M, estado
+    novo no `AuthProvider`; fica pro follow-up se houver demanda medida).
 
 ## Métrica de sucesso
 

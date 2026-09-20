@@ -62,6 +62,22 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
       *verify:* lint+build; `npm run build && npm run preview` → Playwright
       `page.evaluate(() => navigator.serviceWorker.controller !== null)` após reload; `npm run dev`
       → `navigator.serviceWorker.getRegistrations()` vazio (CA6-ci).
+- [ ] 1.4b **Guarda offline na restauração de sessão** (DoR rodada 3, Critical; decisão do founder
+      — única mudança de auth da change). Em `src/context/auth/AuthProvider.tsx`, no `inicializar()`,
+      **imediatamente antes** de `if (!jaTentouRestaurar() && !haConvitePendente())` (o bloco que
+      chama `userManager.signinRedirect({ prompt: 'none', … })`, ~linhas 130-139): se
+      `!navigator.onLine`, **não** marca tentativa nem redireciona — `aplicarUsuario(null)` e
+      `return` (cai no `finally`, que libera a troca de código e seta `carregando=false`). Motivo
+      no comentário (o *porquê*): num PWA instalado reaberto sem rede o `sessionStorage` vem vazio,
+      e a navegação de topo pro IdP terminaria na página de erro do navegador. Sem detecção de
+      "voltou a rede" (non-goal).
+      *verify (TDD, RED antes):* unit test em `AuthProvider.test.tsx` (ou o arquivo de teste já
+      existente do provider — reaproveitar o setup): com `navigator.onLine` stubado em `false`
+      (`vi.spyOn(navigator, 'onLine', 'get')`), sem usuário e sem a marca → `signinRedirect` **nunca**
+      é chamado, o provider conclui anônimo (`carregando=false`, usuário `null`) e
+      `sessionStorage['menthoros:restauracao-tentada']` **não** é gravada; com `onLine=true` o
+      comportamento atual é preservado (`signinRedirect` chamado com `prompt: 'none'`). Os testes
+      existentes de `AuthProvider`/`oidcConfig`/`authFlow` continuam verdes.
 
 ## 3. `index.html` — meta tags iOS
 
@@ -115,19 +131,24 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
       serve o `index.html` precacheado (`true`). Sob `vite preview` não há proxy (`server.proxy` é
       só dev) e o corpo pode até ser o SPA fallback — irrelevante, só a **origem** importa. Não usar
       `page.route` nessa sonda (não intercepta fetch emitido por SW; e aqui não deve haver SW no
-      caminho);
-      (d1) **casca offline (CA5a-ci):** `context.setOffline(true)` + `page.reload()` → `#root`
-      não-vazio (sem tela branca) e a **tela de login/landing** visível. Não asserte "dados com
-      erro" aqui: o token vive em memória, o reload perde a sessão, o `AuthProvider` tenta restaurar
-      contra o IdP (inalcançável), falha e a rota protegida cai no login. Esperado e **não é
-      falha**: o `<script src="/env-config.js">` falha offline (sem rota no SW → rede → erro) e a
+      caminho). **Depois da sonda, voltar a `/`** (`page.goto('/')` + `aguardarFluxoEstavel`) —
+      DoR rodada 3: deixar a URL em `/auth/...` faria o reload seguinte recarregar uma rota da
+      denylist, que não recebe o app-shell offline;
+      (d1) **casca offline (CA5a-ci)** — em `test()` próprio, contexto novo (sem marca
+      `menthoros:restauracao-tentada` pré-setada), página em `/` com o SW já controlando (a→
+      ready → reload): `context.setOffline(true)` **antes** de `page.reload()` → `#root` não-vazio
+      (sem tela branca), **tela de login/landing** visível, e `page.url()` continua same-origin
+      (nenhuma navegação de topo pro IdP — a guarda da 1.4b impediu o `signinRedirect`; sem ela o
+      teste falha na página de erro do Chromium, que é exatamente o bug que a rodada 3 pegou). Não
+      asserte "dados com erro": o token vive em memória e o reload perde a sessão. Esperado e **não
+      é falha**: o `<script src="/env-config.js">` falha offline (sem rota no SW → rede → erro) e a
       cadeia de fallback de `src/config/env.ts` absorve (`window.__RUNTIME_CONFIG__` indefinido →
       `import.meta.env`/`'/auth'`);
-      (d2) **dados offline sem reload (CA5b-ci):** logado (fixture) em `/#/atletas` com
-      `MOCK_ATLETAS` renderizado → `context.setOffline(true)` → navegar pra outra rota de dados e
-      voltar **sem** reload → a área de dados mostra o estado de erro por consulta já existente (a
-      sessão em memória sobrevive). Um único spec com os dois casos, ou dois `test()` no mesmo
-      arquivo.
+      (d2) **dados offline sem reload (CA5b-ci)** — em `test()` próprio: logado (fixture) em
+      `/#/atletas` com `MOCK_ATLETAS` renderizado → `context.setOffline(true)` → navegar pra outra
+      rota de dados e voltar **sem** reload → a área de dados mostra o estado de erro por consulta
+      já existente (a sessão em memória sobrevive). Cada caso (a/b/c, d1, d2) isolado em seu
+      `test()` — estado de SW/offline/URL nunca vaza de um pro outro.
       Confirmar que `tests/e2e/auth/login.spec.ts` e o resto da suíte continuam verdes com o SW
       ativo (CA4-ci).
       *verify:* `npm run test:e2e` verde.
