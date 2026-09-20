@@ -121,7 +121,7 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
 
 ## 3. `index.html` — meta tags iOS
 
-- [ ] 1.5 Adicionar `<meta name="theme-color">` (mesmo valor do manifest),
+- [x] 1.5 Adicionar `<meta name="theme-color">` (mesmo valor do manifest),
       `<meta name="apple-mobile-web-app-capable" content="yes">`,
       `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">` (ou
       `default`, conferir com o tema escuro do shell do atleta) e
@@ -130,6 +130,15 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
       aponta pra `/src/assets/icons/menthoros_favicon.png` (Vite resolve) — fora de escopo.
       *verify:* lint+build; `dist/index.html` contém as tags + o link do manifest injetado
       (CA1-ci/CA3-man).
+      *Entregue (commit `f06e9b7`):* `theme-color` `#0A1628` (literal com comentário apontando
+      pro token — HTML estático não importa TS), `apple-mobile-web-app-capable`,
+      `apple-mobile-web-app-status-bar-style: black-translucent` (shell escuro),
+      `apple-touch-icon` → `/icons/apple-touch-icon-180.png`, e **`apple-mobile-web-app-title`**
+      (não previsto, mas é o que o iOS usa como nome sob o ícone — sem ela cai no `<title>`
+      longo). Verificado no `dist/index.html`: todas as tags presentes e **exatamente um**
+      `<link rel="manifest">` injetado. Armadilha registrada: um `grep -c 'rel="manifest"'` conta
+      2 porque o comentário HTML mencionava a tag — comentário reescrito sem o literal; a
+      checagem certa é `<link rel="manifest"`.
 
 ## 4. Prompt de instalação (Android/Chromium)
 
