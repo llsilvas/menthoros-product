@@ -1,4 +1,6 @@
-**Tamanho:** XS · **Trilha:** Fast
+**Tamanho:** XS · **Trilha:** Fast · **Status:** ✅ **CONCLUÍDA** — mergeada em `develop`
+([PR #121](https://github.com/llsilvas/menthoros-front/pull/121), 2026-09-20). QA
+(`frontend-reviewer` + `clean-code-reviewer`) sem achados Críticos.
 
 ## Why
 

@@ -2,7 +2,17 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-20 (**`use-best-effort-for-threshold-inference` entregue e
+**Última atualização:** 2026-09-20 (**`polish-inbox-visual-semantics` entregue e arquivada** —
+front PR **#121** mergeado em `develop`. XS · Fast: loose end da sessão anterior — PR já estava
+CI-verde há um tempo, só faltava confirmar o merge e rodar `/done`. 4 acabamentos: outline
+secundário nos 3 botões do rodapé + toggle do PMC fora de `primary`/navy; badge×card da fila
+(`QueueRow`) com fonte de verdade unificada (`attention.severity` domina, corrigindo divergência
+âmbar/vermelho no mesmo item); os 4 `MetricTile` do strip agora respeitam `hasWindowData` (sem
+dado renderiza `'—'`, não `0%`); `ErrorPage` nova com dois mecanismos de rota (catch-all `*` +
+`errorElement` no `<ProtectedRoute />`). QA (`frontend-reviewer` + `clean-code-reviewer`) sem
+Críticos — 2 achados corrigidos (log ausente em erro de render, `color` implícito em `h4`).
+Arquivada em `changes/archive/2026-09/2026-09-20-polish-inbox-visual-semantics/`.) Antes,
+2026-09-20 (**`use-best-effort-for-threshold-inference` entregue e
 arquivada** — backend PR **#136** mergeado em `develop`. M · Full: 3ª fonte de
 `paceLimiarEstimado` — melhor esforço recente do atleta (5k/10k, janela rolante de 42 dias, via
 `MelhorEsforcoService`/intervals.icu), inserida entre prova registrada e a inferência passiva por
