@@ -37,7 +37,7 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
       `esbuild` 0.25.9, `typescript` 5.8.3. Inevitável sem duplicar cópias (o npm só nesta quando
       nenhuma versão única satisfaz todos os ranges); lint+build+test:run verdes (194/1591).
       O `package.json` foi reordenado alfabeticamente pelo npm — só `vite-plugin-pwa` é adição.
-- [ ] 1.3 `VitePWA({...})` em `plugins` de `vite.config.ts`, ao lado de `react()` — bloco `test`
+- [x] 1.3 `VitePWA({...})` em `plugins` de `vite.config.ts`, ao lado de `react()` — bloco `test`
       intocado. Config fechada no `proposal.md` (item 3 de What Changes):
       `registerType: 'prompt'`, `injectRegister: false`,
       `manifest` do plugin (name/short_name "Menthoros", `start_url: '.'`, `scope: '.'`,
@@ -59,8 +59,19 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
       com regex sobre o literal, ou `node -e` extraindo o array): contém uma entry `index.html`
       e **nenhuma** entry `env-config.js` — DoR rodada 2: o grep textual no arquivo inteiro não
       é a asserção certa, o que importa é o precache manifest; o `dist/sw.js` contém as regexes
-      da denylist e **nenhuma** ocorrência de `registerRoute`/`NetworkOnly` (CA1-ci).
-- [ ] 1.4 Registro em `src/main.tsx` **depois** do `if (!redirectPathDeepLink())` (dentro do ramo
+      da denylist e **nenhuma estratégia de runtime** (`NetworkOnly`/`NetworkFirst`/`CacheFirst`/
+      `StaleWhileRevalidate`). *Correção na implementação:* `registerRoute(` **aparece** e é
+      esperado — é o próprio `navigateFallback` (`registerRoute(new NavigationRoute(...))`); a
+      checagem certa é ausência de estratégias, não de `registerRoute` (CA1-ci).
+      *Entregue (commit `71a094b`):* `dist/sw.js` com 18 entradas no precache (2,88 MiB) —
+      `index.html` + bundle principal presentes, `env-config.js` ausente, zero estratégias de
+      runtime, `NavigationRoute` com a denylist; manifest gerado e `<link rel="manifest">`
+      injetado; cores importadas de `src/shared/design-tokens/colors.ts` (`surface[900]`), sem hex
+      duplicado. **Ajuste não previsto na spec:** `workbox.maximumFileSizeToCacheInBytes: 3 MiB` —
+      o bundle principal tem 2,2 MB (chunk único, aviso pré-existente do Vite) e o limite padrão
+      de 2 MiB abortava o build **e** deixaria o shell fora do precache, matando CA5a. Code-split
+      fica pra outra change.
+- [x] 1.4 Registro em `src/main.tsx` **depois** do `if (!redirectPathDeepLink())` (dentro do ramo
       que monta o React), guardado por `import.meta.env.PROD`, via `registerSW` de
       `virtual:pwa-register` (`onNeedRefresh` no-op por ora — update aplicado no próximo load,
       nunca reload automático no meio do PKCE — custo aceito no grill Q4: versão nova do shell
@@ -71,7 +82,15 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
       *verify:* lint+build; `npm run build && npm run preview` → Playwright
       `page.evaluate(() => navigator.serviceWorker.controller !== null)` após reload; `npm run dev`
       → `navigator.serviceWorker.getRegistrations()` vazio (CA6-ci).
-- [ ] 1.4b **Guarda offline na restauração de sessão** (DoR rodada 3, Critical; decisão do founder
+      *Entregue (commit `60ac4da`):* `registerSW({ immediate: true })` dentro do ramo que monta
+      o React, guardado por `import.meta.env.PROD`; reference `vite-plugin-pwa/client` em
+      `src/vite-env.d.ts`. Verificado no build: `index-*.js` referencia `/sw.js` com `immediate`,
+      e `workbox-window` entra como chunk separado (19ª entrada do precache). **Sem unit test,
+      justificado:** é código de módulo do `main.tsx`, sem comportamento isolável sem montar o
+      app inteiro — a cobertura real é o E2E 1.7(a) sob `vite preview`; o guard PROD é
+      inspecionável. O "`npm run dev` não registra SW" é garantido pelo mesmo guard (não subi o
+      dev server).
+- [x] 1.4b **Guarda offline na restauração de sessão** (DoR rodada 3, Critical; decisão do founder
       — única mudança de auth da change). Em `src/context/auth/AuthProvider.tsx`, no `inicializar()`,
       **imediatamente antes** de `if (!jaTentouRestaurar() && !haConvitePendente())` (o bloco que
       chama `userManager.signinRedirect({ prompt: 'none', … })`, ~linhas 130-139): se
@@ -93,6 +112,12 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
       é `null`. Caso controle (`onLine` → `true`): `signinRedirect` chamado uma vez com
       `expect.objectContaining({ prompt: 'none' })` — prova que a guarda não quebrou o fluxo atual.
       `restauracaoDeSessao`/`renovacaoSilenciosa`/`oidcConfig`/`authFlow` continuam verdes.
+      *Entregue (commit `85e5e56`):* guarda `if (!navigator.onLine) { aplicarUsuario(null); return; }`
+      imediatamente antes do bloco de restauração (depois de `login_required`/retorno de code,
+      antes do bypass de convite). `restauracaoOffline.test.tsx` com consumidor de `AuthContext`
+      que torna observável o fim de `inicializar()` (`carregando` → `false` no `finally`) em vez
+      de esperar microtasks. **RED confirmado antes da guarda** ("signinRedirect chamado 1 vez"
+      no caso offline); GREEN depois (2/2). Suíte completa 195 arquivos / 1593 testes.
 
 ## 3. `index.html` — meta tags iOS
 
