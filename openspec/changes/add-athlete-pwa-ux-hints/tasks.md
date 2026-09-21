@@ -21,7 +21,9 @@ padrão a reaproveitar); `tests/fixtures/pkceAuth.ts` (`autenticarComPkce`, `agu
       !dispensado`; `dismiss()` grava `localStorage['menthoros:pwa-ios-hint-dismissed'] = '1'`
       (try/catch como em `useInstallPrompt`). **Sem UA sniffing** (R1) — `navigator.standalone` é
       só WebKit iOS: `false` = Safari em aba, `true` = lançado da tela inicial, `undefined` =
-      outra plataforma. Tipar via augment local (`interface Navigator { standalone?: boolean }`).
+      outra plataforma. Tipar com **augment global** — `declare global { interface Navigator {
+      standalone?: boolean } }` no próprio arquivo do hook (DoR rodada 2: `interface Navigator`
+      solta num módulo com `import`/`export` é local e `navigator.standalone` não compila).
       Guardar `typeof window.matchMedia === 'function'` como `useInstallPrompt.ts` faz — o jsdom
       **não** fornece `matchMedia` (DoR rodada 1).
       *verify (TDD):* jsdom não define `standalone` → teste stuba com
@@ -69,8 +71,12 @@ padrão a reaproveitar); `tests/fixtures/pkceAuth.ts` (`autenticarComPkce`, `agu
       (`home.spec.ts:51-86` — inclui `treinos`, `provas`, `kudos/recentes`, `planos/atleta-uuid`,
       `calibracao` 204); sob `vite preview` qualquer rota não-mockada cai no proxy morto
       (`ECONNREFUSED`) e enche a home de estados de erro, tornando o baseline "banner ausente"
-      ambíguo. Registrar `page.route('**/api/v1/**', r => r.fulfill(json([])))` **antes** dos 4
-      específicos — o Playwright dá precedência ao handler registrado por último —, e a home
+      ambíguo. Registrar `page.route('**/api/v1/**', r => r.fulfill(json([])))` **antes** dos
+      específicos — o Playwright dá precedência ao handler registrado por último. **Por cima do
+      catch-all, obrigatoriamente** (DoR rodada 2): os 4 nomeados acima **e**
+      `**/api/v1/atletas/atleta-uuid/calibracao**` com **status 204 sem corpo** (como
+      `home.spec.ts:86`) — um `[]` truthy vira "status de calibração válido" com campos
+      `undefined` e renderiza o banner de calibração, sujando o baseline "sem banner". Assim a home
       renderiza limpa com o mínimo de mocks nomeados),
       `goto('/#/athlete/home')` + `aguardarFluxoEstavel` → `navigation` "Navegação do atleta"
       visível e banner offline **ausente**; `context.setOffline(true)` → `getByRole('status')` com

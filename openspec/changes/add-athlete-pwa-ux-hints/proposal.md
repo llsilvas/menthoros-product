@@ -50,6 +50,15 @@ risks:
 > `false`. (3) **Minor:** `navigator.standalone` é só do MobileSafari — Chrome/Firefox no iOS
 > (WKWebView) não a expõem; eu tinha afirmado o contrário. R1 reescrito: falso negativo
 > conhecido no Chrome iOS, aceito.
+>
+> **Revisão 2 (DoR, 2026-09-21 — Codex rodada 2, 2 achados, ambos confirmados):** (1)
+> **Important:** a tipagem de `navigator.standalone` estava errada — `interface Navigator` solta
+> num módulo é local; exige `declare global { interface Navigator { standalone?: boolean } }`.
+> (2) **Important:** o catch-all `**/api/v1/**` → `[]` que eu acrescentei na task 1.5 devolveria um
+> array truthy pra `calibracao`, que a home trata como status válido (banner de calibração com
+> campos `undefined`) — o mock específico **204** (`home.spec.ts:86`) entra por cima do catch-all.
+> Confirmado correto: mover `useInstallPrompt` pro slot preserva as asserções de
+> `AthleteLayout.test.tsx`; os 4 mocks nomeados + catch-all bastam pra montar o `AthleteLayout`.
 
 ## Why
 
