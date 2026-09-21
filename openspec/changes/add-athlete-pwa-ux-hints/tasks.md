@@ -11,12 +11,13 @@ padrão a reaproveitar); `tests/fixtures/pkceAuth.ts` (`autenticarComPkce`, `agu
 
 ## 1. Hooks
 
-- [ ] 1.1 `useOnlineStatus()` em `src/features/athlete/hooks/useOnlineStatus.ts`: `useState(() =>
+- [x] 1.1 *Entregue (commit `2769492`, 3 testes):* `useOnlineStatus()` em `src/features/athlete/hooks/useOnlineStatus.ts`: `useState(() =>
       navigator.onLine)`, `useEffect` registrando `online`/`offline` em `window` (com cleanup).
       *verify (TDD):* teste com `vi.spyOn(navigator, 'onLine', 'get')` pro estado inicial e
       `window.dispatchEvent(new Event('offline'))`/`'online'` dentro de `act` → estado alterna;
       unmount remove os listeners (`removeEventListener` espiado).
-- [ ] 1.2 `useIosInstallHint()` em `src/features/athlete/hooks/useIosInstallHint.ts`: `canShow =
+- [x] 1.2 *Entregue (commit `2769492`, 8 testes — matriz completa incl. `display-mode: standalone`
+      e jsdom sem `matchMedia`):* `useIosInstallHint()` em `src/features/athlete/hooks/useIosInstallHint.ts`: `canShow =
       navigator.standalone === false && !matchMedia('(display-mode: standalone)').matches &&
       !dispensado`; `dismiss()` grava `localStorage['menthoros:pwa-ios-hint-dismissed'] = '1'`
       (try/catch como em `useInstallPrompt`). **Sem UA sniffing** (R1) — `navigator.standalone` é
