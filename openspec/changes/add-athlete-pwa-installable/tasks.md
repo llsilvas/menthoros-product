@@ -165,14 +165,24 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
 
 ## 5. Regressão com SW ativo (gate de CI)
 
-- [x] 1.7 *Entregue (commit `94de7a2`):* 3 `test()` isolados — (a)+(b)+(c) num só (SW controlando
-      após ready→reload; Cache Storage sem `/api/`, `/auth/`, `env-config.js`; sonda same-origin
-      `/auth/realms/...` com `fromServiceWorker()===false` e volta a `/`), (d1) casca offline
-      (`#root` não-vazio, URL same-origin, sem hop pro IdP — depende da guarda 1.4b), (d2) offline
-      sem reload (sessão sobrevive, nenhuma resposta de `/api` via SW). `npm run test:e2e` (build
-      + preview, 21 arquivos de spec, SW ativo em todos) **exit 0** — suíte inteira verde; a
-      contagem exata não ficou no log porque o comando em background guardou só as 60 últimas
-      linhas (ruído do proxy `/api/v1/strava/sync-status` sem backend, pré-existente).
+- [x] 1.7 *Entregue (commits `94de7a2` + `6b00237`):* 3 `test()` isolados — (1) SW controlando
+      após ready→reload, precache contém `index.html` e **nada** de `/api/`, `/auth/`,
+      `env-config.js`, sonda same-origin `/auth/realms/...` com `fromServiceWorker()===false`;
+      (d1) casca offline (`#root` não-vazio, URL same-origin, sem hop pro IdP — **falsificável**:
+      a marca de restauração é limpa antes do reload, então só a guarda 1.4b impede o
+      `signinRedirect`); (d2) offline sem reload (sessão em memória sobrevive, nova busca vai à
+      rede e falha — `requestfailed` em `/api/` é a prova observável).
+      **Correção de registro (erro meu):** a primeira versão desta nota dizia "suíte inteira
+      verde, exit 0" — era o exit do `tail` no pipe, não do Playwright; a rodada real tinha 2/3
+      falhando neste spec. Diagnóstico verificado pelo QA cross-model (Codex): o primeiro `goto`
+      sem mock do IdP deixava `menthoros:restauracao-tentada = "1"` e nenhum login completava.
+      Regra que ficou no cabeçalho do spec: **mockar o IdP antes do primeiro `goto`**
+      (`semSessaoNoProvedor` nos casos anônimos) e esperar a URL assentar (`#/` sem query) antes
+      de qualquer `evaluate`. Os casos que exigem SW controlando rodam sem login; o "offline sem
+      reload" roda como os demais specs. Nuance corrigida: o SW é **registrado** em todos os 21
+      specs, mas só **controla** a página após a 2ª navegação same-origin — nos outros specs o hop
+      PKCE acontece antes. Resultado real, exit code do Playwright: spec **3/3**, suíte completa
+      **103 passed, 0 failed** (36,8 s).
       Novo E2E `tests/e2e/pwa/service-worker.spec.ts` sobre a fixture PKCE existente
       (`tests/fixtures/pkceAuth.ts` + `idp.ts`; mesmo `webServer` de produção dos outros specs).
       **Ordem obrigatória** (com `registerType: 'prompt'` e sem `clientsClaim`, o SW só controla a
@@ -225,10 +235,46 @@ próprio, ver Revisão 1 no `proposal.md`).** Anchors: `vite.config.ts` (`plugin
 
 ## 6. Encerramento
 
-- [x] 1.9 *Entregue:* `npm run lint` limpo; `npm run build` OK (`dist/sw.js` + `workbox-*.js` +
-      manifest, precache 19 entradas; aviso de chunk >500 kB é pré-existente); `npm run test:run`
-      **197 arquivos / 1607 testes verdes**; `npm run test:e2e` **exit 0** (21 specs, SW ativo).
-      "`npm run dev` não registra SW" garantido pelo guard `import.meta.env.PROD` no `main.tsx`
-      (inspecionável; dev server não foi subido). QA gate a seguir.
+- [x] 1.9 *Entregue (após o QA gate):* `npm run lint` limpo; `npm run build` OK (`dist/sw.js` +
+      `workbox-*.js` + manifest, precache 19 entradas; aviso de chunk >500 kB é pré-existente);
+      `npm run test:run` **197 arquivos / 1607 testes verdes**; `npm run test:e2e` **103 passed,
+      0 failed, exit 0 do Playwright** (21 specs; a versão anterior desta nota citava um exit 0
+      mascarado pelo `tail`, ver 1.7). "`npm run dev` não registra SW" garantido pelo guard
+      `import.meta.env.PROD` no `main.tsx` (inspecionável; dev server não foi subido).
       `npm run lint && npm run build && npm run test:run && npm run test:e2e` verde (CA6-ci);
       atualizar este `tasks.md` (entregue vs. adiado) e abrir o PR.
+
+## 7. QA gate (2026-09-20) — `frontend-reviewer` + `clean-code-reviewer` + Codex, em paralelo
+
+**Nenhum achado Critical nos três.** Convergência entre modelos: o `waitForTimeout(500)` do E2E
+foi apontado por Claude (clean-code) e Codex — corrigido.
+
+Aceitos e corrigidos (commit `6b00237`):
+- `waitForTimeout` → `waitForFunction` no hash + `waitForEvent('requestfailed')` em `/api/`
+  (clean-code Important #2 + Codex Minor #2) — a falha na rede vira a prova observável do CA5b.
+- Ordem "mock do IdP antes do primeiro `goto`" (Codex Important #1, causa-raiz verificada:
+  2/3 falhavam com a marca de restauração presa em `"1"`), + espera pela URL assentada antes de
+  `evaluate` (contexto destruído no redirect de ida e volta).
+- Regex do precache aceita `?__WB_REVISION__` (achado próprio ao validar com exit real).
+- d1 limpa a marca antes do reload offline — sem isso passava sem exercer a guarda.
+
+Refutado com evidência:
+- "Isolamento entre `test()` depende de cleanup manual" (clean-code Important #1): o Playwright
+  cria contexto/página novos por `test()`; a linha era código morto e foi removida.
+
+Débito documentado, sem ação (clean-code Minors): setup de mocks do `userManager` duplicado
+entre `restauracaoOffline.test.tsx` e `renovacaoSilenciosa.test.tsx` (2 ocorrências — extrair
+fixture só no 3º); `theme-color` literal no `index.html` (HTML estático, comentado apontando o
+token); `dismiss()` não zera `evento` (inofensivo, `canInstall` já fica `false`); `vite.config.ts`
+importa `surface` de `design-tokens/colors` (módulo puro; vigiar se ganhar imports pesados).
+
+Pra descrição do PR (frontend-reviewer Importants, não são defeitos):
+- `maximumFileSizeToCacheInBytes` subiu de 2 → 3 MiB por causa do chunk de 2,2 MB; se o bundle
+  crescer além disso o shell sai do precache silenciosamente — o E2E (d1) falharia, que é o
+  gate. Code-split é outra change.
+- Reabrir o PWA instalado offline conclui **anônimo** (guarda 1.4b) até a rede voltar e o atleta
+  recarregar — non-goal explícito (decisão 12); deixar visível pra não virar ticket de suporte.
+
+Conformidade confirmada pelos três: tokens (sem hex solto fora do HTML), separação
+hook/apresentação/wiring, guarda no ponto exato do `AuthProvider`, SW sem rota de runtime
+(nada de `/api`/`/auth` cacheável), `src/api` intocado, cobertura de branches dos testes.
