@@ -25,10 +25,12 @@ risks:
   - id: R1
     descricao: Detecção de "iOS Safari fora de standalone" por User-Agent é frágil (iPadOS se apresenta como Mac; Chrome/Firefox no iOS são WebKit com UA próprio).
     mitigacao: >
-      Usar `navigator.standalone` (propriedade só do WebKit iOS: `false` = Safari em aba, `true` =
-      lançado da tela inicial, `undefined` = não-iOS) combinada com `display-mode: standalone`.
-      Falso negativo (não mostrar o hint num iOS exótico) é aceitável; falso positivo (mostrar no
-      Android/desktop) não — por isso a condição exige `navigator.standalone === false`.
+      Usar `navigator.standalone` — propriedade **só do MobileSafari** (DoR rodada 1, Codex): `false`
+      = Safari iOS em aba, `true` = lançado da tela inicial, `undefined` = qualquer outro browser,
+      **inclusive Chrome/Firefox no iOS** (WKWebView não a expõe) — combinada com `display-mode:
+      standalone`. Consequência aceita: o hint não aparece no Chrome iOS (falso negativo conhecido;
+      Safari é o browser padrão e o único com evidência manual, CA5). Falso positivo (mostrar no
+      Android/desktop) não acontece — por isso a condição exige `=== false`, não `!== true`.
   - id: R2
     descricao: Dois banners no mesmo slot (instalação Android, hint iOS, offline) podem empilhar e empurrar a bottom nav.
     mitigacao: Um único componente de slot decide UMA mensagem por vez, com precedência offline > hint iOS > instalação (grill Q9 já fixou o slot; instalação e hint iOS são mutuamente exclusivos por plataforma).
@@ -36,6 +38,18 @@ risks:
     descricao: `navigator.onLine` pode mentir "true" (portal cativo) e nunca mente "false".
     mitigacao: O banner só afirma "offline" quando `onLine === false` — mesma confiabilidade assimétrica já assumida pela guarda do AuthProvider (decisão 12 da change anterior). Não tenta detectar conectividade real.
 ---
+
+> **Revisão 1 (DoR, 2026-09-21 — Codex adversarial, 3 achados, todos confirmados no código):**
+> (1) **Important:** o E2E apontava pra `/#/atletas` com o papel padrão `ADMIN` — rota do
+> `DashboardLayout` do coach, onde o slot não existe. Corrigido pra `/#/athlete/home` como
+> `ATLETA`, com os mocks mínimos de `tests/e2e/athlete/home.spec.ts` (`users/me` com
+> `onboardingConcluido: true` evita o redirect de onboarding). (2) **Important:** a matriz do
+> hook iOS não cobria `display-mode: standalone` casando, e o jsdom não fornece `matchMedia` —
+> hook guarda `typeof window.matchMedia === 'function'` como `useInstallPrompt`, teste stuba com
+> `vi.stubGlobal` (padrão de `useInstallPrompt.test.ts:105-108`) e ganha o caso standalone →
+> `false`. (3) **Minor:** `navigator.standalone` é só do MobileSafari — Chrome/Firefox no iOS
+> (WKWebView) não a expõem; eu tinha afirmado o contrário. R1 reescrito: falso negativo
+> conhecido no Chrome iOS, aceito.
 
 ## Why
 
@@ -86,9 +100,11 @@ Texto sem termo de persona; tokens do design system (`elevation.panel`, `content
   Then não renderiza; Given dispensado (chave presente), Then não renderiza e a chave sobrevive
   ao remount.
 - **CA2-ci** — Given o shell montado online, When `window` dispara `offline`, Then o banner
-  "Você está offline" aparece; When dispara `online`, Then some — sem reload. E2E: logado em
-  `/#/atletas` (fixture PKCE, como `service-worker.spec.ts` d2), `context.setOffline(true)` →
-  banner visível; `setOffline(false)` → banner some.
+  "Você está offline" aparece; When dispara `online`, Then some — sem reload. E2E: logado como
+  **ATLETA** (`autenticarComPkce(page, { roles: ['ATLETA'] })`) em **`/#/athlete/home`** com os
+  mocks mínimos de `tests/e2e/athlete/home.spec.ts` — DoR rodada 1: `/#/atletas` com `ADMIN`
+  monta o `DashboardLayout` do coach, onde o slot não existe —, `context.setOffline(true)` →
+  `role="status"` visível; `setOffline(false)` → some.
 - **CA3-ci** — Given `beforeinstallprompt` capturado **e** offline, Then só o banner offline
   renderiza; Given hint iOS elegível **e** offline, idem; Given online, a precedência hint iOS >
   instalação nunca coexiste (por plataforma já são exclusivos; o slot garante).

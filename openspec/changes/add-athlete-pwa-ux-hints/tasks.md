@@ -22,11 +22,18 @@ padrão a reaproveitar); `tests/fixtures/pkceAuth.ts` (`autenticarComPkce`, `agu
       (try/catch como em `useInstallPrompt`). **Sem UA sniffing** (R1) — `navigator.standalone` é
       só WebKit iOS: `false` = Safari em aba, `true` = lançado da tela inicial, `undefined` =
       outra plataforma. Tipar via augment local (`interface Navigator { standalone?: boolean }`).
+      Guardar `typeof window.matchMedia === 'function'` como `useInstallPrompt.ts` faz — o jsdom
+      **não** fornece `matchMedia` (DoR rodada 1).
       *verify (TDD):* jsdom não define `standalone` → teste stuba com
       `Object.defineProperty(navigator, 'standalone', { value: false, configurable: true })` e
-      restaura no `afterEach`; casos: `false` → `true`; `true` → `false`; `undefined` → `false`;
-      chave presente → `false` mesmo com `standalone === false`; `dismiss()` grava e vira `false`;
-      `localStorage` lançando → segue sem persistir (CA1-ci).
+      restaura no `afterEach`; `matchMedia` stubado como em `useInstallPrompt.test.ts:105-108`
+      (`vi.stubGlobal('matchMedia', vi.fn().mockImplementation((q) => ({ matches: q ===
+      '(display-mode: standalone)' })))`, `vi.unstubAllGlobals()` no `afterEach`). Matriz completa
+      (DoR rodada 1 — o caso standalone faltava): `standalone=false` + não-standalone → `true`;
+      `standalone=false` + **`display-mode: standalone` casando → `false`**; `standalone=true` →
+      `false`; `undefined` → `false`; sem `matchMedia` (jsdom cru) + `standalone=false` → `true`;
+      chave presente → `false` mesmo elegível; `dismiss()` grava e vira `false`; `localStorage`
+      lançando → segue sem persistir (CA1-ci).
 
 ## 2. Apresentação e slot
 
@@ -51,11 +58,19 @@ padrão a reaproveitar); `tests/fixtures/pkceAuth.ts` (`autenticarComPkce`, `agu
 ## 3. E2E
 
 - [ ] 1.5 `tests/e2e/pwa/offline-banner.spec.ts` sobre a fixture PKCE (mock **antes** do primeiro
-      `goto`): `autenticarComPkce` + `page.route('**/api/v1/atletas**')` + `goto('/#/atletas')` +
-      `aguardarFluxoEstavel` → banner offline **ausente**; `context.setOffline(true)` → banner
-      visível (`getByRole('status')` com o texto); `context.setOffline(false)` → banner some. Sem
-      reload (a sessão em memória sobrevive). O hint iOS **não** é testável no Desktop Chrome —
-      evidência manual (CA5-man).
+      `goto`). **Rota e papel corrigidos na DoR (rodada 1, Codex):** `/#/atletas` com o papel
+      padrão `ADMIN` monta o `DashboardLayout` do coach — o slot nunca apareceria. Usar o shell do
+      atleta como `tests/e2e/athlete/home.spec.ts`: `autenticarComPkce(page, { roles: ['ATLETA'] })`,
+      mocks mínimos copiados de `mockarHome` (`**/api/v1/users/me**` com `onboardingConcluido:
+      true` — sem isso a home redireciona pro onboarding —, `**/api/v1/atletas/me/home`,
+      `**/api/v1/atletas/me/readiness`, `**/api/v1/checkins/atleta-uuid/atual`; `mockarHome` é
+      função local do spec, não exportada — copiar o subconjunto, **não** refatorar `home.spec.ts`),
+      `goto('/#/athlete/home')` + `aguardarFluxoEstavel` → `navigation` "Navegação do atleta"
+      visível e banner offline **ausente**; `context.setOffline(true)` → `getByRole('status')` com
+      "Você está offline" visível; `context.setOffline(false)` → some. Sem reload (a sessão em
+      memória sobrevive; o SW registra mas não controla — mesmo regime do d2 de
+      `service-worker.spec.ts`). O hint iOS **não** é testável no Desktop Chrome — evidência
+      manual (CA5-man).
       *verify:* `npx playwright test tests/e2e/pwa --reporter=line > log 2>&1; echo EXIT=$?` e
       ler a contagem no log (CA2-ci).
 
