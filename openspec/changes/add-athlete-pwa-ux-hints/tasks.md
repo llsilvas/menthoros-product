@@ -64,7 +64,14 @@ padrão a reaproveitar); `tests/fixtures/pkceAuth.ts` (`autenticarComPkce`, `agu
       mocks mínimos copiados de `mockarHome` (`**/api/v1/users/me**` com `onboardingConcluido:
       true` — sem isso a home redireciona pro onboarding —, `**/api/v1/atletas/me/home`,
       `**/api/v1/atletas/me/readiness`, `**/api/v1/checkins/atleta-uuid/atual`; `mockarHome` é
-      função local do spec, não exportada — copiar o subconjunto, **não** refatorar `home.spec.ts`),
+      função local do spec, não exportada — copiar o subconjunto, **não** refatorar `home.spec.ts`).
+      **Catch-all primeiro** (achado próprio no `/implement init`): `mockarHome` cobre 10 rotas
+      (`home.spec.ts:51-86` — inclui `treinos`, `provas`, `kudos/recentes`, `planos/atleta-uuid`,
+      `calibracao` 204); sob `vite preview` qualquer rota não-mockada cai no proxy morto
+      (`ECONNREFUSED`) e enche a home de estados de erro, tornando o baseline "banner ausente"
+      ambíguo. Registrar `page.route('**/api/v1/**', r => r.fulfill(json([])))` **antes** dos 4
+      específicos — o Playwright dá precedência ao handler registrado por último —, e a home
+      renderiza limpa com o mínimo de mocks nomeados),
       `goto('/#/athlete/home')` + `aguardarFluxoEstavel` → `navigation` "Navegação do atleta"
       visível e banner offline **ausente**; `context.setOffline(true)` → `getByRole('status')` com
       "Você está offline" visível; `context.setOffline(false)` → some. Sem reload (a sessão em
