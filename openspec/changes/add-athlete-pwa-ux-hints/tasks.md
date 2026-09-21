@@ -61,7 +61,8 @@ padrão a reaproveitar); `tests/fixtures/pkceAuth.ts` (`autenticarComPkce`, `agu
 
 ## 3. E2E
 
-- [ ] 1.5 `tests/e2e/pwa/offline-banner.spec.ts` sobre a fixture PKCE (mock **antes** do primeiro
+- [x] 1.5 *Entregue (commit `5c229b7`):* `npx playwright test tests/e2e/pwa` → **4 passed, EXIT=0**
+      do Playwright (3 do `service-worker.spec.ts` + 1 novo). `tests/e2e/pwa/offline-banner.spec.ts` sobre a fixture PKCE (mock **antes** do primeiro
       `goto`). **Rota e papel corrigidos na DoR (rodada 1, Codex):** `/#/atletas` com o papel
       padrão `ADMIN` monta o `DashboardLayout` do coach — o slot nunca apareceria. Usar o shell do
       atleta como `tests/e2e/athlete/home.spec.ts`: `autenticarComPkce(page, { roles: ['ATLETA'] })`,
@@ -91,7 +92,10 @@ padrão a reaproveitar); `tests/fixtures/pkceAuth.ts` (`autenticarComPkce`, `agu
 
 ## 4. Encerramento
 
-- [ ] 1.6 `npm run lint && npm run build && npm run test:run` verdes e `npm run test:e2e` com exit
+- [x] 1.6 *Entregue (exit codes reais, gravados em log — nunca de pipe):* `npm run lint` limpo;
+      `npm run build` EXIT 0; `npm run test:run` **202 arquivos / 1627 testes**; `npx playwright
+      test` (suíte inteira) **104 passed / 0 failed**, EXIT 0 (CA4-ci). QA gate na seção 5.
+      `npm run lint && npm run build && npm run test:run` verdes e `npm run test:e2e` com exit
       real do Playwright (CA4-ci); atualizar este `tasks.md` (entregue vs. adiado) e abrir o PR.
 - [ ] 1.7 **Evidência manual (founder, em `develop`, junto com a 1.8 da change anterior; gate de
       promoção, não de merge):** iPhone real/Safari — hint visível em aba; após "Adicionar à Tela
