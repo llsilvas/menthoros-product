@@ -40,14 +40,15 @@ padrão a reaproveitar); `tests/fixtures/pkceAuth.ts` (`autenticarComPkce`, `agu
 
 ## 2. Apresentação e slot
 
-- [ ] 1.3 `IosInstallHintBanner` e `OfflineBanner` em `src/features/athlete/layout/` — puros, mesmo
+- [x] 1.3 *Entregue (commit `f15b2b1`; 2 + 1 testes):* `IosInstallHintBanner` e `OfflineBanner` em `src/features/athlete/layout/` — puros, mesmo
       estilo do `InstallPromptBanner` (`elevation.panel`, `content.divider`, `text.*`). Textos:
       "No iPhone: toque em Compartilhar e depois em 'Adicionar à Tela de Início'" + botão
       "Entendi"; "Você está offline — os dados vão atualizar quando a conexão voltar" (sem botão,
       tom neutro — não é `semantic.danger`). Sem termo de persona.
       *verify:* component tests: textos e `role="button"` "Entendi" chama `onDismiss`; offline
       renderiza como `role="status"` (a11y: leitor de tela anuncia sem roubar foco).
-- [ ] 1.4 `AthleteShellBanner` em `src/features/athlete/layout/`: consome `useOnlineStatus`,
+- [x] 1.4 *Entregue (commit `f15b2b1`; slot com 6 testes da matriz de precedência; os 5 testes de
+      `AthleteLayout` continuaram verdes sem mudar uma asserção):* `AthleteShellBanner` em `src/features/athlete/layout/`: consome `useOnlineStatus`,
       `useIosInstallHint` e `useInstallPrompt`; renderiza **uma** mensagem: offline → hint iOS →
       instalação → nada (R2). `AthleteLayout.tsx` passa a montar `<AthleteShellBanner />` no
       lugar de `{canInstall && <InstallPromptBanner …/>}` (o `useInstallPrompt` sai do layout e
