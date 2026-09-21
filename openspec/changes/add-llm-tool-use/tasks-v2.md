@@ -36,17 +36,25 @@
 
   Sem parâmetros do LLM — atletaId vem do `ToolExecutionContext` server-side. As tools **delegam** para os formatters já testados — não reimplementam lógica.
 
-- [ ] 2.2 Criar `ToolContextHolder` (`@Component @RequestScope`) para cachear `ContextoTreino` no escopo do request. Todas as tools usam `holder.getOrLoad()` — máximo 3 queries ao banco por geração.
+- [ ] 2.2 Criar `ToolExecutionContext` com `atletaId`, `tenantId`, `atleta`, `metaDados`, `provaAlvo`, `inicioSemana`, `diasEfetivos`. Populado server-side no `IaServiceImpl`. **O LLM nunca escolhe o atletaId.**
 
-- [ ] 2.3 Criar `ToolExecutionContext` com `atletaId`, `tenantId`, `atleta`, `metaDados`, `provaAlvo`, `inicioSemana`, `diasEfetivos`. Populado server-side no `IaServiceImpl`. **O LLM nunca escolhe o atletaId.**
+- [ ] 2.3 **Propagação via `ToolContext` nativo do Spring AI (substitui `ThreadLocal`/`@RequestScope`
+      — decisão do pre-mortem cross-model, ver `design.md`).** `IaServiceImpl` passa o
+      `ToolExecutionContext` via `.toolContext(Map.of("execCtx", ctx))` na chamada ao `ChatClient`; cada
+      método `@Tool` recebe `ToolContext toolContext` como parâmetro e lê `execCtx` de lá. Mecanismo
+      síncrono por chamada — sobrevive a qualquer thread-hop do loop de tools, sem estado implícito.
 
-- [ ] 2.4 Vincular `ToolExecutionContext` via `ThreadLocal` para que os `@Tool` methods acessem sem parâmetro do LLM.
+- [ ] 2.4 `ToolContextCache`: função pura (não bean escopado) que recebe o `ToolExecutionContext` e
+      retorna `ContextoTreino` cacheado **por chamada** — máximo 3 queries ao banco por geração, mesma
+      garantia de antes, sem estado compartilhado entre threads.
 
 ## 3. Persistência e auditoria
 
 - [ ] 3.1 Criar migration `V50__Create_llm_tool_call_table.sql` com campos: `id`, `session_id`, `atleta_id`, `tenant_id`, `tool_name`, `input_payload` (JSONB), `output_size` (INTEGER), `duration_ms`, `status` (SUCCESS/ERROR), `error_message`, `created_at`. Índices em `(session_id, created_at)` e `(atleta_id, created_at)`.
 
-  > **PII:** `output_payload` **não é persistido** — apenas `output_size`. Output contém dados de saúde. `input_payload` é seguro (tools sem parâmetros do LLM).
+  > **PII:** `output_payload` **não é persistido** — apenas `output_size`. Output contém dados de saúde. `input_payload` é seguro (tools sem parâmetros do LLM) — ver Open Questions no `proposal.md` sobre essa premissa quebrar com tools futuras.
+
+  > **Rollback:** tabela aditiva, nenhuma feature depende dela para funcionar — é só auditoria. Enquanto `app.llm.tool-use.enabled=false`, `DROP TABLE tb_llm_tool_call` é seguro a qualquer momento.
 
 - [ ] 3.2 Criar entidade `LlmToolCall` e `LlmToolCallRepository`.
 
@@ -58,7 +66,7 @@
 
 - [ ] 4.2 Ajustar `ModelRouter`: quando `toolUseProperties.isEnabled()`, retornar `gpt4oPlanoToolClient` para `TaskComplexity.PLANO`. Injetar via `@Autowired(required = false)`.
 
-- [ ] 4.3 No `IaServiceImpl.geraPlanoSemanalAvancado()`: popular `ToolExecutionContext` no `ThreadLocal` antes da chamada; despachar para `buildCompactPrompt()` ou `buildOptimizedPrompt()` conforme flag; limpar `ThreadLocal` no `finally`.
+- [ ] 4.3 No `IaServiceImpl.geraPlanoSemanalAvancado()`: montar o `ToolExecutionContext` e passá-lo via `.toolContext(...)` na chamada ao `ChatClient` (sem `ThreadLocal`, sem `finally` de limpeza — o contexto vive só na chamada); despachar para `buildCompactPrompt()` ou `buildOptimizedPrompt()` conforme flag.
 
 - [ ] 4.4 **Validação empírica** — tool loop x structured output `strict`:
   - 20+ gerações com tools (no mínimo 2 por arquétipo golden)

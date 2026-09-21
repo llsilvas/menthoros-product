@@ -2,7 +2,31 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-21 (**`add-athlete-pwa-ux-hints` entregue e arquivada** —
+**Última atualização:** 2026-09-21, tarde (**duas changes de cobrança do atleta ABERTAS, prioridade
+em aberto** — `add-contrato-atleta-mensalidade` (L · Full, backend + front) e
+`add-aviso-mensalidade` (M · Full, depende da primeira). Nasceram de um grilling de 26 decisões com
+o founder, que começou por descobrir que a change pedida (`menthoros-payment-control`) não existia:
+havia só um bloco "Payment Control System" em `artifacts/docs/ROADMAP_IMPLEMENTACAO.md` (commit
+`250abf9`, autor Claude, branch `claude/menthoros-payment-control-kew2r3`, apagada localmente)
+apontando para um `PAYMENT_CONTROL_PLAN.md` de "51 seções" que não está em lugar nenhum, com
+premissas já falsas (implementar JWT, `V46` quando a próxima é `V96`). O roadmap foi descartado como
+fonte. O modelo fechado: o atleta paga a assessoria **por fora**; o Menthoros só registra —
+**Contrato do atleta** (periodicidade, valor opcional, dia fixo de vencimento, um ativo por atleta)
+gera **Mensalidades** sozinho; **Baixa**, cancelamento, edição e valores são só do **Proprietário**
+(`PROPRIETARIO`, não o `ADMIN` da plataforma — o founder disse "ADMIN" e o código diz
+`PROPRIETARIO`); técnico vê só badge e data; nada muda para o atleta; sem gateway, pausa, parcial
+ou histórico. Substitui os dois campos soltos de `add-athlete-billing-plan` (`tipoPlanoAtleta`,
+`dataVencimentoPlano`), que não avançavam no segundo mês. Change 2: motivo `MENSALIDADE_VENCIDA`
+no Radar e dois e-mails ao atleta (7 dias antes e no dia, nunca depois), toggle por contrato.
+Glossário da raiz ganhou os quatro termos (`menthoros-infra` branch `docs/glossario-cobranca-atleta`,
+sem PR ainda). `product-reviewer`: **Go** nas duas. Pre-mortem Codex na change 1: 5 achados, todos
+incorporados — backfill não inventa dívida passada, `DROP` das colunas legadas adiado para a
+change 2 (expand-only na 1), scheduler por tenant com `TenantContext` (padrão do
+`SugestaoCoachGeneratorJob`, não do `AssinaturaSuspensaoScheduler`, que é B2B global), lock
+pessimista + `@Version` no contrato, teto de 24 gerações com `WARN`. **Três decisões ficam com o
+founder antes do `/implement init`:** prioridade (o roadmap descartado dizia "Sprint 0, crítico";
+a planilha segue funcionando no piloto), evidência de demanda de uma fundadora, e posicionamento
+(paridade ou diferenciação). Linhas no Radar abaixo.) Antes, 2026-09-21 (**`add-athlete-pwa-ux-hints` entregue e arquivada** —
 front PR **#123** mergeado em `develop` (`febc382`), CI 3/3. XS · Fast, follow-up direto da
 change anterior ("a parte do iphone agora"): hint estático de instalação iOS ("No iPhone: toque
 em Compartilhar e depois em 'Adicionar à Tela de Início'", botão "Entendi" com dispensa em
@@ -1585,6 +1609,8 @@ Sprint 14" sem tachado, apesar de concluída 2026-07-14) — corrigido removendo
 
 | Change | Status | Por que está no radar | Ação sugerida |
 |---|:---:|---|---|
+| `add-contrato-atleta-mensalidade` | 📋 **ABERTA 2026-09-21**, prioridade em aberto | Cobrança B2C só controle: contrato do atleta gera mensalidades sozinho, baixa/valores só do proprietário. Substitui os campos soltos de `add-athlete-billing-plan`. Product review Go; pre-mortem Codex incorporado. | **L · Full**, backend + front. Founder decide prioridade, confirma demanda com uma fundadora e posicionamento; depois `/implement init`. |
+| `add-aviso-mensalidade` | 📋 **ABERTA 2026-09-21**, depende da anterior | Radar avisa o treinador (mensalidade vencida) e o atleta recebe e-mail 7 dias antes e no dia; carrega o `DROP` das colunas legadas (`V97`). | **M · Full**. Só após a change 1 em produção; gate no `/implement init` falha se `tb_mensalidade` não existir. |
 | *(sem change própria ainda)* | 🔴 **Achado de segurança, 2026-09-16** | `AtletaController.recalcularMetricasAtleta` (`POST /api/v1/atletas/{id}/recalcular-metricas`) tem `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")` **sem `@RequireTenant`** — qualquer `TECNICO` autenticado, de qualquer assessoria, pode disparar o recálculo completo de TSB/CTL/ATL de um atleta de **outro tenant** passando o UUID. Achado no pre-mortem de `backfill-tss-legado-producao` (2026-09-16), que reusa esse endpoint operacionalmente (mitigado lá rodando com credencial `ADMIN`, não corrige o gap). Mesma classe de `fix-tenant-validation-not-found` (zumbi, 0%, aberta desde 2026-08-02). | Abrir change XS (`/change`) adicionando `@RequireTenant(resourceParamIndex = 0)` — mesmo padrão já usado no endpoint `/convite` do mesmo controller. |
 | ~~`customize-keycloak-login-theme`~~ | ✅ **ENTREGUE 2026-08-16** — PRs `menthoros-infra` **#11** e **#13** mergeados em `main`. S · Full, só `menthoros-infra`, **zero diff em `apps/`**. Arquivada em `archive/2026-08/2026-08-16-customize-keycloak-login-theme/` | Consequência direta da migração para PKCE: a senha saiu da aplicação, então o login acontece **na tela do Keycloak** — era o tema padrão, em inglês, sem marca. **O passe adversarial derrubou a premissa central:** o `Dockerfile.keycloak` era **órfão** e não existia caminho para o tema chegar ao container; criá-lo virou escopo. Segundo achado: o `sync-realm.sh` aplicava `loginTheme` cegamente e o `no-delete` **não** protege atributos de realm — sync contra alvo sem o tema derrubaria a tela de login. | **Entregue em local e HomeLab.** Tema com `parent=keycloak.v2` (não `keycloak`, que é o legado), sem `.ftl` próprio; PT-BR ligado por `internationalizationEnabled` — a tradução já vinha completa do tema base, o que faltava era a flag no realm; contraste medido e registrado no CSS; fontes **auto-hospedadas**, tirando o Google da tela pré-auth; preflight virou **guarda no `sync-realm.sh`** e o `keycloak-config-cli` saiu de `:latest`. **Rendeu três desdobramentos:** a seção 4 (Railway) virou `migrate-keycloak-dev-to-repo-build`; o `.env.sync` sobrescrevendo variáveis exportadas virou `menthoros-infra#12`; e a recuperação de senha, órfã entre changes, entrou no radar. O HomeLab entrou como **terceiro ambiente**, ausente do design original apesar de ser o alvo do `.env.sync` — e o ensaio nele pagou por si na primeira execução. |
 | `coach-meta-intensidade-editor` | ✅ **DESBLOQUEADA em 2026-08-22** — `fix-fc-alvo-base-inconsistente` mergeada (backend PR #75, front PR #84). Era ⏸️ **Bloqueada** | **M · Full**, backend + front. Traz a **meta de intensidade do Garmin** para o editor do treinador: seletor de escolha única (`Sem objetivo` · `Ritmo` · `Zona de FC` · `FC personalizada`), validado na UI do Garmin Connect. Hoje `TreinoEditDialog.tsx:106` tem um campo rotulado **"Zona alvo"** ligado a `fcAlvoEtapa`, em **texto livre**: o rótulo não corresponde ao dado, e o parser aceita só 3 formatos não documentados — `"150 bpm"` (valor único), `"140 - 150 bpm"` (espaço no hífen) e `"Z2 (140-150 bpm)"` viram **nenhuma meta**, sem aviso. **Ressalva honesta:** a contagem no banco de dev **refuta a urgência** — zero etapas caem em "não reconhecido" e zero usam formato de zona, porque as etapas são geradas pelo LLM e saem consistentes. A change se justifica por **prevenção e clareza**, não por dano medido. | Escalonar **depois** da `fix-fc-alvo-base-inconsistente`, que estabelece a meta declarada no modelo canônico. Antes disso, o editor ofereceria uma escolha que o backend ainda resolve por precedência. |
