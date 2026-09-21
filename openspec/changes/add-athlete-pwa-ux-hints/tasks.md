@@ -100,3 +100,31 @@ padrão a reaproveitar); `tests/fixtures/pkceAuth.ts` (`autenticarComPkce`, `agu
 - [ ] 1.7 **Evidência manual (founder, em `develop`, junto com a 1.8 da change anterior; gate de
       promoção, não de merge):** iPhone real/Safari — hint visível em aba; após "Adicionar à Tela
       de Início" e abrir pelo ícone, hint ausente (CA5-man).
+
+## 5. QA gate (2026-09-21) — `frontend-reviewer` + `clean-code-reviewer` + Codex, em paralelo
+
+**Nenhum achado Critical nos três.** Codex: **APROVADO**, nenhum defeito verificado no diff.
+
+Aceito e corrigido (commit `01774c9`):
+- Os três banners do slot repetiam o mesmo `sx` de container — 3ª ocorrência (clean-code
+  Important #2) → `shellBannerSx`/`shellBannerRowSx` em `layout/`, sem mudança de comportamento
+  (16/16 nos 5 arquivos afetados, lint, build).
+
+Refutado com evidência:
+- "Nomear o tipo de retorno de `useIosInstallHint` para evitar drift nos mocks" (frontend
+  Important #2): `vi.mocked(hook).mockReturnValue({...})` já é tipado contra `ReturnType` do hook —
+  mudança de shape quebra o teste em compile time; e `useInstallPrompt` existente também não
+  nomeia. Sem ação.
+- "Slot chama os três hooks mesmo quando offline já decide" (frontend Important #1): o próprio
+  revisor rebaixa — chamar hooks condicionalmente violaria as Rules of Hooks. Sem ação.
+
+Débito documentado, sem ação:
+- `lerDispensa`/`gravarDispensa`/`rodandoInstalado` quase idênticos entre `useIosInstallHint` e
+  `useInstallPrompt` (2ª ocorrência; clean-code Important #1) — extrair um `usePwaDismissal(key)`
+  só na 3ª (ex.: hint de update do SW).
+- `role="status"` + `aria-live="polite"` redundantes no `OfflineBanner` (frontend Minor) — o
+  padrão mais compatível entre leitores de tela; mantido.
+
+Conformidade confirmada pelos três: tokens (nenhum hex), hook × apresentação, `declare global`
+correto, nomenclatura, a11y, `AthleteLayout` sem regressão (5 testes inalterados), E2E com
+catch-all antes dos mocks nomeados e `calibracao` 204.
