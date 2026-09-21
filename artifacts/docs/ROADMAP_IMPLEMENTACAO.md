@@ -9,6 +9,13 @@
 ### Críticos (🔴 This Week)
 
 ```
+├── 🔴 PAGAMENTO & RECORRÊNCIA (NOVO)
+│   ├── Sistema de Assinaturas Multi-tenant (Semana 1-2)
+│   ├── Avisos Automáticos de Vencimento (Semana 1)
+│   ├── Ciclos de Faturamento e Auditoria (Semana 2)
+│   ├── Jobs Agendados (auto-renovação, expiry) (Semana 2)
+│   └── Testes de Isolamento Multi-tenant (Semana 2)
+│
 ├── 🔴 SEGURANÇA
 │   ├── Implementar JWT/OAuth2 (Semana 1-2)
 │   ├── Rate Limiting com Bucket4j (Semana 1)
@@ -19,8 +26,8 @@
     └── Otimização N+1 Queries (Semana 2)
 ```
 
-**Tempo Estimado:** 2-3 semanas
-**Impacto:** Bloqueia deploy em produção
+**Tempo Estimado:** 3-4 semanas
+**Impacto:** Habilita modelo de faturamento do Menthoros; bloqueia deploy em produção
 
 ---
 
@@ -75,7 +82,80 @@
 
 ## 📅 Timeline Detalhada
 
-### SEMANA 1: Segurança Base
+### SEMANA 0 (NOVA): Payment Control System - Preparação
+
+#### Dia 1-2: Setup de Migration e Entities
+
+**Backend:**
+```bash
+# Criar migration V46 (Flyway)
+src/main/resources/db/migration/V46__subscription_payment_control.sql
+
+# Criar JPA Entities
+src/main/java/br/com/menthoros/backend/domain/entity/
+├── SubscriptionPlan.java
+├── StudentSubscription.java
+├── BillingCycle.java
+├── SubscriptionEvent.java
+└── PaymentNotification.java
+
+# Criar Repositories
+src/main/java/br/com/menthoros/backend/domain/repository/
+├── SubscriptionPlanRepository.java
+├── StudentSubscriptionRepository.java
+├── BillingCycleRepository.java
+├── SubscriptionEventRepository.java
+└── PaymentNotificationRepository.java
+```
+
+**Checklist:**
+- [ ] Migration V46 com 5 tabelas principais
+- [ ] Índices compostos (tenant_id + coluna)
+- [ ] @Entity com @Table, @Column e validações
+- [ ] Repositories com findByTenantId* methods
+- [ ] Testes de isolamento tenant
+
+---
+
+#### Dia 3-5: DTOs, Mappers e Services Base
+
+**Backend:**
+```bash
+# DTOs (Contratos)
+src/main/java/br/com/menthoros/backend/api/dto/
+├── SubscriptionPlanDto.java
+├── CreateSubscriptionPlanDto.java
+├── StudentSubscriptionDto.java
+├── BillingCycleDto.java
+└── PaymentNotificationDto.java
+
+# Mappers
+src/main/java/br/com/menthoros/backend/api/mapper/
+├── SubscriptionPlanMapper.java
+├── StudentSubscriptionMapper.java
+├── BillingCycleMapper.java
+├── SubscriptionEventMapper.java
+└── PaymentNotificationMapper.java
+
+# Services (implementação base)
+src/main/java/br/com/menthoros/backend/service/
+├── SubscriptionPlanService.java
+├── StudentSubscriptionService.java
+├── BillingCycleService.java
+├── PaymentNotificationService.java
+├── SubscriptionEventService.java
+└── PaymentNotificationDispatcher.java
+```
+
+**Regras de Negócio:**
+- Validações de tenant_id em todo service
+- Soft delete em planos (archived_at)
+- Estado de assinatura: ACTIVE, PAUSED, CANCELLED, EXPIRED
+- Geração automática de BillingCycle ao criar subscription
+
+---
+
+### SEMANA 1: Segurança Base + Payment API
 
 #### Dia 1-2: Autenticação JWT
 
@@ -267,6 +347,44 @@ RequestIdFilter → MDC → JSON Logs
 
 ## 🛠️ Tarefas Detalhadas por Componente
 
+### BACKEND - Payment Control System (NOVO)
+
+| Tarefa | Prioridade | Esforço | Owner | Status |
+|--------|-----------|--------|-------|--------|
+| Migration V46 (5 tabelas) | 🔴 | 3h | Backend | ⏳ |
+| JPA Entities (subscription) | 🔴 | 5h | Backend | ⏳ |
+| Repositories com tenant_id | 🔴 | 4h | Backend | ⏳ |
+| DTOs e Mappers | 🔴 | 5h | Backend | ⏳ |
+| SubscriptionPlanService | 🔴 | 4h | Backend | ⏳ |
+| StudentSubscriptionService | 🔴 | 6h | Backend | ⏳ |
+| BillingCycleService | 🔴 | 4h | Backend | ⏳ |
+| PaymentNotificationService | 🔴 | 5h | Backend | ⏳ |
+| SubscriptionEventService | 🔴 | 3h | Backend | ⏳ |
+| SubscriptionPlanController | 🔴 | 4h | Backend | ⏳ |
+| StudentSubscriptionController | 🔴 | 6h | Backend | ⏳ |
+| BillingCycleController | 🔴 | 3h | Backend | ⏳ |
+| PaymentNotificationController | 🔴 | 3h | Backend | ⏳ |
+| Exception Handlers (novos) | 🔴 | 2h | Backend | ⏳ |
+| Unit Tests (Services) | 🔴 | 12h | QA | ⏳ |
+| Integration Tests (fluxos) | 🔴 | 8h | QA | ⏳ |
+| Multi-tenant isolation tests | 🔴 | 6h | QA | ⏳ |
+
+---
+
+### BACKEND - Payment Automation (NOVO)
+
+| Tarefa | Prioridade | Esforço | Owner | Status |
+|--------|-----------|--------|-------|--------|
+| PaymentNotificationScheduler (02:00) | 🔴 | 4h | Backend | ⏳ |
+| SubscriptionAutoRenewalScheduler (03:00) | 🔴 | 5h | Backend | ⏳ |
+| OverdueSubscriptionChecker (04:00) | 🔴 | 4h | Backend | ⏳ |
+| PaymentNotificationDispatcher (15min) | 🔴 | 5h | Backend | ⏳ |
+| Job error handling & retry | 🔴 | 3h | Backend | ⏳ |
+| Job monitoring & alerting | 🟠 | 4h | DevOps | ⏳ |
+| Testes de scheduler | 🔴 | 8h | QA | ⏳ |
+
+---
+
 ### BACKEND - Security
 
 | Tarefa | Prioridade | Esforço | Owner | Status |
@@ -353,34 +471,62 @@ RequestIdFilter → MDC → JSON Logs
 ## 📋 Dependências Entre Tarefas
 
 ```
-┌─────────────────────────────────────────────┐
-│ SPRINT 1: SEGURANÇA (Semana 1-2)            │
-├─────────────────────────────────────────────┤
-│ ├── Spring Security Config (bloqueante)     │
-│ ├── JWT Token Provider (depends on ^)       │
-│ ├── Auth Controller (depends on ^)          │
-│ └── Token Filter (depends on Spring Sec)    │
-│                                             │
-│ ├── (em paralelo) Rate Limiting             │
-│ ├── (em paralelo) Input Validation          │
-│ ├── (em paralelo) CORS Config               │
-│                                             │
-│ ├── (frontend paralelo) Auth Context        │
-│ └── (frontend paralelo) Login Page          │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│ SPRINT 0: PAYMENT CONTROL (Semana 0 - Setup)    │
+├──────────────────────────────────────────────────┤
+│ ├── Migration V46 (bloqueante)                   │
+│ ├── JPA Entities (depends on V46)                │
+│ ├── Repositories (depends on Entities)           │
+│ └── DTOs/Mappers (paralelo)                      │
+│                                                  │
+│ ├── (depois) Services base (depends on Repos)    │
+│ ├── (depois) Controllers (depends on Services)   │
+│ └── (depois) Testes (depends on todos acima)     │
+└──────────────────────────────────────────────────┘
+        ↓ (depois de testes passarem)
+┌──────────────────────────────────────────────────┐
+│ SPRINT 0B: PAYMENT AUTOMATION (Semana 1)         │
+├──────────────────────────────────────────────────┤
+│ ├── PaymentNotificationScheduler                 │
+│ ├── SubscriptionAutoRenewalScheduler             │
+│ ├── OverdueSubscriptionChecker                   │
+│ ├── PaymentNotificationDispatcher                │
+│ └── (todos dependem de Services do SPRINT 0)     │
+│                                                  │
+│ ├── (paralelo) Testes de scheduler               │
+│ └── (paralelo) Monitoring & Alerting             │
+└──────────────────────────────────────────────────┘
+        ↓ (paralelo com SPRINT 1 Security)
+┌──────────────────────────────────────────────────┐
+│ SPRINT 1: SEGURANÇA (Semana 1-2)                 │
+├──────────────────────────────────────────────────┤
+│ ├── Spring Security Config (bloqueante)          │
+│ ├── JWT Token Provider (depends on ^)            │
+│ ├── Auth Controller (depends on ^)               │
+│ └── Token Filter (depends on Spring Sec)         │
+│                                                  │
+│ ├── (em paralelo) Rate Limiting                  │
+│ ├── (em paralelo) Input Validation               │
+│ ├── (em paralelo) CORS Config                    │
+│                                                  │
+│ ├── (frontend paralelo) Auth Context             │
+│ └── (frontend paralelo) Login Page               │
+└──────────────────────────────────────────────────┘
         ↓ (depois de passarem)
-┌─────────────────────────────────────────────┐
-│ SPRINT 2: PERFORMANCE (Semana 2-3)          │
-├─────────────────────────────────────────────┤
-│ ├── N+1 Query Analysis                      │
-│ ├── Add Pagination (depends on analysis)    │
-│ ├── Add Fetch Joins (depends on analysis)   │
-│ └── Create DB Indexes                       │
-│                                             │
-│ ├── (paralelo) Redis Setup                  │
-│ └── (paralelo) Cache Invalidation           │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│ SPRINT 2: PERFORMANCE (Semana 2-3)               │
+├──────────────────────────────────────────────────┤
+│ ├── N+1 Query Analysis                           │
+│ ├── Add Pagination (depends on analysis)         │
+│ ├── Add Fetch Joins (depends on analysis)        │
+│ └── Create DB Indexes                            │
+│                                                  │
+│ ├── (paralelo) Redis Setup                       │
+│ └── (paralelo) Cache Invalidation                │
+└──────────────────────────────────────────────────┘
 ```
+
+**Nota:** Payment Control pode rodar em paralelo com Security (SPRINT 1) desde que ambos respeitem multi-tenancy e sejam integrados no mesmo TenantContext.
 
 ---
 
@@ -408,12 +554,23 @@ RequestIdFilter → MDC → JSON Logs
 
 - [ ] Código escrito seguindo padrões do projeto
 - [ ] Testes escritos e passando (80% coverage mínimo)
-- [ ] Documentação atualizada
+- [ ] Documentação atualizada (incluindo CLAUDE.md se novo módulo)
 - [ ] Code review aprovado (2+ reviewers)
 - [ ] CI/CD pipeline passando
 - [ ] SonarQube/Linting OK
 - [ ] Performance benchmark (se aplicável)
+- [ ] Multi-tenant isolation validado (para features de payment/billing)
+- [ ] Migration Flyway testada em staging
 - [ ] Merged para develop
+
+### Para Payment Control System específico:
+
+- [ ] Testes de isolamento multi-tenant obrigatórios
+- [ ] Nenhuma query sem filtro tenant_id
+- [ ] Auditoria de eventos completa
+- [ ] Jobs agendados validados (cron expressions corretas)
+- [ ] Notificações testadas (templates renderizados)
+- [ ] Soft deletes de planos validados (não deleta registros em uso)
 
 ---
 
@@ -422,7 +579,23 @@ RequestIdFilter → MDC → JSON Logs
 ### KPIs por Sprint
 
 ```
-SPRINT 1 (Semana 1-2):
+SPRINT 0 (Semana 0 - Setup):
+├── ✅ Migration V46 sem erros em staging
+├── ✅ 0 queries sem tenant_id filtering
+├── ✅ Entities criadas com validações
+├── ✅ Repositories com findByTenantId*
+├── ✅ Code coverage: ≥70% (payment module)
+└── ✅ Multi-tenant isolation: 100%
+
+SPRINT 0B (Semana 1 - Automação):
+├── ✅ 4 jobs agendados funcionando
+├── ✅ 100% notificações completadas/failed
+├── ✅ Auto-renovation testado (3 ciclos)
+├── ✅ Expiry detection sem false positives
+├── ✅ Code coverage: ≥75%
+└── ✅ 0 missing billing cycles
+
+SPRINT 1 (Semana 1-2) - Paralelo com 0B:
 ├── ✅ 0 vulnerabilidades críticas
 ├── ✅ 100% endpoints autenticados
 ├── ✅ Rate limiting ativo
@@ -441,7 +614,19 @@ SPRINT 3 (Semana 5-6):
 ├── ✅ Logging estruturado 100%
 ├── ✅ Testes de integração: 100% críticos
 ├── ✅ LightHouse score: ≥80
-└── ✅ API v1 deployed
+├── ✅ API v1 deployed
+└── ✅ Payment dashboard em produção
+```
+
+### Métricas de Negócio (Payment)
+
+```
+Após SPRINT 0B:
+├── Taxa de cobrança: N/A (sem processamento ainda)
+├── Avisos entregues no prazo: ≥99%
+├── Assinaturas ativas rastreáveis: 100%
+├── Tempo de renovação automática: <5min
+└── Acurácia de expiry detection: 100%
 ```
 
 ---
@@ -450,11 +635,41 @@ SPRINT 3 (Semana 5-6):
 
 | Risco | Probabilidade | Impacto | Mitigação |
 |-------|---------------|---------|-----------|
+| **Vazamento cross-tenant em pagamentos** | Baixa | **Crítico** | Validações rigorosas em repos, testes isolamento |
 | Regressão de segurança | Média | Alto | Code review duplo + testes |
 | Performance degradação | Média | Alto | Benchmark antes/depois |
 | Incompatibilidade JWT | Baixa | Alto | Testes E2E em staging |
 | DB migration issues | Baixa | Alto | Rollback plan + backup |
 | Frontend breaking changes | Média | Médio | Versionamento de API |
+| **Jobs agendados não disparam** | Média | Alto | Testes unitários + monitoring com alertas |
+| **Notificações não chegam** | Média | Médio | Fallback email + retry automático |
+| **Ciclos duplicados de billing** | Baixa | Alto | Unique constraints + transações |
+| **Integridade de assinatura comprometida** | Baixa | Alto | Tests de cascata (soft delete de planos) |
+
+### Mitigação Específica: Payment Control
+
+```
+1. Isolamento Multi-tenant:
+   - TODO query passa por findByTenantId*
+   - @RequireTenant em 100% dos endpoints
+   - Code review focado em tenant_id
+
+2. Jobs Agendados:
+   - Execução testada isoladamente
+   - Logs detalhados com @Slf4j
+   - Alertas se job não completar
+   - Retry automático com exponential backoff
+
+3. Notificações:
+   - Template renderização testada
+   - Fallback a email se SMS/push falha
+   - Histórico completo em DB
+
+4. Integridade de Dados:
+   - Soft delete de planos (never delete if subscriptions exist)
+   - FK constraints com CASCADE/RESTRICT
+   - Tests de cascata (delete plan → subscriptions)
+```
 
 ---
 
@@ -495,12 +710,30 @@ NOVO - Redis migration
 
 ## 📚 Recursos & Referências
 
-### Documentação
+### Documentação - Payment Control System (NOVO)
+
+- **PAYMENT_CONTROL_PLAN.md** - Plano técnico completo (51 seções)
+  - Modelo de dados detalhado (5 tabelas)
+  - DTOs e contratos de API
+  - Serviços e regras de negócio
+  - Controllers (24 endpoints)
+  - Jobs agendados e notificações
+  - Roadmap de 4 fases
+  
+- **PAYMENT_ARCHITECTURE_DIAGRAM.md** - Diagramas e visualizações
+  - Arquitetura em 4 camadas
+  - Fluxos (criação, avisos, cancelamento, renovação)
+  - Modelo E-R completo
+  - State diagram de assinaturas
+  - Checklist de implementação
+
+### Documentação - Geral
 
 - [Spring Security 6 Documentation](https://spring.io/projects/spring-security)
 - [Resilience4j Guide](https://resilience4j.readme.io/)
 - [React Hook Forms](https://react-hook-form.com/)
 - [PostgreSQL Performance Tuning](https://www.postgresql.org/docs/current/performance-tips.html)
+- [Spring Scheduled Tasks](https://spring.io/guides/gs/scheduling-tasks/)
 
 ### Exemplos de Código
 
@@ -508,12 +741,14 @@ Todos os exemplos mencionados neste documento podem ser encontrados em:
 - Backend: `docs/examples/backend/`
 - Frontend: `docs/examples/frontend/`
 - Database: `docs/examples/database/`
+- Payment: (será criado durante Sprint 0)
 
 ### Tools & Services
 
 - SonarQube: (URL será configurada)
 - Sentry: (URL será configurada)
 - Datadog/NewRelic: (será decidido)
+- Prometheus + Grafana: (para monitoring de jobs)
 
 ---
 
@@ -523,8 +758,35 @@ Todos os exemplos mencionados neste documento podem ser encontrados em:
 - Ajustar prioridades conforme feedback do mercado
 - Testes são bloqueantes para merge
 - Code review obrigatório antes de qualquer merge
+- **NOVO:** Payment Control System é crítico para monetização
+- **NOVO:** SPRINT 0 e 0B podem rodar em paralelo com SPRINT 1 Security
+- **NOVO:** Isolamento multi-tenant é obrigatório em Payment (não é opcional)
+
+### Payment Control - Próximos Passos
+
+1. ✅ Documentação técnica completa (DONE)
+2. → Revisar com time de engenharia e aprovação de arquitetura
+3. → Criar branch para SPRINT 0
+4. → Começar por Migration V46 e Entities
+5. → Implementar Services em paralelo
+6. → Adicionar Controllers e testes
+7. → Deploy para staging com jobs ativados
+8. → Validação com coach real (UAT)
 
 ---
 
-**Próxima Revisão:** 7 de março de 2026
+**Última Atualização:** 21 de setembro de 2026 - Inclusão de Payment Control System
+**Próxima Revisão:** 28 de setembro de 2026
 **Responsável:** Arquitetura / Tech Lead
+
+---
+
+## 📊 Status Geral do Roadmap
+
+| Sprint | Feature | Status | Owner |
+|--------|---------|--------|-------|
+| 0 | Payment Control - Setup | 📋 Planejado | Backend |
+| 0B | Payment Control - Automação | 📋 Planejado | Backend |
+| 1 | Security & Auth | ⏳ Próximo | Backend/Frontend |
+| 2 | Performance & Optimization | 📅 Agendado | Backend |
+| 3 | Quality & Monitoring | 📅 Agendado | QA/DevOps |
