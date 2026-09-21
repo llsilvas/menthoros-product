@@ -94,7 +94,8 @@ padrão a reaproveitar); `tests/fixtures/pkceAuth.ts` (`autenticarComPkce`, `agu
 
 - [x] 1.6 *Entregue (exit codes reais, gravados em log — nunca de pipe):* `npm run lint` limpo;
       `npm run build` EXIT 0; `npm run test:run` **202 arquivos / 1627 testes**; `npx playwright
-      test` (suíte inteira) **104 passed / 0 failed**, EXIT 0 (CA4-ci). QA gate na seção 5.
+      test` (suíte inteira) **104 passed / 0 failed**, EXIT 0 (CA4-ci). Reexecutados após o
+      refactor `01774c9` do QA: unit **202/1627** e E2E **104/104**, ambos EXIT 0. QA gate na seção 5.
       `npm run lint && npm run build && npm run test:run` verdes e `npm run test:e2e` com exit
       real do Playwright (CA4-ci); atualizar este `tasks.md` (entregue vs. adiado) e abrir o PR.
 - [ ] 1.7 **Evidência manual (founder, em `develop`, junto com a 1.8 da change anterior; gate de
