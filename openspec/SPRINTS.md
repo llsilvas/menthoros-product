@@ -2,7 +2,22 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-20 (**`add-athlete-pwa-installable` entregue e arquivada** —
+**Última atualização:** 2026-09-21 (**`add-athlete-pwa-ux-hints` entregue e arquivada** —
+front PR **#123** mergeado em `develop` (`febc382`), CI 3/3. XS · Fast, follow-up direto da
+change anterior ("a parte do iphone agora"): hint estático de instalação iOS ("No iPhone: toque
+em Compartilhar e depois em 'Adicionar à Tela de Início'", botão "Entendi" com dispensa em
+`localStorage`) detectado por `navigator.standalone === false` — só MobileSafari, sem UA sniffing
+— e banner "Você está offline — os dados vão atualizar quando a conexão voltar" (`role="status"`)
+reativo a `online`/`offline`. Um único slot `AthleteShellBanner` acima da `AthleteBottomNav` com
+precedência offline > hint iOS > instalação; o `useInstallPrompt` saiu do `AthleteLayout` pro
+slot (5 testes do layout intactos). DoR: 3 rodadas Codex, 6 achados fechados — entre eles a rota
+do E2E (`/#/atletas` como ADMIN monta o shell do coach, não o do atleta) e o `declare global` no
+augment de `Navigator`. Implementação em 4 commits com exit real: unit 202/1627, E2E 104/104. QA
+(`frontend-reviewer` + `clean-code-reviewer` + Codex) sem Critical; `sx` repetido nos 3 banners
+extraído em `shellBannerSx`. **Pendente antes de promover a `main`:** task 1.7 (iPhone real —
+hint em aba, ausente após instalar), junto com a 1.8 da change anterior. Arquivada em
+`changes/archive/2026-09/2026-09-21-add-athlete-pwa-ux-hints/`.) Antes, 2026-09-20
+(**`add-athlete-pwa-installable` entregue e arquivada** —
 front PR **#122** mergeado em `develop`, CI 3/3. S · Fast: shell do atleta instalável como PWA —
 manifest gerado pelo `vite-plugin-pwa@1.3.0`, service worker de precache do app-shell, meta tags
 iOS, banner "Instalar o Menthoros na tela inicial" acima da `AthleteBottomNav` (dispensa em
