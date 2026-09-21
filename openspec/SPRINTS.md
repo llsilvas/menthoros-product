@@ -2,7 +2,30 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-20 (**`polish-inbox-visual-semantics` entregue e arquivada** —
+**Última atualização:** 2026-09-20 (**`add-athlete-pwa-installable` entregue e arquivada** —
+front PR **#122** mergeado em `develop`, CI 3/3. S · Fast: shell do atleta instalável como PWA —
+manifest gerado pelo `vite-plugin-pwa@1.3.0`, service worker de precache do app-shell, meta tags
+iOS, banner "Instalar o Menthoros na tela inicial" acima da `AthleteBottomNav` (dispensa em
+`localStorage`, sem retorno), e uma guarda mínima `!navigator.onLine` na restauração de sessão do
+`AuthProvider` — única mudança de auth. Guardrail multi-tenant/LGPD: **sem `runtimeCaching`**;
+`navigateFallbackDenylist` `/auth/` + `/api/` é o único mecanismo (o Keycloak é proxyado em
+`/auth/` no mesmo origin em produção) e `env-config.js` (config de runtime, `no-store`) fica fora
+do precache — provado por E2E (sonda same-origin com `fromServiceWorker()===false`). DoR levou
+**4 rodadas de pre-mortem (Codex), 13 achados** — entre eles um bug real de produto: reabrir o
+PWA instalado sem rede faria uma navegação de topo pro IdP e cairia na página de erro do
+navegador (o `sessionStorage` zera ao fechar o app); virou a guarda acima, decidida pelo founder.
+Grill com o founder fechou 12 decisões (persona = Atleta, glossário; iOS e estado offline como
+follow-up `add-athlete-pwa-ux-hints`; cores `#0A1628`; evidência manual como gate de promoção).
+Implementação: o fork autônomo caiu por limite de gasto da conta na task 1.6 e foi retomada
+inline. QA (`frontend-reviewer` + `clean-code-reviewer` + Codex) sem Critical — convergência no
+`waitForTimeout` do E2E (→ `requestfailed` observável); Codex achou a causa-raiz de 2/3 falhas
+do spec do SW (mock do IdP tem de vir antes do 1º `goto`); um achado refutado com evidência.
+**Erro de processo registrado:** 1.7/1.9 foram marcadas "verdes" com base no exit de um `tail`
+em pipe; refeito com exit real do Playwright — 103 passed / 0 failed, `test:run` 197/1607.
+**Pendente antes de promover a `main`:** task 1.8, evidência manual (Lighthouse *installable*,
+Android real, iPhone real) pelo founder em `develop`. Arquivada em
+`changes/archive/2026-09/2026-09-20-add-athlete-pwa-installable/`.) Antes, 2026-09-20
+(**`polish-inbox-visual-semantics` entregue e arquivada** —
 front PR **#121** mergeado em `develop`. XS · Fast: loose end da sessão anterior — PR já estava
 CI-verde há um tempo, só faltava confirmar o merge e rodar `/done`. 4 acabamentos: outline
 secundário nos 3 botões do rodapé + toggle do PMC fora de `primary`/navy; badge×card da fila

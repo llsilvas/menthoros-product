@@ -1,4 +1,8 @@
-**Tamanho:** S · **Trilha:** Fast
+**Tamanho:** S · **Trilha:** Fast · **Status:** ✅ **CONCLUÍDA** — mergeada em `develop`
+([PR #122](https://github.com/llsilvas/menthoros-front/pull/122), 2026-09-20, CI 3/3). DoR READY
+após 4 rodadas de pre-mortem (Codex, 13 achados fechados) + grill (12 decisões). QA sem Critical.
+**Pendente antes de promover `develop → main`:** evidência manual da task 1.8 (Lighthouse
+*installable*, Android real, iPhone real) pelo founder. Follow-up anotado: `add-athlete-pwa-ux-hints`.
 
 ```yaml
 id: add-athlete-pwa-installable
