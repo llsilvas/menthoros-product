@@ -13,19 +13,27 @@ explícito na task 5.3.
 
 ## Why
 
-Ter dias disponíveis não obriga a treinar em todos — a literatura trata frequência como variável de
-prescrição. Mas diz também **como** cortá-la:
+Ter dias disponíveis não obriga a treinar em todos — mas a literatura diz **como** a carga deve
+cair quando o atleta está cansado. Síntese com fontes, e com o que é fato, extrapolação ou regra do
+produto, em [`knowledge/coaching/frequencia-e-descanso-por-fadiga.md`](../../../knowledge/coaching/frequencia-e-descanso-por-fadiga.md).
+O essencial:
 
-- **Autorregulação** ajusta intensidade, volume e frequência pela prontidão do dia. Nos protocolos
-  guiados por VFC, prontidão baixa prescreve **baixa intensidade ou descanso**, como decisão
-  explícita do dia (Kiviniemi 2007; Javaloyes/Vesterinen, revisões de 2020-2021).
-- **Hierarquia do corte:** primeiro volume; intensidade mantida; frequência só moderadamente. No
-  taper, manter a frequência rende mais do que reduzi-la (Bosquet 2007); em endurance, ~20% de corte
-  de frequência é citado como limite antes de perder desempenho (Mujika & Padilla 2000).
-- **Pular pontualmente não custa condicionamento:** VO2max mantido por 15 semanas com frequência
-  reduzida, desde que a intensidade se mantenha (Hickson 1981).
-- **Overreaching funcional** se resolve com um corte breve e deliberado de volume/intensidade;
-  o que produz sobretreino é sobrecarga sem recuperação (Meeusen 2013, consenso ECSS/ACSM).
+- **Prontidão baixa → primeiro a intensidade cai, a sessão fica.** Com corredores recreacionais, VFC
+  fora da faixa individual levou a **treino leve**, não a descanso (Vesterinen 2016); a meta-análise
+  mostra que o guiado por VFC reduz sessões moderadas/intensas, não o número de sessões (Düking 2021).
+  Só Kiviniemi 2007 prescreve "treino leve **ou descanso**". Em todos, a decisão é **do dia**.
+- **Ordem do corte de carga:** volume primeiro, intensidade mantida, frequência por último. No
+  polimento pré-prova, o melhor resultado reduz volume sem mudar frequência (Bosquet 2007), e a
+  recomendação é reduzir a frequência **no máximo 20%** (Mujika & Padilla 2003). Contexto: pico para
+  prova, não resposta a fadiga.
+- **Frequência reduzida por um período não custa o VO2max**, se a intensidade se mantém (Hickson
+  1981).
+- **Sobrecarga precisa de recuperação** — sem ela, overreaching funcional vira não funcional (Meeusen
+  2013, consenso ECSS/ACSM).
+
+Ou seja: descanso explícito é legítimo; omitir o dia em silêncio não é; e descanso não deveria ser a
+**primeira** resposta a fadiga. As tensões entre o desenho atual e essas fontes estão em "Open
+Questions" (pendentes de decisão).
 
 O sistema viola as duas condições. **O corte é silencioso**: o schema não tem descanso, então um dia
 omitido é indistinguível de um esquecimento — o treinador não sabe se foi decisão. **O corte não tem
@@ -65,7 +73,8 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
 - **O motivo cita o sinal com número e limiar** ("TSB −18, abaixo do limiar de −15 para
   Intermediário"), para o treinador confiar sem abrir outra tela.
 - **Limite: 1 descanso por semana.** É o que `max(1, floor(dias × 0,25))` dá para qualquer semana
-  (1 a 7 dias) — a fórmula dos ~20-25% da literatura, que numa semana nunca passa de 1.
+  (1 a 7 dias). A referência é o teto de ≤20% de corte de frequência de Mujika & Padilla 2003 — que é
+  de polimento pré-prova, e que 1 descanso ultrapassa para quem treina 2-3 dias (ver Open Questions).
 - **Escopo temporal dos sinais** (achado do Codex): TSB baixo e RPE médio alto descrevem o estado da
   semana e liberam descanso em qualquer dia. Recuperação insuficiente, limite de dias consecutivos e
   check-in DESCANSAR descrevem o **agora**: só liberam descanso no **primeiro dia efetivo** do plano,
@@ -200,6 +209,15 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
 
 ## Open Questions & Assumptions
 
+- **Pendente de decisão — conformidade com a literatura** (revisão de 2026-09-22, ver o documento
+  em `knowledge/coaching/`):
+  1. **Descanso vs. treino leve.** As fontes com recreacionais respondem a prontidão baixa com treino
+     leve; o desenho libera descanso direto a partir de um sinal. Opção fiel: sinal semanal (TSB, RPE)
+     leva a treino leve; descanso só com sinal do dia (check-in DESCANSAR, recuperação insuficiente).
+  2. **Teto de frequência para quem treina pouco.** 1 descanso = 25% com 4 dias, 33% com 3, 50% com
+     2 — acima dos ≤20% de Mujika & Padilla 2003 (que é de taper) nos dois últimos.
+  3. **Sinais semanais são extrapolação.** TSB e RPE médio não são o critério dos estudos (VFC
+     matinal contra a linha de base individual).
 - **Decidido (2026-09-22):** sinais = TSB abaixo do limiar, RPE médio 7d alto, recuperação
   insuficiente; limite ~25% com mínimo 1; dia faltando sem sinal → turno de reparo pela LLM; front em
   change separada.
