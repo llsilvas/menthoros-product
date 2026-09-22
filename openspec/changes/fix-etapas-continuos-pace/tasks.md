@@ -3,7 +3,7 @@
 ## 1. Distância das etapas dos contínuos pelo pace (TDD)
 
 - [ ] 1.1 RED — `TreinoNormalizador.distanciaPrincipalPorPace` (CA2, CA3, CA6) e receita
-      TRES_ETAPAS pelo `NormalizacaoDeTreino` (CA1 caso real, CA4, CA5)
+      TRES_ETAPAS pelo `NormalizacaoDeTreino` (CA1 caso real, CA4, CA5 com duração, CA8)
       verify: falham com a receita atual (PRINCIPAL 5,5 km em 30 min)
 - [ ] 1.2 GREEN — novo passo + `corrigir-temporais` + `reconciliar-distancia` na receita TRES_ETAPAS
       verify: testes da 1.1 verdes

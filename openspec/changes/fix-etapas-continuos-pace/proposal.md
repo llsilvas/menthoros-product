@@ -56,7 +56,10 @@ Simulação com os três treinos acima (limiar 6:20/km → Z2 7:36/km):
 - Distância da PRINCIPAL sem `ritmoAlvo` na etapa (herdar o do treino): o ritmo do treino às vezes
   descreve o treino inteiro, às vezes só a parte principal — não há como saber.
 - Famílias FARTLEK/INTERVALADO_TIRO (já cobertas pela change anterior) e PADRAO (FACIL etc.).
-- Tetos/pisos de pace (`corrigir-pace-teto-piso` já existe e roda depois).
+- **Teto/piso no ritmo da etapa** (achado do Codex na DoR): `corrigir-pace-teto-piso`
+  (`NormalizacaoDeTreino.java:611`) corrige só o `ritmoAlvo` do **treino**; o da etapa fica como a
+  LLM mandou. Anterior a esta change. A distância nova fica coerente com o ritmo que a própria etapa
+  exibe ao atleta — a inconsistência etapa×teto é uma limitação conhecida, para change própria.
 
 ## Critérios de aceite
 
@@ -69,8 +72,13 @@ Simulação com os três treinos acima (limiar 6:20/km → Z2 7:36/km):
 - **CA4** — Given AQUECIMENTO sintetizado pelo reparo (distância `null`), then recebe
   `duração ÷ pace Z2`.
 - **CA5** — Given a soma nova das etapas desviando > 10% do total da LLM, then o total vira a soma;
-  ≤ 10%, fica o da LLM.
+  ≤ 10%, fica o da LLM. Em ambos os casos o teste afirma também a duração final do treino e que ela
+  é a soma das durações das etapas quando essa soma é a mais próxima do triângulo (precedência de
+  `recalcular-duracao`, achado do Codex).
 - **CA6** — LONGO com duas PRINCIPAL (`validarOrdem=false`): cada uma recebe a própria distância.
+- **CA8** — Given treino sem distância e PRINCIPAL sem `ritmoAlvo`, then o fallback vigente de
+  `garantir-distancia-continuo` (duração ÷ pace Z2) continua valendo — o CA3 (preservar a distância
+  da LLM) só se aplica quando a LLM mandou distância.
 - **CA7** — O golden de ordem da receita TRES_ETAPAS reflete os três passos novos; as outras
   receitas não mudam.
 
