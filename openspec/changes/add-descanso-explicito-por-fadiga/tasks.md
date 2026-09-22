@@ -14,9 +14,9 @@
 - [ ] 2.1 `WeeklyCoverageValidator` puro (Decisão 2, itens 1-8, com escopo temporal dos sinais e
       `firstEffectiveDay` pelo menor `DayOfWeek`)
       verify: tabela de cenários verde — CA1-CA7, CA2b (Leandro: TSB não libera), CA4 (BVA do teto
-      por nº de dias), CA4b (escopo), CA12d (intensos adjacentes), CA15 (6-7 dias)
+      por nº de dias), CA4b (escopo), CA4c (PROXIMA_SEMANA), CA12d (intensos adjacentes), CA15 (6-7 dias)
 - [ ] 2.1b `SEQUENCIA_ACIMA_DO_MAXIMO` calculado sobre os dias efetivos
-      verify: CA12e
+      verify: CA12e, inclusive em PROXIMA_SEMANA (CA4c)
 - [ ] 2.2 `WeeklyCoverageContext` montado em `IaServiceImpl` (só com a flag ligada e sem skeleton) e
       passado a `PlanoLlmValidator` v1/v2; kill-switch `app.plano.weekly-coverage.enabled` (CA16)
       verify: violações chegam ao `PlanoResilienceService`; mensagem de reparo testada
@@ -54,8 +54,12 @@
 
 ## 5. Entrega
 
-- [ ] 5.1 Geração real para o Leandro (TSB abaixo do limiar): todo dia coberto, descanso com motivo
-- [ ] 5.2 Geração real para atleta sem sinal: nenhum descanso, todo dia com treino
+- [ ] 5.1 Geração real para o Leandro (TSB abaixo do limiar, sem check-in): todo dia coberto, nenhum
+      descanso; a quinta (dia de intensidade) vem como treino leve
+      verify: `tb_plano_semanal.rest_days` vazio e 4 treinos em `tb_treino_planejado` (CA2b ao vivo)
+- [ ] 5.2 Geração real na SEMANA_ATUAL com check-in DESCANSAR hoje: descanso no primeiro dia efetivo
+      com motivo; demais dias com treino
+      verify: `rest_days` com 1 item no dia de hoje e motivo citando o check-in (CA2 ao vivo)
 - [ ] 5.4 **Revisão de calibração** (após 4 semanas com o front em produção): taxa de descansos
       convertidos em treino pelo treinador e de reprovação por `DESCANSO_SEM_SINAL`; revisar limiares
       de TSB/RPE e o teto por nº de dias à luz dos dados

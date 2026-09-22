@@ -50,6 +50,7 @@ pura e testável (`WeeklyCoverageValidator` em `services/helper`):
      `@ElementCollection` de dias não tem ordem garantida);
    - `SEQUENCIA_ACIMA_DO_MAXIMO` em qualquer dia **dentro** da sequência longa;
    - **não liberam:** `TSB_BAIXO`, `RPE_ALTO` (sinais da semana → treino leve) e `CTL_BAIXO`.
+   - Em PROXIMA_SEMANA, portanto, só `SEQUENCIA_ACIMA_DO_MAXIMO` libera descanso (CA4c).
 6. Teto por `|diasEfetivos|`: 4-7 → no máximo 1 descanso; 1-3 → descanso só com `READINESS_DESCANSAR`
    (outro sinal → `DESCANSO_SEM_SINAL`, mensagem pedindo treino leve); mais de 1 → `DESCANSO_ACIMA_DO_LIMITE`.
 7. Motivo vazio/branco/>200 → `DESCANSO_SEM_MOTIVO`.

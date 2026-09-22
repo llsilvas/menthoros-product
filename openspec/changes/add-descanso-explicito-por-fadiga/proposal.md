@@ -78,6 +78,9 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
     prompt pede (achado do Codex).
   - **Sequência projetada acima do máximo de consecutivos** (atletas de 6-7 dias) libera descanso num
     dia dentro da sequência — regra estrutural do produto, não de fadiga.
+  - **Consequência:** no plano da **semana seguinte** (PROXIMA_SEMANA) nenhum sinal de fadiga libera
+    descanso — só a sequência acima do máximo. Fadiga percebida com dias de antecedência vira treino
+    leve; o descanso fica para a decisão do dia, quando o plano é da semana em andamento.
   - CTL baixo não libera descanso — base baixa pede frequência com treino leve.
 - **Teto por número de dias** (≤20% de corte de frequência, Mujika & Padilla 2003):
   - **4 a 7 dias efetivos:** até 1 descanso (25% a 14%).
@@ -151,6 +154,9 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
 - **CA4b** — Given PROXIMA_SEMANA com sinal do dia (check-in, recuperação ou dias consecutivos), then
   descanso em qualquer dia → `DESCANSO_SEM_SINAL`. Given SEMANA_ATUAL com o mesmo sinal, then descanso
   no primeiro dia efetivo passa e em qualquer outro reprova.
+- **CA4c** — Em PROXIMA_SEMANA, **o único** sinal que libera descanso é `SEQUENCIA_ACIMA_DO_MAXIMO`:
+  given 6 dias seguidos e máximo 5, then 1 descanso dentro da sequência passa; given 4 dias sem
+  sequência longa, then qualquer descanso → `DESCANSO_SEM_SINAL`, com qualquer TSB/RPE/check-in.
 - **CA5** — Given dia repetido entre treino e descanso, dois treinos no mesmo dia, ou dia fora dos
   efetivos, then violação `COBERTURA_DIAS` específica.
 - **CA6** — Given SEMANA_ATUAL com dias já passados, then a cobertura considera só os dias efetivos
