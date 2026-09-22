@@ -53,9 +53,11 @@ Backend, dois helpers puros, sem contrato de API nem schema:
    total: mantém a distância da LLM e loga WARN `RECONCILIAÇÃO ... etapas sem distância, mantendo
    distanciaKm da LLM`. O ramo `distanciaAtual <= 0` (LLM não deu distância) continua usando a soma
    — não há valor melhor.
-2. **`NormalizacaoDeTreino.recalcularDuracao`** deixa de sobrescrever a duração da LLM quando a
-   soma das etapas é inconsistente com `ritmoAlvo × distanciaKm` **e** a duração da LLM é
-   consistente (mesma tolerância de 20% do triângulo). Aplica-se às famílias em que `ritmoAlvo` é o
+2. **`NormalizacaoDeTreino.recalcularDuracao`** deixa de sobrescrever a duração da LLM quando ela
+   está **mais perto** de `ritmoAlvo × distanciaKm` do que a soma das etapas (desempate "mais perto
+   do triângulo vence"; em empate, a soma). A primeira versão exigia a soma fora dos 20% — a geração
+   de 21/09 22:41 mostrou o furo: etapas 40+5 já fechavam os 45:00 da LLM, o reparo estrutural
+   acrescentou 10 min de aquecimento por cima, e a soma 55 (19,5% de desvio) venceu por um fio. Aplica-se às famílias em que `ritmoAlvo` é o
    pace médio do treino (TRES_ETAPAS, FARTLEK, PADRAO); em INTERVALADO_TIRO o `ritmoAlvo` é o pace
    do tiro e a soma das etapas continua autoritativa (comportamento atual, coberto por
    `TreinoNormalizadorIntervaladoTest`). Sem `ritmoAlvo` ou `distanciaKm` válidos, mantém o
@@ -96,6 +98,11 @@ Given um REGENERATIVO `45:00`, 7,0 km, ritmo `7:28-7:55/km`, etapas PRINCIPAL 10
 When `normalizar` roda a receita TRES_ETAPAS
 Then `duracaoMin` permanece `45:00` (esperado ≈ 53,8 min: 45 desvia 16%, a soma 25 desvia 54%).
 
+**CA4b — reparo que estica etapas já completas não vence a duração da LLM**
+Given um REGENERATIVO `45:00`, 6,0 km, ritmo `7:28-7:55/km`, etapas PRINCIPAL 40 min + DESAQUECIMENTO 5 min
+When `normalizar` roda (reparo acrescenta AQUECIMENTO 10 min, soma 55)
+Then `duracaoMin` permanece `45:00` (esperado ≈ 46 min: 45 desvia 2%, a soma 55 desvia 19,5%).
+
 **CA5 — soma das etapas continua autoritativa quando é consistente**
 Given um LONGO `60:00`, 10 km, ritmo `6:45-7:00/km`, etapas 10 + 45 + 5 min
 When `normalizar` roda
@@ -131,8 +138,8 @@ de três treinos da semana do Leandro).
 **Premissas assumidas:**
 - O total do treino vindo da LLM é mais confiável que a soma de etapas parciais. A evidência do
   ledger confirma (os totais batiam com o `ritmoAlvo`); as etapas são o ponto fraco do modelo.
-- A tolerância de 20% já usada pelo triângulo serve como tie-break entre duração da LLM e soma
-  das etapas — não introduzir um segundo limiar.
+- O desempate entre duração da LLM e soma das etapas é "quem está mais perto de ritmo × distância
+  vence", sem limiar próprio — a tolerância de 20% fica só no gate `validar-triangulo`.
 - `ritmoAlvo` é pace médio do treino inteiro fora de INTERVALADO/TIRO. Se algum tipo em PADRAO
   usar `ritmoAlvo` como pace de bloco, o guard cai no caso "ambos inconsistentes" e mantém a soma
   das etapas — não piora o comportamento atual.

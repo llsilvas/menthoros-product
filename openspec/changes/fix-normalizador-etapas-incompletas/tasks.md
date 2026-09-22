@@ -19,8 +19,11 @@ Repositório único: `apps/menthoros-backend`, branch `feature/fix-normalizador-
 - [x] 2.2 **Feito.** Testes (CA5 ×2, CA6, ambos-inconsistentes): soma consistente prevalece sobre duração da LLM fora da tolerância;
       sem `ritmoAlvo` mantém a regra atual (soma das etapas).
 - [x] 2.3 **Feito.** Fix: extrair `duracaoEsperadaMin(treino)` do triângulo; em `recalcularDuracao`, fora de
-      INTERVALADO_TIRO, manter a duração da LLM quando ela está dentro de 20% e a soma das etapas
-      não. WARN `DURAÇÃO MANTIDA`.
+      INTERVALADO_TIRO, manter a duração da LLM quando ela está mais perto de ritmo × distância do
+      que a soma das etapas. WARN `DURAÇÃO MANTIDA`.
+- [x] 2.4 **Feito.** CA4b (geração real de 21/09 22:41, REGENERATIVO 6 km ficou 55 min com o desempate por
+      tolerância): regra trocada para "mais perto vence"; teste `reparoQueEsticaEtapasNaoVenceDuracaoDaLlm`.
+      378 testes das suítes de normalização/plano verdes.
       *verify:* `./mvnw test -Dtest='NormalizacaoDeTreinoTest,TreinoNormalizadorIntervaladoTest,FamiliaTreinoTest'`
 
 ## 3. Validação e fechamento
