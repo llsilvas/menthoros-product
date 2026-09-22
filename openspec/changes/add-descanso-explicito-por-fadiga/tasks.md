@@ -1,0 +1,49 @@
+# Tasks — add-descanso-explicito-por-fadiga
+
+## 1. Sinal de fadiga estruturado (TDD)
+
+- [ ] 1.1 `SinalFadiga` (tipo, valor, limiar) calculado por completo, independente da recomendação
+      do intervalado — os cinco sinais que liberam descanso + CTL_BAIXO (não libera)
+      verify: cada sinal isolado e combinado; degradação do intervalado inalterada
+- [ ] 1.2 `PromptGerado` carrega os sinais até o `IaServiceImpl`; dias efetivos materializados
+      também em PROXIMA_SEMANA
+      verify: `./mvnw clean test`
+
+## 2. Regra de cobertura (TDD)
+
+- [ ] 2.1 `CoberturaSemanalValidator` puro (Decisão 2, itens 1-7)
+      verify: tabela de cenários verde, BVA do limite
+- [ ] 2.2 `ContextoCobertura` montado em `IaServiceImpl` e passado a `PlanoLlmValidator` v1/v2
+      verify: violações chegam ao `PlanoResilienceService`; mensagem de reparo testada
+- [ ] 2.3 `./mvnw clean test`
+
+## 3. Contrato da LLM (TDD)
+
+- [ ] 3.1 `descansos` em `PlanoSemanalLlmDto`/`V2` e no `LlmJsonSchemaBuilder` v1/v2; `minItems` 1,
+      `maxItems` 7; `SessionResolver` propaga `descansos`
+      verify: golden do schema
+- [ ] 3.2 Prompt: bloco de cobertura + limite + motivo com número e limiar; alinhar
+      `DisponibilidadePromptFormatter:110/116` ao campo `descansos`
+      verify: golden do prompt; eval modo candidato colado no PR
+- [ ] 3.3 `./mvnw clean test`
+
+## 4. Persistência e saída (TDD)
+
+- [ ] 4.1 `V97` (coluna JSONB) + mapeamento na entidade
+      verify: `@DataJpaTest` ida e volta, nulo → vazio
+- [ ] 4.2 `PlanGenerationPersister` grava `descansos`; `PlanoSemanalOutputDto.descansos`
+      verify: `@WebMvcTest` do GET do plano
+- [ ] 4.3 Redistribuição com dias de descanso bloqueados + revalidação da cobertura depois dela
+      verify: CA12
+- [ ] 4.4 Treino criado pelo treinador num dia de descanso remove o descanso
+      verify: CA14
+- [ ] 4.5 Regra de cobertura desligada com skeleton do planner
+      verify: CA13
+- [ ] 4.6 Não-regressão: encerramento da semana, aderência, intervals.icu
+      verify: plano com descanso não gera PERDIDO nem entra no denominador
+- [ ] 4.7 `./mvnw clean verify`
+
+## 5. Entrega
+
+- [ ] 5.1 Geração real para o Leandro (TSB abaixo do limiar): todo dia coberto, descanso com motivo
+- [ ] 5.2 Geração real para atleta sem sinal: nenhum descanso, todo dia com treino
