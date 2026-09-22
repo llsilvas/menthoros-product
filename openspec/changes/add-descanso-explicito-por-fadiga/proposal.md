@@ -82,11 +82,19 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
   propaga `restDays`); PROXIMA_SEMANA materializa os dias efetivos (hoje `null`); treino criado pelo
   treinador num dia de descanso remove o descanso daquele dia; prova inserida por
   `garantirProvasNaSemana` num dia de descanso também o remove (a prova vence).
-- **Redistribuição não roda com cobertura válida.** Na SEMANA_ATUAL ela descarta treino por conflito
-  de dias consecutivos ("nenhum slot disponível", 22/09 07:13) — o que reabriria um dia omitido. Com
-  a cobertura validada, cada treino já está num dia efetivo distinto, e o limite de consecutivos é
-  tratado pelo sinal `DIAS_CONSECUTIVOS_LIMITE`. Antes de persistir, a cobertura é conferida de novo
-  (**fail-closed**: se quebrar, o plano não é salvo e vira 422 com a violação).
+- **Redistribuição não roda com cobertura válida** — ela descarta treino por conflito ("nenhum slot
+  disponível", 22/09 07:13), o que reabriria um dia omitido. As duas proteções que ela dava passam
+  para o lugar certo (achados do Codex na 2ª DoR):
+  - **Âncora do LONGO:** troca determinística de dias — se o LONGO não está no dia preferido e esse
+    dia é efetivo, o LONGO troca de dia com o que estiver lá (treino ou descanso). A troca preserva a
+    cobertura.
+  - **Segurança da sequência:** dois treinos intensos em dias vizinhos viram violação
+    `INTENSOS_ADJACENTES` (turno de reparo) — a mesma regra que o helper aplicava, agora sem descartar.
+    E uma sequência projetada de dias acima do máximo de consecutivos do atleta é o sinal
+    `SEQUENCIA_ACIMA_DO_MAXIMO` (escopo semanal), que libera o descanso num dia dentro dessa
+    sequência.
+  Antes de persistir, a cobertura é conferida de novo (**fail-closed**: se quebrar, o plano não é
+  salvo e vira 422 com a violação).
 - **`treinosPlanejados`: minItems 3 → 1, maxItems 5 → 7** — todo dia disponível é coberto, inclusive
   para quem treina 6-7 dias (decisão de 2026-09-22); o limite de dias consecutivos segue valendo.
 
@@ -136,6 +144,13 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
   é descartado; given a cobertura quebrar antes de persistir, then o plano não é salvo (422).
 - **CA12b** — Given prova inserida num dia de descanso, then o descanso daquele dia sai e a cobertura
   continua válida.
+- **CA12c** — Given LONGO fora do dia preferido (efetivo), then troca de dia com o item do dia
+  preferido e a cobertura se mantém; given dia preferido fora dos efetivos, then nada muda.
+- **CA12d** — Given dois tipos intensos (INTERVALADO, TIRO, FARTLEK, TEMPO_RUN) em dias vizinhos, then
+  violação `INTENSOS_ADJACENTES`.
+- **CA12e** — Given dias efetivos SEG a SAB (6 seguidos) e máximo de consecutivos 5, then o sinal
+  `SEQUENCIA_ACIMA_DO_MAXIMO` libera 1 descanso dentro da sequência; descanso fora dela não é liberado
+  por esse sinal.
 - **CA13** — Given skeleton do planner presente, then a regra de cobertura não roda.
 - **CA14** — Given o treinador cria um treino num dia de descanso, then o descanso daquele dia é
   removido do plano (auditável em log).

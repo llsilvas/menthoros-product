@@ -44,10 +44,18 @@ pura e testável (`WeeklyCoverageValidator` em `services/helper`):
 3. Dia fora de `diasEfetivos` → `COBERTURA_DIAS` (dia não disponível).
 4. `diasEfetivos − (diasTreino ∪ diasDescanso)` não vazio → `COBERTURA_DIAS` nomeando os dias.
 5. Descanso num dia sem sinal aplicável → `DESCANSO_SEM_SINAL`. Aplicável = sinal semanal
-   (`TSB_BAIXO`, `RPE_ALTO`) em qualquer dia; sinal agudo (`RECUPERACAO_INSUFICIENTE`,
-   `DIAS_CONSECUTIVOS_LIMITE`, `READINESS_DESCANSAR`) só em SEMANA_ATUAL e só no `firstEffectiveDay`.
+   (`TSB_BAIXO`, `RPE_ALTO`) em qualquer dia; `SEQUENCIA_ACIMA_DO_MAXIMO` em qualquer dia **dentro** da
+   sequência longa; sinal agudo (`RECUPERACAO_INSUFICIENTE`, `DIAS_CONSECUTIVOS_LIMITE`,
+   `READINESS_DESCANSAR`) só em SEMANA_ATUAL e só no `firstEffectiveDay` — o menor `DayOfWeek` entre
+   os efetivos, calculado (a `@ElementCollection` de dias não tem ordem garantida).
 6. `|diasDescanso| > 1` → `DESCANSO_ACIMA_DO_LIMITE` (`max(1, floor(d × 0,25))` = 1 para d ≤ 7).
 7. Motivo vazio/branco/>200 → `DESCANSO_SEM_MOTIVO`.
+8. Dois tipos intensos (`INTERVALADO`, `TIRO`, `FARTLEK`, `TEMPO_RUN` — o `TIPOS_ALTA_INTENSIDADE` do
+   helper) em dias vizinhos → `INTENSOS_ADJACENTES`.
+
+`SEQUENCIA_ACIMA_DO_MAXIMO` é calculado sobre os **dias efetivos** (não sobre o histórico): a maior
+sequência de dias seguidos contra `calcularMaxDiasConsecutivos`. Entra na lista de sinais com
+`scope = WEEK` e o intervalo da sequência.
 
 As violações vão juntas (o validador já acumula), e cada mensagem diz a saída válida.
 
@@ -105,9 +113,14 @@ Cada sinal carrega `scope` (`WEEK` ou `ACUTE`), que o validador usa no item 5 da
   `restDays`; teste v2 → v1 → persistência.
 - **Redistribuição:** `PlanGenerationPersister.obterTreinosParaPlano` (`:325`) não redistribui quando
   a cobertura foi validada (contexto presente) — a redistribuição descarta treino por conflito de
-  consecutivos e reabriria um dia omitido. Depois de `garantirProvasNaSemana` (`:340`), o persister
-  remove o descanso de todo dia que ganhou prova e confere a cobertura de novo: se quebrar, lança
-  `DomainRuleViolationException` e não persiste (fail-closed — não há turno de reparo ali).
+  consecutivos e reabriria um dia omitido. O mapeamento dia→data (`:453`, `:588`) e o filtro de dias
+  passados não dependem dela. O que ela fazia e precisa continuar:
+  - âncora do LONGO (`RedistribuicaoTreinoHelper:217-227`) → `LongRunAnchor.swap(treinos, restDays,
+    diaPreferidoLongo, effectiveDays)`: troca de dias, nunca descarta;
+  - separação de intensos (`:251-265`) → item 8 da Decisão 2, no validador (reparável).
+  Depois de `garantirProvasNaSemana` (`:340`), o persister remove o descanso de todo dia que ganhou
+  prova e confere a cobertura de novo: se quebrar, lança `DomainRuleViolationException` e não persiste
+  (fail-closed — não há turno de reparo ali).
 - **Planner:** com `skeleton != null` a regra não roda (Fora de escopo no proposal).
 - **Treino do treinador num dia de descanso:** `TreinoPlanejadoServiceImpl` (criação manual,
   `:195-210`) remove o descanso daquele dia do plano, na mesma transação, com log estruturado — é o

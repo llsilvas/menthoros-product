@@ -11,8 +11,12 @@
 
 ## 2. Regra de cobertura (TDD)
 
-- [ ] 2.1 `WeeklyCoverageValidator` puro (Decisão 2, itens 1-7, com escopo temporal dos sinais)
-      verify: tabela de cenários verde, BVA do limite (CA4), escopo dos sinais (CA4b)
+- [ ] 2.1 `WeeklyCoverageValidator` puro (Decisão 2, itens 1-8, com escopo temporal dos sinais e
+      `firstEffectiveDay` pelo menor `DayOfWeek`)
+      verify: tabela de cenários verde — CA1-CA7, CA4 (BVA), CA4b (escopo), CA12d (intensos
+      adjacentes), CA15 (6-7 dias)
+- [ ] 2.1b `SEQUENCIA_ACIMA_DO_MAXIMO` calculado sobre os dias efetivos
+      verify: CA12e
 - [ ] 2.2 `WeeklyCoverageContext` montado em `IaServiceImpl` (só com a flag ligada e sem skeleton) e
       passado a `PlanoLlmValidator` v1/v2; kill-switch `app.plano.weekly-coverage.enabled` (CA16)
       verify: violações chegam ao `PlanoResilienceService`; mensagem de reparo testada
@@ -33,10 +37,10 @@
 - [ ] 4.1 Migration (próximo número livre; hoje V97) `rest_days JSONB` + mapeamento na entidade
       verify: `@DataJpaTest` com Postgres (Testcontainers) — ida e volta, nulo → vazio
 - [ ] 4.2 `PlanGenerationPersister` grava `restDays`; `PlanoSemanalOutputDto.restDays`
-      verify: `@WebMvcTest` do GET do plano
-- [ ] 4.3 Sem redistribuição com cobertura validada; prova em dia de descanso remove o descanso;
-      checagem fail-closed antes de persistir
-      verify: CA12, CA12b
+      verify: CA8 — `@WebMvcTest` do GET do plano, plano antigo devolve lista vazia
+- [ ] 4.3 Sem redistribuição com cobertura validada; `LongRunAnchor.swap`; prova em dia de descanso
+      remove o descanso; checagem fail-closed antes de persistir
+      verify: CA12, CA12b, CA12c
 - [ ] 4.4 Treino criado pelo treinador num dia de descanso remove o descanso
       verify: CA14
 - [ ] 4.5 Regra de cobertura desligada com skeleton do planner
