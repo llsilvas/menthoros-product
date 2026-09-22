@@ -29,7 +29,7 @@ Repositório único: `apps/menthoros-backend`, branch `feature/fix-normalizador-
       os 5 de `PlanoMetadadosCacheIT` caíram por colisão com o hook `qa-gate` (`mvnw test`
       concorrente reescreveu `target/classes` durante a carga do contexto: "Unable to obtain
       inputstream ... V2__Add_multi_tenancy_support.sql") e passaram 5/5 reexecutados isolados.
-- [ ] 3.2 PR `feature/fix-normalizador-etapas-incompletas` → `develop` via `/pr`.
+- [x] 3.2 **Feito.** PR **#138** `feature/fix-normalizador-etapas-incompletas` → `develop`, aberto em 2026-09-21 (merge do founder; `/done` após o merge).
 
 ## Notas de implementação
 
