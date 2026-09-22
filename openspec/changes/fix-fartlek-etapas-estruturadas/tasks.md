@@ -38,4 +38,4 @@
 ## 3. Entrega
 
 - [x] 3.1 `./mvnw clean verify`
-- [ ] 3.2 Geração real para atleta degradado para Categoria D; conferir FARTLEK em `tb_etapa_treino`
+- [x] 3.2 Geração real para atleta degradado para Categoria D; conferir FARTLEK em `tb_etapa_treino` — 2026-09-22 07:24: FARTLEK 3,88 km / 30:00, 12 etapas; acelerações 6:40/km, recuperações 8:42/km, aquec/desaq 7:35/km
