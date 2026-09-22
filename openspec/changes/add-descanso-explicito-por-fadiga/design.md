@@ -50,8 +50,9 @@ pura e testável (`WeeklyCoverageValidator` em `services/helper`):
    os efetivos, calculado (a `@ElementCollection` de dias não tem ordem garantida).
 6. `|diasDescanso| > 1` → `DESCANSO_ACIMA_DO_LIMITE` (`max(1, floor(d × 0,25))` = 1 para d ≤ 7).
 7. Motivo vazio/branco/>200 → `DESCANSO_SEM_MOTIVO`.
-8. Dois tipos intensos (`INTERVALADO`, `TIRO`, `FARTLEK`, `TEMPO_RUN` — o `TIPOS_ALTA_INTENSIDADE` do
-   helper) em dias vizinhos → `INTENSOS_ADJACENTES`.
+8. Dois tipos de `TIPOS_ALTA_INTENSIDADE` em dias vizinhos → `INTENSOS_ADJACENTES`. O conjunto é o do
+   `RedistribuicaoTreinoHelper:35` (LONGO, FARTLEK, TEMPO_RUN, INTERVALADO, TIRO, PROVA, SUBIDA —
+   `fatorImpacto >= 1.15`), exposto como constante única e reusado pelos dois.
 
 `SEQUENCIA_ACIMA_DO_MAXIMO` é calculado sobre os **dias efetivos** (não sobre o histórico): a maior
 sequência de dias seguidos contra `calcularMaxDiasConsecutivos`. Entra na lista de sinais com
@@ -115,8 +116,12 @@ Cada sinal carrega `scope` (`WEEK` ou `ACUTE`), que o validador usa no item 5 da
   a cobertura foi validada (contexto presente) — a redistribuição descarta treino por conflito de
   consecutivos e reabriria um dia omitido. O mapeamento dia→data (`:453`, `:588`) e o filtro de dias
   passados não dependem dela. O que ela fazia e precisa continuar:
-  - âncora do LONGO (`RedistribuicaoTreinoHelper:217-227`) → `LongRunAnchor.swap(treinos, restDays,
-    diaPreferidoLongo, effectiveDays)`: troca de dias, nunca descarta;
+  - âncora do LONGO (`RedistribuicaoTreinoHelper:217-227`) → `LongRunAnchor.swap(plano, context)`:
+    troca de dias, nunca descarta. Roda **no lambda `validar` do `IaServiceImpl`, antes do
+    `WeeklyCoverageValidator`** — dentro do retry, para o validador julgar o arranjo final. Não troca se
+    o dia preferido tem descanso de sinal agudo. `diaPreferidoLongo` e o máximo de consecutivos
+    (`DisponibilidadePromptFormatter.calcularMaxDiasConsecutivos`, público) entram no
+    `WeeklyCoverageContext`, montado no `IaServiceImpl` — o validador não recebe `PlanoMetaDados`;
   - separação de intensos (`:251-265`) → item 8 da Decisão 2, no validador (reparável).
   Depois de `garantirProvasNaSemana` (`:340`), o persister remove o descanso de todo dia que ganhou
   prova e confere a cobertura de novo: se quebrar, lança `DomainRuleViolationException` e não persiste

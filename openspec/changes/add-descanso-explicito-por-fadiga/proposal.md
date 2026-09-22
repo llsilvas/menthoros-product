@@ -86,10 +86,14 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
   disponível", 22/09 07:13), o que reabriria um dia omitido. As duas proteções que ela dava passam
   para o lugar certo (achados do Codex na 2ª DoR):
   - **Âncora do LONGO:** troca determinística de dias — se o LONGO não está no dia preferido e esse
-    dia é efetivo, o LONGO troca de dia com o que estiver lá (treino ou descanso). A troca preserva a
-    cobertura.
+    dia é efetivo, o LONGO troca de dia com o que estiver lá. A troca roda **antes** da validação de
+    cobertura, dentro do retry: o validador julga o arranjo final, e qualquer conflito criado pela troca
+    vira violação reparável. Precedência: a troca **não** acontece se o dia preferido tem descanso
+    liberado por sinal agudo (ele só vale no primeiro dia efetivo).
   - **Segurança da sequência:** dois treinos intensos em dias vizinhos viram violação
-    `INTENSOS_ADJACENTES` (turno de reparo) — a mesma regra que o helper aplicava, agora sem descartar.
+    `INTENSOS_ADJACENTES` (turno de reparo) — o mesmo conjunto que o helper usa
+    (`TIPOS_ALTA_INTENSIDADE`: LONGO, FARTLEK, TEMPO_RUN, INTERVALADO, TIRO, PROVA, SUBIDA — reusado,
+    não copiado), agora sem descartar.
     E uma sequência projetada de dias acima do máximo de consecutivos do atleta é o sinal
     `SEQUENCIA_ACIMA_DO_MAXIMO` (escopo semanal), que libera o descanso num dia dentro dessa
     sequência.
@@ -145,9 +149,10 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
 - **CA12b** — Given prova inserida num dia de descanso, then o descanso daquele dia sai e a cobertura
   continua válida.
 - **CA12c** — Given LONGO fora do dia preferido (efetivo), then troca de dia com o item do dia
-  preferido e a cobertura se mantém; given dia preferido fora dos efetivos, then nada muda.
-- **CA12d** — Given dois tipos intensos (INTERVALADO, TIRO, FARTLEK, TEMPO_RUN) em dias vizinhos, then
-  violação `INTENSOS_ADJACENTES`.
+  preferido antes da validação; given dia preferido fora dos efetivos, ou com descanso de sinal agudo,
+  then nada muda. Given a troca criar intensos adjacentes, then violação `INTENSOS_ADJACENTES` (reparo).
+- **CA12d** — Given dois tipos de `TIPOS_ALTA_INTENSIDADE` (inclui LONGO, PROVA, SUBIDA) em dias
+  vizinhos, then violação `INTENSOS_ADJACENTES`.
 - **CA12e** — Given dias efetivos SEG a SAB (6 seguidos) e máximo de consecutivos 5, then o sinal
   `SEQUENCIA_ACIMA_DO_MAXIMO` libera 1 descanso dentro da sequência; descanso fora dela não é liberado
   por esse sinal.
