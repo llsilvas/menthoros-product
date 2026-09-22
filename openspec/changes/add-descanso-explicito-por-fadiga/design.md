@@ -20,8 +20,11 @@
 
 ## Decisão 1 — descanso é campo do plano, não item de `treinosPlanejados`
 
-**Escolhido:** `descansos: [{diaSemana, motivo}]` no nível do plano (`PlanoSemanalLlmDto` e
-`PlanoSemanalLlmDtoV2`), persistido em `tb_plano_semanal.descansos JSONB`.
+**Escolhido:** `restDays: [{dayOfWeek, reason}]` no nível do plano (`PlanoSemanalLlmDto` e
+`PlanoSemanalLlmDtoV2`), persistido em `tb_plano_semanal.rest_days JSONB`. `dayOfWeek` é `String` com
+o nome do enum (`SEGUNDA`…`DOMINGO`) no DTO da LLM, no JSONB e no DTO de saída — `DiaSemana`
+serializa como objeto (`@JsonFormat(shape = OBJECT)`) e não serve de tipo de fio aqui; a conversão
+para o enum acontece no validador. Nomes novos em inglês (ADR-0007).
 
 **Rejeitado — DESCANSO em `treinosPlanejados`:** o enum `TipoTreino.DESCANSO` já existe, o que
 tenta. Mas exigiria afrouxar `etapas`/`blocos` para um tipo só (o `strict` não tem `oneOf` por tipo
@@ -31,16 +34,19 @@ existente enxerga o descanso: CA9 vale por construção.
 
 ## Decisão 2 — regra de cobertura no validador do plano, dentro do retry
 
-`PlanoLlmValidator.validarPlano`/`validarPlanoV2` ganham um `ContextoCobertura(diasEfetivos,
-sinaisFadiga, limiteDescansos)` — montado em `IaServiceImpl` no mesmo lugar dos dias efetivos. A
-regra, pura e testável (`CoberturaSemanalValidator` em `services/helper`):
+`PlanoLlmValidator.validarPlano`/`validarPlanoV2` ganham um `WeeklyCoverageContext(effectiveDays,
+fatigueSignals, firstEffectiveDay, currentWeek)` — montado em `IaServiceImpl` no mesmo lugar dos dias
+efetivos. Só é montado com `app.plano.weekly-coverage.enabled=true` e `skeleton == null`. A regra,
+pura e testável (`WeeklyCoverageValidator` em `services/helper`):
 
 1. `diasTreino` (multiconjunto) e `diasDescanso` (multiconjunto).
 2. Repetição em qualquer um, ou dia em ambos → `COBERTURA_DIAS` (dia duplicado).
 3. Dia fora de `diasEfetivos` → `COBERTURA_DIAS` (dia não disponível).
 4. `diasEfetivos − (diasTreino ∪ diasDescanso)` não vazio → `COBERTURA_DIAS` nomeando os dias.
-5. `|diasDescanso| > 0` sem sinal → `DESCANSO_SEM_SINAL`.
-6. `|diasDescanso| > limite` → `DESCANSO_ACIMA_DO_LIMITE`. `limite = max(1, floor(|efetivos| × 0,25))`.
+5. Descanso num dia sem sinal aplicável → `DESCANSO_SEM_SINAL`. Aplicável = sinal semanal
+   (`TSB_BAIXO`, `RPE_ALTO`) em qualquer dia; sinal agudo (`RECUPERACAO_INSUFICIENTE`,
+   `DIAS_CONSECUTIVOS_LIMITE`, `READINESS_DESCANSAR`) só em SEMANA_ATUAL e só no `firstEffectiveDay`.
+6. `|diasDescanso| > 1` → `DESCANSO_ACIMA_DO_LIMITE` (`max(1, floor(d × 0,25))` = 1 para d ≤ 7).
 7. Motivo vazio/branco/>200 → `DESCANSO_SEM_MOTIVO`.
 
 As violações vão juntas (o validador já acumula), e cada mensagem diz a saída válida.
@@ -49,9 +55,9 @@ As violações vão juntas (o validador já acumula), e cada mensagem diz a saí
 
 Os portões de `IntervaladoElegibilidadeService` retornam no primeiro que dispara (readiness em
 `:140`, TSB crítico `:214`, TSB `:235`, RPE `:247`, recuperação `:272`, CTL `:281`) — usar a
-recomendação como fonte perderia sinais. **Escolhido:** um `SinaisFadigaService` (ou método puro no
-mesmo serviço) avalia **todos** os sinais de forma independente e devolve `List<SinalFadiga>`, cada um
-com `tipo`, `valor` e `limiar` (para o motivo citar número e régua):
+recomendação como fonte perderia sinais. **Escolhido:** um `FatigueSignalsService` (ou método puro no
+mesmo serviço) avalia **todos** os sinais de forma independente e devolve `List<FatigueSignal>`, cada um
+com `type`, `value` e `threshold` (para o motivo citar número e régua):
 
 | Sinal | Fonte | Libera descanso |
 |---|---|---|
@@ -64,16 +70,19 @@ com `tipo`, `valor` e `limiar` (para o motivo citar número e régua):
 
 A recomendação do intervalado continua como está (não muda o comportamento da degradação). A lista é
 calculada uma vez em `PlanoTreinoPromptBuilder` e segue no `PromptGerado` até o `IaServiceImpl`.
+Cada sinal carrega `scope` (`WEEK` ou `ACUTE`), que o validador usa no item 5 da Decisão 2.
 
 ## Decisão 4 — schema e prompt
 
-- `descansos`: array (pode ser vazio), itens `{diaSemana: enum, motivo: string maxLength 200}`,
-  `required` pelo `strict`. v1 e v2.
+- `restDays`: array (pode ser vazio), itens `{dayOfWeek: enum de strings, reason: string maxLength
+  200}`, `required` pelo `strict`. v1 e v2.
 - `treinosPlanejados.minItems` 3 → 1 e `maxItems` 5 → 7 (a cobertura governa; decisão de
   2026-09-22 para atletas de 6-7 dias).
 - `DisponibilidadePromptFormatter:110` ("Incluir dia de descanso completo ou regenerativo
-  OBRIGATÓRIO") e `:116` ("Dia de descanso sugerido") passam a apontar para o campo `descansos` —
+  OBRIGATÓRIO") e `:116` ("Dia de descanso sugerido") passam a apontar para o campo `restDays` —
   coerentes com os sinais `DIAS_CONSECUTIVOS_LIMITE` e a regra.
+- O bloco de cobertura do prompt lista os sinais ativos com valor, limiar e o(s) dia(s) em que cada um
+  libera descanso — é assim que a LLM sabe o limite e onde pode usá-lo.
 - System prompt: bloco "COBERTURA DA SEMANA" — todo dia disponível recebe treino ou descanso; sem
   sinal de fadiga, nunca descanso; a instrução do intervalado degradado ganha a frase do limite
   ("até N dia(s) pode(m) virar descanso, com motivo citando o sinal").
@@ -81,19 +90,24 @@ calculada uma vez em `PlanoTreinoPromptBuilder` e segue no `PromptGerado` até o
 
 ## Decisão 5 — persistência e saída
 
-- `V97__Add_descansos_to_tb_plano_semanal.sql`: `ALTER TABLE tb_plano_semanal ADD COLUMN IF NOT EXISTS
-  descansos JSONB` (nulo = plano anterior à feature). Sem backfill, sem DROP.
-- Entidade: `List<DescansoPlanejado>` (record `diaSemana`, `motivo`) com `@JdbcTypeCode(SqlTypes.JSON)`.
-- `PlanoSemanalOutputDto.descansos` (`List<DescansoOutputDto>`, vazio quando nulo). Aditivo.
+- `V97__Add_rest_days_to_tb_plano_semanal.sql` (conferir o próximo número livre na hora de
+  implementar): `ALTER TABLE tb_plano_semanal ADD COLUMN IF NOT EXISTS rest_days JSONB` (nulo = plano
+  anterior à feature). Sem backfill, sem DROP.
+- Entidade: `List<RestDay>` (record `dayOfWeek`, `reason`) com `@JdbcTypeCode(SqlTypes.JSON)` —
+  precedente no próprio `PlanoSemanal:157` (lá como `String`); o teste `@DataJpaTest` cobre a lista de
+  records de verdade, com Postgres (Testcontainers), não H2.
+- `PlanoSemanalOutputDto.restDays` (`List<RestDayOutputDto>`, vazio quando nulo). Aditivo.
 - SEMANA_ATUAL: dia de descanso que já passou não existe (os efetivos já filtram).
 
 ## Decisão 6 — integrações (achados do Codex)
 
 - **v2:** `SessionResolver.resolverPlano` (`:60-68`) reconstrói o DTO v1 campo a campo — copiar
-  `descansos`; teste v2 → v1 → persistência.
-- **Redistribuição:** `RedistribuicaoTreinoHelper` recebe os dias de descanso como bloqueados (não
-  são `diasValidos`); `PlanGenerationPersister` revalida a cobertura depois de redistribuir e loga
-  WARN se ela quebrar (a redistribuição roda depois do retry — não há reparo possível ali).
+  `restDays`; teste v2 → v1 → persistência.
+- **Redistribuição:** `PlanGenerationPersister.obterTreinosParaPlano` (`:325`) não redistribui quando
+  a cobertura foi validada (contexto presente) — a redistribuição descarta treino por conflito de
+  consecutivos e reabriria um dia omitido. Depois de `garantirProvasNaSemana` (`:340`), o persister
+  remove o descanso de todo dia que ganhou prova e confere a cobertura de novo: se quebrar, lança
+  `DomainRuleViolationException` e não persiste (fail-closed — não há turno de reparo ali).
 - **Planner:** com `skeleton != null` a regra não roda (Fora de escopo no proposal).
 - **Treino do treinador num dia de descanso:** `TreinoPlanejadoServiceImpl` (criação manual,
   `:195-210`) remove o descanso daquele dia do plano, na mesma transação, com log estruturado — é o
@@ -101,13 +115,15 @@ calculada uma vez em `PlanoTreinoPromptBuilder` e segue no `PromptGerado` até o
 
 ## Testes
 
-- `CoberturaSemanalValidatorTest`: tabela de cenários (cobertura exata, falta, sobra, repetição,
+- `WeeklyCoverageValidatorTest`: tabela de cenários (cobertura exata, falta, sobra, repetição,
   dia inválido, sinal × sem sinal por tipo de sinal, BVA do limite 3/4/7/8 dias, motivo vazio/branco/
   201 chars, SEMANA_ATUAL × PROXIMA_SEMANA, 6-7 dias com o teto).
 - `IntervaladoElegibilidadeServiceTest`: `sinais` por portão, inclusive combinações.
 - `PlanoLlmValidatorTest`: violações chegam como `PlanoNaoConformeException` com as keys.
 - `RepairTurnMessageBuilderTest`: mensagem de cobertura legível.
-- Schema: golden de `LlmJsonSchemaBuilder` (v1/v2); golden do prompt.
+- Schema: asserções estruturais em `LlmJsonSchemaBuilderTest` (não há golden do schema hoje):
+  `restDays` required, itens, enum de dias, `minItems`/`maxItems`; v1 e v2. Prompt: golden em
+  `PlanoTreinoPromptBuilderGoldenTest` (`-Dgolden.update=true`).
 - Persistência: `@DataJpaTest` do JSONB (ida e volta, nulo → vazio); controller `@WebMvcTest` do DTO.
 - Encerramento de semana e aderência: teste de não-regressão (plano com descanso não gera PERDIDO).
 - `SinaisFadiga`: cada sinal isolado e combinados (TSB + CTL, readiness sem check-in, flag off).

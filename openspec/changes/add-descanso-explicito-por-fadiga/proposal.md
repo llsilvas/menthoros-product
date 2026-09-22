@@ -3,8 +3,8 @@
 **Tamanho:** L · **Trilha:** Full
 **Status:** proposta
 **Criado:** 2026-09-22
-**Seguida por:** change de front (exibir o descanso com motivo no plano do treinador) — o backend
-não vai para `main` antes dela.
+**Seguida por:** `show-descanso-no-plano` (front). O backend não vai para `main` antes dela — gate
+explícito na task 5.3.
 
 > Origem: plano do Leandro (`d83c4c31`, 4 dias disponíveis: SEG/TER/QUI/SAB). Em 22/09, 5 de 7
 > gerações para a semana cheia vieram com **3 treinos**, sempre sem a quinta — o dia da sessão de
@@ -47,7 +47,8 @@ não follow-up opcional.
 
 Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e DTO de saída.
 
-- **Campo `descansos` no plano da LLM** — `[{diaSemana, motivo}]`, fora de `treinosPlanejados`.
+- **Campo `restDays` no plano da LLM** — `[{dayOfWeek, reason}]`, fora de `treinosPlanejados`
+  (identificadores novos em inglês — ADR-0007; o texto do `reason` é PT-BR para o treinador).
   Descanso não é treino: colocá-lo na lista de treinos o faria ser marcado PERDIDO no encerramento
   da semana, contar no denominador de aderência, ocupar slot na redistribuição e cair na conformidade
   do skeleton (ver `design.md`, Decisão 1).
@@ -63,15 +64,29 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
   baixa pede frequência com treino leve.
 - **O motivo cita o sinal com número e limiar** ("TSB −18, abaixo do limiar de −15 para
   Intermediário"), para o treinador confiar sem abrir outra tela.
-- **Limite:** `max(1, floor(dias × 0,25))` descansos por semana.
+- **Limite: 1 descanso por semana.** É o que `max(1, floor(dias × 0,25))` dá para qualquer semana
+  (1 a 7 dias) — a fórmula dos ~20-25% da literatura, que numa semana nunca passa de 1.
+- **Escopo temporal dos sinais** (achado do Codex): TSB baixo e RPE médio alto descrevem o estado da
+  semana e liberam descanso em qualquer dia. Recuperação insuficiente, limite de dias consecutivos e
+  check-in DESCANSAR descrevem o **agora**: só liberam descanso no **primeiro dia efetivo** do plano,
+  e só na SEMANA_ATUAL — um check-in de hoje não justifica descanso na quinta da semana que vem.
 - **Prompt:** instrução explícita — cobrir todo dia disponível; sem sinal, dia de intensidade que não
   cabe vira treino leve; com sinal, até N dias podem virar descanso, cada um com motivo.
-- **Persistência:** `tb_plano_semanal.descansos` (JSONB) + campo aditivo `descansos` no
-  `PlanoSemanalOutputDto`.
+- **Persistência:** `tb_plano_semanal.rest_days` (JSONB) + campo aditivo `restDays` no
+  `PlanoSemanalOutputDto` (`dayOfWeek` como `String` com o nome do enum — `DiaSemana` serializa como
+  objeto e o schema da LLM trabalha com strings).
+- **Kill-switch:** `app.plano.weekly-coverage.enabled` (default `true`). Com `false`, a regra de
+  cobertura não roda e `restDays` é aceito mas não exigido — volta ao comportamento de hoje sem deploy
+  de código.
 - **Integrações que o descanso atravessa** (achados do Codex): caminho v2 (`SessionResolver`
-  propaga `descansos`); redistribuição trata dias de descanso como bloqueados e a cobertura é
-  revalidada depois dela; PROXIMA_SEMANA materializa os dias efetivos (hoje `null`); treino criado
-  pelo treinador num dia de descanso remove o descanso daquele dia.
+  propaga `restDays`); PROXIMA_SEMANA materializa os dias efetivos (hoje `null`); treino criado pelo
+  treinador num dia de descanso remove o descanso daquele dia; prova inserida por
+  `garantirProvasNaSemana` num dia de descanso também o remove (a prova vence).
+- **Redistribuição não roda com cobertura válida.** Na SEMANA_ATUAL ela descarta treino por conflito
+  de dias consecutivos ("nenhum slot disponível", 22/09 07:13) — o que reabriria um dia omitido. Com
+  a cobertura validada, cada treino já está num dia efetivo distinto, e o limite de consecutivos é
+  tratado pelo sinal `DIAS_CONSECUTIVOS_LIMITE`. Antes de persistir, a cobertura é conferida de novo
+  (**fail-closed**: se quebrar, o plano não é salvo e vira 422 com a violação).
 - **`treinosPlanejados`: minItems 3 → 1, maxItems 5 → 7** — todo dia disponível é coberto, inclusive
   para quem treina 6-7 dias (decisão de 2026-09-22); o limite de dias consecutivos segue valendo.
 
@@ -84,46 +99,59 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
 - **Planner determinístico** (`planner-engine.enabled`, hoje `false`): com skeleton, o skeleton é
   dono da frequência ("gere exatamente estas sessões") e a regra de cobertura não roda. Integrar
   descanso ao skeleton é trabalho de `planner-engine-enforcement`.
-- Treino realizado em dia de descanso, edição do descanso pelo treinador (a edição já existente de
-  treino não cobre descanso) — follow-up se o front pedir.
+- Treino **realizado** (atividade importada) num dia de descanso: o descanso fica como estava; a
+  aderência já trata treino realizado fora do plano. Não confundir com o CA14, que é treino
+  **planejado** criado pelo treinador.
 
 ## Critérios de aceite
 
 - **CA1** — Given dias efetivos {SEG, TER, QUI, SAB}, sem sinal de fadiga, e a LLM devolve treinos em
   SEG/TER/SAB e nenhum descanso, then o plano é rejeitado com violação `COBERTURA_DIAS` que nomeia
   QUINTA, e o turno de reparo a recebe.
-- **CA2** — Given o mesmo plano com `descansos: [{QUINTA, "TSB −18 abaixo do limiar −15"}]` e sinal
+- **CA2** — Given o mesmo plano com `restDays: [{QUINTA, "TSB −18 abaixo do limiar −15"}]` e sinal
   de TSB ativo, then o plano passa e é persistido com o descanso.
 - **CA3** — Given descanso sem nenhum sinal de fadiga (só CTL baixo, ou nenhum), then violação
   `DESCANSO_SEM_SINAL`.
-- **CA4** — Given 4 dias e 2 descansos, then violação `DESCANSO_ACIMA_DO_LIMITE` (limite 1); BVA do
-  limite: 3→1, 4→1, 7→1, 8→2.
+- **CA4** — Given 4 dias e 2 descansos, then violação `DESCANSO_ACIMA_DO_LIMITE`. BVA: 1, 2, 3, 4 e 7
+  dias efetivos → limite 1; 0 descanso e 1 descanso passam, 2 reprovam.
+- **CA4b** — Given PROXIMA_SEMANA com só sinal de check-in DESCANSAR (ou de recuperação, ou de dias
+  consecutivos), then descanso em qualquer dia → `DESCANSO_SEM_SINAL`. Given SEMANA_ATUAL com o mesmo
+  sinal, then descanso no primeiro dia efetivo passa e em qualquer outro reprova. TSB e RPE liberam
+  qualquer dia nos dois modos.
 - **CA5** — Given dia repetido entre treino e descanso, dois treinos no mesmo dia, ou dia fora dos
   efetivos, then violação `COBERTURA_DIAS` específica.
 - **CA6** — Given SEMANA_ATUAL com dias já passados, then a cobertura considera só os dias efetivos
   restantes; PROXIMA_SEMANA considera os dias disponíveis do atleta.
 - **CA7** — Given descanso com motivo vazio/branco ou acima de 200 caracteres, then violação.
-- **CA7b** — Given descanso liberado por RPE_ALTO, then a instrução ao LLM e o motivo esperado citam
-  o valor (RPE médio 7d) e o limiar (7,5), não só o nome do sinal.
-- **CA8** — Given plano com descanso persistido, then `GET` do plano devolve `descansos` com dia e
+- **CA7b** — Para cada sinal que libera descanso, a instrução ao LLM cita o valor e o limiar
+  ("TSB −18, limiar −15"; "RPE médio 7d 8,1, limiar 7,5"; "36h desde o último intensivo, mínimo
+  48h"; "6 dias consecutivos, máximo 5"; "check-in de hoje: DESCANSAR").
+- **CA8** — Given plano com descanso persistido, then `GET` do plano devolve `restDays` com dia e
   motivo; plano antigo (coluna nula) devolve lista vazia.
 - **CA9** — O descanso nunca aparece como treino planejado: não é marcado PERDIDO, não entra na
   aderência, não é redistribuído, não é exportado ao intervals.icu.
-- **CA10** — v1 e v2 do schema aceitam `descansos`; o golden do prompt reflete a instrução nova.
+- **CA10** — v1 e v2 do schema aceitam `restDays`; o golden do prompt reflete a instrução nova.
 - **CA11** — Given plano v2 com descanso, then `SessionResolver` o preserva até a persistência.
-- **CA12** — Given redistribuição (SEMANA_ATUAL), then nenhum treino é movido para um dia de
-  descanso, e a cobertura é revalidada depois.
+- **CA12** — Given SEMANA_ATUAL com cobertura válida, then a redistribuição não roda e nenhum treino
+  é descartado; given a cobertura quebrar antes de persistir, then o plano não é salvo (422).
+- **CA12b** — Given prova inserida num dia de descanso, then o descanso daquele dia sai e a cobertura
+  continua válida.
 - **CA13** — Given skeleton do planner presente, then a regra de cobertura não roda.
 - **CA14** — Given o treinador cria um treino num dia de descanso, then o descanso daquele dia é
   removido do plano (auditável em log).
 - **CA15** — Given 6 ou 7 dias disponíveis, then o schema aceita até 7 treinos e a cobertura exige
   todos os dias.
+- **CA16** — Given `app.plano.weekly-coverage.enabled=false`, then plano com dia omitido passa (como
+  hoje) e `restDays` informado é persistido.
 
 ## Métrica de sucesso
 
 - **Aceitação do descanso pelo treinador** (métrica-alvo do North Star, habilitada com o front): %
-  de descansos mantidos sem edição vs. convertidos em treino — calibra os sinais de fadiga, como a
-  taxa de aceitação das sugestões semanais.
+  de descansos mantidos vs. convertidos em treino. A conversão já é observável sem coluna nova: o
+  treino criado no dia de descanso nasce com `adicionado_pelo_coach = true` (V41) e o log do CA14
+  registra o descanso removido.
+
+**Gate desta change (backend):** as três métricas abaixo; a de aceitação é da change de front.
 
 - **Dias omitidos em silêncio:** 0 — todo plano persistido cobre os dias efetivos (hoje 5 de 7
   gerações do Leandro em 22/09 omitiam um dia).
@@ -142,13 +170,13 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
 - **`maxItems` 5 → 7:** atletas com 6-7 dias passam a receber 6-7 treinos quando não há sinal —
   mais volume de sessões. O limite de dias consecutivos e a progressão de carga continuam
   restringindo; acompanhar o volume semanal desses atletas nas primeiras gerações.
-- **Janela cega do treinador.** Entre o merge do backend e o do front, `descansos` existe no banco e
+- **Janela cega do treinador.** Entre o merge do backend e o do front, `restDays` existe no banco e
   na API mas não aparece na UI: o corte deixa de ser silencioso no sistema e continua silencioso para
   o treinador. Mitigação: **o backend não vai para `main` antes da change de front** (gate da
   promoção `develop → main`).
 - **Sinal fisiológico mal classificado / 422 em loop** (Codex): o prompt de hoje manda descansar em
   dois casos que não estavam entre os sinais. Mitigação: os cinco sinais, calculados completos.
-- **Contrato de API aditivo** (`descansos` no DTO): front antigo ignora o campo.
+- **Contrato de API aditivo** (`restDays` no DTO): front antigo ignora o campo.
 
 ## Open Questions & Assumptions
 
@@ -159,6 +187,14 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
   (`IntervaladoElegibilidadeService`) — um sinal, uma régua.
 - **Decidido (2026-09-22, após o Codex):** limite de dias consecutivos e check-in DESCANSAR também
   são sinais; `maxItems` sobe para 7.
-- **Em aberto (front):** converter treino em descanso pela UI (o inverso — criar treino no dia de
-  descanso — já é coberto aqui). A edição do descanso pelo treinador deve gerar o mesmo sinal de
-  edição que os treinos geram hoje, para o loop de aprendizado não ter ponto cego.
+- **Decidido (DoR, 2026-09-22):** escopo temporal dos sinais; limite = 1 por semana; redistribuição
+  não roda com cobertura válida + checagem fail-closed antes de persistir; kill-switch; nomes em
+  inglês.
+- **Follow-up (front):** converter treino em descanso pela UI. O sinal de edição do caminho inverso
+  (criar treino no dia de descanso) já existe: `adicionado_pelo_coach`.
+
+## Rollback
+
+1. Operacional, sem deploy: `app.plano.weekly-coverage.enabled=false` (CA16).
+2. Código: revert do PR. A `V97` só adiciona uma coluna nula — fica no banco sem efeito (não fazer
+   `DROP COLUMN` no rollback; se um dia for removida, é migration nova).
