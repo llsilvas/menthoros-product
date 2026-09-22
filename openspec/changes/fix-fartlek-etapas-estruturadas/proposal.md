@@ -90,6 +90,13 @@ impossível — o sintoma que abriu a investigação ("tempos não condizem com 
   rodava antes e não alcançava as recuperações criadas pela expansão).
 - **O expansor não sobrescreve mais a duração do treino** — só troca as etapas.
   `recalcular-duracao` (cauda comum) decide com o desempate pelo triângulo.
+- **QA (code-reviewer):** `expandir` é compartilhado com INTERVALADO_TIRO, onde
+  `corrigir-temporais` rodava só antes — um INTERVALADO escrito como série por tempo
+  ("4x (3min + 2min)") ficaria com recuperações de 0 km para sempre. A receita INTERVALADO_TIRO
+  repete `corrigir-temporais` logo depois de `expandir` (idempotente para aquec/desaq e para o
+  caminho `NxDist`, cuja recuperação-modelo já saiu corrigida pelo pace — as caracterizações de
+  intervalado não mudaram). Efeito aceito na receita FARTLEK: num fartlek `NxDist` ("6x400m"), a
+  recuperação expandida também passa a receber `duração ÷ pace Z1` em vez da proporção da LLM.
 
 ## Fora de escopo
 
@@ -135,6 +142,9 @@ impossível — o sintoma que abriu a investigação ("tempos não condizem com 
 - **CA10** — Given uma série por tempo cuja etapa de origem tem `ritmoAlvo`, then cada aceleração
   tem `distanciaKm = round2(duração ÷ pace médio)`; given sem `ritmoAlvo`, then `0.0`.
 - **CA11** — Given uma expansão, then `expandirEtapasAgregadas` preserva `duracaoMin` do treino.
+- **CA13** — Given um INTERVALADO com série por tempo, then as recuperações expandidas têm
+  distância > 0 (pace de trote); o golden de ordem da receita INTERVALADO_TIRO reflete o 2º
+  `corrigir-temporais`.
 - **CA12** — As recuperações criadas pela expansão recebem `duração ÷ pace Z1` (corrigir-temporais
   depois de expandir); o golden de ordem da receita FARTLEK reflete a troca.
 
