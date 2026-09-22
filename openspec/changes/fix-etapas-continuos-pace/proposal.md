@@ -115,6 +115,11 @@ Percentual de etapas PRINCIPAL de treinos contínuos persistidas com pace implí
 
 ## Open Questions & Assumptions
 
+- **Follow-up (validação real 22/09 08:35):** em 2 de 3 contínuos a LLM omitiu aquec ou desaq e o
+  reparo sintetizou por cima da prescrição — o treinador aprova 45 min / 6 km e o relógio recebe
+  55 min / 7,2 km (a telemetria nova contou 20%). Candidato a change própria: o reparo **encaixar**
+  a etapa sintetizada na duração prescrita (encurtando a PRINCIPAL) em vez de somar.
+
 - **Assumido:** o `ritmoAlvo` da etapa PRINCIPAL é a fonte de verdade para ela; a duração da etapa
   (não a distância) é o que a LLM acerta — é o que o treino mostra no total coerente.
 - **Assumido:** pace Z2 = limiar × 1,20 para aquecimento/desaquecimento, como já faz

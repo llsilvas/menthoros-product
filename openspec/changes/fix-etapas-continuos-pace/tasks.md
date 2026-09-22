@@ -24,4 +24,4 @@
 
 ## 2. Entrega
 
-- [ ] 2.1 Geração real para o Leandro; conferir pace das etapas contínuas em `tb_etapa_treino`
+- [x] 2.1 Geração real para o Leandro; conferir pace das etapas contínuas em `tb_etapa_treino` — 2026-09-22 08:35: LONGO 9,0→8,48 km (tolerância zero, pace médio 7:05 no ritmo); CONTINUO e REGENERATIVO com etapa sintetizada mantiveram 7,0/48 e 6,0/45 (WARN de 20% no REGENERATIVO); toda PRINCIPAL dentro do ritmo
