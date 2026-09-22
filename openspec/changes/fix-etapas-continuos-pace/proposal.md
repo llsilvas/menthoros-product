@@ -40,8 +40,15 @@ Backend, receita TRES_ETAPAS, sem contrato de API nem schema. Mesmo princípio d
 - **Novo passo `distancia-principal-por-pace`** (`TreinoNormalizador`): cada etapa PRINCIPAL com
   `duracaoMin > 0` e `ritmoAlvo` interpretável recebe `distanciaKm = round2(duração ÷ pace médio)`.
   Sem `ritmoAlvo` (na etapa), a distância da LLM fica como está.
-- **`reconciliar-distancia`** entra depois: o total do treino só é trocado pela soma das etapas
-  quando o desvio passa de 10% e nenhuma etapa está sem distância (regras já vigentes).
+- **`reconciliar-distancia`** entra depois, com **tolerância zero** (decisão de 2026-09-22, após a
+  geração real das 08:00): quando toda etapa é confiável — distância pelo pace, nada sintetizado —
+  o total do treino é a soma arredondada das etapas. Com os 10% da regra geral, o LONGO saiu com
+  9,0 km no total e 8,24 km nas etapas (o treinador vê 9, o relógio recebe 8,24; pace médio do
+  total 6:40, fora do ritmo 6:55-7:28). Custo aceito: o volume semanal encolhe (22,0 → ~20,7 km
+  naquele plano) porque a LLM superestima o total — o que o atleta corre não muda.
+- **Telemetria da divergência mantida**: quando o total da LLM fica (etapa sintetizada ou PRINCIPAL
+  sem ritmo) e as etapas divergem mais de 10%, WARN + `plano_etapas_total_divergente{tipo,motivo}`
+  (achado do code-reviewer).
 
 Simulação com os três treinos acima (limiar 6:20/km → Z2 7:36/km):
 
@@ -71,8 +78,8 @@ Simulação com os três treinos acima (limiar 6:20/km → Z2 7:36/km):
 - **CA3** — Given PRINCIPAL sem `ritmoAlvo`, then a distância dela é a da LLM (sem alteração).
 - **CA4** — Given AQUECIMENTO sintetizado pelo reparo (distância `null`), then recebe
   `duração ÷ pace Z2`.
-- **CA5** — Given a soma nova das etapas desviando > 10% do total da LLM, then o total vira a soma;
-  ≤ 10%, fica o da LLM. Em ambos os casos o teste afirma também a duração final do treino e que ela
+- **CA5** — Given toda etapa pelo pace e nada sintetizado, then o total é a soma arredondada das
+  etapas para qualquer desvio (0,1%, 9%, 11%, 100%). Em ambos os casos o teste afirma também a duração final do treino e que ela
   é a soma das durações das etapas quando essa soma é a mais próxima do triângulo (precedência de
   `recalcular-duracao`, achado do Codex).
 - **CA6** — LONGO com duas PRINCIPAL (`validarOrdem=false`): cada uma recebe a própria distância.
@@ -86,6 +93,9 @@ Simulação com os três treinos acima (limiar 6:20/km → Z2 7:36/km):
   etapas ganham distância pelo pace. Decisão de produto de 2026-09-22: o que o sistema inventa não
   infla o volume que o treinador aprova (regenerativo de 30 min / 4 km não vira 45 min / 6,94 km) —
   mesmo princípio do CA4b de `fix-normalizador-etapas-incompletas`.
+- **CA11** — Given total da LLM mantido (etapa sintetizada ou PRINCIPAL sem ritmo) e etapas
+  divergindo > 10%, then WARN e contador `plano_etapas_total_divergente` com o motivo; ≤ 10% ou
+  total reconciliado, nada é contado.
 - **CA7** — O golden de ordem da receita TRES_ETAPAS reflete os três passos novos; as outras
   receitas não mudam.
 

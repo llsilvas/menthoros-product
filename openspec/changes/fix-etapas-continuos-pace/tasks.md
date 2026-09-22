@@ -17,6 +17,11 @@
       reordenado × sintetizado, total 0/null, sem limiar, família PADRAO intocada
       verify: `./mvnw clean verify` — 4035 unit + 193 IT, 0 falhas
 
+- [x] 1.6 Tolerância zero na reconciliação dos contínuos + telemetria da divergência mantida
+      (+28 testes: casos reais de 08:00, BVA da tolerância, propriedade total == soma, arredondamento,
+      contador por motivo, `adotarSomaDasEtapas`)
+      verify: `./mvnw clean verify` — 4063 unit + 193 IT, 0 falhas
+
 ## 2. Entrega
 
 - [ ] 2.1 Geração real para o Leandro; conferir pace das etapas contínuas em `tb_etapa_treino`
