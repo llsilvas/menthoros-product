@@ -79,6 +79,13 @@ Simulação com os três treinos acima (limiar 6:20/km → Z2 7:36/km):
 - **CA8** — Given treino sem distância e PRINCIPAL sem `ritmoAlvo`, then o fallback vigente de
   `garantir-distancia-continuo` (duração ÷ pace Z2) continua valendo — o CA3 (preservar a distância
   da LLM) só se aplica quando a LLM mandou distância.
+- **CA9** — Given PRINCIPAL sem `ritmoAlvo` e treino com distância, then o total NÃO é reconciliado
+  (a PRINCIPAL carrega o total que a LLM concentrou nela; somada a aquec/desaq pelo Z2 inflaria 6,0
+  para 7,48 km). Achado ao escrever os testes de borda.
+- **CA10** — Given etapa sintetizada pelo reparo (aquec ou desaq), then o total prescrito fica e as
+  etapas ganham distância pelo pace. Decisão de produto de 2026-09-22: o que o sistema inventa não
+  infla o volume que o treinador aprova (regenerativo de 30 min / 4 km não vira 45 min / 6,94 km) —
+  mesmo princípio do CA4b de `fix-normalizador-etapas-incompletas`.
 - **CA7** — O golden de ordem da receita TRES_ETAPAS reflete os três passos novos; as outras
   receitas não mudam.
 
