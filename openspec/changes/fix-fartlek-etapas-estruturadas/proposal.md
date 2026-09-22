@@ -37,23 +37,29 @@ Três falhas se somam:
 Backend, sem contrato de API nem schema:
 
 - **`CategoriaIntervalado.D.instrucaoPadrao`** passa a pedir fartlek leve **estruturado**, no
-  formato que o expansor entende e com a instrução explícita de expandir: 4-6× (1-2 min Z3 + 2 min
-  Z2), cada aceleração e cada recuperação como etapa individual, entre aquecimento e desaquecimento.
+  formato que o expansor entende e com a instrução explícita de expandir. O exemplo é **concreto**
+  — `5× (1min Z3 + 2min Z2)` — porque o regex do expansor exige um único `N` e durações inteiras
+  (`4-6× (1-2 min ...)` não casaria; achado do Codex na DoR). Cada aceleração e cada recuperação é
+  etapa individual, entre aquecimento e desaquecimento.
   A intensidade continua a de uma versão segura (Z3, não Z4-Z5) — a degradação não muda de sentido.
 - **Gates estruturais na receita FARTLEK**, depois de `expandir` (para que uma série comprimida
   reconhecível seja expandida antes de ser julgada) e antes de `reconciliar-distancia`:
   - existência de etapas; aquecimento na primeira posição e desaquecimento na última;
   - **no mínimo 2 acelerações** (etapas `INTERVALADO`) — é o que distingue um fartlek de uma
     corrida contínua;
-  - acelerações e recuperações balanceadas (diferença ≤ 1) e em sequência (recuperação sempre
-    depois de uma aceleração).
+  - **pelo menos 1 recuperação**, e toda recuperação vem depois de uma aceleração.
   Violação lança `LLMException` com mensagem que nomeia a regra — o `PlanoResilienceService` já
   reenvia a violação no turno de reparo, então a LLM recebe o motivo.
   Os gates reusam os de INTERVALADO/TIRO (`gateExistencia`, `gatePresencaAquecDesaq`,
-  `gateOrdemAquecDesaq`, `gateBalanceamento`, `gateSequencia`); o único novo é o mínimo de
-  acelerações. `gateContagem` (mínimo 6 etapas) e `validarDuracaoTiros` (teto de 10 min por tiro)
-  **não** entram: o mínimo de 2 acelerações com aquecimento e desaquecimento já implica 6 etapas, e
-  o teto de tiro é regra de intervalado, não de fartlek.
+  `gateOrdemAquecDesaq`, `gateSequencia`); o novo é o mínimo de acelerações e de recuperação.
+  **Não** entram:
+  - `gateBalanceamento` (acelerações × recuperações com diferença ≤ 1) e alternância estrita: o
+    fartlek "Misto" que o próprio system prompt prescreve na Categoria D —
+    `6× (3min Z4 + 1min Z5 + 2min Z2)` — tem duas acelerações seguidas por bloco, 12 contra 6
+    recuperações. Os dois gates o reprovariam.
+  - `gateContagem` (mínimo 6 etapas): 2 acelerações + 1 recuperação + aquecimento + desaquecimento
+    já é o piso estrutural; contar etapas é redundante.
+  - `validarDuracaoTiros` (teto de 10 min por tiro): regra de intervalado, não de fartlek.
 
 ## Fora de escopo
 
@@ -68,8 +74,9 @@ Backend, sem contrato de API nem schema:
 ## Critérios de aceite
 
 - **CA1** — Given a instrução padrão da Categoria D, then ela não contém "livre" nem
-  "espontâneas", e contém um exemplo no formato `N× (Xmin ... + Ymin ...)` reconhecido por
-  `TreinoNormalizador.detectarFartlekNaDescricao`.
+  "espontâneas"; e given uma etapa PRINCIPAL cuja descrição é o exemplo contido na instrução, when
+  `TreinoNormalizador.expandirEtapasAgregadas` roda, then a etapa é expandida em pares
+  INTERVALADO/RECUPERACAO (teste pelo método público — `detectarFartlekNaDescricao` é privado).
 - **CA2** — Given um FARTLEK com AQUECIMENTO, PRINCIPAL "Fartlek livre 20-30 min..." e
   DESAQUECIMENTO (o caso do Leandro), when a receita FARTLEK roda, then lança `LLMException` cuja
   mensagem menciona as acelerações individuais.
@@ -81,15 +88,19 @@ Backend, sem contrato de API nem schema:
   reprova).
 - **CA6** — Given um FARTLEK sem aquecimento, ou sem desaquecimento na última posição, then lança
   `LLMException`.
-- **CA7** — Given acelerações e recuperações desbalanceadas (diferença > 1) ou recuperação sem
+- **CA7** — Given um FARTLEK com acelerações e nenhuma recuperação, ou com recuperação sem
   aceleração anterior, then lança `LLMException`.
+- **CA7b** — Given um FARTLEK "Misto" (blocos de duas acelerações seguidas + uma recuperação),
+  then passa sem exceção.
 - **CA8** — O golden do teste de caracterização da receita (ordem dos passos da família FARTLEK)
   reflete os gates novos; as receitas das outras famílias não mudam.
 
 ## Métrica de sucesso
 
-Percentual de FARTLEKs persistidos com ≥ 2 acelerações individuais: hoje 1 em 6 no histórico do
-Leandro; alvo 100% dos gerados após o merge (verificável por consulta em `tb_etapa_treino`). Para o
+Percentual de FARTLEKs persistidos com ≥ 2 acelerações individuais, **nos planos gerados pelo
+schema v1** (o v2 está fora de escopo e declara FARTLEK sem estrutura obrigatória): hoje 1 em 6 no
+histórico do Leandro; alvo 100% dos gerados em v1 após o merge (verificável por consulta em
+`tb_etapa_treino`). Para o
 treinador, é a diferença entre revisar o fartlek e reescrevê-lo.
 
 ## Riscos e mitigações
@@ -113,5 +124,8 @@ treinador, é a diferença entre revisar o fartlek e reescrevê-lo.
 - **Assumido:** a LLM tipa as acelerações como `INTERVALADO` (é o que o expansor produz e o que o
   prompt de fartlek pede). Se ela usar `PRINCIPAL` para cada aceleração, o gate reprova e o turno de
   reparo corrige — aceitável, e observável pela métrica.
+- **Descartado na DoR:** tipo de treino com casing/espaço diferente cair em `PADRAO` e escapar
+  dos gates — o structured output restringe `tipoTreino` a um enum exato
+  (`LlmJsonSchemaBuilder.java:126`).
 - **Em aberto:** se a taxa de reprovação de FARTLEK ficar alta mesmo com a instrução corrigida,
   avaliar tratar `PRINCIPAL` alternada com `RECUPERACAO` como aceleração.
