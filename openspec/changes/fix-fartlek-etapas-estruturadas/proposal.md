@@ -61,6 +61,36 @@ Backend, sem contrato de API nem schema:
     já é o piso estrutural; contar etapas é redundante.
   - `validarDuracaoTiros` (teto de 10 min por tiro): regra de intervalado, não de fartlek.
 
+### Ampliação (2026-09-22) — distâncias da série expandida
+
+A validação real (plano do Leandro de 2026-09-22 06:47) confirmou a estrutura: a LLM escreveu
+`"Fartlek 5× (1min Z3 + 2min Z2)"` e o expansor gerou 5 pares. Mas o treino foi persistido com
+**6,98 km em 30 min** (pace implícito 4:18/km) para um ritmo de 6:20-6:45/km. A LLM mandou o
+treino com 40:00 / 5,0 km e a PRINCIPAL com 25 min / **5,0 km** (a distância do treino inteiro).
+Três passos se encadearam:
+
+1. **Distância repartida sem pace** (`TreinoNormalizador.expandirEtapasAgregadas`, caminho por
+   tempo): `distanciaKm` da PRINCIPAL ÷ N, e depois proporcional ao tempo — 1 km a cada 3 min.
+   Aceleração de 1 min com 0,33 km, recuperação "trote" de 2 min com 0,67 km (3:00/km).
+2. **Duração sobrescrita pelo expansor** (`recalcularDuracaoTreino` ao fim da expansão): o
+   `40:00` da LLM virou a soma `30:00` antes de `recalcular-duracao`, então o desempate pelo
+   triângulo (PR #138) nunca viu o valor original.
+3. **Reconciliação** adotou a soma 6,98 km: nenhuma etapa com distância zero, então a soma parecia
+   completa.
+
+O defeito existia antes desta change; ficava escondido porque o fartlek nunca era expandido.
+Corrigir aqui evita trocar um defeito por outro: sem isso o PR entrega fartlek estruturado com pace
+impossível — o sintoma que abriu a investigação ("tempos não condizem com os kms").
+
+- **Distância da aceleração expandida = duração ÷ pace médio do `ritmoAlvo`** da etapa de origem.
+  Sem `ritmoAlvo` interpretável, a distância fica `0.0` (desconhecida), e a guarda de etapa
+  incompleta de `reconciliar-distancia` mantém a distância da LLM.
+- **Recuperação expandida sem distância própria**: nasce com `0.0` e recebe `duração ÷ pace Z1`
+  de `corrigir-temporais`, que na receita FARTLEK passa a rodar **depois** de `expandir` (antes
+  rodava antes e não alcançava as recuperações criadas pela expansão).
+- **O expansor não sobrescreve mais a duração do treino** — só troca as etapas.
+  `recalcular-duracao` (cauda comum) decide com o desempate pelo triângulo.
+
 ## Fora de escopo
 
 - **Schema v2** (`validarEstruturaV2`, `plano-treino-system-v2.txt`): lá o FARTLEK é resolvido a
@@ -68,6 +98,9 @@ Backend, sem contrato de API nem schema:
   caminho de geração; o plano do Leandro saiu pelo v1. Fica como está.
 - Expandir texto livre deterministicamente (inventar séries a partir de "acelerações espontâneas"):
   o número e a duração das acelerações são decisão de prescrição, não de normalização.
+- O caminho `NxDist` do expansor ("6x400m") e a distância da PRINCIPAL dos contínuos
+  (REGENERATIVO/LONGO também chegam com a distância do treino inteiro na PRINCIPAL — o total do
+  treino fica coerente e não há expansão ali).
 - O `atletaId` aleatório no log de `IntervaladoElegibilidadeSkill` e o preço ausente de
   `gpt-4o-2024-08-06` em `llm-pricing.yml` — achados da mesma investigação, sem relação com o bug.
 
@@ -94,6 +127,16 @@ Backend, sem contrato de API nem schema:
   then passa sem exceção.
 - **CA8** — O golden do teste de caracterização da receita (ordem dos passos da família FARTLEK)
   reflete os gates novos; as receitas das outras famílias não mudam.
+
+- **CA9** — Given o FARTLEK real de 2026-09-22 (treino 40:00 / 5,0 km / 6:20-6:45; PRINCIPAL
+  25 min / 5,0 km "Fartlek 5× (1min Z3 + 2min Z2)"), when a receita roda, then nenhuma etapa com
+  distância > 0 tem pace implícito mais rápido que o limite rápido do `ritmoAlvo` (6:20/km), e o
+  pace médio do treino (duração ÷ distância) também não.
+- **CA10** — Given uma série por tempo cuja etapa de origem tem `ritmoAlvo`, then cada aceleração
+  tem `distanciaKm = round2(duração ÷ pace médio)`; given sem `ritmoAlvo`, then `0.0`.
+- **CA11** — Given uma expansão, then `expandirEtapasAgregadas` preserva `duracaoMin` do treino.
+- **CA12** — As recuperações criadas pela expansão recebem `duração ÷ pace Z1` (corrigir-temporais
+  depois de expandir); o golden de ordem da receita FARTLEK reflete a troca.
 
 ## Métrica de sucesso
 

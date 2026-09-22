@@ -24,6 +24,17 @@
 - [x] 2.3 Atualizar `golden/plano-prompt/avancado-tsb-baixo.user.txt`
 - [x] 2.4 Validar: `./mvnw clean test`
 
+## 4. Distâncias da série expandida (ampliação 2026-09-22, TDD)
+
+- [ ] 4.1 RED — CA9 (caso real pela receita), CA10/CA11 (`expandirEtapasAgregadas`), CA12
+      (recuperação expandida recebe pace Z1; golden da ordem)
+      verify: falham com o expansor atual (6,98 km / 30 min)
+- [ ] 4.2 GREEN — aceleração por `ritmoAlvo`, recuperação `0.0`, expansor sem sobrescrever
+      duração, `corrigir-temporais` depois de `expandir` na receita FARTLEK
+      verify: testes da 4.1 verdes; atualizar baselines de caracterização só onde a mudança é a
+      intencional
+- [ ] 4.3 Validar: `./mvnw clean test` e `./mvnw clean verify`
+
 ## 3. Entrega
 
 - [x] 3.1 `./mvnw clean verify`
