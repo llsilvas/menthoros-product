@@ -2,8 +2,8 @@
 
 ## 1. Sinal de fadiga estruturado (TDD)
 
-- [ ] 1.1 `FatigueSignal` (tipo, valor, limiar, scope WEEK/ACUTE) calculado por completo,
-      independente da recomendação do intervalado — os cinco que liberam descanso + CTL_BAIXO
+- [ ] 1.1 `FatigueSignal` (tipo, valor, limiar, scope WEEK/ACUTE, liberaDescanso) calculado por
+      completo, independente da recomendação do intervalado — tabela da Decisão 3
       verify: cada sinal isolado e combinado; degradação do intervalado inalterada
 - [ ] 1.2 `PromptGerado` carrega os sinais até o `IaServiceImpl`; dias efetivos materializados
       também em PROXIMA_SEMANA
@@ -13,8 +13,8 @@
 
 - [ ] 2.1 `WeeklyCoverageValidator` puro (Decisão 2, itens 1-8, com escopo temporal dos sinais e
       `firstEffectiveDay` pelo menor `DayOfWeek`)
-      verify: tabela de cenários verde — CA1-CA7, CA4 (BVA), CA4b (escopo), CA12d (intensos
-      adjacentes), CA15 (6-7 dias)
+      verify: tabela de cenários verde — CA1-CA7, CA2b (Leandro: TSB não libera), CA4 (BVA do teto
+      por nº de dias), CA4b (escopo), CA12d (intensos adjacentes), CA15 (6-7 dias)
 - [ ] 2.1b `SEQUENCIA_ACIMA_DO_MAXIMO` calculado sobre os dias efetivos
       verify: CA12e
 - [ ] 2.2 `WeeklyCoverageContext` montado em `IaServiceImpl` (só com a flag ligada e sem skeleton) e
@@ -56,6 +56,10 @@
 
 - [ ] 5.1 Geração real para o Leandro (TSB abaixo do limiar): todo dia coberto, descanso com motivo
 - [ ] 5.2 Geração real para atleta sem sinal: nenhum descanso, todo dia com treino
+- [ ] 5.4 **Revisão de calibração** (após 4 semanas com o front em produção): taxa de descansos
+      convertidos em treino pelo treinador e de reprovação por `DESCANSO_SEM_SINAL`; revisar limiares
+      de TSB/RPE e o teto por nº de dias à luz dos dados
+      verify: nota de revisão em `knowledge/coaching/frequencia-e-descanso-por-fadiga.md`
 - [ ] 5.3 **Gate de promoção:** não abrir/mergear `develop → main` com esta change antes de
       `show-descanso-no-plano` estar mergeada em `develop`
       verify: checklist do PR de promoção

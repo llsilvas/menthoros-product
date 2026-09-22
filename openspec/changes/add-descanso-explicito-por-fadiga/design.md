@@ -43,12 +43,15 @@ pura e testável (`WeeklyCoverageValidator` em `services/helper`):
 2. Repetição em qualquer um, ou dia em ambos → `COBERTURA_DIAS` (dia duplicado).
 3. Dia fora de `diasEfetivos` → `COBERTURA_DIAS` (dia não disponível).
 4. `diasEfetivos − (diasTreino ∪ diasDescanso)` não vazio → `COBERTURA_DIAS` nomeando os dias.
-5. Descanso num dia sem sinal aplicável → `DESCANSO_SEM_SINAL`. Aplicável = sinal semanal
-   (`TSB_BAIXO`, `RPE_ALTO`) em qualquer dia; `SEQUENCIA_ACIMA_DO_MAXIMO` em qualquer dia **dentro** da
-   sequência longa; sinal agudo (`RECUPERACAO_INSUFICIENTE`, `DIAS_CONSECUTIVOS_LIMITE`,
-   `READINESS_DESCANSAR`) só em SEMANA_ATUAL e só no `firstEffectiveDay` — o menor `DayOfWeek` entre
-   os efetivos, calculado (a `@ElementCollection` de dias não tem ordem garantida).
-6. `|diasDescanso| > 1` → `DESCANSO_ACIMA_DO_LIMITE` (`max(1, floor(d × 0,25))` = 1 para d ≤ 7).
+5. Descanso num dia sem sinal que o libere → `DESCANSO_SEM_SINAL` (ver `knowledge/coaching/
+   frequencia-e-descanso-por-fadiga.md`). Liberam:
+   - sinal do dia (`READINESS_DESCANSAR`, `RECUPERACAO_INSUFICIENTE`, `DIAS_CONSECUTIVOS_LIMITE`) só em
+     SEMANA_ATUAL e só no `firstEffectiveDay` — o menor `DayOfWeek` entre os efetivos, calculado (a
+     `@ElementCollection` de dias não tem ordem garantida);
+   - `SEQUENCIA_ACIMA_DO_MAXIMO` em qualquer dia **dentro** da sequência longa;
+   - **não liberam:** `TSB_BAIXO`, `RPE_ALTO` (sinais da semana → treino leve) e `CTL_BAIXO`.
+6. Teto por `|diasEfetivos|`: 4-7 → no máximo 1 descanso; 1-3 → descanso só com `READINESS_DESCANSAR`
+   (outro sinal → `DESCANSO_SEM_SINAL`, mensagem pedindo treino leve); mais de 1 → `DESCANSO_ACIMA_DO_LIMITE`.
 7. Motivo vazio/branco/>200 → `DESCANSO_SEM_MOTIVO`.
 8. Dois tipos de `TIPOS_ALTA_INTENSIDADE` em dias vizinhos → `INTENSOS_ADJACENTES`. O conjunto é o do
    `RedistribuicaoTreinoHelper:35` (LONGO, FARTLEK, TEMPO_RUN, INTERVALADO, TIRO, PROVA, SUBIDA —
@@ -70,12 +73,17 @@ com `type`, `value` e `threshold` (para o motivo citar número e régua):
 
 | Sinal | Fonte | Libera descanso |
 |---|---|---|
-| `TSB_BAIXO` | mesmos limiares por nível do portão de TSB | sim |
-| `RPE_ALTO` | RPE médio 7d ≥ 7,5 | sim |
-| `RECUPERACAO_INSUFICIENTE` | horas desde o último intensivo < mínimo do nível | sim |
-| `DIAS_CONSECUTIVOS_LIMITE` | `DisponibilidadePromptFormatter.calcularMaxDiasConsecutivos` atingido | sim |
-| `READINESS_DESCANSAR` | check-in do dia = DESCANSAR (só com check-in e flag de readiness) | sim |
+| `TSB_BAIXO` | mesmos limiares por nível do portão de TSB | **não** — semana → treino leve |
+| `RPE_ALTO` | RPE médio 7d ≥ 7,5 | **não** — semana → treino leve |
+| `RECUPERACAO_INSUFICIENTE` | horas desde o último intensivo < mínimo do nível | dia (4+ dias efetivos) |
+| `DIAS_CONSECUTIVOS_LIMITE` | `DisponibilidadePromptFormatter.calcularMaxDiasConsecutivos` atingido | dia (4+ dias efetivos) |
+| `READINESS_DESCANSAR` | check-in do dia = DESCANSAR (só com check-in e flag de readiness) | dia (qualquer nº de dias) |
+| `SEQUENCIA_ACIMA_DO_MAXIMO` | maior sequência de dias efetivos > máximo de consecutivos | dentro da sequência |
 | `CTL_BAIXO` | CTL < mínimo do nível | **não** |
+
+TSB e RPE são extrapolação — os estudos usam VFC matinal contra a linha de base individual. Ficam
+como sinais (para a degradação de intensidade e para o prompt citar), e os limiares têm revisão
+marcada com os dados de aceitação do treinador (task 5.4).
 
 A recomendação do intervalado continua como está (não muda o comportamento da degradação). A lista é
 calculada uma vez em `PlanoTreinoPromptBuilder` e segue no `PromptGerado` até o `IaServiceImpl`.
@@ -90,8 +98,9 @@ Cada sinal carrega `scope` (`WEEK` ou `ACUTE`), que o validador usa no item 5 da
 - `DisponibilidadePromptFormatter:110` ("Incluir dia de descanso completo ou regenerativo
   OBRIGATÓRIO") e `:116` ("Dia de descanso sugerido") passam a apontar para o campo `restDays` —
   coerentes com os sinais `DIAS_CONSECUTIVOS_LIMITE` e a regra.
-- O bloco de cobertura do prompt lista os sinais ativos com valor, limiar e o(s) dia(s) em que cada um
-  libera descanso — é assim que a LLM sabe o limite e onde pode usá-lo.
+- O bloco de cobertura do prompt lista os sinais ativos com valor, limiar e efeito: sinais da semana
+  → "treino leve no dia que não comporta intensidade, nunca descanso"; sinal do dia → "descanso
+  permitido em <dia>". É assim que a LLM sabe se, onde e por quê pode usar o descanso.
 - System prompt: bloco "COBERTURA DA SEMANA" — todo dia disponível recebe treino ou descanso; sem
   sinal de fadiga, nunca descanso; a instrução do intervalado degradado ganha a frase do limite
   ("até N dia(s) pode(m) virar descanso, com motivo citando o sinal").

@@ -116,3 +116,16 @@ omitem.
 - Nenhuma fonte lida testa **omitir uma sessão inteira** vs. **fazê-la leve** em cabeça a cabeça.
 - Nenhuma usa TSB/CTL como critério de prescrição.
 - As amostras são pequenas (12-40 por estudo) e em sua maioria homens.
+
+## Como o Menthoros aplica (decisão de 2026-09-22)
+
+Change `add-descanso-explicito-por-fadiga`:
+
+- **Treino leve primeiro.** Sinais da semana (TSB abaixo do limiar, RPE médio 7d alto) reduzem a
+  intensidade e o dia fica com treino leve — não liberam descanso (seções 1 e 2).
+- **Descanso só com sinal do dia** (check-in DESCANSAR, recuperação insuficiente, limite de dias
+  consecutivos), no primeiro dia do plano da semana em andamento (seção 1: a decisão é do dia).
+- **Teto por número de dias:** 4-7 dias → até 1 descanso; 2-3 dias → só com check-in DESCANSAR
+  (seção 2 e extrapolação do ≤20%).
+- **TSB e RPE mantidos como extrapolação**, com revisão após 4 semanas de dados de aceitação do
+  treinador.

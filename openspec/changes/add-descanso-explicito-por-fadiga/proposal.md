@@ -32,17 +32,17 @@ O essencial:
   2013, consenso ECSS/ACSM).
 
 Ou seja: descanso explícito é legítimo; omitir o dia em silêncio não é; e descanso não deveria ser a
-**primeira** resposta a fadiga. As tensões entre o desenho atual e essas fontes estão em "Open
-Questions" (pendentes de decisão).
+**primeira** resposta a fadiga (decisões em "Open Questions").
 
-O sistema viola as duas condições. **O corte é silencioso**: o schema não tem descanso, então um dia
+O sistema de hoje falha nas duas pontas. **O corte é silencioso**: o schema não tem descanso, então um dia
 omitido é indistinguível de um esquecimento — o treinador não sabe se foi decisão. **O corte não tem
 gatilho nem limite**: acontece em 5 de 7 gerações com o mesmo estado do atleta, e nada confere se os
 dias disponíveis foram cobertos (`PlanQualityChecker` só mede `DIAS_PERMITIDOS`, depois do retry).
 
 Para o treinador: hoje ele precisa perceber sozinho que falta um dia e adivinhar o porquê. Depois
 desta change, cada dia disponível chega ao plano como treino ou como **descanso com motivo** —
-"Quinta: descanso — TSB −18, abaixo do limiar de −15" — e ele aprova, edita ou rejeita. Para a
+"Segunda: descanso — check-in de hoje: DESCANSAR" — e ele aprova, edita ou rejeita. Fadiga da semana
+(ex.: TSB −18) não vira descanso: a intensidade cai e o dia fica com treino leve, como nas fontes. Para a
 assessoria, plano que "some dia" sem explicação é o tipo de falha percebida como o produto não
 funcionando — e pesa na renovação.
 
@@ -63,24 +63,31 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
 - **Regra de cobertura (determinística, no validador do plano):** os dias dos treinos + os dias de
   descanso cobrem os dias disponíveis efetivos da semana — sem sobra, sem repetição, sem dia fora.
   Violação vai para o turno de reparo do `PlanoResilienceService` ("faltou quinta: prescreva um treino
-  ou, se houver sinal de fadiga, um descanso com motivo").
-- **Descanso exige sinal de fadiga** — cinco sinais, calculados por completo (não só o primeiro
-  portão que dispara): TSB abaixo do limiar do nível; RPE médio de 7 dias ≥ 7,5; recuperação
-  insuficiente desde o último intensivo; limite de dias consecutivos atingido; check-in do dia
-  DESCANSAR (quando houver). Os dois últimos já mandam descansar no prompt de hoje — sem eles, a regra
-  rejeitaria o que o próprio prompt pede (achado do Codex). CTL baixo **não** libera descanso — base
-  baixa pede frequência com treino leve.
-- **O motivo cita o sinal com número e limiar** ("TSB −18, abaixo do limiar de −15 para
-  Intermediário"), para o treinador confiar sem abrir outra tela.
-- **Limite: 1 descanso por semana.** É o que `max(1, floor(dias × 0,25))` dá para qualquer semana
-  (1 a 7 dias). A referência é o teto de ≤20% de corte de frequência de Mujika & Padilla 2003 — que é
-  de polimento pré-prova, e que 1 descanso ultrapassa para quem treina 2-3 dias (ver Open Questions).
-- **Escopo temporal dos sinais** (achado do Codex): TSB baixo e RPE médio alto descrevem o estado da
-  semana e liberam descanso em qualquer dia. Recuperação insuficiente, limite de dias consecutivos e
-  check-in DESCANSAR descrevem o **agora**: só liberam descanso no **primeiro dia efetivo** do plano,
-  e só na SEMANA_ATUAL — um check-in de hoje não justifica descanso na quinta da semana que vem.
-- **Prompt:** instrução explícita — cobrir todo dia disponível; sem sinal, dia de intensidade que não
-  cabe vira treino leve; com sinal, até N dias podem virar descanso, cada um com motivo.
+  — leve, se a intensidade não couber").
+- **Resposta a fadiga: treino leve primeiro, descanso só com sinal do dia** (decisão de 2026-09-22,
+  conformidade com a literatura — [`knowledge/coaching/frequencia-e-descanso-por-fadiga.md`](../../../knowledge/coaching/frequencia-e-descanso-por-fadiga.md)).
+  Com corredores recreacionais, prontidão baixa levou a treino leve, não a descanso (Vesterinen 2016;
+  Düking 2021), e a decisão é do dia. Por isso:
+  - **Sinais da semana** — TSB abaixo do limiar do nível, RPE médio de 7 dias ≥ 7,5 — **não liberam
+    descanso**. Continuam agindo como hoje: degradam a intensidade (intervalado degradado), e o dia de
+    intensidade que não cabe vira treino leve.
+  - **Sinais do dia** — check-in DESCANSAR, recuperação insuficiente desde o último intensivo, limite
+    de dias consecutivos atingido — liberam descanso **só no primeiro dia efetivo** do plano e **só na
+    SEMANA_ATUAL** (um check-in de hoje não justifica descanso na quinta da semana que vem). Os dois
+    últimos já mandam descansar no prompt de hoje — sem eles, a regra rejeitaria o que o próprio
+    prompt pede (achado do Codex).
+  - **Sequência projetada acima do máximo de consecutivos** (atletas de 6-7 dias) libera descanso num
+    dia dentro da sequência — regra estrutural do produto, não de fadiga.
+  - CTL baixo não libera descanso — base baixa pede frequência com treino leve.
+- **Teto por número de dias** (≤20% de corte de frequência, Mujika & Padilla 2003):
+  - **4 a 7 dias efetivos:** até 1 descanso (25% a 14%).
+  - **2 ou 3 dias efetivos:** descanso **só com check-in DESCANSAR** — 1 descanso seria 33-50% da
+    semana; os demais sinais do dia levam a treino leve. Se o atleta diz que não dá, vale o que ele diz.
+  - **1 dia efetivo:** descanso só com check-in DESCANSAR (o plano pode ficar sem treino).
+- **O motivo cita o sinal com número e limiar** ("check-in de hoje: DESCANSAR"; "36h desde o último
+  intensivo, mínimo 48h"), para o treinador confiar sem abrir outra tela.
+- **Prompt:** instrução explícita — cobrir todo dia disponível; fadiga da semana → treino leve no dia
+  que não comporta intensidade, nunca descanso; descanso só no dia e com o sinal listados no prompt.
 - **Persistência:** `tb_plano_semanal.rest_days` (JSONB) + campo aditivo `restDays` no
   `PlanoSemanalOutputDto` (`dayOfWeek` como `String` com o nome do enum — `DiaSemana` serializa como
   objeto e o schema da LLM trabalha com strings).
@@ -129,24 +136,30 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
 - **CA1** — Given dias efetivos {SEG, TER, QUI, SAB}, sem sinal de fadiga, e a LLM devolve treinos em
   SEG/TER/SAB e nenhum descanso, then o plano é rejeitado com violação `COBERTURA_DIAS` que nomeia
   QUINTA, e o turno de reparo a recebe.
-- **CA2** — Given o mesmo plano com `restDays: [{QUINTA, "TSB −18 abaixo do limiar −15"}]` e sinal
-  de TSB ativo, then o plano passa e é persistido com o descanso.
-- **CA3** — Given descanso sem nenhum sinal de fadiga (só CTL baixo, ou nenhum), then violação
-  `DESCANSO_SEM_SINAL`.
-- **CA4** — Given 4 dias e 2 descansos, then violação `DESCANSO_ACIMA_DO_LIMITE`. BVA: 1, 2, 3, 4 e 7
-  dias efetivos → limite 1; 0 descanso e 1 descanso passam, 2 reprovam.
-- **CA4b** — Given PROXIMA_SEMANA com só sinal de check-in DESCANSAR (ou de recuperação, ou de dias
-  consecutivos), then descanso em qualquer dia → `DESCANSO_SEM_SINAL`. Given SEMANA_ATUAL com o mesmo
-  sinal, then descanso no primeiro dia efetivo passa e em qualquer outro reprova. TSB e RPE liberam
-  qualquer dia nos dois modos.
+- **CA2** — Given SEMANA_ATUAL, dias efetivos {SEG, TER, QUI, SAB}, check-in de hoje (SEG) DESCANSAR e
+  `restDays: [{SEGUNDA, "check-in de hoje: DESCANSAR"}]`, then o plano passa e é persistido com o
+  descanso.
+- **CA2b** — Given o caso do Leandro: TSB −18 (abaixo do limiar −15), sem check-in, e
+  `restDays: [{QUINTA, "TSB −18"}]`, then violação `DESCANSO_SEM_SINAL` — a mensagem de reparo pede
+  treino leve na quinta.
+- **CA3** — Given descanso sem sinal que libere (nenhum, só CTL baixo, só TSB baixo ou só RPE médio
+  alto), then violação `DESCANSO_SEM_SINAL`.
+- **CA4** — Given 4 dias e 2 descansos, then violação `DESCANSO_ACIMA_DO_LIMITE`. BVA do teto:
+  7, 5, 4 dias → 1 descanso passa com sinal do dia; 3 e 2 dias → descanso só com check-in DESCANSAR
+  (recuperação insuficiente ou dias consecutivos no limite → `DESCANSO_SEM_SINAL`); 2 descansos
+  reprovam em qualquer caso.
+- **CA4b** — Given PROXIMA_SEMANA com sinal do dia (check-in, recuperação ou dias consecutivos), then
+  descanso em qualquer dia → `DESCANSO_SEM_SINAL`. Given SEMANA_ATUAL com o mesmo sinal, then descanso
+  no primeiro dia efetivo passa e em qualquer outro reprova.
 - **CA5** — Given dia repetido entre treino e descanso, dois treinos no mesmo dia, ou dia fora dos
   efetivos, then violação `COBERTURA_DIAS` específica.
 - **CA6** — Given SEMANA_ATUAL com dias já passados, then a cobertura considera só os dias efetivos
   restantes; PROXIMA_SEMANA considera os dias disponíveis do atleta.
 - **CA7** — Given descanso com motivo vazio/branco ou acima de 200 caracteres, then violação.
-- **CA7b** — Para cada sinal que libera descanso, a instrução ao LLM cita o valor e o limiar
-  ("TSB −18, limiar −15"; "RPE médio 7d 8,1, limiar 7,5"; "36h desde o último intensivo, mínimo
-  48h"; "6 dias consecutivos, máximo 5"; "check-in de hoje: DESCANSAR").
+- **CA7b** — Para cada sinal ativo, a instrução ao LLM cita o valor e o limiar e diz o efeito:
+  sinais da semana ("TSB −18, limiar −15"; "RPE médio 7d 8,1, limiar 7,5") → treino leve, sem
+  descanso; sinais do dia ("36h desde o último intensivo, mínimo 48h"; "6 dias consecutivos, máximo
+  5"; "check-in de hoje: DESCANSAR") → descanso permitido no primeiro dia efetivo.
 - **CA8** — Given plano com descanso persistido, then `GET` do plano devolve `restDays` com dia e
   motivo; plano antigo (coluna nula) devolve lista vazia.
 - **CA9** — O descanso nunca aparece como treino planejado: não é marcado PERDIDO, não entra na
@@ -184,7 +197,8 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
 
 - **Dias omitidos em silêncio:** 0 — todo plano persistido cobre os dias efetivos (hoje 5 de 7
   gerações do Leandro em 22/09 omitiam um dia).
-- **Descanso com sinal:** 100% dos descansos persistidos têm motivo e sinal ativo.
+- **Descanso com sinal:** 100% dos descansos persistidos têm motivo e sinal do dia (ou de sequência)
+  ativo; nenhum descanso liberado só por TSB/RPE.
 - **Taxa de reprovação por cobertura** (`plano_violacao_estrutural{tipo=COBERTURA_DIAS}`) e de
   planos que esgotam o reparo — acompanhar nas duas primeiras semanas; alvo < 5% de falha final.
 
@@ -209,23 +223,20 @@ Backend. Contrato da LLM (schema v1 e v2), validação do plano, persistência e
 
 ## Open Questions & Assumptions
 
-- **Pendente de decisão — conformidade com a literatura** (revisão de 2026-09-22, ver o documento
-  em `knowledge/coaching/`):
-  1. **Descanso vs. treino leve.** As fontes com recreacionais respondem a prontidão baixa com treino
-     leve; o desenho libera descanso direto a partir de um sinal. Opção fiel: sinal semanal (TSB, RPE)
-     leva a treino leve; descanso só com sinal do dia (check-in DESCANSAR, recuperação insuficiente).
-  2. **Teto de frequência para quem treina pouco.** 1 descanso = 25% com 4 dias, 33% com 3, 50% com
-     2 — acima dos ≤20% de Mujika & Padilla 2003 (que é de taper) nos dois últimos.
-  3. **Sinais semanais são extrapolação.** TSB e RPE médio não são o critério dos estudos (VFC
-     matinal contra a linha de base individual).
-- **Decidido (2026-09-22):** sinais = TSB abaixo do limiar, RPE médio 7d alto, recuperação
-  insuficiente; limite ~25% com mínimo 1; dia faltando sem sinal → turno de reparo pela LLM; front em
-  change separada.
+- **Decidido — conformidade com a literatura (2026-09-22,** ver `knowledge/coaching/`**):**
+  1. **Treino leve primeiro:** sinais da semana (TSB, RPE médio) não liberam descanso; descanso só com
+     sinal do dia, no primeiro dia efetivo da SEMANA_ATUAL.
+  2. **Teto por número de dias:** 4-7 dias → até 1 descanso; 2-3 dias → só com check-in DESCANSAR.
+  3. **TSB e RPE mantidos e calibrados:** continuam degradando a intensidade, registrados como
+     extrapolação (os estudos usam VFC matinal). **Revisão marcada** após 4 semanas de dados de
+     aceitação do treinador (task 5.4).
+- **Decidido (2026-09-22, antes da revisão da literatura — substituído pelo item acima nos
+  sinais e no limite):** dia faltando sem sinal → turno de reparo pela LLM; front em change separada.
 - **Assumido:** os limiares dos três sinais são os mesmos que já degradam o intervalado
   (`IntervaladoElegibilidadeService`) — um sinal, uma régua.
 - **Decidido (2026-09-22, após o Codex):** limite de dias consecutivos e check-in DESCANSAR também
   são sinais; `maxItems` sobe para 7.
-- **Decidido (DoR, 2026-09-22):** escopo temporal dos sinais; limite = 1 por semana; redistribuição
+- **Decidido (DoR, 2026-09-22):** escopo temporal dos sinais; redistribuição
   não roda com cobertura válida + checagem fail-closed antes de persistir; kill-switch; nomes em
   inglês.
 - **Follow-up (front):** converter treino em descanso pela UI. O sinal de edição do caminho inverso
