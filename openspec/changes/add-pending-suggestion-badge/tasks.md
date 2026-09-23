@@ -7,34 +7,39 @@ antes do front (front lê `temSugestaoPendente`, que só existe depois do PR bac
 
 ## 1. Backend — query agregada
 
-- [ ] 1.1 `SugestaoCoachRepository.findAtletaIdsByTenantIdAndStatus(tenantId, status, agora)`
+- [x] 1.1 `SugestaoCoachRepository.findAtletaIdsByTenantIdAndStatus(tenantId, status, agora)`
       (design D1, revisado no pre-mortem): `Set<UUID>`, uma consulta, sem `JOIN FETCH`, excluindo
       `expiresAt` no passado (mesma regra de `SugestaoCoachServiceImpl.listar(PENDING)`).
       *verify:* IT — roster com sugestões `PENDING`/`APPROVED`/`REJECTED`/`PENDING`-expirada
       misturadas, só as `PENDING` não-expiradas do tenant certo voltam (CA2); tenant B não vaza
-      para tenant A (CA6).
+      para tenant A (CA6). ✅ `SugestaoCoachRepositoryPendingAtletaIdsIT` — 4 testes verdes.
 
 ## 2. Backend — wiring no roster, calendário e dashboard agregado
 
-- [ ] 2.1 `CoachDashboardServiceImpl`: método privado `resolverAtletasComSugestaoPendente(tenantId)`
+- [x] 2.1 `CoachDashboardServiceImpl`: método privado `resolverAtletasComSugestaoPendente(tenantId)`
       + overloads privados `getRoster(tenantId, set)` / `getCalendarioSemanal(from, set)` (design
       D2, revisado no pre-mortem) — as versões públicas resolvem e delegam; `getDashboard()`
       resolve uma vez e reusa nos dois. `CoachAtletaResumoDto` ganha `temSugestaoPendente`
       (boolean, design D4).
       *verify:* CA1, CA2, CA4 (uma query pro tenant inteiro em cada endpoint independente, sem
       N+1); CA8 (no máx. 2 execuções da query dentro de `getDashboard()` — assert de contagem de
-      queries no teste, mesmo padrão já usado para `cobranca`).
-- [ ] 2.2 `montarTreinoAgendado` recebe `atletasComSugestaoPendente` e substitui o `false`
+      queries no teste, mesmo padrão já usado para `cobranca`). ✅ 21 testes verdes em
+      `CoachDashboardServiceImplTest` (3 novos: `temSugestaoPendenteEmLote`, `hasPendingSuggestionReal`,
+      `queryDeSugestaoPendenteRodaNoMaximoDuasVezes`); 3 call sites de teste com `CoachAtletaResumoDto`
+      atualizados (record positional).
+- [x] 2.2 `montarTreinoAgendado` recebe `atletasComSugestaoPendente` e substitui o `false`
       hardcoded (design D3).
-      *verify:* CA3.
-- [ ] 2.3 Teste de decisão subsequente: sugestão `PENDING` única do atleta é aprovada/rejeitada →
+      *verify:* CA3. ✅ `hasPendingSuggestionReal`.
+- [x] 2.3 Teste de decisão subsequente: sugestão `PENDING` única do atleta é aprovada/rejeitada →
       próxima chamada de `getRoster()` retorna `temSugestaoPendente = false`.
-      *verify:* CA5.
-- [ ] 2.4 `SugestaoCoachRepository.findAllByAtletaIdAndTenantId` (design D6, achado do pre-mortem
+      *verify:* CA5. ✅ `aprovarZeraOSinal` em `SugestaoCoachRepositoryPendingAtletaIdsIT`.
+- [x] 2.4 `SugestaoCoachRepository.findAllByAtletaIdAndTenantId` (design D6, achado do pre-mortem
       rodada 2): prioriza `PENDING` não-expirada antes de completar por `createdAt`, para o
       `RecentSuggestionsPanel` sempre mostrar a pendência que o badge sinalizou.
       *verify:* CA9 — teste com 1 `PENDING` antiga + 3 decididas mais recentes; a `PENDING`
-      aparece nas 3 retornadas.
+      aparece nas 3 retornadas. ✅ `pendenteMaisAntigaAparecePrimeiro` +
+      `pendenteExpiradaNaoEPriorizada`. Call sites de teste (`SugestaoCoachServiceImplTest`)
+      atualizados para o novo parâmetro `agora`.
 
 ## 3. Frontend — roster
 
