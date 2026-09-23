@@ -40,6 +40,18 @@ aparece como pendente para outro.
 - **WHEN** cada um carrega sua própria tela
 - **THEN** a sugestão `PENDING` de um tenant nunca aparece como `true` no outro
 
+### Requirement: O sinal aponta para um caminho de acesso real
+
+Quando o sinal indica pendência, o sistema SHALL garantir que essa `SugestaoCoach` PENDING
+apareça no painel de sugestões recentes do perfil do atleta, mesmo que existam sugestões mais
+recentes já decididas para o mesmo atleta.
+
+#### Scenario: Pendência mais antiga que 3 decisões recentes
+- **GIVEN** atleta com uma `SugestaoCoach` PENDING não-expirada e 3 outras sugestões mais
+  recentes já decididas
+- **WHEN** o coach abre o perfil desse atleta
+- **THEN** a pendência aparece na lista de sugestões recentes
+
 ### Requirement: Sinal reflete decisões subsequentes
 
 Quando a última `SugestaoCoach` `PENDING` de um atleta é decidida (aprovada ou rejeitada), o sinal

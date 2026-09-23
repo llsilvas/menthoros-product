@@ -144,9 +144,9 @@ cobrança, não sinal pontual). Os dois indicadores (linha viva de geração de 
 sugestão pendente) podem coexistir na mesma linha sem colidir visualmente — a barra de geração é
 lateral, o ponto de sugestão é um badge pequeno sobre o avatar.
 
-## Pre-mortem (2026-09-23, Codex adversarial review)
+## Pre-mortem (2026-09-23, Codex adversarial review — duas rodadas)
 
-Dois achados de `needs-attention`, ambos verificados no código e incorporados:
+**Primeira rodada** (sobre o design inicial), dois achados, ambos verificados e incorporados:
 
 1. **Query incluía sugestões expiradas** — `SugestaoCoachServiceImpl.listar(PENDING)` já filtra
    `expiresAt` no passado; a query nova precisa da mesma regra (D1) ou o badge acende para
@@ -155,6 +155,52 @@ Dois achados de `needs-attention`, ambos verificados no código e incorporados:
    `getInsights()` (que rechama `getRoster()`) e `getCalendarioSemanal()`. Corrigido com overloads
    privados que recebem o set já resolvido (D2), reduzindo para 2× (mesmo custo que `cobranca` já
    tem hoje via `getInsights()`, não pior).
+
+**Segunda rodada** (DoR check, sobre o design já corrigido), um achado `high`, verificado e
+incorporado:
+
+3. **O badge podia sinalizar uma pendência inacessível pelo caminho prometido** —
+   `sugestoesRecentes` do perfil (`listarPorAtleta`) mostra top-3 por `createdAt` de qualquer
+   status, sem filtrar `PENDING`; uma pendência válida mais antiga que 3 sugestões já decididas
+   nunca apareceria no `RecentSuggestionsPanel`. Corrigido priorizando `PENDING` não-expiradas na
+   mesma query (D6).
+
+### D6. O caminho prometido (perfil → `RecentSuggestionsPanel`) precisa realmente mostrar a
+pendência sinalizada
+
+**Achado do segundo pre-mortem Codex (2026-09-23):** `sugestoesRecentes` no perfil do atleta
+(`CoachAthleteProfileServiceImpl.java:124-125` → `sugestaoCoachService.listarPorAtleta(atletaId)`
+→ `SugestaoCoachRepository.findAllByAtletaIdAndTenantId`, `ORDER BY createdAt DESC LIMIT 3`, **sem
+filtro de status**) mostra as 3 sugestões mais recentes **de qualquer status**. Um atleta com uma
+`PENDING` válida mas antiga, seguida de 3 sugestões mais novas já decididas, teria o badge aceso
+sem que a pendência apareça no painel — o coach vê o sinal, abre o perfil, e não encontra o que
+foi sinalizado. Isso quebra o único caminho de acesso que esta change (deliberadamente sem
+deep-link, ver "Fora do escopo" do proposal) promete.
+
+**Correção, sem expandir escopo:** a mesma query passa a ordenar sugestões `PENDING` não-expiradas
+primeiro, preenchendo o restante das 3 vagas com as mais recentes por `createdAt` — garante que
+qualquer pendência ativa apareça no painel que já existe, sem criar uma tela de listagem completa
+(non-goal mantido).
+
+```java
+// SugestaoCoachRepository
+@Query("""
+   SELECT s FROM SugestaoCoach s JOIN FETCH s.atleta
+   WHERE s.atleta.id = :atletaId AND s.tenantId = :tenantId
+   ORDER BY CASE WHEN s.status = 'PENDING' AND (s.expiresAt IS NULL OR s.expiresAt > :agora) THEN 0 ELSE 1 END,
+            s.createdAt DESC
+   LIMIT 3
+   """)
+List<SugestaoCoach> findAllByAtletaIdAndTenantId(@Param("atletaId") UUID atletaId,
+                                                  @Param("tenantId") UUID tenantId,
+                                                  @Param("agora") Instant agora);
+```
+
+`listarPorAtleta` (único caller) passa `Instant.now()` — mesma convenção já usada no resto de
+`SugestaoCoachServiceImpl` (sem `Clock` injetado nesta classe, ao contrário de
+`CoachDashboardServiceImpl`). Efeito colateral aceitável: com 4+ sugestões e uma `PENDING` antiga
+entre elas, a ordem deixa de ser estritamente cronológica — a pendência "pula a fila" para garantir
+visibilidade, o que é exatamente o comportamento desejado (é isso que o badge promete existir).
 
 ## Risks / Trade-offs
 

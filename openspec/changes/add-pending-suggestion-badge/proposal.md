@@ -31,17 +31,21 @@ pode ser a próxima change natural, não um requisito desta; e o proposal deveri
 `add-coach-suggestion-review-actions` já está em `develop` quando este badge for entregue, senão o
 coach vê o ponto e não acha onde agir.
 
-## Pre-mortem (2026-09-23, Codex adversarial review)
+## Pre-mortem (2026-09-23, Codex adversarial review — duas rodadas, ambas incorporadas)
 
-Dois achados de `needs-attention`, ambos verificados contra o código e corrigidos no design:
+**Rodada 1** (design inicial): (1) a query esquecia de excluir sugestões expiradas —
+`SugestaoCoachServiceImpl.listar(PENDING)` já filtra `expiresAt`, sem a mesma regra o badge
+acenderia para sugestão que o próprio inbox já esconde (contradiria CA2); (2)
+`GET /api/v1/coach/dashboard` rodaria a query nova 3× na mesma requisição
+(`getDashboard()` → `getRoster()` + `getInsights()` [rechama `getRoster()`] + `getCalendarioSemanal()`)
+— corrigido com um set resolvido uma vez e reaproveitado (design.md D2), reduz para 2×.
 
-1. **A query esquecia de excluir sugestões expiradas** — `SugestaoCoachServiceImpl.listar(PENDING)`
-   já filtra `expiresAt`; sem a mesma regra, o badge acenderia para sugestão que o próprio inbox
-   já esconde por estar vencida (contradiria CA2).
-2. **`GET /api/v1/coach/dashboard` rodaria a query nova 3× na mesma requisição** —
-   `getDashboard()` chama `getRoster()`, `getInsights()` (que rechama `getRoster()`) e
-   `getCalendarioSemanal()`. Corrigido com um set resolvido uma vez em `getDashboard()` e
-   reaproveitado (ver design.md D2) — reduz para 2×, mesmo custo que `cobranca` já tem hoje.
+**Rodada 2** (DoR check, achado `high`): o badge podia sinalizar uma pendência que o coach não
+conseguiria achar pelo caminho prometido — `sugestoesRecentes` do perfil mostra as 3 sugestões
+mais recentes **de qualquer status**, sem filtrar `PENDING`; uma pendência válida mais antiga que
+3 sugestões já decididas nunca apareceria no `RecentSuggestionsPanel`, quebrando a única forma de
+acesso que esta change promete (sem deep-link, por decisão de escopo). Corrigido priorizando
+`PENDING` não-expiradas na mesma query do painel (design.md D6) — ver CA9.
 
 ## Why
 
@@ -66,6 +70,10 @@ gerada" em "sugestão vista", pré-requisito para o coach agir sobre ela — inc
 - **`CoachDashboardServiceImpl.getCalendarioSemanal()`**: resolve o mesmo `Set<UUID>` (junto com
   `atletasEmAtencao`, já resolvido ali) e substitui o `false` hardcoded de
   `montarTreinoAgendado()` pelo valor real.
+- **`SugestaoCoachRepository.findAllByAtletaIdAndTenantId`** (usada por `sugestoesRecentes` do
+  perfil do atleta, achado do pre-mortem — ver design.md D6): passa a priorizar `PENDING`
+  não-expiradas antes de completar por `createdAt`, garantindo que uma pendência sinalizada pelo
+  badge sempre apareça no `RecentSuggestionsPanel`, sem criar uma tela de listagem nova.
 - Sem migration, sem endpoint novo — é leitura agregada sobre a tabela `tb_sugestao_coach` já
   existente.
 
@@ -136,13 +144,21 @@ gerada" em "sugestão vista", pré-requisito para o coach agir sobre ela — inc
 8. **Given** uma chamada a `GET /api/v1/coach/dashboard` (que agrega roster + insights +
    calendário), **when** o backend monta a resposta, **then** a query de sugestões pendentes
    roda no máximo 2 vezes (não 3) — achado do pre-mortem, ver design.md D2.
+9. **Given** atleta com uma `SugestaoCoach` `PENDING` não-expirada mais antiga do que 3 outras
+   sugestões já decididas do mesmo atleta, **when** o coach abre o perfil (com o badge aceso),
+   **then** a pendência aparece em `sugestoesRecentes`/`RecentSuggestionsPanel` — a query
+   prioriza `PENDING` não-expiradas antes de completar por `createdAt` (design.md D6, achado do
+   pre-mortem, rodada 2).
 
 ## Métrica de sucesso
 
 Rotina do treinador: **tempo até a primeira visualização de uma sugestão** cai. Hoje não é medido
 (a sugestão é invisível fora do perfil individual); depois do merge, medir o intervalo entre
 `SugestaoCoach.createdAt` e a primeira `GET /sugestoes/{id}` (que já existe, é o `detalhe()` do
-`RecentSuggestionsPanel`) daquela sugestão. Baseline após 2 semanas com as assessorias fundadoras.
+`RecentSuggestionsPanel`) daquela sugestão. **Apuração:** cruzamento manual entre `createdAt` (banco) e o log estruturado já existente de
+`detalhe()` (`SugestaoCoachServiceImpl`, "detalhe: id=..., tenantId=...") na ferramenta de
+observabilidade — sem instrumentação de app nova nesta change, não um dashboard de métrica.
+Baseline após 2 semanas com as assessorias fundadoras.
 
 ## Riscos e mitigações
 
@@ -154,6 +170,10 @@ Rotina do treinador: **tempo até a primeira visualização de uma sugestão** c
 - **Sinal fica obsoleto entre o momento em que o coach decide e o próximo carregamento do
   roster/calendário:** aceito — é leitura, não push; o próprio `add-coach-suggestion-review-actions`
   já recarrega o perfil ao decidir, e o roster/calendário são recarregados na navegação normal.
+- **Rollback:** reverter o deploy do backend e/ou do front independentemente — campo aditivo em
+  DTO existente, sem migration, sem estado persistido novo, sem efeito colateral em dado gravado.
+  Reverter o backend volta `hasPendingSuggestion`/`temSugestaoPendente` a `false`/ausente; reverter
+  o front some com o indicador sem quebrar o roster.
 
 ## Open Questions & Assumptions
 
