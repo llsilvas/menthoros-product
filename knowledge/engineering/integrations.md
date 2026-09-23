@@ -12,19 +12,23 @@ Integrações externas do backend, por sistema:
 |---|---|---|
 | **Keycloak** | Identidade, autenticação JWT, multi-tenancy (claim `organization`) | Ativo, em produção |
 | **OpenAI / Anthropic (via Spring AI)** | Geração de sugestões de plano, prescrição assistida por IA | Ativo, em produção |
-| **Strava** | Sincronização de atividades reais do atleta | Implementado no código, **deferido** por clareza jurídica |
+| **Strava** | Sincronização de atividades reais do atleta | **Descontinuado para atletas novos, mas ATIVO em produção para atletas já conectados** — `StravaActivitySyncScheduler` roda a cada 2h sem flag de desligamento (ver "Estado real" abaixo) |
 | **Railway** | Hosting/deploy do backend e frontend | Ativo (infraestrutura, não integração de domínio) |
-| **Intervals.icu** | Push de treinos aprovados ao relógio do atleta via Garmin Connect | Em implementação (change `intervals-icu-workout-push`, Sprint 15); atividade-ingestão planejada (`intervals-icu-activity-ingestion`, Sprint 16) |
+| **Intervals.icu** | Fonte de dados principal — push de treinos ao relógio e ingestão de atividades realizadas | Ativo, em produção. Push via `IntervalsIcuPushListener`. Ingestão via `IntervalsIcuActivitySyncScheduler` (polling); não há endpoint de webhook implementado apesar do nome da change `intervals-icu-webhook-ingestion` |
 
 ## Por que importa para o Menthoros
 
-- **Strava está no código mas não em uso ativo.** Qualquer PRD que assuma "os dados
-  já vêm do Strava" está errado — a família `strava-*` (`strava-oauth`,
-  `strava-activity-sync`, `strava-async-import`, `strava-webhooks`,
-  `strava-conditional-insights`, `strava-risk-semaphore`) está deferida no roadmap
-  até haver clareza jurídica sobre uso de dados de terceiros para treinar/alimentar
-  o preditor de aceitação de ML. **Nunca alimentar o modelo de ML com dados vindos
-  da API do Strava** enquanto essa restrição estiver em vigor.
+- **Strava está descontinuado só para atletas NOVOS — atletas já conectados seguem
+  sincronizando de verdade.** `CanalIntegracao` não oferece mais `STRAVA` no onboarding,
+  mas `StravaActivitySyncScheduler.runDailyIncrementalSync()` roda a cada 2h
+  (`@Scheduled(fixedDelayString = "PT2H", ...)`, sem flag de desligamento) para todo
+  atleta com integração ativa e não pausada. Esse dado cai em `FonteDados.STRAVA` e
+  alimenta o `WorkoutAnalysisListener` (análise por IA) e o `CoachAttentionSignalEvaluator`
+  (fila de atenção do coach) — **exatamente o que os termos da API do Strava (nov/2024)
+  proíbem**: mostrar dado do atleta ao coach e usá-lo em IA. Qualquer PRD que assuma
+  "Strava não está mais em uso" também está errado. Achado da auditoria de 2026-09-23,
+  ver `knowledge/product/strategic-compass.md` seção "Estado atual" — decisão sobre
+  desligar o pipeline legado depende do founder.
 - **Um app Strava aceita apenas um Authorization Callback Domain.** Isso significa
   que dev e produção precisam de apps Strava separados — não é possível reusar a
   mesma credencial OAuth entre ambientes. Qualquer plano de retomar Strava precisa
@@ -52,35 +56,42 @@ Integrações externas do backend, por sistema:
 - Gap conhecido: sem timeout de resposta, sem circuit breaker (Resilience4j é
   candidato, mas adoção formal está na change `add-external-call-resilience`).
 
-### Strava (deferido)
-- Endpoints já existem: `StravaAuthController`, `StravaActivityController`,
+### Strava (legado, ativo para atletas já conectados)
+- Endpoints ativos: `StravaAuthController`, `StravaActivityController`,
   `StravaWebhookController`, `StravaStatusController`.
-- OAuth, sync de atividades, e webhooks estão implementados mas não habilitados
-  para uso em produção pelo bloqueio jurídico.
+- OAuth, sync de atividades (`StravaActivitySyncScheduler`, a cada 2h) e webhooks
+  seguem rodando em produção — **não estão desligados**, só não são mais oferecidos
+  no onboarding de atletas novos (`CanalIntegracao` só lista `INTERVALS_ICU`/`MANUAL`).
 - `StravaRateLimitException` já mapeada no `GlobalExceptionHandler`.
+- Sem migração ou flag para desligar/sinalizar os atletas Strava-only remanescentes.
 
-### Intervals.icu (em implementação)
-- **Push de treinos (Sprint 15):** `IntervalsIcuConnectionController` (POST/GET/DELETE
+### Intervals.icu (ativo — fonte de dados principal)
+- **Push de treinos:** `IntervalsIcuConnectionController` (POST/GET/DELETE
   `/api/v1/integracoes/me/intervals-icu`), `IntervalsIcuPushListener`
   (`PlanoAprovadoEvent` → `AFTER_COMMIT` + `@Async`), `IntervalsIcuWorkoutConverter`
   (conversão `TreinoPlanejado` → `workout_doc` JSON).
-- **Atividade-ingestão (Sprint 16, planejada):** pull de atividades realizadas
-  do intervals.icu (fecha o ciclo prescreve → executa → analisa).
+- **Ingestão de atividades realizadas:** via `IntervalsIcuActivitySyncScheduler`
+  (polling), não via webhook — a change `intervals-icu-webhook-ingestion` que
+  implementaria um endpoint de push ainda está em Parcial (1/32 tasks).
+- Sem abstração de fonte (`ActivitySource`/`DataSource`): `IntervalsIcuClient` está
+  acoplado direto nos services — o guardrail da bússola de isolar o fornecedor
+  único ainda não foi aplicado.
+- Sem detecção de atividades "stub" vindas de Strava→intervals.icu.
 - Auth: API Key por atleta (HTTP Basic `API_KEY:<key>`), validada na conexão
   via `GET /api/v1/athlete/0`.
 - Idempotência: client-side via `external_id = "menthoros-<treinoId>"` (a API
   do intervals.icu NÃO deduplica por `external_id` — comprovado empiricamente).
 - Rate limit: 5.000 chamadas/dia por key (MVP: ~5-7 POSTs por aprovação de plano).
 - Guia do usuário: `docs/guides/conectar-intervals-icu.md` (a definir local).
-- Design doc: `openspec/changes/intervals-icu-workout-push/design.md`.
 
 ## Fontes
 
 - `apps/menthoros-backend/CLAUDE.md` (seção "External Call Resilience").
-- `PROJECT.md` (seção "Infra / deploy", family `strava-*` no roadmap).
-- Código-fonte: `br.com.menthoros.backend.controller.Strava*`,
-  `br.com.menthoros.backend.services.impl.KeycloakOrganizationGatewayImpl`.
+- Código-fonte: `br.com.menthoros.backend.services.StravaActivitySyncScheduler`,
+  `br.com.menthoros.backend.controller.Strava*`, `br.com.menthoros.backend.enums.CanalIntegracao`,
+  `br.com.menthoros.backend.enums.FonteDados`.
+- Auditoria completa: `knowledge/product/strategic-compass.md` seção "Estado atual"
+  (2026-09-23).
 
-## Status: fato estabelecido (restrição jurídica do Strava é uma decisão de negócio,
-não uma limitação técnica — revisar com o time de produto/jurídico antes de assumir
-que mudou)
+## Status: fato estabelecido a partir de leitura direta de código em 2026-09-23 (revisar
+na próxima auditoria semanal, e sempre que o pipeline legado do Strava for desligado)
