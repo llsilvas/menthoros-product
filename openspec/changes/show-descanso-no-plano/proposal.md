@@ -162,7 +162,11 @@ de descansos convertidos em treino passa a ser observável — insumo da task 5.
 
 - **Vazar texto técnico para o atleta.** Endereçado pela frase fixa; CA4 testa que o `reason` cru não
   aparece na agenda.
-- **Plano legado.** Todo plano anterior à feature tem `restDays` vazio; CA2 garante que nada muda.
+- **Plano legado.** Todo plano anterior à feature tem `restDays` vazio. O CA2 **não** promete mais
+  "nada muda": duas mudanças são deliberadas (ordenação no painel, "Sem treino" na agenda) e
+  qualquer outra diferença é regressão. O risco real passa a ser o teste de regressão do painel
+  reprovar justamente a ordenação que agora é requisito — por isso o CA2 enumera em vez de comparar
+  a árvore inteira.
 - **`weekDatesFromInicio` mora em `features/athlete`** (`buildWeekAgenda.ts:55`) e o painel do coach
   precisa da mesma conta. Subir para um módulo compartilhado em vez de importar entre features.
 

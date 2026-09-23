@@ -30,8 +30,10 @@ o dia vazio passa a dizer "Sem treino"; a ordenação passa a valer sempre; a fr
 
 - [ ] 2.1 Chip de descanso no `PlanoDetalhePanel` — rótulo "Descanso", `reason` como veio, sem
       duração/RPE/zona, com `data-testid` próprio
-      verify: `PlanoDetalhePanel.test.tsx` — CA1 e **CA2** (sem `restDays` a árvore renderizada é a
-      mesma de hoje)
+      verify: `PlanoDetalhePanel.test.tsx` — CA1 e **CA2**: sem `restDays` (ausente, `null` e `[]`),
+      nenhum chip de descanso e nenhuma frase aparece, e o conteúdo dos chips de treino é o mesmo de
+      hoje — **exceto a ordem**, que passa a ser segunda→domingo (CA2b). Testar com a lista de
+      treinos chegando fora de ordem, que é o caso em que as duas exigências se distinguem
 - [ ] 2.2 Semana só com descansos não cai no "Nenhuma sessão disponível" (`:600`)
       verify: CA8 — teste do painel, não só do helper
 - [ ] 2.3a **Prop nova no `TreinoAddDialog`**: data inicial, aplicada a cada abertura (o dialog fica
