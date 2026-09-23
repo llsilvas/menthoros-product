@@ -43,11 +43,29 @@
       verify: CA12c
 - [x] 4.3 Prova em dia de descanso remove o descanso (CA12b) — a prova vence
       verify: `PlanGenerationPersisterDescansoTest`
-- [ ] 4.3b **Reduzido (2026-09-22):** a checagem fail-closed de cobertura antes de persistir não foi
-      implementada. O persister não recebe o `WeeklyCoverageContext` (ele roda depois do retry, a
-      partir do DTO), e recalcular os dias efetivos ali duplicaria a fonte de verdade. O que sobrou é
-      o invariante local: nenhum dia com treino e descanso ao mesmo tempo. Decidir se vale plumbar o
-      contexto até o persister ou aceitar o invariante local
+- [x] 4.3b **Retomada e feita em 2026-09-22** (`f233601`). Tinha sido reduzida sob o argumento de que
+      plumbar o contexto até o persister duplicaria a fonte de verdade. **O adiamento estava errado**,
+      e a geração real de 22/09 20:49 mostrou o custo: o check-in do atleta dizia DESCANSAR, a LLM
+      prescreveu descanso na quinta e treino no sábado, a cobertura aprovou — e então a
+      `RedistribuicaoTreinoHelper`, que o persister continuava chamando, levou o treino para a quinta.
+      O descanso caiu (o dia passou a ter treino) e o sábado ficou vazio: o inverso exato da
+      prescrição, num plano auto-aprovado entregue ao atleta.
+      A Decisão 6 já dizia que a redistribuição não roda com cobertura validada; faltava o persister
+      *saber*. A decisão agora mora na `CoberturaSemanalPolicy`, consultada pelo `IaServiceImpl` (que
+      valida) e pelo persister (que redistribui) — uma resposta, dois pontos de uso, sem mudar a
+      assinatura do `IaService` (10 call sites, incluindo o lote).
+      verify: `CoberturaSemanalPolicyTest` (9 casos) + `PlanGenerationPersisterCoberturaTest`
+      (regressão das 20:49) + geração real de 21:14, com o descanso preservado
+- [x] 4.3c **Nova (2026-09-22, `7a5eb75`):** descanso não autorizado é resolvido sem turno de reparo.
+      A regra trocou um erro silencioso por uma violação reparável, mas quando o modelo insiste o
+      treinador fica **sem plano**: em 22/09 21:11 a LLM pôs treino *e* descanso na mesma quinta, o
+      reparo repetiu o erro e as duas tentativas falharam. O `DescansoNaoAutorizadoConverter` roda
+      antes da normalização e aplica duas conversões determinísticas — dia que já tem treino perde o
+      descanso (precedência do persister), e descanso sem sinal do dia vira REGENERATIVO de 30 min,
+      que é a instrução literal do bloco de cobertura. A regra continua valendo; deixa de ser cobrada
+      por rejeição. Telemetria: `plano_descanso_nao_autorizado{motivo}`
+      verify: `DescansoNaoAutorizadoConverterTest` (12 casos) + geração real de 21:27, com as duas
+      conversões no log e plano salvo
 - [x] 4.4 Treino criado pelo treinador num dia de descanso remove o descanso
       verify: CA14
 - [ ] 4.5 Regra de cobertura desligada com skeleton do planner — implementado (guarda de uma linha
@@ -71,9 +89,19 @@
       cobertos por treino `rest_days` fica vazio. Três defeitos apareceram só aqui, nenhum por
       teste: bloco de cobertura emitido com o planner ligado (c73299d), vocabulário de `restDays`
       (7c570a5) e coleções imutáveis no merge do Hibernate (aaf3e23, 9aafb2e).
-- [ ] 5.2 Geração real na SEMANA_ATUAL com check-in DESCANSAR hoje: descanso no primeiro dia efetivo
+- [x] 5.2 Geração real na SEMANA_ATUAL com check-in DESCANSAR hoje: descanso no primeiro dia efetivo
       com motivo; demais dias com treino
-      verify: `rest_days` com 1 item no dia de hoje e motivo citando o check-in (CA2 ao vivo)
+      verify: `rest_days` com 1 item no **primeiro dia efetivo** e motivo citando o check-in (CA2 ao vivo)
+      **Feito em 22/09 21:14.** Check-in DESCANSAR inserido direto no banco (autorizado pelo founder;
+      `observacoes` marca a linha como inserida para validação). Plano salvo:
+      `rest_days = [{"dayOfWeek": "QUINTA", "reason": "Readiness do dia é DESCANSAR, TSB -11,8 (limiar -25)"}]`
+      e treino CONTINUO 7,69 km no sábado.
+      **Correção de redação:** o critério dizia "no dia de hoje". Hoje era terça, mas em SEMANA_ATUAL
+      o dia corrente já não é dia efetivo (`filtrarDiasDisponiveis` tira os que passaram), então o
+      primeiro efetivo era quinta — e é nela que o descanso deve cair. O comportamento está correto;
+      o texto é que estava ambíguo.
+      Esta mesma geração é a prova ao vivo da 4.3b: é o cenário de 20:49, agora com o descanso
+      preservado e o treino mantido no sábado.
 - [ ] 5.4 **Revisão de calibração** (após 4 semanas com o front em produção): taxa de descansos
       convertidos em treino pelo treinador e de reprovação por `DESCANSO_SEM_SINAL`; revisar limiares
       de TSB/RPE e o teto por nº de dias à luz dos dados
@@ -81,3 +109,19 @@
 - [ ] 5.3 **Gate de promoção:** não abrir/mergear `develop → main` com esta change antes de
       `show-descanso-no-plano` estar mergeada em `develop`
       verify: checklist do PR de promoção
+
+## Follow-ups registrados (fora do escopo desta change)
+
+Achados que apareceram na validação ao vivo de 22/09 e **não** são desta change — ficam aqui para não
+se perderem, cada um candidato a change própria:
+
+- **Auto-approve ignora `VIOLATIONS_DETECTED`.** O veto de `aplicarAutoApproveSeElegivel` só olha
+  `FAILED`, `FALLBACK` e `requiresCoachReview`. O plano de 22/09 20:50 foi auto-aprovado
+  (`AUTO_CONFIANCA_ALTA`) com `planner_compliance_status = VIOLATIONS_DETECTED` e nunca entrou na
+  fila do treinador. É de `athlete-onboarding-baseline` (CA5, Decisão 7), anterior a esta change.
+  Localmente foi contornado com `ONBOARDING_AUTO_APPROVE_ENABLED=false`.
+- **Treino em dia indisponível ainda custa um turno de reparo.** Diferente do `restDays`, isto é erro
+  de prescrição e deve continuar sendo violação — mas se a frequência for alta, vale medir antes de
+  decidir se compensa corrigir deterministicamente (mover para o dia disponível mais próximo).
+- **Reparo estrutural sintetiza aquec/desaq por cima da prescrição** (herdado de
+  `fix-etapas-continuos-pace`): o relógio recebe mais que o aprovado pelo treinador.
