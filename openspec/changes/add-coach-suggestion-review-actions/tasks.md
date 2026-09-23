@@ -27,6 +27,12 @@ Validação por bloco: frontend `npm run lint && npm run build && npm test`. Bra
 
 ## 2. Encerramento
 
-- [ ] 2.1 `/qa` no frontend.
+- [x] 2.1 `/qa` no frontend (`frontend-reviewer` + `clean-code-reviewer` em paralelo). Achados
+      aplicados: bug real (branch 422 não chamava `onDecisao`, lista do pai ficava
+      desatualizada) corrigido unificando a checagem em `resolverMensagemDecisao`; lógica de
+      decisão extraída para `useSugestaoDecisao` (hook, testável isoladamente); confirmação
+      adicionada antes de rejeitar (`ConfirmDialog`, mesmo padrão de outras ações destrutivas do
+      coach — achado do `frontend-reviewer`, não estava no proposal original). Gate completo
+      (`lint && build && test:run`) verde: 211 arquivos / 1701 testes, sem regressão.
 - [ ] 2.2 Validação manual em `develop` (Railway): abrir uma sugestão PENDING real, aprovar,
-      confirmar que o status persiste ao reabrir a lista.
+      confirmar que o status persiste ao reabrir a lista; testar rejeitar com e sem confirmar.
