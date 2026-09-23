@@ -3,8 +3,8 @@
 **Tamanho:** S · **Trilha:** Fast
 **Status:** proposta
 **Criado:** 2026-09-22
-**Revisado:** 2026-09-23 — 2ª revisão, após a DoR reprovar (`spec-reviewer` **e** Codex, ambos
-NOT READY). Ver "O que a DoR derrubou".
+**Revisado:** 2026-09-23 — **3ª revisão**, após a 2ª DoR (Codex NOT READY, `spec-reviewer` READY com
+ressalva; os dois convergiram no CA4). Ver "O que a DoR derrubou" e "2ª rodada".
 **Depende de:** `add-descanso-explicito-por-fadiga` (backend, PR #142 **mergeado em `develop`**).
 O backend não vai para `main` antes desta change (task 5.3 de lá).
 
@@ -51,6 +51,21 @@ código antes de aceitos:
    `TreinoAddDialogProps` (`TreinoAddDialog.tsx:82`) não tem prop de data inicial, e `dataTreino`
    nasce de `useState('')` e é limpo no `resetForm` ao fechar. É uma task própria agora.
 
+## 2ª rodada de DoR (2026-09-23) — o que ela derrubou
+
+A 2ª versão também não passou. Três achados, todos verificados no código:
+
+1. **CA4 partia de premissa falsa.** A agenda **já** escreve "Descanso" em todo dia sem treino:
+   `statusDoDia` devolve `'descanso'` quando não há treino (`dayStatus.ts:21`) e `WeekAgendaRow.tsx:140`
+   renderiza o texto. Ou seja, "descanso prescrito" e "dia vazio" hoje são **visualmente idênticos** —
+   a distinção que o CA4 prometia não existia. Decisão do founder: **o dia vazio passa a dizer "Sem
+   treino"**, e o descanso prescrito mantém "Descanso" mais a frase fixa.
+2. **A frase fixa dizia "hoje"** e a agenda mostra a semana toda. Corrigida.
+3. **CA2 e CA6 se contradiziam.** Decisão do founder: **ordenar sempre**, e relaxar o CA2 — que
+   deixa de ser "UI idêntica" e passa a listar exatamente o que muda para plano antigo.
+
+As duas decisões acima mudam a tela de planos anteriores à feature. Isso é deliberado e está no CA2.
+
 ## What Changes
 
 Front (`apps/menthoros-front`) apenas. Campo aditivo, já em `develop`.
@@ -68,8 +83,9 @@ Front (`apps/menthoros-front`) apenas. Campo aditivo, já em `develop`.
   daquele dia. Exige **prop nova** no dialog (ver tasks 2.3a/2.3b). O backend remove o descanso ao
   criar o treino (CA14 de lá); o front recarrega o plano.
 
-- **Atleta — agenda da semana** (`buildWeekAgenda.ts` + `WeekAgendaRow.tsx`): hoje o dia sem treino é
-  inferido por `workout === null`. Passa a distinguir **descanso prescrito** de **dia vazio**.
+- **Atleta — agenda da semana** (`buildWeekAgenda.ts` + `WeekAgendaRow.tsx`): hoje **todo** dia sem
+  treino mostra "Descanso" (`dayStatus.ts:21` + `WeekAgendaRow.tsx:140`). Passa a haver dois estados:
+  **descanso prescrito** → "Descanso" + frase fixa; **dia vazio** → "Sem treino".
 
 ### Texto para o atleta
 
@@ -80,9 +96,11 @@ do sinal:
 - Casar substring em texto livre é frágil e **erra**: o exemplo real cita *dois* sinais na mesma
   frase (Readiness e TSB), então palavra-chave isolada atribuiria o motivo errado. Um `reason` com
   redação nova (a LLM muda o texto a cada geração) cairia em nenhum padrão.
-- **Decisão:** o atleta vê **uma frase fixa** — *"Seu treinador e a IA reservaram hoje para
-  recuperação."* — e **nunca** o `reason` cru. Sem tabela de padrões, sem regex.
-- **Por que isso é melhor que a tabela:** a frase fixa é correta para 100% dos casos e não pode vazar
+- **Decisão:** o atleta vê **uma frase fixa** — *"Este dia foi reservado para recuperação."* — e
+  **nunca** o `reason` cru. Sem tabela de padrões, sem regex.
+  A 2ª revisão escrevia *"reservaram **hoje**"*; a agenda mostra a semana inteira, inclusive dias
+  passados e futuros (`WeekAgenda.tsx:24`), então "hoje" estaria errado na maioria das linhas.
+- **Por que isso é melhor que a tabela:** a frase fixa não pode vazar
   "TSB -11,8 (limiar -25)" para o atleta. Uma tabela de substrings acerta alguns e erra os outros em
   silêncio — o pior dos dois mundos.
 - Quando o motivo por sinal virar informação de verdade para o atleta, o caminho é o **backend**
@@ -100,8 +118,13 @@ do sinal:
 - **CA1** — Given plano com `restDays: [{dayOfWeek: "QUINTA", reason: "Readiness do dia é DESCANSAR,
   TSB -11,8 (limiar -25)"}]`, when o treinador abre o painel, then vê um chip "Descanso" na posição
   da quinta, com **esse** texto, sem duração/RPE.
-- **CA2** — Given `restDays` `undefined`, `null` ou `[]`, then a UI é **idêntica** à de hoje —
-  nenhum elemento novo, nos dois consumidores (painel e agenda).
+- **CA2** — Given `restDays` `undefined`, `null` ou `[]` (plano anterior à feature), then:
+  **(a)** nenhum chip de descanso e nenhuma frase de recuperação aparecem, em nenhuma das duas telas;
+  **(b)** no painel, a lista passa a sair ordenada segunda→domingo (mudança deliberada, ver CA6);
+  **(c)** na agenda, o dia sem treino passa a dizer **"Sem treino"** no lugar de "Descanso"
+  (mudança deliberada, ver CA4).
+  As mudanças (b) e (c) são as **únicas** permitidas para plano antigo — qualquer outra diferença é
+  regressão. Este CA substitui o "UI idêntica" da 2ª versão, que era incompatível com CA4 e CA6.
 - **CA3** — Given um plano em `AGUARDANDO_REVISAO` com descanso na quinta, when o treinador clica
   "Prescrever treino neste dia", then o `TreinoAddDialog` abre com `dataTreino` = a data da quinta
   daquela semana.
@@ -114,13 +137,16 @@ do sinal:
   **CA3d** — Given o treinador abriu pela quinta mas **editou a data** para sexta antes de salvar,
   then o descanso de quinta **permanece** e o treino cai na sexta — o efeito segue a data salva, não
   a de origem.
-- **CA4** — Given o atleta abre a agenda da semana, then o dia de descanso prescrito aparece como
-  descanso **com a frase fixa** (nunca o `reason` cru), e um dia sem nada continua como dia vazio —
-  os dois estados são distinguíveis.
-- **CA6** — Ordenação: treinos e descansos na mesma lista saem em ordem de dia (segunda→domingo).
-  **Nenhum treino é descartado**: dois treinos no mesmo dia são permitidos pelo produto
-  (`TreinoAddDialog.tsx:401`) e devem aparecer os dois. Se um dia tiver treino **e** descanso (dado
-  inconsistente do backend), **o treino vence** e o descanso não é exibido.
+- **CA4** — Given o atleta abre a agenda da semana, then o dia de **descanso prescrito** mostra
+  "Descanso" **mais a frase fixa** — e nunca o `reason` cru — enquanto o dia **sem nada** mostra
+  "Sem treino". Os dois textos são diferentes, e é isso que os torna distinguíveis.
+- **CA6** — **No painel do treinador**, a lista sai sempre em ordem de dia (segunda→domingo),
+  **inclusive quando não há descanso nenhum** (ver CA2b). **Nenhum treino é descartado**: dois
+  treinos no mesmo dia são permitidos pelo produto (`TreinoAddDialog.tsx:401`) e devem aparecer os
+  dois. Se um dia tiver treino **e** descanso (dado inconsistente do backend), **o treino vence** e o
+  descanso não é exibido.
+  Esta garantia é **do painel**, não da agenda: a agenda escolhe um treino por dia
+  (`buildWeekAgenda.ts:102`, `treinos.find`) e isso é comportamento pré-existente, fora do escopo.
 - **CA7** — Acessibilidade: o chip tem rótulo acessível ("Descanso na quinta: <motivo>") e respeita o
   contraste do tema.
 - **CA8** — Given uma semana **só com descansos** (nenhum treino), then o painel mostra os chips de
