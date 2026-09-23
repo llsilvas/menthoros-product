@@ -1,48 +1,63 @@
 # Tasks — show-descanso-no-plano
 
-Ordem por dependência: tipos → adaptador puro → telas do treinador → telas do atleta → entrega.
+Ordem por dependência: tipos → helper puro → painel do treinador → agenda do atleta → entrega.
 Cliente de API é **curado à mão**: nunca rodar `generate:api` (é destrutivo neste repo).
 
-## 1. Tipos e ordenação (TDD)
+Revisado em 2026-09-23 depois da DoR (spec-reviewer + Codex, ambos NOT READY). A seção 3 encolheu
+(home do atleta saiu do escopo) e a 2 cresceu (o `TreinoAddDialog` não aceitava data).
 
-- [ ] 1.1 `restDays?: RestDayDto[]` (`{ dayOfWeek: string; reason: string }`) em `PlanoSemanalDto`
-      (`src/types/PlanoReview.ts`) e em `PlanoSemanal` (`src/types/PlanoSemanal.ts`), ambos opcionais
-      verify: `npm run build` (tipos) — plano antigo sem o campo continua compilando
-- [ ] 1.2 Helper puro que mistura treinos e descansos numa lista única ordenada por dia da semana,
-      ignorando `dayOfWeek` inválido/desconhecido em vez de quebrar a tela
-      verify: `npm run test:run` — CA6 (ordem segunda→domingo, sem duplicar dia), lista vazia, dia
-      inválido, só treinos, só descansos
+## 1. Tipos e helper de ordenação (TDD)
 
-## 2. Plano do treinador (TDD)
+- [ ] 1.1 `restDays?: RestDayDto[] | null` (`{ dayOfWeek: string; reason: string }`) em
+      `PlanoSemanalDto` (`src/types/PlanoReview.ts`) e em `PlanoSemanal` (`src/types/PlanoSemanal.ts`)
+      — nulável de verdade, não só opcional: o CA2 cobre `undefined`, `null` e `[]`
+      verify: `npm run build`; plano antigo sem o campo continua compilando
+- [ ] 1.2 Helper puro que funde treinos e descansos numa lista ordenada por dia da semana
+      verify: `npm run test:run` — CA6 na íntegra: ordem segunda→domingo; **dois treinos no mesmo dia
+      aparecem os dois** (não deduplicar treino); dia com treino **e** descanso → treino vence;
+      `dayOfWeek` inválido/desconhecido é ignorado sem quebrar; listas vazias dos dois lados
+- [ ] 1.3 Subir `weekDatesFromInicio` (hoje em `features/athlete/adapters/buildWeekAgenda.ts:55`)
+      para um módulo compartilhado — o painel do coach precisa da mesma conta e `features/coach` não
+      deve importar de `features/athlete`
+      verify: `npm run test:run` do teste existente do adapter continua verde após a mudança de local
 
-- [ ] 2.1 Chip de descanso no `PlanoDetalhePanel` — rótulo "Descanso", motivo visível, sem
-      duração/RPE/zona; `data-testid` próprio para o teste
-      verify: `PlanoDetalhePanel.test.tsx` — CA1 e **CA2** (plano sem `restDays` renderiza igual ao de
-      hoje: nenhum elemento novo)
-- [ ] 2.2 Rótulo acessível do chip ("Descanso na quinta: <motivo>")
-      verify: CA7, por `getByLabelText`/`toHaveAccessibleName`
-- [ ] 2.3 "Prescrever treino neste dia" abre o `TreinoAddDialog` com `dataTreino` = data daquele dia
-      da semana do plano (derivada de `semanaInicio`, como o `weekDatesFromInicio` do atleta faz)
-      verify: CA3 — o dialog recebe a data certa; ao salvar, o plano recarrega e o chip some
+## 2. Painel do treinador (TDD)
 
-## 3. Atleta (TDD)
+- [ ] 2.1 Chip de descanso no `PlanoDetalhePanel` — rótulo "Descanso", `reason` como veio, sem
+      duração/RPE/zona, com `data-testid` próprio
+      verify: `PlanoDetalhePanel.test.tsx` — CA1 e **CA2** (sem `restDays` a árvore renderizada é a
+      mesma de hoje)
+- [ ] 2.2 Semana só com descansos não cai no "Nenhuma sessão disponível" (`:600`)
+      verify: CA8 — teste do painel, não só do helper
+- [ ] 2.3a **Prop nova no `TreinoAddDialog`**: data inicial, aplicada a cada abertura (o dialog fica
+      montado em `CoachPlanReviewPage.tsx:336` e limpa o form no `resetForm` ao fechar — inicializar
+      `useState` uma vez não basta)
+      verify: `TreinoAddDialog.test.tsx` — CA3c (abrir pela quinta → cancelar → abrir pelo sábado dá
+      sábado) e abertura pelo botão genérico, sem data, continua com o campo vazio
+- [ ] 2.3b Ação "Prescrever treino neste dia" no chip, passando a data daquele dia da semana do plano
+      verify: CA3 (dialog abre com a data certa) e **CA3b** (plano fora de `AGUARDANDO_REVISAO` não
+      oferece a ação — mesma guarda do botão existente, `:621`)
+- [ ] 2.4 Efeito segue a data salva, não a de origem
+      verify: **CA3d** — abrir pela quinta, editar para sexta, salvar: o descanso de quinta permanece
+- [ ] 2.5 Rótulo acessível do chip
+      verify: CA7, por `toHaveAccessibleName`
 
-- [ ] 3.1 `buildWeekAgenda` distingue **descanso prescrito** (com motivo) de **dia vazio**
-      verify: `buildWeekAgenda.test.ts` — CA4, incluindo o caso de dia sem treino e sem descanso
-- [ ] 3.2 `WeekAgendaRow` mostra o dia de descanso com o motivo
-      verify: teste de componente — CA4 na tela
-- [ ] 3.3 `selectTodayState` no dia de descanso prescrito mostra o motivo
-      verify: `selectTodayState.test.ts` — CA5
-- [ ] 3.4 **Decisão pendente (Open Question da proposta):** texto do motivo para o atleta — mostrar o
-      `reason` técnico como veio, ou mapear por tipo de sinal para frase amigável. Decidir **antes**
-      de 3.1; a escolha muda o que 3.1–3.3 asseguram
+## 3. Agenda do atleta (TDD)
+
+> A home saiu do escopo na revisão de 23/09: `AthleteHome` (`src/types/AthleteHome.ts:47`) não tem
+> descanso e a home consome `/me/home`, não o plano. Virou follow-up de backend.
+
+- [ ] 3.1 `buildWeekAgenda` distingue **descanso prescrito** de **dia vazio**
+      verify: `buildWeekAgenda.test.ts` — CA4, incluindo dia sem treino e sem descanso
+- [ ] 3.2 `WeekAgendaRow` mostra o dia de descanso com a **frase fixa** de atleta
+      verify: CA4 na tela; asserção explícita de que o `reason` cru **não** aparece
 
 ## 4. Entrega
 
 - [ ] 4.1 `npm run lint && npm run build && npm run test:run`
 - [ ] 4.2 E2E (Playwright) do fluxo do treinador: ver o descanso → prescrever treino → descanso some
       verify: mock do IdP antes do 1º `goto` e `waitForURL` antes de `evaluate` (convenção do repo)
-- [ ] 4.3 Validação real com um plano do Leandro que tenha `restDays` — o de 22/09 21:14 (semana
-      21/09, descanso na QUINTA com motivo do check-in) serve
-- [ ] 4.4 **Destrava o gate 5.3 do backend:** só depois desta change em `develop` é que
+- [ ] 4.3 Validação real com um plano que tenha `restDays` — o do Leandro de 22/09 21:14 (semana
+      21/09, descanso na QUINTA) serve
+- [ ] 4.4 **Destrava o gate 5.3 do backend:** só com esta change em `develop` é que
       `add-descanso-explicito-por-fadiga` pode ir para `main`
