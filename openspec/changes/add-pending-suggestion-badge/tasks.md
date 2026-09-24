@@ -43,14 +43,18 @@ antes do front (front lê `temSugestaoPendente`, que só existe depois do PR bac
 
 ## 3. Frontend — roster
 
-- [ ] 3.1 `CoachAtletaResumo` (`types/Coach.ts`) e `AthleteRow` (`CoachAthletesPage.tsx`) ganham
+- [x] 3.1 `CoachAtletaResumo` (`types/Coach.ts`) e `AthleteRow` (`CoachAthletesPage.tsx`) ganham
       `temSugestaoPendente: boolean`; mapeamento do DTO para a row atualizado.
-      *verify:* `npm run build` verde.
-- [ ] 3.2 `AthleteNameCell.tsx` ganha o indicador visual (design D5) — mesmo ponto
+      *verify:* `npm run build` verde. ✅ (achado durante o build: campo agora obrigatório
+      quebrou 8 fixtures de teste + 1 objeto de fallback em `CoachInboxPage.tsx` — todos
+      corrigidos.)
+- [x] 3.2 `AthleteNameCell.tsx` ganha o indicador visual (design D5) — mesmo ponto
       (`primary[500]`, 5px) já usado em `CoachCalendarPage.tsx`, coexistindo com o indicador de
       "linha viva" de geração de plano sem colidir.
       *verify:* CA7; teste RTL — indicador aparece quando `temSugestaoPendente=true`, ausente
-      quando `false`, e junto com o indicador de geração de plano sem sobrepor.
+      quando `false`, e junto com o indicador de geração de plano sem sobrepor. ✅ 3 novos testes
+      em `AthleteNameCell.test.tsx`. Gate completo: lint + build + 211 arquivos / 1704 testes,
+      sem regressão.
 
 ## 4. Integração e encerramento
 
