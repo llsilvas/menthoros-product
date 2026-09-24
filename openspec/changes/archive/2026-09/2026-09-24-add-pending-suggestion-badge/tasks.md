@@ -75,10 +75,8 @@ antes do front (front lê `temSugestaoPendente`, que só existe depois do PR bac
       `develop` em 2026-09-24); esta é uma checagem manual pós-deploy que fica para quem tiver
       acesso ao ambiente Railway de `develop` — não bloqueia o arquivamento (código, não task
       crítica pendente).
-- [ ] 4.3 **Aberta, não satisfeita ainda** — antes do PR `develop → main`: confirmar que
-      `add-coach-suggestion-review-actions` (`menthoros-front#126`) já está em produção.
-      **Verificado em 2026-09-24: NÃO está** — `develop` está 51 commits à frente de `main` em
-      `menthoros-front`, ou seja, nem o #126 nem este badge foram promovidos. Sem os botões
-      Aprovar/Rejeitar em produção, o coach veria o badge e não acharia onde agir. **Ação
-      necessária antes de promover este badge para `main`:** confirmar que o PR
-      `develop → main` que inclui o #126 já foi mergeado.
+- [x] 4.3 Antes do PR `develop → main`: confirmar que `add-coach-suggestion-review-actions`
+      (`menthoros-front#126`) já está em produção. **Fechada em 2026-09-24**: promoção
+      `develop → main` mergeada nos dois repos — backend PR `#144` (13 PRs, #131-#143) e front PR
+      `#128` (11 PRs, #117-#127), ambos levando `#126` e este badge (`#127`/`#143`) juntos para
+      `main`. Coach agora tem os botões Aprovar/Rejeitar e o badge em produção ao mesmo tempo.
