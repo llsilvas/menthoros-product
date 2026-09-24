@@ -69,8 +69,16 @@ antes do front (front lê `temSugestaoPendente`, que só existe depois do PR bac
       `getCalendarioSemanal`; indicador visual duplicado por cópia já divergente entre roster e
       calendário (extraído `PendingSuggestionDot` compartilhado); prop `hasPendingSuggestion`
       tornada obrigatória em `AthleteNameCell`. Nenhum achado Critical/High de segurança.
-- [ ] 4.2 Validação manual em `develop` (Railway): atleta com sugestão `PENDING` real mostra o
-      ponto no roster e no calendário; decidir a sugestão faz o ponto sumir ao recarregar.
-- [ ] 4.3 Antes do PR `develop → main`: confirmar que `add-coach-suggestion-review-actions`
-      (`menthoros-front#126`) já está em produção — sem os botões Aprovar/Rejeitar, o coach vê o
-      badge e não acha onde agir. Se não estiver, segurar a promoção deste badge.
+- [ ] 4.2 **Adiada** — validação manual em `develop` (Railway): atleta com sugestão `PENDING`
+      real mostra o ponto no roster e no calendário; decidir a sugestão faz o ponto sumir ao
+      recarregar. Código mergeado (`menthoros-backend#143`, `menthoros-front#127`, ambos em
+      `develop` em 2026-09-24); esta é uma checagem manual pós-deploy que fica para quem tiver
+      acesso ao ambiente Railway de `develop` — não bloqueia o arquivamento (código, não task
+      crítica pendente).
+- [ ] 4.3 **Aberta, não satisfeita ainda** — antes do PR `develop → main`: confirmar que
+      `add-coach-suggestion-review-actions` (`menthoros-front#126`) já está em produção.
+      **Verificado em 2026-09-24: NÃO está** — `develop` está 51 commits à frente de `main` em
+      `menthoros-front`, ou seja, nem o #126 nem este badge foram promovidos. Sem os botões
+      Aprovar/Rejeitar em produção, o coach veria o badge e não acharia onde agir. **Ação
+      necessária antes de promover este badge para `main`:** confirmar que o PR
+      `develop → main` que inclui o #126 já foi mergeado.

@@ -4,7 +4,28 @@ Ordem de execução das changes ativas, organizada por sprint. **Prioridade: bas
 
 **Última atualização:** 2026-09-24 (trilha do descanso prescrito e da normalização de
 etapas arquivada — 4 changes, ver "Changes concluídas"; **follow-up bloqueante para produção:** o
-auto-approve do onboarding ignora `VIOLATIONS_DETECTED` e está ligado em prod). Antes: 2026-09-21, tarde (**duas changes de cobrança do atleta ABERTAS, prioridade
+auto-approve do onboarding ignora `VIOLATIONS_DETECTED` e está ligado em prod). Antes: 2026-09-24 (**`add-pending-suggestion-badge` entregue e arquivada** —
+backend PR **#143** e front PR **#127** mergeados em `develop`. M · Full, sem migration: sinaliza
+no roster e no calendário semanal quais atletas têm `SugestaoCoach` PENDING, sem o coach precisar
+abrir cada perfil individual. Achado central na origem da change: metade já existia e nunca foi
+ligada — `CoachCalendarioDto.hasPendingSuggestion` estava no contrato desde
+`add-coach-suggestion-inbox` (arquivada, 2026-06) mas hardcoded `false`, e o frontend do calendário
+já desenhava o indicador sem nunca ter recebido `true`. Query agregada nova
+(`SugestaoCoachRepository.findAtletaIdsByTenantIdAndStatus`, exclui expiradas) resolvida uma vez
+por `getDashboard()` e reusada em roster/insights/calendário — 1x por requisição, não 3x. Duas
+rodadas de pre-mortem Codex (query incluía expiradas; `getDashboard()` rodava a query 3x; o badge
+podia sinalizar uma pendência que o coach não acharia no painel do perfil — as três corrigidas
+antes da implementação) e `/qa` com 5 reviewers em paralelo (nenhum achado Critical/High;
+convergência real entre 3 deles em `getInsights()` ainda rechamando a query, e entre 2 no rename
+`temSugestaoPendente` → `hasPendingSuggestion` por violar ADR-0007 — campo novo nasce em inglês).
+`product-reviewer`: **Go**, com a ressalva de que o badge resolve "descoberta", não "atrito de
+acesso" (sem deep-link, fica para depois). **Depende de produto, não de código, de
+`add-coach-suggestion-review-actions` (front #126, já em `develop`) estar em produção antes de
+promover este badge a `main`** — verificado em 2026-09-24: `develop` está 51 commits à frente de
+`main` em `menthoros-front`, ou seja, nem o #126 nem este badge chegaram lá ainda. Sem os botões
+Aprovar/Rejeitar no ar, o coach veria o ponto e não acharia onde agir. Arquivada em
+`changes/archive/2026-09/2026-09-24-add-pending-suggestion-badge/`.) Antes, 2026-09-21, tarde
+(**duas changes de cobrança do atleta ABERTAS, prioridade
 em aberto** — `add-contrato-atleta-mensalidade` (L · Full, backend + front) e
 `add-aviso-mensalidade` (M · Full, depende da primeira). Nasceram de um grilling de 26 decisões com
 o founder, que começou por descobrir que a change pedida (`menthoros-payment-control`) não existia:
