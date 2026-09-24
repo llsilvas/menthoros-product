@@ -58,7 +58,17 @@ antes do front (front lê `temSugestaoPendente`, que só existe depois do PR bac
 
 ## 4. Integração e encerramento
 
-- [ ] 4.1 Gate backend completo (`./mvnw clean verify`), gate front, `/qa` nos dois repos.
+- [x] 4.1 Gate backend completo (`./mvnw clean verify`), gate front, `/qa` nos dois repos.
+      ✅ Backend: 4128 testes unitários (428 classes, 0 falhas — 1 skip pré-existente sem relação)
+      + 7/7 no IT dedicado. Frontend: lint limpo, build limpo, 211 arquivos / 1704 testes.
+      `/qa` (`code-reviewer` + `security-reviewer` + `clean-code-reviewer` no backend,
+      `frontend-reviewer` + `clean-code-reviewer` no front, 5 agentes em paralelo) achou e
+      corrigiu: rename `temSugestaoPendente` → `hasPendingSuggestion` (ADR-0007, achado
+      convergente de 2 reviewers); `getInsights()` ainda rechamava a query (2× → 1×, achado
+      convergente de 3 reviewers); resolução redundante de `tenantId` no overload de
+      `getCalendarioSemanal`; indicador visual duplicado por cópia já divergente entre roster e
+      calendário (extraído `PendingSuggestionDot` compartilhado); prop `hasPendingSuggestion`
+      tornada obrigatória em `AthleteNameCell`. Nenhum achado Critical/High de segurança.
 - [ ] 4.2 Validação manual em `develop` (Railway): atleta com sugestão `PENDING` real mostra o
       ponto no roster e no calendário; decidir a sugestão faz o ponto sumir ao recarregar.
 - [ ] 4.3 Antes do PR `develop → main`: confirmar que `add-coach-suggestion-review-actions`
