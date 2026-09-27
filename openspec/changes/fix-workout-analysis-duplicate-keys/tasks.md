@@ -18,6 +18,8 @@ Branch: `feature/fix-workout-analysis-duplicate-keys` (a partir de `develop`).
 - [ ] 1.3 Teste primeiro (CA3): texto que não é JSON lança exceção (a análise continua `FAILED`).
 - [ ] 1.4 Implementar a conversão tolerante e trocar o `.entity(AnaliseWorkoutRawDto.class)` do
       `WorkoutAnalysisListener`, com `WARN` quando houver chave repetida.
+- [ ] 1.5 Teste primeiro (CA5): a chamada da análise usa temperatura 0.2 por chamada; implementar
+      com opções no `ChatClient` (rota `COMPLEX` inalterada).
 - **Validação:** `./mvnw clean test`
 
 ## 2. Preço do snapshot datado

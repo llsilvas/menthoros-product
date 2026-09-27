@@ -37,6 +37,10 @@ datado na resposta, e o registro só conhece `gpt-4o-mini` — o custo dessas ch
   `ObjectMapper.readTree` (que por padrão mantém o **último** valor de cada chave) e converter com
   `treeToValue(..., AnaliseWorkoutRawDto.class)`. Remoção de cercas de markdown (```json) preservada,
   como o `BeanOutputConverter` já fazia.
+- **Temperatura 0.2 na chamada da análise**, via opções por chamada no `WorkoutAnalysisListener`.
+  A rota `COMPLEX` segue em 0.7 — o outro consumidor (`RaceProjectionNarrativeGenerator`) é texto
+  narrativo e não muda. Ataca a causa (saída estruturada com temperatura alta), enquanto o parse
+  tolerante segura o sintoma.
 - **`llm-pricing.yml`**: entrada `gpt-4o-mini-2024-07-18` com os mesmos valores de `gpt-4o-mini` —
   mesmo padrão já usado para `claude-haiku-4-5-20251001`.
 
@@ -63,6 +67,11 @@ datado na resposta, e o registro só conhece `gpt-4o-mini` — o custo dessas ch
   - **When** a análise é processada
   - **Then** a análise fica `FAILED`, como hoje
 
+- **CA5 — Análise chamada com temperatura baixa**
+  - **Given** um treino elegível para análise
+  - **When** o listener chama o LLM
+  - **Then** a chamada usa a rota `COMPLEX` com temperatura 0.2, sem alterar a configuração da rota
+
 - **CA4 — Custo do snapshot datado registrado**
   - **Given** uma resposta com modelo `gpt-4o-mini-2024-07-18`
   - **When** o `CostTrackingAdvisor` processa o uso
@@ -88,7 +97,7 @@ datado na resposta, e o registro só conhece `gpt-4o-mini` — o custo dessas ch
 ## Non-goals
 
 - Migrar a rota para saída estruturada nativa da Anthropic (mais robusto, mudança maior).
-- Mudar temperatura ou modelo da rota `COMPLEX`.
+- Mudar o modelo da rota `COMPLEX` ou a temperatura configurada da rota (a 0.2 vale só para esta chamada).
 - Aplicar o parse tolerante em outras chamadas `.entity(...)` do backend.
 - Resolver automaticamente sufixos de data no `LlmPricingRegistry`.
 
