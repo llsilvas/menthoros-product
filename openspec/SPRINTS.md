@@ -1175,6 +1175,22 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
+### `add-coach-suggestion-review-actions` ✅ **ARQUIVADA** — o coach aprova ou rejeita a SugestaoCoach na própria tela (2026-09-27)
+
+**Entregue:** `menthoros-front` PR **#126**, mergeado em `develop` em 2026-09-23. Arquivada em
+`changes/archive/2026-09/2026-09-27-add-coach-suggestion-review-actions/`. S · Fast, só frontend.
+
+**O que faz:** o `CoachDialog` de `RecentSuggestionsPanel` ganhou **Aprovar**/**Rejeitar** para
+sugestões PENDING, chamando endpoints que já existiam no backend e nenhuma tela usava — a IA propunha
+e o coach só lia. Resultado incerto (POST comitado, resposta perdida) reconsulta `detalhe(id)` em vez
+de assumir PENDING; 422 de decisão já tomada vira status informativo. O `/qa` achou um bug real (o
+ramo 422 não recarregava a lista do perfil), extraiu a decisão para `useSugestaoDecisao` e adicionou
+confirmação antes de rejeitar.
+
+**Ficou de fora, com motivo registrado:** a task **2.2** (validação manual em `develop`, Railway) foi
+**adiada** — não executada. É gate do PR `develop → main` do front que levar o #126 a produção, e
+esse mesmo PR condiciona a promoção do badge de `add-pending-suggestion-badge` (ver cabeçalho).
+
 ### `fix-workout-analysis-duplicate-keys` ✅ **ARQUIVADA** — análise pós-treino não cai mais por chave repetida no JSON (2026-09-27)
 
 **Entregue:** `menthoros-backend` PR **#147**, mergeado em `develop` (CI verde). Arquivada em

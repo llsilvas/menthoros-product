@@ -36,3 +36,6 @@ Validação por bloco: frontend `npm run lint && npm run build && npm test`. Bra
       (`lint && build && test:run`) verde: 211 arquivos / 1701 testes, sem regressão.
 - [ ] 2.2 Validação manual em `develop` (Railway): abrir uma sugestão PENDING real, aprovar,
       confirmar que o status persiste ao reabrir a lista; testar rejeitar com e sem confirmar.
+      **ADIADA no arquivamento (2026-09-27, decisão do founder):** não é task de código; não foi
+      executada. Precisa acontecer antes do PR `develop → main` do `menthoros-front` que levar o
+      #126 para produção — o badge de `add-pending-suggestion-badge` depende destes botões no ar.
