@@ -1175,6 +1175,30 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
+### `fix-llm-pricing-gpt4o-snapshot` ✅ **ARQUIVADA** — o custo da geração de plano volta a ser contabilizado (2026-09-28)
+
+**Entregue:** `menthoros-backend` PR **#149**, mergeado em `develop` (CI verde). Arquivada em
+`changes/archive/2026-09/2026-09-28-fix-llm-pricing-gpt4o-snapshot/`. XS · Fast.
+
+**O problema:** a OpenAI devolve o snapshot datado (`gpt-4o-2024-08-06`), não o alias `gpt-4o`, e o
+`LlmPricingRegistry` busca preço por nome exato — a rota `plano`, a mais cara do sistema, contava
+tokens mas não custo (46 WARN `sem preço` nos logs de 13 a 27/09). Achado na verificação de logs
+pós-deploy de `fix-workout-analysis-duplicate-keys`, que corrigiu o mesmo caso para o `gpt-4o-mini`.
+Corrigido com a entrada do snapshot no `llm-pricing.yml`; teste garante que o custo chega ao
+**ledger**, não só à métrica (achado do DoR/Codex: o ledger é best-effort e pode divergir).
+
+**Pesquisa de modelos (2026-09-28):** preços do yml conferem com as tabelas oficiais; nenhum modelo
+em uso está descontinuado — o Haiku 4.5 tem aposentadoria "não antes de 15/10/2026". Trocar de
+modelo não é só configuração: Claude Sonnet 5 e a família GPT-5/6 rejeitam `temperature` fora do
+padrão (400), e todas as rotas mandam temperatura. Candidatos registrados para changes próprias, com
+eval: `gpt-4o` → `gpt-4.1` (aceita temperatura, ~20% mais barato); tornar a temperatura opcional por
+rota (pré-requisito para modelos novos); Sonnet 5 na rota `complex` (saída estruturada nativa pode
+resolver a duplicata de chaves na origem).
+
+**Ficou de fora, com motivo registrado:** eval candidato dispensado por decisão do founder (só
+preço). Follow-ups: resolver o sufixo de data no registro (o `EvalCostCalculator` já faz por
+prefixo) e o `EvalCostCalculator` ignorar o cache.
+
 ### `add-coach-suggestion-review-actions` ✅ **ARQUIVADA** — o coach aprova ou rejeita a SugestaoCoach na própria tela (2026-09-27)
 
 **Entregue:** `menthoros-front` PR **#126**, mergeado em `develop` em 2026-09-23. Arquivada em
