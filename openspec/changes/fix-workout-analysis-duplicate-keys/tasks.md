@@ -21,17 +21,17 @@ formato/schema continuam indo no prompt** (trocar `.entity()` por `.content()` a
 próprio, sem mexer no `ObjectMapper` compartilhado) e, se falhar por chave repetida, registra `WARN`
 e refaz com `readTree` (último valor vence) + `treeToValue`.
 
-- [ ] 1.1 Teste primeiro (CA1): conversor aceita `execution_score` e `primary_cause` repetidos,
+- [x] 1.1 Teste primeiro (CA1): conversor aceita `execution_score` e `primary_cause` repetidos,
       inclusive com valores **divergentes**, e fica com o último valor de cada chave.
       verify: teste do conversor verde.
-- [ ] 1.2 Teste primeiro (CA2): sem duplicata, com e sem cerca ```json, resultado idêntico ao do
+- [x] 1.2 Teste primeiro (CA2): sem duplicata, com e sem cerca ```json, resultado idêntico ao do
       `BeanOutputConverter`; `getFormat()` igual ao do `BeanOutputConverter`.
       verify: mesmo teste, casos de equivalência verdes.
-- [ ] 1.3 Teste primeiro (CA3): texto que não é JSON lança exceção.
+- [x] 1.3 Teste primeiro (CA3): texto que não é JSON lança exceção.
       verify: mesmo teste, caso de erro verde.
-- [ ] 1.4 Teste primeiro: `WARN` emitido só quando há chave repetida (não na resposta normal).
+- [x] 1.4 Teste primeiro: `WARN` emitido só quando há chave repetida (não na resposta normal).
       verify: asserção sobre o log no teste do conversor.
-- [ ] 1.5 Implementar o conversor e usá-lo no `WorkoutAnalysisListener` (`.entity(converter)`).
+- [x] 1.5 Implementar o conversor e usá-lo no `WorkoutAnalysisListener` (`.entity(converter)`).
       verify: `WorkoutAnalysisListenerTest` — resposta com duplicata termina `COMPLETED`; não-JSON
       termina `FAILED` (asserção de status, não só do conversor).
 
@@ -41,21 +41,21 @@ e refaz com `readTree` (último valor vence) + `treeToValue`.
 não-nulo — e o default de `AnthropicChatOptions` é `DISABLED`. Opções só com `temperature`
 **desligariam o cache de 1h do system prompt** configurado em `MultiModelConfig.opcoesAnthropic`.
 
-- [ ] 2.1 Extrair o `AnthropicCacheOptions` da rota para um ponto reutilizável em
+- [x] 2.1 Extrair o `AnthropicCacheOptions` da rota para um ponto reutilizável em
       `MultiModelConfig` (sem mudar o comportamento das rotas).
       verify: testes existentes de `MultiModelConfig` seguem verdes.
-- [ ] 2.2 Teste primeiro: a chamada da análise passa `AnthropicChatOptions` com `temperature=0.2`
+- [x] 2.2 Teste primeiro: a chamada da análise passa `AnthropicChatOptions` com `temperature=0.2`
       **e** o mesmo `cacheOptions` da rota; model/maxTokens não são sobrescritos.
       verify: `WorkoutAnalysisListenerTest` captura as opções da chamada.
-- [ ] 2.3 Implementar no listener.
+- [x] 2.3 Implementar no listener.
       verify: `./mvnw clean test`.
 
 ## 3. Preço do snapshot datado (CA4)
 
-- [ ] 3.1 Teste primeiro: `LlmPricingRegistry` resolve preço para `gpt-4o-mini-2024-07-18`, e o
+- [x] 3.1 Teste primeiro: `LlmPricingRegistry` resolve preço para `gpt-4o-mini-2024-07-18`, e o
       `CostTrackingAdvisor` registra custo (sem o caminho "sem preço") para esse modelo.
       verify: testes do registry e do advisor verdes.
-- [ ] 3.2 Adicionar a entrada em `llm-pricing.yml` com os valores de `gpt-4o-mini`.
+- [x] 3.2 Adicionar a entrada em `llm-pricing.yml` com os valores de `gpt-4o-mini`.
       verify: `./mvnw clean test`.
 
 ## 4. Fechamento
