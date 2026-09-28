@@ -14,8 +14,10 @@ Branch: `feature/fix-llm-pricing-gpt4o-snapshot` (a partir de `develop`).
 - [ ] 1.1 Teste primeiro (CA1): `LlmPricingRegistry` resolve `gpt-4o-2024-08-06` com o mesmo preço
       de `gpt-4o`.
       verify: `LlmPricingRegistryTest` vermelho antes da entrada, verde depois.
-- [ ] 1.2 Teste primeiro (CA2): `CostTrackingAdvisor` registra custo para `gpt-4o-2024-08-06` na
-      rota `plano`.
+- [ ] 1.2 Teste primeiro (CA2): `CostTrackingAdvisor` na rota `plano`, modelo `gpt-4o-2024-08-06`,
+      100 in (40 cacheados) / 50 out: captura o `LlmCallRegistro` enviado ao ledger e confere
+      `model`, `route` e `costUsd = 0.0007`, além da métrica `llm.cost.estimated.usd` — padrão já
+      usado em `CostTrackingAdvisorTest` (captor do ledger).
       verify: `CostTrackingAdvisorTest` vermelho antes da entrada, verde depois.
 - [ ] 1.3 Adicionar a entrada em `llm-pricing.yml` com os valores de `gpt-4o`.
       verify: `./mvnw clean test`.

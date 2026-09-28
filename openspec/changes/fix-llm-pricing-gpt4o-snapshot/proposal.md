@@ -45,10 +45,14 @@ quando for usada.
   - **When** se pede o preço de `gpt-4o-2024-08-06`
   - **Then** o registro devolve o mesmo preço de `gpt-4o`
 
-- **CA2 — Custo da geração de plano registrado**
-  - **Given** uma resposta da rota `plano` com modelo `gpt-4o-2024-08-06`
+- **CA2 — Custo da geração de plano chega ao ledger**
+  - **Given** uma resposta da rota `plano` com modelo `gpt-4o-2024-08-06` e uso de 100 tokens de
+    entrada (40 em cache) e 50 de saída
   - **When** o `CostTrackingAdvisor` processa o uso
-  - **Then** o custo é registrado, sem o WARN de modelo sem preço
+  - **Then** o `LlmCallRegistro` enviado ao ledger traz `model = gpt-4o-2024-08-06`,
+    `route = plano` e `costUsd = 0.0007` (60 × 2.50 + 40 × 1.25 + 50 × 10.00 por MTok), e a métrica
+    `llm.cost.estimated.usd` recebe o mesmo valor — não basta a métrica, o ledger é best-effort e
+    pode divergir dela (achado do DoR/Codex)
 
 ## Métrica de sucesso
 
@@ -69,6 +73,14 @@ quando for usada.
 - **Snapshot novo da OpenAI volta a quebrar o custo** (MÉDIO, recorrente): cada vez que o alias
   migrar de snapshot, o custo some de novo em silêncio. Mitigação desta change: nenhuma além do WARN
   existente. Mitigação estrutural fica como non-goal (abaixo), candidata a change própria.
+
+## Follow-ups registrados (achados do DoR, fora de escopo)
+
+- **`EvalCostCalculator` já resolve snapshot por prefixo** (`gpt-4o-2024-08-06` → `gpt-4o`) — é
+  precedente no próprio código para a correção estrutural listada em Non-goals.
+- **`EvalCostCalculator` ignora o cache**: cobra todo o input pela tarifa cheia, então o custo do eval
+  diverge do ledger (no exemplo da CA2: 0.00075 vs 0.0007). Divergência preexistente; não usar
+  igualdade eval↔ledger como aceite.
 
 ## Non-goals
 
