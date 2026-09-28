@@ -2,7 +2,9 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-21, tarde (**duas changes de cobrança do atleta ABERTAS, prioridade
+**Última atualização:** 2026-09-24 (trilha do descanso prescrito e da normalização de
+etapas arquivada — 4 changes, ver "Changes concluídas"; **follow-up bloqueante para produção:** o
+auto-approve do onboarding ignora `VIOLATIONS_DETECTED` e está ligado em prod). Antes: 2026-09-21, tarde (**duas changes de cobrança do atleta ABERTAS, prioridade
 em aberto** — `add-contrato-atleta-mensalidade` (L · Full, backend + front) e
 `add-aviso-mensalidade` (M · Full, depende da primeira). Nasceram de um grilling de 26 decisões com
 o founder, que começou por descobrir que a change pedida (`menthoros-payment-control`) não existia:
@@ -1151,6 +1153,55 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 ---
 
 ## Changes concluídas (fora de sprint)
+
+### Trilha do descanso prescrito e da normalização de etapas ✅ **ARQUIVADAS** (2026-09-24)
+
+Quatro changes entregues em sequência, todas nascidas do mesmo plano real — o do Leandro
+(`d83c4c31`, 4 dias disponíveis). Arquivadas em `changes/archive/2026-09/2026-09-24-*`.
+
+**`fix-fartlek-etapas-estruturadas`** — backend PR **#139**. O fartlek vinha sem séries: a instrução
+da Categoria D pedia "fartlek livre", que o expansor não reconhecia. Passou a pedir formato
+estruturado (`5× (1min Z3 + 2min Z2)`), com gates que reprovam fartlek sem acelerações individuais, e
+as distâncias das séries passaram a sair do pace em vez da etapa de origem — antes dava um fartlek de
+6,98 km em 30 min (4:18/km, impossível para o atleta).
+
+**`fix-etapas-continuos-pace`** — backend PR **#141**. Nos contínuos, o total vinha coerente e as
+etapas não: a LLM concentrava a distância na PRINCIPAL (5,5 km em 30 min para um ritmo de 7:28-7:55).
+A PRINCIPAL passou a derivar do pace, e o total virou a soma das etapas com **tolerância zero**
+quando toda etapa é confiável.
+> **Cuidado registrado:** este PR se perdeu na primeira tentativa. Era empilhado sobre o #139 e
+> mergeou 12 s depois dele, **dentro de uma base já integrada** — o GitHub só retargeta quando a base
+> é deletada. Foi reaberto como #141. Com auto-merge em PRs empilhados, retargetar **antes**.
+
+**`add-descanso-explicito-por-fadiga`** — backend PR **#142** (L · Full). O defeito de origem: 5 de 7
+gerações de 22/09 vieram com 3 treinos em vez de 4, sempre sem a quinta — o dia da sessão de
+intensidade —, e um dia omitido é indistinguível de um esquecimento. Agora todo dia disponível recebe
+**treino ou descanso declarado com motivo**, e descanso só existe com **sinal do dia** (check-in,
+recuperação insuficiente, dias consecutivos); fadiga da semana (TSB, RPE) reduz a intensidade sem
+tirar a sessão. Base de literatura em `knowledge/coaching/frequencia-e-descanso-por-fadiga.md`
+(10 fontes, com marcação [FATO]/[EXTRAPOLAÇÃO]/[REGRA DO PRODUTO]).
+
+**`show-descanso-no-plano`** — front PR **#125** (S · Fast). O treinador vê o descanso com o motivo e
+pode discordar: "Prescrever treino neste dia" abre o diálogo já na data, e o backend remove o
+descanso ao criar o treino. O atleta vê uma frase fixa, nunca o texto técnico.
+
+**O que esta trilha ensinou, e vale mais que o código:** *seis defeitos só apareceram em execução
+real, nenhum por teste* — bloco de prompt emitido com o planner ligado, vocabulário de `restDays`,
+duas coleções imutáveis no merge do Hibernate, a redistribuição desfazendo a cobertura já validada, e
+a geração falhando inteira quando o modelo insistia num descanso não autorizado. Todos em pontos de
+contato com o mundo (o esqueleto do planner, a interpretação da LLM, o ORM), nenhum na lógica da
+regra. E a DoR do front reprovou **três vezes antes de uma linha de código**, duas delas porque a
+spec descrevia o que se presumia do código em vez do que ele fazia.
+
+**Follow-ups abertos** (registrados no `tasks.md` de `add-descanso-explicito-por-fadiga`):
+- **Auto-approve ignora `VIOLATIONS_DETECTED`** — o veto só olha `FAILED`/`FALLBACK`/
+  `requiresCoachReview`, então plano com violações detectadas é auto-aprovado e **não chega à fila do
+  treinador**. É de `athlete-onboarding-baseline`, e **em produção está ligado**: decidir antes de
+  promover a trilha do descanso para `main`.
+- **Calibração dos limiares** (task 5.4): revisar TSB/RPE e o teto por nº de dias depois de ~4 semanas
+  de uso real. Telemetria instrumentada (`plano_descanso_nao_autorizado`, `plano_dia_sem_prescricao`).
+- Treino em dia indisponível ainda custa um turno de reparo; reparo estrutural sintetiza aquec/desaq
+  por cima da prescrição.
 
 ### `planner-engine-enforcement` ✅ **ARQUIVADA** — skeleton vinculante sobre o plano do LLM (2026-09-13)
 
