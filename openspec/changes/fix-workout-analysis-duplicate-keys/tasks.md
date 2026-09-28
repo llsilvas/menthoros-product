@@ -61,6 +61,6 @@ não-nulo — e o default de `AnthropicChatOptions` é `DISABLED`. Opções só 
 ## 4. Fechamento
 
 - [x] 4.1 `./mvnw clean verify` sem falhas (2026-09-27: 4233 unit + 200 IT, 0 falhas).
-- [ ] 4.2 Gate de eval exigido pelo `CLAUDE.md` para PR que toca `llm-pricing.yml` — decisão do
-      founder registrada no PR.
-- [ ] 4.3 `/qa` e PR para `develop`, sem merge local.
+- [x] 4.2 Gate de eval exigido pelo `CLAUDE.md` para PR que toca `llm-pricing.yml` — dispensado por
+      decisão do founder (só entrada de preço de modelo já em uso), registrado no PR #147.
+- [x] 4.3 `/qa` e PR para `develop`, sem merge local — llsilvas/menthoros-backend#147.
