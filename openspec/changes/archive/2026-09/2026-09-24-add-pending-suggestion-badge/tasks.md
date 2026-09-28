@@ -1,0 +1,82 @@
+# Tasks — add-pending-suggestion-badge
+
+Validação por bloco: backend `./mvnw clean test` (IT classes exigem `./mvnw clean verify` no
+gate final); frontend `npm run lint && npm run build && npm run test:run`. Branch
+`feature/add-pending-suggestion-badge` nos dois repos antes de qualquer código. Backend mergeia
+antes do front (front lê `temSugestaoPendente`, que só existe depois do PR backend).
+
+## 1. Backend — query agregada
+
+- [x] 1.1 `SugestaoCoachRepository.findAtletaIdsByTenantIdAndStatus(tenantId, status, agora)`
+      (design D1, revisado no pre-mortem): `Set<UUID>`, uma consulta, sem `JOIN FETCH`, excluindo
+      `expiresAt` no passado (mesma regra de `SugestaoCoachServiceImpl.listar(PENDING)`).
+      *verify:* IT — roster com sugestões `PENDING`/`APPROVED`/`REJECTED`/`PENDING`-expirada
+      misturadas, só as `PENDING` não-expiradas do tenant certo voltam (CA2); tenant B não vaza
+      para tenant A (CA6). ✅ `SugestaoCoachRepositoryPendingAtletaIdsIT` — 4 testes verdes.
+
+## 2. Backend — wiring no roster, calendário e dashboard agregado
+
+- [x] 2.1 `CoachDashboardServiceImpl`: método privado `resolverAtletasComSugestaoPendente(tenantId)`
+      + overloads privados `getRoster(tenantId, set)` / `getCalendarioSemanal(from, set)` (design
+      D2, revisado no pre-mortem) — as versões públicas resolvem e delegam; `getDashboard()`
+      resolve uma vez e reusa nos dois. `CoachAtletaResumoDto` ganha `temSugestaoPendente`
+      (boolean, design D4).
+      *verify:* CA1, CA2, CA4 (uma query pro tenant inteiro em cada endpoint independente, sem
+      N+1); CA8 (no máx. 2 execuções da query dentro de `getDashboard()` — assert de contagem de
+      queries no teste, mesmo padrão já usado para `cobranca`). ✅ 21 testes verdes em
+      `CoachDashboardServiceImplTest` (3 novos: `temSugestaoPendenteEmLote`, `hasPendingSuggestionReal`,
+      `queryDeSugestaoPendenteRodaNoMaximoDuasVezes`); 3 call sites de teste com `CoachAtletaResumoDto`
+      atualizados (record positional).
+- [x] 2.2 `montarTreinoAgendado` recebe `atletasComSugestaoPendente` e substitui o `false`
+      hardcoded (design D3).
+      *verify:* CA3. ✅ `hasPendingSuggestionReal`.
+- [x] 2.3 Teste de decisão subsequente: sugestão `PENDING` única do atleta é aprovada/rejeitada →
+      próxima chamada de `getRoster()` retorna `temSugestaoPendente = false`.
+      *verify:* CA5. ✅ `aprovarZeraOSinal` em `SugestaoCoachRepositoryPendingAtletaIdsIT`.
+- [x] 2.4 `SugestaoCoachRepository.findAllByAtletaIdAndTenantId` (design D6, achado do pre-mortem
+      rodada 2): prioriza `PENDING` não-expirada antes de completar por `createdAt`, para o
+      `RecentSuggestionsPanel` sempre mostrar a pendência que o badge sinalizou.
+      *verify:* CA9 — teste com 1 `PENDING` antiga + 3 decididas mais recentes; a `PENDING`
+      aparece nas 3 retornadas. ✅ `pendenteMaisAntigaAparecePrimeiro` +
+      `pendenteExpiradaNaoEPriorizada`. Call sites de teste (`SugestaoCoachServiceImplTest`)
+      atualizados para o novo parâmetro `agora`.
+
+## 3. Frontend — roster
+
+- [x] 3.1 `CoachAtletaResumo` (`types/Coach.ts`) e `AthleteRow` (`CoachAthletesPage.tsx`) ganham
+      `temSugestaoPendente: boolean`; mapeamento do DTO para a row atualizado.
+      *verify:* `npm run build` verde. ✅ (achado durante o build: campo agora obrigatório
+      quebrou 8 fixtures de teste + 1 objeto de fallback em `CoachInboxPage.tsx` — todos
+      corrigidos.)
+- [x] 3.2 `AthleteNameCell.tsx` ganha o indicador visual (design D5) — mesmo ponto
+      (`primary[500]`, 5px) já usado em `CoachCalendarPage.tsx`, coexistindo com o indicador de
+      "linha viva" de geração de plano sem colidir.
+      *verify:* CA7; teste RTL — indicador aparece quando `temSugestaoPendente=true`, ausente
+      quando `false`, e junto com o indicador de geração de plano sem sobrepor. ✅ 3 novos testes
+      em `AthleteNameCell.test.tsx`. Gate completo: lint + build + 211 arquivos / 1704 testes,
+      sem regressão.
+
+## 4. Integração e encerramento
+
+- [x] 4.1 Gate backend completo (`./mvnw clean verify`), gate front, `/qa` nos dois repos.
+      ✅ Backend: 4128 testes unitários (428 classes, 0 falhas — 1 skip pré-existente sem relação)
+      + 7/7 no IT dedicado. Frontend: lint limpo, build limpo, 211 arquivos / 1704 testes.
+      `/qa` (`code-reviewer` + `security-reviewer` + `clean-code-reviewer` no backend,
+      `frontend-reviewer` + `clean-code-reviewer` no front, 5 agentes em paralelo) achou e
+      corrigiu: rename `temSugestaoPendente` → `hasPendingSuggestion` (ADR-0007, achado
+      convergente de 2 reviewers); `getInsights()` ainda rechamava a query (2× → 1×, achado
+      convergente de 3 reviewers); resolução redundante de `tenantId` no overload de
+      `getCalendarioSemanal`; indicador visual duplicado por cópia já divergente entre roster e
+      calendário (extraído `PendingSuggestionDot` compartilhado); prop `hasPendingSuggestion`
+      tornada obrigatória em `AthleteNameCell`. Nenhum achado Critical/High de segurança.
+- [ ] 4.2 **Adiada** — validação manual em `develop` (Railway): atleta com sugestão `PENDING`
+      real mostra o ponto no roster e no calendário; decidir a sugestão faz o ponto sumir ao
+      recarregar. Código mergeado (`menthoros-backend#143`, `menthoros-front#127`, ambos em
+      `develop` em 2026-09-24); esta é uma checagem manual pós-deploy que fica para quem tiver
+      acesso ao ambiente Railway de `develop` — não bloqueia o arquivamento (código, não task
+      crítica pendente).
+- [x] 4.3 Antes do PR `develop → main`: confirmar que `add-coach-suggestion-review-actions`
+      (`menthoros-front#126`) já está em produção. **Fechada em 2026-09-24**: promoção
+      `develop → main` mergeada nos dois repos — backend PR `#144` (13 PRs, #131-#143) e front PR
+      `#128` (11 PRs, #117-#127), ambos levando `#126` e este badge (`#127`/`#143`) juntos para
+      `main`. Coach agora tem os botões Aprovar/Rejeitar e o badge em produção ao mesmo tempo.
