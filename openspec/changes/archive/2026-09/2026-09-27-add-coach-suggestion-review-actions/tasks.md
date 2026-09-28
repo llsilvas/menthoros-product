@@ -37,5 +37,5 @@ Validação por bloco: frontend `npm run lint && npm run build && npm test`. Bra
 - [ ] 2.2 Validação manual em `develop` (Railway): abrir uma sugestão PENDING real, aprovar,
       confirmar que o status persiste ao reabrir a lista; testar rejeitar com e sem confirmar.
       **ADIADA no arquivamento (2026-09-27, decisão do founder):** não é task de código; não foi
-      executada. Precisa acontecer antes do PR `develop → main` do `menthoros-front` que levar o
-      #126 para produção — o badge de `add-pending-suggestion-badge` depende destes botões no ar.
+      executada. O #126 já está em produção desde 2026-09-24 (front PR #128), então vale como
+      validação em produção, não mais como gate do `develop → main`.
