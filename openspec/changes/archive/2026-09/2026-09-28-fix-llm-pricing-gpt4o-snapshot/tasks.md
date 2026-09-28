@@ -1,0 +1,34 @@
+# Tasks: fix-llm-pricing-gpt4o-snapshot
+
+TDD (teste primeiro). Em `apps/menthoros-backend`:
+
+- **Inner loop:** `./mvnw clean test`
+- **Gate de entrega:** `./mvnw clean verify`
+
+Branch: `feature/fix-llm-pricing-gpt4o-snapshot` (a partir de `develop`, base `b88dc2e`).
+
+DoR (2026-09-28): `spec-reviewer` READY; Codex NOT READY com 1 achado maior (CA2 só verificava a
+métrica, não o ledger) e 1 menor (`EvalCostCalculator`) — ambos verificados no código e
+incorporados na proposta.
+
+---
+
+## 1. Preço do snapshot datado do gpt-4o
+
+- [x] 1.1 Teste primeiro (CA1): `LlmPricingRegistry` resolve `gpt-4o-2024-08-06` com o mesmo preço
+      de `gpt-4o`.
+      verify: `LlmPricingRegistryTest` vermelho antes da entrada, verde depois.
+- [x] 1.2 Teste primeiro (CA2): `CostTrackingAdvisor` na rota `plano`, modelo `gpt-4o-2024-08-06`,
+      100 in (40 cacheados) / 50 out: captura o `LlmCallRegistro` enviado ao ledger e confere
+      `model`, `route` e `costUsd = 0.0007`, além da métrica `llm.cost.estimated.usd` — padrão já
+      usado em `CostTrackingAdvisorTest` (captor do ledger).
+      verify: `CostTrackingAdvisorTest` vermelho antes da entrada, verde depois.
+- [x] 1.3 Adicionar a entrada em `llm-pricing.yml` com os valores de `gpt-4o`.
+      verify: `./mvnw clean test`.
+
+## 2. Fechamento
+
+- [x] 2.1 `./mvnw clean verify` sem falhas (2026-09-28: 4238 unit + 200 IT, 0 falhas).
+- [x] 2.2 Gate de eval exigido pelo `CLAUDE.md` para PR que toca `llm-pricing.yml` — dispensado por
+      decisão do founder (só preço de modelo já em uso), registrado no PR #149.
+- [x] 2.3 `/qa` e PR para `develop`, sem merge local — llsilvas/menthoros-backend#149.
