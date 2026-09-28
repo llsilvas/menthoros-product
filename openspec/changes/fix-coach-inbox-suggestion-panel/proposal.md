@@ -7,6 +7,10 @@ compartilhado e dois componentes do inbox)
 
 - Proposta inicial (2026-09-28), a partir da validação manual da task 2.2 de
   `add-coach-suggestion-review-actions` (arquivada), feita no ambiente local + homelab.
+- DoR (2026-09-28): spec-reviewer READY WITH NOTES; Codex NOT READY — achados verificados no código
+  e incorporados (guarda por id atual, todos os estados, `selected` a partir do roster, inventário de
+  consumidores, CA3 do 422). Um achado descartado: `selectedId` nulo não diverge, porque hook e
+  `selectedRosterItem` usam o mesmo fallback `rosterItems[0]`.
 
 ## Why
 
@@ -36,20 +40,31 @@ justificativa exibe o nome interno das regras (`CoachAttentionSignalEvaluator.av
 
 ## What Changes
 
-- **`useAthleteProfile`**: descartar resposta que não corresponde ao `atletaId` da requisição mais
-  recente (guarda por requisição — ex. id/ref da última chamada, ou flag de cancelamento no efeito).
-  Vale para os três consumidores do hook (inbox, perfil do atleta, `useWeeklyAthleteReview`).
+- **`useAthleteProfile`**: descartar resposta que não corresponde ao `atletaId` **atual** do hook —
+  comparação com o id corrente (ref), não só com a "última requisição": uma decisão iniciada no
+  atleta A pode chamar o `fetchProfile` capturado de A depois que o coach trocou para B (o dialog
+  fecha durante a decisão, `RecentSuggestionsPanel.tsx:333`), e um contador trataria essa chamada
+  como a mais recente. A guarda cobre **todos** os estados (`profile`, `isLoading`, `error`,
+  `errorKind`) — o `finally` de uma busca obsoleta não pode desligar o carregamento da atual. O hook
+  só expõe `profile` quando `profile.atletaId === atletaId`; ao trocar de atleta (ou o id ficar
+  `undefined`) o perfil anterior deixa de ser exposto na hora. Vale para os dois consumidores
+  (`CoachInboxPage`, `CoachAthleteProfilePage` — que hoje mostra o cabeçalho de A com a rota de B
+  durante a troca). `useWeeklyAthleteReview` não usa o hook e fica fora.
 - **Inbox**: o painel do atleta selecionado só combina roster e perfil quando o perfil é do mesmo
-  atleta (`profile.atletaId === selectedRosterItem.atletaId`); enquanto não for, trata como
-  carregando, em vez de mostrar dados de outro atleta.
+  atleta (`profile.atletaId === selectedRosterItem.atletaId`); enquanto não for, `selected` é montado
+  **só com o item do roster** (perfil vazio) e a faixa de carregamento aparece — não se anula
+  `selected`, porque erro e "Tentar de novo" vivem dentro desse ramo (`CoachInboxPage.tsx:884`) e o
+  fallback sem seleção pede "Selecione um atleta", não carregamento.
 - **Inbox**: `CoachInboxPage` → `RacesSuggestionsTabPanel` → `RecentSuggestionsPanel` recebe
   `onDecisao={fetchSelectedProfile}`, como já faz `CoachAthleteProfilePage`.
 - **Dialog de sugestão**: chips de tipo e confiança usam os mesmos rótulos PT-BR da lista; a linha de
-  regras internas não é exibida ao coach.
+  regras internas não é exibida ao coach. O dialog é o mesmo no inbox e no perfil do atleta
+  (`CoachAthleteProfilePage.tsx:300`) — a mudança vale para os dois, de propósito.
 
 ## Impact
 
 - `menthoros-front`: `src/hooks/useAthleteProfile.ts`, `features/coach/pages/CoachInboxPage.tsx`,
+  `features/coach/pages/CoachAthleteProfilePage.tsx` (efeito do hook),
   `features/coach/components/panels/RacesSuggestionsTabPanel.tsx`,
   `features/coach/components/RecentSuggestionsPanel.tsx` e testes.
 - **Backend:** nenhum. **Contrato de API:** nenhum. **Migration:** nenhuma.
@@ -60,7 +75,8 @@ justificativa exibe o nome interno das regras (`CoachAttentionSignalEvaluator.av
   - **Given** duas buscas de perfil em sequência (atleta A, depois atleta B), com a de A respondendo
     por último
   - **When** as duas respostas chegam
-  - **Then** o hook expõe o perfil de B, e a resposta de A é descartada
+  - **Then** o hook expõe o perfil de B, e a resposta de A é descartada — inclusive seu erro e o
+    fim do carregamento; e um `fetchProfile` de A chamado depois da troca não sobrescreve B
 
 - **CA2 — Inbox não mistura atletas**
   - **Given** o inbox com o atleta X selecionado no roster e o perfil carregado sendo de outro atleta
@@ -70,9 +86,10 @@ justificativa exibe o nome interno das regras (`CoachAttentionSignalEvaluator.av
 
 - **CA3 — Lista do inbox atualiza após a decisão**
   - **Given** uma sugestão PENDING aberta no dialog pelo inbox
-  - **When** o coach aprova (ou rejeita, ou recebe 422 de decisão já tomada)
+  - **When** o coach aprova, rejeita, ou recebe 422 e a reconsulta confirma estado terminal
   - **Then** o perfil do atleta selecionado é recarregado e a lista mostra o novo status sem
-    recarregar a página
+    recarregar a página (se a reconsulta falhar, segue a mensagem "recarregue" já existente — fora
+    de escopo)
 
 - **CA4 — Dialog em linguagem do coach**
   - **Given** o dialog de uma sugestão
@@ -95,7 +112,7 @@ justificativa exibe o nome interno das regras (`CoachAttentionSignalEvaluator.av
 
 ## Riscos e mitigações
 
-- **Hook compartilhado** (BAIXO): a guarda muda o comportamento dos três consumidores. Mitigação: é
+- **Hook compartilhado** (BAIXO): a guarda muda o comportamento dos dois consumidores. Mitigação: é
   estritamente mais correta (só descarta resposta obsoleta) e os testes existentes dos consumidores
   seguem valendo.
 - **Sobreposição com `refine-inbox-mobile-breakpoint`** (BAIXO): change ativa, ainda não iniciada
