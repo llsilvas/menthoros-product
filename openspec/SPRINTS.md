@@ -1152,6 +1152,32 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
+### `fix-workout-analysis-duplicate-keys` ✅ **ARQUIVADA** — análise pós-treino não cai mais por chave repetida no JSON (2026-09-27)
+
+**Entregue:** `menthoros-backend` PR **#147**, mergeado em `develop` (CI verde). Arquivada em
+`changes/archive/2026-09/2026-09-27-fix-workout-analysis-duplicate-keys/`. XS · Fast.
+
+**O problema:** o `claude-sonnet-4-6` (rota `COMPLEX`, temperatura 0.7) às vezes repetia
+`primary_cause`/`execution_score` no JSON, e o record `AnaliseWorkoutRawDto` recusava a segunda
+ocorrência — a análise ficava `FAILED` (1x em 2026-09-27, 3x em 2026-09-17), treino sem análise para o
+coach. Corrigido com conversor tolerante (último valor vence, `WARN` com o nome do campo) e
+temperatura 0.2 só nesta chamada. De carona: preço de `gpt-4o-mini-2024-07-18` no `llm-pricing.yml`
+(custo da rota `simple` não era contabilizado).
+
+**O DoR cross-model pagou por si.** O `spec-reviewer` deu READY; o Codex deu NOT READY com 4 achados,
+todos verificados no código: trocar `.entity()` por `.content()` tiraria as instruções de schema do
+prompt; no Spring AI 1.1.6 opção Anthropic por chamada sem `cacheOptions` **desliga o cache de 1h do
+system prompt** (virou helper único `MultiModelConfig.opcoesAnthropicPorChamada`, com teste de merge
+contra o `AnthropicChatModel` real); `readTree` sozinho engoliria a duplicata sem o `WARN`
+prometido; e o gate de eval do `CLAUDE.md`. O `/qa` achou ainda que a mensagem de erro do Jackson
+carregava trecho da resposta do LLM para o log e para `AnaliseWorkout.errorMessage` — pré-existente,
+fechado no conversor novo.
+
+**Ficou de fora, com motivo registrado:** eval candidato dispensado por decisão do founder (a mudança
+em `llm-pricing.yml` só acrescenta preço de modelo já em uso). A troca manual para a rota `EXPERT`
+(gpt-4o) foi avaliada e descartada: sem schema nativo não resolveria a duplicata, e mudaria a análise
+que o coach lê sem eval set para medir.
+
 ### `planner-engine-enforcement` ✅ **ARQUIVADA** — skeleton vinculante sobre o plano do LLM (2026-09-13)
 
 **Entregue:** backend `menthoros-backend` PR **#107** (seção 1: flags/ciclo de status/orçamento
