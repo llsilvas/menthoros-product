@@ -60,7 +60,7 @@ não-nulo — e o default de `AnthropicChatOptions` é `DISABLED`. Opções só 
 
 ## 4. Fechamento
 
-- [ ] 4.1 `./mvnw clean verify` sem falhas.
+- [x] 4.1 `./mvnw clean verify` sem falhas (2026-09-27: 4233 unit + 200 IT, 0 falhas).
 - [ ] 4.2 Gate de eval exigido pelo `CLAUDE.md` para PR que toca `llm-pricing.yml` — decisão do
       founder registrada no PR.
 - [ ] 4.3 `/qa` e PR para `develop`, sem merge local.
