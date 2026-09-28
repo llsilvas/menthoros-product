@@ -1187,9 +1187,11 @@ de assumir PENDING; 422 de decisão já tomada vira status informativo. O `/qa` 
 ramo 422 não recarregava a lista do perfil), extraiu a decisão para `useSugestaoDecisao` e adicionou
 confirmação antes de rejeitar.
 
-**Ficou de fora, com motivo registrado:** a task **2.2** (validação manual em `develop`, Railway) foi
-**adiada** — não executada. É gate do PR `develop → main` do front que levar o #126 a produção, e
-esse mesmo PR condiciona a promoção do badge de `add-pending-suggestion-badge` (ver cabeçalho).
+**Ficou de fora, com motivo registrado:** a task **2.2** (validação manual) foi **adiada** — não
+executada. O #126 já está em produção desde 2026-09-24 (front PR **#128**, promovido junto com o badge
+de `add-pending-suggestion-badge`), então a 2.2 deixou de ser gate de promoção e virou **validação em
+produção**: aprovar uma sugestão PENDING real, confirmar que o status persiste ao reabrir a lista, e
+rejeitar com e sem confirmação.
 
 ### `fix-workout-analysis-duplicate-keys` ✅ **ARQUIVADA** — análise pós-treino não cai mais por chave repetida no JSON (2026-09-27)
 
