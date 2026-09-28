@@ -33,11 +33,12 @@ datado na resposta, e o registro só conhece `gpt-4o-mini` — o custo dessas ch
 
 ## What Changes
 
-- **Parse tolerante a chave repetida** na resposta da análise: obter o texto da resposta, ler com
-  `ObjectMapper.readTree` (que por padrão mantém o **último** valor de cada chave) e converter com
-  `treeToValue(..., AnaliseWorkoutRawDto.class)`. Remoção de cercas de markdown (```json) preservada,
-  como o `BeanOutputConverter` já fazia.
-- **Temperatura 0.2 na chamada da análise**, via opções por chamada no `WorkoutAnalysisListener`.
+- **Parse tolerante a chave repetida** na resposta da análise, via `StructuredOutputConverter`
+  próprio passado ao `.entity(...)`: o formato/schema enviado no prompt continua o do
+  `BeanOutputConverter`; na conversão, parse estrito primeiro e, se houver chave repetida, `WARN` +
+  `readTree` (último valor vence) + `treeToValue`. Cercas de markdown (```json) seguem removidas.
+- **Temperatura 0.2 na chamada da análise**, via opções por chamada no `WorkoutAnalysisListener`,
+  preservando o `cacheOptions` da rota (sem isso o Spring AI 1.1.6 desliga o cache do system prompt).
   A rota `COMPLEX` segue em 0.7 — o outro consumidor (`RaceProjectionNarrativeGenerator`) é texto
   narrativo e não muda. Ataca a causa (saída estruturada com temperatura alta), enquanto o parse
   tolerante segura o sintoma.
