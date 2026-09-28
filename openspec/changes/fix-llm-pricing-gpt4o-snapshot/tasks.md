@@ -5,7 +5,11 @@ TDD (teste primeiro). Em `apps/menthoros-backend`:
 - **Inner loop:** `./mvnw clean test`
 - **Gate de entrega:** `./mvnw clean verify`
 
-Branch: `feature/fix-llm-pricing-gpt4o-snapshot` (a partir de `develop`).
+Branch: `feature/fix-llm-pricing-gpt4o-snapshot` (a partir de `develop`, base `b88dc2e`).
+
+DoR (2026-09-28): `spec-reviewer` READY; Codex NOT READY com 1 achado maior (CA2 só verificava a
+métrica, não o ledger) e 1 menor (`EvalCostCalculator`) — ambos verificados no código e
+incorporados na proposta.
 
 ---
 
