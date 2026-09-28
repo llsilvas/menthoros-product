@@ -67,4 +67,10 @@ perfil exposto pelo hook); 3 e 4 são independentes entre si.
 - [x] 5.2 Gate completo verde (`lint && build && test:run && test:e2e`).
 - [ ] 5.3 Revalidação manual no local + homelab: aprovar pelo inbox e ver a lista atualizar; trocar
       rápido de atleta e ver o painel consistente.
-- [ ] 5.4 `/qa` e PR para `develop`, sem merge local.
+      **Adiada** (2026-09-28): não executada antes do arquivamento. Vira validação em produção, junto
+      com a 2.2 de `add-coach-suggestion-review-actions` (rejeição confirmada, que precisa de uma
+      segunda sugestão PENDING). O fluxo de aprovação está coberto por E2E
+      (`tests/e2e/coach/inbox.spec.ts`), que falha sem o repasse de `onDecisao`.
+- [x] 5.4 `/qa` e PR para `develop`, sem merge local. `/qa`: frontend-reviewer sem Crítico/Importante;
+      clean-code-reviewer com dois ajustes aplicados (`e6c8b76`). Front PR **#131**, mergeado em
+      `develop` (`a5ad152`).

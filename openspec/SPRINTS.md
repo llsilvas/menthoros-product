@@ -2,7 +2,9 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-24 (trilha do descanso prescrito e da normalização de
+**Última atualização:** 2026-09-28 (**`fix-coach-inbox-suggestion-panel` entregue e arquivada** —
+front PR **#131** mergeado em `develop`; inbox não mistura atletas e a lista de sugestões atualiza
+após a decisão. Validação manual 5.3 adiada para produção). Antes: 2026-09-24 (trilha do descanso prescrito e da normalização de
 etapas arquivada — 4 changes, ver "Changes concluídas"; **follow-up bloqueante para produção:** o
 auto-approve do onboarding ignora `VIOLATIONS_DETECTED` e está ligado em prod). Antes: 2026-09-24 (**`add-pending-suggestion-badge` entregue e arquivada** —
 backend PR **#143** e front PR **#127** mergeados em `develop`. M · Full, sem migration: sinaliza
@@ -1174,6 +1176,31 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 ---
 
 ## Changes concluídas (fora de sprint)
+
+### `fix-coach-inbox-suggestion-panel` ✅ **ARQUIVADA** — o inbox não mistura atletas e a lista reflete a decisão (2026-09-28)
+
+**Entregue:** `menthoros-front` PR **#131**, mergeado em `develop`. Arquivada em
+`changes/archive/2026-09/2026-09-28-fix-coach-inbox-suggestion-panel/`. S · Fast, só frontend.
+
+**O problema:** a validação manual de `add-coach-suggestion-review-actions` mostrou o inbox exibindo
+estado falso. `useAthleteProfile` gravava qualquer resposta que chegasse — com o dashboard pedido duas
+vezes na carga, o cabeçalho de um atleta aparecia com KPIs e diagnóstico de outro, na tela onde o coach
+decide. E o inbox não repassava `onDecisao`: aprovar deixava a lista "Pendente" até recarregar.
+
+**O que faz:** o hook descarta resposta, erro e fim de carregamento que não são do atleta atual, e
+deixa de expor o perfil anterior na troca (vale também para o perfil do atleta); o inbox só combina
+roster e perfil do mesmo atleta; a decisão recarrega o perfil; o dialog usa rótulos PT-BR e não mostra
+mais o nome interno das regras.
+
+**O DoR cross-model pagou de novo.** O `spec-reviewer` deu READY WITH NOTES; o Codex deu NOT READY, e
+o achado crítico era real: uma guarda por "última requisição" aceitaria o refetch atrasado do atleta
+anterior (o dialog fecha durante a decisão). A guarda passou a comparar com o id atual. Um achado foi
+descartado por verificação (`selectedId` nulo não diverge — mesmo fallback).
+
+**Ficou de fora, com motivo registrado:** a task **5.3** (revalidação manual local + homelab) foi
+**adiada** para produção, junto com a 2.2 de `add-coach-suggestion-review-actions`. O fluxo de
+aprovação tem E2E que falha sem a correção; a corrida da troca de atleta e o 422 ficam em teste
+unitário.
 
 ### `fix-llm-pricing-gpt4o-snapshot` ✅ **ARQUIVADA** — o custo da geração de plano volta a ser contabilizado (2026-09-28)
 
