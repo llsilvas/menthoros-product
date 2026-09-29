@@ -43,11 +43,12 @@ F4 mostra que a duplicação já custa qualidade visual real, não só manutenç
 2. **Criar `src/shared/components/Card.tsx`** — wrapper único (`Box` com `sx` ou `MuiCard` com
    overrides, decisão de implementação) com props para as duas variantes reais encontradas na
    auditoria: `variant="flat"` (fundo `elevation.card`, borda opaca) e `variant="glass"` (fundo/borda
-   via `glassSx`), raio único vindo do token resolvido em (1), padding consistente, `interactive?:
-   boolean` que liga hover + cursor só quando presente (corrige o padrão de F6), `stateColor?` para
-   indicar estado semântico (borda/fundo tingidos — cobre o padrão real de `TreinoCard`, ver
-   `design.md` D2) e `component`/`aria-label` polimórficos (preserva landmarks de acessibilidade como
-   o de `DiagnosisCard`, ver `design.md` D2).
+   via `glassSx`), raio único vindo do token resolvido em (1), `padding?: 2 | 2.5 | 3` (default `2`,
+   cobrindo a variante `isHero` de `KPICard`), `interactive?: boolean` que liga hover + cursor só
+   quando presente (corrige o padrão de F6, com `stateColor` tendo precedência sobre hover — ver
+   `design.md` D2), `stateColor?` para indicar estado semântico (borda/fundo tingidos — cobre o padrão
+   real de `TreinoCard`, ver `design.md` D2) e `component`/`aria-label` polimórficos (preserva
+   landmarks de acessibilidade como o de `DiagnosisCard`, ver `design.md` D2).
 3. **Criar `src/shared/components/CardHeader.tsx`** — título, ícone opcional, subtítulo opcional, ação
    opcional (botão/link), cobrindo os casos reais de F5 sem inventar variantes não usadas hoje.
 4. **Corrigir `AssessmentInfoCard.tsx:125`** (F4) — bug isolado, não depende do componente novo.
@@ -122,8 +123,10 @@ Cada critério tem cenário correspondente em `specs/design-system/spec.md`.
   uma cor válida (token real, não a string `"33"`).
 - **CA7 — Prova de migração:** Given `KPICard`, `StatCard` e `WorkoutAnalysisCard` migrados, Then os
   três passam a usar `Card` (KPICard só o wrapper; StatCard e WorkoutAnalysisCard também `CardHeader`
-  quando aplicável) e os testes existentes desses componentes continuam verdes sem mudança de
-  asserção visual não intencional — incluindo o comportamento de `Tooltip` do `KPICard`.
+  quando aplicável). `KPICard` e `StatCard` não tinham teste antes desta change — cada um ganha um
+  teste de caracterização escrito contra o comportamento atual (Tooltip/padding hero para KPICard;
+  clique único e hover condicional para StatCard) antes de migrar, e esse teste continua verde depois.
+  `WorkoutAnalysisCard` já tem teste; continua verde sem mudança de asserção não intencional.
 - **CA8 — Estado semântico preservado:** Given a API de `Card` com `stateColor`, When usada com um
   valor de estado (ex.: `success`), Then borda e fundo refletem a cor semântica sem `sx` solto no
   componente consumidor — validado por teste unitário de `Card.tsx`, mesmo que `TreinoCard` só migre
@@ -131,6 +134,9 @@ Cada critério tem cenário correspondente em `specs/design-system/spec.md`.
 - **CA9 — Landmark preservado:** Given `<Card component="section" aria-label="X">`, When renderizado,
   Then `getByRole('region', { name: 'X' })` encontra o elemento — validado por teste unitário de
   `Card.tsx`, mesmo que `DiagnosisCard` só migre na change seguinte.
+- **CA10 — Precedência de estado sobre hover:** Given `<Card variant="glass" stateColor="success" interactive>`,
+  When o mouse passa sobre o card, Then a borda 2px e o fundo tingido de `stateColor` permanecem
+  inalterados (só `cursor: pointer` é aplicado) — validado por teste unitário de `Card.tsx`.
 
 ## Métrica de sucesso
 

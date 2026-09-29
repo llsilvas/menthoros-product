@@ -49,6 +49,17 @@ declarar esses valores.
 - **WHEN** `<Card component="section" aria-label="Diagnóstico">` é renderizado
 - **THEN** o elemento é encontrável por `getByRole('region', { name: 'Diagnóstico' })`
 
+#### Scenario: Padding default e hero
+- **WHEN** `<Card>` é renderizado sem `padding`
+- **THEN** o padding é `2`
+- **WHEN** `<Card padding={3}>` é renderizado
+- **THEN** o padding é `3`
+
+#### Scenario: Estado semântico tem precedência sobre hover
+- **WHEN** `<Card variant="glass" stateColor="success" interactive>` recebe hover
+- **THEN** a borda e o fundo permanecem os de `stateColor` — `background`/`border` de hover não são
+  aplicados, só `cursor: pointer`
+
 ### Requirement: Componente `CardHeader` compartilhado
 O sistema SHALL prover um componente `CardHeader` com título obrigatório e ícone, subtítulo e ação
 opcionais, usado de forma consistente por qualquer card que precise de cabeçalho estruturado.

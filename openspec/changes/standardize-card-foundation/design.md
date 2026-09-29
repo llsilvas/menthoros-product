@@ -46,6 +46,7 @@ interface CardProps {
   stateColor?: CardStateColor;  // borda 2px + fundo tingido na cor semântica — ver TreinoCard abaixo
   component?: React.ElementType; // default 'div'; permite 'section' etc. para landmark semântico
   'aria-label'?: string;         // repassado ao elemento raiz — necessário quando component="section"
+  padding?: 2 | 2.5 | 3;         // default 2 — ver contrato de padding abaixo
   children: React.ReactNode;
   sx?: SxProps<Theme>;          // escape hatch de layout (flex, height) — não para recriar cor/borda/raio
 }
@@ -57,10 +58,24 @@ interface CardProps {
   dos 16 cards da auditoria — a maioria).
 - `variant="glass"`: spread de `glassSx` (fundo + borda + `boxShadow` já inclusos no token),
   `borderRadius: radius.lg`. Cobre `StatCard`, `AssessmentInfoCard`, `KudosCard`, `TreinoCard`.
-- `interactive`: quando `true` (ou `onClick` presente), adiciona `cursor: pointer` e
-  `'&:hover': variant === 'glass' ? glassSxHover : { borderColor: <token hover, a definir na task 2> }`.
-  Sem isso, nenhum estilo de `:hover` é aplicado — corrige F6 (hover em card não-clicável) por
-  construção, não por convenção lembrada em cada consumidor.
+- `interactive`: quando `true` (ou `onClick` presente) e **sem `stateColor`**, adiciona
+  `cursor: pointer` e `'&:hover': variant === 'glass' ? glassSxHover : { borderColor: <token hover, a
+  definir na task 2> }`. Sem isso, nenhum estilo de `:hover` é aplicado — corrige F6 (hover em card
+  não-clicável) por construção, não por convenção lembrada em cada consumidor.
+- **Precedência `stateColor` × hover:** `glassSxHover` redefine `backgroundColor`/`border` para um
+  neutro (`theme/tokens.ts:104-107`) — aplicado sem condição, ele apagaria a borda 2px e o fundo
+  tingido de `stateColor` no hover. Quando `stateColor` está presente, `interactive`/`onClick` aplica
+  **só** `cursor: pointer` (se houver), nunca o `background`/`border` de `glassSxHover` ou do hover
+  flat — o estado semântico tem precedência sobre o hover em qualquer combinação. Nenhum consumidor da
+  migração-prova ou de `standardize-card-migration` usa `stateColor` + `interactive` juntos hoje
+  (`TreinoCard` não é clicável no nível do card), mas a API precisa definir o comportamento porque
+  ambas as props coexistem na mesma interface.
+- **Contrato de padding:** default `padding = 2` (mesmo valor de `StatCard`, `WorkoutAnalysisCard`,
+  `ProgressBlockCard` etc. na auditoria). `KPICard` tem uma variante `isHero` (não capturada na
+  auditoria original) com `p: 3` — vira `<Card padding={isHero ? 3 : 2}>` na migração-prova, prop
+  explícita, não `sx` solto. Não existe padding "consistente" único porque o app já usa dois valores
+  reais (2 e 3) para densidade normal vs. hero; a API aceita os dois como valores nomeados, não como
+  número livre.
 - `stateColor`: cobre o caso real que a auditoria original não capturou —
   `TreinoCard.tsx:119-125` muda borda (1px `glass.border` → 2px cor semântica) e fundo (`glass.background`
   → `${semantic.success[500]}40` ou `${semantic.danger[500]}14`) conforme o treino está
@@ -86,14 +101,18 @@ em `standardize-card-migration` se vira uma terceira variante (`hero`) ou um `sx
 
 **Decisão:** `content.cardBorder` (`theme/tokens.ts:58`, branco translúcido, `${surface[0]}26`) vira a
 borda padrão de `variant="flat"`, porque já é o token pensado especificamente para "borda de card"
-(o nome do objeto é `content`, e `cardBorder` é a chave). `surface[700]` (cinza opaco, usado hoje em
+(o nome do objeto é `content`, e `cardBorder` é a chave). `surface[700]` (cinza opaco, usado antes em
 `ReadinessCard`/`TodayHeroCard`/`WeekOverviewCard`/`WorkoutAnalysisCard`/`ProgressBlockCard`) foi
 provavelmente escolhido por precedente local, não por um token dedicado a borda — não há indício de
 que a opacidade tenha sido uma escolha deliberada para esse grupo de cards.
 
-- Risco: mudar a borda desses 5 cards (que não estão na migração-prova desta change) para
-  `content.cardBorder` na change seguinte pode alterar o contraste percebido levemente. Fica marcado
-  como item de revisão visual em `standardize-card-migration`, não decidido aqui.
+**Atualizado após a implementação:** `WorkoutAnalysisCard` acabou entrando na migração-prova desta
+change (CA7) e já migrou para `content.cardBorder` — a mudança de borda nele é intencional e já
+aconteceu, confirmada pelo QA (Codex adversarial + clean-code-reviewer, 29/09), sem asserção de cor
+travada no teste porque não fazia parte do comportamento que o teste protegia. Os outros 4 cards
+(`ReadinessCard`, `TodayHeroCard`, `WeekOverviewCard`, `ProgressBlockCard`) continuam em `surface[700]`
+e ficam para `standardize-card-migration` — risco de mudança de contraste marcado como item de revisão
+visual lá, não decidido aqui.
 
 ## D4. `CardHeader` — o que entra e o que não entra
 
@@ -144,8 +163,22 @@ já foram incorporados em D1/D2/D4:
 | PM3 | `DiagnosisCard.tsx:22-24` usa `component="section" aria-label={title}` (landmark de acessibilidade testado); `Card` como `Box` fixo perderia essa semântica na migração | D2 ganhou `component`/`aria-label` polimórficos |
 | PM4 | `KPICard.tsx:81-103` envolve o label num `Tooltip` condicional — `CardHeader.title: string` não comporta isso; a task 5.1 original forçaria reconstruir o comportamento | D4: `title` vira `React.ReactNode`; `KPICard` sai do escopo de `CardHeader` na migração-prova, migra só o wrapper |
 
+**Rodada 2 — pré-mortem no `init` (DoR check, 29/09), sobre design+tasks já revisados pela rodada 1:**
+
+| # | Achado do pré-mortem | Onde foi corrigido |
+|---|---|---|
+| PM5 | `KPICard`/`StatCard` não têm teste hoje (`find` confirma) — as tasks 5.1/5.2 diziam "testes existentes continuam verdes", uma verificação vazia; CA7 não tinha proteção real para Tooltip/clique | `tasks.md` 5.1/5.2 passam a exigir teste de caracterização **antes** da migração (Tooltip com hover, clique executando `onClick` uma vez) |
+| PM6 | `glassSxHover` redefine `background`/`border` incondicionalmente — combinado com `stateColor` num card `glass` + `interactive`, apagaria a indicação semântica no hover; design não definia precedência | D2 ganhou a regra de precedência: `stateColor` sempre vence hover para `background`/`border`; hover aplica só `cursor: pointer` quando os dois coexistem |
+| PM7 | Padding "consistente" não tinha contrato — `KPICard` tem uma variante `isHero` (`p: 3`) não capturada na auditoria original; uma implementação sem padding ou com valor errado passaria despercebida | D2 ganhou a prop `padding` (`2 \| 2.5 \| 3`, default `2`); `KPICard` usa `padding={isHero ? 3 : 2}` explicitamente |
+
 **Risco residual aceito:** a revisão do Codex não executou os testes/build desta change (nenhum
 código foi escrito ainda) — os achados são sobre o **design**, não uma verificação de implementação.
 A task de validação de cada bloco (`npm run lint && npm run build && npm run test:run`) é quem
 confirma que a implementação de fato preserva `stateColor`, o landmark de `DiagnosisCard`-like e o
 tooltip de `KPICard` quando esses componentes migrarem (foundation ou change seguinte).
+
+**Rollback:** change puramente aditiva do lado dos componentes novos (`Card.tsx`, `CardHeader.tsx`
+não existem hoje) e sem migração de dados. Reverter o PR restaura os dois exports de `radius` e os 3
+componentes da migração-prova (`KPICard`, `StatCard`, `WorkoutAnalysisCard`) voltam ao wrapper manual
+anterior — seguro em qualquer ponto da implementação, inclusive parcial (tasks 1-4 sem a 5, ou vice-versa
+não se aplica porque a 5 depende das 1-3).
