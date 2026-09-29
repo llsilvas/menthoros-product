@@ -119,6 +119,17 @@ verdade sobre "este planejado já tem dono".
   progresso. Mitigação: a restrição está explícita em "What Changes", e há teste do seletor em vez
   de mudança no repositório compartilhado.
 
+## Follow-ups registrados (achados do code review, fora de escopo)
+
+- **Sem índice em `tb_treino_realizado.treino_planejado_id`.** A query de ocupação filtra por essa
+  coluna e hoje faz scan. Com 534 linhas no homelab em 2026-09-29, o custo é desprezível. Criar o
+  índice exige migration, o que tira a change da trilha Fast. O débito já existia: o `UPDATE ...
+  WHERE treinoPlanejado.id IN` do mesmo repositório também faz scan. Candidato a change própria
+  quando a tabela crescer.
+- **Aplicado nesta change:** o seletor rejeita realizado sem `id` quando há candidatos. Sem isso,
+  `tr.id <> NULL` viraria UNKNOWN e a query diria "nada ocupado" em silêncio, reabrindo o bug para um
+  caller futuro com entidade transiente.
+
 ## Non-goals
 
 - Mudar pesos, limiares (`AUTO_MATCH_THRESHOLD`, `TIE_BREAK_THRESHOLD`) ou a janela de ±1 dia.
