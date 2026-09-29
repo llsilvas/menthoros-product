@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Unbounded:wght@600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070d18;color:#e7ecf3;font-family:'Geist',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#c9e84b;text-decoration:none}a:hover{color:#e2f59a}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:40px 24px 80px;background:#070d18">
+<div style="max-width:1280px;margin:0 auto;display:grid;gap:48px">
+
+<section id="topo-kpis" style="display:grid;gap:28px;padding-bottom:40px;border-bottom:1px solid #1e2a3c">
+  <div style="display:grid;gap:8px;max-width:820px">
+    <div style="font-family:'Geist Mono',monospace;font-size:12px;letter-spacing:.08em;color:#8a96a8;text-transform:uppercase">Detalhe · CoachInboxPage › atleta selecionado</div>
+    <h1 style="margin:0;font-size:30px;font-weight:600;letter-spacing:-.01em">Topo e linha de KPIs</h1>
+    <p style="margin:0;font-size:15px;line-height:1.55;color:#a9b4c4;text-wrap:pretty">Cabeçalho do atleta e os tiles Aderência, Carga (7d), Forma e ACWR, com a mudança da change <span style="font-family:'Geist Mono',monospace;font-size:13px;color:#e7ecf3">fix-coach-diagnosis-charts</span>. No layout da Proposta: próxima prova no cabeçalho e 4 células largas (<span style="font-family:'Geist Mono',monospace;font-size:13px;color:#e7ecf3">AthleteKpiStrip</span>) no lugar dos tiles compactos. Cores seguem os tokens atuais. Dados: Leandro Silva em 28/09.</p>
+  </div>
+
+  <div style="display:grid;gap:10px">
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#8a96a8">A</span><h2 style="margin:0;font-size:18px;font-weight:600">Antes</h2></div>
+    <div style="background:#0A1628;border:1px solid rgba(255,255,255,.12);border-radius:12px;overflow:hidden">
+      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.12)">
+        <div style="display:flex;gap:14px;align-items:center;min-width:0">
+          <div style="position:relative;width:44px;height:44px;border-radius:50%;background:#1E293B;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#E2E8F0;flex:none">LS<span style="position:absolute;right:0;bottom:2px;width:10px;height:10px;border-radius:50%;background:#F59E0B;border:2px solid #0A1628"></span></div>
+          <div style="display:grid;gap:3px;min-width:0">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#F8FAFC;line-height:1.05">Leandro Silva</span><span style="font-size:11px;font-weight:700;color:#F59E0B;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);border-radius:999px;padding:2px 8px">Atenção</span></div>
+            <div style="display:flex;gap:6px;align-items:center"><span style="font-size:12px;color:#94A3B8">Intermediário</span><span style="font-size:11px;color:#E2E8F0;background:rgba(100,116,139,.2);border-radius:999px;padding:1px 7px">43 anos</span></div>
+            <div style="font-size:12px;color:#94A3B8">Baixar o tempo nos 21 km</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;gap:8px"><div style="font-size:14px;font-weight:700;color:#E2E8F0;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:9px 16px">Abrir plano</div></div>
+          <div style="position:relative;display:flex;gap:18px;padding:6px 10px;border:1.5px dashed #EF4444;border-radius:8px">
+            <div style="display:grid;gap:1px"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#64748B">Aderência geral</div><div style="font-size:22px;font-weight:800;color:#F59E0B">38%</div></div>
+            <div style="display:grid;gap:1px"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#64748B">Carga semanal</div><div style="font-size:22px;font-weight:800;color:#F8FAFC">5,1 km</div><div style="font-size:11px;color:#10B981">+36.2% vs. ant.</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:12px 24px 16px">
+        <div style="border:1px solid rgba(255,255,255,.15);border-radius:6px;background:rgba(255,255,255,.024);padding:10px 12px;min-height:70px;min-width:0;display:grid;align-content:start;gap:4px"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Aderência</div><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F59E0B"><svg width="18" height="18" viewBox="0 0 24 24" style="flex:none"><path d="M12 3 2 21h20L12 3Z" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round"></path><path d="M12 10v5M12 18v.5" style="stroke:currentColor;stroke-width:2;stroke-linecap:round"></path></svg>38%</div><div style="font-size:11px;color:#94A3B8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Últimas 4 semanas</div></div>
+        <div style="border:1px solid rgba(255,255,255,.15);border-radius:6px;background:rgba(255,255,255,.024);padding:10px 12px;min-height:70px;min-width:0;display:grid;align-content:start;gap:4px"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Carga (7d)</div><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F59E0B"><svg width="18" height="18" viewBox="0 0 24 24" style="flex:none"><path d="M12 3 2 21h20L12 3Z" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round"></path><path d="M12 10v5M12 18v.5" style="stroke:currentColor;stroke-width:2;stroke-linecap:round"></path></svg>5,1 km</div><div style="font-size:11px;color:#94A3B8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">+36.2% vs. ant.</div></div>
+        <div style="border:1px solid rgba(255,255,255,.15);border-radius:6px;background:rgba(255,255,255,.024);padding:10px 12px;min-height:70px;min-width:0;display:grid;align-content:start;gap:4px"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Forma</div><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F59E0B"><svg width="18" height="18" viewBox="0 0 24 24" style="flex:none"><path d="M12 3 2 21h20L12 3Z" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round"></path><path d="M12 10v5M12 18v.5" style="stroke:currentColor;stroke-width:2;stroke-linecap:round"></path></svg>Acumulando fadiga</div><div style="font-size:11px;color:#94A3B8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">TSB -13.61</div></div>
+        <div style="border:1px solid rgba(255,255,255,.15);border-radius:6px;background:rgba(255,255,255,.024);padding:10px 12px;min-height:70px;min-width:0;display:grid;align-content:start;gap:4px"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">ACWR</div><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#EF4444"><svg width="18" height="18" viewBox="0 0 24 24" style="flex:none"><circle cx="12" cy="12" r="10" style="fill:currentColor"></circle><path d="M12 7v6M12 16.5v.5" style="stroke:#0A1628;stroke-width:2.2;stroke-linecap:round"></path></svg>2.03</div><div style="font-size:11px;color:#94A3B8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Risco</div></div>
+        <div style="border:1px solid rgba(245,158,11,.4);border-radius:6px;background:rgba(245,158,11,.08);padding:10px 12px;min-height:70px;min-width:0;display:grid;align-content:start;gap:4px"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Prova alvo</div><div style="font-size:15px;font-weight:700;line-height:1.2;color:#F59E0B">Mizuno Athenas Run Longer 2026</div><div style="font-size:11px;color:#94A3B8">18 out</div></div>
+      </div>
+    </div>
+    <div style="font-size:13px;color:#a9b4c4;line-height:1.5">Em tracejado vermelho: bloco que repete Aderência e Carga dos tiles. O "+36.2%" é variação de CTL, não de carga, e aparece duas vezes aqui e uma terceira no card "Tendência de carga".</div>
+  </div>
+
+  <div style="display:grid;gap:10px">
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#8a96a8">B</span><h2 style="margin:0;font-size:18px;font-weight:600">Depois · layout da Proposta</h2></div>
+    <div style="background:#0A1628;border:1px solid rgba(255,255,255,.12);border-radius:12px;overflow:hidden">
+      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.12)">
+        <div style="display:flex;gap:14px;align-items:center;min-width:0">
+          <div style="position:relative;width:44px;height:44px;border-radius:50%;background:#1E293B;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#E2E8F0;flex:none">LS<span style="position:absolute;right:0;bottom:2px;width:10px;height:10px;border-radius:50%;background:#F59E0B;border:2px solid #0A1628"></span></div>
+          <div style="display:grid;gap:3px;min-width:0">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#F8FAFC;line-height:1.05">Leandro Silva</span><span style="font-size:11px;font-weight:700;color:#F59E0B;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);border-radius:999px;padding:2px 8px">Atenção</span></div>
+            <div style="display:flex;gap:6px;align-items:center"><span style="font-size:12px;color:#94A3B8">Intermediário</span><span style="font-size:11px;color:#E2E8F0;background:rgba(100,116,139,.2);border-radius:999px;padding:1px 7px">43 anos</span></div>
+            <div style="font-size:12px;color:#94A3B8">Baixar o tempo nos 21 km</div>
+          </div>
+        </div>
+        <div style="position:relative;display:flex;gap:20px;align-items:center;margin-left:auto">
+          <span style="position:absolute;top:-10px;left:-14px;font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 5px">1</span>
+          <div style="display:grid;gap:1px;text-align:right;max-width:280px">
+            <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#F59E0B;font-weight:700">Prova alvo</div>
+            <div style="font-size:14px;font-weight:600;color:#F8FAFC;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Mizuno Athenas Run Longer 2026</div>
+            <div style="font-size:12px;color:#94A3B8">18 out · em 20 dias</div>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:#E2E8F0;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:9px 16px;white-space:nowrap">Abrir plano</div>
+        </div>
+      </div>
+      <div style="border-bottom:1px solid rgba(255,255,255,.12)"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:rgba(255,255,255,.12)"><div style="position:relative;background:#0E1B30;padding:16px 20px;display:flex;flex-direction:column;gap:4px;min-width:0"><span style="position:absolute;top:8px;right:8px;font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 5px">2</span><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Aderência<span style="color:#64748B"> · 4 sem</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:24px;font-weight:700;line-height:1.15;color:#F59E0B;font-variant-numeric:tabular-nums"><svg width="18" height="18" viewBox="0 0 24 24" style="flex:none"><path d="M12 3 2 21h20L12 3Z" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round"></path><path d="M12 10v5M12 18v.5" style="stroke:currentColor;stroke-width:2;stroke-linecap:round"></path></svg>31%</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">5 de 16 treinos planejados</div></div><div style="position:relative;background:#0E1B30;padding:16px 20px;display:flex;flex-direction:column;gap:4px;min-width:0"><span style="position:absolute;top:8px;right:8px;font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 5px">3</span><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Carga<span style="color:#64748B"> · 7 dias</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:24px;font-weight:700;line-height:1.15;color:#F59E0B;font-variant-numeric:tabular-nums"><svg width="18" height="18" viewBox="0 0 24 24" style="flex:none"><path d="M12 3 2 21h20L12 3Z" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round"></path><path d="M12 10v5M12 18v.5" style="stroke:currentColor;stroke-width:2;stroke-linecap:round"></path></svg>5,0 km</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">TSS +36% vs. 7 dias anteriores</div></div><div style="position:relative;background:#0E1B30;padding:16px 20px;display:flex;flex-direction:column;gap:4px;min-width:0"><span style="position:absolute;top:8px;right:8px;font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 5px">4</span><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Forma<span style="color:#64748B"> · TSB</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:24px;font-weight:700;line-height:1.15;color:#F8FAFC;font-variant-numeric:tabular-nums">Fatigado</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">TSB -8,6</div></div><div style="position:relative;background:#0E1B30;padding:16px 20px;display:flex;flex-direction:column;gap:4px;min-width:0"><span style="position:absolute;top:8px;right:8px;font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 5px">5</span><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">ACWR</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:24px;font-weight:700;line-height:1.15;color:#F8FAFC;font-variant-numeric:tabular-nums">1,97</div><span style="font-size:11px;font-weight:700;color:#F59E0B;border:1px dashed #B45309;border-radius:999px;padding:1px 8px;white-space:nowrap">Baixa confiança</span></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">Base crônica incompleta: 60 dias sem treinos registrados</div></div></div></div>
+      <div style="display:flex;gap:4px;padding:0 16px">
+        <div style="font-size:13px;font-weight:600;color:#BDDE5A;padding:12px 10px;border-bottom:2px solid #BDDE5A">Diagnóstico</div>
+        <div style="font-size:13px;color:#94A3B8;padding:12px 10px">Plano</div>
+        <div style="font-size:13px;color:#94A3B8;padding:12px 10px">Provas &amp; sugestões</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px 20px;font-size:13px;line-height:1.5;color:#a9b4c4">
+      <div style="display:flex;gap:8px"><span style="font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 5px;height:fit-content">1</span><span>Próxima prova sai da linha de KPIs e vai para o cabeçalho, ao lado da ação. Sai o bloco "Aderência geral / Carga semanal".</span></div>
+      <div style="display:flex;gap:8px"><span style="font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 5px;height:fit-content">2</span><span>31% calculado das mesmas semanas do gráfico. A linha de apoio mostra a conta.</span></div>
+      <div style="display:flex;gap:8px"><span style="font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 5px;height:fit-content">3</span><span>Delta em TSS, dito no texto: o perfil não traz km dos 7 dias anteriores. ≥ +10% é atenção.</span></div>
+      <div style="display:flex;gap:8px"><span style="font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 5px;height:fit-content">4</span><span>Faixa do backend. TSB com vírgula e 1 casa.</span></div>
+      <div style="display:flex;gap:8px"><span style="font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 5px;height:fit-content">5</span><span>Lacuna de 60 dias na base de 28: selo "Baixa confiança", motivo por extenso, tom neutro, sem "Risco".</span></div>
+    </div>
+  </div>
+
+  <div style="display:grid;gap:14px">
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#8a96a8">C</span><h2 style="margin:0;font-size:18px;font-weight:600">Anatomia da célula</h2></div>
+    <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:center">
+      <div style="width:280px;flex:none;border:1px solid rgba(255,255,255,.12);border-radius:6px;overflow:hidden"><div style="position:relative;background:#0E1B30;padding:16px 20px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">ACWR</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:24px;font-weight:700;line-height:1.15;color:#F8FAFC;font-variant-numeric:tabular-nums">1,97</div><span style="font-size:11px;font-weight:700;color:#F59E0B;border:1px dashed #B45309;border-radius:999px;padding:1px 8px;white-space:nowrap">Baixa confiança</span></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">Base crônica incompleta: 60 dias sem treinos registrados</div></div></div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:13px;line-height:1.45;max-width:660px">
+        <span style="color:#e7ecf3;font-weight:600">Rótulo</span><span style="color:#a9b4c4">11px, caixa alta, <span style="font-family:'Geist Mono',monospace;font-size:12px">surface[400]</span>. Nome da métrica + qualificador em <span style="font-family:'Geist Mono',monospace;font-size:12px">surface[500]</span> ("· 4 sem", "· 7 dias", "· TSB").</span>
+        <span style="color:#e7ecf3;font-weight:600">Valor</span><span style="color:#a9b4c4">1.25rem (1.5rem em xl), 700, cor do tom, números tabulares. Marcador de <span style="font-family:'Geist Mono',monospace;font-size:12px">toneMarker</span> antes do valor; neutro sem ícone. "—" quando não há dado.</span>
+        <span style="color:#e7ecf3;font-weight:600">Selo</span><span style="color:#a9b4c4">Opcional, ao lado do valor. Hoje só "Baixa confiança" no ACWR: 11px, âmbar, borda tracejada.</span>
+        <span style="color:#e7ecf3;font-weight:600">Linha de apoio</span><span style="color:#a9b4c4">12px, <span style="font-family:'Geist Mono',monospace;font-size:12px">surface[400]</span>, até 2 linhas. Diz a base do número ou por que não confiar nele.</span>
+        <span style="color:#e7ecf3;font-weight:600">Grade</span><span style="color:#a9b4c4">4 colunas iguais (2 em xs), separadas por 1px de <span style="font-family:'Geist Mono',monospace;font-size:12px">content.divider</span>, fundo <span style="font-family:'Geist Mono',monospace;font-size:12px">backgrounds.panel</span>.</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;gap:14px">
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#8a96a8">D</span><h2 style="margin:0;font-size:18px;font-weight:600">Regras e estados por célula</h2></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(600px,1fr));gap:14px">
+      <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:18px;display:grid;gap:14px;align-content:start"><div style="font-size:16px;font-weight:600">Aderência · 4 sem</div><div style="display:grid;grid-template-columns:110px 1fr;gap:6px 14px;font-size:13px;line-height:1.45"><span style="color:#8a96a8">Fonte</span><span style="color:#d6dde8"><span style="font-family:'Geist Mono',monospace;font-size:12px">perfil.aderenciaSemanal</span>, semanas com início nas últimas 4 semanas civis. Sem perfil: <span style="font-family:'Geist Mono',monospace;font-size:12px">roster.aderenciaPercentual</span>.</span><span style="color:#8a96a8">Cálculo</span><span style="color:#d6dde8">Σ realizado ÷ Σ planejado, arredondado. Mesmas entradas das barras de adesão.</span><span style="color:#8a96a8">Linha de apoio</span><span style="color:#d6dde8">"X de Y treinos planejados" · sem perfil: "Últimas 4 semanas".</span><span style="color:#8a96a8">Tom</span><span style="color:#d6dde8">≥ 85% success · 70–84% neutro · &lt; 70% warning. Igual às barras.</span></div><div style="border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.12)"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:rgba(255,255,255,.12)"><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Aderência<span style="color:#64748B"> · 4 sem</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#10B981;font-variant-numeric:tabular-nums"><svg width="16" height="16" viewBox="0 0 24 24" style="flex:none"><circle cx="12" cy="12" r="10" style="fill:currentColor"></circle><path d="m7.5 12.5 3 3 6-6.5" style="fill:none;stroke:#0A1628;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"></path></svg>92%</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">11 de 12 treinos planejados</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Aderência<span style="color:#64748B"> · 4 sem</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F8FAFC;font-variant-numeric:tabular-nums">75%</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">12 de 16 treinos planejados</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Aderência<span style="color:#64748B"> · 4 sem</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F59E0B;font-variant-numeric:tabular-nums"><svg width="16" height="16" viewBox="0 0 24 24" style="flex:none"><path d="M12 3 2 21h20L12 3Z" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round"></path><path d="M12 10v5M12 18v.5" style="stroke:currentColor;stroke-width:2;stroke-linecap:round"></path></svg>31%</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">5 de 16 treinos planejados</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Aderência<span style="color:#64748B"> · 4 sem</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F8FAFC;font-variant-numeric:tabular-nums">—</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">Sem dado na janela</div></div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;font-size:12px;color:#8a96a8"><span style="padding:0 14px">Em dia</span><span style="padding:0 14px">Neutro</span><span style="padding:0 14px">Abaixo do plano</span><span style="padding:0 14px">Sem PMC</span></div></div>
+      <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:18px;display:grid;gap:14px;align-content:start"><div style="font-size:16px;font-weight:600">Carga · 7 dias</div><div style="display:grid;grid-template-columns:110px 1fr;gap:6px 14px;font-size:13px;line-height:1.45"><span style="color:#8a96a8">Valor</span><span style="color:#d6dde8">km dos últimos 7 dias (<span style="font-family:'Geist Mono',monospace;font-size:12px">roster.weeklyVolume</span>). Sem mudança.</span><span style="color:#8a96a8">Linha de apoio</span><span style="color:#d6dde8">Σ TSS dos últimos 7 dias vs. 7 anteriores, por data: "TSS +12% vs. 7 dias anteriores". Antes: variação de CTL.</span><span style="color:#8a96a8">Sem base</span><span style="color:#d6dde8">Os 7 dias anteriores somam 0 TSS → "Sem carga nos 7 dias anteriores para comparar".</span><span style="color:#8a96a8">Tom</span><span style="color:#d6dde8">Delta ≥ +10% warning · abaixo success · sem base neutro.</span></div><div style="border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.12)"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:rgba(255,255,255,.12)"><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Carga<span style="color:#64748B"> · 7 dias</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#10B981;font-variant-numeric:tabular-nums"><svg width="16" height="16" viewBox="0 0 24 24" style="flex:none"><circle cx="12" cy="12" r="10" style="fill:currentColor"></circle><path d="m7.5 12.5 3 3 6-6.5" style="fill:none;stroke:#0A1628;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"></path></svg>32,4 km</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">TSS +4% vs. 7 dias anteriores</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Carga<span style="color:#64748B"> · 7 dias</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F59E0B;font-variant-numeric:tabular-nums"><svg width="16" height="16" viewBox="0 0 24 24" style="flex:none"><path d="M12 3 2 21h20L12 3Z" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round"></path><path d="M12 10v5M12 18v.5" style="stroke:currentColor;stroke-width:2;stroke-linecap:round"></path></svg>41,0 km</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">TSS +28% vs. 7 dias anteriores</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Carga<span style="color:#64748B"> · 7 dias</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F8FAFC;font-variant-numeric:tabular-nums">5,0 km</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">Sem carga nos 7 dias anteriores para comparar</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Carga<span style="color:#64748B"> · 7 dias</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F8FAFC;font-variant-numeric:tabular-nums">—</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">Sem dado na janela</div></div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;font-size:12px;color:#8a96a8"><span style="padding:0 14px">Progressão estável</span><span style="padding:0 14px">Salto de carga</span><span style="padding:0 14px">Primeira semana após lacuna</span><span style="padding:0 14px">Sem PMC</span></div></div>
+      <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:18px;display:grid;gap:14px;align-content:start"><div style="font-size:16px;font-weight:600">Forma · TSB</div><div style="display:grid;grid-template-columns:110px 1fr;gap:6px 14px;font-size:13px;line-height:1.45"><span style="color:#8a96a8">Valor</span><span style="color:#d6dde8">Faixa <span style="font-family:'Geist Mono',monospace;font-size:12px">statusForma</span> do backend via <span style="font-family:'Geist Mono',monospace;font-size:12px">FAIXA_APRESENTACAO</span> (9 faixas, 4 tons). Sem limiar no front.</span><span style="color:#8a96a8">Linha de apoio</span><span style="color:#d6dde8">"TSB -8,6": vírgula, 1 casa, sinal. Antes: "-13.61".</span><span style="color:#8a96a8">Tom</span><span style="color:#d6dde8">Da faixa: fadiga alta/excessiva danger · moderada/acumulando/muito descansado warning · fatigado/recuperando neutro · ideal/descansado success.</span></div><div style="border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.12)"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:rgba(255,255,255,.12)"><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Forma<span style="color:#64748B"> · TSB</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#10B981;font-variant-numeric:tabular-nums"><svg width="16" height="16" viewBox="0 0 24 24" style="flex:none"><circle cx="12" cy="12" r="10" style="fill:currentColor"></circle><path d="m7.5 12.5 3 3 6-6.5" style="fill:none;stroke:#0A1628;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"></path></svg>Forma ideal</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">TSB +4,2</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Forma<span style="color:#64748B"> · TSB</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F8FAFC;font-variant-numeric:tabular-nums">Fatigado</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">TSB -8,6</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Forma<span style="color:#64748B"> · TSB</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F59E0B;font-variant-numeric:tabular-nums"><svg width="16" height="16" viewBox="0 0 24 24" style="flex:none"><path d="M12 3 2 21h20L12 3Z" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round"></path><path d="M12 10v5M12 18v.5" style="stroke:currentColor;stroke-width:2;stroke-linecap:round"></path></svg>Acumulando fadiga</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">TSB -13,6</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">Forma<span style="color:#64748B"> · TSB</span></div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#EF4444;font-variant-numeric:tabular-nums"><svg width="16" height="16" viewBox="0 0 24 24" style="flex:none"><circle cx="12" cy="12" r="10" style="fill:currentColor"></circle><path d="M12 7v6M12 16.5v.5" style="stroke:#0A1628;stroke-width:2.2;stroke-linecap:round"></path></svg>Fadiga alta</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">TSB -28,9</div></div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;font-size:12px;color:#8a96a8"><span style="padding:0 14px">success</span><span style="padding:0 14px">neutro</span><span style="padding:0 14px">warning</span><span style="padding:0 14px">danger</span></div></div>
+      <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:18px;display:grid;gap:14px;align-content:start"><div style="font-size:16px;font-weight:600">ACWR</div><div style="display:grid;grid-template-columns:110px 1fr;gap:6px 14px;font-size:13px;line-height:1.45"><span style="color:#8a96a8">Valor</span><span style="color:#d6dde8">ATL ÷ CTL do último ponto do PMC, 2 casas, vírgula. Cálculo sem mudança.</span><span style="color:#8a96a8">Confiança</span><span style="color:#d6dde8">Baixa quando o histórico tem menos de 28 dias ou uma lacuna de registro toca os últimos 28 dias.</span><span style="color:#8a96a8">Linha de apoio</span><span style="color:#d6dde8">Zona + "carga aguda ÷ crônica" · com baixa confiança: o motivo · sem ATL/CTL: "Dado insuficiente".</span><span style="color:#8a96a8">Tom</span><span style="color:#d6dde8">0,8–1,3 success · 1,3–1,5 e &lt; 0,8 warning · &gt; 1,5 danger · baixa confiança sempre neutro, com selo.</span></div><div style="border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.12)"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:rgba(255,255,255,.12)"><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">ACWR</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#10B981;font-variant-numeric:tabular-nums"><svg width="16" height="16" viewBox="0 0 24 24" style="flex:none"><circle cx="12" cy="12" r="10" style="fill:currentColor"></circle><path d="m7.5 12.5 3 3 6-6.5" style="fill:none;stroke:#0A1628;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"></path></svg>1,05</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">Ideal · carga aguda ÷ crônica</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">ACWR</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#EF4444;font-variant-numeric:tabular-nums"><svg width="16" height="16" viewBox="0 0 24 24" style="flex:none"><circle cx="12" cy="12" r="10" style="fill:currentColor"></circle><path d="M12 7v6M12 16.5v.5" style="stroke:#0A1628;stroke-width:2.2;stroke-linecap:round"></path></svg>1,74</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">Risco · carga aguda ÷ crônica</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">ACWR</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F8FAFC;font-variant-numeric:tabular-nums">1,97</div><span style="font-size:11px;font-weight:700;color:#F59E0B;border:1px dashed #B45309;border-radius:999px;padding:1px 8px;white-space:nowrap">Baixa confiança</span></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">Base crônica incompleta: 60 dias sem treinos registrados</div></div><div style="position:relative;background:#0E1B30;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8">ACWR</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="display:flex;gap:6px;align-items:center;font-size:20px;font-weight:700;line-height:1.15;color:#F8FAFC;font-variant-numeric:tabular-nums">—</div></div><div style="font-size:12px;line-height:1.35;color:#94A3B8;text-wrap:pretty">Dado insuficiente</div></div></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;font-size:12px;color:#8a96a8"><span style="padding:0 14px">Base completa</span><span style="padding:0 14px">Base completa</span><span style="padding:0 14px">Retorno após lacuna</span><span style="padding:0 14px">Sem ATL/CTL</span></div></div>
+    </div>
+    <div style="font-size:13px;line-height:1.5;color:#a9b4c4;max-width:820px">Em todas as células, "Sem dado na janela" (série PMC vazia) vence as demais regras: valor "—", tom neutro, sem ícone.</div>
+  </div>
+</section>
+
+<sc-if value="{{ showReview }}" hint-placeholder-val="{{ true }}">
+<section style="display:grid;gap:20px">
+  <div style="display:grid;gap:8px;max-width:760px">
+    <div style="font-family:'Geist Mono',monospace;font-size:12px;letter-spacing:.08em;color:#8a96a8;text-transform:uppercase">Revisão · Inbox › atleta › Diagnóstico</div>
+    <h1 style="margin:0;font-size:30px;font-weight:600;letter-spacing:-.01em;text-wrap:pretty">Gráficos do painel do atleta</h1>
+    <p style="margin:0;font-size:15px;line-height:1.55;color:#a9b4c4;text-wrap:pretty">Tela analisada: Leandro Silva. São 9 problemas, agrupados por gráfico. A proposta abaixo usa dados simulados com o mesmo padrão da captura, incluindo a lacuna sem registros de 16/07 a 13/09.</p>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px">
+    <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start">
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 6px;font-weight:500">1</span><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Geral</span></div>
+      <div style="font-weight:600;font-size:15px">KPIs duplicados</div>
+      <div style="font-size:13px;line-height:1.5;color:#a9b4c4">Aderência e carga aparecem no topo direito e nos cards. "+36.2%" aparece três vezes na mesma tela.</div>
+      <div style="font-size:13px;line-height:1.5;color:#e7ecf3"><span style="color:#c9e84b">Proposta:</span> cada número em um só lugar. O topo fica com identidade, objetivo e próxima prova.</div>
+    </div>
+    <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start">
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 6px;font-weight:500">2</span><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Geral</span></div>
+      <div style="font-weight:600;font-size:15px">KPI e gráfico não batem</div>
+      <div style="font-size:13px;line-height:1.5;color:#a9b4c4">Aderência 38% nas "últimas 4 semanas", mas S1–S4 somam 81% e S4–S7 somam 50%. Nenhuma leitura do gráfico chega a 38%.</div>
+      <div style="font-size:13px;line-height:1.5;color:#e7ecf3"><span style="color:#c9e84b">Proposta:</span> KPI e gráfico derivados da mesma série e da mesma janela.</div>
+    </div>
+    <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start">
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 6px;font-weight:500">3</span><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Adesão</span></div>
+      <div style="font-weight:600;font-size:15px">Ordem e período ambíguos</div>
+      <div style="font-size:13px;line-height:1.5;color:#a9b4c4">S1…S7 sem datas: não dá para saber se S1 é a semana atual. Barras horizontais de largura total para 7 valores.</div>
+      <div style="font-size:13px;line-height:1.5;color:#e7ecf3"><span style="color:#c9e84b">Proposta:</span> colunas em ordem cronológica, com data, no mesmo eixo semanal da carga.</div>
+    </div>
+    <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start">
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 6px;font-weight:500">4</span><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Carga</span></div>
+      <div style="font-weight:600;font-size:15px">Linha sem eixo nem unidade</div>
+      <div style="font-size:13px;line-height:1.5;color:#a9b4c4">Tooltip "Ponto 57 · Valor 12.07" não informa data, métrica ou unidade. Não há eixo X nem Y.</div>
+      <div style="font-size:13px;line-height:1.5;color:#e7ecf3"><span style="color:#c9e84b">Proposta:</span> km por semana, eixo em km, tooltip com período, km e sessões.</div>
+    </div>
+    <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start">
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 6px;font-weight:500">5</span><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Carga</span></div>
+      <div style="font-weight:600;font-size:15px">Interpolação sobre a lacuna</div>
+      <div style="font-size:13px;line-height:1.5;color:#a9b4c4">De 16/07 a 13/09 não há registros, mas a linha liga os pontos em reta e sugere uma queda gradual que não aconteceu.</div>
+      <div style="font-size:13px;line-height:1.5;color:#e7ecf3"><span style="color:#c9e84b">Proposta:</span> faixa "Sem registros" e nenhuma barra no intervalo.</div>
+    </div>
+    <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start">
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 6px;font-weight:500">6</span><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Forma (PMC)</span></div>
+      <div style="font-weight:600;font-size:15px">Lacuna invisível</div>
+      <div style="font-size:13px;line-height:1.5;color:#a9b4c4">CTL e ATL decaem corretamente no período vazio, mas o treinador não sabe se o atleta parou ou se o relógio não sincronizou.</div>
+      <div style="font-size:13px;line-height:1.5;color:#e7ecf3"><span style="color:#c9e84b">Proposta:</span> faixa marcada e linhas tracejadas no intervalo estimado.</div>
+    </div>
+    <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start">
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 6px;font-weight:500">7</span><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Forma (PMC)</span></div>
+      <div style="font-weight:600;font-size:15px">Leitura poluída</div>
+      <div style="font-size:13px;line-height:1.5;color:#a9b4c4">46 rótulos no eixo X, card dentro de card, legenda cortada abaixo da dobra. Forma usa o mesmo verde-limão da carga e do destaque da marca.</div>
+      <div style="font-size:13px;line-height:1.5;color:#e7ecf3"><span style="color:#c9e84b">Proposta:</span> rótulos semanais, legenda no topo com o valor atual, um só nível de card.</div>
+    </div>
+    <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start">
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 6px;font-weight:500">8</span><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Forma (PMC)</span></div>
+      <div style="font-weight:600;font-size:15px">Forma sem referência</div>
+      <div style="font-size:13px;line-height:1.5;color:#a9b4c4">O card diz "Acumulando fadiga · TSB −13.61", mas o gráfico não mostra onde ficam os limites de cada zona.</div>
+      <div style="font-size:13px;line-height:1.5;color:#e7ecf3"><span style="color:#c9e84b">Proposta:</span> modo Simples mostra só a Forma sobre as zonas.</div>
+    </div>
+    <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:16px;display:grid;gap:8px;align-content:start">
+      <div style="display:flex;gap:8px;align-items:center"><span style="font-family:'Geist Mono',monospace;font-size:12px;color:#070d18;background:#c9e84b;border-radius:4px;padding:1px 6px;font-weight:500">9</span><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">ACWR</span></div>
+      <div style="font-weight:600;font-size:15px">ACWR 2.03 enganoso</div>
+      <div style="font-size:13px;line-height:1.5;color:#a9b4c4">Após 8 semanas sem registros a carga crônica é quase zero. Qualquer retorno gera "Risco", mesmo com 5 km na semana.</div>
+      <div style="font-size:13px;line-height:1.5;color:#e7ecf3"><span style="color:#c9e84b">Proposta:</span> sinalizar baixa confiança enquanto a base crônica estiver incompleta.</div>
+    </div>
+  </div>
+</section>
+</sc-if>
+
+<section style="display:grid;gap:16px">
+  <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between">
+    <h2 style="margin:0;font-size:22px;font-weight:600">Proposta</h2>
+    <div style="font-size:13px;color:#8a96a8">Passe o mouse nos gráficos para ver os tooltips</div>
+  </div>
+
+  <div style="background:#0a1220;border:1px solid #1e2a3c;border-radius:14px;overflow:hidden">
+    <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between;padding:22px 24px;border-bottom:1px solid #1a2536">
+      <div style="display:flex;gap:14px;align-items:center">
+        <div style="position:relative;width:44px;height:44px;border-radius:50%;background:#1c2738;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px">LS<span style="position:absolute;right:1px;bottom:3px;width:9px;height:9px;border-radius:50%;background:#f5a524;border:2px solid #0a1220"></span></div>
+        <div style="display:grid;gap:4px">
+          <div style="display:flex;gap:10px;align-items:center"><span style="font-family:'Unbounded',sans-serif;font-size:20px;font-weight:600">Leandro Silva</span><span style="font-size:11px;font-weight:600;color:#f5a524;border:1px solid #6b4a12;background:#2a1e08;border-radius:999px;padding:2px 8px">Atenção</span></div>
+          <div style="font-size:13px;color:#8a96a8">Intermediário · 43 anos · Objetivo: baixar o tempo nos 21 km (hoje 2:11:58)</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:20px;align-items:center">
+        <div style="display:grid;gap:2px;text-align:right">
+          <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Próxima prova</div>
+          <div style="font-size:14px;font-weight:600">Mizuno Athenas Run Longer 2026</div>
+          <div style="font-size:12px;color:#8a96a8">18/10 · em 20 dias</div>
+        </div>
+        <button style="font-family:inherit;font-size:13px;font-weight:600;color:#c9e84b;background:transparent;border:1px solid #4d5a22;border-radius:8px;padding:9px 14px;cursor:pointer" style-hover="background:#161f10">Abrir plano</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:#1a2536;border-bottom:1px solid #1a2536">
+      <div style="background:#0d1626;padding:16px 20px;display:grid;gap:4px">
+        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Aderência · 4 sem</div>
+        <div style="font-size:24px;font-weight:600;color:#f5a524;font-variant-numeric:tabular-nums">{{ kAdh }}</div>
+        <div style="font-size:12px;color:#8a96a8">{{ kAdhSub }}</div>
+      </div>
+      <div style="background:#0d1626;padding:16px 20px;display:grid;gap:4px">
+        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Carga · 7 dias</div>
+        <div style="font-size:24px;font-weight:600;font-variant-numeric:tabular-nums">{{ kLoad }}</div>
+        <div style="font-size:12px;color:#8a96a8">{{ kLoadSub }}</div>
+      </div>
+      <div style="background:#0d1626;padding:16px 20px;display:grid;gap:4px">
+        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">Forma · TSB</div>
+        <div style="font-size:24px;font-weight:600;color:{{ kFormColor }}">{{ kForm }}</div>
+        <div style="font-size:12px;color:#8a96a8">{{ kFormSub }}</div>
+      </div>
+      <div style="background:#0d1626;padding:16px 20px;display:grid;gap:4px">
+        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8a96a8">ACWR</div>
+        <div style="display:flex;gap:8px;align-items:baseline"><span style="font-size:24px;font-weight:600;color:#a9b4c4;font-variant-numeric:tabular-nums">{{ kAcwr }}</span><span style="font-size:11px;font-weight:600;color:#f5a524;border:1px dashed #6b4a12;border-radius:999px;padding:1px 7px">Baixa confiança</span></div>
+        <div style="font-size:12px;color:#8a96a8">Base crônica incompleta após 8 sem. sem registros</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:4px;padding:0 16px;border-bottom:1px solid #1a2536">
+      <div style="font-size:13px;font-weight:600;color:#c9e84b;padding:12px 10px;border-bottom:2px solid #c9e84b">Diagnóstico</div>
+      <div style="font-size:13px;color:#8a96a8;padding:12px 10px">Plano</div>
+      <div style="font-size:13px;color:#8a96a8;padding:12px 10px">Provas &amp; sugestões</div>
+    </div>
+
+    <div style="padding:20px;display:grid;gap:16px">
+      <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:18px 18px 10px;display:grid;gap:12px">
+        <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center">
+          <div style="display:grid;gap:2px">
+            <div style="font-size:14px;font-weight:600">Adesão e carga por semana</div>
+            <div style="font-size:12px;color:#8a96a8">Últimas 13 semanas · acima: adesão (sessões feitas / planejadas) · abaixo: carga em km</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:#a9b4c4">
+            <div style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;border-radius:2px;background:#20c38a"></span>≥ 90%</div>
+            <div style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;border-radius:2px;background:#c9e84b"></span>70–89%</div>
+            <div style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;border-radius:2px;background:#f5a524"></span>40–69%</div>
+            <div style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;border-radius:2px;background:#f04545"></span>&lt; 40%</div>
+          </div>
+        </div>
+        <div style="position:relative" onMouseLeave="{{ clearWeek }}">
+          <svg viewBox="0 0 1200 272" style="width:100%;height:auto;display:block;overflow:visible">
+            <defs><pattern id="hatchW" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" style="stroke:#1c2839;stroke-width:3"></line></pattern></defs>
+            <sc-for list="{{ wTicks }}" as="t" hint-placeholder-count="6">
+              <line x1="52" x2="1184" y1="{{ t.y }}" y2="{{ t.y }}" style="stroke:#1a2536;stroke-width:1"></line>
+            </sc-for>
+            <rect x="{{ gapX }}" y="22" width="{{ gapW }}" height="222" rx="4" style="fill:url(#hatchW)"></rect>
+            <sc-for list="{{ wk }}" as="b" hint-placeholder-count="13">
+              <rect x="{{ b.slotX }}" y="20" width="{{ b.slotW }}" height="228" style="fill:{{ b.hl }}"></rect>
+              <sc-if value="{{ b.hasData }}">
+                <rect x="{{ b.x }}" y="{{ b.ay }}" width="{{ b.bw }}" height="{{ b.ah }}" rx="3" style="fill:{{ b.aColor }}"></rect>
+                <rect x="{{ b.x }}" y="{{ b.ky }}" width="{{ b.bw }}" height="{{ b.kh }}" rx="3" style="fill:{{ b.kColor }}"></rect>
+              </sc-if>
+              <rect x="{{ b.slotX }}" y="20" width="{{ b.slotW }}" height="252" style="fill:transparent;cursor:crosshair" onMouseEnter="{{ b.enter }}"></rect>
+            </sc-for>
+          </svg>
+          <div style="position:absolute;left:{{ gapCxPct }};top:45.6%;transform:translate(-50%,-50%);font-size:13px;color:#a9b4c4;background:#0f1828;padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none">Sem registros · 16/07 – 13/09</div>
+          <sc-for list="{{ wLabels }}" as="l" hint-placeholder-count="0">
+            <div style="position:absolute;left:{{ l.left }};top:{{ l.top }};transform:{{ l.tf }};font-size:12px;color:{{ l.color }};font-family:'Geist Mono',monospace;white-space:nowrap;pointer-events:none">{{ l.text }}</div>
+          </sc-for>
+          <sc-if value="{{ wTipOn }}">
+            <div style="position:absolute;top:0;left:{{ wTipLeft }};transform:{{ wTipShift }};z-index:2;pointer-events:none;background:#18233a;border:1px solid #2a3852;border-radius:8px;padding:8px 10px;display:grid;gap:2px;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.4)">
+              <div style="font-size:12px;font-weight:600">{{ wTipTitle }}</div>
+              <div style="font-size:12px;color:#a9b4c4">{{ wTipL1 }}</div>
+              <div style="font-size:12px;color:{{ wTipL2Color }}">{{ wTipL2 }}</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div style="background:#0f1828;border:1px solid #1e2a3c;border-radius:10px;padding:18px 18px 10px;display:grid;gap:14px">
+        <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center">
+          <div style="display:grid;gap:2px">
+            <div style="font-size:14px;font-weight:600">Forma (PMC)</div>
+            <div style="font-size:12px;color:#8a96a8">{{ pmcSub }}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="display:flex;gap:2px;background:#0a1220;border:1px solid #1e2a3c;border-radius:8px;padding:2px">
+              <sc-for list="{{ modeBtns }}" as="m" hint-placeholder-count="2">
+                <button onClick="{{ m.onClick }}" style="font-family:inherit;font-size:12px;font-weight:500;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;background:{{ m.bg }};color:{{ m.fg }}">{{ m.label }}</button>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:2px;background:#0a1220;border:1px solid #1e2a3c;border-radius:8px;padding:2px">
+              <sc-for list="{{ periodBtns }}" as="p" hint-placeholder-count="3">
+                <button onClick="{{ p.onClick }}" style="font-family:'Geist Mono',monospace;font-size:12px;border:0;border-radius:6px;padding:5px 9px;cursor:pointer;background:{{ p.bg }};color:{{ p.fg }}">{{ p.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:24px">
+          <sc-for list="{{ legend }}" as="l" hint-placeholder-count="3">
+            <div style="display:grid;gap:2px">
+              <div style="display:flex;gap:6px;align-items:center;font-size:12px;color:#a9b4c4"><span style="width:12px;height:3px;border-radius:2px;background:{{ l.color }}"></span>{{ l.name }} <span style="color:#5d6a7d;font-family:'Geist Mono',monospace;font-size:11px">{{ l.code }}</span></div>
+              <div style="font-size:20px;font-weight:600;font-variant-numeric:tabular-nums">{{ l.val }}</div>
+            </div>
+          </sc-for>
+          <div style="display:grid;gap:2px;align-content:end;font-size:12px;color:#8a96a8">{{ legendDate }}</div>
+        </div>
+        <div style="position:relative" onMouseLeave="{{ clearDay }}">
+          <svg viewBox="0 0 1200 296" style="width:100%;height:auto;display:block;overflow:visible">
+            <defs><pattern id="hatchP" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" style="stroke:#18233a;stroke-width:3"></line></pattern></defs>
+            <sc-for list="{{ zones }}" as="z" hint-placeholder-count="0">
+              <rect x="44" y="{{ z.y }}" width="1140" height="{{ z.h }}" style="fill:{{ z.fill }}"></rect>
+            </sc-for>
+            <sc-for list="{{ pTicks }}" as="t" hint-placeholder-count="5">
+              <line x1="44" x2="1184" y1="{{ t.y }}" y2="{{ t.y }}" style="stroke:{{ t.c }};stroke-width:1"></line>
+            </sc-for>
+            <sc-if value="{{ pGapOn }}">
+              <rect x="{{ pGapX }}" y="16" width="{{ pGapW }}" height="252" style="fill:url(#hatchP)"></rect>
+            </sc-if>
+            <path d="{{ areaPath }}" style="fill:rgba(201,232,75,.12);stroke:none"></path>
+            <sc-for list="{{ series }}" as="s" hint-placeholder-count="3">
+              <path d="{{ s.dashed }}" style="fill:none;stroke:{{ s.color }};stroke-width:1.5;stroke-dasharray:3 4;opacity:.55"></path>
+              <path d="{{ s.solid }}" style="fill:none;stroke:{{ s.color }};stroke-width:2;stroke-linejoin:round;stroke-linecap:round"></path>
+            </sc-for>
+            <sc-if value="{{ hOn }}">
+              <line x1="{{ hX }}" x2="{{ hX }}" y1="16" y2="268" style="stroke:#3a475b;stroke-width:1"></line>
+              <sc-for list="{{ hDots }}" as="d">
+                <circle cx="{{ hX }}" cy="{{ d.cy }}" r="4" style="fill:#0f1828;stroke:{{ d.color }};stroke-width:2"></circle>
+              </sc-for>
+            </sc-if>
+            <sc-for list="{{ hovers }}" as="h" hint-placeholder-count="0">
+              <rect x="{{ h.x }}" y="16" width="{{ h.w }}" height="280" style="fill:transparent;cursor:crosshair" onMouseEnter="{{ h.enter }}"></rect>
+            </sc-for>
+          </svg>
+          <sc-for list="{{ pLabels }}" as="l" hint-placeholder-count="0">
+            <div style="position:absolute;left:{{ l.left }};top:{{ l.top }};transform:{{ l.tf }};font-size:{{ l.size }};color:{{ l.color }};font-family:{{ l.font }};background:{{ l.bg }};padding:{{ l.pad }};border-radius:4px;white-space:nowrap;pointer-events:none">{{ l.text }}</div>
+          </sc-for>
+          <sc-if value="{{ hGapNote }}">
+            <div style="position:absolute;top:40px;left:{{ hLeft }};transform:{{ hShift }};pointer-events:none;background:#18233a;border:1px solid #2a3852;border-radius:8px;padding:8px 10px;font-size:12px;color:#a9b4c4;max-width:220px;line-height:1.45">Sem registros neste dia. Valores estimados por decaimento.</div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;gapMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;tracejado&quot;,&quot;ocultar&quot;],&quot;default&quot;:&quot;tracejado&quot;,&quot;tsType&quot;:&quot;'tracejado'|'ocultar'&quot;,&quot;section&quot;:&quot;Lacuna&quot;},&quot;showReview&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Página&quot;}}">
+class Component extends DCLogic {
+  state = { period: 13, mode: 'avancado', hw: null, hd: null };
+  data() {
+    if (this._d) return this._d;
+    const D0 = new Date(2026, 5, 30), N = 91, G0 = 16, G1 = 75;
+    const runs = { 0:[7.2], 2:[8.1], 4:[6.5], 6:[12.4], 7:[7.5], 9:[8.2], 13:[14.0], 14:[6.8], 15:[5.1],
+      76:[1.5,40], 79:[1.8,55], 82:[1.88,60], 86:[2.4,70], 90:[2.61,78] };
+    const fmt = i => { const d = new Date(D0); d.setDate(d.getDate() + i); return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'); };
+    let ctl = 40, atl = 42; const days = [];
+    for (let i = 0; i < N; i++) {
+      const r = runs[i]; const km = r ? r[0] : 0; const tss = r ? (r[1] ?? r[0]*7.5) : 0;
+      ctl += (tss - ctl) / 42; atl += (tss - atl) / 7;
+      days.push({ i, label: fmt(i), km, ctl, atl, tsb: ctl - atl, gap: i >= G0 && i <= G1 });
+    }
+    const weeks = [];
+    for (let w = 0; w < 13; w++) {
+      const ds = days.slice(w*7, w*7+7);
+      weeks.push({ from: ds[0].label, to: ds[6].label, km: ds.reduce((a,d)=>a+d.km,0), sess: ds.filter(d=>d.km>0).length, planned: 4, noData: ds.every(d=>d.gap) });
+    }
+    return (this._d = { days, weeks, G0, G1 });
+  }
+  zone(v) {
+    if (v > 5) return { name: 'Fresco', color: '#20c38a' };
+    if (v > -10) return { name: 'Neutro', color: '#e7ecf3' };
+    if (v > -30) return { name: 'Acumulando fadiga', color: '#f5a524' };
+    return { name: 'Risco de sobrecarga', color: '#f04545' };
+  }
+  renderVals() {
+    const { days, weeks, G0, G1 } = this.data();
+    const gapMode = this.props.gapMode ?? 'tracejado';
+    const showReview = this.props.showReview ?? true;
+    const f1 = v => v.toFixed(1).replace('.', ',');
+    const sg = v => (v > 0 ? '+' : v < 0 ? '−' : '') + f1(Math.abs(v));
+    const W = 1200;
+    // weekly
+    const L = 52, R = 16, slot = (W - L - R) / 13, bw = Math.min(34, slot * .42), hw = this.state.hw;
+    const colA = p => p >= .9 ? '#20c38a' : p >= .7 ? '#c9e84b' : p >= .4 ? '#f5a524' : '#f04545';
+    const wk = weeks.map((w, k) => {
+      const cx = L + slot * (k + .5), p = w.sess / w.planned, ah = p * 72, kh = Math.max(2, w.km / 40 * 100), cur = k === 12;
+      return { cx, x: cx - bw/2, bw, slotX: L + slot*k, slotW: slot, hasData: !w.noData,
+        ay: 100 - ah, ah, aColor: colA(p), pct: Math.round(p*100) + '%', pctY: 100 - ah - 6,
+        ky: 240 - kh, kh, kColor: cur ? '#c9e84b' : '#3a4a61', kmLabel: f1(w.km), kmY: 240 - kh - 6, kmColor: cur ? '#c9e84b' : '#8a96a8',
+        label: w.from, lColor: cur ? '#e7ecf3' : '#5d6a7d', hl: hw === k ? 'rgba(255,255,255,.035)' : 'transparent',
+        enter: () => this.setState({ hw: k }) };
+    });
+    const wTicks = [[0,100],[50,64],[100,28]].map(([v,y]) => ({ y, ty: y + 4, label: v + '%' }))
+      .concat([[0,240],[20,190],[40,140]].map(([v,y]) => ({ y, ty: y + 4, label: v + ' km' })));
+    let wTip = {};
+    if (hw != null) {
+      const w = weeks[hw], pv = weeks[hw-1];
+      const d = pv && !pv.noData && pv.km > 0 && !w.noData ? (w.km / pv.km - 1) * 100 : null;
+      wTip = { wTipOn: true, wTipLeft: ((L + slot*(hw+.5)) / W * 100) + '%', wTipTitle: w.from + ' – ' + w.to,
+        wTipL1: w.noData ? 'Sem registros' : f1(w.km) + ' km · ' + w.sess + ' de ' + w.planned + ' sessões',
+        wTipL2: d == null ? '' : sg(d).replace(',0','') + '% vs. semana anterior', wTipL2Color: d > 0 ? '#20c38a' : '#f5a524' };
+    }
+    // KPIs
+    const last = weeks[12], prev = weeks[11], w4 = weeks.slice(9);
+    const adh = w4.reduce((a,w)=>a+w.sess,0) / w4.reduce((a,w)=>a+w.planned,0);
+    const acwr = last.km / (w4.reduce((a,w)=>a+w.km,0) / 4);
+    const today = days[days.length-1], zt = this.zone(today.tsb);
+    // PMC
+    const period = this.state.period, mode = this.state.mode, start = days.length - period*7, vis = days.slice(start), n = vis.length;
+    const PL = 44, PR = 16, T = 16, B = 268, xw = W - PL - PR;
+    const X = k => PL + k / (n-1) * xw;
+    const [yMin, yMax, step] = mode === 'simples' ? [-40, 30, 10] : [-40, 60, 20];
+    const Y = v => T + (yMax - Math.max(yMin, Math.min(yMax, v))) / (yMax - yMin) * (B - T);
+    const path = key => {
+      let solid = '', dashed = '', ps = false, pd = false;
+      vis.forEach((d, k) => {
+        const p = X(k).toFixed(1) + ',' + Y(d[key]).toFixed(1);
+        const ext = d.gap || (vis[k-1] && vis[k-1].gap) || (vis[k+1] && vis[k+1].gap);
+        if (!d.gap) { solid += (ps ? 'L' : 'M') + p; ps = true; } else ps = false;
+        if (ext) { dashed += (pd ? 'L' : 'M') + p; pd = true; } else pd = false;
+      });
+      return { solid, dashed: gapMode === 'tracejado' ? dashed : '' };
+    };
+    const defs = mode === 'simples'
+      ? [{ key: 'tsb', color: '#c9e84b', name: 'Forma', code: 'TSB' }]
+      : [{ key: 'ctl', color: '#20c38a', name: 'Condicionamento', code: 'CTL' }, { key: 'atl', color: '#f04545', name: 'Cansaço', code: 'ATL' }, { key: 'tsb', color: '#c9e84b', name: 'Forma', code: 'TSB' }];
+    const series = defs.map(s => ({ ...s, ...path(s.key) }));
+    let areaPath = '';
+    if (mode === 'simples') {
+      let seg = [];
+      const flush = () => { if (seg.length > 1) areaPath += 'M' + X(seg[0]) + ',' + Y(0) + seg.map(k => 'L' + X(k).toFixed(1) + ',' + Y(vis[k].tsb).toFixed(1)).join('') + 'L' + X(seg[seg.length-1]) + ',' + Y(0) + 'Z'; seg = []; };
+      vis.forEach((d, k) => { if (d.gap) flush(); else seg.push(k); }); flush();
+    }
+    const zones = mode === 'simples' ? [
+      { a: yMax, b: 5, name: 'Fresco', fill: 'rgba(32,195,138,.07)', tc: '#20c38a' },
+      { a: 5, b: -10, name: 'Neutro', fill: 'transparent', tc: '#8a96a8' },
+      { a: -10, b: -30, name: 'Acumulando fadiga', fill: 'rgba(245,165,36,.08)', tc: '#f5a524' },
+      { a: -30, b: yMin, name: 'Risco', fill: 'rgba(240,69,69,.09)', tc: '#f04545' },
+    ].map(z => ({ ...z, y: Y(z.a), h: Y(z.b) - Y(z.a), ty: Y(z.a) + 14 })) : [];
+    const pTicks = []; for (let v = yMin; v <= yMax; v += step) pTicks.push({ y: Y(v), ty: Y(v) + 4, label: v > 0 ? '+' + v : String(v), c: v === 0 ? '#3a475b' : '#1a2536' });
+    const xTicks = []; for (let k = n-1; k >= 0; k -= 7) xTicks.push({ x: X(k), label: vis[k].label });
+    const k0 = Math.max(0, G0 - start), k1 = Math.min(n-1, G1 - start), pGapOn = k1 > k0;
+    const hd = this.state.hd != null && this.state.hd < n ? this.state.hd : null;
+    const ld = hd != null ? vis[hd] : today;
+    const stepW = xw / (n-1);
+    const pc = (v, t) => (v / t * 100) + '%';
+    const mono = "'Geist Mono',monospace";
+    const wLabels = [];
+    wTicks.forEach(t => wLabels.push({ left: pc(44, W), top: pc(t.y, 272), tf: 'translate(-100%,-50%)', color: '#5d6a7d', text: t.label }));
+    wk.forEach(b => {
+      if (b.hasData) {
+        wLabels.push({ left: pc(b.cx, W), top: pc(b.ay - 4, 272), tf: 'translate(-50%,-100%)', color: '#e7ecf3', text: b.pct });
+        wLabels.push({ left: pc(b.cx, W), top: pc(b.ky - 4, 272), tf: 'translate(-50%,-100%)', color: b.kmColor, text: b.kmLabel });
+      }
+      wLabels.push({ left: pc(b.cx, W), top: pc(256, 272), tf: 'translateX(-50%)', color: b.lColor, text: b.label });
+    });
+    const pLabels = [];
+    const lab = (o) => pLabels.push({ size: '12px', font: mono, bg: 'transparent', pad: '0', ...o });
+    pTicks.forEach(t => lab({ left: pc(36, W), top: pc(t.y, 296), tf: 'translate(-100%,-50%)', color: '#5d6a7d', text: t.label }));
+    xTicks.forEach(x => lab({ left: pc(x.x, W), top: pc(276, 296), tf: 'translateX(-50%)', color: '#5d6a7d', text: x.label }));
+    zones.forEach(z => lab({ left: pc(50, W), top: pc(z.y + 4, 296), tf: 'none', color: z.tc, text: z.name, font: 'inherit', bg: 'rgba(15,24,40,.85)', pad: '1px 6px' }));
+    if (pGapOn) lab({ left: pc((X(k0) + X(k1)) / 2, W), top: pc(24, 296), tf: 'translateX(-50%)', color: '#a9b4c4', text: 'Sem registros · ' + days[G0].label + ' – ' + days[G1].label, font: 'inherit', size: '13px', bg: '#0f1828', pad: '2px 8px' });
+    const btn = (on) => ({ bg: on ? '#1e2a3c' : 'transparent', fg: on ? '#e7ecf3' : '#8a96a8' });
+    return {
+      showReview, wk, wTicks, wLabels, pLabels, gapCxPct: ((L + slot*6.5) / W * 100) + '%', wTipOn: false, ...wTip,
+      wTipShift: hw >= 11 ? 'translateX(calc(-100% + 24px))' : hw != null && hw <= 1 ? 'translateX(-24px)' : 'translateX(-50%)',
+      gapX: L + slot*3, gapW: slot*7, gapCx: L + slot*6.5,
+      clearWeek: () => this.setState({ hw: null }), clearDay: () => this.setState({ hd: null }),
+      kAdh: Math.round(adh*100) + '%', kAdhSub: w4.reduce((a,w)=>a+w.sess,0) + ' de ' + w4.reduce((a,w)=>a+w.planned,0) + ' sessões planejadas',
+      kLoad: f1(last.km) + ' km', kLoadSub: sg((last.km/prev.km-1)*100).replace(/,\d$/,'') + '% vs. 7 dias anteriores (' + f1(prev.km) + ' km)',
+      kForm: zt.name, kFormColor: zt.color, kFormSub: 'TSB ' + sg(today.tsb),
+      kAcwr: acwr.toFixed(2).replace('.', ','),
+      pmcSub: mode === 'simples' ? 'Forma diária sobre as zonas de referência' : 'Condicionamento, cansaço e forma diários',
+      modeBtns: [['simples','Simples'],['avancado','Avançado']].map(([v,l]) => ({ label: l, ...btn(mode === v), onClick: () => this.setState({ mode: v, hd: null }) })),
+      periodBtns: [[4,'4s'],[8,'8s'],[13,'12s']].map(([v,l]) => ({ label: l, ...btn(period === v), onClick: () => this.setState({ period: v, hd: null }) })),
+      legend: defs.map(s => ({ name: s.name, code: s.code, color: s.color, val: s.key === 'tsb' ? sg(ld[s.key]) : f1(ld[s.key]) })),
+      legendDate: (hd != null ? ld.label : 'Hoje, ' + ld.label) + (ld.gap ? ' · estimado' : '') + (mode === 'simples' ? ' · ' + this.zone(ld.tsb).name : ''),
+      zones, pTicks, xTicks, series, areaPath,
+      pGapOn, pGapX: X(k0), pGapW: X(k1) - X(k0), pGapCx: (X(k0) + X(k1)) / 2, pGapLabel: 'Sem registros · ' + days[G0].label + ' – ' + days[G1].label,
+      hOn: hd != null, hX: hd != null ? X(hd) : 0,
+      hDots: hd != null ? defs.map(s => ({ color: s.color, cy: Y(vis[hd][s.key]) })) : [],
+      hGapNote: hd != null && vis[hd].gap, hLeft: hd != null ? (X(hd) / W * 100) + '%' : '0', hShift: hd != null && X(hd) > W * .7 ? 'translateX(calc(-100% - 12px))' : 'translateX(12px)',
+      hovers: vis.map((d, k) => ({ x: X(k) - stepW/2, w: stepW, enter: () => this.setState({ hd: k }) })),
+    };
+  }
+}
+</script>
+</body>
+</html>
