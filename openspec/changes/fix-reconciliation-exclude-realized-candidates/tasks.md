@@ -5,7 +5,14 @@ TDD (teste primeiro). Em `apps/menthoros-backend`:
 - **Inner loop:** `./mvnw clean test`
 - **Gate de entrega:** `./mvnw clean verify`
 
-Branch: `feature/fix-reconciliation-exclude-realized-candidates` (a partir de `develop`).
+Branch: `feature/fix-reconciliation-exclude-realized-candidates` (a partir de `develop`, base `0f66d50`),
+worktree `.worktrees/backend-fix-reconciliation-exclude-realized-candidates` — o checkout principal do
+backend está em outra change.
+
+DoR (2026-09-29, Fast): READY. Premissa 1:1 confirmada no modelo — `TreinoPlanejado` mapeia o
+realizado como `@OneToOne(mappedBy = "treinoPlanejado")`. Filtro previsto: uma query em
+`TreinoRealizadoRepository` devolvendo os ids de planejados, dentre os candidatos da janela, já
+vinculados a um realizado diferente do analisado.
 
 ---
 
