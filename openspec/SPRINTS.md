@@ -1177,6 +1177,25 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
+### `fix-reconciliation-exclude-realized-candidates` ✅ **ARQUIVADA** — treino da véspera já realizado deixa de empatar com o do dia (2026-09-29)
+
+**Entregue:** `menthoros-backend` PR **#150**, mergeado em `develop` (CI verde). Arquivada em
+`changes/archive/2026-09/2026-09-29-fix-reconciliation-exclude-realized-candidates/`. S · Fast.
+
+**O problema:** o `CandidateSelector` buscava os planejados de D-1 a D+1 sem olhar se já tinham dono.
+Com treinos em dias seguidos e volumes parecidos, o planejado da véspera, já realizado, concorria com o
+do dia e forçava `TIE_BREAK`. Achado nos logs de 29/09: a corrida do Leandro fez 0,90 contra o
+planejado certo e 0,86 contra o da véspera, e ficou `AMBIGUO` esperando o coach.
+
+**O que faz:** uma consulta por janela devolve os planejados vinculados a outro realizado, e o seletor
+os descarta. O critério é o vínculo, não o `status_treino`. A query compartilhada com aderência e fila
+de atenção não mudou. O code review pediu uma guarda para realizado sem `id`: sem ela, `tr.id <> NULL`
+diria "nada ocupado" em silêncio.
+
+**Ficou de fora, com motivo registrado:** o índice em `treino_planejado_id` (exige migration, e a
+tabela tem 534 linhas no homelab), o filtro na lista de revisão manual e o reprocessamento da atividade
+de 29/09, que já estava `AMBIGUO`.
+
 ### `fix-coach-inbox-suggestion-panel` ✅ **ARQUIVADA** — o inbox não mistura atletas e a lista reflete a decisão (2026-09-28)
 
 **Entregue:** `menthoros-front` PR **#131**, mergeado em `develop`. Arquivada em
