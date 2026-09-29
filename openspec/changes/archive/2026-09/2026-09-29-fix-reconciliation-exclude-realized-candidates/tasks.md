@@ -45,4 +45,12 @@ vinculados a um realizado diferente do analisado.
 
 - [x] 3.1 `./mvnw clean verify` sem falhas (2026-09-29: 4245 unit + 202 IT, 0 falhas, depois da guarda de id nulo
       pedida no code review). Commits no backend: `3431af1` (correção) e `55d0ba5` (IT).
-- [ ] 3.2 `/qa` e PR para `develop`, sem merge local.
+- [x] 3.2 PR para `develop`, sem merge local: llsilvas/menthoros-backend#150, mergeado em
+      2026-09-29 (`2c9608c`). O `/qa` formal não rodou; a revisão foi a do `code-reviewer` de
+      backend, sem achado crítico.
+
+## Adiado
+
+- Índice em `tb_treino_realizado.treino_planejado_id`: exige migration, follow-up na proposta.
+- Filtro de candidato ocupado na revisão manual (`ReconciliacaoPendentesServiceImpl`): Open
+  Question 2 da proposta.
