@@ -5,7 +5,15 @@ TDD (teste primeiro). Em `apps/menthoros-backend`:
 - **Inner loop:** `./mvnw clean test`
 - **Gate de entrega:** `./mvnw clean verify`
 
-Branch: `feature/fix-reconciliation-audit-planned-id` (a partir de `develop`).
+Branch: `feature/fix-reconciliation-audit-planned-id` (a partir de `develop`, base `2c9608c`, já com
+o #150), worktree `.worktrees/backend-fix-reconciliation-audit-planned-id`.
+
+DoR (2026-09-29, Fast): READY. Duas notas do código:
+- O "depois" depende do **status**, não de `decision.getSelectedPlanned()`: a guarda de campos
+  ausentes rebaixa para `AMBIGUO` mas mantém o planejado em `selectedPlanned`, e usá-lo gravaria um
+  "depois" sem vínculo (o CA2 pega).
+- `VINCULADO_AUTOMATICO` com `selectedPlanned` nulo existe (o `if (planned != null)` do `persistir`):
+  nesse caso o "depois" fica nulo, igual ao vínculo em memória.
 
 ---
 
