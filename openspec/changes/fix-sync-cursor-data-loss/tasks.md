@@ -3,36 +3,90 @@
 Branch `feature/fix-sync-cursor-data-loss` no backend. Prioridade sobre `add-sync-health-signal` e
 `add-attention-reason-sem-sincronizacao` (em espera da medição que esta change viabiliza).
 
+TDD em todas as tasks de código: o teste do critério vem antes da implementação.
+
 ## 0. Antes de implementar
-- [ ] 0.1 Validar a ordenação do Strava com `after` + `page` numa chamada real (ascendente?); registrar aqui e ajustar D3
-- [ ] 0.2 Linha de base da métrica: amostra de atividades de corrida dos últimos 60 dias na API × importadas, por atleta do piloto com integração; registrar aqui
+- [ ] 0.1 Confirmar numa chamada real que `/athlete/activities` aceita `after` + `before` + `page` juntos
+  (D3.2); registrar aqui
+- [ ] 0.2 Linha de base: todos os atletas do piloto com integração, corridas dos últimos 60 dias na API ×
+  importadas, faltantes por atleta; registrar aqui (founder)
 
-## 1. Migration e cursor
-- [ ] 1.1 Migration (V98 ou a próxima livre): `pull_cursor` com backfill + `tb_sync_pull_log` com índices (D1, D5)
-  - verify: IT de migration contra o schema real
-- [ ] 1.2 Update pontual do `pull_cursor` no repositório (D1)
-  - verify: IT — escritor concorrente salvando a entidade não sobrescreve o cursor
+## 1. Migration e escrita pontual
+- [ ] 1.1 Migration V98: `pull_cursor` + backfill + `tb_sync_pull_log` com índices +
+  `tb_sync_atividade_descartada` (D5, D6, D7)
+  - verify: IT de migration contra o schema real — coluna, backfill, `ultima_sincronizacao` nula →
+    `pull_cursor` nulo, check constraint
+- [ ] 1.2 `pullCursor` somente leitura na entidade; `atualizarPullCursor` e `atualizarStatusSync` com
+  `@Transactional` + `id` + `tenant_id` (D0, D1)
+  - verify: IT — chamados sem transação do chamador funcionam; `save` de uma instância antiga não altera
+    `pull_cursor`; `UPDATE` com tenant errado retorna 0 (CA9); se o JPQL não gravar, aplicar o fallback
+    nativo
+- [ ] 1.3 `PullResultado`, enums, entidade `SyncPullLog` + repositório + `SyncPullLogWriter` em
+  `REQUIRES_NEW` (D5)
+  - verify: IT — o writer chamado dentro de uma transação que faz rollback persiste o registro
+- [ ] 1.4 Entidade + repositório + `SyncDescarteWriter` (`REQUIRES_NEW`): permanente descarta na 1ª,
+  inesperado descarta na 3ª tentativa (D7)
+  - verify: IT — 3 falhas inesperadas → `descartada_em` preenchido; rollback do chamador não desfaz a
+    contagem
 
-## 2. intervals.icu
-- [ ] 2.1 Scheduler lê e avança `pull_cursor`; push/retry seguem em `ultimaSincronizacao` (D1)
-  - verify: CA1
-- [ ] 2.2 Scheduler sem o limite de retroatividade do import manual (D4)
-  - verify: CA5; import manual continua recusando além de 90 dias
+## 2. intervals.icu (depende de 1)
+- [ ] 2.1 Persister devolve `SaveResult`; `importarAtividadeAgendada` → `ImportacaoResultado(treino,
+  inserida)` sem o limite de retroatividade; `importarAtividade` mantém (D4)
+  - verify: CA5 (unitário do serviço: D−100 aceito no agendado, recusado no manual); `inserida = false`
+    para já importada **e** para o caminho de concorrência do persister (`inserted = false`)
+- [ ] 2.2 Scheduler (D1, D2, D4):
+  - horizonte inicial e `oldest` a partir de `pull_cursor`;
+  - `calcularCursor` recebendo `pull_cursor`, com o resultado em `atualizarPullCursor`;
+  - `ultimaSincronizacao = now` e status via `atualizarStatusSync`;
+  - contagem por `inserida`; `RuntimeException` no laço para o lote como `INESPERADO`; `ignoradas`;
+  - descartadas excluídas **antes** do teto.
+  - verify: CA1 (IT: push salva a entidade, cursor fica); CA4 no intervals.icu (horizonte estável depois de
+    falha); CA5 ponta a ponta; import manual concorrente não infla a contagem; atividade sem `start_date` →
+    `PARCIAL`/`DADOS_INVALIDOS` com `ignoradas = 1`; CA11
+- [ ] 2.3 `syncAtleta` nunca lança: acumulador cobre carga, laço e finalização; scheduler grava o registro
+  (D5)
+  - verify: CA8 intervals.icu (2 inserções + exceção inesperada na 3ª → `PARCIAL`/`INESPERADO` com 2; 2
+    inserções + falha ao gravar o cursor → `PARCIAL` com 2)
 
-## 3. Strava
-- [ ] 3.1 Paginação pela página original; `start_date` UTC; cursor por progresso confirmado (D3, conforme 0.1)
-  - verify: CA2, CA3, CA4, CA6
-- [ ] 3.2 Relistar sem duplicar nem apagar RPE/sensações/feedback; contagem por inserção real
-  - verify: CA7
+## 3. Strava (depende de 1)
+- [ ] 3.1 `start_date` no `StravaActivityDto`; `fetchActivitiesWithHeaders` devolve as originais;
+  classificação HTTP 429/401/403/5xx (D3.2, D3.6)
+  - verify: CA3, CA6; 429 sem header → `RATE_LIMIT` (MockWebServer)
+- [ ] 3.2 Varredura por fatias com sobreposição de 60 s; transação por atividade com atleta recarregado;
+  `pullAgendado` avança o cursor por fatia; horizonte inicial; status via `atualizarStatusSync`
+  (D3.1, D3.2, D3.5)
+  - verify: CA4, CA10; atividade exatamente no segundo da fronteira importada uma vez; rate limit no meio da
+    fatia preserva as inserções já feitas e o ciclo seguinte avança; exceção numa atividade não desfaz as
+    anteriores; CA12
+- [ ] 3.3 Sync manual (D0, D3.1, D3.7):
+  - lê `pull_cursor` e nunca grava; sem `@Transactional`; resposta por resultado;
+  - `catch` genérico grava `lastSyncError` e relança **sem desativar**;
+  - não usa o D7;
+  - `syncActivities(UUID)` removido e testes migrados.
+  - verify: CA2 (manual com e sem rate limit; webhook); token renovado durante o sync manual não é
+    sobrescrito (token expirado no início); 5xx no manual → integração continua ativa e o scheduler segue
+    puxando; 2 falhas agendadas + 1 manual → atividade **não** descartada
+- [ ] 3.4 Já importada é pulada; inserção = find vazio **e** `inserted`; merge preserva RPE (D3.3, D3.4)
+  - verify: CA7 (pull e webhook `update`; `feedbackAtleta`/`sensacoes` intactos)
+- [ ] 3.5 `pullAgendado` nunca lança (acumulador); scheduler do Strava o chama e grava o registro (D5)
+  - verify: CA8 Strava (exceção ao carregar a integração → `FALHA`/0; rate limit depois de 3 inserções →
+    `PARCIAL` com 3; falha ao gravar status depois de 3 → `PARCIAL` com 3)
 
-## 4. Registro do pull
-- [ ] 4.1 Gravado pelo orquestrador após a transação do pull, em `REQUIRES_NEW` (D5)
-  - verify: CA8, CA9; webhook e push não gravam
-- [ ] 4.2 Expurgo diário em lotes (> 90 dias)
+## 4. Expurgo
+- [ ] 4.1 `SyncPullLogPurgeScheduler` em lotes de 1000, para `tb_sync_pull_log` e
+  `tb_sync_atividade_descartada` (D5, D7)
+  - verify: IT — 2500 registros antigos + 10 recentes → sobram os 10 (nas duas tabelas)
 
 ## 5. Validação
 - [ ] 5.1 `./mvnw clean verify`
+- [ ] 5.2 Smoke local: conexão Strava e intervals.icu reais, dois ciclos; conferir `pull_cursor` e
+  `tb_sync_pull_log`
+- [ ] 5.3 Script de rollback versionado no backend (`docs/rollback/fix-sync-cursor-data-loss.sql`) e passo
+  descrito no corpo do PR (design, "Rollback")
+  - verify: IT ou execução local — depois de um pull `PARCIAL`, o script deixa `ultima_sincronizacao =
+    pull_cursor`
 
-## 6. Pós-deploy
-- [ ] 6.1 4 semanas depois: repetir a amostra da 0.2 (meta 0 faltantes) e contar lacunas/`INATIVIDADE` de atletas com treino na API
+## 6. Pós-deploy (não bloqueia o arquivamento)
+- [ ] 6.1 4 semanas depois: repetir a amostra da 0.2 (meta 0 faltantes em janelas `COMPLETO`) e contar
+  lacunas/`INATIVIDADE` de atletas com treino na API — registrar em `add-sync-health-signal`
 - [ ] 6.2 Iniciar a medição prospectiva de `add-sync-health-signal` com `tb_sync_pull_log`
