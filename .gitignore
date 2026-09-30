@@ -5,3 +5,6 @@
 # aparece como untracked no repo principal e pode ser comitado por engano
 # num `git add -A` — já aconteceu. Mesma regra do menthoros-backend.
 /.claude/
+/artifacts/handoff*/
+
+*.zip
