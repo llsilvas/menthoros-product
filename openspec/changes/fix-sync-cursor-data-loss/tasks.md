@@ -150,7 +150,42 @@ TDD em todas as tasks de código: o teste do critério vem antes da implementaç
     pull_cursor`
   - feito: script + `SyncPullCursorRollbackScriptTest` (IT que lê o arquivo versionado, não uma cópia: pull
     `PARCIAL`, `ultima` nula, cursor nulo, `ultima` já atrás, idempotência). **Pendente para o `/pr`:**
-    descrever os dois passos do rollback no corpo do PR.
+    descrever os três passos do rollback (parar, SQL, subir o antigo) no corpo do PR.
+
+## 5b. Correções do `/qa` (2026-09-30)
+Reviewers: code-reviewer, security-reviewer, clean-code-reviewer, Codex review e Codex adversarial. Cada
+achado foi conferido no código antes de ser aceito.
+- [x] Falha de banco ou de transação (`DataAccessException`, `TransactionException`, inclusive na causa) passa
+  a ser `TRANSITORIO` e não conta tentativa de descarte, nas duas plataformas. Antes, 3 deadlocks descartavam
+  um treino válido (Codex adversarial, **Crítico**).
+- [x] intervals.icu: sobrar backlog pelo teto por ciclo agora dá `PARCIAL`, não `COMPLETO`. O teste que
+  exigia `COMPLETO` foi corrigido (os dois passes do Codex apontaram).
+- [x] Strava: os laps são buscados **antes** da transação da atividade. A cota zerada no header dos laps só
+  para o ciclo depois do commit (code-reviewer + Codex).
+- [x] Sync manual: em falha, grava a mensagem segura (a crua podia levar URL ou SQL ao coach) e a contagem
+  do que já commitou (security Medium + Codex).
+- [x] `registrarErro` do intervals.icu por `atualizarStatusSync`, sem `save` (security + code-reviewer).
+- [x] O late-check do scheduler Strava pula a integração inativa, sem registrar `FALHA` (code-reviewer + Codex).
+- [x] A fatia do Strava para em página curta (< 30): economiza uma requisição por fatia na cota compartilhada
+  (code-reviewer).
+- [x] Menores: o descarte vale na sobreposição da fatia seguinte; `lastSyncError` avisa as ignoradas;
+  `switch` exaustivo em `mensagemDoPull`; rollback na ordem parar → SQL → subir o antigo (script e design);
+  `truncateErrorMessage` removido.
+- Descartados depois de conferir: "sem timeout nos laps" (o `WebClient` tem `responseTimeout` de 10 s; o que
+  procedia era a conexão presa, corrigida acima) e "tentativas sem consecutividade" (uma atividade só volta a
+  ser tentada enquanto falha; se der certo, sai da seleção).
+
+### Follow-ups registrados (fora desta change)
+- Orçamento global da cota do Strava entre atletas: hoje o rate limit para só aquele atleta, e o ciclo segue
+  com os demais (Codex adversarial).
+- IT com transação real para o pull do Strava: os testes usam `withoutTransaction()` e não provam
+  commit/rollback de verdade.
+- `findByExternalIdAndAtletaId` sem tenant e uma query por atividade; no intervals.icu, o `@EntityGraph` só
+  para testar existência. É código anterior, que o pull passou a usar em volume.
+- Semântica única do `syncActivityCount` (o manual substitui, o agendado soma) e incremento atômico.
+- Extrair a orquestração do pull de `StravaActivityServiceImpl` (~830 linhas); trocar o `Lote` mutável do
+  intervals.icu por um record; tirar a mensagem crua de exceção de alguns logs.
+- Intermitência de `IntervalsIcuClientImplTest.getListaEventos` (ver 5.1).
 
 ## 6. Pós-deploy (não bloqueia o arquivamento)
 - [ ] 6.1 4 semanas depois: repetir a amostra da 0.2 (meta 0 faltantes em janelas `COMPLETO`) e contar

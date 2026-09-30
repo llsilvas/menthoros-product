@@ -275,10 +275,11 @@ CREATE TABLE IF NOT EXISTS tb_sync_atividade_descartada (
 
 Depois do deploy, os schedulers gravam `ultimaSincronizacao = now` mesmo em pull `PARCIAL`. O código antigo
 lê esse campo como cursor, então reverter só o binário faria o pull antigo pular a janela parcial. Por isso
-o rollback tem dois passos:
+o rollback tem três passos, nesta ordem (QA: rodar o SQL com o código novo ainda no ar deixaria os
+escritores regravarem `now()` logo depois):
 
-1. Reverter o PR.
-2. **Antes** do primeiro ciclo do código antigo, rodar:
+1. **Parar** todas as instâncias do backend.
+2. Rodar, numa transação:
    ```sql
    UPDATE tb_integracao_externa
       SET ultima_sincronizacao = pull_cursor
@@ -287,6 +288,7 @@ o rollback tem dois passos:
    ```
    Isso devolve ao campo antigo o progresso confirmado. O `lastSync` exibido recua, o que é aceitável num
    rollback.
+3. Subir o binário antigo (PR revertido).
 
 A migration é aditiva: a coluna e as tabelas ficam sem uso ou saem numa limpeza. O script fica versionado
 como `docs/rollback/fix-sync-cursor-data-loss.sql` no backend (task 5.3).
