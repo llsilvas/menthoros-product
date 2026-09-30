@@ -144,10 +144,13 @@ TDD em todas as tasks de código: o teste do critério vem antes da implementaç
     - **Limite do smoke:** não havia atividade nova na janela, então o caminho de inserção não rodou
       contra a API real. Ele fica coberto pelos testes com WireMock (bloco 3) e pelos de scheduler
       (bloco 2).
-- [ ] 5.3 Script de rollback versionado no backend (`docs/rollback/fix-sync-cursor-data-loss.sql`) e passo
+- [x] 5.3 Script de rollback versionado no backend (`docs/rollback/fix-sync-cursor-data-loss.sql`) e passo
   descrito no corpo do PR (design, "Rollback")
   - verify: IT ou execução local — depois de um pull `PARCIAL`, o script deixa `ultima_sincronizacao =
     pull_cursor`
+  - feito: script + `SyncPullCursorRollbackScriptTest` (IT que lê o arquivo versionado, não uma cópia: pull
+    `PARCIAL`, `ultima` nula, cursor nulo, `ultima` já atrás, idempotência). **Pendente para o `/pr`:**
+    descrever os dois passos do rollback no corpo do PR.
 
 ## 6. Pós-deploy (não bloqueia o arquivamento)
 - [ ] 6.1 4 semanas depois: repetir a amostra da 0.2 (meta 0 faltantes em janelas `COMPLETO`) e contar
