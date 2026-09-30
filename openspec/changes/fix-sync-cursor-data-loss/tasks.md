@@ -155,9 +155,16 @@ TDD em todas as tasks de código: o teste do critério vem antes da implementaç
 ## 5b. Correções do `/qa` (2026-09-30)
 Reviewers: code-reviewer, security-reviewer, clean-code-reviewer, Codex review e Codex adversarial. Cada
 achado foi conferido no código antes de ser aceito.
-- [x] Falha de banco ou de transação (`DataAccessException`, `TransactionException`, inclusive na causa) passa
-  a ser `TRANSITORIO` e não conta tentativa de descarte, nas duas plataformas. Antes, 3 deadlocks descartavam
-  um treino válido (Codex adversarial, **Crítico**).
+- [x] Falha **transitória** de banco ou de transação passa a ser `TRANSITORIO` e não conta tentativa de
+  descarte, nas duas plataformas. Antes, 3 deadlocks descartavam um treino válido (Codex adversarial,
+  **Crítico**).
+  - **Ajuste na re-revisão (code-reviewer):** a primeira versão usava `DataAccessException` inteira, e com isso
+    `DataIntegrityViolationException` (determinística: coluna longa, NOT NULL, FK) também virava transitória.
+    Uma atividade "veneno" nunca chegaria a 3 tentativas e travaria a fatia para sempre, a mesma regressão que
+    o D7 impede. Ficou restrito a `TransientDataAccessException`, `RecoverableDataAccessException`,
+    `DataAccessResourceFailureException`, `CannotCreateTransactionException` e `TransactionTimedOutException`,
+    com limite de profundidade na cadeia de causa (uma causa cíclica travava o laço). Coberto por
+    `PullAcumuladorTest` e por `StravaActivityPullTest.violacaoDeConstraintContaTentativa`.
 - [x] intervals.icu: sobrar backlog pelo teto por ciclo agora dá `PARCIAL`, não `COMPLETO`. O teste que
   exigia `COMPLETO` foi corrigido (os dois passes do Codex apontaram).
 - [x] Strava: os laps são buscados **antes** da transação da atividade. A cota zerada no header dos laps só
