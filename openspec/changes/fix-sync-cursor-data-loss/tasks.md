@@ -129,8 +129,21 @@ TDD em todas as tasks de código: o teste do critério vem antes da implementaç
     BEFORE response` contra o WireMock local. É teste de cliente HTTP que esta change não toca; passou
     isolado duas vezes e na rodada seguinte. **Follow-up:** intermitência preexistente de conexão
     reaproveitada no teste, fora do escopo.
-- [ ] 5.2 Smoke local: conexão Strava e intervals.icu reais, dois ciclos; conferir `pull_cursor` e
+- [x] 5.2 Smoke local: conexão Strava e intervals.icu reais, dois ciclos; conferir `pull_cursor` e
   `tb_sync_pull_log`
+  - feito (2026-09-30): cópia do banco do homelab (`pg_dump`, V97, 534 treinos) restaurada num banco
+    local `menthoros_homelab`. Backend da branch na 8199, perfil `local` (e-mail em arquivo), com APIs
+    reais. Cada ciclo foi encerrado em ~70 s, antes do retry de push (5 min), então nada foi escrito no
+    intervals.icu.
+    - V98 aplicada na cópia: backfill `pull_cursor = ultima_sincronizacao` nas 3 integrações.
+    - Ciclo 1: intervals.icu `COMPLETO`/0 e Strava `COMPLETO`/0 (a janela de 8 dias, numa fatia, só tinha
+      já importadas; 2 requisições). Cursores foram para o fim da janela. O Strava pausado ficou
+      intocado, sem erro e sem descarte.
+    - Ciclo 2: de novo `COMPLETO`/0, sem duplicata (treinos 44/100 iguais), cursores avançados, 4
+      registros de pull com o tenant certo, 2 requisições ao Strava, nenhum e-mail no outbox.
+    - **Limite do smoke:** não havia atividade nova na janela, então o caminho de inserção não rodou
+      contra a API real. Ele fica coberto pelos testes com WireMock (bloco 3) e pelos de scheduler
+      (bloco 2).
 - [ ] 5.3 Script de rollback versionado no backend (`docs/rollback/fix-sync-cursor-data-loss.sql`) e passo
   descrito no corpo do PR (design, "Rollback")
   - verify: IT ou execução local — depois de um pull `PARCIAL`, o script deixa `ultima_sincronizacao =
