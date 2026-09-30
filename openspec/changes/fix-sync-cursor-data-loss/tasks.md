@@ -6,28 +6,42 @@ Branch `feature/fix-sync-cursor-data-loss` no backend. Prioridade sobre `add-syn
 TDD em todas as tasks de código: o teste do critério vem antes da implementação.
 
 ## 0. Antes de implementar
-- [ ] 0.1 Confirmar numa chamada real que `/athlete/activities` aceita `after` + `before` + `page` juntos
+- [x] 0.1 Confirmar numa chamada real que `/athlete/activities` aceita `after` + `before` + `page` juntos
   (D3.2); registrar aqui
+  - **Resultado (2026-09-30, conta do founder, 73 atividades em 60 dias, 16 requisições):**
+    - `after` + `before` + `page` funcionam juntos: 15 atividades numa janela de 14 dias, com
+      `per_page = 2` → 8 páginas, sem duplicata, o mesmo conjunto da chamada única.
+    - **A ordem depende dos parâmetros:** só `after` → **ascendente**; com `before` → **descendente**.
+      Confirma que nenhum desenho pode depender da ordem (D3.2).
+    - **`after` e `before` são exclusivos:** a atividade no segundo exato de `after` ou de `before` não
+      vem. A sobreposição entre fatias (D3.2) é obrigatória; 60 s bastam.
+    - `start_date_local` vem com sufixo `Z` (hora local rotulada como UTC). Confirma o defeito do cursor em
+      `StravaActivityServiceImpl:459`: `Instant.parse` aceita sem erro.
 - [ ] 0.2 Linha de base: todos os atletas do piloto com integração, corridas dos últimos 60 dias na API ×
   importadas, faltantes por atleta; registrar aqui (founder)
 
 ## 1. Migration e escrita pontual
-- [ ] 1.1 Migration V98: `pull_cursor` + backfill + `tb_sync_pull_log` com índices +
+- [x] 1.1 Migration V98: `pull_cursor` + backfill + `tb_sync_pull_log` com índices +
   `tb_sync_atividade_descartada` (D5, D6, D7)
   - verify: IT de migration contra o schema real — coluna, backfill, `ultima_sincronizacao` nula →
     `pull_cursor` nulo, check constraint
-- [ ] 1.2 `pullCursor` somente leitura na entidade; `atualizarPullCursor` e `atualizarStatusSync` com
+  - feito: `SyncPullCursorMigrationTest` (5 casos, inclui reexecução sem sobrescrever cursor existente)
+- [x] 1.2 `pullCursor` somente leitura na entidade; `atualizarPullCursor` e `atualizarStatusSync` com
   `@Transactional` + `id` + `tenant_id` (D0, D1)
   - verify: IT — chamados sem transação do chamador funcionam; `save` de uma instância antiga não altera
     `pull_cursor`; `UPDATE` com tenant errado retorna 0 (CA9); se o JPQL não gravar, aplicar o fallback
     nativo
-- [ ] 1.3 `PullResultado`, enums, entidade `SyncPullLog` + repositório + `SyncPullLogWriter` em
-  `REQUIRES_NEW` (D5)
+  - feito: `IntegracaoExternaEscritaPontualTest` (5 casos). O JPQL grava a coluna `updatable = false` no
+    Hibernate do projeto, então o fallback nativo não foi necessário. `pullCursor` sem setter.
+- [x] 1.3 `PullResultado`, enums (`ResultadoPull`, `ErroCategoriaPull`), `PullAcumulador`, entidade
+  `SyncPullLog` + repositório + `SyncPullLogWriter` em `REQUIRES_NEW` (D5)
   - verify: IT — o writer chamado dentro de uma transação que faz rollback persiste o registro
-- [ ] 1.4 Entidade + repositório + `SyncDescarteWriter` (`REQUIRES_NEW`): permanente descarta na 1ª,
-  inesperado descarta na 3ª tentativa (D7)
+  - feito: `PullAcumuladorTest` (7 casos) + `SyncPullLogWriterTest`
+- [x] 1.4 `SyncDescarteWriter` (`REQUIRES_NEW`, upsert `ON CONFLICT` via JDBC, sem entidade: o
+  incremento de tentativas precisa ser atômico): permanente descarta na 1ª, inesperado na 3ª (D7)
   - verify: IT — 3 falhas inesperadas → `descartada_em` preenchido; rollback do chamador não desfaz a
     contagem
+  - feito: `SyncDescarteWriterTest` (4 casos, inclui isolamento por tenant e plataforma)
 
 ## 2. intervals.icu (depende de 1)
 - [ ] 2.1 Persister devolve `SaveResult`; `importarAtividadeAgendada` → `ImportacaoResultado(treino,

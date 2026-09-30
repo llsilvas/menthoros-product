@@ -79,9 +79,11 @@ para o scheduler. O comportamento efetivo é preservado: o `catch` **não desati
 - Janela: de `pull_cursor − 7 dias` (overlap, `StravaProperties.syncOverlapDays`, novo, default 7) até
   `now` capturado no início do ciclo.
 - Fatias de 14 dias em ordem cronológica. Consecutivas se **sobrepõem em 60 s**
-  (`after = fimAnterior − 60s`), porque a documentação do Strava não garante se `after`/`before` incluem o
-  extremo. A duplicata na sobreposição é absorvida pelo "já importada" (D3.3). Há teste com atividade
-  exatamente no segundo da fronteira.
+  (`after = fimAnterior − 60s`): a task 0.1 confirmou que `after` e `before` são **exclusivos**. A
+  duplicata na sobreposição é absorvida pelo "já importada" (D3.3). Há teste com atividade exatamente no
+  segundo da fronteira.
+- A ordem dentro da fatia é **descendente** quando há `before` (task 0.1). O processamento não depende
+  dela: o cursor só avança no fim da fatia.
 - Em cada fatia, pagina (`per_page = 30`) até a página **original** vir vazia.
   `fetchActivitiesWithHeaders` devolve `(originais, corridas, headers)`.
 - Fatia varrida inteira → `atualizarPullCursor(fimDaFatia)` antes da próxima. Não depende da ordem da API.
