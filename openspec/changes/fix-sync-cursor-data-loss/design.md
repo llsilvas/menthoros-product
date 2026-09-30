@@ -173,9 +173,12 @@ O contrato fica o mesmo (`StravaSyncResponseDto(imported, message)`). O comporta
 
 ## D5. Resultado e registro do pull
 
-- `record PullResultado(Resultado resultado, @Nullable ErroCategoria erro, int insercoes, int ignoradas)`,
-  com `Resultado { COMPLETO, PARCIAL, FALHA }` e
-  `ErroCategoria { RATE_LIMIT, CREDENCIAL, TRANSITORIO, DADOS_INVALIDOS, INESPERADO }`.
+- `record PullResultado(ResultadoPull resultado, @Nullable ErroCategoriaPull erro, int insercoes, int ignoradas)`,
+  com `ResultadoPull { COMPLETO, PARCIAL, FALHA }` e
+  `ErroCategoriaPull { RATE_LIMIT, CREDENCIAL, TRANSITORIO, DADOS_INVALIDOS, CONFLITO, INESPERADO }`.
+  `CONFLITO` entrou na implementação (bloco 2): `DomainConflictException` cobre "Strava ainda ativo" e
+  "conexão desativada no meio", que não são credencial. A coluna `erro_categoria` é `VARCHAR` sem check,
+  então não precisa de migration.
 - Os pulls agendados (`pullAgendado` e `IntervalsIcuActivitySyncScheduler.syncAtleta`) **nunca lançam**.
   Um acumulador (`inserções`, `ignoradas`, `categoria`) nasce no início e vale para o método inteiro: carga,
   varredura **e finalização** (gravação de cursor e status). Qualquer exceção em qualquer fase é capturada

@@ -44,11 +44,14 @@ TDD em todas as tasks de código: o teste do critério vem antes da implementaç
   - feito: `SyncDescarteWriterTest` (4 casos, inclui isolamento por tenant e plataforma)
 
 ## 2. intervals.icu (depende de 1)
-- [ ] 2.1 Persister devolve `SaveResult`; `importarAtividadeAgendada` → `ImportacaoResultado(treino,
+- [x] 2.1 Persister devolve `SaveResult`; `importarAtividadeAgendada` → `ImportacaoResultado(treino,
   inserida)` sem o limite de retroatividade; `importarAtividade` mantém (D4)
   - verify: CA5 (unitário do serviço: D−100 aceito no agendado, recusado no manual); `inserida = false`
     para já importada **e** para o caminho de concorrência do persister (`inserted = false`)
-- [ ] 2.2 Scheduler (D1, D2, D4):
+  - feito: `IntervalsIcuActivityIngestionServiceImplTest` (+3, nested `ImportacaoAgendada`) e
+    `IntervalsIcuActivityPersisterTest` (assert do `inserted = false`); mocks existentes migrados para
+    `SaveResult`
+- [x] 2.2 Scheduler (D1, D2, D4):
   - horizonte inicial e `oldest` a partir de `pull_cursor`;
   - `calcularCursor` recebendo `pull_cursor`, com o resultado em `atualizarPullCursor`;
   - `ultimaSincronizacao = now` e status via `atualizarStatusSync`;
@@ -57,10 +60,18 @@ TDD em todas as tasks de código: o teste do critério vem antes da implementaç
   - verify: CA1 (IT: push salva a entidade, cursor fica); CA4 no intervals.icu (horizonte estável depois de
     falha); CA5 ponta a ponta; import manual concorrente não infla a contagem; atividade sem `start_date` →
     `PARCIAL`/`DADOS_INVALIDOS` com `ignoradas = 1`; CA11
-- [ ] 2.3 `syncAtleta` nunca lança: acumulador cobre carga, laço e finalização; scheduler grava o registro
+  - feito: `IntervalsIcuActivitySyncSchedulerTest` reescrito para o comportamento novo (29 casos). O CA1 é
+    coberto em duas camadas: o mecanismo (save de instância antiga não reescreve o cursor) em
+    `IntegracaoExternaEscritaPontualTest`, e a leitura (`pull_cursor`, não `ultimaSincronizacao`) aqui.
+    404/422 registram descarte permanente (D7) e contam em `ignoradas`. `DomainConflictException` virou a
+    categoria nova `CONFLITO` (Strava ativo, conexão desativada), em vez de `CREDENCIAL`. Em `FALHA`,
+    `ultimaSincronizacao` fica onde estava.
+- [x] 2.3 `syncAtleta` nunca lança: acumulador cobre carga, laço e finalização; scheduler grava o registro
   (D5)
   - verify: CA8 intervals.icu (2 inserções + exceção inesperada na 3ª → `PARCIAL`/`INESPERADO` com 2; 2
     inserções + falha ao gravar o cursor → `PARCIAL` com 2)
+  - feito: os dois casos no `IntervalsIcuActivitySyncSchedulerTest`, mais o CA12 (3ª tentativa descarta e
+    segue) e a falha do writer do registro sem derrubar o ciclo
 
 ## 3. Strava (depende de 1)
 - [ ] 3.1 `start_date` no `StravaActivityDto`; `fetchActivitiesWithHeaders` devolve as originais;
