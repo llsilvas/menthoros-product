@@ -115,12 +115,20 @@ TDD em todas as tasks de código: o teste do critério vem antes da implementaç
     rate limit com progresso é o CA10, com 2 inserções)
 
 ## 4. Expurgo
-- [ ] 4.1 `SyncPullLogPurgeScheduler` em lotes de 1000, para `tb_sync_pull_log` e
+- [x] 4.1 `SyncPullLogPurgeScheduler` em lotes de 1000, para `tb_sync_pull_log` e
   `tb_sync_atividade_descartada` (D5, D7)
   - verify: IT — 2500 registros antigos + 10 recentes → sobram os 10 (nas duas tabelas)
+  - feito: `SyncRetencaoPurger` (JDBC, sem transação em volta do laço: cada lote commita sozinho) +
+    `SyncPullLogPurgeScheduler` (4h30 Brasília, `Clock` injetado, falha só logada). Testes:
+    `SyncRetencaoPurgerTest` (IT) e `SyncPullLogPurgeSchedulerTest`.
 
 ## 5. Validação
-- [ ] 5.1 `./mvnw clean verify`
+- [x] 5.1 `./mvnw clean verify`
+  - feito (2026-09-30, depois do bloco 4): 4321 testes (surefire) + 204 (failsafe), 0 falhas. Uma rodada
+    anterior falhou em `IntervalsIcuClientImplTest.getListaEventos` com `Connection prematurely closed
+    BEFORE response` contra o WireMock local. É teste de cliente HTTP que esta change não toca; passou
+    isolado duas vezes e na rodada seguinte. **Follow-up:** intermitência preexistente de conexão
+    reaproveitada no teste, fora do escopo.
 - [ ] 5.2 Smoke local: conexão Strava e intervals.icu reais, dois ciclos; conferir `pull_cursor` e
   `tb_sync_pull_log`
 - [ ] 5.3 Script de rollback versionado no backend (`docs/rollback/fix-sync-cursor-data-loss.sql`) e passo
