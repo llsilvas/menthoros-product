@@ -142,3 +142,19 @@ Mudam regra ou contrato — cada um vira change própria no OpenSpec (decisão d
 - Monotonia de Foster com dias de descanso (TSS 0) no desvio — hoje só TSS positivos, conforme CLAUDE.md do front
 - Aderência no backend contando só treinos com data até hoje (perfil e roster): hoje os dois contam treinos ainda por vir da semana em curso. Com isso a semana atual volta ao KPI
 - `ultimaSincronizacaoEm` + motivo `SEM_SINCRONIZACAO` (Proposta nova)
+
+## Fechamento (29/09)
+Entregue: backend PR **#152** e front PR **#133**, mergeados em `develop` (backend primeiro). Spec
+promovida para `openspec/specs/coach-athlete-diagnosis/`.
+
+**Implementado:** blocos 1–9 (adapters, PMCChart, gráfico semanal, faixa de KPIs, métricas, km do
+backend, patch v2 da Proposta, achados e follow-ups técnicos da /qa) e os itens fora do escopo pedidos
+pelo founder (8.9–8.10).
+
+**Adiado, com motivo:**
+- **2.3** (parcial): `AthleteProgressPage`/`StrongerBlock` exigem login de atleta, não disponível na
+  sessão — conferir no primeiro acesso de atleta em homologação. Não-regressão coberta pela 2.4.
+- **6.1** (pós-deploy): perguntar a ≥ 3 coaches em até 2 semanas após o deploy em produção.
+- Follow-ups de produto (Foster, aderência até hoje no backend, `ultimaSincronizacaoEm`): changes
+  próprias, ainda não criadas.
+

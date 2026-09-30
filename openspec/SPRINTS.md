@@ -2,7 +2,10 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-28 (**`fix-coach-inbox-suggestion-panel` entregue e arquivada** —
+**Última atualização:** 2026-09-29 (**`fix-coach-diagnosis-charts` entregue e arquivada** —
+backend PR **#152** e front PR **#133** mergeados em `develop`; a aba Diagnóstico do coach deixa de
+mostrar números que os gráficos não sustentam e passa ao layout da Proposta. Spec promovida para
+`specs/coach-athlete-diagnosis/`. Pendentes: 2.3 parcial (telas do atleta) e 6.1 pós-deploy.) Antes: 2026-09-28 (**`fix-coach-inbox-suggestion-panel` entregue e arquivada** —
 front PR **#131** mergeado em `develop`; inbox não mistura atletas e a lista de sugestões atualiza
 após a decisão. Validação manual 5.3 adiada para produção). Antes: 2026-09-24 (trilha do descanso prescrito e da normalização de
 etapas arquivada — 4 changes, ver "Changes concluídas"; **follow-up bloqueante para produção:** o
@@ -1176,6 +1179,36 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 ---
 
 ## Changes concluídas (fora de sprint)
+
+### `fix-coach-diagnosis-charts` ✅ **ARQUIVADA** — a aba Diagnóstico mostra o que os dados sustentam (2026-09-29)
+
+**Entregue:** `menthoros-backend` PR **#152** e `menthoros-front` PR **#133**, mergeados em `develop`
+(backend primeiro). Arquivada em `changes/archive/2026-09/2026-09-29-fix-coach-diagnosis-charts/`;
+spec promovida para `specs/coach-athlete-diagnosis/`. Full · backend + front.
+
+**O problema:** a aba Diagnóstico afirmava coisas que os dados não sustentavam. "Tendência de carga"
+plotava CTL; "Carga aguda" era ATL rotulado em km e comparado com um limiar de 120 km; "Recuperação"
+era a aderência da semana com outro nome; o KPI de aderência vinha do roster e as barras do perfil;
+períodos sem registro sumiam do gráfico, e um atleta que parou 60 dias parecia em forma.
+
+**O que faz:** gráfico "Adesão e carga por semana" com lacunas explícitas (e "sem carga (TSS)" quando
+houve treino sem TSS); km por semana e nos 7 dias vindo do backend (`distanceSummary`, somado no banco);
+`PMCChart` com período que filtra, legenda com valor e Forma fora do lime; faixa de KPIs do atleta
+(aderência de 4 semanas completas, carga km vs. km, ACWR com "Baixa confiança"); métricas com unidade e
+base certas; cards no padrão da Proposta; próximo treino a partir de hoje. A pedido do founder, fora do
+escopo: KPIs da tela Atletas e do topo do Inbox na mesma faixa, e o ponto de sugestão pendente
+corrigido.
+
+**O cross-model pagou de novo.** Pré-mortem e DoR com Codex antes da implementação; na `/qa`, Claude e
+Codex convergiram em dois achados do backend (consulta que materializava treinos com coleção EAGER;
+`weeks` sem validação), e o Codex achou sozinho um defeito anterior à change: a degradação por avisos
+do perfil derrubava a resposta com `UnexpectedRollbackException` — reproduzido em IT com transações
+reais e corrigido com transação própria por bloco.
+
+**Ficou de fora, com motivo registrado:** 2.3 parcial (`AthleteProgressPage`/`StrongerBlock` exigem
+login de atleta — conferir em homologação); 6.1 (entrevista com ≥ 3 coaches, pós-deploy). Três
+follow-ups de produto viram changes próprias: monotonia de Foster com dias de descanso, aderência no
+backend contando só treinos até hoje, `ultimaSincronizacaoEm`/`SEM_SINCRONIZACAO`.
 
 ### `fix-reconciliation-exclude-realized-candidates` ✅ **ARQUIVADA** — treino da véspera já realizado deixa de empatar com o do dia (2026-09-29)
 
