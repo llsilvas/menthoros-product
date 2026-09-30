@@ -5,6 +5,16 @@ Branch `feature/fix-sync-cursor-data-loss` no backend. Prioridade sobre `add-syn
 
 TDD em todas as tasks de código: o teste do critério vem antes da implementação.
 
+## Encerramento (2026-09-30)
+- **Entregue:** backend PR **#153**, mergeado em `develop` (`89d4c50`). Todas as tasks de código (blocos 1 a 5)
+  e as correções do `/qa` (5b) estão feitas, e os CA1–CA12 têm teste.
+- **Pendente, fora do código:**
+  - **0.2** linha de base: responsabilidade do founder, **antes do deploy em produção** (`main`). Sem ela, a
+    medição de 4 semanas (6.1) não tem com o que comparar.
+  - **6.1/6.2** pós-deploy: não bloqueiam o arquivamento e são registrados em `add-sync-health-signal`.
+  - Segunda passada cross-model sobre as correções do QA: não rodou (Codex sem cota, DeepSeek sem chave).
+- **Follow-ups:** ver 5b.
+
 ## 0. Antes de implementar
 - [x] 0.1 Confirmar numa chamada real que `/athlete/activities` aceita `after` + `before` + `page` juntos
   (D3.2); registrar aqui

@@ -2,7 +2,11 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-29 (**`fix-coach-diagnosis-charts` entregue e arquivada** —
+**Última atualização:** 2026-09-30 (**`fix-sync-cursor-data-loss` entregue e arquivada** —
+backend PR **#153** mergeado em `develop`; o pull de atividades (intervals.icu e Strava) ganha cursor
+exclusivo e deixa de perder treinos que o atleta fez. Spec promovida para `specs/activity-sync/`.
+Pendentes: 0.2 linha de base antes do deploy em produção e 6.x pós-deploy; desbloqueia a medição de
+`add-sync-health-signal`.) Antes: 2026-09-29 (**`fix-coach-diagnosis-charts` entregue e arquivada** —
 backend PR **#152** e front PR **#133** mergeados em `develop`; a aba Diagnóstico do coach deixa de
 mostrar números que os gráficos não sustentam e passa ao layout da Proposta. Spec promovida para
 `specs/coach-athlete-diagnosis/`. Pendentes: 2.3 parcial (telas do atleta) e 6.1 pós-deploy.) Antes: 2026-09-28 (**`fix-coach-inbox-suggestion-panel` entregue e arquivada** —
@@ -1179,6 +1183,49 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 ---
 
 ## Changes concluídas (fora de sprint)
+
+### `fix-sync-cursor-data-loss` ✅ **ARQUIVADA** — o pull de atividades não perde mais treinos (2026-09-30)
+
+**Entregue:** `menthoros-backend` PR **#153**, mergeado em `develop`. Arquivada em
+`changes/archive/2026-09/2026-09-30-fix-sync-cursor-data-loss/`; spec promovida para `specs/activity-sync/`.
+L · Full · só backend, com migration V98 aditiva.
+
+**O problema:** o pull usava `ultimaSincronizacao` como cursor, mas push de plano, webhook e sync manual
+gravavam `now()` nesse campo, e o pull pulava janelas inteiras. Havia mais três defeitos:
+- o Strava parava de paginar numa página só de outras modalidades;
+- o intervals.icu descartava backlog com mais de 90 dias como erro permanente;
+- o cursor do Strava lia a hora local como UTC.
+
+Para o coach: atleta com lacuna, inativo na fila ou com aderência baixa por treino que fez.
+
+**O que faz:**
+- **Cursor exclusivo:** `pull_cursor`, somente leitura no ORM, gravado só por `UPDATE` pontual com tenant.
+  Status também por `UPDATE` pontual, e nenhum caminho de sync salva instância antiga.
+- **intervals.icu:** entrada agendada sem o limite de 90 dias; contagem pela flag real do persister.
+- **Strava:** fatias de 14 dias com sobreposição de 60 s; cursor por fatia completa, sem depender da ordem
+  da API; transação por atividade, com os laps buscados antes; o RPE do atleta preservado.
+- **Descarte registrado** para o que falha de forma permanente ou recorrente.
+- **Registro de cada pull** (`tb_sync_pull_log`), que é o instrumento de `add-sync-health-signal`, e rollback
+  em três passos com script testado.
+
+**O cross-model pagou de novo, e a re-revisão também.**
+- **DoR:** 4 rodadas (spec-reviewer + Codex), com os Críticos caindo de 4 → 2 → 0 → 0. O Codex achou, entre
+  outros, que o `save` de uma instância antiga reescreveria o cursor pelo ORM e que o Strava não tinha o
+  overlap que o design supunha.
+- **Task 0.1:** a chamada real ao Strava mostrou que a ordem da API inverte com `before` e que a fronteira é
+  exclusiva.
+- **`/qa`:** Codex adversarial apontou um Crítico (3 deadlocks descartavam um treino válido). A re-revisão
+  das correções pegou a regressão que a primeira correção criou: toda `DataAccessException` virava
+  transitória, e um erro de constraint travaria a fatia para sempre.
+
+**Pendente:**
+- 0.2, linha de base, antes do deploy em produção (founder);
+- 6.x, pós-deploy;
+- follow-ups na seção 5b do `tasks.md`: orçamento global da cota do Strava e IT com transação real, entre
+  outros.
+
+`add-sync-health-signal` e `add-attention-reason-sem-sincronizacao` seguem aguardando a medição que esta change
+viabiliza.
 
 ### `fix-coach-diagnosis-charts` ✅ **ARQUIVADA** — a aba Diagnóstico mostra o que os dados sustentam (2026-09-29)
 
