@@ -92,8 +92,10 @@ para o scheduler. O comportamento efetivo é preservado: o `catch` **não desati
   completa) ou `FALHA`.
 - **Progresso garantido sob cota curta:** no ciclo seguinte, a fatia interrompida é relistada, e o que já
   foi inserido custa zero requisição de laps (D3.3). Cada ciclo avança pelo menos até onde a cota deixou.
-- Instante da atividade: `start_date` (UTC), campo novo no `StravaActivityDto`. `start_date_local` continua
-  servindo só para a **data** do treino (`dataTreino`), como hoje.
+- Instante da atividade: nenhum é calculado no código. O cursor é o fim da fatia, e o filtro por
+  `start_date` UTC é feito pela API (`after`/`before`), o que resolve o defeito de fuso por construção
+  (CA6). Por isso o campo `start_date` **não** entrou no `StravaActivityDto`, como previa a primeira versão
+  deste item. `start_date_local` continua servindo só para a **data** do treino (`dataTreino`), como hoje.
 
 ### D3.3 Já importada
 - `findByExternalIdAndAtletaId` presente → pula: sem `attachLaps`, sem `registrar`, não conta como inserção

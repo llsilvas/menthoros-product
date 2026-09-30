@@ -74,16 +74,24 @@ TDD em todas as tasks de código: o teste do critério vem antes da implementaç
     segue) e a falha do writer do registro sem derrubar o ciclo
 
 ## 3. Strava (depende de 1)
-- [ ] 3.1 `start_date` no `StravaActivityDto`; `fetchActivitiesWithHeaders` devolve as originais;
-  classificação HTTP 429/401/403/5xx (D3.2, D3.6)
-  - verify: CA3, CA6; 429 sem header → `RATE_LIMIT` (MockWebServer)
-- [ ] 3.2 Varredura por fatias com sobreposição de 60 s; transação por atividade com atleta recarregado;
+- [x] 3.1 `fetchActivitiesWithHeaders` devolve as originais; classificação HTTP 429/401/403/5xx (D3.2, D3.6)
+  - verify: CA3, CA6; 429 sem header → `RATE_LIMIT`
+  - feito: `StravaActivityPullTest`, com WebClient real contra WireMock (já é dependência do projeto; o
+    MockWebServer não é). 429 traduzido por `onStatus` também na busca de laps.
+  - **desvio:** `start_date` **não** foi adicionado ao `StravaActivityDto`. Com as fatias, o cursor vem do
+    fim da fatia e nenhum instante de atividade é calculado no código: o filtro por `start_date` UTC é
+    feito pela própria API (`after`/`before`). O CA6 fica satisfeito por construção e é testado assim:
+    uma corrida com `start_date_local` 3h no futuro não leva o cursor além de agora.
+- [x] 3.2 Varredura por fatias com sobreposição de 60 s; transação por atividade com atleta recarregado;
   `pullAgendado` avança o cursor por fatia; horizonte inicial; status via `atualizarStatusSync`
   (D3.1, D3.2, D3.5)
   - verify: CA4, CA10; atividade exatamente no segundo da fronteira importada uma vez; rate limit no meio da
     fatia preserva as inserções já feitas e o ciclo seguinte avança; exceção numa atividade não desfaz as
     anteriores; CA12
-- [ ] 3.3 Sync manual (D0, D3.1, D3.7):
+  - feito: `StravaActivityPullTest` (nested `PullAgendado`). Transação por atividade via
+    `TransactionOperations` (o bean `TransactionTemplate`); o teste usa `withoutTransaction()`. O overlap de
+    7 dias é `StravaProperties.syncOverlapDays`, com default no código e sem mudança no `application.yml`.
+- [x] 3.3 Sync manual (D0, D3.1, D3.7):
   - lê `pull_cursor` e nunca grava; sem `@Transactional`; resposta por resultado;
   - `catch` genérico grava `lastSyncError` e relança **sem desativar**;
   - não usa o D7;
@@ -91,11 +99,20 @@ TDD em todas as tasks de código: o teste do critério vem antes da implementaç
   - verify: CA2 (manual com e sem rate limit; webhook); token renovado durante o sync manual não é
     sobrescrito (token expirado no início); 5xx no manual → integração continua ativa e o scheduler segue
     puxando; 2 falhas agendadas + 1 manual → atividade **não** descartada
-- [ ] 3.4 Já importada é pulada; inserção = find vazio **e** `inserted`; merge preserva RPE (D3.3, D3.4)
+  - feito: `StravaActivityPullTest` (nested `SyncManual`, 5 casos). O "token renovado não sobrescrito" é
+    testado pelo mecanismo: o manual nunca faz `save` da integração, só `atualizarStatusSync` (e o IT do
+    bloco 1 prova que o `UPDATE` pontual preserva o token). O "2 agendadas + 1 manual" é testado como "o
+    manual não toca o `SyncDescarteWriter`".
+- [x] 3.4 Já importada é pulada; inserção = find vazio **e** `inserted`; merge preserva RPE (D3.3, D3.4)
   - verify: CA7 (pull e webhook `update`; `feedbackAtleta`/`sensacoes` intactos)
-- [ ] 3.5 `pullAgendado` nunca lança (acumulador); scheduler do Strava o chama e grava o registro (D5)
+  - feito: pull em `StravaActivityPullTest` (sem laps, sem registrar); webhook `update` em
+    `StravaActivityServiceImplSyncTest` (+2: RPE/feedback/sensações preservados; treino novo recebe o RPE
+    do Strava)
+- [x] 3.5 `pullAgendado` nunca lança (acumulador); scheduler do Strava o chama e grava o registro (D5)
   - verify: CA8 Strava (exceção ao carregar a integração → `FALHA`/0; rate limit depois de 3 inserções →
     `PARCIAL` com 3; falha ao gravar status depois de 3 → `PARCIAL` com 3)
+  - feito: `StravaActivitySyncSchedulerTest` (+2) e `StravaActivityPullTest` (falha na finalização; o
+    rate limit com progresso é o CA10, com 2 inserções)
 
 ## 4. Expurgo
 - [ ] 4.1 `SyncPullLogPurgeScheduler` em lotes de 1000, para `tb_sync_pull_log` e
