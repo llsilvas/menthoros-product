@@ -2,7 +2,16 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-09-30 (**`fix-sync-cursor-data-loss` entregue e arquivada** —
+**Última atualização:** 2026-10-01 (**`fix-adherence-count-until-today` entregue parcialmente e
+arquivada** — backend PR **#154** mergeado em `develop`; as três consultas de aderência
+(`AtletaProgressServiceImpl.getAderenciaSemanal`, `CoachDashboardServiceImpl.montarResumo`,
+`ProgressaoTreinoServiceImpl.calcularHistorico`) ganham teto de data (`dataTreino <= hoje`) e
+deixam de contar a semana corrente inteira como planejada. **Escopo reduzido em relação ao desenho
+original:** não entraram o predicado de `DESCANSO`, a função `aderencia4Semanas` nem o campo novo
+no perfil do coach, a documentação OpenAPI, e toda a seção de front (sem PR no `menthoros-front`) —
+ver `tasks.md` arquivado para o detalhe do que ficou de fora. `./mvnw clean verify` rodado
+localmente com Docker, BUILD SUCCESS. Arquivada em
+`changes/archive/2026-10/2026-10-01-fix-adherence-count-until-today/`.) Antes: 2026-09-30 (**`fix-sync-cursor-data-loss` entregue e arquivada** —
 backend PR **#153** mergeado em `develop`; o pull de atividades (intervals.icu e Strava) ganha cursor
 exclusivo e deixa de perder treinos que o atleta fez. Spec promovida para `specs/activity-sync/`.
 Pendentes: 0.2 linha de base antes do deploy em produção e 6.x pós-deploy; desbloqueia a medição de
