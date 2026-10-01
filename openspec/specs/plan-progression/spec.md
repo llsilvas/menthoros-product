@@ -1,6 +1,6 @@
 # plan-progression
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Aderência da progressão em semanas fechadas
 A aderência usada pelo motor de progressão SHALL ser calculada sobre as 3 semanas ISO fechadas antes da
@@ -60,3 +60,11 @@ anterior.
 #### Scenario: Flag desligada
 - **WHEN** a flag está desligada
 - **THEN** a decisão é a mesma da regra anterior
+
+## Non-Requirements (deferido, sem change aberta)
+
+A seção 3 (Pós-deploy) de `fix-progression-adherence-window` — aceitação sem edição de volume do
+`WeekSuggestion` medida 4 semanas antes vs. 4 depois do deploy, e a change de limpeza que remove a
+flag e a regra antiga após 4 semanas estáveis — não foi executada por depender de tempo em produção.
+Ver `openspec/changes/archive/2026-10/2026-10-01-fix-progression-adherence-window/tasks.md` (seção 3)
+para o critério de rollback.

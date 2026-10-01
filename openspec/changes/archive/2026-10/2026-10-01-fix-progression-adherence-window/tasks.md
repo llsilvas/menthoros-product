@@ -98,3 +98,11 @@ abaixo constrói o predicado antes de usá-lo na classificação.
 
 ## Follow-ups
 - Expor ao coach o motivo da decisão de progressão e a aderência usada (product-reviewer)
+
+## Nota de arquivamento (2026-10-01)
+
+Arquivada com as seções 1 (Backend) e 2 (Gate de merge) **completas** — PR #155 mergeado em
+`develop`. A seção 3 (Pós-deploy) fica **deferida**: depende de 4 semanas de medição em produção
+com a flag `menthoros.progressao.aderencia-devidos.enabled` ligada (n ≥ 20 por lado). Não há change
+aberta para retomar 3.1/3.2 — abrir uma nova quando a janela de medição se completar, citando esta
+change arquivada como origem da flag e do critério de rollback.

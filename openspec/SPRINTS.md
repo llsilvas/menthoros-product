@@ -2,7 +2,17 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-01 (**`fix-reconciliation-audit-planned-id` entregue e arquivada** —
+**Última atualização:** 2026-10-01 (**`fix-progression-adherence-window` entregue e arquivada** —
+backend PR **#155** mergeado em `develop`; o motor de progressão passa a calcular aderência sobre 3
+semanas ISO fechadas, só com planejados devidos (exclui `DESCANSO`), distinguindo vínculo cancelado
+(falta) de pendência de reconciliação (triagem humana vs. classificação automática). Aderência
+ausente não libera PROGREDIR/PROGREDIR_LEVE. Flag `menthoros.progressao.aderencia-devidos.enabled`
+para rollback. Gate de merge comparando regra antiga × nova em 5 atletas ativos do homelab: 6
+transições, 0 em direção a REDUZIR, 0% sem causa identificada — passou sem bloqueio. `./mvnw clean
+verify`: 4362 unit + 204 IT, 0 falhas. Spec promovida para `specs/plan-progression/`. **Pendente:**
+seção 3 (pós-deploy) — aceitação sem edição de volume do `WeekSuggestion` medida 4 semanas antes vs.
+depois do deploy; sem change aberta ainda. Arquivada em
+`changes/archive/2026-10/2026-10-01-fix-progression-adherence-window/`.) Antes: 2026-10-01 (**`fix-reconciliation-audit-planned-id` entregue e arquivada** —
 backend PR **#151** mergeado em `develop` em 2026-09-29; `ReconciliationDecisionExecutor.persistir`
 passa a preencher `afterPlannedIdUuid`/`beforePlannedIdUuid` na auditoria da reconciliação
 automática, mesmo campo que o fluxo manual já preenchia. `./mvnw clean verify` sem falhas (4251
