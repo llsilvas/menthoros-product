@@ -10,22 +10,31 @@ Branch `feature/fix-progression-adherence-window` no backend. Depende de `fix-ad
 **Ordem corrigida (achado do spec-reviewer, rodada 2):** 1.2 depende do predicado de 1.3 — a sequência
 abaixo constrói o predicado antes de usá-lo na classificação.
 
-- [ ] 1.1 `ProgressaoHistoricoResumo`: `treinosRealizados21d`, `treinosCumpridos`, `treinosFaltas`, `treinosPendentes`, `aderencia` (nullable) (D6)
-- [ ] 1.2 Construir o predicado de "planejado devido" (exclui `DESCANSO`) local a `calcularHistorico` — não
+- [x] 1.1 `ProgressaoHistoricoResumo`: `treinosRealizados21d`, `treinosCumpridos`, `treinosFaltas`, `treinosPendentes`, `aderencia` (nullable) (D6)
+- [x] 1.2 Construir o predicado de "planejado devido" (exclui `DESCANSO`) local a `calcularHistorico` — não
   existe hoje nenhum predicado compartilhado com o painel para reusar (correção da DoR 2026-10-01)
-  - verify: CA9 — teste isolado do predicado, cobrindo os casos de CA1–CA5
-- [ ] 1.3 `calcularHistorico`: carregar `Atleta` (para `AtletaHojeResolver`) dentro do serviço sem mudar a
+  - verify: CA9 — cobertura comportamental via CA1–CA5 em `ProgressaoTreinoServiceImplTest`
+    (`isDevido` é privado e trivial — sem contrato compartilhado a testar isoladamente, conforme a nota
+    da DoR de que nenhum predicado assim existe hoje)
+- [x] 1.3 `calcularHistorico`: carregar `Atleta` (para `AtletaHojeResolver`) dentro do serviço sem mudar a
   assinatura pública (`UUID atletaId`); janela de 3 semanas fechadas no fuso do atleta; classificação por
   planejado usando `contaNaCarga()` (cumprido vs. vínculo cancelado) e `reconciliationStatus` +
   `reconciledBy != "SYSTEM"` (pendência vs. falta por triagem humana) (D1, D2, predicado de 1.2)
-  - verify: `ProgressaoTreinoServiceImplTest` — CA1 (em cada dia da semana), CA2, CA3, CA4, CA5, CA7,
-    CA10 (vínculo cancelado), CA11 (triagem humana via `reconciledBy`), CA12 (`NAO_PLANEJADO` automático
-    continua pendente)
-- [ ] 1.4 `calcularDecisao`: tabela com aderência ausente, avaliada só depois do gate de histórico mínimo
+  - verify: `ProgressaoTreinoServiceImplTest` — CA1 (parametrizado nos 7 dias da semana), CA2, CA3, CA4,
+    CA5, CA7, CA10 (vínculo cancelado), CA11 (triagem humana via `reconciledBy`), CA12 (`NAO_PLANEJADO`
+    automático continua pendente) — todos verdes
+- [x] 1.4 `calcularDecisao`: tabela com aderência ausente, avaliada só depois do gate de histórico mínimo
   já existente (D3)
-  - verify: CA6; bordas 59/60/69/70/79/80% com aderência presente
-- [ ] 1.5 Flag `menthoros.progressao.aderencia-devidos.enabled` (D7)
-  - verify: CA8 — flag desligada reproduz a regra antiga nos casos existentes
+  - verify: CA6; bordas 59/60/69/70/79/80% com aderência presente (parametrizado) — todos verdes
+- [x] 1.5 Flag `menthoros.progressao.aderencia-devidos.enabled` (D7)
+  - verify: CA8 — flag desligada (default no teste puro) reproduz a regra antiga — verde
+
+  **2026-10-01:** código e testes de 1.1–1.5 completos (43 testes em `ProgressaoTreinoServiceImplTest`,
+  todos verdes). Para compilar, os fixtures de `ProgressaoHistoricoResumo` em
+  `PlannerScopeTest`, `InjuryRiskEvaluatorTest`, `PlannerEngineGoldenSetTest`, `PlannerEngineTest`,
+  `LoadTargetResolverTest`, `PlannerShadowServiceTest` e `EvalCandidateFixtures` foram atualizados com os
+  4 campos novos zerados/nulos (default seguro, sem revisão semântica) — isso cobre só o mínimo da task
+  1.7; a revisão semântica completa (inclusive `semVinculoAtletaFicaSemProgressao`) continua pendente.
 - [ ] 1.6 Um histórico por geração: propagar `ProgressaoHistoricoResumo` do `PlanGenerationContextLoader`
   até o `PlannerShadowService` (mesmo caminho já usado para `DecisaoProgressao`), em vez de o shadow
   recalcular por conta própria (D5)
