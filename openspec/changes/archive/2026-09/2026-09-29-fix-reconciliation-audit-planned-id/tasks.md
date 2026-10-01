@@ -40,5 +40,10 @@ DoR (2026-09-29, Fast): READY. Duas notas do código:
       backend: `edd3fb7`. Code review sem achado crítico ou importante.
 - [x] 2.2 `/qa` e PR para `develop`: PR #151 mergeada em 2026-09-29 (via GitHub, sem merge local).
 - [ ] 2.3 Pós-deploy no homelab: a consulta da "Métrica de sucesso" da proposta devolve 0 para
-      eventos depois do restart. **Pendente** — não executada nesta sessão; requer acesso ao banco
-      do homelab.
+      eventos depois do restart. **Query rodada em 2026-10-01 — devolveu 0, mas não é validação
+      real:** o último evento `RECONCILIACAO_AUTOMATICA`/`VINCULADO_AUTOMATICO` no homelab é de
+      2026-09-29 21:16:42Z, **anterior** ao merge do PR #151 (22:20:42Z). Nenhuma reconciliação
+      automática rodou desde o deploy — o app do homelab provavelmente não reiniciou com o jar
+      novo, ou o scheduler (roda a cada ~2h) ainda não disparou sobre um caso elegível. **Continua
+      pendente:** confirmar que o homelab está rodando o build pós-#151 e reexecutar a query depois
+      de pelo menos um ciclo do scheduler.
