@@ -29,8 +29,17 @@ abaixo constrói o predicado antes de usá-lo na classificação.
 - [x] 1.5 Flag `menthoros.progressao.aderencia-devidos.enabled` (D7)
   - verify: CA8 — flag desligada (default no teste puro) reproduz a regra antiga — verde
 
-  **2026-10-01:** código e testes de 1.1–1.5 completos (43 testes em `ProgressaoTreinoServiceImplTest`,
-  todos verdes). Para compilar, os fixtures de `ProgressaoHistoricoResumo` em
+  **2026-10-01 (estresse pré-PR):** 11 testes adicionais informados pela literatura esportiva — ACWR
+  (sweet spot 0,8–1,3 de risco de lesão), escala Borg CR-10 de RPE, zonas de TSB (TrainingPeaks/Joe
+  Friel: produtiva −10 a −30, overtraining < −30, pico +15 a +25). Cobrem: TSB em overtraining
+  profundo (−35) e em zona de pico (+20) com aderência/RPE variados; RPE no máximo da escala (10);
+  TSB e RPE no limite simultaneamente; bordas exatas (não "maior/menor que") de TSB (−15/−22), RPE
+  (7,5/8,5) e teto de pendência (25,0%); reconciliação com 3 avulsos mistos no mesmo dia. Os limiares
+  em si não mudaram (proposal já fecha 60/70/80% etc. como fora de recalibração nesta change) — a
+  pesquisa só confirmou que estão bem posicionados e orientou os casos extremos a testar. 57 testes
+  em `ProgressaoTreinoServiceImplTest` (46 + 11), todos verdes.
+
+  Código e testes de 1.1–1.5 completos. Para compilar, os fixtures de `ProgressaoHistoricoResumo` em
   `PlannerScopeTest`, `InjuryRiskEvaluatorTest`, `PlannerEngineGoldenSetTest`, `PlannerEngineTest`,
   `LoadTargetResolverTest`, `PlannerShadowServiceTest` e `EvalCandidateFixtures` foram atualizados com os
   4 campos novos zerados/nulos (default seguro, sem revisão semântica) — isso cobre só o mínimo da task
