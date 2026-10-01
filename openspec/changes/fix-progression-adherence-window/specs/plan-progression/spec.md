@@ -4,9 +4,9 @@
 
 ### Requirement: Aderência da progressão em semanas fechadas
 A aderência usada pelo motor de progressão SHALL ser calculada sobre as 3 semanas ISO fechadas antes da
-atual (fuso do atleta): treinos planejados cumpridos (com realizado vinculado) sobre cumpridos mais faltas.
-`DESCANSO` e planejados pendentes de reconciliação (sem vínculo, com realizado avulso no mesmo dia) SHALL
-ficar fora da conta.
+atual (fuso do atleta): treinos planejados cumpridos (com realizado vinculado **que conta na carga** —
+não cancelado) sobre cumpridos mais faltas. `DESCANSO` SHALL ficar fora da conta; planejados pendentes de
+reconciliação (sem vínculo, com realizado avulso no mesmo dia **ainda não triado pelo coach**) também.
 
 #### Scenario: Semana em curso
 - **WHEN** a semana atual está incompleta e as 3 anteriores foram cumpridas
@@ -17,8 +17,18 @@ ficar fora da conta.
 - **THEN** a aderência é 50%
 
 #### Scenario: Reconciliação pendente
-- **WHEN** há 6 planejados, 3 cumpridos e 1 sem vínculo com realizado avulso no mesmo dia
+- **WHEN** há 6 planejados, 3 cumpridos e 1 sem vínculo com realizado avulso no mesmo dia, ainda não
+  triado pelo coach
 - **THEN** a aderência é 60%
+
+#### Scenario: Vínculo cancelado não conta como cumprido
+- **WHEN** um planejado está vinculado a um realizado com sincronização cancelada
+- **THEN** ele conta como falta, não como cumprido
+
+#### Scenario: Triagem do coach resolve a pendência
+- **WHEN** um planejado sem vínculo tem um realizado avulso no mesmo dia que o coach já confirmou
+  manualmente não corresponder a nenhum planejamento
+- **THEN** o planejado conta como falta, não como pendência
 
 ### Requirement: Aderência ausente não libera progressão
 Sem planejado na janela, ou com pendências acima de 25% dos planejados, a aderência SHALL ser ausente; com

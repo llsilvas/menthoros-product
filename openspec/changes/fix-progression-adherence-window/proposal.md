@@ -5,7 +5,11 @@
 Um repositório (backend), sem contrato nem schema — mas muda uma entrada do motor que decide REDUZIR /
 MANTER / PROGREDIR o volume do próximo plano. Full pelo risco: o efeito aparece no plano que o coach
 revisa e no treino do atleta, e um plano gerado não se corrige revertendo o PR. **Depende de
-`fix-adherence-count-until-today`** (reusa o predicado de treino devido e a consulta com teto de data).
+`fix-adherence-count-until-today`** (PR #154, mergeado em `develop` em 2026-10-01) — reusa a consulta com
+teto de data (`findComRealizadoByAtletaAndPeriodoAteData`). **Correção da DoR (2026-10-01):** o "predicado
+de treino devido" citado nas versões anteriores deste documento **não existe** no código — a change
+anterior só adicionou o teto de data, sem filtro de `DESCANSO`. Esta change **constrói** esse predicado
+(task 1.7), não o reaproveita; CA9 foi reescrito para refletir isso.
 
 ## Por quê
 
@@ -33,11 +37,17 @@ alimenta toda proposta de plano — base do moat de propostas que o coach aceita
   parcial não pode liberar progressão antes do longão pendente nem reduzir pelo que ainda vai acontecer.
   A decisão fica a mesma gerando o plano na sexta ou no domingo.
 - **Denominador:** planejados da janela que não são `DESCANSO` e **não estão pendentes de reconciliação**.
-- **Numerador:** os do denominador com treino realizado vinculado — a mesma regra do painel (decisão do
-  founder, 2026-09-30). Treino extra continua na carga e no volume, não na aderência.
-- **Pendência de reconciliação** (planejado sem vínculo, mas com treino realizado avulso no mesmo dia): fica
-  **fora da conta** — nem cumprido nem falta (decisão do founder). Dado incompleto não reduz o plano. Se as
-  pendências passarem de 25% dos planejados da janela, a aderência não decide.
+- **Numerador:** os do denominador com treino realizado vinculado **que conta na carga**
+  (`TreinoRealizado.contaNaCarga()` — exclui `statusSincronizacao = CANCELADO`). Um vínculo para um
+  realizado cancelado pelo atleta/Strava não é cumprimento: vira falta. Treino extra continua na carga e
+  no volume, não na aderência.
+- **Pendência de reconciliação** (planejado sem vínculo, mas com treino realizado avulso no mesmo dia cujo
+  `reconciliationStatus` ainda não foi triado pelo coach — ou seja, **diferente de** `NAO_PLANEJADO`): fica
+  **fora da conta** — nem cumprido nem falta (decisão do founder). Dado incompleto não reduz o plano. Se o
+  coach já confirmou via reconciliação manual que aquele avulso **não corresponde** ao planejado
+  (`reconciliationStatus = NAO_PLANEJADO`), a ambiguidade já foi resolvida: o planejado conta como falta
+  normal, não como pendência. Se as pendências (as de verdade, ainda não triadas) passarem de 25% dos
+  planejados da janela, a aderência não decide.
 - **Aderência ausente** (sem planejado na janela, ou pendências acima do teto): não libera progressão e não
   força redução — REDUZIR só por fadiga comprovada (TSB, RPE); o resto é MANTER (tabela em D3).
 - **Histórico mínimo** (3 treinos em 21 dias) continua contando todos os realizados.
@@ -67,15 +77,32 @@ alimenta toda proposta de plano — base do moat de propostas que o coach aceita
 - **CA7 — Histórico mínimo intacto.** Given 3 realizados em 21 dias, nenhum vinculado, Then o histórico não
   é "insuficiente".
 - **CA8 — Flag.** Given a flag desligada, Then o resultado é o da regra antiga.
-- **CA9 — Mesmo predicado do painel.** O teste do predicado de devido cobre os dois consumidores.
+- **CA9 — Predicado de devido construído e testado.** (reescrito 2026-10-01 — a versão anterior assumia um
+  predicado compartilhado com o painel que não existe) O predicado de "planejado devido" (exclui
+  `DESCANSO`) construído nesta change tem teste próprio, isolado de `calcularHistorico`, cobrindo os casos
+  de CA1–CA5.
+- **CA10 — Vínculo cancelado não conta como cumprido.** Given um planejado vinculado a um `TreinoRealizado`
+  com `statusSincronizacao = CANCELADO`, Then ele conta como falta, não como cumprido.
+- **CA11 — Triagem do coach resolve a pendência.** Given um planejado sem vínculo com um realizado avulso
+  no mesmo dia cujo `reconciliationStatus = NAO_PLANEJADO`, Then o planejado conta como falta, não como
+  pendência.
 
 ## Gate de merge (D4)
 
 Comparação regra antiga × nova, por atleta ativo do homelab, em **três dias de geração** (sexta, sábado e
 domingo de uma mesma semana): todas as transições de estado, com o motivo.
 
-- **Bloqueia o merge:** qualquer transição **em direção a REDUZIR** (PROGREDIR/PROGREDIR_LEVE/MANTER →
-  REDUZIR) causada por treino realizado sem vínculo ou por semana em curso.
+**Correção da DoR (2026-10-01):** a redação anterior bloqueava qualquer transição "causada por treino
+realizado sem vínculo" — mas é exatamente isso que CA3 pede (parar de inflar com extras), então uma
+leitura literal do gate se autobloqueava no próprio efeito pretendido da change. O gate distingue:
+
+- **Não bloqueia** (é o efeito esperado da correção): a aderência cai/transição para REDUZIR porque
+  extras pararam de inflar o numerador (regra antiga tratava um extra como cumprimento; a nova, não) — ou
+  seja, a aderência real (sem a inflação) já estava abaixo do limiar.
+- **Bloqueia o merge:** transição em direção a REDUZIR (PROGREDIR/PROGREDIR_LEVE/MANTER → REDUZIR) causada
+  por uma das duas falhas que a change promete evitar: (a) um planejado pendente de reconciliação sendo
+  contado como falta em vez de ficar fora da conta (CA4/CA11), ou (b) um planejado da semana em curso
+  entrando na janela (D1 já deveria impedir isso por construção; o gate serve de rede de segurança).
 - **Registrar:** quantos atletas têm pendência de reconciliação na janela e quanto pesam.
 - **Gatilho de recalibração** (change própria): mais de 20% das decisões mudando de estado **sem** causa
   identificada entre futuro, descanso, extra ou pendência.
