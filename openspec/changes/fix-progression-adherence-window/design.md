@@ -28,21 +28,30 @@ inclui essa busca.
 | `DESCANSO` | fora |
 | vinculado a um realizado que **conta na carga** (`realizado.contaNaCarga()`) | cumprido (numerador e denominador) |
 | vinculado a um realizado **cancelado** (`!realizado.contaNaCarga()` — `statusSincronizacao = CANCELADO`) | falta (só denominador) |
-| sem vínculo, com realizado avulso no mesmo dia **ainda não triado** (`reconciliationStatus` ausente, `PENDENTE` ou `AMBIGUO`) | **pendente** — fora |
-| sem vínculo, com realizado avulso no mesmo dia **já triado como não-correspondente** (`reconciliationStatus = NAO_PLANEJADO`) | falta (só denominador) |
+| sem vínculo, com realizado avulso no mesmo dia **ainda não triado por humano** (`reconciliationStatus` ausente, `PENDENTE`, `AMBIGUO`, ou `NAO_PLANEJADO` com `reconciledBy = "SYSTEM"`) | **pendente** — fora |
+| sem vínculo, com realizado avulso no mesmo dia **triado por humano como não-correspondente** (`reconciliationStatus = NAO_PLANEJADO` **e** `reconciledBy != "SYSTEM"`) | falta (só denominador) |
 | sem vínculo, sem realizado no dia | falta (só denominador) |
 
-**Correção da DoR (2026-10-01) — dois achados Alto do Codex:**
+**Correção da DoR (2026-10-01, rodada 1) — dois achados Alto do Codex:**
 1. A linha original "vinculado a um realizado → cumprido" não checava se o realizado continuava válido
    (o vínculo via FK `TreinoPlanejado.treinoRealizado` sobrevive a um cancelamento no Strava —
    `StravaWebhookServiceImpl.markAsCanceled` só marca `statusSincronizacao = CANCELADO`, nunca desfaz o
    FK). Corrigido: "cumprido" exige `contaNaCarga()`, mesmo helper já usado por `ProgressaoTreinoServiceImpl`
    para carga/volume (D8 de `ingestao-treino-realizado`).
 2. A linha original de "pendência" classificava qualquer coincidência de data como pendente, mesmo quando
-   o coach já tinha confirmado manualmente (`ManualReconciliationServiceImpl.markAsNotPlanned`) que o
-   avulso não corresponde a planejamento nenhum (`reconciliationStatus = NAO_PLANEJADO`). Nesse caso a
-   ambiguidade já foi resolvida pelo coach — tratar como pendente escondia uma falta real do denominador.
-   Corrigido: só conta como pendente o que ainda está em aberto para triagem.
+   o coach já tinha confirmado manualmente que o avulso não corresponde a planejamento nenhum. Corrigido:
+   só conta como pendente o que ainda está em aberto para triagem.
+
+**Correção da DoR (2026-10-01, rodada 2) — um achado Alto do Codex, sobre a correção acima:**
+`reconciliationStatus = NAO_PLANEJADO` **não implica triagem humana.** `MatchingDecisionEngineImpl.decide`
+atribui `NAO_PLANEJADO` automaticamente quando não há candidato ou o melhor score é `< 0.50`
+("ORPHANED"/"NO_MATCH"/"NO_CANDIDATES") — o mesmo valor de enum que `ManualReconciliationServiceImpl
+.markAsNotPlanned` grava quando o coach confirma manualmente. A diferença observável é `reconciledBy`:
+o caminho automático grava `"SYSTEM"` (`ReconciliationDecisionExecutor.java:122`); o manual grava o
+`actorId` de quem agiu. Um `NAO_PLANEJADO` automático é exatamente o mesmo tipo de dado incompleto que a
+classificação de pendência pretende excluir (ninguém revisou); só a confirmação humana resolve a
+ambiguidade de fato. Corrigido: a tabela acima agora exige `reconciledBy != "SYSTEM"` para contar como
+falta; `NAO_PLANEJADO` automático continua pendente.
 
 Realizados avulsos da janela vêm da consulta de realizados que `calcularHistorico` já faz (42 dias).
 `aderencia = cumpridos / (cumpridos + faltas)`; ausente quando o denominador é 0 ou quando
@@ -59,6 +68,12 @@ Realizados avulsos da janela vêm da consulta de realizados que `calcularHistori
 Aderência ausente nunca libera PROGREDIR nem PROGREDIR_LEVE. O TSB nulo virar zero é anterior e fica como
 está.
 
+**Precedência (achado médio do Codex, 2026-10-01):** o gate de histórico mínimo (`treinosConcluidos21d <
+3` → MANTER, "histórico insuficiente") é avaliado **antes** desta tabela, como já é hoje em
+`calcularDecisao` — aderência/TSB/RPE só entram em jogo depois desse gate passar. Essa tabela de aderência
+ausente só se aplica quando o histórico mínimo já foi atendido mas o denominador de devidos é 0 ou as
+pendências passam do teto; não muda a precedência existente, só documenta.
+
 ## D4. Gate de merge
 
 Script/teste de comparação (regra antiga × nova, flag ligada e desligada) sobre os atletas ativos do
@@ -70,9 +85,13 @@ causa raiz é pendência mal classificada ou semana em curso vazando pra janela.
 
 ## D5. Um histórico por geração
 
-`PlanGenerationContextLoader` calcula o histórico e a decisão; `PlannerShadowService` recalcula o
-histórico por conta própria. Os dois devem usar o mesmo resumo e o mesmo instante — passar o resumo
-calculado adiante em vez de recalcular (confirmar o caminho na DoR).
+`PlanGenerationContextLoader.calcularDecisaoProgressao` (linha ~255) e `PlannerShadowService.aplicarShadow`
+(linha ~252) chamam `progressaoTreinoService.calcularHistorico` **independentemente**, em instantes
+potencialmente diferentes — confirmado em código (achado Codex, rodada 1). Hoje só `DecisaoProgressao` é
+propagada do loader adiante; `ProgressaoHistoricoResumo` não. **Decisão (DoR rodada 2, confirmada pelo
+spec-reviewer):** propagar também o `ProgressaoHistoricoResumo` pelo `PlanGenerationContext`/persister até
+o shadow, mesmo padrão já usado para a decisão — o shadow passa a receber o resumo já calculado em vez de
+chamar `calcularHistorico` de novo.
 
 ## D6. `ProgressaoHistoricoResumo`
 
@@ -112,3 +131,12 @@ Achados médios também corrigidos: D1 assumia um predicado de "treino devido" c
 que não existe (é construído aqui, task 1.7); D1 não tinha resolvido o descompasso de assinatura entre
 `AtletaHojeResolver(Atleta)` e `calcularHistorico(UUID)` (decisão: carregar o `Atleta` dentro do serviço,
 sem propagar a assinatura).
+
+**Rodada 2 (segunda passagem Codex + spec-reviewer):** spec-reviewer confirmou READY; Codex achou mais um
+Alto — a correção da rodada 1 para "pendência" usava `reconciliationStatus = NAO_PLANEJADO` como proxy de
+triagem humana, mas esse status também é atribuído automaticamente pelo motor de matching
+(`MatchingDecisionEngineImpl`, score < 0.50), sem nenhum humano envolvido. Corrigido no D2 acima: só conta
+como falta quando `reconciledBy != "SYSTEM"` (triagem humana de fato). Dois achados médios também
+corrigidos: a narrativa do proposal ainda descrevia o denominador como "sem teto de data" (desatualizado
+desde o merge do PR #154) e D3 não explicitava a precedência do gate de histórico mínimo sobre a tabela de
+aderência ausente (já existia no código, só não estava documentada).

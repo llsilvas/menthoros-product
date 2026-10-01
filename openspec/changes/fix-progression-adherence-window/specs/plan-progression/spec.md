@@ -6,7 +6,8 @@
 A aderência usada pelo motor de progressão SHALL ser calculada sobre as 3 semanas ISO fechadas antes da
 atual (fuso do atleta): treinos planejados cumpridos (com realizado vinculado **que conta na carga** —
 não cancelado) sobre cumpridos mais faltas. `DESCANSO` SHALL ficar fora da conta; planejados pendentes de
-reconciliação (sem vínculo, com realizado avulso no mesmo dia **ainda não triado pelo coach**) também.
+reconciliação (sem vínculo, com realizado avulso no mesmo dia **ainda sem triagem humana de
+não-correspondência**) também.
 
 #### Scenario: Semana em curso
 - **WHEN** a semana atual está incompleta e as 3 anteriores foram cumpridas
@@ -25,10 +26,15 @@ reconciliação (sem vínculo, com realizado avulso no mesmo dia **ainda não tr
 - **WHEN** um planejado está vinculado a um realizado com sincronização cancelada
 - **THEN** ele conta como falta, não como cumprido
 
-#### Scenario: Triagem do coach resolve a pendência
-- **WHEN** um planejado sem vínculo tem um realizado avulso no mesmo dia que o coach já confirmou
+#### Scenario: Triagem humana resolve a pendência
+- **WHEN** um planejado sem vínculo tem um realizado avulso no mesmo dia que um coach já confirmou
   manualmente não corresponder a nenhum planejamento
 - **THEN** o planejado conta como falta, não como pendência
+
+#### Scenario: Classificação automática não resolve a pendência
+- **WHEN** um planejado sem vínculo tem um realizado avulso no mesmo dia que o motor de matching
+  automático classificou como não-correspondente, sem nenhuma revisão humana
+- **THEN** o planejado continua pendente, fora da conta
 
 ### Requirement: Aderência ausente não libera progressão
 Sem planejado na janela, ou com pendências acima de 25% dos planejados, a aderência SHALL ser ausente; com

@@ -18,13 +18,25 @@ conversam:
 
 - **Numerador:** todos os treinos realizados em 21 dias (`treinos21d.size()`), inclusive os extras fora
   do plano.
-- **Denominador:** todos os planejados desde `hoje − 21`, **sem teto de data** — inclui os treinos ainda
-  por vir da semana (e o plano seguinte, se já existir) e os `DESCANSO`.
+- **Denominador:** todos os planejados desde `hoje − 21`, **sem filtro de tipo** — inclui os `DESCANSO` e
+  qualquer coincidência de data com um avulso, vinculado ou não.
 
-Treino extra infla a razão (pode passar de 100%); treino futuro e descanso a derrubam. A razão decide o
-estado do motor: < 60% → **REDUZIR** o volume (−5%) e o longão; ≥ 70% → PROGREDIR_LEVE; ≥ 80% (com 2
-longões) → PROGREDIR. Um atleta em dia pode ter o próximo plano reduzido porque a semana dele ainda não
-terminou — e o coach recebe uma proposta de IA errada para revisar, sem ver por quê.
+**Nota (correção da DoR, rodada 2):** a versão original deste texto descrevia o denominador como "sem
+teto de data" — isso já foi corrigido por `fix-adherence-count-until-today` (PR #154, mergeado), que
+migrou exatamente esta chamada para `findComRealizadoByAtletaAndPeriodoAteData(..., dataFim = hoje)`. O
+teto já existe na baseline atual, mas ele cobre só o caso do **futuro** (dias depois de hoje). Dois
+problemas continuam abertos, e são os que esta change resolve: (1) a janela `[hoje−21, hoje]` ainda inclui
+o pedaço **já passado da semana em curso** — se hoje é quarta, segunda e terça desta semana entram no
+denominador mesmo com a semana incompleta, e o treino de hoje conta como planejado antes do atleta ter
+chance de fazê-lo (o caso "hoje só se feito"); (2) `DESCANSO`, extras e pendências de reconciliação dentro
+da janela, que o teto de data não toca. D1 fecha (1) movendo a janela para 3 semanas ISO inteiras e
+fechadas, sem nenhum dia da semana atual; D2 fecha (2).
+
+Treino extra infla a razão (pode passar de 100%); `DESCANSO`, semana em curso e pendência de reconciliação
+a derrubam indevidamente. A razão decide o estado do motor: < 60% → **REDUZIR** o volume (−5%) e o longão;
+≥ 70% → PROGREDIR_LEVE; ≥ 80% (com 2 longões) → PROGREDIR. Um atleta em dia pode ter o próximo plano
+reduzido por ruído de classificação, não por aderência real — e o coach recebe uma proposta de IA errada
+para revisar, sem ver por quê.
 
 Depois de `fix-adherence-count-until-today`, o painel mostra a aderência certa e o motor continua com a
 errada: o coach vê um número e a IA decide com outro. Corrigir isso limpa o sinal de aderência que
@@ -41,13 +53,16 @@ alimenta toda proposta de plano — base do moat de propostas que o coach aceita
   (`TreinoRealizado.contaNaCarga()` — exclui `statusSincronizacao = CANCELADO`). Um vínculo para um
   realizado cancelado pelo atleta/Strava não é cumprimento: vira falta. Treino extra continua na carga e
   no volume, não na aderência.
-- **Pendência de reconciliação** (planejado sem vínculo, mas com treino realizado avulso no mesmo dia cujo
-  `reconciliationStatus` ainda não foi triado pelo coach — ou seja, **diferente de** `NAO_PLANEJADO`): fica
-  **fora da conta** — nem cumprido nem falta (decisão do founder). Dado incompleto não reduz o plano. Se o
-  coach já confirmou via reconciliação manual que aquele avulso **não corresponde** ao planejado
-  (`reconciliationStatus = NAO_PLANEJADO`), a ambiguidade já foi resolvida: o planejado conta como falta
-  normal, não como pendência. Se as pendências (as de verdade, ainda não triadas) passarem de 25% dos
-  planejados da janela, a aderência não decide.
+- **Pendência de reconciliação** (planejado sem vínculo, mas com treino realizado avulso no mesmo dia que
+  ainda não teve uma **triagem humana** de não-correspondência): fica **fora da conta** — nem cumprido nem
+  falta (decisão do founder). Dado incompleto não reduz o plano. Se um coach já confirmou via reconciliação
+  manual que aquele avulso **não corresponde** ao planejado, a ambiguidade foi resolvida de fato: o
+  planejado conta como falta normal, não como pendência. **Atenção (correção da DoR, rodada 2):**
+  `reconciliationStatus = NAO_PLANEJADO` sozinho **não** garante triagem humana — o motor de matching
+  automático (`MatchingDecisionEngineImpl`) atribui o mesmo status quando não encontra candidato ou o
+  melhor score é baixo, sem nenhum humano envolvido (`reconciledBy = "SYSTEM"` nesse caminho). Só conta
+  como falta quando `reconciledBy` identifica uma pessoa, não o sistema. Se as pendências (as de verdade,
+  ainda sem triagem humana) passarem de 25% dos planejados da janela, a aderência não decide.
 - **Aderência ausente** (sem planejado na janela, ou pendências acima do teto): não libera progressão e não
   força redução — REDUZIR só por fadiga comprovada (TSB, RPE); o resto é MANTER (tabela em D3).
 - **Histórico mínimo** (3 treinos em 21 dias) continua contando todos os realizados.
@@ -83,9 +98,12 @@ alimenta toda proposta de plano — base do moat de propostas que o coach aceita
   de CA1–CA5.
 - **CA10 — Vínculo cancelado não conta como cumprido.** Given um planejado vinculado a um `TreinoRealizado`
   com `statusSincronizacao = CANCELADO`, Then ele conta como falta, não como cumprido.
-- **CA11 — Triagem do coach resolve a pendência.** Given um planejado sem vínculo com um realizado avulso
-  no mesmo dia cujo `reconciliationStatus = NAO_PLANEJADO`, Then o planejado conta como falta, não como
-  pendência.
+- **CA11 — Triagem humana resolve a pendência.** Given um planejado sem vínculo com um realizado avulso no
+  mesmo dia marcado `NAO_PLANEJADO` **por um coach** (`reconciledBy` ≠ `"SYSTEM"`), Then o planejado conta
+  como falta, não como pendência.
+- **CA12 — `NAO_PLANEJADO` automático continua pendente.** Given um planejado sem vínculo com um realizado
+  avulso no mesmo dia marcado `NAO_PLANEJADO` **pelo motor de matching automático** (`reconciledBy =
+  "SYSTEM"`), Then o planejado conta como pendência, não como falta.
 
 ## Gate de merge (D4)
 
@@ -133,3 +151,12 @@ lado; queda de mais de 5 p.p. aciona a flag. Pré-deploy: o gate de merge acima.
   fechadas); vínculo pendente virando falta (pendência fora da conta, com teto); "sem devidos" ambíguo
   (tabela D3); comparar todas as transições e bordas (gate); histórico recalculado no shadow (D5);
   fixtures e golden set afetados (task 2.5).
+- **DoR no `/implement init`, rodada 1 — Codex: NO-GO → incorporado (2026-10-01).** Vínculo cancelado
+  contando como cumprido (CA10); avulso triado como não-correspondente contando como pendência (CA11, v1);
+  D4 se autobloqueando no efeito de CA3; premissa de predicado "devido" compartilhado inexistente; gap de
+  assinatura `AtletaHojeResolver`/`calcularHistorico`.
+- **DoR no `/implement init`, rodada 2 — Codex: NO-GO → incorporado (2026-10-01).** CA11 v1 tratava
+  `NAO_PLANEJADO` como prova de triagem humana, mas o motor de matching automático atribui o mesmo status
+  sem nenhum humano — corrigido via `reconciledBy` (CA11 reescrito, CA12 novo). Narrativa do "Por quê"
+  desatualizada sobre o teto de data (já corrigido por PR #154). Precedência do histórico mínimo sobre D3
+  não estava documentada.
