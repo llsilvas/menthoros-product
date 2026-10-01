@@ -2,7 +2,13 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-01 (**`fix-adherence-count-until-today` entregue parcialmente e
+**Última atualização:** 2026-10-01 (**`fix-reconciliation-audit-planned-id` entregue e arquivada** —
+backend PR **#151** mergeado em `develop` em 2026-09-29; `ReconciliationDecisionExecutor.persistir`
+passa a preencher `afterPlannedIdUuid`/`beforePlannedIdUuid` na auditoria da reconciliação
+automática, mesmo campo que o fluxo manual já preenchia. `./mvnw clean verify` sem falhas (4251
+unit + 202 IT). Pendente: 2.3, conferir pós-deploy no homelab que a query de métrica de sucesso
+devolve 0. Arquivada em
+`changes/archive/2026-09/2026-09-29-fix-reconciliation-audit-planned-id/`.) Antes: 2026-10-01 (**`fix-adherence-count-until-today` entregue parcialmente e
 arquivada** — backend PR **#154** mergeado em `develop`; as três consultas de aderência
 (`AtletaProgressServiceImpl.getAderenciaSemanal`, `CoachDashboardServiceImpl.montarResumo`,
 `ProgressaoTreinoServiceImpl.calcularHistorico`) ganham teto de data (`dataTreino <= hoje`) e

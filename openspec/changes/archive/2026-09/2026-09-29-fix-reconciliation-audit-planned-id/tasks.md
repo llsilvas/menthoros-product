@@ -38,6 +38,7 @@ DoR (2026-09-29, Fast): READY. Duas notas do código:
 
 - [x] 2.1 `./mvnw clean verify` sem falhas (2026-09-29: 4251 unit + 202 IT, 0 falhas). Commit no
       backend: `edd3fb7`. Code review sem achado crítico ou importante.
-- [ ] 2.2 `/qa` e PR para `develop`, sem merge local.
+- [x] 2.2 `/qa` e PR para `develop`: PR #151 mergeada em 2026-09-29 (via GitHub, sem merge local).
 - [ ] 2.3 Pós-deploy no homelab: a consulta da "Métrica de sucesso" da proposta devolve 0 para
-      eventos depois do restart.
+      eventos depois do restart. **Pendente** — não executada nesta sessão; requer acesso ao banco
+      do homelab.
