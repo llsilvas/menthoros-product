@@ -35,10 +35,14 @@ abaixo constrói o predicado antes de usá-lo na classificação.
   `LoadTargetResolverTest`, `PlannerShadowServiceTest` e `EvalCandidateFixtures` foram atualizados com os
   4 campos novos zerados/nulos (default seguro, sem revisão semântica) — isso cobre só o mínimo da task
   1.7; a revisão semântica completa (inclusive `semVinculoAtletaFicaSemProgressao`) continua pendente.
-- [ ] 1.6 Um histórico por geração: propagar `ProgressaoHistoricoResumo` do `PlanGenerationContextLoader`
+- [x] 1.6 Um histórico por geração: propagar `ProgressaoHistoricoResumo` do `PlanGenerationContextLoader`
   até o `PlannerShadowService` (mesmo caminho já usado para `DecisaoProgressao`), em vez de o shadow
   recalcular por conta própria (D5)
-  - verify: teste do loader/shadow com o mesmo instante e o mesmo resumo
+  - verify: `ProgressaoTreinoService` removido do `PlannerShadowService` (não recalcula mais);
+    `PlanGenerationContext` ganhou `historicoProgressao`, repassado nos dois call sites
+    (`PlanGenerationPersister`, `PlanoServiceImpl`). Suíte completa: 4362 testes, 0 falhas.
+    Teste de isolamento de erro do shadow (CA11) adaptado para o novo formato de falha
+    (historico `null`, em vez de exceção do repositório).
 - [ ] 1.7 Inventariar e reconstruir fixtures do construtor do resumo (planner, golden set, shadow); revisar expectativas semanticamente (ex.: `semVinculoAtletaFicaSemProgressao`)
 - [ ] 1.8 Validação: `./mvnw clean verify`
 
