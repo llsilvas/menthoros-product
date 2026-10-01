@@ -43,8 +43,18 @@ abaixo constrói o predicado antes de usá-lo na classificação.
     (`PlanGenerationPersister`, `PlanoServiceImpl`). Suíte completa: 4362 testes, 0 falhas.
     Teste de isolamento de erro do shadow (CA11) adaptado para o novo formato de falha
     (historico `null`, em vez de exceção do repositório).
-- [ ] 1.7 Inventariar e reconstruir fixtures do construtor do resumo (planner, golden set, shadow); revisar expectativas semanticamente (ex.: `semVinculoAtletaFicaSemProgressao`)
-- [ ] 1.8 Validação: `./mvnw clean verify`
+- [x] 1.7 Inventariar e reconstruir fixtures do construtor do resumo (planner, golden set, shadow); revisar expectativas semanticamente (ex.: `semVinculoAtletaFicaSemProgressao`)
+  - `grep` exaustivo em `domain/planner/*.java`: só `tsbAtual`, `ctlAtual`, `semanasProgressaoContinua`
+    e `longoesRealizados21d` são lidos de `ProgressaoHistoricoResumo` — nenhum consumidor fora de
+    `ProgressaoTreinoServiceImpl` toca `treinosCumpridos`/`treinosFaltas`/`treinosPendentes`/`aderencia`.
+    Os defaults zero/null aplicados em `PlannerScopeTest`, `InjuryRiskEvaluatorTest`,
+    `PlannerEngineGoldenSetTest`, `PlannerEngineTest`, `LoadTargetResolverTest`,
+    `PlannerShadowServiceTest` e `EvalCandidateFixtures` são inertes por construção, não só
+    "suficientes para compilar" — nenhuma revisão semântica adicional é necessária ali.
+    `semVinculoAtletaFicaSemProgressao` já revisado nas tasks 1.1–1.5 (regra antiga, comportamento
+    inalterado).
+- [x] 1.8 Validação: `./mvnw clean verify`
+  - 4362 testes unitários (surefire) + 204 de integração (failsafe) — 0 falhas, 0 erros, BUILD SUCCESS
 
 ## 2. Gate de merge (D4) — antes do PR
 - [ ] 2.1 Comparação antiga × nova, atletas ativos do homelab, sexta/sábado/domingo: todas as transições com motivo; atletas com pendência e peso. **Não bloqueia** a transição só porque extras pararam de inflar (efeito esperado de CA3) — ver critério completo no proposal.
