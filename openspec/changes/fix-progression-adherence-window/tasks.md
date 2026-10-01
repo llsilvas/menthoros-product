@@ -57,8 +57,31 @@ abaixo constrói o predicado antes de usá-lo na classificação.
   - 4362 testes unitários (surefire) + 204 de integração (failsafe) — 0 falhas, 0 erros, BUILD SUCCESS
 
 ## 2. Gate de merge (D4) — antes do PR
-- [ ] 2.1 Comparação antiga × nova, atletas ativos do homelab, sexta/sábado/domingo: todas as transições com motivo; atletas com pendência e peso. **Não bloqueia** a transição só porque extras pararam de inflar (efeito esperado de CA3) — ver critério completo no proposal.
-  - verify: nenhuma transição em direção a REDUZIR causada por pendência mal classificada ou semana em curso; mudanças sem causa ≤ 20% (senão, change de recalibração antes de ligar a flag). Resultado registrado aqui.
+- [x] 2.1 Comparação antiga × nova, atletas ativos do homelab, sexta/sábado/domingo: todas as transições com motivo; atletas com pendência e peso. **Não bloqueia** a transição só porque extras pararam de inflar (efeito esperado de CA3) — ver critério completo no proposal.
+  - **Execução (2026-10-01):** 5 atletas ativos do homelab, 3 datas de referência da mesma semana
+    (2026-09-25/26/27 = sexta/sábado/domingo). Dados extraídos via SSH + `psql` read-only
+    (túnel fechado e container local de volta ao estado anterior após o uso); harness reusou
+    `ProgressaoTreinoServiceImpl` real com os repositórios mockados a partir dos dados reais
+    (não reimplementação da lógica em SQL) — script descartável, não commitado.
+  - **15 combinações atleta×data; 6 transições, 0 em direção a REDUZIR:**
+    - 3 transições REDUZIR → MANTER (1 atleta): sem planejado devido na janela fechada
+      (aderência ausente) — regra antiga tratava 0 planejados como aderência 0% e reduzia; a
+      nova não reduz sem fadiga comprovada (CA6). Efeito esperado da correção.
+    - 3 transições PROGREDIR_LEVE → MANTER (1 atleta): regra antiga computou aderência de
+      200–250% (extras inflando o numerador sem teto); a nova corrigiu para 67%, dentro da
+      faixa real (CA3). Efeito esperado da correção.
+    - 3 atletas (9 combinações) sem transição — "histórico insuficiente" (< 3 realizados em
+      21 dias) em ambas as regras, decisão idêntica.
+  - **Pendência de reconciliação na janela:** 0 de 5 atletas nesta semana específica. Achado
+    paralelo: no período completo de dados (jul–set/2026) existem 36 realizados avulsos com
+    `reconciliation_status=NAO_PLANEJADO` e `reconciled_by=SYSTEM` (nenhum com triagem humana,
+    CA11, hoje) — não caíram nesta janela de 3 semanas, mas o cenário de pendência (CA4/CA12,
+    teto de 25%) pode aparecer em outras semanas; vale monitorar no pós-deploy (task 3.1).
+    Nenhum vínculo `CANCELADO` nos dados reais (CA10 não exercido hoje).
+  - **Mudanças sem causa identificada: 0%** (bem dentro do teto de 20% do gatilho de
+    recalibração). Nenhuma transição em direção a REDUZIR causada por pendência mal
+    classificada ou semana em curso vazando na janela.
+  - **Veredito: gate passa.** Nenhum bloqueio.
 
 ## 3. Pós-deploy
 - [ ] 3.1 Aceitação sem edição de volume do `WeekSuggestion`: 4 semanas antes vs. 4 depois, n ≥ 20 em cada lado; queda > 5 p.p. → desligar a flag
