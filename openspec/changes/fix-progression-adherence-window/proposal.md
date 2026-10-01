@@ -160,3 +160,21 @@ lado; queda de mais de 5 p.p. aciona a flag. Pré-deploy: o gate de merge acima.
   sem nenhum humano — corrigido via `reconciledBy` (CA11 reescrito, CA12 novo). Narrativa do "Por quê"
   desatualizada sobre o teto de data (já corrigido por PR #154). Precedência do histórico mínimo sobre D3
   não estava documentada.
+- **`/qa` antes do PR — Codex review + adversarial-review (dois runs independentes, convergência forte):
+  NO-GO → incorporado (2026-10-01).** (1) `temTriagemHumanaDeNaoCorrespondencia` usava `anyMatch`: um
+  avulso já triado por humano encobria outro avulso ainda PENDENTE/AMBIGUO no mesmo dia, resolvendo a
+  ambiguidade prematuramente — trocado para `allMatch` (CA11/CA12 só resolvem o dia quando TODOS os
+  avulsos candidatos foram descartados por um humano). (2) `hoje = atletaHojeResolver.hojeDe(atleta)`
+  era usado incondicionalmente, inclusive nas janelas legadas de 42/21/7 dias e na regra antiga —
+  explicitamente fora do escopo (ver "Fora do escopo") e quebrava CA8 quando servidor e atleta
+  estivessem em datas-calendário diferentes; as janelas legadas voltaram a `LocalDate.now(clock)`, só a
+  aderência por devidos usa o fuso do atleta. (3, achado só do review nativo) `avulsosPorData` não
+  filtrava `contaNaCarga()` — um avulso CANCELADO no Strava (a linha nunca é apagada,
+  `StravaWebhookServiceImpl.markAsCanceled`) podia virar candidato de pendência/falta por engano;
+  adicionado o filtro. (4, achado só do review nativo) a flag estava com default `false` e comentário
+  desatualizado mesmo com o gate de merge (2.1) já registrado como aprovado — D7 diz "ligada por padrão
+  depois do gate"; default trocado para `true`, mantendo `PROGRESSAO_ADERENCIA_DEVIDOS_ENABLED=false`
+  como rollback sem deploy. Os 3 cenários corrigidos não existiam nos dados reais usados no gate 2.1
+  (nenhum avulso CANCELADO, nenhum dia com 2+ avulsos, fuso do atleta igual ao do relógio do harness) —
+  o resultado do gate permanece válido. Testes de regressão para os 3 casos adicionados; suíte completa
+  (4365 unitários + 204 de integração) verde com a flag já no novo default.
