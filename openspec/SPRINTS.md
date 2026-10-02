@@ -2,7 +2,30 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-01 (**`fix-progression-adherence-window` entregue e arquivada** —
+**Última atualização:** 2026-10-01 (**`reorganizar-listagem-provas-atleta` entregue e arquivada** —
+front PR **#137** mergeado em `develop`; a tela "Minhas provas" do atleta ordenava toda prova-alvo
+primeiro independente da data e o resto só por data ascendente, deixando provas passadas antes de
+futuras não-alvo. `buildAthleteRaceList` passa a ordenar cronologicamente (futuras ascendente,
+passadas depois como histórico descendente); 4 categorias visuais novas (`alvo`/`proxima`/`futura`/
+`historico`). `/qa` com Codex + clean-code-reviewer corrigiu 3 achados antes do merge (prova-alvo já
+realizada ganhando banner indevido; opacity derrubando contraste no histórico; duplicação de
+`isFutura`). Fast track, só `menthoros-front` — sem bug no backend. Suíte: 228 arquivos, 1930
+testes, 0 falhas. Arquivada em
+`changes/archive/2026-10/2026-10-01-reorganizar-listagem-provas-atleta/`.) Antes: 2026-10-01 (**dois
+fixes diretos no backend fecham o gap deixado por `fix-adherence-count-until-today`** (ver entrada
+abaixo, "escopo reduzido") — sem change formal, autorizados pelo usuário. **PR #157:**
+`AtletaProgressServiceImpl.getAderenciaSemanal` e `CoachDashboardServiceImpl` (roster) consultavam
+com `dataFim=hoje`, cortando a semana ATUAL antes dela terminar — um planejado pro sábado nem entrava
+no total até o sábado chegar, inflando a aderência da semana em curso pra 100% com um dia ainda
+pendente (achado real, observado em produção/homelab). Corrigido: `dataFim` passa a ser o fim da
+semana atual. Vínculo `CANCELADO` no Strava também parou de contar como realizado (mesma classe do
+CA10 de `fix-progression-adherence-window`). **PR #159** (conteúdo originalmente do #158, que mergeou
+na branch errada — ver nota abaixo): expõe `aderencia4Semanas` de verdade no perfil do coach — o
+front já lia esse campo (`diagnosisChartsAdapters.ts`) esperando-o, mas ele nunca existiu no
+contrato do backend; o card de aderência carregava com o fallback do roster e sempre virava "-" assim
+que o perfil carregava. `AtletaProgressService.getAderencia4Semanas` agora é fonte única entre roster
+e perfil — exatamente o que a documentação já pedia e nunca foi implementado. `./mvnw clean verify`:
+4414 unit + 204 IT, 0 falhas nos dois.) Antes: 2026-10-01 (**`fix-progression-adherence-window` entregue e arquivada** —
 backend PR **#155** mergeado em `develop`; o motor de progressão passa a calcular aderência sobre 3
 semanas ISO fechadas, só com planejados devidos (exclui `DESCANSO`), distinguindo vínculo cancelado
 (falta) de pendência de reconciliação (triagem humana vs. classificação automática). Aderência
