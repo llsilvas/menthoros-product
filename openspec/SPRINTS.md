@@ -2,7 +2,22 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-01 (**`reorganizar-listagem-provas-atleta` entregue e arquivada** —
+**Última atualização:** 2026-10-04 (**`extract-adherence-calculator` entregue e arquivada** —
+backend PR **#161** mergeado em `develop`; os 4 métodos de cálculo de aderência duplicados entre
+`AtletaProgressServiceImpl` (`getAderencia4Semanas`/`getAderenciaSemanal`) e
+`ProgressaoTreinoServiceImpl` (`calcularAderenciaJanelaFechada`/`calcularAderenciaRegraAntiga`)
+foram movidos para um novo `AdherenceCalculator` (candidato C1 da review de arquitetura de
+02/10 — único onde o "deletion test" falhava nas três implementações). Refactor puro: nenhuma
+regra muda, flag `menthoros.progressao.aderencia-devidos.enabled` intocada (default continua
+`false`). **Achado da revisão adversarial do Codex no `/implement init`:** corrigir o default
+divergente com `application.yml` (`true`) não é refactor — troca qual regra decide a progressão
+quando a propriedade está ausente; ficou fora do escopo, registrado para decidir junto de
+`eval-progression-adherence-rollout` (mesma flag, já no Kanban aguardando janela pós-deploy).
+`/qa` (code/security/clean-code-reviewer + Codex) sem Critical; 1 Important real corrigido
+(duplicação de `segundaDaSemana` extraída); 1 Important descartado após verificação (falso
+positivo de campo morto). `./mvnw clean test`: 4.429 testes, 0 Failures (`verify` completo
+coberto pelo CI do PR, sessão local sem Docker). Arquivada em
+`changes/archive/2026-10/2026-10-04-extract-adherence-calculator/`.) Antes: 2026-10-01 (**`reorganizar-listagem-provas-atleta` entregue e arquivada** —
 front PR **#137** mergeado em `develop`; a tela "Minhas provas" do atleta ordenava toda prova-alvo
 primeiro independente da data e o resto só por data ascendente, deixando provas passadas antes de
 futuras não-alvo. `buildAthleteRaceList` passa a ordenar cronologicamente (futuras ascendente,
