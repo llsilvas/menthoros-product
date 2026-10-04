@@ -59,13 +59,17 @@ estava em `refactor/extract-adherence-calculator` com alterações de outra sess
 - [x] 5.2 `PlanoService.listarSemanasDoAtleta` + impl (em andamento + 4 últimas concluídas);
       `montarOutputDto` extraído de `buscarPlanoPorAtleta`; constante `LIMITE_SEMANAS_CONCLUIDAS = 4`.
 - [x] 5.3 `PlanoTreinoController`: `GET /api/v1/planos/atletas/{atletaId}/semanas`, TECNICO/ADMIN.
-- [~] 5.4 Testes unitários em `PlanoServiceImplTest` (`ListarSemanasDoAtleta`: limite de 4 pedido ao
-      repositório; atleta sem plano → lista vazia). **Escritos, não compilados nem executados** — o
-      ambiente da sessão tem Java 11 e o projeto exige 21. Faltam: teste de repositório (IT) do limite com
-      6 concluídas e teste de 403 do controller.
+- [x] 5.4 Testes unitários em `PlanoServiceImplTest` (`ListarSemanasDoAtleta`: limite de 4 pedido ao
+      repositório; atleta sem plano → lista vazia). **Compilados e executados em 2026-10-04** (sessão com
+      Java 21): 64/64 verdes na classe, incluindo os 2 novos. Ainda faltam: teste de repositório (IT) do
+      limite com 6 concluídas e teste de 403 do controller — não bloqueantes, registrados como débito.
 - [x] 5.5 Front: `services/PlanoSemanasService.ts` (wrapper não gerado) e `usePlanoSemanal` consumindo o
       endpoint novo (e sem os `console.log` de debug). *verify:* tsc + eslint.
-- [ ] 5.6 `./mvnw clean verify` no backend e conferência manual: atleta com >4 concluídas mostra só 4.
+- [~] 5.6 `./mvnw clean compile` limpo (883 arquivos) e `PlanoServiceImplTest` verde em 2026-10-04.
+      **`./mvnw clean verify` completo não fechou nesta sessão** — sandbox sem Docker, as 244 falhas são
+      todas Testcontainers (`Could not find a valid Docker environment`), nenhuma nos arquivos deste
+      commit. Rodar o verify completo (com Docker) na máquina do dev antes do merge, junto com a
+      conferência manual: atleta com >4 concluídas mostra só 4.
 - [ ] 5.7 Reviews da trilha Full: `product-reviewer` e pré-mortem cross-model antes do merge.
 
 ## 3. Validação e fechamento
@@ -115,3 +119,9 @@ arquivos). Achados corrigidos no mesmo commit:
 Pendente (débito registrado, não bloqueante): god component de orquestração em `planosDialog.tsx`
 (5 fluxos no mesmo componente) — clean-code-reviewer sugeriu extrair ao menos exclusão/seleção para
 um hook próprio antes do próximo fluxo ser adicionado.
+
+## Backend: commit `bacd04a` e recuperação do worktree (2026-10-04)
+
+A Seção 5 (endpoint de semanas) foi commitada nesta sessão a partir de `.worktrees/backend-planos-dialog-padrao-inbox` — o worktree estava **locked** e registrado com um path de sandbox de uma sessão anterior (`/sessions/rcw-.../mnt/...`), inacessível neste ambiente. `git worktree repair` corrigiu o `gitdir`; três locks (`index.lock`, `HEAD.lock`, `refs/heads/.../lock`) ficaram órfãos da mesma sessão interrompida (todos com timestamp ~10:18–10:20, 2h30 antes da remoção) — confirmada a ausência de processo `git` ativo antes de cada remoção, conforme a seção "Duas sessões no mesmo repositório" do `CLAUDE.md` raiz.
+
+Validação do commit `bacd04a`: `./mvnw clean compile` limpo; `PlanoServiceImplTest` 64/64. `./mvnw clean verify` não fecha nesta sessão — sandbox sem Docker (Testcontainers não sobe Postgres). Rodar o verify completo e a conferência manual (5.6) na máquina do dev antes do merge.
