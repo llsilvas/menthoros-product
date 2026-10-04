@@ -25,7 +25,9 @@ pedidos pelo founder ao revisar a tela em uso.
 - **Insight completo:** novo `InsightTreinoDialog` (aberto pelo card, que já tem a análise carregada).
   Ordem: veredito (causa + nota) → resumo → **Recomendação em destaque** → "O que o atleta leu"
   **recolhido** por padrão.
-- **Grid:** cards com altura própria (`alignItems: flex-start`); o insight fica logo abaixo das métricas.
+- **Grid:** sem expansão inline, a linha volta a alinhar a altura dos cards (stretch). "Ritmo alvo" aparece
+  sempre ("—" quando ausente) para a linha não ficar irregular; o link "Ver insight completo" usa texto
+  principal (o cinza de ghost quase não parecia clicável).
 - **KPIs do plano:** remove "Volume alvo"; a faixa passa de 4 para 3 cartões (Planejado, Realizado, Treinos).
 
 ## Fora de escopo
@@ -41,8 +43,8 @@ pedidos pelo founder ao revisar a tela em uso.
 1. Given um treino realizado com análise concluída, When o card renderiza, Then o insight mostra tag da
    causa principal (quando existe), "Execução x/10" (quando há nota) e o resumo em até 2 linhas, sem botão
    "Ver mais" que expanda o card.
-2. Given três cards lado a lado e um com insight, When qualquer um é interagido, Then a altura de nenhum
-   card muda e os vizinhos não ganham espaço vazio.
+2. Given três cards lado a lado, When qualquer um é interagido, Then a altura de nenhum card muda e a linha
+   permanece alinhada (inclusive quando um treino não tem ritmo alvo).
 3. Given "Ver insight completo", When clicado, Then abre o `InsightTreinoDialog` com veredito, resumo e
    Recomendação visíveis, e "O que o atleta leu" recolhido; o botão da seção a expande e recolhe.
 4. Given uma análise sem `recommendation` ou sem textos do atleta, When o dialog abre, Then a seção
