@@ -20,8 +20,9 @@ pedidos pelo founder ao revisar a tela em uso.
 
 ## O que muda
 
-- **Card de treino:** o insight vira um bloco compacto: tag da causa principal, "Execução x/10" rotulada,
-  resumo em até 2 linhas e "Ver insight completo". Sem expansão inline, então a altura do card não muda.
+- **Card de treino:** o insight vira um bloco **minimalista, sem caixa**: divisor sutil, causa principal
+  como ponto + texto (âmbar só quando não é `NORMAL`), "Execução x/10" em 11px, resumo em 12px com até 2
+  linhas e link discreto "Ver insight completo". Sem expansão inline, então a altura do card não muda.
 - **Insight completo:** novo `InsightTreinoDialog` (aberto pelo card, que já tem a análise carregada).
   Ordem: veredito (causa + nota) → resumo → **Recomendação em destaque** → "O que o atleta leu"
   **recolhido** por padrão.
@@ -40,8 +41,8 @@ pedidos pelo founder ao revisar a tela em uso.
 
 ## Critérios de aceite
 
-1. Given um treino realizado com análise concluída, When o card renderiza, Then o insight mostra tag da
-   causa principal (quando existe), "Execução x/10" (quando há nota) e o resumo em até 2 linhas, sem botão
+1. Given um treino realizado com análise concluída, When o card renderiza, Then o insight mostra a
+   causa principal (ponto + texto) (quando existe), "Execução x/10" (quando há nota) e o resumo em até 2 linhas, sem botão
    "Ver mais" que expanda o card.
 2. Given três cards lado a lado, When qualquer um é interagido, Then a altura de nenhum card muda e a linha
    permanece alinhada (inclusive quando um treino não tem ritmo alvo).
