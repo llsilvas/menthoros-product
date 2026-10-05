@@ -12,11 +12,11 @@ atleta). Sem dependência de outra change aberta.
 
 ## Why
 
-Os treinadores que se inscreveram na waitlist (`tb_waitlist`, perfil TREINADOR) hoje só recebem
-e-mail quando são convidados individualmente para a turma fundadora
-(`FoundingInviteServiceImpl`). Não existe nenhum canal para avisá-los de algo que já está no ar
-hoje — a central de ajuda — antes mesmo de terem conta. Um e-mail avisando que o manual existe
-reduz dúvida de pré-venda e reforça que o produto está ativo enquanto esperam o convite.
+Os treinadores da waitlist (`tb_waitlist`, perfil TREINADOR) já receberam o convite da turma
+fundadora (`FoundingInviteServiceImpl`). Esta change não é sobre o convite — é um aviso à parte,
+complementar: a central de ajuda (`menthoros-docs`, manuais do treinador e do atleta) acabou de
+entrar no ar, e nada avisa quem já está na waitlist disso. Um e-mail curto resolve, com um canal
+de dúvida (`contato@menthoros.com`) para quem precisar de ajuda além do manual.
 
 ## What Changes
 

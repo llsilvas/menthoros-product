@@ -76,9 +76,10 @@ public interface WaitlistRepository extends JpaRepository<Waitlist, UUID> {
     int reivindicar(@Param("id") UUID id, @Param("agora") Instant agora);
 
     // Reverte a reivindicação se o envio falhar, liberando a linha para o próximo disparo.
+    // Incondicional por id, sem comparar o instante de volta (ver nota abaixo).
     @Modifying
-    @Query("UPDATE Waitlist w SET w.docsNotifiedAt = NULL WHERE w.id = :id AND w.docsNotifiedAt = :agora")
-    void liberar(@Param("id") UUID id, @Param("agora") Instant agora);
+    @Query("UPDATE Waitlist w SET w.docsNotifiedAt = NULL WHERE w.id = :id")
+    void liberar(@Param("id") UUID id);
 }
 ```
 
@@ -114,7 +115,7 @@ public class WaitlistDocsNotificationServiceImpl implements WaitlistDocsNotifica
                 // (SMTP ou um erro inesperado) não pode derrubar o lote nem perder a contagem.
                 log.warn("Falha ao notificar inscrito da waitlist sobre a central de ajuda: waitlistId={}",
                         inscrito.getId(), e);
-                waitlistRepository.liberar(inscrito.getId(), agora); // libera para o próximo disparo
+                waitlistRepository.liberar(inscrito.getId()); // libera para o próximo disparo
                 falhas++;
             }
         }
@@ -180,8 +181,10 @@ public class WaitlistDocsNotificationAdminController {
 Novo `waitlist-docs-site.{html,txt}`, mesma estrutura de tabela/estilo de `founding-invite.html`
 (cabeçalho navy `#0B1220` + faixa lime `#C6E24A`, mesmas imagens `{{assetsUrl}}/menthoros-*.png`,
 CTA único). Placeholders: `nome`, `docsUrl`, `assetsUrl`. Corpo curto — isto é um aviso, não um
-pitch: "a central de ajuda já está no ar, com o manual do treinador e do atleta" + botão "Ver a
-central de ajuda" apontando para `{{docsUrl}}`.
+pitch de convite (o convite da turma fundadora já foi enviado por `FoundingInviteServiceImpl`,
+fluxo separado): "a central de ajuda já está no ar, com o manual do treinador e do atleta" +
+botão "Ver a central de ajuda" apontando para `{{docsUrl}}` + linha de contato
+(`contato@menthoros.com`) para dúvidas que o manual não cobrir.
 
 ### D7 — Gap de `ADMIN` inativo em `/api/admin/**`: herdado, fora de escopo
 

@@ -6,43 +6,53 @@ Validação por bloco: `./mvnw clean test` em `apps/menthoros-backend`. Branch
 
 ## 1. Schema
 
-- [ ] 1.1 Migration `Vxx__add_docs_notified_at_to_tb_waitlist.sql` — confirmar o próximo número
-      livre em `src/main/resources/db/migration/` no momento da implementação (era `V99` quando
-      este proposal foi escrito; pode já estar ocupado). `ALTER TABLE tb_waitlist ADD COLUMN
-      docs_notified_at TIMESTAMPTZ NULL;`.
-      *verify:* IT de migração (contexto Spring sobe limpo); `./mvnw clean test`.
-- [ ] 1.2 Campo `docsNotifiedAt` em `Waitlist` (`Instant`, nullable).
-      *verify:* compila; teste de entidade existente continua verde.
+- [x] 1.1 Migration `V99__Add_docs_notified_at_to_tb_waitlist.sql` — `V99` confirmado livre na
+      implementação. `ALTER TABLE tb_waitlist ADD COLUMN IF NOT EXISTS docs_notified_at
+      TIMESTAMPTZ;`.
+      *verify:* `./mvnw clean test` — suíte completa (4448 testes) verde, incluindo o boot do
+      contexto Spring/Flyway.
+- [x] 1.2 Campo `docsNotifiedAt` em `Waitlist` (`Instant`, nullable).
+      *verify:* compila; `WaitlistServiceImplTest`/`WaitlistControllerIT` existentes continuam
+      verdes.
 
 ## 2. Repository e service
 
-- [ ] 2.1 `WaitlistRepository.findAllByPerfilAndDocsNotifiedAtIsNull(PerfilWaitlist perfil)` +
-      `reivindicar(id, agora)` / `liberar(id, agora)` (`@Modifying @Query`, design D2/D3).
-      *verify:* teste de repositório — `findAll` retorna só TREINADOR sem `docsNotifiedAt`;
-      `reivindicar` retorna 1 na primeira chamada e 0 numa segunda chamada para o mesmo id
-      (CA8 — corrida).
-- [ ] 2.2 `WaitlistDocsNotificationService` (interface) + `WaitlistDocsNotificationServiceImpl`
+- [x] 2.1 `WaitlistRepository.findAllByPerfilAndDocsNotifiedAtIsNull(PerfilWaitlist perfil)` +
+      `reivindicarAvisoDocs(id, agora)` / `liberarAvisoDocs(id)` (`@Modifying @Transactional
+      @Query`, design D2/D3 — mesmo padrão de `AthleteInviteRepository#claim`/`liberarClaim`,
+      achado durante a implementação). `liberarAvisoDocs` simplificado para incondicional por id
+      (sem comparar `Instant` de volta — ver nota no design D3: evita risco de truncamento de
+      precisão `Instant` vs. `TIMESTAMPTZ` do Postgres, desnecessário já que não há "reivindicação
+      alheia" possível entre o claim e a falha).
+      *verify:* `WaitlistRepositoryTest` (IT, Testcontainers) — `findAll` só retorna TREINADOR sem
+      `docsNotifiedAt`; `reivindicarAvisoDocs` retorna 1 na primeira chamada e 0 na segunda para o
+      mesmo id (CA8); `liberarAvisoDocs` reabre elegibilidade. Asserções por `contains`/
+      `doesNotContain` do próprio registro, não por lista exata — a tabela é compartilhada com
+      outras classes de teste no Postgres da suíte (`WaitlistControllerIT` etc. deixam linhas).
+- [x] 2.2 `WaitlistDocsNotificationService` (interface) + `WaitlistDocsNotificationServiceImpl`
       (design D3, pós pre-mortem: claim-antes-de-enviar, libera em caso de falha) +
       `WaitlistDocsNotificationResultDto` (record `elegiveis, enviados, falhas`). Property
-      `app.docs.url` (design D6) em `application.yml`/`application-cloud.yml` =
-      `https://docs.menthoros.com`.
-      *verify:* CA1, CA2, CA3, CA4, CA5, CA7 — `EmailSender` mockado (sucesso, falha parcial,
-      lista vazia, perfil ATLETA excluído, chamada repetida não reenvia); CA8 — duas chamadas ao
-      serviço processando o mesmo inscrito, só uma invoca `EmailSender.send`.
+      `app.docs.url` (design D6) em `application.yml` = `${DOCS_URL:https://docs.menthoros.com}`,
+      mesmo padrão de `app.frontend.url`.
+      *verify:* `WaitlistDocsNotificationServiceImplTest` — CA1, CA2, CA3, CA4, CA5, CA8 — 6
+      testes, `EmailSender`/`WaitlistRepository` mockados.
 
 ## 3. Template de e-mail
 
-- [ ] 3.1 `templates/email/waitlist-docs-site.html` e `.txt` (design D5), placeholders `nome`,
-      `docsUrl`, `assetsUrl`.
-      *verify:* teste de renderização — todos os placeholders preenchidos, sem
-      `IllegalArgumentException`.
+- [x] 3.1 `templates/email/waitlist-docs-site.html` e `.txt` (design D5), placeholders `nome`,
+      `docsUrl`, `assetsUrl`. Texto ajustado durante a implementação (feedback do usuário): os
+      treinadores já receberam o convite da turma fundadora — este e-mail é só o aviso da central
+      de ajuda, sem framing de "aguardando vaga"; inclui linha de contato
+      (`contato@menthoros.com`) para dúvidas.
+      *verify:* coberto indiretamente pelo teste do service (CA1 — `EmailTemplateRenderer` real,
+      sem mock, lançaria `IllegalArgumentException` se faltasse placeholder).
 
 ## 4. Endpoint admin
 
-- [ ] 4.1 `WaitlistDocsNotificationAdminController` — `POST /api/admin/waitlist/notificar-docs`,
+- [x] 4.1 `WaitlistDocsNotificationAdminController` — `POST /api/admin/waitlist/notificar-docs`,
       `@PreAuthorize("hasRole('ADMIN')")` (design D4).
-      *verify:* CA6 — IT sem role ADMIN retorna 403; IT com ADMIN retorna 200 e o corpo com as
-      três contagens.
+      *verify:* `WaitlistDocsNotificationAdminControllerTest` — CA6 (`TECNICO`/`PROPRIETARIO` →
+      403, `ADMIN` → 200 com as três contagens, sem JWT → 401).
 
 ## 5. Integração e encerramento
 
