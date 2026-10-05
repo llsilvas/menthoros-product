@@ -1,6 +1,6 @@
 # Tasks — fix-auto-approve-violations-detected
 
-Branch `feature/fix-auto-approve-violations-detected` no backend. Validacao: `./mvnw clean test`.
+Branch `fix/fix-auto-approve-violations-detected` no backend. Validacao: `./mvnw clean test`.
 
 ## 1. Backend — veto
 
