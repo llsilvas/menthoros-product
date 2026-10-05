@@ -1,13 +1,13 @@
 # Tasks — add-coach-suggestion-decision-audit
 
 Validação por bloco: backend `./mvnw clean test`; frontend `npm run lint && npm run build && npm test`.
-Branch `feature/add-coach-suggestion-decision-audit` nos dois repos. Backend mergeia antes do front.
-Sem pré-requisito de outra change (migration aditiva independente V99; ordem invertida por decisão
+Branch `feat/add-coach-suggestion-decision-audit` nos dois repos. Backend mergeia antes do front.
+Sem pré-requisito de outra change (migration aditiva independente V100; ordem invertida por decisão
   do founder 2026-10-05 — decision-audit antes de edit-delta).
 
 ## 1. Backend — modelo
 
-- [ ] 1.1 Migration `V99__add_decision_audit_to_tb_sugestao_coach.sql` (design D3): colunas
+- [ ] 1.1 Migration `V100__add_decision_audit_to_tb_sugestao_coach.sql` (design D3): colunas
   `reviewed_by` (uuid, nullable), `motivo_rejeicao` (text, nullable). Sem alterar constraints.
   - verify: IT Testcontainers — colunas existem, defaults nulos corretos.
 - [ ] 1.2 Entidade `SugestaoCoach`: campos `reviewedBy` (UUID) e `motivoRejeicao` (String).
@@ -15,6 +15,12 @@ Sem pré-requisito de outra change (migration aditiva independente V99; ordem in
 
 ## 2. Backend — serviço e endpoint
 
+- [ ] 2.0 `SugestaoCoachRepository.decidirSePendente(...)` (design D4, achado Codex): `@Modifying
+  @Query` UPDATE condicionado a `status = 'PENDING'`, gravando status + reviewedAt + reviewedBy +
+  motivoRejeicao atomicamente; `aprovar`/`rejeitar` usam o retorno (linhas afetadas) e lançam
+  `DomainConflictException` (409) quando `0` — nunca sobrescrevem uma decisão concorrente.
+  - verify: CA6 (duas decisões concorrentes — teste disputa a transição, só uma vence; a outra
+    recebe 409 e não perde a auditoria da vencedora).
 - [ ] 2.1 `aprovar`/`rejeitar` gravam `reviewedBy` do security context (design D1); `aprovar`
   seta `motivoRejeicao = null`.
   - verify: CA1 (reviewedBy do token, não do corpo), CA4 (não forjável).

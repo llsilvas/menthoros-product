@@ -26,7 +26,7 @@ apontou como a evidência mais barata de que a edição é necessária.
 
 1. **Entidade `SugestaoCoach`** ganha 2 campos: `reviewedBy` (UUID, nullable — técnico que decidiu)
    e `motivoRejeicao` (TEXT, nullable — texto livre do porquê da rejeição).
-2. **Migration aditiva** (independente, V99): colunas
+2. **Migration aditiva** (independente, V100): colunas
    `reviewed_by uuid NULL` e `motivo_rejeicao text NULL` em `tb_sugestao_coach`. Expand-only, sem
    backfill (linhas legadas ficam com `reviewed_by` nulo — predatam a auditoria).
 3. **`SugestaoCoachServiceImpl`**:
@@ -56,7 +56,7 @@ apontou como a evidência mais barata de que a edição é necessária.
 ## Dependências e ordem
 
 - **Sem dependência de `add-coach-suggestion-edit-delta`** (ordem invertida por decisão do founder
-  2026-10-05: decision-audit primeiro, edit-delta depois). Migration desta change = V99; o
+  2026-10-05: decision-audit primeiro, edit-delta depois). Migration desta change = V100; o
   `@Version`/`versaoEsperada` de `aprovar`/`rejeitar` fica para a `edit-delta`.
 - Backend mergeia antes do front.
 
@@ -72,6 +72,10 @@ apontou como a evidência mais barata de que a edição é necessária.
    `reviewedBy` gravado é o do token autenticado, não o do corpo.
 5. **Given** uma sugestão já decidida, **when** o coach abre o dialog, **then** vê quem decidiu
    (`reviewedBy`) e, se `REJECTED`, o `motivoRejeicao`.
+6. **Given** duas decisões concorrentes sobre a mesma sugestão PENDING (achado do Codex
+   adversarial-review, design D4), **when** ambas chegam ao `UPDATE` condicionado a
+   `status = PENDING`, **then** só uma afeta linha e vence (com sua auditoria intacta); a outra
+   recebe `409 DomainConflictException` — nenhuma sobrescreve a auditoria da outra silenciosamente.
 
 ## Métrica de sucesso
 
