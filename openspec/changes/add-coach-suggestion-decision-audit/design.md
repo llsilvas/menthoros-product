@@ -4,8 +4,9 @@
 
 `SugestaoCoach` (`entity/SugestaoCoach.java`) tem `reviewedAt` mas **não** `reviewedBy` nem
 `motivoRejeicao`. `SugestaoCoachServiceImpl.aprovar/rejeitar` só fazem `setStatus(...)` +
-`setReviewedAt(...)`. `add-coach-suggestion-edit-delta` já adiciona `versao` (`@Version`) e
-`versaoEsperada` em `aprovar`/`rejeitar` — esta change herda esse endpoint já versionado.
+`setReviewedAt(...)`. Sem `@Version`/`versaoEsperada` nesta change — o controle de concorrência
+otimista (lock de versão) em `aprovar`/`rejeitar` entra na `add-coach-suggestion-edit-delta`, que
+passa a vir DEPOIS desta change (ordem invertida por decisão do founder, 2026-10-05).
 
 ## D1 — `reviewedBy` vem do security context, nunca do request body
 
@@ -19,10 +20,10 @@ falsificável não é auditoria (guardrail "every approval is audit-logged").
 continua válido). `aprovar` seta `motivoRejeicao = null` (decisão final é aprovar; não carregar
 motivo de rejeição residual). Sem enum na v1 — classificação é follow-up quando houver volume.
 
-## D3 — Migration expand-only, sem backfill, sequenciada após a do `edit-delta`
+## D3 — Migration expand-only, sem backfill, independente (V99)
 
 ```sql
--- Vnn (próxima livre, APÓS a migration do add-coach-suggestion-edit-delta)
+-- V99 (próxima livre em 2026-10-05)
 ALTER TABLE tb_sugestao_coach
   ADD COLUMN reviewed_by uuid,
   ADD COLUMN motivo_rejeicao text;

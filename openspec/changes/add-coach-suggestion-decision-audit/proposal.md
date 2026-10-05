@@ -26,7 +26,7 @@ apontou como a evidência mais barata de que a edição é necessária.
 
 1. **Entidade `SugestaoCoach`** ganha 2 campos: `reviewedBy` (UUID, nullable — técnico que decidiu)
    e `motivoRejeicao` (TEXT, nullable — texto livre do porquê da rejeição).
-2. **Migration aditiva** (depende da migration do `add-coach-suggestion-edit-delta`): colunas
+2. **Migration aditiva** (independente, V99): colunas
    `reviewed_by uuid NULL` e `motivo_rejeicao text NULL` em `tb_sugestao_coach`. Expand-only, sem
    backfill (linhas legadas ficam com `reviewed_by` nulo — predatam a auditoria).
 3. **`SugestaoCoachServiceImpl`**:
@@ -55,8 +55,9 @@ apontou como a evidência mais barata de que a edição é necessária.
 
 ## Dependências e ordem
 
-- Depende de `add-coach-suggestion-edit-delta` (a migration dela já mexeu em `tb_sugestao_coach`;
-  esta adiciona 2 colunas a mais, e o `versaoEsperada` dela já está em `aprovar`/`rejeitar`).
+- **Sem dependência de `add-coach-suggestion-edit-delta`** (ordem invertida por decisão do founder
+  2026-10-05: decision-audit primeiro, edit-delta depois). Migration desta change = V99; o
+  `@Version`/`versaoEsperada` de `aprovar`/`rejeitar` fica para a `edit-delta`.
 - Backend mergeia antes do front.
 
 ## Critérios de aceite

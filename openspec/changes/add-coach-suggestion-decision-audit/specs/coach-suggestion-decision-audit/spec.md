@@ -46,6 +46,6 @@ Quando a sugestão já foi decidida, o payload e a UI SHALL expor `reviewedBy` e
 
 ## Dados
 
-Migration aditiva `reviewed_by uuid NULL` + `motivo_rejeicao text NULL` em `tb_sugestao_coach`,
-sequenciada após a migration de `add-coach-suggestion-edit-delta`. Sem backfill. Rollback: reverter
-código; colunas ficam inertes.
+Migration aditiva `reviewed_by uuid NULL` + `motivo_rejeicao text NULL` em `tb_sugestao_coach`
+(V99, independente — sem dependência de `add-coach-suggestion-edit-delta`, que passa a vir depois).
+Sem backfill. Rollback: reverter código; colunas ficam inertes.
