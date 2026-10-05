@@ -2,7 +2,22 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-04 (**`extract-adherence-calculator` entregue e arquivada** —
+**Última atualização:** 2026-10-05 (**`coach-planned-trainings-tss` entregue e arquivada** —
+backend PR **#165** + frontend PR **#145** mergeados em `develop`. Bug: no painel "Plano Vigente"
+da ficha do atleta (coach), o TSS planejado não aparecia — motivado por relato real (atleta
+Leandro). Causa raiz: `tssPlanejado` já existia em `TreinoPlanejado`, mas nunca chegava em
+`TreinoPlanejadoResumoDto` nem era passado por `CoachAthleteProfileServiceImpl.resolverPlanoVigente`
+— ausência ponta a ponta, mesma classe do fix de `tssCalculado` em `RealizadoRecenteDto` (PR #164),
+espelhada no lado planejado. Fix: campo novo no DTO + wiring no service (backend); tipo +
+renderização condicional em `CurrentWeekPlan.tsx` (frontend), ocultando o bloco quando nulo em vez
+de mostrar "0" enganoso. Backend: 28/28 unit + `verify` completo (204 IT, 0 falhas). Frontend: 10/10
+unit + lint/build. Validação manual no painel real (task 3.1) adiada — ambiente local aponta pro
+Postgres do homelab, não verificado nesta sessão; cobertura automatizada valida o contrato ponta a
+ponta. **Fora de escopo, achado na investigação:** para tenants no schema v1 do LLM (default),
+`tssPlanejado` é aceito verbatim do modelo sem recálculo/validação e pode legitimamente persistir
+como `0` — gap de qualidade de dado na geração do plano, não de exposição no DTO; se o TSS continuar
+"zerado" (não ausente) após este fix, é o próximo lugar a investigar. Arquivada em
+`changes/archive/2026-10/2026-10-05-coach-planned-trainings-tss/`.) Antes: 2026-10-04 (**`extract-adherence-calculator` entregue e arquivada** —
 backend PR **#161** mergeado em `develop`; os 4 métodos de cálculo de aderência duplicados entre
 `AtletaProgressServiceImpl` (`getAderencia4Semanas`/`getAderenciaSemanal`) e
 `ProgressaoTreinoServiceImpl` (`calcularAderenciaJanelaFechada`/`calcularAderenciaRegraAntiga`)
