@@ -2,7 +2,23 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-05 (**`coach-planned-trainings-tss` entregue e arquivada** —
+**Última atualização:** 2026-10-05 (**`notify-waitlist-docs-site` entregue e arquivada** —
+backend PR **#166** mergeado em `develop`, promovido a produção via PR **#167** (`develop` →
+`main`). S · Full, fora de sprint — operacional/growth, não product capability (product-reviewer:
+Refine, aceito). Novo endpoint `POST /api/admin/waitlist/notificar-docs` (ADMIN-only,
+tenant-less) avisa por e-mail, uma única vez por inscrito, todo treinador da waitlist de que a
+central de ajuda (`menthoros-docs`, manuais do treinador e do atleta) está no ar. Migration V99
+(`tb_waitlist.docs_notified_at`); claim atômico antes do envio
+(`WaitlistRepository#reivindicarAvisoDocs`/`liberarAvisoDocs`, mesmo padrão de
+`AthleteInviteRepository#claim`/`liberarClaim`) corrigindo uma corrida entre chamadas
+concorrentes achada no pre-mortem adversarial (Codex) — duas chamadas lendo a mesma lista de
+elegíveis antes de qualquer save duplicariam o lote inteiro. Achado documentado e deixado fora de
+escopo: `ADMIN` desativado localmente ainda passa em `/api/admin/**` (`JwtTenantFilter` isenta o
+prefixo inteiro antes de checar `Usuario.ativo`) — gap herdado de `FoundingInviteAdminController`,
+não introduzido aqui; recomendação de change de hardening separada cobrindo os dois endpoints
+admin registrada no Kanban. `./mvnw clean verify` completo verde (4448+ testes, incluindo `*IT`).
+Disparo manual via Apidog confirmado em produção pelo usuário. Arquivada em
+`changes/archive/2026-10/2026-10-05-notify-waitlist-docs-site/`.) Antes: 2026-10-05 (**`coach-planned-trainings-tss` entregue e arquivada** —
 backend PR **#165** + frontend PR **#145** mergeados em `develop`. Bug: no painel "Plano Vigente"
 da ficha do atleta (coach), o TSS planejado não aparecia — motivado por relato real (atleta
 Leandro). Causa raiz: `tssPlanejado` já existia em `TreinoPlanejado`, mas nunca chegava em
