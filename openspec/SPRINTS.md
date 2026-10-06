@@ -2,7 +2,18 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-06 (**`fix-treino-registro-fuso-atleta` entregue e arquivada** —
+**Última atualização:** 2026-10-06 (**`add-athlete-home-workout-analysis` entregue e arquivada** —
+frontend PR **#147** mergeado em `develop`. Investigando o relato "a análise do treino com IA não
+aparece na Home", confirmou-se que a Home do atleta nunca teve essa integração — gap de escopo da
+change original `analise-ia-treino-atleta` (cobriu Agenda e tela de registro, nunca a Home), não
+regressão. Duas iterações de design foram tentadas e descartadas a pedido do founder (card inteiro
+virando `<button>` — visual quebrado; depois um teaser separado + bottom sheet — funcionava, mas o
+founder pediu algo mais direto) antes do desenho final: `TodayCompletedCard` ("Treino feito") ganha
+a prop `analysisView` e renderiza `WorkoutAnalysisCard` inline, mesmo padrão já usado em
+`PostWorkoutFeedbackCard`. S · Fast. `npm run lint && npm run build && npm run test:run` verde
+(1956 testes). Arquivada em
+`changes/archive/2026-10/2026-10-06-add-athlete-home-workout-analysis/`.)
+Antes: 2026-10-06 (**`fix-treino-registro-fuso-atleta` entregue e arquivada** —
 backend PR **#169** mergeado em `develop`. Bug reportado: o card "Treino feito" da Home mostrava o
 treino de ontem em vez do de hoje. Causa raiz: registro manual (`addTreino`, `lancarTreino`,
 `registrarTreinoManualAtleta`) e sincronização Strava resolviam a data via `LocalDate.now()` no
