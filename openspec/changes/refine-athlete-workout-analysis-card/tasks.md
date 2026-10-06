@@ -52,3 +52,20 @@ Repo: `apps/menthoros-front` (`npm run lint && npm run build && npm run test:run
       paridade com o registro manual"), já verde. Registrar como follow-up se o founder quiser E2E
       de upload de verdade.
 - [x] 5.2 Validação final: `npm run lint && npm run build && npm run test:run` + E2E.
+
+## 6. Alinhamento com o board (`ui/README.md` + capturas)
+
+Depois do board do founder (`ui/board-{1,2,3}-*.png` + `.html`), ajustes para fechar a distância
+apontada no `ui/README.md`:
+
+- [x] 6.1 Prop `embedded` no `WorkoutAnalysisCard`: sem `Card`/`CardHeader` em volta, usada só pelo
+      `TodayCompletedCard` (Home) — sem card-em-card, como no board. `WorkoutDetailDrawer` e
+      `PostWorkoutFeedbackCard` continuam com o card completo.
+- [x] 6.2 Rótulo "Análise do treino" (ícone sparkle 12px) migra para dentro do `ai-highlight`, mas
+      só quando `embedded` (sem duplicar com o `CardHeader` externo no modo não-embedded).
+- [x] 6.3 Linha de métricas: texto secundário mono 13px/`surface[300]` (era `h6`/`surface[50]`).
+- [x] 6.4 `ai-highlight`: `radius.lg` (12px, era `radius.md`/8px) e padding assimétrico
+      `12px 16px 4px` (era 12px uniforme).
+- [x] 6.5 Estado `pending`: frase sem itálico em 13px/`surface[400]`, `role="status"`, barras de
+      skeleton 8px de altura em 92%/64% (era 10px em 92%/70%), cor `backgrounds.highest`.
+- [x] 6.6 Validação: `npm run lint && npm run build && npm run test:run` + E2E.
