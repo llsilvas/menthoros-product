@@ -2,7 +2,19 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-05 (**`notify-waitlist-docs-site` entregue e arquivada** —
+**Última atualização:** 2026-10-05 (**`fix-auto-approve-violations-detected` entregue e arquivada** —
+backend PR **#168** mergeado em `develop`. Bug de produção: o auto-approve do onboarding
+(Cenário A/EXCEPTION_ONLY) aprovava planos que o shadow do planner determinístico marcou com
+`plannerComplianceStatus = VIOLATIONS_DETECTED`, porque o veto em
+`PlanGenerationPersister.aplicarAutoApproveSeElegivel` só cobria `FAILED`/`FALLBACK`/
+`requiresCoachReview` — o shadow grava `VIOLATIONS_DETECTED` sem setar `requiresCoachReview` (é
+auditoria em paralelo, sem enforcement), então um plano com violação (treino em dia indisponível,
+taper violado) chegava ao atleta sem revisão do coach, quebrando o coach-in-the-loop. Fix: mais um
+termo na condição de veto. DoR (spec-reviewer + Codex adversarial-review) sem gaps. TDD: teste
+vermelho antes do fix, verde depois; teste de regressão confirma o caminho feliz (`COMPLIANT`)
+intacto. `./mvnw clean verify` verde (204 IT). QA (code/security/clean-code reviewer) sem achados.
+S · Fast. Arquivada em `changes/archive/2026-10/2026-10-05-fix-auto-approve-violations-detected/`.)
+Antes: 2026-10-05 (**`notify-waitlist-docs-site` entregue e arquivada** —
 backend PR **#166** mergeado em `develop`, promovido a produção via PR **#167** (`develop` →
 `main`). S · Full, fora de sprint — operacional/growth, não product capability (product-reviewer:
 Refine, aceito). Novo endpoint `POST /api/admin/waitlist/notificar-docs` (ADMIN-only,
