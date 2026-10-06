@@ -5,21 +5,22 @@ padrão: `npm run lint && npm run build` (+ `npm run test:run` nas tasks que toc
 
 ## 1. Unificar o id de análise entre registro manual e importação .fit
 
-- [ ] 1.1 `ManualTrainingFormPage.tsx`: derivar `realizadoId = treinoRegistrado?.id ??
+- [x] 1.1 `ManualTrainingFormPage.tsx`: derivar `realizadoId = treinoRegistrado?.id ??
       treinoImportado?.id ?? null` e passar para `useAthleteWorkoutAnalysis`.
       *verify:* `npm run lint && npm run build`
 
 ## 2. Exibir a análise no card de importação .fit
 
-- [ ] 2.1 `FitUploadResultCard.tsx`: adicionar prop `analysisView?: WorkoutAnalysisView | null`
+- [x] 2.1 `FitUploadResultCard.tsx`: adicionar prop `analysisView?: WorkoutAnalysisView | null`
       (mesmo tipo usado em `PostWorkoutFeedbackCard`) e renderizar `WorkoutAnalysisCard` quando
       presente.
-- [ ] 2.2 `ManualTrainingFormPage.tsx`: passar `analysisView` também para `FitUploadResultCard`.
+- [x] 2.2 `ManualTrainingFormPage.tsx`: passar `analysisView` também para `FitUploadResultCard`.
       *verify:* `npm run lint && npm run build`
 
 ## 3. Testes e fechamento
 
-- [ ] 3.1 Teste de `ManualTrainingFormPage` (ou do componente afetado) cobrindo: análise aparece no
-      card de importação `.fit` quando o hook retorna `done`/`pending`, e o card não quebra em
-      `empty`/`error`.
-- [ ] 3.2 `npm run lint && npm run build && npm run test:run`.
+- [x] 3.1 `FitUploadResultCard.test.tsx`: cobre com/sem `analysisView` (pending exibe
+      `workout-analysis-card`, ausente/`null` não quebra). `ManualTrainingFormPage.test.tsx`: cobre
+      que importar `.fit` aciona `useAthleteWorkoutAnalysis` com o id do treino importado e exibe o
+      card de análise.
+- [x] 3.2 `npm run lint && npm run build && npm run test:run` — 230 arquivos, 1955 testes passando.
