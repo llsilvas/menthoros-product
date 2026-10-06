@@ -30,15 +30,19 @@ Revisão da Home do atleta (2026-10-06) no estado `FEITO`:
 4. **Destaque de conteúdo de IA.** Com a análise pronta, os textos gerados ficam dentro de um bloco
    com `aiHighlight.bg` + `aiHighlight.border` (lime translúcido), rótulo e ícone em `primary[500]`.
    O realce próprio de "Para o próximo treino" sai, para não haver lime sobre lime.
-5. **Resumo primeiro.** O bloco mostra `reconhecimento` e `comoFoi`; "Ver análise completa" expande
-   `esforco` e `proximoTreino`. O rodapé "Gerada automaticamente… Seu coach vê a mesma análise."
-   permanece.
+5. **Resumo primeiro.** O bloco mostra `reconhecimento`, `comoFoi` e **`proximoTreino`** sempre
+   visíveis; "Ver análise completa" expande só `esforco`. `proximoTreino` fica fora do recolhimento
+   porque pode conter o encaminhamento ao coach (`primary_cause != NORMAL` na spec canônica
+   `athlete-workout-analysis`) — esconder essa dica atrás de um toque opcional arriscaria o atleta
+   nunca ver uma orientação de procurar o coach. O rodapé "Gerada automaticamente… Seu coach vê a
+   mesma análise." permanece.
 6. **Cor do RPE.** Só usa cor de alerta quando o RPE informado é maior que o esperado.
 7. **Tokens.** `aiHighlight.bg = rgba(189,222,90,0.10)` e `aiHighlight.border = rgba(189,222,90,0.45)`
    em `theme.premium.ts` — já registrados no design system como `ai-highlight-bg` / `ai-highlight-border`.
 
-Vale nos três lugares que usam `WorkoutAnalysisCard` (Home, `WorkoutDetailDrawer`,
-`PostWorkoutFeedbackCard`); o item 2 é específico da Home.
+Vale nos quatro lugares que usam `WorkoutAnalysisCard` (Home, `WorkoutDetailDrawer`,
+`PostWorkoutFeedbackCard` e `FitUploadResultCard`, no fluxo de importação `.fit`); o item 2 é
+específico da Home.
 
 ## Fora de escopo
 
@@ -60,25 +64,36 @@ Vale nos três lugares que usam `WorkoutAnalysisCard` (Home, `WorkoutDetailDrawe
 4. Given análise `pending`, Then o card mostra uma frase e duas barras de skeleton, sem borda interna.
 5. Given análise `done`, Then os textos ficam dentro de um contêiner com `data-testid="ai-highlight"`
    que usa `aiHighlight.bg` e `aiHighlight.border`, e nenhum hex aparece no componente.
-6. Given análise `done`, Then `esforco` e `proximoTreino` ficam ocultos até o toque em "Ver análise
-   completa", que é um `<button>` com `aria-expanded`.
+6. Given análise `done`, Then `esforco` fica oculto até o toque em "Ver análise completa", que é um
+   `<button>` com `aria-expanded`; `proximoTreino` aparece sempre visível, sem precisar de toque.
 7. Given RPE informado ≤ esperado, Then o valor não usa cor de alerta.
-8. Texto sobre o bloco de destaque mantém contraste ≥ 4.5:1.
+8. Texto sobre o bloco de destaque mantém contraste ≥ 4.5:1 (ver task 1.2 de validação de contraste).
 9. `npm run lint && npm run build && npm run test:run` passam e a E2E
-   `tests/e2e/athlete/workout-analysis.spec.ts` continua verde, ajustada ao novo layout.
+   `tests/e2e/athlete/workout-analysis.spec.ts` continua verde, ajustada ao novo layout — cobrindo
+   também o fluxo de importação `.fit` (`FitUploadResultCard`).
 
 ## Métrica de sucesso
 
-- **Atleta:** proporção de análises em que o atleta expande "Ver análise completa" (evento novo
-  de front, se houver telemetria disponível; senão, verificação qualitativa com a turma fundadora).
+- **Atleta:** proporção de análises em que o atleta expande "Ver análise completa" para ler
+  `esforco` (evento novo de front, se houver telemetria disponível; senão, verificação qualitativa
+  com a turma fundadora).
 - **Rotina do treinador (guarda):** nenhuma mudança — o coach continua recebendo a mesma análise no
   mesmo momento; a change não pode alterar `atleta_analise_visualizada_total` para baixo.
+
+## Risco e rollback
+
+- **Risco:** o destaque em lime translúcido ou a nova linha de métricas em mono não renderizarem bem
+  em algum dispositivo/tema — mitigado por manter os tokens dentro do design system já registrado
+  (`ai-highlight-bg` / `ai-highlight-border`) e pela validação de contraste na task 1.2.
+- **Rollback:** change UI-only, sem migração nem dado persistido — revert do PR único em
+  `apps/menthoros-front` desfaz o comportamento por completo.
 
 ## Open Questions & Assumptions
 
 - **Decidido (founder, 2026-10-06):** manter a análise automática; destaque em lime translúcido.
-- **Assumido:** esconder `esforco` e `proximoTreino` atrás de "Ver análise completa" é aceitável.
-  Risco: a dica de próximo treino, hoje o trecho mais realçado, passa a exigir um toque. Se o
-  founder preferir, o bloco pode abrir expandido por padrão no `WorkoutDetailDrawer`.
+- **Decidido (nesta revisão, 2026-10-06):** `proximoTreino` fica sempre visível — só `esforco` vai
+  atrás de "Ver análise completa". Motivo: `proximoTreino` pode carregar o encaminhamento ao coach
+  quando `primary_cause != NORMAL` (spec canônica `athlete-workout-analysis`), e esconder isso atrás
+  de um toque opcional arriscaria o atleta nunca ver a orientação.
 - **Aberto:** chip de veredito determinístico — vale uma change própria (backend + front)?
 - **Aberto:** há telemetria de front para medir a expansão, ou a métrica fica qualitativa?
