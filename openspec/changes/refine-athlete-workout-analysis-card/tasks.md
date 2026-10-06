@@ -6,9 +6,9 @@ Repo: `apps/menthoros-front` (`npm run lint && npm run build && npm run test:run
 
 ## 1. Tokens
 
-- [ ] 1.1 Adicionar `aiHighlight = { bg, border }` em `src/theme/theme.premium.ts` com os valores do
+- [x] 1.1 Adicionar `aiHighlight = { bg, border }` em `src/theme/theme.premium.ts` com os valores do
       proposal e exportar pelo mesmo caminho que `WorkoutAnalysisCard` já importa (`theme/tokens`).
-- [ ] 1.2 Validação: `npm run lint && npm run build` + checar manualmente (ou com ferramenta de
+- [x] 1.2 Validação: `npm run lint && npm run build` + checar manualmente (ou com ferramenta de
       contraste tipo DevTools/axe) que o texto sobre `aiHighlight.bg` mantém contraste ≥ 4.5:1
       (critério de aceite 8).
 
