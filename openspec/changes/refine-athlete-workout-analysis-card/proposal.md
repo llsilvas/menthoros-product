@@ -69,8 +69,10 @@ específico da Home.
 7. Given RPE informado ≤ esperado, Then o valor não usa cor de alerta.
 8. Texto sobre o bloco de destaque mantém contraste ≥ 4.5:1 (ver task 1.2 de validação de contraste).
 9. `npm run lint && npm run build && npm run test:run` passam e a E2E
-   `tests/e2e/athlete/workout-analysis.spec.ts` continua verde, ajustada ao novo layout — cobrindo
-   também o fluxo de importação `.fit` (`FitUploadResultCard`).
+   `tests/e2e/athlete/workout-analysis.spec.ts` continua verde, ajustada ao novo layout. O fluxo de
+   importação `.fit` (`FitUploadResultCard`) não tem E2E hoje no repo (gap pré-existente, fora desta
+   change) — cobertura dele com o card novo fica no teste de componente
+   `FitUploadResultCard.test.tsx`, que já verifica a paridade com o registro manual.
 
 ## Métrica de sucesso
 

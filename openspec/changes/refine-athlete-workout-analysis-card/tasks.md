@@ -43,6 +43,12 @@ Repo: `apps/menthoros-front` (`npm run lint && npm run build && npm run test:run
 
 ## 5. Fechamento
 
-- [ ] 5.1 Ajustar `tests/e2e/athlete/workout-analysis.spec.ts` ao novo layout, cobrindo também o
-      fluxo de importação `.fit` que renderiza `WorkoutAnalysisCard` via `FitUploadResultCard`.
-- [ ] 5.2 Validação final: `npm run lint && npm run build && npm run test:run` + E2E.
+- [x] 5.1 Ajustar `tests/e2e/athlete/workout-analysis.spec.ts` ao novo layout (métricas em linha
+      única, linha de plano, proximoTreino sempre visível, esforco atrás do toggle, frase pending
+      nova). **Fluxo `.fit` adiado nesta E2E**: não existe E2E para importação `.fit` no repo hoje
+      (`tests/e2e` não tem spec de upload) — criar uma do zero (mock de upload multipart) é escopo
+      maior que esta change Fast/S. Cobertura real do fluxo `.fit` com o card novo fica no teste de
+      componente `FitUploadResultCard.test.tsx` ("com analysisView mostra o card da análise —
+      paridade com o registro manual"), já verde. Registrar como follow-up se o founder quiser E2E
+      de upload de verdade.
+- [x] 5.2 Validação final: `npm run lint && npm run build && npm run test:run` + E2E.
