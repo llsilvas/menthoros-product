@@ -21,15 +21,19 @@ a análise efetivamente "some" depois da tela de registro.
 - **`TodayCompletedCard` permanece estático** (sem clique) — uma primeira versão tentou tornar o
   card inteiro num `<button>`, mas o resultado visual não ficou bom e foi revertido.
 - Novo componente `WorkoutAnalysisTeaser`: card compacto, separado, no estilo "Athlete
-  Intelligence" da Strava — ícone de IA + insight de uma linha (prévia do `reconhecimento`/`comoFoi`
-  da análise) + seta — aparece logo abaixo do `TodayCompletedCard` quando há algo para mostrar. Sem
-  preview disponível (`pending` sem texto, `empty`, `error`), o teaser simplesmente não renderiza —
-  sem entrada clicável morta.
+  Intelligence" da Strava — ícone de IA + insight de uma linha (prévia do `reconhecimento`/`comoFoi`,
+  com fallback para um resumo das `stats` ou uma chamada genérica quando não há texto narrativo) +
+  seta — aparece logo abaixo do `TodayCompletedCard`/`TodayFeedbackCard` quando há análise
+  `pending`/`done` disponível.
 - Novo componente leve `TodayWorkoutAnalysisDrawer` (bottom sheet, mesmo padrão visual do
   `WorkoutDetailDrawer`), acionado pelo clique no teaser, que exibe `WorkoutAnalysisCard`.
-- `useAthleteWorkoutAnalysis(realizado.id)` sobe para `AthleteHomePage` (só quando o feedback já foi
-  registrado) e o resultado é **compartilhado** entre o teaser (prévia) e o drawer (detalhe) — uma
-  única busca/polling, não duas.
+- `useAthleteWorkoutAnalysis(realizado.id)` sobe para `AthleteHomePage` e é acionado **sempre que
+  existe `realizadoHoje`** — independente de `feedbackRegistradoEm` (o "Como foi?" da Home já ter
+  sido respondido). Um treino sincronizado (Strava/Intervals.icu) ou importado de `.fit` pode ter
+  análise pronta no backend antes desse feedback; gatear pelo `FEITO` escondia o teaser
+  injustamente no `FEITO_SEM_FEEDBACK`, o bug real por trás do relato "não vejo nada na Home, mas
+  vejo ao clicar no card do plano". O resultado é **compartilhado** entre teaser e drawer — uma
+  única busca/polling.
 
 ## Fora de escopo
 
@@ -41,15 +45,17 @@ a análise efetivamente "some" depois da tela de registro.
   para acionar `useAthleteWorkoutAnalysis`. Um sinal de disponibilidade prévio (tipo
   `analiseAtletaDisponivel` que o plano semanal já tem) fica como follow-up, não é necessário para
   o drawer funcionar (o hook já faz polling).
-- Estados `FEITO_SEM_FEEDBACK`, `PULADO`, `PLANEJADO`/`DESCANSO` não mudam.
+- `TodayFeedbackCard` (conteúdo do "Como foi?") não muda — o teaser aparece ao lado dele, não dentro.
+- `PULADO`, `PLANEJADO`/`DESCANSO` não mudam (sem `realizadoHoje`, não há o que buscar).
 
 ## Critérios de aceite
 
-1. Given o estado `FEITO` na Home com análise `pending` ou `done`, When a página renderiza, Then
-   aparece o `WorkoutAnalysisTeaser` com uma prévia de uma linha (texto `pending`: "Analisando o seu
-   treino…"; `done`: `reconhecimento`/`comoFoi`).
-2. Given a análise `empty`/`error`, ou sem nenhum texto de prévia, When a página renderiza, Then o
-   teaser não aparece — sem card clicável vazio.
+1. Given `realizadoHoje` com análise `pending` ou `done` — em `FEITO` **ou** `FEITO_SEM_FEEDBACK` —,
+   When a página renderiza, Then aparece o `WorkoutAnalysisTeaser` com uma prévia de uma linha
+   (texto `pending`: "Analisando o seu treino…"; `done`: `reconhecimento`/`comoFoi`/resumo das
+   stats/chamada genérica, nessa ordem de fallback).
+2. Given a análise `empty`/`error`, ou sem `realizadoHoje`, When a página renderiza, Then o teaser
+   não aparece — sem card clicável vazio.
 3. Given o teaser visível, When o atleta clica (mouse, toque ou teclado — Enter/Espaço), Then abre o
    `TodayWorkoutAnalysisDrawer` com `WorkoutAnalysisCard` completo, sem nova busca de rede (reaproveita
    o estado já carregado).
