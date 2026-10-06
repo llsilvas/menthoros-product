@@ -113,6 +113,6 @@ pelo token de fundo, com `sx={{ border: 'none', borderRadius: 1 }}` — nunca ti
   fingir que rodou).
 - [x] 10.4 `specs/design-system/spec.md` — adicionado `ADDED Requirement` para a variante `solid` +
   `surfaceLevel` nesta própria change (`specs/design-system/spec.md` abaixo), já que o spec principal
-  (`openspec/specs/design-system/`) ainda não existe — o delta de `standardize-card-foundation` também
-  nunca foi sincronizado para lá. Ambos os deltas (foundation + esta migration) precisam de sync numa
-  próxima oportunidade; não fiz esse sync aqui para não expandir o escopo desta change.
+  (`openspec/specs/design-system/`) ainda não existia — o delta de `standardize-card-foundation`
+  também não tinha sido sincronizado. **Sync feito em 2026-10-06** (fechamento desta change): os dois
+  deltas (foundation + esta migration) foram promovidos a `openspec/specs/design-system/spec.md`.
