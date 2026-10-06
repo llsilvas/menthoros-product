@@ -45,3 +45,21 @@ Repo: `apps/menthoros-front`, branch `feat/add-athlete-home-workout-analysis`. V
       `WorkoutAnalysisCard`).
 - [x] 3.5 `npm run lint && npm run build && npm run test:run` — 232 arquivos, 1965 testes
       passando.
+
+## 4. Pivô final: análise embutida no card (pedido direto do founder)
+
+O founder pediu algo mais simples que o teaser+drawer: "exiba o card dentro de treino feito, com a
+análise correspondente ao treino exibido na home do atleta". `WorkoutAnalysisTeaser` e
+`TodayWorkoutAnalysisDrawer` foram removidos — sem consumidor.
+
+- [x] 4.1 `TodayCompletedCard.tsx`: ganha `analysisView?: WorkoutAnalysisView | null` e renderiza
+      `WorkoutAnalysisCard` inline (mesmo padrão de `PostWorkoutFeedbackCard`).
+- [x] 4.2 `AthleteHomePage.tsx`: remove o teaser/drawer e o estado `analysisDrawerOpen`; volta a
+      gatear `useAthleteWorkoutAnalysis` por `feedbackRegistradoEm` (só o estado `FEITO` consome a
+      análise agora — `FEITO_SEM_FEEDBACK` fica para uma extensão futura, ver proposal.md).
+- [x] 4.3 Removidos `WorkoutAnalysisTeaser.tsx(.test)` e `TodayWorkoutAnalysisDrawer.tsx(.test)`.
+- [x] 4.4 `TodayCompletedCard.test.tsx`: cobre com/sem `analysisView`.
+      `AthleteHomePage.test.tsx`: reescrito para o novo fluxo (análise aparece dentro do card de
+      "Treino feito"; `FEITO_SEM_FEEDBACK` não aciona a busca).
+      *verify:* `npm run lint && npm run build && npm run test:run` — 230 arquivos, 1956 testes
+      passando.
