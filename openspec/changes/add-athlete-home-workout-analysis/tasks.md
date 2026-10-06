@@ -3,25 +3,33 @@
 Repo: `apps/menthoros-front`, branch `feat/add-athlete-home-workout-analysis`. Validação padrão:
 `npm run lint && npm run build` (+ `npm run test:run` nas tasks que tocam componente).
 
-## 1. Drawer de análise para a Home
+## 1. Teaser e drawer de análise
 
-- [ ] 1.1 Novo `TodayWorkoutAnalysisDrawer.tsx` (`features/athlete/components/`): recebe
-      `realizadoId: string | null`, `open: boolean`, `onClose`; usa `useAthleteWorkoutAnalysis` +
-      `buildWorkoutAnalysisView` + `WorkoutAnalysisCard`, com os mesmos estados pending/done/empty/
-      error do `WorkoutDetailDrawer`.
+- [x] 1.1 Novo `WorkoutAnalysisTeaser.tsx` (`features/athlete/components/`): card compacto estilo
+      "Athlete Intelligence" (ícone + insight de uma linha + seta), clicável (mouse/toque/teclado),
+      `null` quando não há texto de prévia. Reusa `SparkleIcon` exportado de `WorkoutAnalysisCard`.
+- [x] 1.2 `TodayWorkoutAnalysisDrawer.tsx`: simplificado para receber `view: WorkoutAnalysisView |
+      null` já calculado (sem fetch próprio) — evita buscar a análise duas vezes.
       *verify:* `npm run lint && npm run build`
 
-## 2. Tornar o card da Home clicável
+## 2. ~~Tornar o card da Home clicável~~ — revertido
 
-- [ ] 2.1 `TodayCompletedCard.tsx`: ganha `onClick`/área clicável (cursor pointer, affordance
-      visual mínima), sem mudar o conteúdo já exibido.
-- [ ] 2.2 `AthleteHomePage.tsx`: estado local para abrir/fechar o drawer; passa
-      `home.realizadoHoje.id` como `realizadoId`.
+- [x] 2.1 Primeira tentativa: `TodayCompletedCard` virou `<button>` nativo
+      (`component="button"`). **Revertido** — visual quebrado reportado pelo founder. O card volta
+      a ser 100% estático, sem `onClick`.
+- [x] 2.2 `AthleteHomePage.tsx`: `useAthleteWorkoutAnalysis(realizado.id)` sobe para a página (só
+      quando `feedbackRegistradoEm` existe); resultado compartilhado entre o teaser e o drawer via
+      `workoutAnalysisView`.
       *verify:* `npm run lint && npm run build`
 
 ## 3. Testes e fechamento
 
-- [ ] 3.1 `TodayWorkoutAnalysisDrawer.test.tsx`: cobre pending/done/empty/error.
-- [ ] 3.2 `TodayCompletedCard.test.tsx` e/ou `AthleteHomePage.test.tsx`: clicar no card abre o
-      drawer com o `realizadoId` certo; fechar não re-busca a Home.
-- [ ] 3.3 `npm run lint && npm run build && npm run test:run`.
+- [x] 3.1 `WorkoutAnalysisTeaser.test.tsx`: pending/done com reconhecimento/done com fallback para
+      comoFoi/sem texto (não renderiza)/clique mouse/clique teclado.
+- [x] 3.2 `TodayWorkoutAnalysisDrawer.test.tsx`: reescrito para o novo contrato (`view` em vez de
+      `realizadoId`) — pending/done/null/fechar.
+- [x] 3.3 `TodayCompletedCard.test.tsx`: revertido para a versão sem `onClick`.
+- [x] 3.4 `AthleteHomePage.test.tsx`: cobre teaser ausente sem análise pronta e fluxo completo
+      (teaser visível → clique → drawer com `WorkoutAnalysisCard`).
+- [x] 3.5 `npm run lint && npm run build && npm run test:run` — 232 arquivos, 1963 testes
+      passando.

@@ -18,13 +18,18 @@ a análise efetivamente "some" depois da tela de registro.
 
 ## O que muda
 
-- `TodayCompletedCard` (estado `FEITO` da Home) passa a ser clicável.
+- **`TodayCompletedCard` permanece estático** (sem clique) — uma primeira versão tentou tornar o
+  card inteiro num `<button>`, mas o resultado visual não ficou bom e foi revertido.
+- Novo componente `WorkoutAnalysisTeaser`: card compacto, separado, no estilo "Athlete
+  Intelligence" da Strava — ícone de IA + insight de uma linha (prévia do `reconhecimento`/`comoFoi`
+  da análise) + seta — aparece logo abaixo do `TodayCompletedCard` quando há algo para mostrar. Sem
+  preview disponível (`pending` sem texto, `empty`, `error`), o teaser simplesmente não renderiza —
+  sem entrada clicável morta.
 - Novo componente leve `TodayWorkoutAnalysisDrawer` (bottom sheet, mesmo padrão visual do
-  `WorkoutDetailDrawer`), acionado pelo clique, que busca e exibe a análise via
-  `useAthleteWorkoutAnalysis(realizado.id)` + `WorkoutAnalysisCard` — reaproveita o hook e o
-  adapter já existentes, sem duplicar a lógica de polling/estado.
-- Estados tratados: `pending` ("Analisando…"), `done` (card completo), `empty`/`error` (mensagem
-  curta, sem quebrar a tela) — mesmo contrato visual já usado em `WorkoutDetailDrawer`.
+  `WorkoutDetailDrawer`), acionado pelo clique no teaser, que exibe `WorkoutAnalysisCard`.
+- `useAthleteWorkoutAnalysis(realizado.id)` sobe para `AthleteHomePage` (só quando o feedback já foi
+  registrado) e o resultado é **compartilhado** entre o teaser (prévia) e o drawer (detalhe) — uma
+  única busca/polling, não duas.
 
 ## Fora de escopo
 
@@ -40,16 +45,19 @@ a análise efetivamente "some" depois da tela de registro.
 
 ## Critérios de aceite
 
-1. Given o estado `FEITO` na Home (treino concluído e feedback já registrado), When o atleta clica
-   no `TodayCompletedCard`, Then abre um bottom sheet com a análise do treino (via
-   `useAthleteWorkoutAnalysis(realizado.id)`).
-2. Given a análise ainda `pending`, When o drawer abre, Then mostra "Analisando…" (mesmo texto do
-   `WorkoutDetailDrawer`).
-3. Given a análise `empty` (204) ou erro, When o drawer abre, Then mostra uma mensagem curta sem
-   quebrar a tela, igual ao comportamento já existente no `WorkoutDetailDrawer`.
+1. Given o estado `FEITO` na Home com análise `pending` ou `done`, When a página renderiza, Then
+   aparece o `WorkoutAnalysisTeaser` com uma prévia de uma linha (texto `pending`: "Analisando o seu
+   treino…"; `done`: `reconhecimento`/`comoFoi`).
+2. Given a análise `empty`/`error`, ou sem nenhum texto de prévia, When a página renderiza, Then o
+   teaser não aparece — sem card clicável vazio.
+3. Given o teaser visível, When o atleta clica (mouse, toque ou teclado — Enter/Espaço), Then abre o
+   `TodayWorkoutAnalysisDrawer` com `WorkoutAnalysisCard` completo, sem nova busca de rede (reaproveita
+   o estado já carregado).
 4. Given o drawer aberto, When o atleta fecha, Then volta para a Home sem re-fetch desnecessário do
    `useAthleteHome`.
-5. `npm run lint && npm run build` passam sem erros novos.
+5. `TodayCompletedCard` continua passando pelos próprios testes sem nenhuma prop/comportamento de
+   clique — regressão zero no card estático.
+6. `npm run lint && npm run build` passam sem erros novos.
 
 ## Métrica de sucesso
 
