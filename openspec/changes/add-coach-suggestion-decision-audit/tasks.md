@@ -15,25 +15,26 @@ Sem pré-requisito de outra change (migration aditiva independente V100; ordem i
 
 ## 2. Backend — serviço e endpoint
 
-- [ ] 2.0 `SugestaoCoachRepository.decidirSePendente(...)` (design D4, achado Codex): `@Modifying
+- [x] 2.0 `SugestaoCoachRepository.decidirSePendente(...)` (design D4, achado Codex): `@Modifying
   @Query` UPDATE condicionado a `status = 'PENDING'`, gravando status + reviewedAt + reviewedBy +
   motivoRejeicao atomicamente; `aprovar`/`rejeitar` usam o retorno (linhas afetadas) e lançam
   `DomainConflictException` (409) quando `0` — nunca sobrescrevem uma decisão concorrente.
   - verify: CA6 (duas decisões concorrentes — teste disputa a transição, só uma vence; a outra
-    recebe 409 e não perde a auditoria da vencedora).
-- [ ] 2.1 `aprovar`/`rejeitar` gravam `reviewedBy` do security context (design D1). Resolução
+    recebe 409 e não perde a auditoria da vencedora). Confirmado em
+    `SugestaoCoachServiceImplTest.Aprovar/Rejeitar.decisaoConcorrenteLancaConflito`.
+- [x] 2.1 `aprovar`/`rejeitar` gravam `reviewedBy` do security context (design D1). Resolução
   concreta (padrão de `UsuarioServiceImpl.getCurrentUser`): injetar `AuthenticatedPrincipalResolver`
   + `UsuarioRepository`, `sub = principalResolver.getCurrentSubject()`,
   `reviewedBy = usuarioRepository.findByKeycloakIdAndAssessoria_Id(sub, tenantId).orElseThrow(...).getId()`
   — NUNCA o `sub` (string do Keycloak) direto; `reviewedBy` é o `Usuario.id` interno. `aprovar`
   seta `motivoRejeicao = null`.
-  - verify: CA1 (reviewedBy do token, não do corpo), CA4 (não forjável).
-- [ ] 2.2 `rejeitar(id, RejeitarSugestaoRequest?)` — record `RejeitarSugestaoRequest(String
+  - verify: CA1 (reviewedBy do token, não do corpo), CA4 (não forjável — aprovar não aceita corpo).
+- [x] 2.2 `rejeitar(id, RejeitarSugestaoRequestDto?)` — record `RejeitarSugestaoRequestDto(String
   motivoRejeicao)` com `@Size(max = 500)`; grava `motivoRejeicao` quando presente.
   - verify: CA2 (motivo gravado), CA3 (sem corpo → null).
-- [ ] 2.3 `CoachSugestaoController.rejeitar` com `@RequestBody(required=false)`.
-  - verify: `./mvnw clean test`.
-- [ ] 2.4 `SugestaoCoachOutputDto` ganha `reviewedBy` + `motivoRejeicao`; `SugestaoCoachMapper`
+- [x] 2.3 `CoachSugestaoController.rejeitar` com `@RequestBody(required=false)`.
+  - verify: `./mvnw clean test`. 4456 testes, 0 falhas.
+- [x] 2.4 `SugestaoCoachOutputDto` ganha `reviewedBy` + `motivoRejeicao`; `SugestaoCoachMapper`
   ajustado.
   - verify: CA5 (payload com e sem decisão).
 
