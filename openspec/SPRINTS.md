@@ -2,7 +2,20 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-06 (**`fix-fit-import-missing-workout-analysis` entregue e
+**Última atualização:** 2026-10-06 (**`fix-treino-registro-fuso-atleta` entregue e arquivada** —
+backend PR **#169** mergeado em `develop`. Bug reportado: o card "Treino feito" da Home mostrava o
+treino de ontem em vez do de hoje. Causa raiz: registro manual (`addTreino`, `lancarTreino`,
+`registrarTreinoManualAtleta`) e sincronização Strava resolviam a data via `LocalDate.now()` no
+fuso do **servidor** (UTC) quando a data não vinha explícita — perto da virada de dia UTC, um
+atleta em fuso atrás (Brasil, UTC-3) tinha o treino gravado com a data errada. A Home já resolvia
+"hoje" certo via `AtletaHojeResolver.hojeDe(atleta)`; os pontos de registro nunca usavam esse
+resolver. Fix: todos os pontos passam a usar o fuso do atleta; parse de data do Strava também
+corrigido (`start_date_local` vem com sufixo `Z` mas é hora de parede local — round-trip por
+`ZoneId.systemDefault()` só funcionava por coincidência). Escopo ampliado além da proposta original
+para cobrir `registrarTreinoManualAtleta` (endpoint real da tela de registro do atleta). S · Fast.
+`./mvnw clean verify` verde (204 testes). Arquivada em
+`changes/archive/2026-10/2026-10-06-fix-treino-registro-fuso-atleta/`.)
+Antes: 2026-10-06 (**`fix-fit-import-missing-workout-analysis` entregue e
 arquivada** — frontend PR **#148** mergeado em `develop`. Bug reportado: a análise de IA do treino
 não aparecia após importar um arquivo `.fit` na tela "Registrar treino" — o treino importado era
 guardado em `treinoImportado`, mas `useAthleteWorkoutAnalysis` só era acionado com
