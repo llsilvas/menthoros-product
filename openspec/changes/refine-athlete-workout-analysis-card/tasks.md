@@ -69,3 +69,12 @@ apontada no `ui/README.md`:
 - [x] 6.5 Estado `pending`: frase sem itálico em 13px/`surface[400]`, `role="status"`, barras de
       skeleton 8px de altura em 92%/64% (era 10px em 92%/70%), cor `backgrounds.highest`.
 - [x] 6.6 Validação: `npm run lint && npm run build && npm run test:run` + E2E.
+
+## 7. Card fechado em 2-3 linhas (feedback do founder usando o app, 2026-10-06)
+
+- [x] 7.1 Fechado, só `reconhecimento` (resumo) fica visível dentro do `ai-highlight`. `comoFoi`,
+      `proximoTreino` e `esforco` migram todos para dentro de "Ver análise completa" — reverte a
+      decisão do DoR de manter `proximoTreino` sempre visível (ver "Open Questions" no proposal: o
+      risco de esconder o encaminhamento ao coach fica registrado, não resolvido).
+- [x] 7.2 Validação: `npm run lint && npm run build && npm run test:run` + E2E
+      (`workout-analysis.spec.ts` ajustada ao novo comportamento do toggle).
