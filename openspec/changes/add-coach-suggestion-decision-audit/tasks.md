@@ -56,6 +56,12 @@ Sem pré-requisito de outra change (migration aditiva independente V100; ordem i
 
 ## 4. Validação final
 
-- [ ] 4.1 `./mvnw clean verify` verde; `npm run lint && npm run build` verde.
-- [ ] 4.2 Smoke dev: aprovar/rejeitar e conferir `reviewedBy` + `motivoRejeicao` no banco e no dialog.
+- [x] 4.1 `./mvnw clean verify` verde; `npm run lint && npm run build` verde.
+  - verify: backend 204 IT + suite completa, 0 falhas (achou e corrigiu uma IT pré-existente,
+    `SugestaoCoachRepositoryPendingAtletaIdsIT.aprovarZeraOSinal`, que chamava `aprovar()` sem JWT
+    autenticado — ver commit `a8f9d69`). Frontend: lint sem issues, build verde, 1956 testes verdes.
+- [ ] 4.2 Smoke dev: aprovar/rejeitar e conferir `reviewedBy` + `motivoRejeicao` no banco e no
+  dialog. **Não executado nesta sessão** — sem stack local rodando (Postgres/Keycloak via
+  `docker ps` vazio). A cobertura de IT (4.1) já exercita o mesmo caminho com DB e security
+  context reais; smoke visual fica para quem tiver o ambiente local de pé antes do merge.
 - [ ] 4.3 Atualizar `tasks.md` antes de arquivar.
