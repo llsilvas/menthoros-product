@@ -47,8 +47,13 @@ Sem pré-requisito de outra change (migration aditiva independente V100; ordem i
   `RejeicaoModal` de `PlanoDetalhePanel.tsx`, mas com motivo opcional) substitui o `ConfirmDialog`
   genérico; textarea opcional de motivo (`maxLength={500}`). Quando `status !== 'PENDING'`, o
   dialog exibe "Decidido por" (`reviewedBy`) e, se `REJECTED` com motivo, a seção "Motivo da
-  rejeição". `reviewedBy` exibido como UUID bruto — sem endpoint de resolução nome↔id no escopo
-  desta change; follow-up se a UX pedir nome.
+  rejeição".
+  - **Follow-up explícito (achado do frontend-reviewer no QA):** `reviewedBy` é exibido como UUID
+    bruto — sem endpoint de resolução nome↔id no escopo desta change. Aceitável para v1 (seção de
+    auditoria, não fluxo primário; sem risco de PII adicional — é id interno de técnico, não de
+    atleta), mas perde valor de auditoria em assessorias com múltiplos técnicos sem resolver para
+    nome. Requer endpoint novo (ex.: `GET /api/v1/coach/usuarios` ou embutir nome no DTO da
+    sugestão) — fora de escopo aqui, abrir change dedicada se a UX exigir.
   - verify: `npm run lint && npm run build && npm run test:run`. Lint sem issues; build verde;
     230 arquivos / 1956 testes verdes (12 no `RecentSuggestionsPanel.test.tsx`, incluindo os 2
     novos de CA5 e os 2 de motivo opcional). Smoke visual não executado (sem `npm run dev` nesta
