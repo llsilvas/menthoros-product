@@ -19,8 +19,8 @@ task 4).
 
 - [x] 1.1 (TDD) `WorkoutPlanVerdict` + `WorkoutPlanVerdictCalculator` cobrindo os cenários do spec,
       bordas de 85%/115%, campos ausentes e planejado zero.
-- [ ] 1.2 `WorkoutAnalysisProperties.verdict` (`toleranciaPct`, `deltaRpe`) com validação.
-- [ ] 1.3 Validação: `./mvnw clean test`.
+- [x] 1.2 `WorkoutAnalysisProperties.verdict` (`toleranciaPct`, `deltaRpe`) com validação.
+- [x] 1.3 Validação: `./mvnw clean test`.
 
 ## 2. Backend — contrato
 
