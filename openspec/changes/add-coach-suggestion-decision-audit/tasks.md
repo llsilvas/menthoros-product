@@ -40,13 +40,19 @@ Sem pré-requisito de outra change (migration aditiva independente V100; ordem i
 
 ## 3. Frontend
 
-- [ ] 3.1 `SugestaoService.rejeitar(id, motivoRejeicao?)` envia corpo opcional;
+- [x] 3.1 `SugestaoService.rejeitar(id, motivoRejeicao?)` envia corpo opcional;
   `types/SugestaoCoach.ts` ganha `reviewedBy` + `motivoRejeicao`.
-  - verify: `npm run build`.
-- [ ] 3.2 `CoachDialog` (em `RecentSuggestionsPanel.tsx`): ao rejeitar, textarea opcional de
-  motivo (`maxLength={500}`); quando `status !== 'PENDING'`, exibe quem decidiu (`reviewedBy`) e,
-  se rejeitada, o motivo.
-  - verify: `npm run lint && npm run build`; smoke visual.
+  - verify: `npm run build`. Verde.
+- [x] 3.2 Novo `RejeitarSugestaoModal` (local a `RecentSuggestionsPanel.tsx`, mesmo padrão do
+  `RejeicaoModal` de `PlanoDetalhePanel.tsx`, mas com motivo opcional) substitui o `ConfirmDialog`
+  genérico; textarea opcional de motivo (`maxLength={500}`). Quando `status !== 'PENDING'`, o
+  dialog exibe "Decidido por" (`reviewedBy`) e, se `REJECTED` com motivo, a seção "Motivo da
+  rejeição". `reviewedBy` exibido como UUID bruto — sem endpoint de resolução nome↔id no escopo
+  desta change; follow-up se a UX pedir nome.
+  - verify: `npm run lint && npm run build && npm run test:run`. Lint sem issues; build verde;
+    230 arquivos / 1956 testes verdes (12 no `RecentSuggestionsPanel.test.tsx`, incluindo os 2
+    novos de CA5 e os 2 de motivo opcional). Smoke visual não executado (sem `npm run dev` nesta
+    sessão) — ver task 4.2.
 
 ## 4. Validação final
 
