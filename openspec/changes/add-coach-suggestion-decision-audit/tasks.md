@@ -7,11 +7,11 @@ Sem pré-requisito de outra change (migration aditiva independente V100; ordem i
 
 ## 1. Backend — modelo
 
-- [ ] 1.1 Migration `V100__add_decision_audit_to_tb_sugestao_coach.sql` (design D3): colunas
+- [x] 1.1 Migration `V100__add_decision_audit_to_tb_sugestao_coach.sql` (design D3): colunas
   `reviewed_by` (uuid, nullable), `motivo_rejeicao` (text, nullable). Sem alterar constraints.
   - verify: IT Testcontainers — colunas existem, defaults nulos corretos.
-- [ ] 1.2 Entidade `SugestaoCoach`: campos `reviewedBy` (UUID) e `motivoRejeicao` (String).
-  - verify: `./mvnw clean compile`.
+- [x] 1.2 Entidade `SugestaoCoach`: campos `reviewedBy` (UUID) e `motivoRejeicao` (String).
+  - verify: `./mvnw clean compile`. BUILD SUCCESS.
 
 ## 2. Backend — serviço e endpoint
 
