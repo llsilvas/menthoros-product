@@ -21,7 +21,11 @@ Sem pré-requisito de outra change (migration aditiva independente V100; ordem i
   `DomainConflictException` (409) quando `0` — nunca sobrescrevem uma decisão concorrente.
   - verify: CA6 (duas decisões concorrentes — teste disputa a transição, só uma vence; a outra
     recebe 409 e não perde a auditoria da vencedora).
-- [ ] 2.1 `aprovar`/`rejeitar` gravam `reviewedBy` do security context (design D1); `aprovar`
+- [ ] 2.1 `aprovar`/`rejeitar` gravam `reviewedBy` do security context (design D1). Resolução
+  concreta (padrão de `UsuarioServiceImpl.getCurrentUser`): injetar `AuthenticatedPrincipalResolver`
+  + `UsuarioRepository`, `sub = principalResolver.getCurrentSubject()`,
+  `reviewedBy = usuarioRepository.findByKeycloakIdAndAssessoria_Id(sub, tenantId).orElseThrow(...).getId()`
+  — NUNCA o `sub` (string do Keycloak) direto; `reviewedBy` é o `Usuario.id` interno. `aprovar`
   seta `motivoRejeicao = null`.
   - verify: CA1 (reviewedBy do token, não do corpo), CA4 (não forjável).
 - [ ] 2.2 `rejeitar(id, RejeitarSugestaoRequest?)` — record `RejeitarSugestaoRequest(String
