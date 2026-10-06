@@ -2,7 +2,16 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-05 (**`fix-auto-approve-violations-detected` entregue e arquivada** —
+**Última atualização:** 2026-10-06 (**`fix-fit-import-missing-workout-analysis` entregue e
+arquivada** — frontend PR **#148** mergeado em `develop`. Bug reportado: a análise de IA do treino
+não aparecia após importar um arquivo `.fit` na tela "Registrar treino" — o treino importado era
+guardado em `treinoImportado`, mas `useAthleteWorkoutAnalysis` só era acionado com
+`treinoRegistrado?.id` (fluxo de registro manual), então quem importava `.fit` nunca via a análise,
+mesmo pronta no backend. Fix: `ManualTrainingFormPage` deriva um `realizadoId` único entre os dois
+fluxos; `FitUploadResultCard` ganha a prop `analysisView`. XS · Fast. `npm run lint && npm run
+build && npm run test:run` verde (1955 testes). Arquivada em
+`changes/archive/2026-10/2026-10-06-fix-fit-import-missing-workout-analysis/`.)
+Antes: 2026-10-05 (**`fix-auto-approve-violations-detected` entregue e arquivada** —
 backend PR **#168** mergeado em `develop`. Bug de produção: o auto-approve do onboarding
 (Cenário A/EXCEPTION_ONLY) aprovava planos que o shadow do planner determinístico marcou com
 `plannerComplianceStatus = VIOLATIONS_DETECTED`, porque o veto em
