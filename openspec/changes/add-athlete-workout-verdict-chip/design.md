@@ -1,6 +1,19 @@
 # Design — add-athlete-workout-verdict-chip
 
-## D1 — Onde o veredito é calculado
+## D0 — Exceção à regra "Identifier Language" (decisão do QA gate, 2026-10-07)
+
+`veredito`, os quatro valores do enum (`DENTRO_DO_PLANO`, `ABAIXO_DO_PLANO`, `ACIMA_DO_PLANO`,
+`ESFORCO_ACIMA_DO_ESPERADO`), `toleranciaPct`, `deltaRpe` e o enum interno `Desvio` do
+`WorkoutPlanVerdictCalculator` ficam em PT-BR — achado do `code-reviewer` no QA gate apontou que
+isso viola a regra "Identifier Language" (ADR-0007, 2026-07-25: "código novo nasce em inglês").
+
+Decisão: manter PT-BR. `veredito` convive no mesmo `AthleteWorkoutAnalysisOutputDto` que
+`comoFoi`, `reconhecimento`, `esforco` e `proximoTreino` — todos PT-BR legado, porque o DTO é
+especificamente o bloco de texto em linguagem de atleta (ver Javadoc do DTO). Renomear só este
+campo criaria uma mistura inconsistente dentro do mesmo contrato (três campos PT, um em inglês),
+sem reduzir dívida real — os quatro campos legados continuam PT até uma change dedicada à
+migração do DTO inteiro. Fica registrado como desvio conhecido e intencional da ADR-0007 para
+este contrato específico, não como precedente geral.
 
 `WorkoutPlanVerdict` (enum) + `WorkoutPlanVerdictCalculator` (componente puro, sem repositório) no
 backend. O front só pinta — mesma regra do design system para `readiness-*` e `zone-*`: bandas são
