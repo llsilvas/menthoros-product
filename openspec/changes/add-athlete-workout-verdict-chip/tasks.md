@@ -37,12 +37,12 @@ task 4).
 
 ## 4. Front — UI
 
-- [ ] 4.1 (TDD) `WorkoutVerdictChip` com tokens `semantic.success` / `semantic.warning`, sem hex.
-- [ ] 4.2 (TDD) `TodayCompletedCard`: chip na linha do overline "Treino feito".
-- [ ] 4.3 (TDD) `WorkoutAnalysisCard`: chip no cabeçalho, omitido quando embutido na Home.
-- [ ] 4.4 Conferir `WorkoutDetailDrawer` e `PostWorkoutFeedbackCard`.
-- [ ] 4.5 Comparar a Home com as duas capturas de `ui/`.
-- [ ] 4.6 Validação: `npm run lint && npm run test:run`.
+- [x] 4.1 (TDD) `WorkoutVerdictChip` com tokens `semantic.success` / `semantic.warning`, sem hex.
+- [x] 4.2 (TDD) `TodayCompletedCard`: chip na linha do overline "Treino feito".
+- [x] 4.3 (TDD) `WorkoutAnalysisCard`: chip no cabeçalho, omitido quando embutido na Home.
+- [x] 4.4 Conferir `WorkoutDetailDrawer` e `PostWorkoutFeedbackCard`.
+- [x] 4.5 Comparar a Home com as duas capturas de `ui/`.
+- [x] 4.6 Validação: `npm run lint && npm run test:run`.
 
 ## 5. Fechamento
 
