@@ -24,10 +24,10 @@ task 4).
 
 ## 2. Backend — contrato
 
-- [ ] 2.1 (TDD) Campo `veredito` no `AthleteWorkoutAnalysisOutputDto`; preencher em `dtoPendente` e
+- [x] 2.1 (TDD) Campo `veredito` no `AthleteWorkoutAnalysisOutputDto`; preencher em `dtoPendente` e
       `dtoCompleto`; `@Schema` no OpenAPI.
-- [ ] 2.2 Métrica `atleta_treino_veredito_total{veredito}` junto da primeira visualização.
-- [ ] 2.3 Validação: `./mvnw clean verify`.
+- [x] 2.2 Métrica `atleta_treino_veredito_total{veredito}` junto da primeira visualização.
+- [x] 2.3 Validação: `./mvnw clean verify`.
 
 ## 3. Front — dados
 
