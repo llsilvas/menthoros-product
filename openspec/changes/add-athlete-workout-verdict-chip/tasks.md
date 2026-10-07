@@ -31,9 +31,9 @@ task 4).
 
 ## 3. Front — dados
 
-- [ ] 3.1 Tipo `WorkoutPlanVerdict` e campo opcional em `AthleteWorkoutAnalysis`.
-- [ ] 3.2 (TDD) `buildWorkoutAnalysisView`: `verdict` (`label`, `tone`) ou `null`.
-- [ ] 3.3 Validação: `npm run lint && npm run test:run`.
+- [x] 3.1 Tipo `WorkoutPlanVerdict` e campo opcional em `AthleteWorkoutAnalysis`.
+- [x] 3.2 (TDD) `buildWorkoutAnalysisView`: `verdict` (`label`, `tone`) ou `null`.
+- [x] 3.3 Validação: `npm run lint && npm run test:run`.
 
 ## 4. Front — UI
 
