@@ -46,5 +46,5 @@ task 4).
 
 ## 5. Fechamento
 
-- [ ] 5.1 E2E `tests/e2e/athlete/workout-analysis.spec.ts`: chip presente com análise pendente.
-- [ ] 5.2 Validação final: `./mvnw clean verify` e `npm run lint && npm run build && npm run test:run` + E2E.
+- [x] 5.1 E2E `tests/e2e/athlete/workout-analysis.spec.ts`: chip presente com análise pendente.
+- [x] 5.2 Validação final: `./mvnw clean verify` e `npm run lint && npm run build && npm run test:run` + E2E.
