@@ -82,6 +82,14 @@ Backend primeiro (campo aditivo, sem flag). Front depois. Sem migração, sem ro
   mesmo sem mudança nos números executados, porque o veredito viaja só no DTO da análise. Aceito
   nesta versão pelo mesmo motivo do 204 — exigiria expor o campo em `realizadoHoje` do
   `GET /me/home`, fora de escopo (ver Open Questions, extensão já citada ali).
+- **Veredito diverge do texto da IA já persistido, após edição do realizado** (achado do
+  `code-reviewer` na implementação, 2026-10-06): o veredito é recalculado a cada chamada a partir
+  do `TreinoRealizado` atual, mas os quatro textos da IA ficam congelados em `tb_analise_workout`
+  desde a primeira geração. Editar duração/distância/RPE depois de `COMPLETED` (edição manual ou
+  re-sync do Strava) não invalida nem reprocessa a análise — o chip pode contradizer o texto já
+  escrito. Aceito nesta versão (reprocessar a IA é fora de escopo); documentado no Javadoc de
+  `AtletaWorkoutAnalysisServiceImpl`. Mitigação futura, se incomodar em produção: invalidar
+  `AnaliseWorkout` quando os campos relevantes do realizado mudarem.
 
 ## Rollback
 
