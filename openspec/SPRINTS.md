@@ -2,7 +2,22 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-06 (**`add-athlete-home-workout-analysis` entregue e arquivada** —
+**Última atualização:** 2026-10-08 (**`add-athlete-workout-verdict-chip` entregue e arquivada** —
+backend PR **#172** e frontend PR **#151** mergeados em `develop`. Veredito determinístico de
+aderência ao plano (`DENTRO_DO_PLANO`/`ABAIXO_DO_PLANO`/`ACIMA_DO_PLANO`/
+`ESFORCO_ACIMA_DO_ESPERADO`), calculado sem LLM a partir de executado vs. planejado (duração,
+distância, RPE), exposto no endpoint de análise do atleta já em `PENDING` e pintado como chip no
+card do treino (Home e drawer). Gate DoR com Codex adversarial review encontrou e corrigiu dois
+problemas de design antes de codar (precedência de desvio misto, dado incompleto virando aprovação
+silenciosa); o QA gate pós-implementação encontrou e corrigiu mais dois, convergentes entre Codex
+review e adversarial review: erro de arredondamento binário na borda de tolerância de 115%
+(`WorkoutPlanVerdictCalculator` reescrito para `BigDecimal` por multiplicação, não divisão) e
+ausência de tag de tenant na métrica `atleta_treino_veredito_total` (impedia a distribuição por
+assessoria prometida no proposal). S · Full. `./mvnw clean verify` e
+`npm run lint && npm run build && npm run test:run` + E2E verdes nos dois repos. Spec promovida
+para `specs/athlete-workout-analysis/`. Arquivada em
+`changes/archive/2026-10/2026-10-08-add-athlete-workout-verdict-chip/`.)
+Antes: 2026-10-06 (**`add-athlete-home-workout-analysis` entregue e arquivada** —
 frontend PR **#147** mergeado em `develop`. Investigando o relato "a análise do treino com IA não
 aparece na Home", confirmou-se que a Home do atleta nunca teve essa integração — gap de escopo da
 change original `analise-ia-treino-atleta` (cobriu Agenda e tela de registro, nunca a Home), não

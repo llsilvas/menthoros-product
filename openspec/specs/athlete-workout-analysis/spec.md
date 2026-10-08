@@ -93,7 +93,8 @@ autenticado** para o realizado `{id}`:
   "analyzedAt": "2026-08-25T10:42:00Z",
   "reconhecimento": "…", "comoFoi": "…", "esforco": "…", "proximoTreino": "…",
   "executado": { "duracaoMin": 58, "distanciaKm": 11.2, "rpe": 7 },
-  "planejado": { "duracaoMin": 61, "distanciaKm": 11.0, "rpeEsperado": 6 }
+  "planejado": { "duracaoMin": 61, "distanciaKm": 11.0, "rpeEsperado": 6 },
+  "veredito": "DENTRO_DO_PLANO | ABAIXO_DO_PLANO | ACIMA_DO_PLANO | ESFORCO_ACIMA_DO_ESPERADO"
 }
 ```
 
@@ -219,3 +220,67 @@ Sem backfill. Rollback: reverter o código; colunas ficam inertes.
 - **Then** o `PostWorkoutFeedbackCard` mostra o card em `pending` (o endpoint devolve `200
   PENDING` mesmo antes de o listener criar a linha) com "pode fechar — a análise fica guardada no
   treino", sem a frase fixa por faixa de RPE
+
+## Requirement: Veredito determinístico de aderência ao plano
+
+> Promovida do delta da change `add-athlete-workout-verdict-chip` (2026-10-08).
+
+A consulta de análise do atleta DEVE incluir `veredito` (`DENTRO_DO_PLANO | ABAIXO_DO_PLANO |
+ACIMA_DO_PLANO | ESFORCO_ACIMA_DO_ESPERADO`), calculado no backend sem LLM a partir de executado
+vs. planejado, tanto em `PENDING` quanto em `COMPLETED`. O campo DEVE estar ausente quando não há
+planejado vinculado ou nenhum par de valores é comparável. Precedência: esforço elevado → desvio
+misto (uma dimensão acima e outra abaixo da tolerância, tratado como acima) → abaixo → acima →
+dentro do plano; dado planejado sem contrapartida executada nunca garante "dentro do plano" por
+falta de evidência. Limiares (`toleranciaPct = 15`, `deltaRpe = 2`) configuráveis via
+`app.workout-analysis.verdict.*`, sem deploy de front.
+
+#### Scenario: Treino como planejado
+- **Given** planejado 30 min / 4,0 km / RPE 5 e executado 29 min / 4,0 km / RPE 5
+- **Then** `veredito = DENTRO_DO_PLANO`
+
+#### Scenario: Esforço elevado tem precedência
+- **Given** planejado 30 min / RPE 5 e executado 22 min / RPE 7
+- **Then** `veredito = ESFORCO_ACIMA_DO_ESPERADO`
+
+#### Scenario: Volume abaixo
+- **Given** planejado 60 min e executado 45 min, RPE igual ao esperado
+- **Then** `veredito = ABAIXO_DO_PLANO`
+
+#### Scenario: Volume acima
+- **Given** planejado 8,0 km e executado 10,0 km, RPE igual ao esperado
+- **Then** `veredito = ACIMA_DO_PLANO`
+
+#### Scenario: Sem planejado
+- **Given** um realizado sem planejado vinculado
+- **Then** o JSON não contém `veredito`
+
+#### Scenario: Campo ausente
+- **Given** planejado sem distância e executado com distância
+- **Then** a distância é ignorada e o veredito sai de duração e RPE
+
+#### Scenario: Desvio misto é tratado como acima
+- **Given** planejado 60 min / 10,0 km e executado 75 min / 8,0 km, RPE igual ao esperado
+- **Then** `veredito = ACIMA_DO_PLANO` (duração 25% acima do planejado; o excesso em uma dimensão
+  prevalece sobre o déficit em outra)
+
+#### Scenario: Dado incompleto não garante dentro do plano
+- **Given** planejado 60 min / 10,0 km, executado 60 min (dentro da tolerância) sem distância
+  registrada, RPE igual ao esperado
+- **Then** o JSON não contém `veredito` (a dimensão planejada sem contrapartida executada não conta
+  como cumprida)
+
+## Requirement: Chip de veredito no card do treino
+
+> Promovida do delta da change `add-athlete-workout-verdict-chip` (2026-10-08).
+
+O front DEVE exibir o veredito como chip com ponto e rótulo em PT-BR, derivando rótulo e cor apenas
+do enum recebido, sem recalcular limiares. `DENTRO_DO_PLANO` usa o tom de sucesso; os demais, o tom
+de alerta. Sem `veredito`, nenhum chip é renderizado.
+
+#### Scenario: Home com análise pendente
+- **Given** estado `FEITO` com análise `PENDING` e `veredito = DENTRO_DO_PLANO`
+- **Then** o chip "Dentro do plano" aparece na linha de "Treino feito" antes de o texto da IA chegar
+
+#### Scenario: Sem duplicação
+- **Given** a Home, onde o chip está no cabeçalho do `TodayCompletedCard`
+- **Then** o `WorkoutAnalysisCard` embutido não renderiza um segundo chip
