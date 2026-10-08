@@ -2,7 +2,17 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-08 (**`add-athlete-workout-verdict-chip` entregue e arquivada** —
+**Última atualização:** 2026-10-08 (**`refine-athlete-workout-analysis-card` entregue e arquivada** —
+frontend PR **#149** mergeado em `develop` (2026-10-06). Simplifica o `WorkoutAnalysisCard` nos
+quatro lugares que o usam (Home, `WorkoutDetailDrawer`, `PostWorkoutFeedbackCard`,
+`FitUploadResultCard`): métricas em uma linha mono, linha de plano só quando algum número diverge,
+estado `pending` enxuto, textos da IA dentro de um bloco `aiHighlight` (lime translúcido), e o
+card fechado mostra só o resumo (`reconhecimento`) — "Ver análise completa" expande o resto. Sem
+mudança de contrato/backend; S · Fast. O proposal já listava o chip de veredito como fora de
+escopo — entregue depois pela change `add-athlete-workout-verdict-chip` (arquivada acima). 23/23
+tasks. Arquivada em
+`changes/archive/2026-10/2026-10-08-refine-athlete-workout-analysis-card/`.)
+Antes: 2026-10-08 (**`add-athlete-workout-verdict-chip` entregue e arquivada** —
 backend PR **#172** e frontend PR **#151** mergeados em `develop`. Veredito determinístico de
 aderência ao plano (`DENTRO_DO_PLANO`/`ABAIXO_DO_PLANO`/`ACIMA_DO_PLANO`/
 `ESFORCO_ACIMA_DO_ESPERADO`), calculado sem LLM a partir de executado vs. planejado (duração,
