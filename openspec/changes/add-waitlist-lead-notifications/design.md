@@ -17,12 +17,22 @@ O evento carrega só o `waitlistId` — o listener recarrega a entidade. Não o 
 evento atravessa uma fronteira assíncrona (thread diferente), e passar uma entidade JPA detached
 por `@Async` é a classe de bug de "lazy loading fora da sessão" que o resto do repo evita.
 
-## D2 — `AFTER_COMMIT`, nunca antes
+## D2 — `AFTER_COMMIT` com `fallbackExecution = true`
 
-`@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`. Sem isso, um rollback em
-`registrar` (ex.: violação de integridade não tratada) ainda dispararia o e-mail para um lead que
-nunca existiu no banco — o inscrito receberia confirmação de algo que falhou silenciosamente no
-servidor. `AFTER_COMMIT` garante que o listener só roda depois que a linha está mesmo lá.
+`WaitlistServiceImpl.registrar` **não tem `@Transactional`** (comentário já existente na classe:
+"cada chamada ao repositório roda na própria transação", de propósito, para capturar a corrida do
+índice único sem marcar uma transação externa como rollback-only). Isso importa para o listener:
+`@TransactionalEventListener` só adia a execução quando existe uma sincronização de transação
+*ativa* no momento da publicação do evento — sem transação ambiente (o caso de hoje), o listener
+**nunca dispara**, silenciosamente, a menos que `fallbackExecution = true` esteja setado.
+
+Decisão: `@TransactionalEventListener(phase = AFTER_COMMIT, fallbackExecution = true)`. Hoje, sem
+transação ambiente, o evento publicado logo após `saveAndFlush()` já encontra a linha persistida
+(flush síncrono, retorno só depois de gravado) — o fallback roda imediato, como um `@EventListener`
+comum, e isso já é "depois que a linha existe", que é a garantia que importa. Se `registrar` um dia
+ganhar `@Transactional` (fora de escopo desta change), o mesmo listener passa a esperar o commit de
+verdade, sem precisar mudar uma linha — é por isso que `fallbackExecution = true` fica explícito em
+vez de usar `@EventListener` simples, que seria suficiente só para a realidade de hoje.
 
 ## D3 — Executor dedicado, sem `@Transactional` no listener
 

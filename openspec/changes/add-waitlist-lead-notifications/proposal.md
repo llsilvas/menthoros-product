@@ -30,7 +30,11 @@ Somente `apps/menthoros-backend`. Sem migration.
   - `ATLETA`: produto é para assessorias, com um link para indicar ao treinador.
 - Notificação ao founder (destinatário configurável, `app.founder.notification-email`) a cada lead
   `TREINADOR` criado — nome, faixa de atletas, telefone/WhatsApp (se informado) e origem (UTM).
-  Atleta não gera notificação ao founder (não é quem o founder precisa responder rápido).
+  Atleta não gera notificação ao founder (não é quem o founder precisa responder rápido). **Base
+  LGPD:** o inscrito já deu `aceiteLgpd` no formulário para "receber contato do Menthoros" — essa
+  notificação é exatamente o que viabiliza esse contato (o founder é quem responde), não um uso
+  secundário dos dados. Achado da revisão `security-reviewer`: registrado aqui para rastreabilidade,
+  não como gap técnico.
 - Envio com retry (`@Retryable`, mesmo padrão de `WeeklyFocusModelClient` — método extraído para um
   bean próprio, porque `@Retryable` no mesmo método que captura a exceção não funciona, o proxy
   nunca intercepta). Falha de e-mail (esgotado o retry) é logada, nunca propaga — não derruba a
