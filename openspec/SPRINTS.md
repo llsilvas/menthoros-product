@@ -2,7 +2,25 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-08 (**`add-waitlist-value-proposition` entregue e arquivada** —
+**Última atualização:** 2026-10-08 (**`add-founders-slots-endpoint` entregue e arquivada** —
+backend PR **#173** mergeado em `develop`. Origem: BE-04 da análise de conversão do Instagram
+(`menthoros-product/artifacts/instagram-conversao-specs-backend.md`). `GET /api/v1/founders/slots`
+público vira a fonte única de verdade para as vagas da turma fundadora — hoje "10 vagas" é texto
+fixo divergente em bio, post fixado, site e front (mesmo depois do front centralizar numa constante
+em `add-waitlist-value-proposition`). Reaproveita `tb_founding_invite` sem migration: `taken` =
+`FoundingInviteRepository.countByInvalidatedAtIsNull()` (convite aberto ou convertido ocupa vaga,
+invalidado por reenvio não conta duas vezes); `total` configurável via
+`app.founding-invite.total-slots`/env var, sem deploy; `remaining`/`open` derivados, nunca
+negativo. Cache em processo (Caffeine, ~30s) em vez do `CacheManager` compartilhado — este só tem
+`defaultTtl` global de 30min por cache nomeado, o que esconderia um convite novo por meia hora. Sem
+rate limit dedicado (GET idempotente, sem PII, custo real de DB já limitado pelo cache). S · Fast,
+só backend. `./mvnw clean test`: 4492 testes, 0 falhas; `./mvnw clean verify -Dtest=
+FoundersSlotsControllerIT`: 3/3 contra Postgres real (Testcontainers). Revisão via `code-reviewer`:
+1 achado Importante (JavaDoc de Idempotency/Side Effects/Tenant-aware faltando) + 1 Minor
+(`@JsonInclude`), ambos corrigidos antes do merge. Consumo no frontend fica para change separada —
+havia sessão paralela editando `menthoros-front` no momento desta change. Sem spec capability a
+promover. Arquivada em `changes/archive/2026-10/2026-10-08-add-founders-slots-endpoint/`.)
+Antes: 2026-10-08 (**`add-waitlist-value-proposition` entregue e arquivada** —
 frontend PR **#152** mergeado em `develop`. Origem: FE-01 da análise de conversão do Instagram
 (`menthoros-product/artifacts/instagram-conversao-specs-frontend.md`). `/waitlist` (destino do link
 da bio) mostrava só título, 4 campos e botão — ganhou bloco de proposta de valor (título, slogan,
