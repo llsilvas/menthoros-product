@@ -2,7 +2,17 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-08 (**`refine-athlete-workout-analysis-card` entregue e arquivada** —
+**Última atualização:** 2026-10-08 (**`planos-treino-insight-compacto` entregue e arquivada** —
+frontend PR **#141** mergeado em `develop`. Sequência de `planos-dialog-padrao-inbox`: o insight do
+coach no `TreinoCard` vira bloco minimalista sem caixa (causa + nota, resumo em 2 linhas, "Ver
+insight completo"), sem mais expansão inline quebrando a altura do grid de treinos; novo
+`InsightTreinoDialog` para o texto completo (veredito → resumo → Recomendação em destaque → "O que
+o atleta leu" recolhido). Remove o KPI "Volume alvo" (duplicava "Volume planejado" — mesmo dado,
+`volumeAlvoKm = volumePlanejadoKm` no backend). S · Fast, só front. CI do PR ("Lint, build e
+testes" + E2E) verde — task 3.3 fechada com essa evidência no lugar de reexecução manual na máquina
+do founder. 6/6 tasks. Sem spec delta a promover. Arquivada em
+`changes/archive/2026-10/2026-10-08-planos-treino-insight-compacto/`.)
+Antes: 2026-10-08 (**`refine-athlete-workout-analysis-card` entregue e arquivada** —
 frontend PR **#149** mergeado em `develop` (2026-10-06). Simplifica o `WorkoutAnalysisCard` nos
 quatro lugares que o usam (Home, `WorkoutDetailDrawer`, `PostWorkoutFeedbackCard`,
 `FitUploadResultCard`): métricas em uma linha mono, linha de plano só quando algum número diverge,
