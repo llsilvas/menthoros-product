@@ -36,3 +36,35 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
       fluxo (deep link UTM → envio → sucesso; link de Privacidade fora do label) — rodou verde contra
       o novo layout sem alteração no spec. Validação: `npx playwright test
       tests/e2e/landing/waitlist-deeplink.spec.ts` — 2/2 verdes.
+
+## Sessão de refinamento (design aprovado) — escopo ampliado além do S original
+
+PR #152 ficou aberto para uma rodada de iteração visual direto com o founder (canvas /waitlist
+desktop+mobile), que acabou puxando parte de FE-02/FE-03/FE-04/FE-05/FE-06 para dentro desta change
+em vez de ficarem para as changes seguintes. Registrado aqui porque o PR já foi mergeado
+(`755fdab`) — não dá para voltar e reclassificar o Tamanho/Trilha, só documentar o que saiu:
+
+- [x] 2.1 **FE-02 (completo):** formulário único `AccessRequestForm.tsx` substitui `AccessForm.tsx`
+      (home) e o form inline de `WaitlistPage.tsx` — mesmos campos, mesma validação por campo, mesmo
+      texto de botão nos dois lugares. `AccessForm.tsx`/`AccessForm.test.tsx` removidos.
+- [x] 2.2 **FE-01 (refino):** bloco de proposta de valor extraído para `src/landing/ValueProposition.tsx`
+      (componente próprio, endereça a sugestão do `frontend-reviewer` de não deixar crescer dentro de
+      `WaitlistPage.tsx`).
+- [x] 2.3 **FE-03 (completo):** `src/landing/utmPersistence.ts` captura UTM da URL (path e fragmento
+      de hash) e persiste em `sessionStorage` na primeira carga da sessão — sobrevive à navegação
+      entre `/` e `/waitlist` sem UTM na URL de destino.
+- [x] 2.4 **FE-05 (parcial):** mensagem de sucesso varia por perfil — atleta recebe CTA de indicar o
+      treinador em vez de uma promessa de contato. Variante "outra marca de relógio" **não**
+      implementada (depende do campo de FE-02 abaixo, deferido).
+- [x] 2.5 **FE-06 (parcial):** "assessorias de endurance" → "assessorias de corrida" na copy de
+      marketing; dado mock do `AttentionQueue` ganhou rótulo "Exemplo ilustrativo".
+- [x] 2.6 **FE-04 (parcial):** as ocorrências soltas de "10 vagas" passam a ler de uma única
+      constante em `content.ts`. Contador dinâmico de verdade continua dependendo do endpoint
+      `BE-04`, que não existe.
+- [~] 2.7 **Deferido, fora desta change:** campo "dono de assessoria" no perfil e campo "relógio
+      predominante dos atletas" em `AccessRequestForm.tsx` (FE-02) — mudariam o contrato do DTO do
+      backend, e `CLAUDE.md` do backend ("Campo de DTO em português") exige coordenar a mudança de
+      contrato junto com o repo que já está mexendo na entidade, nunca isolado no front. A variante
+      de sucesso "outra marca" de FE-05 depende desse campo e também fica para depois.
+- [~] 2.8 **Deferido, fora desta change:** FE-07 (SEO/Open Graph/eventos de analytics) — não há
+      ferramenta de analytics instalada hoje; escolher uma é decisão de produto, não técnica.

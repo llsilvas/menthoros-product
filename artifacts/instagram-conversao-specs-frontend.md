@@ -13,6 +13,38 @@ Decisões de produto que as specs assumem (ajustar se mudarem):
 
 Ordem sugerida: FE-01 → FE-02 → FE-03 → FE-04 → FE-05 → FE-06 → FE-07.
 
+## Checklist de entrega
+
+Atualizado em 2026-10-08. A change `add-waitlist-value-proposition` (frontend PR #152, mergeado em
+`develop`) nasceu escopada só em FE-01, mas uma rodada de iteração visual direto com o founder
+(canvas `/waitlist` aprovado) puxou parte de FE-02/03/04/05/06 para dentro dela antes do merge —
+ver `changes/archive/2026-10/2026-10-08-add-waitlist-value-proposition/tasks.md` para o detalhe
+task a task.
+
+- [x] **FE-01** — Página `/waitlist` com proposta de valor e oferta. Entregue: título, slogan,
+      bullets, oferta, aviso Garmin, `AttentionQueue` ilustrativo e logo acima do formulário.
+- [x] **FE-02** — Formulário único de solicitação de acesso. Entregue: `AccessRequestForm.tsx`
+      substitui os dois formulários divergentes (home e `/waitlist`), mesmos campos/validação/botão.
+      **Pendente dentro de FE-02:** campo "dono de assessoria" no "Você é" e campo "relógio
+      predominante dos atletas" — mudam o contrato do DTO do backend, adiados para coordenar com o
+      repo que mexer na entidade (ver `CLAUDE.md` do backend, "Campo de DTO em português").
+- [x] **FE-03** — Captura e persistência de UTMs. Entregue: `utmPersistence.ts` lê path e fragmento
+      de hash, persiste em `sessionStorage` na primeira carga da sessão.
+- [ ] **FE-04** — Contador de vagas com fonte única. **Parcial:** as ocorrências soltas de "10
+      vagas" agora leem de uma constante única em `content.ts`, mas o contador **dinâmico de
+      verdade** continua dependendo do endpoint `BE-04` (backend), que não existe ainda.
+- [ ] **FE-05** — Tela de sucesso com próximo passo. **Parcial:** mensagem varia por perfil
+      (treinador vs. atleta) — entregue. Variante "dono/treinador com outra marca de relógio" **não**
+      implementada: depende do campo "relógio predominante" de FE-02, que ficou pendente.
+- [ ] **FE-06** — Ajustes de conteúdo na home. **Parcial:** "assessorias de endurance" →
+      "assessorias de corrida" na copy de marketing; dado mock do `AttentionQueue` ganhou rótulo
+      "Exemplo ilustrativo". **Não verificado/pendente:** foto real + nome completo na seção "Quem
+      constrói" (ainda com inicial "L"?), seção de depoimentos condicionada a ter ao menos um
+      depoimento real, botões de conversão com texto uniforme em toda a home.
+- [ ] **FE-07** — SEO, prévia de link e eventos de analytics. **Não iniciado.** Nenhuma ferramenta
+      de analytics instalada hoje — escolher uma é decisão de produto, não técnica. Open Graph/Twitter
+      Card e pré-renderização também não endereçados.
+
 ---
 
 ## FE-01 — Página /waitlist com proposta de valor e oferta

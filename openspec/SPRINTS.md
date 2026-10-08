@@ -2,7 +2,27 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-08 (**`planos-treino-insight-compacto` entregue e arquivada** —
+**Última atualização:** 2026-10-08 (**`add-waitlist-value-proposition` entregue e arquivada** —
+frontend PR **#152** mergeado em `develop`. Origem: FE-01 da análise de conversão do Instagram
+(`menthoros-product/artifacts/instagram-conversao-specs-frontend.md`). `/waitlist` (destino do link
+da bio) mostrava só título, 4 campos e botão — ganhou bloco de proposta de valor (título, slogan,
+bullets, oferta, aviso de requisito Garmin) e o painel ilustrativo `AttentionQueue` ao lado do
+formulário, com logo no topo. Escopo cresceu durante uma rodada de iteração visual direto com o
+founder (canvas aprovado) e também entregou, parcial ou totalmente: FE-02 (formulário único
+`AccessRequestForm.tsx`, substitui `AccessForm.tsx` da home e o form inline de `/waitlist`), FE-03
+(persistência de UTM em `sessionStorage`, sobrevive à navegação sem UTM na URL de destino), FE-04
+(constante única para "10 vagas", contador dinâmico real continua dependendo do endpoint `BE-04`
+inexistente), FE-05 (mensagem de sucesso varia por perfil, variante "atleta" entregue; variante
+"outra marca de relógio" deferida — depende de campo de FE-02 não implementado) e FE-06
+("assessorias de endurance" → "assessorias de corrida", rótulo "Exemplo ilustrativo" no mock do
+painel). Deferido por exigir coordenação de contrato com o backend (CLAUDE.md "Campo de DTO em
+português"): campos "dono de assessoria" e "relógio predominante dos atletas" em
+`AccessRequestForm.tsx`. FE-07 (SEO/Open Graph/analytics) fora de escopo — não há ferramenta de
+analytics instalada, decisão de produto pendente. S · Fast na proposta original; escopo entregue
+ultrapassou o S. `npm run lint && npm run build && npm run test:run` (1987 testes) + E2E
+(`waitlist-deeplink.spec.ts`) verdes. Revisão via `frontend-reviewer` sem findings bloqueantes.
+Arquivada em `changes/archive/2026-10/2026-10-08-add-waitlist-value-proposition/`.)
+Antes: 2026-10-08 (**`planos-treino-insight-compacto` entregue e arquivada** —
 frontend PR **#141** mergeado em `develop`. Sequência de `planos-dialog-padrao-inbox`: o insight do
 coach no `TreinoCard` vira bloco minimalista sem caixa (causa + nota, resumo em 2 linhas, "Ver
 insight completo"), sem mais expansão inline quebrando a altura do grid de treinos; novo
