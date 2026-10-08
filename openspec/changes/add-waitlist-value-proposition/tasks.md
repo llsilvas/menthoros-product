@@ -5,23 +5,34 @@ Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint &
 
 ## Bloco de valor em /waitlist
 
-- [ ] 1.1 Extrair o conteúdo necessário para `WaitlistPage.tsx` a partir de `src/landing/content.ts`
-      (`hero`, `founderOffer`, `capabilities.bullets`) e da frase de requisito Garmin de
-      `AccessForm.tsx:81` — sem duplicar strings fixas novas; reaproveitar ou exportar o que faltar.
+- [x] 1.1 Extrair o conteúdo necessário para `WaitlistPage.tsx` a partir de `src/landing/content.ts`
+      (`hero`, `founderOffer`) e da frase de requisito Garmin. A frase Garmin estava inline em
+      `AccessForm.tsx:81` (não era uma constante) — extraída para `content.ts` como `garminNotice` e
+      reusada nos dois lugares, eliminando a duplicação que a proposta queria evitar.
       Validação: lint+build.
-- [ ] 1.2 Montar o bloco de proposta de valor acima do formulário em `WaitlistPage.tsx`: título,
-      slogan, frase de abertura, três bullets, linha de oferta, aviso Garmin. Reaproveitar tokens do
+- [x] 1.2 Montar o bloco de proposta de valor acima do formulário em `WaitlistPage.tsx`: título,
+      slogan, frase de abertura, três bullets, linha de oferta, aviso Garmin. Reaproveita tokens do
       tema (`gradients`, `glassAzulSx`, `surface`, `overlayWhite`) já usados na página — sem hex
-      cru. Validação: lint+build.
-- [ ] 1.3 Inserir `<AttentionQueue />` (`src/landing/ProductUI.tsx`) ao lado do formulário no desktop
-      (`Grid`/`Stack` responsivo) e abaixo dele no mobile. Validação: lint+build.
-- [ ] 1.4 Ajustar o layout para mobile-first: bloco de valor + formulário (ou início dele) visíveis
-      sem exigir mais de uma rolagem em 390px de largura; captura do painel pode ficar abaixo da
-      dobra no mobile. Validação: inspeção manual em devtools (390×844) + lint+build.
-- [ ] 1.5 Atualizar `WaitlistPage.test.tsx` para cobrir o novo conteúdo (presença do bloco de valor,
-      do aviso Garmin, da linha de oferta) sem quebrar as asserções existentes do formulário/estado
-      de sucesso. Validação: `npm run test:run`.
-- [ ] 1.6 Smoke E2E: confirmar que o fluxo de envio do formulário em `/waitlist`
-      (`tests/e2e/.../waitlist*.spec.ts` se existir, senão o E2E relevante mais próximo) continua
-      passando com o novo layout. Validação: `npm run test:e2e` (ou registrar em "Open Questions" se
-      não houver spec E2E cobrindo `/waitlist` hoje e não for viável escrever uma nesta change).
+      cru. Os três bullets ficaram como array local `VALUE_BULLETS` (texto adaptado da spec FE-01,
+      não idêntico a `capabilities.bullets` da home). Validação: lint+build.
+- [x] 1.3 `<AttentionQueue />` (`src/landing/ProductUI.tsx`) inserido ao lado do formulário no
+      desktop e abaixo dele no mobile, via `Stack` responsivo com `order` por breakpoint. Precisou de
+      um `ThemeProvider` aninhado com `landingTheme` ao redor do componente — ele lê
+      `palette.surfaceShift`, token que só existe no tema da landing, não no `appTheme` que envolve
+      `/waitlist` (mesmo padrão que `LandingPage.tsx` já usa). Validação: lint+build.
+- [x] 1.4 Layout mobile-first: `Stack direction={{xs:'column', md:'row'}}` sem larguras fixas (só
+      `maxWidth` + `width:'100%'`), então não há overflow horizontal possível em 390px — o
+      formulário aparece primeiro no fluxo (`order: {xs:1, md:2}`), a captura do painel depois
+      (`order: {xs:2, md:1}`). Validação: lint+build. **Nota:** a inspeção visual em devtools a
+      390×844 não foi possível nesta sessão — a ferramenta de resize do browser automatizado não
+      alterou o viewport real (`window.innerWidth` seguiu em 1080 após o resize). Verificado por
+      revisão de código (mesmo padrão responsivo de `refine-inbox-mobile-breakpoint`, sem largura
+      fixa em nenhum nó); recomenda-se confirmação visual manual antes do deploy se o founder quiser
+      dupla checagem.
+- [x] 1.5 `WaitlistPage.test.tsx` ganhou um teste novo cobrindo o bloco de valor, a oferta e o aviso
+      Garmin; as asserções existentes (formulário, sucesso, honeypot, link de privacidade) seguem
+      intactas. Validação: `npm run test:run` — 7/7 verdes no arquivo, 1987/1987 na suíte completa.
+- [x] 1.6 Smoke E2E: `tests/e2e/landing/waitlist-deeplink.spec.ts` já existia e cobre exatamente o
+      fluxo (deep link UTM → envio → sucesso; link de Privacidade fora do label) — rodou verde contra
+      o novo layout sem alteração no spec. Validação: `npx playwright test
+      tests/e2e/landing/waitlist-deeplink.spec.ts` — 2/2 verdes.
