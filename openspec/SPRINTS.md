@@ -2,7 +2,24 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-08 (**`add-founders-slots-endpoint` entregue e arquivada** —
+**Última atualização:** 2026-10-08 (**`add-waitlist-lead-notifications` entregue e arquivada** —
+backend PR **#174** mergeado em `develop`. Origem: BE-05 da análise de conversão do Instagram
+(`menthoros-product/artifacts/instagram-conversao-specs-backend.md`). Ninguém recebia nada ao se
+inscrever em `/waitlist`/home: `WaitlistServiceImpl.registrar` passa a publicar
+`WaitlistLeadCreatedEvent` só no ramo `CRIADO` (nunca reenvio nem honeypot); um
+`WaitlistNotificationListener` assíncrono (executor dedicado, `AFTER_COMMIT` com
+`fallbackExecution` — `registrar` não é transacional) envia confirmação ao lead por perfil
+(`TREINADOR`/`ATLETA`; terceiro segmento "outra marca" deferido — depende de `watchBrand`, que não
+existe, `BE-01`) e, só para `TREINADOR`, notifica o founder (nome, faixa de atletas, telefone,
+UTM) no e-mail de `app.founder.notification-email`. Envio com retry em bean dedicado
+(`WaitlistEmailSender`, mesmo padrão de `WeeklyFocusModelClient` — `@Retryable` não funciona
+chamado de dentro da mesma classe que captura a exceção). M · Full, só backend, com `design.md`.
+QA gate (`code-reviewer`+`security-reviewer`) corrigiu 2 achados Importantes antes do merge:
+JavaDoc mandatório faltando, e um gap real onde o executor saturado podia devolver 500 numa
+inscrição já persistida (`publishEvent` agora capturado e logado, nunca propaga). Security sem
+Critical/High/Medium. `./mvnw clean verify`: 4503 testes unitários/slice + 211 de integração, 0
+falhas. Arquivada em `changes/archive/2026-10/2026-10-08-add-waitlist-lead-notifications/`.)
+Antes: 2026-10-08 (**`add-founders-slots-endpoint` entregue e arquivada** —
 backend PR **#173** mergeado em `develop`. Origem: BE-04 da análise de conversão do Instagram
 (`menthoros-product/artifacts/instagram-conversao-specs-backend.md`). `GET /api/v1/founders/slots`
 público vira a fonte única de verdade para as vagas da turma fundadora — hoje "10 vagas" é texto
