@@ -25,23 +25,23 @@ apontou como a evidência mais barata de que a edição é necessária.
 ### Backend (`apps/menthoros-backend`)
 
 1. **Entidade `SugestaoCoach`** ganha 2 campos: `reviewedBy` (UUID, nullable — técnico que decidiu)
-   e `motivoRejeicao` (TEXT, nullable — texto livre do porquê da rejeição).
+   e `rejectionReason` (TEXT, nullable — texto livre do porquê da rejeição).
 2. **Migration aditiva** (independente, V100): colunas
-   `reviewed_by uuid NULL` e `motivo_rejeicao text NULL` em `tb_sugestao_coach`. Expand-only, sem
+   `reviewed_by uuid NULL` e `rejection_reason text NULL` em `tb_sugestao_coach`. Expand-only, sem
    backfill (linhas legadas ficam com `reviewed_by` nulo — predatam a auditoria).
 3. **`SugestaoCoachServiceImpl`**:
    - `aprovar`/`rejeitar` gravam `reviewedBy` resolvido **do security context** (JWT/Keycloak),
      nunca do corpo — auditoria não forjável.
-   - `rejeitar(id, motivoRejeicao?)` passa a aceitar o motivo opcional e grava `motivoRejeicao`.
-   - `aprovar` limpa `motivoRejeicao` (não faz sentido manter motivo numa sugestão aprovada — a
+   - `rejeitar(id, rejectionReason?)` passa a aceitar o motivo opcional e grava `rejectionReason`.
+   - `aprovar` limpa `rejectionReason` (não faz sentido manter motivo numa sugestão aprovada — a
      decisão final é aprovar).
-4. **`SugestaoCoachOutputDto`** ganha `reviewedBy` e `motivoRejeicao` (aditivos,
+4. **`SugestaoCoachOutputDto`** ganha `reviewedBy` e `rejectionReason` (aditivos,
    `@JsonInclude(NON_NULL)` já presente). `CoachSugestaoController.rejeitar` aceita
-   `@RequestBody(required=false)` com `{ motivoRejeicao }`.
+   `@RequestBody(required=false)` com `{ rejectionReason }`.
 
 ### Frontend (`apps/menthoros-front`)
 
-5. `SugestaoService.rejeitar(id, motivoRejeicao?)` envia o corpo opcional; ao rejeitar, o
+5. `SugestaoService.rejeitar(id, rejectionReason?)` envia o corpo opcional; ao rejeitar, o
    `CoachDialog` (de `RecentSuggestionsPanel.tsx`, já com Aprovar/Rejeitar de
    `add-coach-suggestion-review-actions`) pede um motivo opcional (textarea, `maxLength={500}`).
    Quando `status !== 'PENDING'`, o dialog mostra quem decidiu (`reviewedBy`) e, se rejeitada, o
@@ -63,15 +63,15 @@ apontou como a evidência mais barata de que a edição é necessária.
 ## Critérios de aceite
 
 1. **Given** um técnico aprova uma sugestão PENDING, **when** `POST .../aprovar`, **then**
-   `reviewedBy` = id do técnico autenticado (nunca do corpo), `motivoRejeicao = null`.
-2. **Given** um técnico rejeita com `{ "motivoRejeicao": "volume alto demais para a semana" }`,
-   **when** `POST .../rejeitar`, **then** `motivoRejeicao` gravado e `reviewedBy` preenchido.
+   `reviewedBy` = id do técnico autenticado (nunca do corpo), `rejectionReason = null`.
+2. **Given** um técnico rejeita com `{ "rejectionReason": "volume alto demais para a semana" }`,
+   **when** `POST .../rejeitar`, **then** `rejectionReason` gravado e `reviewedBy` preenchido.
 3. **Given** um técnico rejeita **sem** corpo, **when** `POST .../rejeitar`, **then** `reviewedBy`
-   preenchido e `motivoRejeicao = null` (motivo é opcional).
+   preenchido e `rejectionReason = null` (motivo é opcional).
 4. **Given** um corpo tentando forjar `reviewedBy`, **when** `POST .../aprovar`, **then**
    `reviewedBy` gravado é o do token autenticado, não o do corpo.
 5. **Given** uma sugestão já decidida, **when** o coach abre o dialog, **then** vê quem decidiu
-   (`reviewedBy`) e, se `REJECTED`, o `motivoRejeicao`.
+   (`reviewedBy`) e, se `REJECTED`, o `rejectionReason`.
 6. **Given** duas decisões concorrentes sobre a mesma sugestão PENDING (achado do Codex
    adversarial-review, design D4), **when** ambas chegam ao `UPDATE` condicionado a
    `status = PENDING`, **then** só uma afeta linha e vence (com sua auditoria intacta); a outra
@@ -80,7 +80,7 @@ apontou como a evidência mais barata de que a edição é necessária.
 ## Métrica de sucesso
 
 - Toda decisão grava **quem** decidiu (auditoria completa: quando + quem + por quê na rejeição).
-- A distribuição dos `motivoRejeicao` (redação vs. mérito) vira o dado que valida a necessidade do
+- A distribuição dos `rejectionReason` (redação vs. mérito) vira o dado que valida a necessidade do
   `edit-delta` — mesmo objetivo apontado pelo `product-reviewer`.
 
 ## Open Questions & Assumptions

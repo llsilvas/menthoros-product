@@ -1,7 +1,7 @@
 # coach-suggestion-decision-audit
 
 Auditoria da decisão do treinador sobre `SugestaoCoach`: registrar **quem** decidiu (`reviewedBy`)
-e, na rejeição, **o porquê** (`motivoRejeicao`).
+e, na rejeição, **o porquê** (`rejectionReason`).
 
 ## ADDED Requirements
 
@@ -13,7 +13,7 @@ O sistema SHALL gravar, em `aprovar` e `rejeitar`, o `reviewedBy` do usuário au
 #### Scenario: Aprovação grava o ator
 - **GIVEN** um técnico autenticado aprova uma sugestão PENDING
 - **WHEN** `POST .../aprovar`
-- **THEN** `reviewedBy` = id do técnico autenticado e `motivoRejeicao` nulo
+- **THEN** `reviewedBy` = id do técnico autenticado e `rejectionReason` nulo
 
 #### Scenario: Ator não é forjável pelo corpo
 - **WHEN** `POST .../aprovar` com `reviewedBy` no corpo
@@ -21,23 +21,23 @@ O sistema SHALL gravar, em `aprovar` e `rejeitar`, o `reviewedBy` do usuário au
 
 ### Requirement: Rejeição registra o porquê
 
-O sistema SHALL aceitar, em `rejeitar`, um `motivoRejeicao` opcional (texto livre) e persistí-lo;
-na ausência dele, `motivoRejeicao` permanece nulo.
+O sistema SHALL aceitar, em `rejeitar`, um `rejectionReason` opcional (texto livre) e persistí-lo;
+na ausência dele, `rejectionReason` permanece nulo.
 
 #### Scenario: Rejeição com motivo
-- **GIVEN** um técnico rejeita informando `motivoRejeicao = "volume alto demais para a semana"`
+- **GIVEN** um técnico rejeita informando `rejectionReason = "volume alto demais para a semana"`
 - **WHEN** `POST .../rejeitar` com corpo
-- **THEN** `motivoRejeicao` gravado e `reviewedBy` preenchido
+- **THEN** `rejectionReason` gravado e `reviewedBy` preenchido
 
 #### Scenario: Rejeição sem motivo
 - **GIVEN** um técnico rejeita sem corpo
 - **WHEN** `POST .../rejeitar`
-- **THEN** `reviewedBy` preenchido e `motivoRejeicao` nulo
+- **THEN** `reviewedBy` preenchido e `rejectionReason` nulo
 
 ### Requirement: Decisão visível ao coach
 
 Quando a sugestão já foi decidida, o payload e a UI SHALL expor `reviewedBy` e, se rejeitada,
-`motivoRejeicao`.
+`rejectionReason`.
 
 #### Scenario: Sugestão decidida
 - **GIVEN** uma sugestão APPROVED ou REJECTED
@@ -46,6 +46,6 @@ Quando a sugestão já foi decidida, o payload e a UI SHALL expor `reviewedBy` e
 
 ## Dados
 
-Migration aditiva `reviewed_by uuid NULL` + `motivo_rejeicao text NULL` em `tb_sugestao_coach`
+Migration aditiva `reviewed_by uuid NULL` + `rejection_reason text NULL` em `tb_sugestao_coach`
 (V99, independente — sem dependência de `add-coach-suggestion-edit-delta`, que passa a vir depois).
 Sem backfill. Rollback: reverter código; colunas ficam inertes.
