@@ -2,7 +2,22 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-08 (**`add-waitlist-lead-notifications` entregue e arquivada** —
+**Última atualização:** 2026-10-08 (**`add-founders-slots-display` entregue e arquivada** —
+frontend PR **#154** mergeado em `develop`. Origem: FE-04 da análise de conversão do Instagram
+(`menthoros-product/artifacts/instagram-conversao-specs-frontend.md`). A home e `/waitlist`
+mostravam "10 vagas" como texto fixo (`VAGAS_PROGRAMA_FUNDADOR`), apesar do backend já expor a
+contagem real (`add-founders-slots-endpoint`, PR backend #173) — o problema original (bio "4",
+post "10", site "10") voltaria a divergir assim que o founder emitisse convites. Badge da home
+(`FounderOfferCard`) e cabeçalho do formulário em `/waitlist` passam a ler `GET
+/api/v1/founders/slots` ao vivo via `useFoundersSlots` + `foundersSlotsLabel`: "Restam N de T
+vagas" quando aberto, "Lista de espera — próxima turma" quando esgotado, nunca um número (nem o
+"10" estático) durante carregamento ou falha do endpoint. Menções em prosa corrida (hero, FAQ,
+rodapé do `AccessRequestForm`) continuam estáticas — Non-Goal, deferido. S · Fast, só frontend.
+`frontend-reviewer` sem achados bloqueantes (2 ajustes menores: teste de cancelamento do hook
+fortalecido, comentário desatualizado corrigido). `npm run lint && npm run build && npm run
+test:run`: 2013/2013 testes; E2E (`waitlist-deeplink.spec.ts`, `acesso.spec.ts`) verdes. Arquivada
+em `changes/archive/2026-10/2026-10-08-add-founders-slots-display/`.)
+Antes: 2026-10-08 (**`add-waitlist-lead-notifications` entregue e arquivada** —
 backend PR **#174** mergeado em `develop`. Origem: BE-05 da análise de conversão do Instagram
 (`menthoros-product/artifacts/instagram-conversao-specs-backend.md`). Ninguém recebia nada ao se
 inscrever em `/waitlist`/home: `WaitlistServiceImpl.registrar` passa a publicar
