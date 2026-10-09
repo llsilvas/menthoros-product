@@ -19,13 +19,20 @@ Atualizado em 2026-10-09. Ver também o checklist irmão em
       spec original), `watchBrand`, `landingPath`/`referrer`, `policyVersion` (carimbado pelo servidor
       a partir de `LgpdProperties`, nunca aceito do cliente — `aceiteLgpd` já cumpria o papel de
       `consent`), `segment` derivado na resposta (`QUALIFIED`/`OTHER_BRAND`/`ATLETA`), e
-      upsert-on-duplicate real (reenvio atualiza perfil/telefone/watchBrand, preserva o UTM original
-      por first-touch). Os 5 pontos que tratavam `TREINADOR` como único "perfil parecido com coach"
+      upsert-on-duplicate real (reenvio atualiza nome/telefone/watchBrand; `perfil`/`aceiteLgpd`/
+      `policyVersion`/UTM de uma linha existente ficam congelados no valor da primeira inscrição —
+      ajuste do security review do QA gate, endpoint é público e sem verificação de posse do
+      e-mail). Os 5 pontos que tratavam `TREINADOR` como único "perfil parecido com coach"
       (notificação, funil, convite da turma fundadora, aviso da central de ajuda) passam a aceitar
       `PROPRIETARIO` também.
-- [ ] **BE-02** — Modelo de lead com origem, consentimento e status. **Desbloqueado, não
-      implementado.** BE-01 já entrega `role`/`watchBrand`/`segment` — falta o lifecycle de status
-      (`NEW/QUALIFIED/INVITED/ACTIVE/DISCARDED`) e o endpoint de exclusão LGPD.
+- [x] **BE-02** — Modelo de lead com origem, consentimento e status. **Entregue, parcial** —
+      `add-waitlist-status-lifecycle`. `Waitlist` ganha etapa de funil (`NEW`/`INVITED`/`ACTIVE`/
+      `DISCARDED`), derivada de timestamps (`invitedAt`/`activatedAt`/`discardedAt`), não um enum
+      persistido — mesmo padrão já documentado em `FoundingInvite`. `QUALIFIED` não é status: já é
+      o `segment` derivado em BE-01. Transições automáticas via os dois fluxos existentes (convite
+      da turma fundadora, consumo do convite no cadastro), sem endpoint novo. **Faltando:**
+      endpoint de exclusão LGPD a pedido — decisão de produto/compliance (hard-delete vs.
+      anonimizar via `discardedAt`) não resolvida, fica para change própria.
 - [x] **BE-03** — Proteção contra spam e abuso. **Já existia antes desta série** (não foi entregue
       por nenhuma change do Instagram, mas satisfaz a spec): honeypot (`WaitlistInputDto.website`,
       tratado em `WaitlistServiceImpl.registrar`) e rate limit por IP
@@ -54,9 +61,11 @@ Atualizado em 2026-10-09. Ver também o checklist irmão em
       spec original deixa as duas perguntas em aberto ("Verificar no código").
 
 **Fecha aqui a sequência de engenharia pura desta análise** (FE-01→FE-04, BE-01→BE-06 + BE-01
-completo via `expand-waitlist-access-contract`, 7 changes entregues entre 2026-10-08 e 2026-10-09).
-O que resta — BE-02, BE-05 (variante de e-mail), BE-07, e os itens parciais de FE-02/FE-05/FE-06/
-FE-07 do checklist irmão — está bloqueado em decisão do founder, consumo no front (agora
+completo via `expand-waitlist-access-contract` + BE-02 via `add-waitlist-status-lifecycle`, 8
+changes entregues entre 2026-10-08 e 2026-10-09).
+O que resta — exclusão LGPD (parte de BE-02), BE-05 (variante de e-mail), BE-07, e os itens
+parciais de FE-02/FE-05/FE-06/FE-07 do checklist irmão — está bloqueado em decisão do founder/
+produto, consumo no front (agora
 desbloqueado pelo contrato), ou coordenação de processo, não em trabalho de backend isolado.
 
 ---
