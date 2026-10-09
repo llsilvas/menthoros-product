@@ -8,6 +8,57 @@ Premissas (ajustar ao que existir): Java 21, Spring Boot, Flyway, API em `api.me
 
 Ordem sugerida: BE-01 → BE-02 → BE-03 → BE-04 → BE-05 → BE-06 → BE-07.
 
+## Checklist de entrega
+
+Atualizado em 2026-10-09. Ver também o checklist irmão em
+`instagram-conversao-specs-frontend.md` (FE-01..FE-07).
+
+- [ ] **BE-01** — Endpoint único de solicitação de acesso. **Parcial.** `POST /api/v1/waitlist` já é
+      o único endpoint usado pelos dois formulários (home e `/waitlist`, via `AccessRequestForm.tsx`
+      unificado — `add-waitlist-value-proposition`, PR front #152/#153) e já é idempotente por
+      e-mail (`existsByEmailNormalized` + índice único, sem upsert-on-duplicate ainda). **Faltando:**
+      `role: OWNER` (dono de assessoria, distinto de `COACH`/`TREINADOR`), `watchBrand`, `consent` +
+      `privacyPolicyVersion`, `landingPath`/`referrer`, e o campo `segment` na resposta (que FE-05
+      usaria para a variante "outra marca"). Mudar o contrato de `PerfilWaitlist`/`WaitlistInputDto`
+      aciona a regra de "Identifier Language" do `CLAUDE.md` do backend (campo legado em português
+      tocado por outro motivo vira normalização coordenada com o front) — por isso ficou fora das
+      changes BE-04/05/06, que deliberadamente evitaram mexer no contrato.
+- [ ] **BE-02** — Modelo de lead com origem, consentimento e status. **Não implementado.** Depende
+      de BE-01 (campos `role`/`watchBrand` alimentam a regra de qualificação
+      `QUALIFIED`/`OTHER_BRAND`/`ATLETA`). Hoje a aproximação usada em BE-05/BE-06 é só
+      `perfil == TREINADOR` como proxy de "qualificado".
+- [x] **BE-03** — Proteção contra spam e abuso. **Já existia antes desta série** (não foi entregue
+      por nenhuma change do Instagram, mas satisfaz a spec): honeypot (`WaitlistInputDto.website`,
+      tratado em `WaitlistServiceImpl.registrar`) e rate limit por IP
+      (`PublicEndpointRateLimitFilter`, 5/min default, log mascarado sem dado pessoal). CORS
+      restrito via `CoreSecurityConfig`/`corsConfigurationSource`. Limite de tamanho por campo via
+      `@Size` no DTO.
+- [x] **BE-04** — Vagas da turma fundadora como fonte única. **Entregue** —
+      `add-founders-slots-endpoint`, backend PR #173. `GET /api/v1/founders/slots` reaproveita
+      `tb_founding_invite` (sem migration); `total` configurável via `app.founding-invite.total-slots`
+      (env var, sem deploy); cache em processo de ~30s. Consumido pelo front em
+      `add-founders-slots-display` (PR front #154).
+- [ ] **BE-05** — E-mails transacionais e notificação ao fundador. **Parcial.** `add-waitlist-lead-
+      notifications`, backend PR #174: confirmação ao lead por perfil (`TREINADOR`/`ATLETA`) e
+      notificação ao founder (nome, faixa de atletas, telefone, UTM) só para `TREINADOR`, via evento
+      + listener assíncrono com retry. **Faltando:** o terceiro segmento de e-mail ("outra marca de
+      relógio") — depende de `watchBrand`, que é BE-01.
+- [ ] **BE-06** — Funil por origem. **Parcial.** `add-waitlist-funnel-endpoint`, backend PR #175:
+      `GET /api/admin/waitlist/funnel` (role `ADMIN`) agrega por `(utmSource, utmContent)` —
+      total/qualified/invited/active, correlação em memória com `FoundingInvite`. **Faltando:** lista
+      individual de leads com filtro por status/segmento, e export CSV — a spec original pede os
+      dois; a agregação sozinha já satisfaz o critério de aceite ("responder quantas solicitações
+      qualificadas o post X gerou"), então ficaram como follow-up se a operação diária precisar.
+- [ ] **BE-07** — Fonte de fatos do produto para o agente de marketing. **Não iniciado.** Bloqueado
+      em decisão de processo, não em trabalho técnico: onde o `product-facts.yaml` deveria morar
+      (este repo? `menthoros-brain`?) e se o agente de marketing lê por arquivo, HTTP ou MCP — a
+      spec original deixa as duas perguntas em aberto ("Verificar no código").
+
+**Fecha aqui a sequência de engenharia pura desta análise** (FE-01→FE-04, BE-01→BE-06, 6 changes
+entregues entre 2026-10-08 e 2026-10-09). O que resta — BE-01 completo, BE-02, BE-07, e os itens
+parciais de FE-06/FE-07 do checklist irmão — está bloqueado em decisão do founder ou em
+coordenação de contrato entre os dois repos, não em implementação isolada.
+
 ---
 
 ## BE-01 — Endpoint único de solicitação de acesso
