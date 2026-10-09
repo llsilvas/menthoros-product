@@ -15,7 +15,10 @@ Ordem sugerida: FE-01 → FE-02 → FE-03 → FE-04 → FE-05 → FE-06 → FE-0
 
 ## Checklist de entrega
 
-Atualizado em 2026-10-08. A change `add-waitlist-value-proposition` (frontend PR #152, mergeado em
+Atualizado em 2026-10-09. Ver também o checklist irmão em
+`instagram-conversao-specs-backend.md` (BE-01..BE-07).
+
+A change `add-waitlist-value-proposition` (frontend PR #152, mergeado em
 `develop`) nasceu escopada só em FE-01, mas uma rodada de iteração visual direto com o founder
 (canvas `/waitlist` aprovado) puxou parte de FE-02/03/04/05/06 para dentro dela antes do merge —
 ver `changes/archive/2026-10/2026-10-08-add-waitlist-value-proposition/tasks.md` para o detalhe
@@ -30,9 +33,15 @@ task a task.
       repo que mexer na entidade (ver `CLAUDE.md` do backend, "Campo de DTO em português").
 - [x] **FE-03** — Captura e persistência de UTMs. Entregue: `utmPersistence.ts` lê path e fragmento
       de hash, persiste em `sessionStorage` na primeira carga da sessão.
-- [ ] **FE-04** — Contador de vagas com fonte única. **Parcial:** as ocorrências soltas de "10
-      vagas" agora leem de uma constante única em `content.ts`, mas o contador **dinâmico de
-      verdade** continua dependendo do endpoint `BE-04` (backend), que não existe ainda.
+- [x] **FE-04** — Contador de vagas com fonte única. Entregue —
+      `add-founders-slots-display`, frontend PR #154, consumindo `GET /api/v1/founders/slots`
+      (`add-founders-slots-endpoint`, backend PR #173). Badge da home e cabeçalho do formulário em
+      `/waitlist` leem o dado ao vivo: "Restam N de T vagas" quando aberto, "Lista de espera —
+      próxima turma" quando esgotado, nunca um número durante carregamento/falha. **Não dinâmicas,
+      de propósito (Non-Goal):** as menções em prosa corrida (`hero.scarcity`, `finalCta.sub`, FAQ
+      "Quanto custa?", rodapé do `AccessRequestForm`) continuam lendo a constante estática — são
+      menções incidentais dentro de frases maiores, não o "contador" que a spec original tinha em
+      mente.
 - [ ] **FE-05** — Tela de sucesso com próximo passo. **Parcial:** mensagem varia por perfil
       (treinador vs. atleta) — entregue. Variante "dono/treinador com outra marca de relógio" **não**
       implementada: depende do campo "relógio predominante" de FE-02, que ficou pendente.
