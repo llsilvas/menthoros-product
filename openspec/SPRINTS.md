@@ -2,7 +2,28 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-09 (**`add-waitlist-funnel-endpoint` entregue e arquivada** —
+**Última atualização:** 2026-10-09 (**`add-coach-suggestion-decision-audit` entregue e arquivada** —
+backend PR **#176** e frontend PR **#155**, mergeados em `develop` nessa ordem. A bússola de
+guardrails exige "every approval is audit-logged" — `SugestaoCoach` só gravava `reviewedAt`
+(quando), não `reviewedBy` (quem), e a rejeição não guardava o porquê. `aprovar`/`rejeitar` passam
+a resolver `reviewedBy` do security context (JWT → `Usuario.id`), nunca do corpo —
+estruturalmente não-forjável (`aprovar` não aceita corpo, `rejeitar` só aceita `rejectionReason`).
+Achado do Codex adversarial-review no DoR: a transição `PENDING → decisão` virou um `UPDATE`
+atômico condicionado a `status = 'PENDING'` — duas decisões concorrentes nunca se sobrescrevem, a
+que perde recebe `409`. Migration aditiva V100, sem backfill. S · Full (muda contrato + schema).
+Retomada de uma sessão anterior que tinha ficado parada (worktrees 14/26 commits atrás de
+`develop`, rebase limpo). QA gate (`code-reviewer`+`security-reviewer`+`frontend-reviewer`)
+corrigiu 2 achados Important convergentes antes do merge: `motivoRejeicao` → `rejectionReason`
+(campo novo nascia em PT-BR, violando Identifier Language) em toda a stack; e o guard de
+concorrência só estava provado por mock — adicionado `SugestaoCoachConcurrentDecisionIT` com duas
+threads reais via `TransactionTemplate`+`CountDownLatch` disputando a mesma linha contra Postgres
+(estável em 3 execuções). `./mvnw clean verify`: 4519+214 testes; `npm run lint/build/test:run`:
+2019 testes — 0 falhas nos dois repos. Spec nova promovida a
+`openspec/specs/coach-suggestion-decision-audit/spec.md`. Deferido, não-bloqueante: smoke visual
+no stack local (sem Keycloak/Postgres locais de pé na sessão) e resolução de `reviewedBy` para
+nome (hoje exibe UUID bruto no dialog — requer endpoint novo, fora de escopo). Arquivada em
+`changes/archive/2026-10/2026-10-09-add-coach-suggestion-decision-audit/`.)
+Antes: 2026-10-09 (**`add-waitlist-funnel-endpoint` entregue e arquivada** —
 backend PR **#175** mergeado em `develop`. Origem: BE-06 da análise de conversão do Instagram
 (`menthoros-product/artifacts/instagram-conversao-specs-backend.md`). Sem medição, não havia como
 saber quais posts do Instagram geram solicitações qualificadas — `GET /api/admin/waitlist/funnel`

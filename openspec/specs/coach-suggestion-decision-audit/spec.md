@@ -47,5 +47,6 @@ Quando a sugestão já foi decidida, o payload e a UI SHALL expor `reviewedBy` e
 ## Dados
 
 Migration aditiva `reviewed_by uuid NULL` + `rejection_reason text NULL` em `tb_sugestao_coach`
-(V99, independente — sem dependência de `add-coach-suggestion-edit-delta`, que passa a vir depois).
-Sem backfill. Rollback: reverter código; colunas ficam inertes.
+(V100, independente — sem dependência de `add-coach-suggestion-edit-delta`, que passa a vir depois).
+Sem backfill. Rollback: `DROP COLUMN reviewed_by, DROP COLUMN rejection_reason` — seguro, colunas
+nullable sem FK/índice.
