@@ -2,7 +2,24 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-08 (**`add-founders-slots-display` entregue e arquivada** —
+**Última atualização:** 2026-10-09 (**`add-waitlist-funnel-endpoint` entregue e arquivada** —
+backend PR **#175** mergeado em `develop`. Origem: BE-06 da análise de conversão do Instagram
+(`menthoros-product/artifacts/instagram-conversao-specs-backend.md`). Sem medição, não havia como
+saber quais posts do Instagram geram solicitações qualificadas — `GET /api/admin/waitlist/funnel`
+(role `ADMIN`, mesmo padrão de `FoundingInviteAdminController`) agrega inscrições por
+`(utmSource, utmContent)`: `total`, `qualified` (perfil `TREINADOR`, aproximação até `BE-01`),
+`invited` (convite não invalidado) e `active` (convite convertido). Correlação
+`Waitlist`↔`FoundingInvite` em memória, sem SQL agregado — volume pequeno nesta escala, sem N+1
+(verificado pelo QA gate). Escopo reduzido vs. a spec original: sem lista individual de leads nem
+export CSV — a agregação sozinha já satisfaz o critério de aceite. S · Fast, só backend.
+`code-reviewer` sem achados bloqueantes (2 Minor corrigidos: desempate de ordenação, teste de
+borda do filtro de período). `./mvnw clean verify`: 4513 + 213 testes, 0 falhas (uma primeira
+rodada reportou 248 erros por Docker Desktop fora do ar entre sessões — não regressão, confirmado
+após reiniciar). Fecha a sequência FE-01→FE-04/BE-01→BE-06 da análise de conversão do Instagram —
+restam FE-06 (parcial, precisa de assets reais do founder), FE-07 e BE-07 (precisam de decisão de
+produto sobre analytics/fonte de fatos). Arquivada em
+`changes/archive/2026-10/2026-10-09-add-waitlist-funnel-endpoint/`.)
+Antes: 2026-10-08 (**`add-founders-slots-display` entregue e arquivada** —
 frontend PR **#154** mergeado em `develop`. Origem: FE-04 da análise de conversão do Instagram
 (`menthoros-product/artifacts/instagram-conversao-specs-frontend.md`). A home e `/waitlist`
 mostravam "10 vagas" como texto fixo (`VAGAS_PROGRAMA_FUNDADOR`), apesar do backend já expor a
