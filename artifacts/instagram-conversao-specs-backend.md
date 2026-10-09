@@ -13,20 +13,19 @@ Ordem sugerida: BE-01 → BE-02 → BE-03 → BE-04 → BE-05 → BE-06 → BE-0
 Atualizado em 2026-10-09. Ver também o checklist irmão em
 `instagram-conversao-specs-frontend.md` (FE-01..FE-07).
 
-- [ ] **BE-01** — Endpoint único de solicitação de acesso. **Parcial.** `POST /api/v1/waitlist` já é
-      o único endpoint usado pelos dois formulários (home e `/waitlist`, via `AccessRequestForm.tsx`
-      unificado — `add-waitlist-value-proposition`, PR front #152/#153) e já é idempotente por
-      e-mail (`existsByEmailNormalized` + índice único, sem upsert-on-duplicate ainda). **Faltando:**
-      `role: OWNER` (dono de assessoria, distinto de `COACH`/`TREINADOR`), `watchBrand`, `consent` +
-      `privacyPolicyVersion`, `landingPath`/`referrer`, e o campo `segment` na resposta (que FE-05
-      usaria para a variante "outra marca"). Mudar o contrato de `PerfilWaitlist`/`WaitlistInputDto`
-      aciona a regra de "Identifier Language" do `CLAUDE.md` do backend (campo legado em português
-      tocado por outro motivo vira normalização coordenada com o front) — por isso ficou fora das
-      changes BE-04/05/06, que deliberadamente evitaram mexer no contrato.
-- [ ] **BE-02** — Modelo de lead com origem, consentimento e status. **Não implementado.** Depende
-      de BE-01 (campos `role`/`watchBrand` alimentam a regra de qualificação
-      `QUALIFIED`/`OTHER_BRAND`/`ATLETA`). Hoje a aproximação usada em BE-05/BE-06 é só
-      `perfil == TREINADOR` como proxy de "qualificado".
+- [x] **BE-01** — Endpoint único de solicitação de acesso. **Entregue** —
+      `expand-waitlist-access-contract`. `POST /api/v1/waitlist` ganhou `PerfilWaitlist.PROPRIETARIO`
+      (dono de assessoria — reaproveita o vocabulário de `UserRole.PROPRIETARIO` em vez do `OWNER` da
+      spec original), `watchBrand`, `landingPath`/`referrer`, `policyVersion` (carimbado pelo servidor
+      a partir de `LgpdProperties`, nunca aceito do cliente — `aceiteLgpd` já cumpria o papel de
+      `consent`), `segment` derivado na resposta (`QUALIFIED`/`OTHER_BRAND`/`ATLETA`), e
+      upsert-on-duplicate real (reenvio atualiza perfil/telefone/watchBrand, preserva o UTM original
+      por first-touch). Os 5 pontos que tratavam `TREINADOR` como único "perfil parecido com coach"
+      (notificação, funil, convite da turma fundadora, aviso da central de ajuda) passam a aceitar
+      `PROPRIETARIO` também.
+- [ ] **BE-02** — Modelo de lead com origem, consentimento e status. **Desbloqueado, não
+      implementado.** BE-01 já entrega `role`/`watchBrand`/`segment` — falta o lifecycle de status
+      (`NEW/QUALIFIED/INVITED/ACTIVE/DISCARDED`) e o endpoint de exclusão LGPD.
 - [x] **BE-03** — Proteção contra spam e abuso. **Já existia antes desta série** (não foi entregue
       por nenhuma change do Instagram, mas satisfaz a spec): honeypot (`WaitlistInputDto.website`,
       tratado em `WaitlistServiceImpl.registrar`) e rate limit por IP
@@ -38,11 +37,11 @@ Atualizado em 2026-10-09. Ver também o checklist irmão em
       `tb_founding_invite` (sem migration); `total` configurável via `app.founding-invite.total-slots`
       (env var, sem deploy); cache em processo de ~30s. Consumido pelo front em
       `add-founders-slots-display` (PR front #154).
-- [ ] **BE-05** — E-mails transacionais e notificação ao fundador. **Parcial.** `add-waitlist-lead-
-      notifications`, backend PR #174: confirmação ao lead por perfil (`TREINADOR`/`ATLETA`) e
-      notificação ao founder (nome, faixa de atletas, telefone, UTM) só para `TREINADOR`, via evento
-      + listener assíncrono com retry. **Faltando:** o terceiro segmento de e-mail ("outra marca de
-      relógio") — depende de `watchBrand`, que é BE-01.
+- [ ] **BE-05** — E-mails transacionais e notificação ao fundador. **Parcial, agora desbloqueado.**
+      `add-waitlist-lead-notifications`, backend PR #174: confirmação ao lead por perfil
+      (`TREINADOR`/`PROPRIETARIO`/`ATLETA`, após BE-01) e notificação ao founder via evento +
+      listener assíncrono com retry. **Faltando:** o terceiro segmento de e-mail ("outra marca de
+      relógio") — `watchBrand` já existe desde BE-01, falta só o template/variante.
 - [ ] **BE-06** — Funil por origem. **Parcial.** `add-waitlist-funnel-endpoint`, backend PR #175:
       `GET /api/admin/waitlist/funnel` (role `ADMIN`) agrega por `(utmSource, utmContent)` —
       total/qualified/invited/active, correlação em memória com `FoundingInvite`. **Faltando:** lista
@@ -54,10 +53,11 @@ Atualizado em 2026-10-09. Ver também o checklist irmão em
       (este repo? `menthoros-brain`?) e se o agente de marketing lê por arquivo, HTTP ou MCP — a
       spec original deixa as duas perguntas em aberto ("Verificar no código").
 
-**Fecha aqui a sequência de engenharia pura desta análise** (FE-01→FE-04, BE-01→BE-06, 6 changes
-entregues entre 2026-10-08 e 2026-10-09). O que resta — BE-01 completo, BE-02, BE-07, e os itens
-parciais de FE-06/FE-07 do checklist irmão — está bloqueado em decisão do founder ou em
-coordenação de contrato entre os dois repos, não em implementação isolada.
+**Fecha aqui a sequência de engenharia pura desta análise** (FE-01→FE-04, BE-01→BE-06 + BE-01
+completo via `expand-waitlist-access-contract`, 7 changes entregues entre 2026-10-08 e 2026-10-09).
+O que resta — BE-02, BE-05 (variante de e-mail), BE-07, e os itens parciais de FE-02/FE-05/FE-06/
+FE-07 do checklist irmão — está bloqueado em decisão do founder, consumo no front (agora
+desbloqueado pelo contrato), ou coordenação de processo, não em trabalho de backend isolado.
 
 ---
 

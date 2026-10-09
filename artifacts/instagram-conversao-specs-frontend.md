@@ -29,8 +29,8 @@ task a task.
 - [x] **FE-02** — Formulário único de solicitação de acesso. Entregue: `AccessRequestForm.tsx`
       substitui os dois formulários divergentes (home e `/waitlist`), mesmos campos/validação/botão.
       **Pendente dentro de FE-02:** campo "dono de assessoria" no "Você é" e campo "relógio
-      predominante dos atletas" — mudam o contrato do DTO do backend, adiados para coordenar com o
-      repo que mexer na entidade (ver `CLAUDE.md` do backend, "Campo de DTO em português").
+      predominante dos atletas" — o contrato do backend já existe (`PerfilWaitlist.PROPRIETARIO` +
+      `watchBrand`, `expand-waitlist-access-contract`), falta só consumir no formulário.
 - [x] **FE-03** — Captura e persistência de UTMs. Entregue: `utmPersistence.ts` lê path e fragmento
       de hash, persiste em `sessionStorage` na primeira carga da sessão.
 - [x] **FE-04** — Contador de vagas com fonte única. Entregue —
@@ -44,7 +44,9 @@ task a task.
       mente.
 - [ ] **FE-05** — Tela de sucesso com próximo passo. **Parcial:** mensagem varia por perfil
       (treinador vs. atleta) — entregue. Variante "dono/treinador com outra marca de relógio" **não**
-      implementada: depende do campo "relógio predominante" de FE-02, que ficou pendente.
+      implementada: backend já expõe `segment` (`QUALIFIED`/`OTHER_BRAND`/`ATLETA`,
+      `expand-waitlist-access-contract`), falta consumir — mesmo bloqueio de FE-02 (campo de relógio
+      no formulário).
 - [ ] **FE-06** — Ajustes de conteúdo na home. **Parcial:** "assessorias de endurance" →
       "assessorias de corrida" na copy de marketing; dado mock do `AttentionQueue` ganhou rótulo
       "Exemplo ilustrativo". **Não verificado/pendente:** foto real + nome completo na seção "Quem

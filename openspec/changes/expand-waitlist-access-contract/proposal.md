@@ -80,11 +80,18 @@ persistido, mesma filosofia de `UsuarioLgpdConsent` ("não existe flag; é deriv
 ### 7. Idempotência por e-mail passa a atualizar (upsert), não só detectar
 
 Hoje reenviar o mesmo e-mail só retorna `JA_INSCRITO` sem tocar a linha. A spec pede atualização.
-Campos mutáveis (`nome`, `telefone`, `perfil`, `qtdAtletas`, `watchBrand`, `aceiteLgpd`,
-`policyVersion`) são sobrescritos pelo reenvio — a pessoa pode ter corrigido o telefone ou trocado
-de relógio. **UTM não é sobrescrito**: já capturado na primeira inscrição, atribuição é
-first-touch por convenção de marketing — um reenvio sem UTM (ex.: alguém voltando direto ao site)
-não pode apagar a origem real da campanha.
+Reenvio atualiza `nome`, `telefone`, `qtdAtletas`, `watchBrand`, `landingPath`, `referrer` — a
+pessoa pode ter corrigido o telefone ou trocado de relógio. **UTM não é sobrescrito** (first-touch
+por convenção de marketing).
+
+**Revisão de escopo pós-security-review:** a versão original deste item também sobrescrevia
+`perfil`, `aceiteLgpd` e `policyVersion` no reenvio. O security review do QA gate apontou que o
+endpoint é público e não verifica posse do e-mail — qualquer requisição que soubesse/adivinhasse o
+e-mail de outra pessoa poderia forjar o aceite de LGPD dela (`aceiteLgpd=true` é exigido no DTO de
+entrada de qualquer forma) ou trocar o perfil dela, disparando e-mails de aviso indesejados via
+`WaitlistDocsNotificationServiceImpl`/`WaitlistNotificationListener`. **`perfil`, `aceiteLgpd` e
+`policyVersion` de uma linha existente ficam congelados no valor da primeira inscrição** — só são
+gravados na criação. Critério de aceite 5 revisado para refletir isso.
 
 ## Non-Goals
 
@@ -113,9 +120,10 @@ não pode apagar a origem real da campanha.
 4. **`policyVersion` nunca vem do cliente** — Given um corpo tentando enviar `policyVersion` (campo
    que não existe no DTO de entrada), Then o valor gravado é sempre
    `LgpdProperties.getPolicyVersion()` no momento do registro, nunca o do corpo.
-5. **Upsert no reenvio** — Given um e-mail já inscrito como `ATLETA` reenvia como `TREINADOR` com
-   telefone novo, When `POST /api/v1/waitlist`, Then a linha existente é atualizada (`perfil`,
-   `telefone` novos) e `utmSource` original é preservado se o reenvio não trouxer UTM.
+5. **Upsert no reenvio, sem forjar perfil/consentimento** — Given um e-mail já inscrito reenvia com
+   telefone novo e um `perfil` diferente do original, When `POST /api/v1/waitlist`, Then `telefone`
+   é atualizado, mas `perfil`, `aceiteLgpd` e `policyVersion` permanecem os da primeira inscrição —
+   e `utmSource` original é preservado se o reenvio não trouxer UTM.
 6. **Regressão** — `./mvnw clean verify` sem falhas nos testes existentes de `WaitlistServiceImpl`,
    `WaitlistNotificationListener`, `WaitlistFunnelServiceImpl`, `FoundingInviteServiceImpl`,
    `WaitlistDocsNotificationServiceImpl` (os 5 pontos que mudam de `== TREINADOR` para
