@@ -54,6 +54,9 @@ Repo: `apps/menthoros-backend`. Validação padrão de cada bloco: `./mvnw clean
 ## 4. Validação final
 
 - [x] 4.1 `./mvnw clean verify` completo — 0 falhas, sem regressão nos módulos tocados.
-- [ ] 4.2 Atualizar checklist BE-02 em `instagram-conversao-specs-backend.md` — marcar como
-      entregue (com a exclusão LGPD explicitamente deixada como pendência própria, não desta
-      change) antes de arquivar.
+- [x] 4.2 Checklist BE-02 atualizado em `instagram-conversao-specs-backend.md` — marcado como
+      entregue (parcial), exclusão LGPD anotada como pendência própria.
+
+---
+
+**Mergeado em `develop` via PR #178 (`feat/add-waitlist-status-lifecycle`), 2026-10-10.**

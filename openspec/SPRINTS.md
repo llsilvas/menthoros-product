@@ -2,7 +2,25 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-09 (**`add-coach-suggestion-decision-audit` entregue e arquivada** —
+**Última atualização:** 2026-10-10 (**`add-waitlist-status-lifecycle` entregue e arquivada** —
+backend PR **#178** mergeado em `develop`. Origem: BE-02 da análise de conversão do Instagram.
+`Waitlist` ganha etapa de funil (`NEW`/`INVITED`/`ACTIVE`/`DISCARDED`), **derivada de timestamps**
+(`invitedAt`/`activatedAt`/`discardedAt`), não um enum persistido — mesmo padrão já documentado em
+`FoundingInvite` ("estado derivado das datas, sem enum"). `QUALIFIED` não é status: já é o
+`segment` derivado em `expand-waitlist-access-contract` (BE-01, ainda em PR #177). Transições
+automáticas via dois hooks existentes (`FoundingInviteServiceImpl.invite`,
+`CoachSignupServiceImpl.consumirConvite`/`reabrirConvite`), sem endpoint novo. Branch independente
+de BE-01 (partiu de `develop` fresco, migration V102 — gap de V101 reservado de propósito para a
+branch irmã). Exclusão LGPD a pedido ficou fora, decisão de produto/compliance pendente. M · Full.
+QA gate (`code-reviewer`+`security-reviewer`) corrigiu 2 achados Important antes do merge: a
+compensação do convite (`reabrirConvite`) só era empilhada *depois* de `consumirConvite()`
+retornar — uma falha no save do `Waitlist` deixava o convite travado como convertido pra sempre,
+sem reabrir nem sinalizar reconciliação; corrigido empilhando a compensação logo após o save do
+convite, antes de tocar o `Waitlist`. E o carimbo de `invitedAt` não tinha tratamento de falha —
+relançar faria o chamador reemitir um convite já enviado, mandando e-mail duplicado; corrigido com
+try/catch só-log. `./mvnw clean verify`: 214 testes, 0 falhas. Arquivada em
+`changes/archive/2026-10/2026-10-10-add-waitlist-status-lifecycle/`.)
+Antes: 2026-10-09 (**`add-coach-suggestion-decision-audit` entregue e arquivada** —
 backend PR **#176** e frontend PR **#155**, mergeados em `develop` nessa ordem. A bússola de
 guardrails exige "every approval is audit-logged" — `SugestaoCoach` só gravava `reviewedAt`
 (quando), não `reviewedBy` (quem), e a rejeição não guardava o porquê. `aprovar`/`rejeitar` passam
