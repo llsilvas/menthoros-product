@@ -44,11 +44,11 @@ Atualizado em 2026-10-09. Ver também o checklist irmão em
       `tb_founding_invite` (sem migration); `total` configurável via `app.founding-invite.total-slots`
       (env var, sem deploy); cache em processo de ~30s. Consumido pelo front em
       `add-founders-slots-display` (PR front #154).
-- [ ] **BE-05** — E-mails transacionais e notificação ao fundador. **Parcial, agora desbloqueado.**
-      `add-waitlist-lead-notifications`, backend PR #174: confirmação ao lead por perfil
-      (`TREINADOR`/`PROPRIETARIO`/`ATLETA`, após BE-01) e notificação ao founder via evento +
-      listener assíncrono com retry. **Faltando:** o terceiro segmento de e-mail ("outra marca de
-      relógio") — `watchBrand` já existe desde BE-01, falta só o template/variante.
+- [x] **BE-05** — E-mails transacionais e notificação ao fundador. **Entregue** —
+      `add-waitlist-lead-notifications` (PR #174) + `add-waitlist-other-brand-email`: confirmação
+      ao lead por perfil (`TREINADOR`/`PROPRIETARIO`/`ATLETA`) com bifurcação por segmento
+      (`QUALIFIED`/`OTHER_BRAND`, via `WaitlistSegment.derivar`) e notificação ao founder via
+      evento + listener assíncrono com retry.
 - [ ] **BE-06** — Funil por origem. **Parcial.** `add-waitlist-funnel-endpoint`, backend PR #175:
       `GET /api/admin/waitlist/funnel` (role `ADMIN`) agrega por `(utmSource, utmContent)` —
       total/qualified/invited/active, correlação em memória com `FoundingInvite`. **Faltando:** lista
