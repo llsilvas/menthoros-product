@@ -36,4 +36,8 @@
 
 - [x] 4.1 Atualizar `instagram-conversao-specs-backend.md`: marcar BE-05 como entregue (`[x]`),
       removendo a nota "Faltando: terceiro segmento".
-- [ ] 4.2 `./mvnw clean verify` final, commit, PR, `/done`.
+- [x] 4.2 `./mvnw clean verify` final, commit, PR, `/done`. **PR #179 mergeado em `develop`
+      (squash, 2026-10-11T20:09:21Z)**, auto-merge após CI verde. QA gate: 4 reviewers
+      (code/security/clean-code-reviewer Claude + Codex review) — GO, 1 Important corrigido
+      (switch exaustivo por `WaitlistSegment` em vez de bifurcação mista `isTreinadorOuProprietario`/
+      segmento).
