@@ -61,11 +61,10 @@ Atualizado em 2026-10-09. Ver também o checklist irmão em
       spec original deixa as duas perguntas em aberto ("Verificar no código").
 
 **Fecha aqui a sequência de engenharia pura desta análise** (FE-01→FE-04, BE-01→BE-06 + BE-01
-completo via `expand-waitlist-access-contract` + BE-02 via `add-waitlist-status-lifecycle`, 8
-changes entregues entre 2026-10-08 e 2026-10-09).
-O que resta — exclusão LGPD (parte de BE-02), BE-05 (variante de e-mail), BE-07, e os itens
-parciais de FE-02/FE-05/FE-06/FE-07 do checklist irmão — está bloqueado em decisão do founder/
-produto, consumo no front (agora
+completo via `expand-waitlist-access-contract` + BE-02 via `add-waitlist-status-lifecycle` + BE-05
+completo via `add-waitlist-other-brand-email`, 9 changes entregues entre 2026-10-08 e 2026-10-11).
+O que resta — exclusão LGPD (parte de BE-02), BE-07, e os itens parciais de FE-02/FE-05/FE-06/FE-07
+do checklist irmão — está bloqueado em decisão do founder/produto, consumo no front (agora
 desbloqueado pelo contrato), ou coordenação de processo, não em trabalho de backend isolado.
 
 ---
