@@ -2,7 +2,23 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-10 (**`add-waitlist-status-lifecycle` entregue e arquivada** —
+**Última atualização:** 2026-10-11 (**`add-waitlist-other-brand-email` entregue e arquivada** —
+backend PR **#179** mergeado em `develop` (squash). Origem: BE-05 remanescente da análise de
+conversão do Instagram — `add-waitlist-lead-notifications` (PR #174) tinha deixado o segmento
+`OTHER_BRAND` como Non-Goal porque `watchBrand` ainda não existia no contrato;
+`expand-waitlist-access-contract` (BE-01) já trouxe `watchBrand`/`WaitlistSegment.derivar()`.
+`WaitlistNotificationListener.enviarConfirmacao` passa a bifurcar por segmento derivado — lead
+treinador/proprietário com relógio diferente de Garmin recebe um e-mail novo
+(`waitlist-confirmation-other-brand`) reconhecendo a limitação, em vez do e-mail genérico de
+`QUALIFIED`. `QUALIFIED`/`ATLETA` sem mudança de comportamento. Sem contrato HTTP novo, sem
+migration. XS · Fast. QA gate (4 reviewers em paralelo — `code-reviewer`, `security-reviewer`,
+`clean-code-reviewer` + Codex review cross-model) corrigiu 1 achado Important antes do merge: a
+bifurcação original misturava dois vocabulários de decisão (`isTreinadorOuProprietario()` e
+`WaitlistSegment`) no mesmo método; virou um `switch` exaustivo sobre o enum. `./mvnw clean
+verify`: 4537 testes unitários + 219 de integração, 0 falhas. Arquivada em
+`changes/archive/2026-10/2026-10-11-add-waitlist-other-brand-email/`. Com isso, **BE-05 fecha
+completo** (checklist de `instagram-conversao-specs-backend.md` atualizado).)
+Antes: 2026-10-10 (**`add-waitlist-status-lifecycle` entregue e arquivada** —
 backend PR **#178** mergeado em `develop`. Origem: BE-02 da análise de conversão do Instagram.
 `Waitlist` ganha etapa de funil (`NEW`/`INVITED`/`ACTIVE`/`DISCARDED`), **derivada de timestamps**
 (`invitedAt`/`activatedAt`/`discardedAt`), não um enum persistido — mesmo padrão já documentado em
