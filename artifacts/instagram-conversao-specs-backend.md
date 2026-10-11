@@ -10,7 +10,7 @@ Ordem sugerida: BE-01 → BE-02 → BE-03 → BE-04 → BE-05 → BE-06 → BE-0
 
 ## Checklist de entrega
 
-Atualizado em 2026-10-09. Ver também o checklist irmão em
+Atualizado em 2026-10-11. Ver também o checklist irmão em
 `instagram-conversao-specs-frontend.md` (FE-01..FE-07).
 
 - [x] **BE-01** — Endpoint único de solicitação de acesso. **Entregue** —
