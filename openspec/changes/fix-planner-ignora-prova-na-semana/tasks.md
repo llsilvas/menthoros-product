@@ -9,15 +9,21 @@ Repo: `apps/menthoros-backend`. Gate por bloco: `./mvnw clean test`. Ordem = dep
 
 ## 1. Dia de prova é dia efetivo (legado)
 
-- [ ] 1.1 `PlanoTreinoPromptBuilder` (~254, variável `diasEfetivos`): união com os dias das provas
-  não canceladas em `[max(inicio, hoje), fim]`, usando a mesma referência de "hoje" de
-  `CoberturaSemanalPolicy.diasEfetivos`. Reusar a lista de provas já carregada no builder.
-  - verify: `PlanoTreinoPromptBuilderTest` — SEG/TER/QUI/SÁB + prova domingo → `effectiveDays`
-    contém DOMINGO; `SEMANA_ATUAL` na quarta com prova na segunda → não contém SEGUNDA (CA6);
-    golden-master do prompt legado sem prova inalterado.
-- [ ] 1.2 `DisponibilidadePromptFormatter` (~76): dia da prova com a marca "(prova)". Bump de
-  `prompt_version`.
-  - verify: snapshot do bloco com e sem prova; golden-master com prova atualizado deliberadamente.
+- [x] 1.1 `PlanoTreinoPromptBuilder` (~254, variável `diasEfetivos`): união com os dias das provas
+  não canceladas na janela `[inicio, fim]` (`PROXIMA_SEMANA`) ou `[max(inicio, amanhã), fim]`
+  (`SEMANA_ATUAL` — hoje já conta como passado, como em `diaSemanaJaPassou`); "hoje" =
+  `ctx.dataReferencia()`. Reusar a lista de provas já carregada no builder.
+  - verify: `PlanoTreinoPromptBuilderDiaDeProvaTest` (9 casos) — SEG/QUA/SEX/SÁB + prova domingo →
+    `effectiveDays` contém DOMINGO; prova passada e prova de hoje em `SEMANA_ATUAL` → não entram
+    (CA6); cancelada e fora da semana → não entram; sem prova → idêntico. Golden-master sem prova
+    inalterado (só `taper-semana-prova`, que tem prova no domingo, mudou).
+- [x] 1.2 `DisponibilidadePromptFormatter`: sobrecarga com `diasDeProva`; linha "Dia de prova na
+  semana: … (prova)" e a marca na lista de dias restantes de `SEMANA_ATUAL`. Sem prova, saída
+  byte-idêntica à de antes. **Bump de `prompt_version` NÃO feito** — `PromptVersion` espelha o hash
+  do template system estático (`prompt.sha256`, inalterado); esta mudança só toca o bloco user.
+  Decisão pendente do usuário (ver relatório da Seção 1).
+  - verify: `DisponibilidadePromptFormatterDiaDeProvaTest` (5 casos); golden `taper-semana-prova`
+    atualizado deliberadamente (diff de 5 linhas: dias restantes, linha de prova, dias a cobrir).
 
 ## 2. PROVA visível à validação (legado, v1 e v2 sem skeleton)
 

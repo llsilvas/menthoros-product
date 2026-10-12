@@ -31,10 +31,12 @@ Fatos que moldam o desenho:
 
 `diasEfetivos` (`PlanoTreinoPromptBuilder.java:254`; campo `effectiveDays` do
 `WeeklyCoverageContext`) passa a ser
-`dias ∪ {diaSemana(p.dataProva) | p não cancelada, p.dataProva ∈ [max(inicio, hoje), fim]}`. O
-limite inferior é a mesma referência de `CoberturaSemanalPolicy.diasEfetivos`
-(`IaServiceImpl.java:171`). As provas da semana já são carregadas nesse builder para
-`formatarEventoCompetitivoSemana`; reusar.
+`dias ∪ {diaSemana(p.dataProva) | p não cancelada, p.dataProva ∈ janela}`, com janela
+`[inicio, fim]` em `PROXIMA_SEMANA` e `[max(inicio, amanhã), fim]` em `SEMANA_ATUAL`. O limite
+inferior espelha `CoberturaSemanalPolicy.diasEfetivos` → `RegraGeracaoTreino.diaSemanaJaPassou`
+(`<=`): **hoje já conta como dia passado**, então uma prova de hoje não é dia a cobrir. "Hoje" vem de
+`ctx.dataReferencia()` (= `LocalDate.now(clock)`), o que mantém o builder testável sem mock estático.
+As provas da semana já são carregadas nesse builder para `formatarEventoCompetitivoSemana`; reusar.
 
 `DisponibilidadePromptFormatter` lista o dia com "(prova)". Efeito colateral aceito:
 `limiteDescansos()` e `diasDaSequenciaLonga()` passam a contar o dia da prova — correto, a prova é

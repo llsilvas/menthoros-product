@@ -74,7 +74,9 @@ Tudo em `menthoros-backend`.
 
 1. **Dia de prova é dia efetivo.** `diasEfetivos`/`effectiveDays` (`PlanoTreinoPromptBuilder.java:254`)
    = dias configurados ∪ dias das provas não canceladas no **intervalo efetivo**
-   `[max(inicio, hoje), fim]` — prova já passada em `SEMANA_ATUAL` não entra.
+   `[inicio, fim]` em `PROXIMA_SEMANA` e `[max(inicio, amanhã), fim]` em `SEMANA_ATUAL` — hoje
+   **não** entra: `RegraGeracaoTreino.diaSemanaJaPassou` trata hoje como dia passado (`<=`), então
+   prova de hoje ou anterior não é dia a cobrir (o persister ainda a grava).
    `DisponibilidadePromptFormatter` lista o dia com a marca "(prova)".
 2. **PROVA visível à validação, em dois passos dentro de `PlanoLlmValidator`.**
    `WeeklyCoverageContext` ganha `provasDaSemana: List<TreinoPlanejadoLlmDto>`
