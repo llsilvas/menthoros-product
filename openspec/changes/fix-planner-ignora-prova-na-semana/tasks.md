@@ -77,6 +77,30 @@ Repo: `apps/menthoros-backend`. Gate por bloco: `./mvnw clean test`. Ordem = dep
   - nota: rodar os testes **com `clean`**; o `target/` incremental deste módulo quebra a descoberta do
     JUnit (`NoClassDefFoundError: PlanoSemanalLlmDto`) depois de editar `LongRunAnchorTest`.
 
+### 3b. Dia seguinte à prova, na fronteira da semana (legado) — design.md Decisão 4b
+
+- [ ] 3.2 `ProvaNoPlanoService.provaNoDiaAnteriorAoInicio(Atleta, LocalDate inicioSemana)`:
+  `Optional<Prova>` da prova não cancelada em `inicioSemana − 1` (consulta de um dia só).
+  - verify: `ProvaNoPlanoServiceDiaAnteriorTest` — prova em `inicioSemana − 1` → presente; sem prova
+    → vazio; a consulta usa exatamente `[inicioSemana−1, inicioSemana−1]`.
+- [ ] 3.3 `WeeklyCoverageContext.posProva` (+ record `PosProvaSemanaAnterior`, construtores de 5 e 6
+  argumentos preservados); `PlanoTreinoPromptBuilder` o preenche quando a prova do item 3.2 existe e
+  o `DiaSemana` de `inicioSemana` está entre os dias a cobrir; `PlanoPromptArquetipos.builder` passa
+  um `ProvaRepository` que devolve lista vazia.
+  - verify: `PlanoTreinoPromptBuilderDiaDeProvaTest` — prova no domingo anterior + segunda entre os
+    dias → `posProva` preenchido (dia SEGUNDA, nome, data); segunda fora dos dias, prova cancelada
+    (a consulta já a exclui), prova a dois dias de distância, `skeleton != null` → `posProva` nulo.
+- [ ] 3.4 `PeriodizacaoPromptFormatter.formatarPosProvaSemanaAnterior(posProva)` + builder o anexa ao
+  bloco do evento competitivo. Sem `posProva`, prompt byte-idêntico (golden inalterado).
+  - verify: `PeriodizacaoPromptFormatterPosProvaTest` — bloco cita nome (sanitizado), data e o dia
+    do plano, proíbe LONGO e intenso; nulo → string vazia. Golden-masters sem prova inalterados.
+- [ ] 3.5 `WeeklyCoverageValidator`: intenso nesse dia → `INTENSOS_ADJACENTES` citando a prova;
+  `PROVA` isenta. `LongRunAnchor`: preferido == `posProva.diaDoPlano` → intacto.
+  - verify: `WeeklyCoverageValidatorTest` — LONGO e INTERVALADO na segunda → violação (mensagem cita
+    prova e data); REGENERATIVO/FACIL → passa; PROVA na segunda → passa; sem `posProva` → como
+    antes. `LongRunAnchorTest` — preferido segunda + `posProva` segunda → não move.
+    `PlanoLlmValidatorTest` — fim a fim do CA13 (segunda com LONGO reprova; com REGENERATIVO passa).
+
 ## 4. Shadow — provas da semana por data real
 
 - [ ] 4.1 `PlannerEngine` (~91-101): `provasDaSemana` = determinante se `data ∈ [referenceDate,

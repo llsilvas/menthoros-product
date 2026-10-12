@@ -105,6 +105,44 @@ Descartada a v3 ("não ancorar em semana com PROVA"): desligar a âncora não fa
 o longo — LONGO na quinta + PROVA no domingo passaria igual. Se o longo deve sair da semana da
 prova é regra de carga, não de posição: non-goal, `add-taper-guidance`.
 
+## Decisão 4b — Dia seguinte à prova na fronteira da semana
+
+O plano é segunda a domingo. Prova no domingo → o D+1 é a segunda **do plano seguinte**, e esse plano
+não a enxerga: `formatarEventoCompetitivoSemana` só considera provas em `[inicio, inicio+6]`, a
+consulta de `TreinoHistoricoProvider` parte de `hoje` (então nem a prova de ontem aparece se o plano
+é gerado depois dela), e `PeriodizacaoPromptFormatter` só tem a instrução geral "dia seguinte à
+prova: descanso ou regenerativo". Hoje o LLM pode pôr um LONGO na segunda pós-prova e nada o impede
+(`LongRunAnchor` até o *puxaria* para lá se o preferido fosse a segunda).
+
+**Fonte do dado.** Consulta direta, não o `ContextoTreino`:
+`ProvaNoPlanoService.provaNoDiaAnteriorAoInicio(atleta, inicioSemana)` →
+`findByAtletaAndDataProvaBetween…(atleta, inicioSemana−1, inicioSemana−1)`, que já exclui
+`CANCELADA`. O `ProvaNoPlanoService` já é injetado no builder e já é dono de "prova ↔ plano". Uma
+prova por dia basta (a primeira); duas no mesmo dia é o caso raro aceito.
+
+**Quando vale.** O dia do plano que segue a prova é o `DiaSemana` de `inicioSemana`. Só gera
+restrição se esse dia está entre os dias a cobrir (já com a união de dias de prova da Decisão 1).
+Em `SEMANA_ATUAL` com a segunda já passada, ou com a segunda fora da disponibilidade do atleta, não
+há o que proteger — nem bloco no prompt, nem violação.
+
+**Modelo.** `WeeklyCoverageContext` ganha o componente `posProva` (`PosProvaSemanaAnterior`: `DiaSemana
+diaDoPlano`, `String nomeProva`, `LocalDate data`), nulo por padrão (construtores de 5 e 6 argumentos
+preservados). Nada é inserido no plano — diferente de `provasDaSemana`, é só uma restrição.
+
+**Três consumidores, mesma mecânica de reparo:**
+1. *Prompt* — `PeriodizacaoPromptFormatter.formatarPosProvaSemanaAnterior(posProva)`: bloco curto no
+   estilo do evento competitivo ("INSTRUCAO OBRIGATORIA"): o dia seguinte à prova pede regenerativo
+   muito leve e proíbe LONGO e sessão intensa. Acertar na 1ª tentativa evita um reparo.
+2. *Validação* — `WeeklyCoverageValidator`: treino do tipo LONGO/INTERVALADO/TIRO/SUBIDA/FARTLEK/
+   TEMPO_RUN no `diaDoPlano` → violação `INTENSOS_ADJACENTES` com a mensagem citando a prova e a
+   data. Mesma chave do D-1 de propósito: uma só métrica ("intenso colado em prova") e o turno de
+   reparo já sabe lidar. `PROVA` nesse dia é isenta (PROVA/PROVA é evento fixo — Decisão 3).
+3. *Âncora* — `LongRunAnchor`: `diaPreferidoLongo == posProva.diaDoPlano` → plano intacto, mesma
+   razão da Decisão 4.
+
+**Fora:** o shadow engine. Ele já trata prova recente pela fase `POST_RACE`
+(`PeriodizationPlanner.provaRecemRealizada`), cuja composição só tem REGENERATIVO/FACIL.
+
 ## Decisão 5 — Shadow: "provas da semana" por data real, propagadas
 
 `provaDeterminante` pode estar meses à frente ou, em `POST_RACE`, no passado

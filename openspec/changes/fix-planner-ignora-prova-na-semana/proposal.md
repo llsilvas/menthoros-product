@@ -99,6 +99,18 @@ Tudo em `menthoros-backend`.
 4. **`LongRunAnchor` não ancora em D-1, D nem D+1 de prova.** Se `dia_preferido_longo` cair em
    qualquer um dos três, `ancorar` devolve o plano intacto; fora disso, como hoje. LONGO + PROVA
    em dias não vizinhos **é permitido** por esta change (Non-goals).
+4b. **Dia seguinte à prova, na fronteira da semana.** A semana do plano é segunda a domingo; uma
+   prova no domingo tem o D+1 na segunda **do plano seguinte**, que hoje não sabe dela (a janela do
+   prompt começa na segunda e a consulta de provas parte de "hoje"). Quando há prova não cancelada
+   em `inicioSemana − 1` e o primeiro dia da semana é um dia a cobrir:
+   (a) `ProvaNoPlanoService.provaNoDiaAnteriorAoInicio(atleta, inicioSemana)` a localiza;
+   (b) `WeeklyCoverageContext` ganha `posProva` (dia do plano + nome da prova);
+   (c) `PeriodizacaoPromptFormatter` escreve um bloco "dia após a prova da semana anterior" —
+   regenerativo muito leve, sem LONGO nem sessão intensa;
+   (d) `WeeklyCoverageValidator` reprova LONGO/INTERVALADO/TIRO/SUBIDA/FARTLEK/TEMPO_RUN nesse dia
+   com `INTENSOS_ADJACENTES` citando a prova (a mesma chave do D-1, a mesma mecânica de reparo);
+   (e) `LongRunAnchor` não ancora o longo nesse dia. Dentro da semana o D+1 já é coberto pela
+   vizinhança com a PROVA inserida (itens 2 e 3) — esta é a parte que atravessa planos.
 
 **Shadow engine (skeleton):**
 
@@ -129,8 +141,11 @@ Tudo em `menthoros-backend`.
   `garantirProvasNaSemana`; legado pré-existente, follow-up.
 - **LONGO + PROVA em dias não vizinhos na mesma semana** — esta change protege D-1/D/D+1; se a prova
   deve *substituir* o longo é regra de carga, escopo de `add-taper-guidance`.
-- Prova no 1º dia da semana com intenso no último dia da semana anterior — atravessa planos; a
-  unidade de validação é a semana. **Risco aceito**, registrado em "Riscos".
+- **O caso inverso da fronteira:** prova no 1º dia da semana (segunda) com intenso no último dia
+  (domingo) da semana **anterior** — o plano anterior é outro plano, já persistido. **Risco
+  aceito**, registrado em "Riscos". (O D+1 pós-prova na fronteira, esse sim, entra: item 4b.)
+- O shadow engine **não** ganha o D+1 da fronteira: ele já trata prova recente pela fase
+  `POST_RACE` (composição só com REGENERATIVO/FACIL).
 - Taper/volume para preparatória, prioridade de `selecionarProvaDeterminante`, ligar
   `planner-engine.enabled`, correção retroativa em massa.
 
@@ -172,6 +187,12 @@ preparatória no domingo, sem skeleton, tenant v1.
 - **CA12 (shadow):** fase `TAPER` (LONGO sem chave), dias SEG/QUA/SEX, sem prova → o LONGO ganha
   dia normalmente (não é removido, sem `requiresCoachReview`); mesma fase com prova no sábado →
   LONGO não cai na sexta.
+- **CA13 (fronteira de semana):** prova não cancelada no domingo da semana anterior, segunda entre os
+  dias a cobrir (ex.: atleta SEG/QUA/SEX, plano da semana seguinte): o prompt traz o bloco "dia
+  após a prova"; LONGO/INTERVALADO/TIRO/SUBIDA/FARTLEK/TEMPO_RUN na segunda →
+  `INTENSOS_ADJACENTES` citando a prova e aciona o reparo; REGENERATIVO/FACIL na segunda passa;
+  `dia_preferido_longo` = segunda → a âncora não move o longo para lá; segunda **fora** dos dias a
+  cobrir, prova cancelada ou prova a dois dias de `inicioSemana` → nenhum bloco nem violação.
 - **CA10:** regressão zero em `WeeklyCoverageValidatorTest`, `LongRunAnchorTest`,
   `PlanoLlmValidatorTest`, `PlanoTreinoPromptBuilderTest` (inclui golden-master do prompt legado —
   atualizar deliberadamente pela linha "(prova)"), `PlanGenerationPersisterCoberturaTest`,
@@ -187,6 +208,7 @@ Fonte: Homelab, `tb_llm_call` × `tb_plano_semanal` × `tb_prova`. Baseline (60 
 |---|---|---|
 | rejeições `COBERTURA_DIAS` cujo dia é dia de prova | 1 de 1 | **0** |
 | planos persistidos com intenso em D-1 de PROVA (query do debug) | 1 de 1 | **0** |
+| planos persistidos com LONGO/intenso no 1º dia da semana logo após prova do último dia da semana anterior | não medido (sem caso no baseline) | **0** |
 | semanas com prova que precisaram de reparo (`attempt ≥ 2`) | 1 de 1 | ≤ taxa das semanas sem prova (hoje 1 de 10) |
 | shadow `FAILED`/`VIOLATIONS_DETECTED` em semana com prova, citando `DIA_INDISPONIVEL` no dia da prova | 1 de 1 | **0** |
 
@@ -204,8 +226,13 @@ foi uma correção em três tabelas; a meta é zero ocorrências no período.
   1).
 - **Risco: golden-master do prompt legado muda** (linha "(prova)"). Mitigação: atualização
   deliberada, revisada no PR.
-- **Risco: fronteira de semana** (intenso no domingo da semana anterior, prova na segunda). Aceito;
-  follow-up se aparecer no ledger.
+- **Risco: fronteira de semana, caso inverso** (intenso no domingo da semana anterior, prova na
+  segunda). Aceito; follow-up se aparecer no ledger.
+- **Risco: o item 4b depende de a prova estar cadastrada** em `inicioSemana − 1`. Prova que o
+  atleta correu sem cadastro não gera restrição — a instrução geral do prompt é tudo o que existe.
+  Aceito.
+- **Risco: o item 4b adiciona uma consulta** (`ProvaRepository`, uma linha) por geração, dentro do
+  builder. Custo desprezível; sem N+1.
 - **Dependências:** `planner-engine-enforcement` — arquivada em
   `openspec/changes/archive/2026-09/2026-09-13-planner-engine-enforcement/` e mergeada, é a base
   do shadow tocado aqui. `add-taper-guidance` — **não implementada**; esta change não depende dela;
@@ -226,7 +253,9 @@ foi uma correção em três tabelas; a meta é zero ocorrências no período.
 ## Impact
 
 - **Repo:** apenas `menthoros-backend`. Sem migration, sem mudança de API.
-- **Prompt:** uma linha em `DisponibilidadePromptFormatter` — bump de `prompt_version`.
+- **Prompt:** uma linha em `DisponibilidadePromptFormatter` e, com prova no dia anterior ao início
+  da semana, um bloco em `PeriodizacaoPromptFormatter`. Sem bump de `PromptVersion` (ele espelha o
+  hash do template system, que não muda).
 
 ---
 
