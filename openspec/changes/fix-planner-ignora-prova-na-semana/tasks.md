@@ -216,6 +216,47 @@ Repo: `apps/menthoros-backend`. Gate por bloco: `./mvnw clean test`. Ordem = dep
 - [x] 6.4 `./mvnw clean test` — 4647 testes, 0 falhas (CA10: nenhuma regressão nas suítes citadas).
 - [x] 6.5 `tasks.md` atualizado (este arquivo).
 
+## QA (`/qa`, 2026-10-12) — `code-reviewer` + `security-reviewer` + `clean-code-reviewer` em paralelo
+
+Nenhum achado crítico/bloqueante nos três. Aplicados:
+
+- **`PlannerEngine.coachReviewReason` perdia o motivo da 1ª sessão órfã quando duas ficavam sem dia
+  na mesma semana** (code-reviewer) — variável simples sobrescrita no loop. Extraído
+  `removerPesadasSemDia` (package-private, testável sem depender da matemática de composição) que
+  acumula um motivo por slot removido. `PlannerEngineTest` — `duasOrfasAcumulamOMotivo`,
+  `semOrfasMotivoNulo`.
+- **`ProvaNoPlanoService.garantirProvasNaSemana` recalculava `converterDayOfWeekParaDiaSemana`
+  no log** (clean-code-reviewer) — já computado em `diasDasProvas`. Reusa o DTO recém-adicionado.
+
+Registrados como follow-up, não bloqueantes (riscos de design já documentados, não regressões
+desta change):
+
+- **Duas provas com D-1 colidindo na mesma semana** (code-reviewer): `proibidos` em
+  `SessionDayAllocator` é a união de todos os D-1, aplicada globalmente — pode esvaziar
+  `candidatos` mais do que o necessário quando as provas são adjacentes entre si. Comportamento é
+  conservador (nunca aloca no proibido), só não está testado para 2+ provas. Sem caso real
+  conhecido ainda.
+- **Acoplamento de ordem implícito** entre `SessionCompositionResolver.compose` (determinante
+  primeiro, preparatórias depois) e `PlannerEngine`'s zip posicional com `diasDeProva` (code-reviewer):
+  documentado em javadoc/design.md, sem guard em tempo de execução. Mudança futura em `repartir()`
+  que reordene os slots PROVA quebraria a alocação em silêncio.
+- **Triplicação da regra "nada pesado do lado de uma prova"** entre `WeeklyCoverageValidator`
+  (`exigeDiaLeveAoLado`, comparação por `DiaSemana`), `LongRunAnchor` (`colado`, `ordemNaSemana`) e
+  `SessionDayAllocator` (`proibidos`, `DayOfWeek.minus(1)`) (clean-code-reviewer): esperado enquanto
+  os dois pipelines coexistem deliberadamente; vale nota no design do shadow para não divergir numa
+  correção futura.
+- **Sanitização de `nomeProva` cobre injeção estrutural, não semântica** (security-reviewer):
+  `PosProvaSemanaAnterior.literalDePrompt` neutraliza controle/aspas/tamanho, não instruções como
+  "ignore as regras anteriores". Risco baixo (campo curto, prompt com instrução forte em volta),
+  mas é a única defesa; delimitação explícita de papel (ex. `<<nome_prova>>...<</nome_prova>>`) é
+  melhoria de prompt mais ampla, fora do escopo desta change.
+- **`ProvaNoPlanoService.provaNoDiaAnteriorAoInicio` não filtra por `tenantId` explícito**
+  (security-reviewer): usa o mesmo padrão `findByAtletaAndDataProvaBetweenOrderByDataProvaAsc(atleta,
+  ...)` de dois métodos pré-existentes no repositório — não é regressão desta change, mas amplia o
+  uso do padrão antigo em vez do `tenantId` explícito dos métodos mais recentes.
+- **Builder para `WeeklyCoverageContext`** (clean-code-reviewer): 3 construtores, 7 parâmetros no
+  canônico. Revisitar se ganhar um 4º construtor/campo opcional.
+
 ## Fora de escopo (ver proposal.md "Non-goals")
 
 - Check novo de D-1; Estágio 2; cobertura desligada; LONGO + PROVA não vizinhos; correção
