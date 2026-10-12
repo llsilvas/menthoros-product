@@ -66,11 +66,16 @@ Repo: `apps/menthoros-backend`. Gate por bloco: `./mvnw clean test`. Ordem = dep
 
 ## 3. `LongRunAnchor` (legado)
 
-- [ ] 3.1 `ancorar`: se `diaPreferidoLongo` é D-1, D ou D+1 de alguma PROVA da lista, devolver
-  intacto.
-  - verify: `LongRunAnchorTest` — preferido sábado/prova domingo → não move; preferido domingo →
-    não move; prova quarta + preferido quinta + longo domingo → não move (CA3); preferido terça +
-    prova domingo → move como hoje.
+- [x] 3.1 `ancorar`: se `diaPreferidoLongo` é D-1, D ou D+1 de alguma PROVA da lista
+  (`ctx.provasDaSemana()`), devolver intacto. Vizinhança sem wrap: a semana é segunda a domingo e o
+  domingo não encosta na segunda seguinte.
+  - verify: `LongRunAnchorTest$SemanaDeProva` — preferido sábado/prova domingo → não move; preferido
+    domingo → não move; prova quarta + preferido quinta + longo domingo → não move (CA3); preferido
+    terça + prova domingo → move como hoje; sem PROVA no contexto → como antes. E
+    `PlanoLlmValidatorTest$ProvasDaSemana.ancoraNaoDevolveOLongoAVesperaDaProva` — o caso real
+    (preferido sábado, prova domingo, longo na segunda) termina com o longo na segunda.
+  - nota: rodar os testes **com `clean`**; o `target/` incremental deste módulo quebra a descoberta do
+    JUnit (`NoClassDefFoundError: PlanoSemanalLlmDto`) depois de editar `LongRunAnchorTest`.
 
 ## 4. Shadow — provas da semana por data real
 
