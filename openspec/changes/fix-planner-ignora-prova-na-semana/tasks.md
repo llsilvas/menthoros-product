@@ -186,18 +186,35 @@ Repo: `apps/menthoros-backend`. Gate por bloco: `./mvnw clean test`. Ordem = dep
 
 ## 6. Validação final
 
-- [ ] 6.1 Integração reproduzindo a geração real: atleta SEG/TER/QUI/SÁB, `dia_preferido_longo=SÁBADO`,
-  preparatória domingo, sem skeleton, v1; LLM mockado com as respostas das tentativas 1 e 2 de
-  `tb_llm_call`.
-  - verify: tentativa 1 não é rejeitada pelo dia da prova; LONGO no sábado rejeitado por
-    `INTENSOS_ADJACENTES`; persistido sem intenso na véspera, uma PROVA com `provaId`.
-- [ ] 6.2 Integração `SEMANA_ATUAL` com prova já passada na semana.
-  - verify: converge e persiste a PROVA passada (CA6).
-- [ ] 6.3 Regressão de risco: 3 dias + prova → `limiteDescansos()` continua 1.
-  - verify: `WeeklyCoverageContextTest`.
-- [ ] 6.4 Suites de CA10 + `./mvnw clean test`.
-  - verify: 0 falhas.
-- [ ] 6.5 Atualizar este `tasks.md` antes de arquivar.
+- [x] 6.1 Integração reproduzindo a geração real (`GeracaoComProvaIntegrationTest`, novo):
+  `PlanoResilienceService` + `PlanoLlmValidator` reais (sem mock nos dois — é o retry de verdade),
+  atleta SEG/TER/QUI/SÁB, `dia_preferido_longo=SÁBADO`, preparatória domingo, sem skeleton, v1.
+  - verify: tentativa 1 (histórica) não é rejeitada por "dia indisponível" no domingo — só falta a
+    cobertura do sábado (falha alheia ao bug). Tentativa 2 (histórica, byte-a-byte: LONGO no
+    sábado) agora é `INTENSOS_ADJACENTES` — **antes do fix ela passava sem violação**.
+  - **achado (corrige a expectativa original da task):** replay exato das duas respostas
+    históricas pelo `gerarComResiliencia` real **esgota `MAX_TENTATIVAS=2` e lança
+    `DomainRuleViolationException`** — não "persiste sem intenso" como a redação original supunha.
+    É o resultado correto e mais seguro: a combinação LONGO-na-véspera nunca mais é aceita
+    silenciosamente; se a 2ª resposta da LLM não corrigir de verdade, o treinador vê 422 em vez de
+    receber o plano com o bug (produto já havia marcado isso como risco a medir, não como defeito).
+    Teste `tentativa2CorrigidaConverge` prova que o orçamento de 2 chamadas **basta** quando a
+    correção é adequada (LONGO longe da prova) — a mudança não torna a geração impossível, só torna
+    a combinação perigosa irrecuperável sem uma 2ª tentativa de verdade.
+- [x] 6.2 Integração `SEMANA_ATUAL` com prova já passada na semana
+  (`SemanaAtualProvaPassadaIntegrationTest`, novo): as duas pontas do pipeline juntas.
+  - verify: o builder não inclui a prova de segunda (já passada) em `provasDaSemana`/`effectiveDays`
+    — a validação não a vê; `ProvaNoPlanoService.garantirProvasNaSemana` (que não filtra por "hoje")
+    continua garantindo essa PROVA no plano final (CA6).
+- [x] 6.3 Regressão de risco (`WeeklyCoverageContextTest`, novo): 3 dias + 1 dia de prova (4 no
+  total) → `limiteDescansos()` continua 1.
+  - **achado:** o risco do design ("o dia da prova pode empurrar `limiteDescansos` de 1 para 2")
+    não tem como se materializar dentro de uma única semana — `effectiveDays` tem no máximo 7
+    dias (os da própria semana), e `floor(7/4)=1`; passar de 1 exigiria 8+ dias, impossível.
+    Confirmado com o caso de semana cheia (7 dias) → ainda 1. `provasDaSemana`/`posProva` não
+    alteram `diasDaSequenciaLonga()`.
+- [x] 6.4 `./mvnw clean test` — 4647 testes, 0 falhas (CA10: nenhuma regressão nas suítes citadas).
+- [x] 6.5 `tasks.md` atualizado (este arquivo).
 
 ## Fora de escopo (ver proposal.md "Non-goals")
 
