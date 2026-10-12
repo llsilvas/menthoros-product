@@ -79,27 +79,33 @@ Repo: `apps/menthoros-backend`. Gate por bloco: `./mvnw clean test`. Ordem = dep
 
 ### 3b. Dia seguinte à prova, na fronteira da semana (legado) — design.md Decisão 4b
 
-- [ ] 3.2 `ProvaNoPlanoService.provaNoDiaAnteriorAoInicio(Atleta, LocalDate inicioSemana)`:
+- [x] 3.2 `ProvaNoPlanoService.provaNoDiaAnteriorAoInicio(Atleta, LocalDate inicioSemana)`:
   `Optional<Prova>` da prova não cancelada em `inicioSemana − 1` (consulta de um dia só).
-  - verify: `ProvaNoPlanoServiceDiaAnteriorTest` — prova em `inicioSemana − 1` → presente; sem prova
-    → vazio; a consulta usa exatamente `[inicioSemana−1, inicioSemana−1]`.
-- [ ] 3.3 `WeeklyCoverageContext.posProva` (+ record `PosProvaSemanaAnterior`, construtores de 5 e 6
+  - verify: `ProvaNoPlanoServiceDiaAnteriorTest` (4 casos) — prova em `inicioSemana − 1` →
+    presente; sem prova → vazio; a consulta usa exatamente `[inicioSemana−1, inicioSemana−1]`; duas
+    no mesmo dia → a primeira.
+- [x] 3.3 `WeeklyCoverageContext.posProva` (+ record `PosProvaSemanaAnterior`, construtores de 5 e 6
   argumentos preservados); `PlanoTreinoPromptBuilder` o preenche quando a prova do item 3.2 existe e
-  o `DiaSemana` de `inicioSemana` está entre os dias a cobrir; `PlanoPromptArquetipos.builder` passa
-  um `ProvaRepository` que devolve lista vazia.
+  o `DiaSemana` de `inicioSemana` está entre os dias a cobrir (sem a consulta quando não está);
+  `PlanoPromptArquetipos.builder` ganhou overload com `ProvaRepository` (o padrão é um mock que
+  devolve lista vazia).
   - verify: `PlanoTreinoPromptBuilderDiaDeProvaTest` — prova no domingo anterior + segunda entre os
-    dias → `posProva` preenchido (dia SEGUNDA, nome, data); segunda fora dos dias, prova cancelada
-    (a consulta já a exclui), prova a dois dias de distância, `skeleton != null` → `posProva` nulo.
-- [ ] 3.4 `PeriodizacaoPromptFormatter.formatarPosProvaSemanaAnterior(posProva)` + builder o anexa ao
-  bloco do evento competitivo. Sem `posProva`, prompt byte-idêntico (golden inalterado).
-  - verify: `PeriodizacaoPromptFormatterPosProvaTest` — bloco cita nome (sanitizado), data e o dia
-    do plano, proíbe LONGO e intenso; nulo → string vazia. Golden-masters sem prova inalterados.
-- [ ] 3.5 `WeeklyCoverageValidator`: intenso nesse dia → `INTENSOS_ADJACENTES` citando a prova;
-  `PROVA` isenta. `LongRunAnchor`: preferido == `posProva.diaDoPlano` → intacto.
-  - verify: `WeeklyCoverageValidatorTest` — LONGO e INTERVALADO na segunda → violação (mensagem cita
-    prova e data); REGENERATIVO/FACIL → passa; PROVA na segunda → passa; sem `posProva` → como
-    antes. `LongRunAnchorTest` — preferido segunda + `posProva` segunda → não move.
-    `PlanoLlmValidatorTest` — fim a fim do CA13 (segunda com LONGO reprova; com REGENERATIVO passa).
+    dias → `posProva` preenchido (dia SEGUNDA, nome, data); sem prova → nulo; segunda fora dos dias
+    → nulo e a consulta nunca é feita; `SEMANA_ATUAL` com a segunda passada → nulo; `skeleton` →
+    sem cobertura. (Prova cancelada: a consulta do repositório já a exclui.)
+- [x] 3.4 `PeriodizacaoPromptFormatter.formatarPosProvaSemanaAnterior(posProva)` + builder o anexa ao
+  bloco do evento competitivo (só com cobertura). Sem `posProva`, prompt byte-idêntico.
+  - verify: `PeriodizacaoPromptFormatterPosProvaTest` (4 casos) — bloco cita nome (sanitizado), data
+    e o dia do plano, proíbe LONGO e intenso; nulo → string vazia. Golden-masters inalterados (os 5
+    arquétipos passam sem regeneração). Builder: o bloco aparece com `posProva` e não aparece sem.
+- [x] 3.5 `WeeklyCoverageValidator`: intenso nesse dia → `INTENSOS_ADJACENTES` citando a prova e a
+  data (nome sanitizado, porque a mensagem volta ao LLM no reparo); `PROVA` isenta.
+  `LongRunAnchor`: preferido == `posProva.diaDoPlano` → intacto.
+  - verify: `WeeklyCoverageValidatorTest$DiaAposProvaDaSemanaAnterior` — LONGO/INTERVALADO/TIRO/
+    SUBIDA/FARTLEK/TEMPO_RUN na segunda → violação; REGENERATIVO/FACIL/CONTINUO → passa; PROVA →
+    passa; sem `posProva` → como antes; pesado em outro dia → passa. `LongRunAnchorTest` — preferido
+    segunda + `posProva` segunda → não move; preferido terça → ancora como antes.
+    `PlanoLlmValidatorTest` — fim a fim do CA13 (segunda com LONGO reprova; com treino leve passa).
 
 ## 4. Shadow — provas da semana por data real
 
