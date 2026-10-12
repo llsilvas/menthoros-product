@@ -119,18 +119,30 @@ Repo: `apps/menthoros-backend`. Gate por bloco: `./mvnw clean test`. Ordem = dep
 
 ## 4. Shadow — provas da semana por data real
 
-- [ ] 4.1 `PlannerEngine` (~91-101): `provasDaSemana` = determinante se `data ∈ [referenceDate,
-  referenceDate+6]` ∪ `provasPreparatoriasNaSemana`; novo campo em `WeekPlanSkeleton`.
-  - verify: `PlannerEngineTest` — determinante daqui a 3 meses → lista vazia; preparatória na semana
-    → lista com ela.
-- [ ] 4.2 `ComplianceContext`: campo `provasDaSemana`; `PlannerShadowService` propaga em `:151`,
-  `:207`, `:228`.
-  - verify: `PlannerShadowServiceTest` — os três contextos carregam a lista.
-- [ ] 4.3 `ConstraintValidator.validate` (~22) e `SkeletonComplianceChecker.checarConstraintsDuras`/
-  `checarDiasPermitidos` (~137-157): isentar sessão cuja data real é a de uma prova da semana.
-  - verify: `SkeletonComplianceCheckerTest`/`ConstraintValidatorTest` — PROVA no domingo com atleta
-    sem domingo → zero violação; PROVA em data errada → violação; determinante fora da semana →
-    sem isenção (CA8).
+- [x] 4.1 `PlannerEngine.provasDaSemana`: determinante se `data ∈ [referenceDate, referenceDate+6]`
+  ∪ `provasPreparatoriasNaSemana` (o `PeriodizationPlanner` já filtra a janela), sem duplicata,
+  ordenada por data; 11º componente de `WeekPlanSkeleton`, com o construtor de 10 argumentos
+  preservado (6 construções em testes intocadas). No shadow, `referenceDate == semanaInicio`
+  (`PlannerShadowService.mapToSnapshot`), então a janela é a semana planejada.
+  - verify: `PlannerEngineTest$ProvasDaSemana` — determinante a 90 dias → vazia (e continua como
+    `provaDeterminante`); preparatória no domingo → só ela; determinante no domingo → ela; CA8 pelo
+    engine inteiro: atleta SEG/QUI + alvo no domingo → PROVA ancorada no domingo e zero
+    `DIA_INDISPONIVEL` em `skeleton.constraints()`.
+- [x] 4.2 `ComplianceContext.provasDaSemana` (+ `datasDeProva()`, construtor de 3 argumentos
+  preservado); `PlannerShadowService` propaga `skeleton.provasDaSemana()` nas três construções.
+  - verify: `PlannerShadowServiceTest$ProvasDaSemanaNoContexto` — estágio 1 e estágio 2 pelos
+    métodos públicos do service (atleta sem domingo, prova no domingo → sem violação); `aplicarShadow`
+    com o caso Leandro → `planner_metadata_json` sem `DIA_INDISPONIVEL`/`CONSTRAINT_DURA_VIOLADA`;
+    e o controle: skeleton **sem** `provasDaSemana` → o mesmo plano volta a acusar — é a propagação
+    que isenta.
+- [x] 4.3 `ConstraintValidator.validate(constraints, sessoes, Set<DayOfWeek> diasDeProva)` (a de 2
+  argumentos delega com conjunto vazio); `SkeletonComplianceChecker.checarConstraintsDuras`/
+  `checarDiasPermitidos` isentam pela **data real** (`context.datasDeProva()`), não pelo tipo.
+  - verify: `ConstraintValidatorTest$DiaDeProva` — domingo isento; prova no sábado não isenta o
+    domingo; sobrecarga antiga igual. `SkeletonComplianceCheckerTest$DiaDeProva` — pré e pós: PROVA
+    no domingo com atleta sem domingo → zero violação; PROVA no sábado (data errada) com atleta sem
+    sábado → `CONSTRAINT_DURA_VIOLADA`; determinante a 70 dias com lista vazia → `DIA_INDISPONIVEL`
+    mantido (CA8).
 
 ## 5. Shadow — materializar e proteger
 
