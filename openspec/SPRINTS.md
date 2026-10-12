@@ -2,7 +2,15 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-11 (**`add-waitlist-other-brand-email` entregue e arquivada** —
+**Última atualização:** 2026-10-12 (**`expand-waitlist-access-contract` arquivada** — backend PR
+**#177** mergeado em `develop` em 2026-10-11, arquivamento (`/done`) feito em 2026-10-12. BE-01 da
+análise de conversão do Instagram: fecha o contrato único de `POST /api/v1/waitlist` —
+`PerfilWaitlist.PROPRIETARIO`, `watchBrand`, `landingPath`/`referrer`, `policyVersion` carimbado
+pelo servidor, `segment` derivado na resposta, upsert-on-duplicate real no reenvio. Desbloqueou
+BE-02/BE-05 e FE-02/FE-05. `./mvnw clean verify`: 218 testes de integração, 0 falhas. Arquivada em
+`changes/archive/2026-10/2026-10-12-expand-waitlist-access-contract/`.)
+
+**Anterior:** 2026-10-11 (**`add-waitlist-other-brand-email` entregue e arquivada** —
 backend PR **#179** mergeado em `develop` (squash). Origem: BE-05 remanescente da análise de
 conversão do Instagram — `add-waitlist-lead-notifications` (PR #174) tinha deixado o segmento
 `OTHER_BRAND` como Non-Goal porque `watchBrand` ainda não existia no contrato;
