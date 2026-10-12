@@ -106,6 +106,16 @@ Repo: `apps/menthoros-backend`. Gate por bloco: `./mvnw clean test`. Ordem = dep
     passa; sem `posProva` → como antes; pesado em outro dia → passa. `LongRunAnchorTest` — preferido
     segunda + `posProva` segunda → não move; preferido terça → ancora como antes.
     `PlanoLlmValidatorTest` — fim a fim do CA13 (segunda com LONGO reprova; com treino leve passa).
+- [x] 3.6 Revisão da 3b (`code-reviewer` + `clean-code-reviewer`, 2026-10-11): sanitização do nome
+  da prova centralizada e endurecida em `PosProvaSemanaAnterior.literalDePrompt` (controle,
+  separadores Unicode, aspas, colapso de espaços, 80 chars) e reusada por
+  `PeriodizacaoPromptFormatter.sanitizarNomeProva`; `dataFormatada()` no record; `exigeDiaLeveAoLado`
+  no validador; helper do builder renomeado para `resolverPosProva`. Verificado: `inicioSemana` é
+  sempre segunda (`PlanGenerationContextLoader:176-177`); `nomeProva` é `NOT NULL`. Recusado, com os
+  revisores: builder para `WeeklyCoverageContext`; chave de violação nova. Shadow sem `posProva`:
+  justificativa corrigida no proposal (leve por composição das fases, não por restrição).
+  - verify: `PosProvaSemanaAnteriorTest` (nome longo, tab, U+2028, aspas, nulo);
+    `PlanoTreinoPromptBuilderDiaDeProvaTest.comSkeletonNaoHaCobertura` — sem bloco e sem consulta.
 
 ## 4. Shadow — provas da semana por data real
 

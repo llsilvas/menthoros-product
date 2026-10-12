@@ -144,8 +144,12 @@ Tudo em `menthoros-backend`.
 - **O caso inverso da fronteira:** prova no 1º dia da semana (segunda) com intenso no último dia
   (domingo) da semana **anterior** — o plano anterior é outro plano, já persistido. **Risco
   aceito**, registrado em "Riscos". (O D+1 pós-prova na fronteira, esse sim, entra: item 4b.)
-- O shadow engine **não** ganha o D+1 da fronteira: ele já trata prova recente pela fase
-  `POST_RACE` (composição só com REGENERATIVO/FACIL).
+- O shadow engine **não** ganha o D+1 da fronteira. Hoje o resultado já é leve nos dois casos
+  possíveis — gerado **depois** da prova, a fase é `POST_RACE` (só REGENERATIVO/FACIL); gerado
+  **antes** (PROXIMA_SEMANA na quinta, prova no domingo), a fase vem de `referenceDate` e cai em
+  `RACE_WEEK` (PROVA/REGENERATIVO/FACIL) — mas isso é consequência da composição dessas fases,
+  **não** de uma restrição explícita. Se a composição de `POST_RACE`/`RACE_WEEK` mudar, revisitar
+  (revisão da 3b, code-reviewer).
 - Taper/volume para preparatória, prioridade de `selecionarProvaDeterminante`, ligar
   `planner-engine.enabled`, correção retroativa em massa.
 
