@@ -2,7 +2,23 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-12 (**`expand-waitlist-access-contract` arquivada** — backend PR
+**Última atualização:** 2026-10-12 (**`add-waitlist-proprietario-watchbrand-fields` entregue e
+arquivada** — frontend PR **#156** mergeado em `develop` (squash). FE-02+FE-05 da análise de
+conversão do Instagram: `AccessRequestForm.tsx` ganha a opção "Dono de assessoria"
+(`PerfilWaitlist.PROPRIETARIO`) e o campo opcional "Relógio predominante dos atletas"
+(`watchBrand`), ambos já suportados pelo contrato desde `expand-waitlist-access-contract` (BE-01)
+mas nunca consumidos no front. A tela de sucesso passa a ler o `segment` devolvido pelo backend
+(`segment` manda sobre o perfil local, que só decide no fallback sem `segment`) e mostra a
+variante `outraMarca` para `OTHER_BRAND`. `buildWaitlistPayload`/`resolveSuccessContent` extraídos
+como funções puras testáveis. Sem mudança de contrato de backend. S · Fast. QA gate (3 reviewers
+Claude — `frontend-reviewer`/`clean-code-reviewer` — + Codex cross-model) corrigiu 2 achados
+Important (segment como fonte de verdade na tela de sucesso; comentário desatualizado) e um
+NO-GO do Codex por falta de cobertura E2E no novo fluxo — corrigido com cenário novo em
+`tests/e2e/landing/acesso.spec.ts` (este formulário já é fluxo crítico, gate de consentimento
+LGPD da landing). `npm run lint/build/test:run`: 234 arquivos, 2030 testes, 0 falhas. Arquivada em
+`changes/archive/2026-10/2026-10-12-add-waitlist-proprietario-watchbrand-fields/`.)
+
+**Anterior:** 2026-10-12 (**`expand-waitlist-access-contract` arquivada** — backend PR
 **#177** mergeado em `develop` em 2026-10-11, arquivamento (`/done`) feito em 2026-10-12. BE-01 da
 análise de conversão do Instagram: fecha o contrato único de `POST /api/v1/waitlist` —
 `PerfilWaitlist.PROPRIETARIO`, `watchBrand`, `landingPath`/`referrer`, `policyVersion` carimbado
