@@ -146,25 +146,43 @@ Repo: `apps/menthoros-backend`. Gate por bloco: `./mvnw clean test`. Ordem = dep
 
 ## 5. Shadow — materializar e proteger
 
-- [ ] 5.1 `SessionCompositionResolver`: slot `PROVA` por preparatória, independente da fase; TSS
-  pela distância; sem somar ao `loadTarget`.
-  - verify: `SessionCompositionResolverTest` — fase `PEAK` + preparatória → slot `PROVA`;
-    `loadTarget` inalterado.
-- [ ] 5.2 `SessionDayAllocator.allocate(…, List<DayOfWeek> diasDeProva)`: ancora todos; `proibidos`
-  = D-1 de cada; passo 2 cobre **todo** LONGO (chave primeiro); passos 2–3 escolhem em
-  `livres \ proibidos`; passo 4 usa `livres` inteira e pula LONGO ∪ `DURAS` — pesadas sem dia
-  permanecem `null`.
-  - verify: `SessionDayAllocatorTest` — (a) determinante + preparatória ancoradas, nenhuma pesada
-    no D-1; (b) REGENERATIVO cai no D-1; (c) fixture QUI/SÁB/DOM + prova domingo + LONGO + dura +
-    leve → LONGO na quinta (passo 2 roda antes), a **dura** fica `null`, a leve pode cair no sábado;
-    nada pesado no sábado; (d) TAPER com LONGO sem chave, SEG/QUA/SEX, sem prova → LONGO ganha dia;
-    com prova no sábado → LONGO não cai na sexta (CA12).
-- [ ] 5.3 `PlannerEngine`: slot pesado sem dia é **removido** de `sessoes` e o skeleton sai com
-  `requiresCoachReview=true` + motivo; `comporSessoes` deriva os dias de `provasDaSemana` (4.1).
-  - verify: `PlannerEngineTest` — caso real (`PEAK`, preparatória domingo) → slot ancorado, sem
-    LONGO no sábado; fixture de 5.2(c) → `sessoes` sem a dura, `requiresCoachReview`, motivo cita
-    o tipo da dura e a prova; `PlanoTreinoPromptBuilderTest` — bloco de slots sem "(dia a definir)"
-    (CA9).
+- [x] 5.1 `SessionCompositionResolver`: `CompositionRequest` ganha `provasPreparatorias` (lista de
+  `ProvaPreparatoriaSlot(Double horas)`, construtor de 7 argumentos preservado); `compose` acrescenta
+  um slot `PROVA` (`chave=false`) por preparatória, fora da repartição de `tipos`/`targetTss` —
+  TSS pela mesma fórmula do determinante (`fatorImpacto × TAXA_BASE × horas`).
+  - verify: `SessionCompositionResolverTest$ProvasPreparatorias` (5 casos) — fase `PEAK` + 1
+    preparatória → slot `PROVA` extra, `loadTarget`/tipos normais inalterados; preparatória não
+    rouba a chave; duas preparatórias → dois slots; horas nulo → TSS zero; lista vazia → idêntico
+    ao construtor antigo.
+- [x] 5.2 `SessionDayAllocator.allocate(…, List<DayOfWeek> diasDeProva)` (assinatura trocada; os 2
+  chamadores — `PlannerEngine` e os testes diretos — atualizados): passo 1 ancora **cada** slot
+  `PROVA` no próximo dia de `diasDeProva`, na mesma ordem (determinante, depois preparatórias, a
+  mesma ordem em que `compose`/`comporSessoes` as produz — zip posicional, documentado); `proibidos`
+  = D-1 de cada dia em `diasDeProva` (`DayOfWeek.minus(1)`, sem wrap especial); passo 2 cobre **todo**
+  LONGO em duas rodadas (chave primeiro, depois sem chave — cobre o caso TAPER); passos 2–3 escolhem
+  em `livres \ proibidos`; passo 4 usa `livres` inteira mas **nunca** aloca LONGO/`DURAS` — essas,
+  se não couberam nos passos 2–3, saem com `day == null` e não são recicladas. `DURAS` passou a ser
+  package-private (reuso pelo `PlannerEngine`, 5.3).
+  - verify: `SessionDayAllocatorTest` (16 casos) — (a) determinante + preparatória ancoradas,
+    `duasProvasNaSemana`; (b) `preferidoNoDMenosUmDaProva`/`duraNuncaNoDMenosUmDaProva`; (c)
+    `FixtureCA9` (QUI/SÁB/DOM, PROVA no domingo + LONGO + dura + leve) → LONGO na quinta, dura
+    `null`, leve pode cair no sábado; (d) `longoSemChaveGanhaDia`/`longoSemChaveNaoCaiNaVespera`
+    (CA12).
+- [x] 5.3 `PlannerEngine`: `provasDaSemana` computada **antes** de `comporSessoes` (que agora a
+  recebe, junto com a lista de preparatórias derivada dela menos a determinante, para montar
+  `ProvaPreparatoriaSlot` e o `diasDeProva` do allocator); slot `LONGO`/dura com `day == null` após
+  a alocação é **removido** de `sessoes` (nunca chega ao skeleton) e o motivo
+  ("`<TIPO>` sem dia elegível fora da véspera de uma prova da semana (`<data>`).") entra na
+  hierarquia de `requiresCoachReview` depois de lesão e risco fisiológico.
+  - verify: `PlannerEngineTest$ProvasDaSemana` — `preparatoriaGanhaSlotAncoradoSemLongoNoD1` (fase
+    `PEAK`, preparatória no domingo **fora** dos dias configurados do atleta → slot `PROVA`
+    ancorado, nenhum LONGO/dura no sábado); `nenhumaSessaoFicaComDiaNulo` (fase `BUILD`, mesmo
+    padrão) → nenhum slot chega com `day == null`, nada pesado no sábado.
+  - achado (não bug, erro de fixture): a 1ª tentativa desse teste incluiu o dia da prova **também**
+    nos dias configurados do atleta — dupla contagem (a composição reserva `sessionCount` pelos
+    dias configurados, mas o slot `PROVA` da preparatória consome um dia físico da semana **fora**
+    desse orçamento quando o atleta não treina nesse dia, como no caso real). Corrigido excluindo o
+    dia da prova dos dias configurados na fixture, como no cadastro real do Leandro.
 
 ## 6. Validação final
 
