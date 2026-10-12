@@ -15,7 +15,7 @@ Ordem sugerida: FE-01 → FE-02 → FE-03 → FE-04 → FE-05 → FE-06 → FE-0
 
 ## Checklist de entrega
 
-Atualizado em 2026-10-09. Ver também o checklist irmão em
+Atualizado em 2026-10-12. Ver também o checklist irmão em
 `instagram-conversao-specs-backend.md` (BE-01..BE-07).
 
 A change `add-waitlist-value-proposition` (frontend PR #152, mergeado em
@@ -28,9 +28,9 @@ task a task.
       bullets, oferta, aviso Garmin, `AttentionQueue` ilustrativo e logo acima do formulário.
 - [x] **FE-02** — Formulário único de solicitação de acesso. Entregue: `AccessRequestForm.tsx`
       substitui os dois formulários divergentes (home e `/waitlist`), mesmos campos/validação/botão.
-      **Pendente dentro de FE-02:** campo "dono de assessoria" no "Você é" e campo "relógio
-      predominante dos atletas" — o contrato do backend já existe (`PerfilWaitlist.PROPRIETARIO` +
-      `watchBrand`, `expand-waitlist-access-contract`), falta só consumir no formulário.
+      Campo "dono de assessoria" no "Você é" e campo "relógio predominante dos atletas" entregues
+      por `add-waitlist-proprietario-watchbrand-fields`, consumindo o contrato já exposto desde
+      `expand-waitlist-access-contract`.
 - [x] **FE-03** — Captura e persistência de UTMs. Entregue: `utmPersistence.ts` lê path e fragmento
       de hash, persiste em `sessionStorage` na primeira carga da sessão.
 - [x] **FE-04** — Contador de vagas com fonte única. Entregue —
@@ -42,11 +42,10 @@ task a task.
       "Quanto custa?", rodapé do `AccessRequestForm`) continuam lendo a constante estática — são
       menções incidentais dentro de frases maiores, não o "contador" que a spec original tinha em
       mente.
-- [ ] **FE-05** — Tela de sucesso com próximo passo. **Parcial:** mensagem varia por perfil
-      (treinador vs. atleta) — entregue. Variante "dono/treinador com outra marca de relógio" **não**
-      implementada: backend já expõe `segment` (`QUALIFIED`/`OTHER_BRAND`/`ATLETA`,
-      `expand-waitlist-access-contract`), falta consumir — mesmo bloqueio de FE-02 (campo de relógio
-      no formulário).
+- [x] **FE-05** — Tela de sucesso com próximo passo. Entregue: mensagem varia por perfil (treinador
+      vs. atleta) e, para treinador/proprietário, por segmento (`QUALIFIED` vs. `OTHER_BRAND`) —
+      `add-waitlist-proprietario-watchbrand-fields` consome o `segment` da resposta e mostra a
+      variante "outra marca" reconhecendo a limitação (hoje só Garmin).
 - [ ] **FE-06** — Ajustes de conteúdo na home. **Parcial:** "assessorias de endurance" →
       "assessorias de corrida" na copy de marketing; dado mock do `AttentionQueue` ganhou rótulo
       "Exemplo ilustrativo". **Não verificado/pendente:** foto real + nome completo na seção "Quem
