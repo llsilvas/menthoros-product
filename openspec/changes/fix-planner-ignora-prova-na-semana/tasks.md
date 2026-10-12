@@ -27,34 +27,42 @@ Repo: `apps/menthoros-backend`. Gate por bloco: `./mvnw clean test`. Ordem = dep
 
 ## 2. PROVA visível à validação (legado, v1 e v2 sem skeleton)
 
-- [ ] 2.1 `WeeklyCoverageContext`: campo `provasDaSemana: List<TreinoPlanejadoLlmDto>`; montado no
-  builder (1.1) com `ProvaNoPlanoService.construirTreinoProva` para o mesmo intervalo efetivo. Se a
-  injeção criar ciclo, extrair `construirTreinoProva` para componente só com `TreinoMapper`.
-  - verify: `./mvnw -q compile`; contexto de aplicação sobe (`@SpringBootTest` existente).
-- [ ] 2.2 `PlanoLlmValidator`: com `cobertura != null`, **antes** de
+- [x] 2.1 `WeeklyCoverageContext`: campo `provasDaSemana: List<TreinoPlanejadoLlmDto>` (construtor de
+  5 argumentos preservado); montado no builder (1.1) com `ProvaNoPlanoService.construirTreinoProva`
+  para a mesma janela efetiva. Injeção direta, sem extração: `PlanoReviewServiceImpl` só depende de
+  repositórios, mapper, publisher e resolver — nenhum caminho até o builder.
+  - verify: `PlanoTreinoPromptBuilderDiaDeProvaTest` (11 casos: DTO com `provaId`, `PROVA` e dia
+    certo; passada/hoje/cancelada/sem prova → lista vazia, nunca null); suíte completa sobe.
+- [x] 2.2 `PlanoLlmValidator`: com `cobertura != null`, **antes** de
   `descansoNaoAutorizadoConverter.converter` (`:120`) descartar treinos e `restDays` do LLM nos dias
   de `provasDaSemana`; no início de `aplicarCobertura` (`:74`, antes da âncora) inserir as PROVAs.
-  - verify: `PlanoLlmValidatorTest` — LONGO no domingo → sai PROVA com `provaId`, sem outro
-    treino nesse dia; INTERVALADO **sem etapas** no domingo → descartado, sem `NORMALIZACAO_*`
-    nem reparo (CA4); `restDay` no domingo descartado; `cobertura == null` → nada muda.
-- [ ] 2.3 Mesmo descarte em `validarPlanoV2` antes do loop de `validarEstruturaV2` (`:184`); a
+  - verify: `PlanoLlmValidatorTest$ProvasDaSemana` — LONGO no domingo → sai PROVA com `provaId`,
+    sem outro treino nesse dia; INTERVALADO/FACIL **malformado** no domingo → descartado, sem
+    `NORMALIZACAO_*` nem reparo (CA4); `restDay` no domingo descartado; `cobertura == null` →
+    nada muda.
+- [x] 2.3 Mesmo descarte em `validarPlanoV2` antes do loop de `validarEstruturaV2` (`:184`); a
   inserção já acontece por `aplicarCobertura` (`:202`).
-  - verify: `PlanoLlmValidatorTest` — tenant v2, `skeleton=null`, `cobertura != null` → CA4 vale;
-    v2 com skeleton → comportamento atual byte-a-byte (CA7).
-- [ ] 2.4 Reprodução real (CA1/CA2): LONGO no sábado + PROVA inserida → `PlanoNaoConformeException`
-  com `INTENSOS_ADJACENTES` citando `PROVA`; REGENERATIVO no sábado → passa; `provaAlvo` true/false.
-  - verify: `WeeklyCoverageValidatorTest` + `PlanoLlmValidatorTest`.
-- [ ] 2.5 `WeeklyCoverageValidator`: `validarIntensosAdjacentes` (~192) não acusa par PROVA/PROVA
-  (log WARN); `registrarDias` (~109) recebe os DTOs e conta ocupação de `PROVA` no máximo uma vez
-  por dia.
+  - verify: `PlanoLlmValidatorTest$ProvasDaSemana.v2SemSkeletonComCobertura` — tenant v2,
+    `skeleton=null`, `cobertura != null` → CA4 vale; v2 com skeleton segue coberto pelos testes v2
+    existentes, inalterados (CA7).
+- [x] 2.4 Reprodução real (CA1/CA2): LONGO no sábado + PROVA inserida → `PlanoNaoConformeException`
+  com `INTENSOS_ADJACENTES` citando `PROVA`; REGENERATIVO no sábado → passa. A regra não lê
+  `provaAlvo` (o DTO da PROVA não o carrega), então CA2 vale por construção.
+  - verify: `PlanoLlmValidatorTest$ProvasDaSemana.longoNaVesperaReprova`/`leveNaVesperaPassa` +
+    `WeeklyCoverageValidatorTest`.
+- [x] 2.5 `WeeklyCoverageValidator`: `validarIntensosAdjacentes` não acusa par PROVA/PROVA (log
+  WARN); a contagem de ocupação em `validar` (via `diasDosTreinos`) conta `PROVA` no máximo uma
+  vez por dia — `registrarDias` não mudou de assinatura.
   - verify: provas sábado e domingo → sem violação (CA5); duas provas no domingo → sem "aparece
-    mais de uma vez" (CA11); LONGO + PROVA no mesmo dia continua acusado.
-- [ ] 2.6 `ProvaNoPlanoService.garantirProvasNaSemana` (~78-86): remover os DTOs dos dias de
-  todas as provas **uma vez**, depois inserir todas as PROVAs; não duplicar PROVA já presente com
-  o mesmo `provaId`. Corrigir o javadoc.
-  - verify: `ProvaNoPlanoServiceTest` — provas A e B no domingo → duas PROVAs, uma por `provaId`
-    (CA11); reaplicar sobre a saída → mesma lista; `PlanGenerationPersisterCoberturaTest` — lista
-    já com PROVA (vinda da validação) → uma PROVA por prova no persistido.
+    mais de uma vez" (CA11); LONGO + PROVA no mesmo dia e PROVA + FACIL no mesmo dia continuam
+    acusados.
+- [x] 2.6 `ProvaNoPlanoService.garantirProvasNaSemana`: remove os DTOs dos dias de todas as provas
+  **uma vez**, depois insere todas as PROVAs; reaplicar não duplica (o dia é limpo antes de
+  inserir). Javadoc corrigido.
+  - verify: `ProvaNoPlanoServiceGarantirTest` (5 casos) — provas A e B no domingo → duas PROVAs,
+    uma por `provaId` (CA11); reaplicar sobre a saída → mesma lista; entrada já com a PROVA de A +
+    B → uma por `provaId`; provas em dias diferentes; sem prova → mesma lista. O persister só
+    delega, então `PlanGenerationPersister*Test` (mocka o service) segue inalterado.
 
 ## 3. `LongRunAnchor` (legado)
 
