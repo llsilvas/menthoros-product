@@ -1,82 +1,114 @@
-# Tasks — fix-planner-ignora-prova-na-semana (v3.1)
+# Tasks — fix-planner-ignora-prova-na-semana (v3.2)
 
-Repo: `apps/menthoros-backend`. Validação de cada bloco: `./mvnw clean test`.
+Repo: `apps/menthoros-backend`. Gate por bloco: `./mvnw clean test`. Ordem = dependência
+(1 → 2 → 3 no legado; 4 → 5 no shadow; 6 fecha). Cada task traz `verify:`.
 
-> v3.1 (2026-10-11): incorpora o 2º pre-mortem. Mudanças vs. v3: PROVA entra em `aplicarCobertura`
-> (não no callback), intervalo efetivo com "hoje", PROVA/PROVA isento, âncora com regra fina,
-> allocator filtra em vez de excluir, `provasDaSemana` propagada no shadow.
+> v3.2 (2026-10-11): incorpora o DoR (Codex rodada 3 + `spec-reviewer`). Mudanças vs. v3.1:
+> descarte antes da normalização (2.2), v2 sem skeleton coberto (2.3), âncora com D+1 (3.1),
+> passo 4 do allocator pula pesadas e pesada inviável sai do skeleton (5.2/5.3).
 
 ## 1. Dia de prova é dia efetivo (legado)
 
-- [ ] 1.1 `PlanoTreinoPromptBuilder` (~254): `effectiveDays` = dias configurados ∪ dias das provas
-  não canceladas em `[max(inicio, hoje), fim]`, usando a mesma referência de "hoje" que o chamador
-  já aplica em `SEMANA_ATUAL`. Reusar a lista de provas já carregada no builder.
-  - Teste: `PlanoTreinoPromptBuilderTest` — SEG/TER/QUI/SÁB + prova domingo → contém DOMINGO;
-    `SEMANA_ATUAL` gerada na quarta com prova na segunda → não contém SEGUNDA (CA6).
+- [ ] 1.1 `PlanoTreinoPromptBuilder` (~254, variável `diasEfetivos`): união com os dias das provas
+  não canceladas em `[max(inicio, hoje), fim]`, usando a mesma referência de "hoje" de
+  `CoberturaSemanalPolicy.diasEfetivos`. Reusar a lista de provas já carregada no builder.
+  - verify: `PlanoTreinoPromptBuilderTest` — SEG/TER/QUI/SÁB + prova domingo → `effectiveDays`
+    contém DOMINGO; `SEMANA_ATUAL` na quarta com prova na segunda → não contém SEGUNDA (CA6);
+    golden-master do prompt legado sem prova inalterado.
 - [ ] 1.2 `DisponibilidadePromptFormatter` (~76): dia da prova com a marca "(prova)". Bump de
   `prompt_version`.
-  - Teste: snapshot do bloco com e sem prova.
+  - verify: snapshot do bloco com e sem prova; golden-master com prova atualizado deliberadamente.
 
-## 2. PROVA visível à validação (legado)
+## 2. PROVA visível à validação (legado, v1 e v2 sem skeleton)
 
 - [ ] 2.1 `WeeklyCoverageContext`: campo `provasDaSemana: List<TreinoPlanejadoLlmDto>`; montado no
   builder (1.1) com `ProvaNoPlanoService.construirTreinoProva` para o mesmo intervalo efetivo. Se a
   injeção criar ciclo, extrair `construirTreinoProva` para componente só com `TreinoMapper`.
-- [ ] 2.2 `PlanoLlmValidator.aplicarCobertura` (~74): antes de `longRunAnchor.ancorar`, para cada
-  PROVA do contexto remover treinos e `restDays` do LLM no mesmo `diaSemana` e inserir a PROVA.
-  - Teste: `PlanoLlmValidatorTest` — LONGO no dia da prova → sai PROVA com `provaId`, sem outro
-    treino nesse dia; `restDay` no dia da prova descartado sem violação (CA4); `cobertura == null`
-    (skeleton) → nada muda (CA7).
-- [ ] 2.3 Reprodução real (CA1/CA2): LONGO na véspera + PROVA inserida → `PlanoNaoConformeException`
-  com `INTENSOS_ADJACENTES` citando `PROVA`; leve na véspera → passa; `provaAlvo` true e false.
-  - Teste: `WeeklyCoverageValidatorTest` + `PlanoLlmValidatorTest`.
-- [ ] 2.4 `WeeklyCoverageValidator.validarIntensosAdjacentes` (~192): par PROVA/PROVA não é
-  violação (log WARN); LONGO/PROVA continua.
-  - Teste: provas sábado e domingo → sem violação (CA5).
-- [ ] 2.5 `PlanGenerationPersister.java:366` sobre lista já com PROVA → uma PROVA por prova.
-  - Teste: `PlanGenerationPersisterCoberturaTest`.
+  - verify: `./mvnw -q compile`; contexto de aplicação sobe (`@SpringBootTest` existente).
+- [ ] 2.2 `PlanoLlmValidator`: com `cobertura != null`, **antes** de
+  `descansoNaoAutorizadoConverter.converter` (`:120`) descartar treinos e `restDays` do LLM nos dias
+  de `provasDaSemana`; no início de `aplicarCobertura` (`:74`, antes da âncora) inserir as PROVAs.
+  - verify: `PlanoLlmValidatorTest` — LONGO no domingo → sai PROVA com `provaId`, sem outro
+    treino nesse dia; INTERVALADO **sem etapas** no domingo → descartado, sem `NORMALIZACAO_*`
+    nem reparo (CA4); `restDay` no domingo descartado; `cobertura == null` → nada muda.
+- [ ] 2.3 Mesmo descarte em `validarPlanoV2` antes do loop de `validarEstruturaV2` (`:184`); a
+  inserção já acontece por `aplicarCobertura` (`:202`).
+  - verify: `PlanoLlmValidatorTest` — tenant v2, `skeleton=null`, `cobertura != null` → CA4 vale;
+    v2 com skeleton → comportamento atual byte-a-byte (CA7).
+- [ ] 2.4 Reprodução real (CA1/CA2): LONGO no sábado + PROVA inserida → `PlanoNaoConformeException`
+  com `INTENSOS_ADJACENTES` citando `PROVA`; REGENERATIVO no sábado → passa; `provaAlvo` true/false.
+  - verify: `WeeklyCoverageValidatorTest` + `PlanoLlmValidatorTest`.
+- [ ] 2.5 `WeeklyCoverageValidator`: `validarIntensosAdjacentes` (~192) não acusa par PROVA/PROVA
+  (log WARN); `registrarDias` (~109) recebe os DTOs e conta ocupação de `PROVA` no máximo uma vez
+  por dia.
+  - verify: provas sábado e domingo → sem violação (CA5); duas provas no domingo → sem "aparece
+    mais de uma vez" (CA11); LONGO + PROVA no mesmo dia continua acusado.
+- [ ] 2.6 `ProvaNoPlanoService.garantirProvasNaSemana` (~78-86): remover os DTOs dos dias de
+  todas as provas **uma vez**, depois inserir todas as PROVAs; não duplicar PROVA já presente com
+  o mesmo `provaId`. Corrigir o javadoc.
+  - verify: `ProvaNoPlanoServiceTest` — provas A e B no domingo → duas PROVAs, uma por `provaId`
+    (CA11); reaplicar sobre a saída → mesma lista; `PlanGenerationPersisterCoberturaTest` — lista
+    já com PROVA (vinda da validação) → uma PROVA por prova no persistido.
 
 ## 3. `LongRunAnchor` (legado)
 
-- [ ] 3.1 `ancorar`: se `diaPreferidoLongo` é dia de PROVA da lista ou sua véspera, devolver intacto.
-  - Teste: `LongRunAnchorTest` — preferido = véspera → não move; preferido = dia da prova → não
-    move; preferido em outro dia → move como hoje (CA3).
+- [ ] 3.1 `ancorar`: se `diaPreferidoLongo` é D-1, D ou D+1 de alguma PROVA da lista, devolver
+  intacto.
+  - verify: `LongRunAnchorTest` — preferido sábado/prova domingo → não move; preferido domingo →
+    não move; prova quarta + preferido quinta + longo domingo → não move (CA3); preferido terça +
+    prova domingo → move como hoje.
 
 ## 4. Shadow — provas da semana por data real
 
-- [ ] 4.1 `PlannerEngine`: `provasDaSemana` = determinante se `data ∈ [referenceDate,
+- [ ] 4.1 `PlannerEngine` (~91-101): `provasDaSemana` = determinante se `data ∈ [referenceDate,
   referenceDate+6]` ∪ `provasPreparatoriasNaSemana`; novo campo em `WeekPlanSkeleton`.
+  - verify: `PlannerEngineTest` — determinante daqui a 3 meses → lista vazia; preparatória na semana
+    → lista com ela.
 - [ ] 4.2 `ComplianceContext`: campo `provasDaSemana`; `PlannerShadowService` propaga em `:151`,
   `:207`, `:228`.
+  - verify: `PlannerShadowServiceTest` — os três contextos carregam a lista.
 - [ ] 4.3 `ConstraintValidator.validate` (~22) e `SkeletonComplianceChecker.checarConstraintsDuras`/
   `checarDiasPermitidos` (~137-157): isentar sessão cuja data real é a de uma prova da semana.
-  - Teste: `SkeletonComplianceCheckerTest` / `ConstraintValidatorTest` — PROVA no domingo com
-    atleta sem domingo → zero violação; PROVA em data errada → violação; determinante daqui a 3
-    meses → sem isenção (CA8).
+  - verify: `SkeletonComplianceCheckerTest`/`ConstraintValidatorTest` — PROVA no domingo com atleta
+    sem domingo → zero violação; PROVA em data errada → violação; determinante fora da semana →
+    sem isenção (CA8).
 
 ## 5. Shadow — materializar e proteger
 
 - [ ] 5.1 `SessionCompositionResolver`: slot `PROVA` por preparatória, independente da fase; TSS
   pela distância; sem somar ao `loadTarget`.
-  - Teste: fase `PEAK` + preparatória → slot `PROVA`.
+  - verify: `SessionCompositionResolverTest` — fase `PEAK` + preparatória → slot `PROVA`;
+    `loadTarget` inalterado.
 - [ ] 5.2 `SessionDayAllocator.allocate(…, List<DayOfWeek> diasDeProva)`: ancora todos; `proibidos`
-  = D-1 de cada; passos 2–3 escolhem em `livres \ proibidos`; passo 4 usa `livres` inteira.
-  - Teste: (a) determinante + preparatória ancoradas, nenhuma dura no D-1; (b) REGENERATIVO pode
-    cair no D-1; (c) LONGO sem candidato → slot sem dia.
-- [ ] 5.3 `PlannerEngine`: slot-chave sem dia → `requiresCoachReview=true` + motivo (CA9);
-  `comporSessoes` deriva os dias de `provasDaSemana` (4.1).
-  - Teste: `PlannerEngineTest` — caso real (`PEAK`, preparatória domingo) → slot ancorado, sem
-    LONGO no sábado; cenário sem candidato → `requiresCoachReview`.
+  = D-1 de cada; passo 2 cobre **todo** LONGO (chave primeiro); passos 2–3 escolhem em
+  `livres \ proibidos`; passo 4 usa `livres` inteira e pula LONGO ∪ `DURAS` — pesadas sem dia
+  permanecem `null`.
+  - verify: `SessionDayAllocatorTest` — (a) determinante + preparatória ancoradas, nenhuma pesada
+    no D-1; (b) REGENERATIVO cai no D-1; (c) fixture QUI/SÁB/DOM + prova domingo + LONGO + dura +
+    leve → LONGO na quinta (passo 2 roda antes), a **dura** fica `null`, a leve pode cair no sábado;
+    nada pesado no sábado; (d) TAPER com LONGO sem chave, SEG/QUA/SEX, sem prova → LONGO ganha dia;
+    com prova no sábado → LONGO não cai na sexta (CA12).
+- [ ] 5.3 `PlannerEngine`: slot pesado sem dia é **removido** de `sessoes` e o skeleton sai com
+  `requiresCoachReview=true` + motivo; `comporSessoes` deriva os dias de `provasDaSemana` (4.1).
+  - verify: `PlannerEngineTest` — caso real (`PEAK`, preparatória domingo) → slot ancorado, sem
+    LONGO no sábado; fixture de 5.2(c) → `sessoes` sem a dura, `requiresCoachReview`, motivo cita
+    o tipo da dura e a prova; `PlanoTreinoPromptBuilderTest` — bloco de slots sem "(dia a definir)"
+    (CA9).
 
 ## 6. Validação final
 
 - [ ] 6.1 Integração reproduzindo a geração real: atleta SEG/TER/QUI/SÁB, `dia_preferido_longo=SÁBADO`,
-  preparatória domingo, sem skeleton; LLM mockado com as respostas das tentativas 1 e 2 de
-  `tb_llm_call` → tentativa 1 não é rejeitada pelo dia da prova; LONGO no sábado é rejeitado por
-  `INTENSOS_ADJACENTES`; persistido sem intenso na véspera, uma PROVA com `provaId`.
-- [ ] 6.2 Integração `SEMANA_ATUAL` com prova já passada na semana → converge e persiste (CA6).
-- [ ] 6.3 Suites de CA10 + `./mvnw clean test`.
-- [ ] 6.4 Atualizar este `tasks.md` antes de arquivar.
+  preparatória domingo, sem skeleton, v1; LLM mockado com as respostas das tentativas 1 e 2 de
+  `tb_llm_call`.
+  - verify: tentativa 1 não é rejeitada pelo dia da prova; LONGO no sábado rejeitado por
+    `INTENSOS_ADJACENTES`; persistido sem intenso na véspera, uma PROVA com `provaId`.
+- [ ] 6.2 Integração `SEMANA_ATUAL` com prova já passada na semana.
+  - verify: converge e persiste a PROVA passada (CA6).
+- [ ] 6.3 Regressão de risco: 3 dias + prova → `limiteDescansos()` continua 1.
+  - verify: `WeeklyCoverageContextTest`.
+- [ ] 6.4 Suites de CA10 + `./mvnw clean test`.
+  - verify: 0 falhas.
+- [ ] 6.5 Atualizar este `tasks.md` antes de arquivar.
 
 ## Fora de escopo (ver proposal.md "Non-goals")
 
