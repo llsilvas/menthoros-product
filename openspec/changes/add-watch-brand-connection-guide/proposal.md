@@ -257,6 +257,15 @@ atleta o que ainda não foi verificado.
 
 ## Open Questions & Assumptions
 
+**Ordem de prioridade por marca (decisão do founder, 2026-10-15):** Garmin → Apple Watch →
+Amazfit → COROS → Samsung → Polar → Huawei → Suunto → Wahoo. Estimativa de uso entre atletas de
+assessoria no Brasil por triangulação (IDC, Counterpoint, Strava Year in Sport 2024/2025, imprensa
+brasileira; não existe ranking público por marca no país — ver memo do CPO). Vale para: ordem do
+acordeão no guia, ordem dos chips no onboarding, ordem dos gates manuais e do beta por marca.
+Substituída pelo dado real assim que a task 0.3 (ou a Proposta nova 1 do memo) agregar `watchBrand`
+e `dispositivo_marca`. Xiaomi (Mi Band/Redmi Watch) não entra no enum: não tem conexão com o
+intervals.icu, só via bridge no celular — cai em `OUTRO` com uma linha no guia.
+
 **Decidido no product review (2026-10-15):**
 
 - **Rótulos de posicionamento:** "Suportado" **só Garmin** (gate 2026-07-14). **"Em validação"**

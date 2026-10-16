@@ -81,7 +81,8 @@ export interface WatchCompatibility {
   verificadoEm: string;      // 'YYYY-MM', mostrado no guia; revisado pelo item recorrente do Kanban
   fontes: string[];          // Garmin cita o gate de 2026-07-14
 }
-export const WATCH_COMPATIBILITY: Record<DispositivoMarca, WatchCompatibility>;
+export const WATCH_COMPATIBILITY: readonly WatchCompatibility[]; // ordenado pela prioridade do founder
+export function compatibilidadeDe(marca: DispositivoMarca): WatchCompatibility;
 ```
 
 Por que no front e não no backend: nada no servidor decide com base nela nesta change; quando
@@ -89,6 +90,14 @@ C3/C4 precisarem (push condicional por marca, status de conexão do relógio), a
 o backend e o front passa a consumi-la por endpoint — a forma dos tipos acima foi escolhida para
 que essa migração seja mecânica. Mantê-la em um arquivo com `verificadoEm` e `fontes` por marca
 responde ao risco "conteúdo desatualiza".
+
+A **ordem das entradas** (e do acordeão em D4, dos chips do onboarding e dos gates) é a ordem de
+prioridade decidida pelo founder em 2026-10-15: Garmin, Apple, Amazfit, COROS, Samsung, Polar,
+Huawei, Suunto, Wahoo, Outro. A matriz é um array ordenado, não um `Record` — a ordem é
+conteúdo. Consequência honesta dessa ordem: as posições 2 e 3 (Apple, Amazfit) são as de
+circuito **parcial** (app parceiro / por modelo), então o gate manual delas vem antes do gate de
+COROS e Suunto, ao contrário da recomendação original do levantamento (seção 8), que ordenava
+por facilidade técnica e não por uso.
 
 Conteúdo por marca (resumo; o texto final é PT-BR no arquivo):
 
@@ -108,7 +117,9 @@ Conteúdo por marca (resumo; o texto final é PT-BR no arquivo):
 ### D4 — Guia como acordeão com a marca do atleta aberta
 
 Em vez de "escolher a marca" (o que duplicaria o onboarding), o card mostra um acordeão com as
-dez marcas; a do perfil vem aberta no topo, as demais fechadas abaixo de "Outro relógio?". Cobre
+dez marcas na ordem de prioridade do founder; a do perfil vem aberta no topo, as demais fechadas
+abaixo de "Outro relógio?", mantendo a ordem. Xiaomi aparece como uma linha dentro de "Outro"
+(sem conexão com o intervals.icu; só via bridge no celular). Cobre
 a **consulta** ao guia de outra marca ("comprei outro relógio, o que faço?") sem endpoint de
 edição. **Não** atualiza a marca persistida: o coach e o scorer continuam lendo a do onboarding —
 por isso a linha do coach (D6) diz "informada no onboarding, não confirmada", e o follow-up

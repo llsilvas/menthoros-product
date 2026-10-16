@@ -6,9 +6,10 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
 
 ## 0. Gate — decisões do founder (sem código)
 
-- [ ] 0.1 Decisão do founder: expor as quatro marcas novas no chip do onboarding já, ou só as do
-      beta (COROS, Suunto)? Registrar no proposal (Premissa 1). O rótulo "Em validação" já está
-      decidido (product review) — não reabrir.
+- [ ] 0.1 Decisão do founder: expor as quatro marcas novas no chip do onboarding já, ou só as
+      primeiras da ordem de prioridade? Registrar no proposal (Premissa 1). O rótulo "Em validação"
+      e a **ordem por marca** (Garmin → Apple → Amazfit → COROS → Samsung → Polar → Huawei →
+      Suunto → Wahoo) já estão decididos — não reabrir.
       Verify: Premissa 1 marcada como decidida, com data.
 - [ ] 0.2 Congelar o proxy da métrica: consulta em `tb_integracao_externa` ×
       `tb_perfil_onboarding_atleta` contando atletas conectados por marca e quantos têm
@@ -44,7 +45,8 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
 ## 2. Front — tipos e matriz (design D3)
 
 - [ ] 2.1 `types/Onboarding.ts`: ampliar a union `DispositivoMarca` e `DISPOSITIVO_MARCA_LABELS`
-      (Huawei, Amazfit, Samsung Galaxy Watch, Wahoo). Adicionar `labelDispositivoMarca(valor: string)`
+      (Huawei, Amazfit, Samsung Galaxy Watch, Wahoo), **na ordem de prioridade do founder**
+      (`Object.keys` do objeto de labels é o que ordena os chips do onboarding). Adicionar `labelDispositivoMarca(valor: string)`
       com fallback para o valor cru (front em cache recebendo valor desconhecido).
       Verify: `npm run lint && npm run build`; `OnboardingPerfilStep` passa a exibir dez chips (teste
       de snapshot/contagem atualizado).
@@ -56,7 +58,8 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
       SAMSUNG com `posicionamento = COMPATIVEL_VIA_APP` e `appParceiro` não vazio, (c) POLAR com
       `push = SEM_PUSH`, (d) AMAZFIT cita "T-Rex 3 Pro" e "Balance 2" nos avisos, (e) só GARMIN é
       `SUPORTADO` e as quatro nativas têm `criterioPromocao`, (f) nenhum `resumoParaCoach` contém
-      "automaticamente" sem a condição "se o atleta" (CA5, CA6).
+      "automaticamente" sem a condição "se o atleta", (g) a ordem do array é Garmin, Apple,
+      Amazfit, COROS, Samsung, Polar, Huawei, Suunto, Wahoo, Outro, e "Outro" cita Xiaomi (CA5, CA6).
 
 ## 3. Front — perfil do atleta (design D4)
 
@@ -111,6 +114,13 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
       marcar C1+C2 como "→ `add-watch-brand-connection-guide`" e corrigir a premissa de que a marca
       não era persistida.
       Verify: seção 5 do levantamento aponta para a change.
+
+## Ordem do beta e dos gates manuais (seção 6 do levantamento)
+
+Segue a ordem de prioridade do founder, não a facilidade técnica: **Apple Watch** (Companion +
+Watchletic) → **Amazfit** (um modelo com push e um sem) → **COROS** → **Samsung** (Health Sync +
+Watchletic Wear OS) → **Polar** (só ingestão) → **Huawei** → **Suunto** → **Wahoo**. Garmin já
+validado (2026-07-14). Cada gate fechado promove a entrada na matriz (`verificadoEm`, rótulo).
 
 ## Fora desta change (registrado para o próximo `/change`)
 
