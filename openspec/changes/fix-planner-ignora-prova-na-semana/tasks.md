@@ -264,7 +264,11 @@ correções pequenas antes do `/done`; a primeira é bug real, as outras duas s�
 decisão registrada. Nenhuma exige reabrir o design — são follow-ups na própria change, com
 `verify:` como as demais.
 
-- [ ] 7.1 **Prova na segunda proíbe LONGO/dura no domingo da mesma semana**
+- [x] 7.1 **Prova na segunda proíbe LONGO/dura no domingo da mesma semana** — feito em 2026-10-16,
+  branch `fix/fix-planner-ignora-prova-na-semana-vespera-segunda` (commit `4ce943e`): filtro
+  `d != MONDAY` antes do `minus(1)`; teste `provaNaSegundaNaoProibeODomingoSeguinte` (red → green).
+  `./mvnw clean test`: 4656 testes, 0 Failures; 249 Errors todos de contexto `integration`/Testcontainers
+  com Docker local parado — `verify` fica para o CI.
   (`SessionDayAllocator.java:66`). `proibidos` usa `d.minus(1)`, e `MONDAY.minus(1)` é `SUNDAY` —
   o domingo *seguinte*, 6 dias depois da prova, não a véspera (que está no plano anterior; a semana
   é segunda→domingo, como `LongRunAnchor.colado` já assume). Caso: prova em feriado de segunda,
