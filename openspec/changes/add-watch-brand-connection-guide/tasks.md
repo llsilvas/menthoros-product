@@ -14,7 +14,8 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
 - [ ] 0.2 Congelar o proxy da métrica: consulta em `tb_integracao_externa` ×
       `tb_perfil_onboarding_atleta` × `tb_treino_planejado` contando atletas conectados por marca e
       quantos têm ao menos um treino planejado com `sincronizado_em IS NOT NULL` nos 7 dias após
-      `conectado_em`, excluindo marcas `SEM_PUSH`/`VIA_APP_PARCEIRO`, com o N. **Não usar
+      `tb_integracao_externa.criado_em` (não existe `conectado_em`; o `conectadoEm` do DTO deriva
+      de `criado_em` — a janela começa na criação da integração), excluindo marcas `SEM_PUSH`/`VIA_APP_PARCEIRO`, com o N. **Não usar
       `ultima_sincronizacao`** (webhook e pull também gravam; não distingue push). Registrar no proposal.
       Verify: números, N e data no proposal; a consulta cita `tb_treino_planejado.sincronizado_em`.
 - [ ] 0.3 Demanda real e registro de intervenções: (a) distribuição de marcas em
@@ -56,15 +57,18 @@ Ordem: 1.1 + 1.2 no primeiro commit (forward-only, D5); depois 1.5, 1.6, 1.3, 1.
       `RelogioDto(DispositivoMarca marca, String modelo)` com `@Schema`; em
       `CoachAthleteProfileServiceImpl.buscarPerfil`, `buscarNullable("relogio", avisos, …)` lendo
       `PerfilOnboardingAtletaRepository.findByAtletaIdAndTenantId` (injetar o repository); nulo sem
-      aviso quando não há perfil. Espelhar em `front/types/AtletaPerfilCoach.ts` (`relogio?:
+      aviso quando não há perfil **ou quando `dispositivoMarca` é nulo** (perfil pré-D7; modelo sem
+      marca não é devolvido). Espelhar em `front/types/AtletaPerfilCoach.ts` (`relogio?:
       { marca: string; modelo: string | null } | null`) — `src/api` é curado à mão, não regenerar.
       Verify: `CoachAthleteProfileServiceImplTest` — com perfil (marca+modelo), sem perfil (nulo,
-      `avisos` sem "relogio"), repository lança (nulo, `avisos` contém "relogio");
+      `avisos` sem "relogio"), perfil com marca nula (nulo, sem aviso), repository lança (nulo, `avisos` contém "relogio");
       `./mvnw clean verify` verde (CA6).
 - [ ] 1.4 Teste integrado score → tier → calibração (achado alto do Codex): atleta sem histórico,
       onboarding completo com FC máxima e pace limiar, `dispositivoMarca` em cada uma das duas
-      marcas novas → score 35, tier B, calibração iniciada no primeiro snapshot; controle com
-      `GARMIN` → 50, tier A. Documenta no teste por que as novas ficam em 3.
+      marcas novas, **`preenchidoPorCoach = true`** (é esse bônus que promove um tier: A ≥ 75,
+      B ≥ 45) → score 35, tier C→B, calibração iniciada no primeiro snapshot; controle com `GARMIN`
+      e o mesmo bônus → 50, tier B→A, calibração **não** iniciada. Segundo controle sem o bônus:
+      GARMIN 50 → B, calibração iniciada. Documenta no teste por que as novas ficam em 3.
       Verify: teste verde; o cenário fica como guarda para qualquer promoção futura a 2.
 
 ## 2. Front — tipos e matriz (design D3)

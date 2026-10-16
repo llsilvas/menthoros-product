@@ -52,7 +52,9 @@ o guia (C2) é a primeira ação que a consome.
   perfil (inclusive na geração de plano). A adição ao enum passa a ser **forward-only**: nunca
   reverter o backend sem os valores; rollback é só do front. (2) **D2 derrubado** — o scorer dá 15
   pontos inteiros para prioridade ≤ 2; sem histórico, onboarding + FC + pace somam 35, e uma marca
-  com prior 2 leva a 50 (tier A), o que **impede a calibração de começar** (`persistirBaselineSnapshot`
+  com prior 2 leva a 50 — tier B, que o bônus de `preenchidoPorCoach` promove a **A** (limiares
+  A ≥ 75, B ≥ 45; correção do DoR 2026-10-16) — o que, no onboarding preenchido pelo coach,
+  **impede a calibração de começar** (`persistirBaselineSnapshot`
   só inicia calibração no primeiro snapshot se tier ≠ A). As quatro marcas novas ficam com prior
   **3** até o gate, e entra teste integrado de score/tier/calibração. (3) O acordeão (D4) não cobre
   "troquei de relógio" para o coach — a linha passa a dizer "marca informada no onboarding, não
@@ -172,8 +174,9 @@ Zero código de integração: é informação no lugar certo.
   orientação genérica (abrir Connections no intervals.icu) e sem promessa. Verificável por asserção de
   texto nos testes.
 - **CA6 — treinador vê o relógio.** Given `GET /api/v1/coach/atletas/{id}/perfil` de um atleta com
-  perfil de onboarding, Then `relogio.marca` e `relogio.modelo` vêm preenchidos; sem perfil,
-  `relogio` é nulo e `avisos` **não** o cita; se a consulta falhar, `relogio` é nulo e `avisos`
+  perfil de onboarding, Then `relogio.marca` e `relogio.modelo` vêm preenchidos; sem perfil **ou com
+  perfil anterior à obrigatoriedade e `dispositivo_marca` nulo** (V67 permite), `relogio` é nulo e
+  `avisos` **não** o cita; se a consulta falhar, `relogio` é nulo e `avisos`
   contém `"relogio"`. Given o coach abre `CoachAthleteProfilePage` de um atleta com
   `relogio.marca = POLAR`, Then vê "Relógio: Polar" e "Treinos aprovados não chegam ao relógio
   pelo intervals.icu; só o treino realizado volta". Given `GARMIN`, Then vê "chegam ao relógio se
@@ -264,8 +267,10 @@ atleta o que ainda não foi verificado.
   front; rollback só do front (design D5).
 - **Prior novo dispensa a calibração** (Alto, derrubado pelo Codex): prioridade ≤ 2 vale 15
   pontos no `ConfidenceScorer`; sem histórico, um atleta com onboarding completo, FC e pace
-  limiar tem 35, e uma marca nova com prior 2 chegaria a 50 (tier A) — a calibração nunca
-  começa. Mitigar: as duas marcas novas com prior **3** até o gate (design D2) e teste
+  limiar tem 35, e uma marca nova com prior 2 chegaria a 50 — tier B, promovido a A quando o coach
+  preencheu o onboarding (`preenchidoPorCoach`, bônus de um tier) — e nesse fluxo a calibração nunca
+  começa. Sem o bônus, 50 é B e a calibração inicia; o risco é real porque "Preencher onboarding"
+  pelo coach é fluxo de produto. Mitigar: as duas marcas novas com prior **3** até o gate (design D2) e teste
   integrado de score → tier → início de calibração (task 1.4).
 - **Conteúdo desatualiza** (Alto, de produto): a matriz vem de fórum e guias de 2026-10; o
   intervals.icu muda integrações com frequência (Huawei entrou em 2026-03, Zepp em 2025). Mitigar:

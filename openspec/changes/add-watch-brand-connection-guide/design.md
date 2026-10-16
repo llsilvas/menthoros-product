@@ -56,8 +56,11 @@ que o Javadoc dele diz: prioridade por `FonteDados`, compartilhada entre dedup e
 
 O limiar do scorer é **binário**: `pontuarFonteConfiavel` dá 15 pontos inteiros quando
 `FontePriority.deDispositivo(marca) <= 2`, e zero acima. Sem histórico, onboarding completo + FC
-máxima + pace limiar somam 35; prior ≤ 2 leva a 50, tier A, e `persistirBaselineSnapshot` **não
-inicia a calibração** quando o primeiro snapshot já é tier A (achado do Codex). Entrar na faixa
+máxima + pace limiar somam 35; prior ≤ 2 leva a 50. Limiares: A ≥ 75, B ≥ 45 — 50 é **B**, mas
+`preenchidoPorCoach` promove um tier (`ConfidenceScorerImpl:67`), e aí vira **A**;
+`persistirBaselineSnapshot` **não inicia a calibração** quando o primeiro snapshot já é tier A
+(achado do Codex; limiares corrigidos no DoR de 2026-10-16 — a versão anterior dizia "50 = A" sem a
+condição do coach). Entrar na faixa
 confiável é, portanto, dispensar a calibração com base só na marca declarada — inaceitável sem
 gate.
 
@@ -169,8 +172,9 @@ Regras:
 **De onde a marca vem para o coach:** de `AtletaPerfilCoachOutputDto.relogio { marca, modelo }`,
 preenchido em `CoachAthleteProfileServiceImpl.buscarPerfil` por `buscarNullable("relogio", …)`
 sobre `PerfilOnboardingAtletaRepository.findByAtletaIdAndTenantId` (OneToOne, um atleta por
-request). Sem perfil → `relogio` nulo sem aviso; consulta falhou → nulo com `"relogio"` em
-`avisos`, como os demais blocos. A versão anterior deste design previa `useOnboarding(atletaId)` na
+request). Sem perfil, ou perfil com `dispositivo_marca` nulo (registros anteriores ao `@NotNull` de D7 —
+V67 permite) → `relogio` nulo sem aviso; consulta falhou → nulo com `"relogio"` em `avisos`, como
+os demais blocos. `relogio` só existe com marca; modelo sem marca não é devolvido. A versão anterior deste design previa `useOnboarding(atletaId)` na
 página — um sétimo hook (com interface de editor) para ler dois campos, mais um mock no teste da
 página, quando o backend já tem o módulo "tudo que o coach vê do atleta" com partial-failure.
 A página passa a ler `profile.relogio`; C3 (status da conexão do relógio) entra no mesmo DTO. O
