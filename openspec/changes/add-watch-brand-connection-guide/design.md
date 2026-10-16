@@ -43,7 +43,16 @@ duplicar o que `WatchBrand`/`DispositivoMarca` já duplicam. Consequências acei
 Alternativa descartada: incluir `dispositivoMarca` em `IntervalsIcuConnectionStatusDto`. Além
 do 404 antes de conectar, misturaria "estado da conexão" com "perfil do atleta".
 
-### D2 — Prior do `ConfidenceScorer` para as marcas novas
+### D2 — Prior do `ConfidenceScorer` para as marcas novas (revisado 2026-10-16: prior no enum)
+
+O prior deixa de ser uma tabela em `FontePriority` e passa a ser propriedade de cada constante:
+`DispositivoMarca.GARMIN(1)`, `COROS(2)`, …, `AMAZFIT(3)`, `SAMSUNG(3)`, com `prior()`.
+`FontePriority.PRIORIDADE_DISPOSITIVO` e `deDispositivo` são removidos (um só chamador,
+`ConfidenceScorerImpl.pontuarFonteConfiavel`, que passa a ler `marca.prior()`). Motivo (revisão de
+arquitetura, 2026-10-15): a tabela era um pass-through com `getOrDefault(…, 10)` — uma marca nova
+sem prior compilava e caía no default em silêncio; o CA1 existia para vigiar esse buraco. No enum,
+a omissão não compila, e valor e justificativa ficam lado a lado. `FontePriority` volta a ser só o
+que o Javadoc dele diz: prioridade por `FonteDados`, compartilhada entre dedup e scorer.
 
 O limiar do scorer é **binário**: `pontuarFonteConfiavel` dá 15 pontos inteiros quando
 `FontePriority.deDispositivo(marca) <= 2`, e zero acima. Sem histórico, onboarding completo + FC
@@ -58,10 +67,8 @@ gate.
 | `SAMSUNG` | 3 | Só via bridge (Health Sync); sem HRV; mesmo patamar da Apple |
 
 Os seis valores atuais não mudam (Suunto segue em 2, como hoje). Promover uma marca depois do
-gate é uma linha, coberta pelo teste integrado da task 1.4 (score → tier → calibração). Teste
-parametrizado cobre os oito
-(CA1). `getOrDefault(…, 10)` permanece para o caso de valor desconhecido em memória (não deve
-acontecer; é defesa).
+gate é uma linha no enum, coberta pelo teste integrado da task 1.4 (score → tier → calibração).
+Teste parametrizado cobre os oito (CA1); não há mais default — o compilador é a defesa.
 
 ### D3 — Matriz de compatibilidade é conteúdo estático do front
 
@@ -157,9 +164,19 @@ Regras:
 - Se um dia for preciso remover um valor: change própria, com migration que normaliza, backup da
   coluna e bloqueio de escrita — não é cenário desta change.
 
-### D6 — Coach: uma linha honesta, mais o guia em modo leitura
+### D6 — Coach: uma linha honesta, mais o guia em modo leitura (revisado 2026-10-16: fonte é o perfil agregado)
 
-`CoachAthleteProfilePage` já é longa (dez `SectionCard`). A marca entra no cabeçalho, ao lado dos
+**De onde a marca vem para o coach:** de `AtletaPerfilCoachOutputDto.relogio { marca, modelo }`,
+preenchido em `CoachAthleteProfileServiceImpl.buscarPerfil` por `buscarNullable("relogio", …)`
+sobre `PerfilOnboardingAtletaRepository.findByAtletaIdAndTenantId` (OneToOne, um atleta por
+request). Sem perfil → `relogio` nulo sem aviso; consulta falhou → nulo com `"relogio"` em
+`avisos`, como os demais blocos. A versão anterior deste design previa `useOnboarding(atletaId)` na
+página — um sétimo hook (com interface de editor) para ler dois campos, mais um mock no teste da
+página, quando o backend já tem o módulo "tudo que o coach vê do atleta" com partial-failure.
+A página passa a ler `profile.relogio`; C3 (status da conexão do relógio) entra no mesmo DTO. O
+`GET .../onboarding` continua sendo o seam do **atleta** (D1, task 3.1).
+
+`CoachAthleteProfilePage` já é longa (oito `SectionCard`). A marca entra no cabeçalho, ao lado dos
 dados do atleta, como `Relógio: COROS · Forerunner 265 · treinos aprovados vão ao intervals.icu e
 chegam ao relógio se o atleta ligou a conexão COROS e o upload de treinos planejados (próximos 7
 dias; não verificado automaticamente)`. A frase é **condicional de propósito**: o sistema não sabe
@@ -175,6 +192,24 @@ coach aprova — um tipo de alvo por treino no COROS — porque o
 `IntervalsIcuWorkoutConverter` hoje escolhe FC ou pace por etapa e prioriza distância, e tratar
 isso no push é C4. Sem perfil: "Relógio não informado" e o botão "Preencher onboarding"
 existente.
+
+### D7 — `dispositivoMarca` obrigatória também no backend
+
+`AtletaOnboardingInputDto.dispositivoMarca` ganha `@NotNull` (decisão do founder, 2026-10-16). O
+proposal sempre a descreveu como obrigatória, mas só `AtletaOnboardingPage.isValid` (etapa 1)
+exigia. Verificado: o front só chama `salvarRascunho` quando a etapa atual é válida, e a etapa 1
+exige `nivelExperiencia`, `dispositivoMarca` e `canalIntegracao` — logo nenhum rascunho é enviado
+sem marca hoje, e o `@NotNull` só fecha a porta para clientes fora do formulário. O service
+revalida (regra do `CLAUDE.md`: não confiar no DTO). CA4 (atleta sem perfil) não é afetado: ele
+trata quem nunca enviou rascunho, não um rascunho sem marca.
+
+### D8 — Chip de sincronização: "No intervals.icu", universal
+
+`SyncStatusChip.resolveVisual` para `SINCRONIZADO`/`SINCRONIZADO_PARCIAL` passa a dizer
+**"No intervals.icu"** (rótulo) e "Enviado ao intervals.icu" (tooltip). O rótulo "No relógio" era
+verdadeiro só para Garmin; para Polar era promessa falsa visível na tela do coach (achado do Codex
+no DoR). A versão por marca ("No relógio" quando há push nativo) exige a marca em
+`TreinoPlanejadoResumoDto` e fica em C4/C6.
 
 ## Fora do design (confirmado como non-goal)
 

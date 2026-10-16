@@ -88,12 +88,19 @@ Zero código de integração: é informação no lugar certo.
 
 - **`DispositivoMarca`** ganha `AMAZFIT` e `SAMSUNG`. Ordem e nomes existentes intactos
   (`GARMIN`, `COROS`, `POLAR`, `SUUNTO`, `APPLE`, `OUTRO`).
-- **`FontePriority.PRIORIDADE_DISPOSITIVO`** mapeia os dois valores novos de forma explícita
-  (design D2), em vez de cair no default 10 — o default é para "marca desconhecida", e essas são
-  conhecidas.
-- Nenhuma migration, nenhum endpoint novo, nenhum DTO novo. A marca já sai em
-  `GET /api/v1/atletas/{atletaId}/onboarding` (`AtletaOnboardingOutputDto.dispositivoMarca`), que
-  atleta e coach já chamam.
+- **Prior do scorer vira propriedade do enum** (design D2, revisado 2026-10-16): cada constante de
+  `DispositivoMarca` declara o próprio prior; `FontePriority.PRIORIDADE_DISPOSITIVO` e
+  `deDispositivo` (um só chamador, default 10 que esconde omissão) são removidos. Uma marca nova
+  sem prior deixa de compilar.
+- **`AtletaOnboardingInputDto.dispositivoMarca` ganha `@NotNull`** (decisão do founder,
+  2026-10-16): o proposal sempre a chamou de obrigatória, mas só o front validava. O formulário já
+  exige a marca antes do primeiro `salvarRascunho` (etapa 1), então nenhum fluxo existente quebra.
+- **`AtletaPerfilCoachOutputDto` ganha `relogio { marca, modelo }`** (design D6, revisado
+  2026-10-16): lido do perfil de onboarding pelo helper de partial-failure de
+  `CoachAthleteProfileServiceImpl` (campo `relogio` em `avisos` se a consulta falhar). É o único
+  campo novo de contrato; a página do coach lê o relógio pelo mesmo seam que lê tudo o mais.
+- Nenhuma migration, nenhum endpoint novo. Para o atleta, a marca já sai em
+  `GET /api/v1/atletas/{atletaId}/onboarding` (`AtletaOnboardingOutputDto.dispositivoMarca`).
 
 ### Frontend (`apps/menthoros-front`)
 
@@ -114,7 +121,8 @@ Zero código de integração: é informação no lugar certo.
   planned workouts"). Guia das outras marcas acessível num acordeão, sem alterar o perfil (design
   D4). Sem perfil de onboarding (atleta anterior à V67), o acordeão abre fechado com a dica
   "informe seu relógio no onboarding".
-- **`CoachAthleteProfilePage`:** uma linha "Relógio" no cabeçalho — marca, modelo (se informado)
+- **`CoachAthleteProfilePage`:** lê `relogio` do perfil agregado que a página já carrega
+  (`useAthleteProfile`), sem hook nem request novos; uma linha "Relógio" no cabeçalho — marca, modelo (se informado)
   e o que esperar do canal em linguagem de treinador, **sem afirmar o que o sistema não sabe**:
   "treinos aprovados vão ao intervals.icu e chegam ao relógio se o atleta ligou a conexão COROS e
   o upload de treinos planejados" (nativo), "chegam via app parceiro no celular do atleta"
@@ -123,9 +131,10 @@ Zero código de integração: é informação no lugar certo.
   em modo leitura — é o que o coach usa na hora do ticket "conectei e não chegou". A linha cobre
   **o que esperar**; **por que não chegou** (upload desligado, relógio não conectado) depende de
   C3 e fica dito na própria linha como "não verificado automaticamente".
-- **`SyncStatusChip`:** tooltip "Enviado ao intervals.icu/Garmin" vira "Enviado ao intervals.icu".
-  **Só o texto.** Fazer o chip dizer a verdade por marca ("No intervals.icu" quando o push ao
-  relógio não existe) exige a marca na listagem de atletas e é escopo de C4/C6 (Non-goals).
+- **`SyncStatusChip`:** rótulo de sucesso "No relógio" vira **"No intervals.icu"** e o tooltip
+  "Enviado ao intervals.icu/Garmin" vira "Enviado ao intervals.icu" (decisão do founder, 2026-10-16,
+  após achado do Codex: para Polar o rótulo antigo era promessa falsa). Universal, sem marca: dizer
+  "No relógio" só para quem de fato tem push continua sendo C4/C6 (Non-goals).
 
 ## Capabilities
 
@@ -137,14 +146,15 @@ Zero código de integração: é informação no lugar certo.
 ## Critérios de aceite
 
 - **CA1 — enum e prior.** Given o backend, When `DispositivoMarca.values()` é lido, Then contém os
-  oito valores (seis atuais + `AMAZFIT`, `SAMSUNG`), e
-  `FontePriority.deDispositivo(m)` retorna o valor da tabela D2 para cada um dos oito — nenhum cai
-  no default 10. Verificável por teste parametrizado.
+  oito valores (seis atuais + `AMAZFIT`, `SAMSUNG`), e `m.prior()` retorna o valor da tabela D2
+  para cada um dos oito; `FontePriority` não tem mais tabela por marca. Verificável por teste
+  parametrizado em `DispositivoMarcaTest` e pelo compilador (constante sem prior não compila).
 - **CA2 — onboarding aceita as marcas novas.** Given um rascunho de onboarding com
   `dispositivoMarca = "AMAZFIT"`, When `POST /api/v1/atletas/{id}/onboarding`, Then 200 e o
   `GET` subsequente devolve `AMAZFIT`. Idem para `SAMSUNG`. Verificável por `OnboardingControllerIT`
   **novo** (task 1.3), parametrizado — o `OnboardingControllerTest` atual mocka service e mapper e
-  não prova persistência.
+  não prova persistência. Given um rascunho **sem** `dispositivoMarca`, When `POST`, Then 400 com
+  erro de validação no campo (slice `OnboardingControllerTest`).
 - **CA3 — guia da marca do atleta.** Given um atleta com `dispositivoMarca = COROS` no perfil de
   onboarding, When abre o perfil, Then o card de conexão mostra o guia COROS expandido (passos
   "Settings → Connections → COROS", "adicionar o calendário Intervals.icu Training Plan", "janela
@@ -161,15 +171,19 @@ Zero código de integração: é informação no lugar certo.
   não chegar, avise seu treinador". Só `GARMIN` usa "Suportado". Given `SUUNTO` ou `OUTRO`, Then o rótulo é "Ainda não coberto" com
   orientação genérica (abrir Connections no intervals.icu) e sem promessa. Verificável por asserção de
   texto nos testes.
-- **CA6 — treinador vê o relógio.** Given o coach abre `CoachAthleteProfilePage` de um atleta com
-  `dispositivoMarca = POLAR`, Then vê "Relógio: Polar" e "Treinos aprovados não chegam ao relógio
+- **CA6 — treinador vê o relógio.** Given `GET /api/v1/coach/atletas/{id}/perfil` de um atleta com
+  perfil de onboarding, Then `relogio.marca` e `relogio.modelo` vêm preenchidos; sem perfil,
+  `relogio` é nulo e `avisos` **não** o cita; se a consulta falhar, `relogio` é nulo e `avisos`
+  contém `"relogio"`. Given o coach abre `CoachAthleteProfilePage` de um atleta com
+  `relogio.marca = POLAR`, Then vê "Relógio: Polar" e "Treinos aprovados não chegam ao relógio
   pelo intervals.icu; só o treino realizado volta". Given `GARMIN`, Then vê "chegam ao relógio se
   o atleta ligou a conexão Garmin e o upload de treinos planejados (não verificado
   automaticamente)". Given qualquer marca, Then "O que pedir ao atleta" abre o guia da marca em
   modo leitura. Given sem perfil, Then vê "Relógio não informado" com o atalho "Preencher
   onboarding" que já existe na página.
-- **CA7 — texto do chip.** Given qualquer atleta com status `SINCRONIZADO`, Then o tooltip do
-  `SyncStatusChip` é "Enviado ao intervals.icu" (sem "Garmin"). Teste existente atualizado.
+- **CA7 — texto do chip.** Given qualquer atleta com status `SINCRONIZADO` ou
+  `SINCRONIZADO_PARCIAL`, Then o rótulo do `SyncStatusChip` é "No intervals.icu" e o tooltip é
+  "Enviado ao intervals.icu" (sem "Garmin", sem "relógio"). Teste existente atualizado.
 - **CA8 — nada quebra para Garmin.** Given `dispositivoMarca = GARMIN`, Then o card mostra o guia
   Garmin expandido com o rótulo "Suportado" e o fluxo de conectar/desconectar é idêntico ao atual
   (testes existentes do card continuam verdes sem alteração de comportamento).
@@ -216,9 +230,12 @@ atleta o que ainda não foi verificado.
 
 ## Impacto
 
-- **Contrato de API:** aditivo. `DispositivoMarca` ganha dois valores; clientes antigos do front
-  (cache do browser) que não conheçam os novos só os veriam como string desconhecida no label —
-  o `DISPOSITIVO_MARCA_LABELS` precisa de fallback para o nome cru (task 2.1).
+- **Contrato de API:** aditivo em dois pontos e restritivo em um. `DispositivoMarca` ganha dois
+  valores; clientes antigos do front (cache do browser) que não conheçam os novos só os veriam como
+  string desconhecida no label — o `DISPOSITIVO_MARCA_LABELS` precisa de fallback para o nome cru
+  (task 2.1). `AtletaPerfilCoachOutputDto` ganha `relogio` (nulo quando não há perfil; front antigo
+  ignora). `POST .../onboarding` passa a rejeitar rascunho sem `dispositivoMarca` (400) — o front
+  atual nunca envia sem ela (etapa 1 exige), então não há cliente afetado.
 - **Banco:** nenhum. `dispositivo_marca VARCHAR(20)` comporta `AMAZFIT`/`SAMSUNG` (7 chars).
 - **`ConfidenceScorer`:** atletas que hoje escolhem `OUTRO` por falta de opção e passarem a
   escolher `AMAZFIT`/`SAMSUNG` mudam de prior 4 para o da tabela D2 — efeito só em atletas novos
@@ -301,9 +318,10 @@ intervals.icu, só via bridge no celular — cai em `OUTRO` com uma linha no gui
    com o endpoint atual. **Fica fora** desta change (o acordeão cobre a consulta ao guia; o coach
    vê "marca informada no onboarding, não confirmada"), registrado como follow-up
    `add-athlete-watch-update`. Decidir no `/implement init` se entra como task extra.
-3. **Onde o treinador vê a marca:** no cabeçalho da `CoachAthleteProfilePage` (uma linha) e não
-   na listagem `CoachAthletesPage` — a listagem exigiria a marca no `AtletaOutputDto` (risco de
-   N+1 já sinalizado no próprio DTO). Premissa: uma linha no perfil basta para a rotina.
+3. **Onde o treinador vê a marca:** no cabeçalho da `CoachAthleteProfilePage` (uma linha), lida
+   do perfil agregado (`AtletaPerfilCoachOutputDto.relogio`, um atleta por request — sem N+1), e
+   não na listagem `CoachAthletesPage` — a listagem exigiria a marca no `AtletaOutputDto` (risco
+   de N+1 já sinalizado no próprio DTO). Premissa: uma linha no perfil basta para a rotina.
 4. **Modelo de dispositivo** (`dispositivoModelo`, texto livre) é mostrado ao coach como está,
    sem normalização. Não se usa para decidir nada (a lista de modelos Amazfit é texto do guia).
 5. **Prior do `ConfidenceScorer`** para as marcas novas é **3** para as duas (design D2): o
@@ -316,16 +334,13 @@ intervals.icu, só via bridge no celular — cai em `OUTRO` com uma linha no gui
 
 **Em aberto:**
 
-- (DoR 2026-10-16) `AtletaOnboardingInputDto.dispositivoMarca` não tem `@NotNull`, embora este
-  proposal a chame de obrigatória — decidir se o backend passa a validar (contrato novo) ou se a
-  obrigatoriedade é só do front; CA4 já trata marca nula como caso normal.
-- (DoR 2026-10-16, Codex) o `SyncStatusChip` continua com o rótulo visível "No relógio" para
-  Polar, que nunca recebe treino; a task 4.2 troca só o tooltip. Decidir se "No intervals.icu"
-  universal entra nesta change ou fica em C4/C6.
-- (revisão de arquitetura 2026-10-15) alternativa à task 4.1: expor `dispositivoMarca`/`modelo` em
-  `AtletaPerfilCoachDto` via o partial-failure de `CoachAthleteProfileServiceImpl`, em vez de um
-  hook a mais na página do coach; e prior como propriedade de `DispositivoMarca` em vez de tabela
-  em `FontePriority` (task 1.2). Decisão do founder antes do `/implement init`.
+
+**Decidido no DoR (founder, 2026-10-16):** `@NotNull` em `dispositivoMarca` no input (CA2); rótulo
+do chip "No intervals.icu" universal (CA7); relógio no `AtletaPerfilCoachOutputDto` via
+partial-failure em vez de hook novo na página do coach (D6, task 4.1); prior como propriedade de
+`DispositivoMarca`, removendo a tabela de `FontePriority` (D2, task 1.2). CA4 continua: atleta
+pré-V67 sem perfil é caso normal — o `@NotNull` vale para quem **envia** o rascunho, não para quem
+nunca o teve.
 
 - Quem é o dono da revisão periódica de `verificadoEm` (task 5.2 cria o item no Kanban; falta o
   nome).

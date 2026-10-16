@@ -24,22 +24,43 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
       responsável nomeado — pré-requisito do deploy.
       Verify: distribuição e link da planilha no proposal; responsável nomeado.
 
-## 1. Backend — enum e prior (design D1, D2)
+## 1. Backend — enum, prior, validação e perfil do coach (design D1, D2, D6, D7)
+
+Ordem: 1.1 + 1.2 no primeiro commit (forward-only, D5); depois 1.5, 1.6, 1.3, 1.4.
 
 - [ ] 1.1 `DispositivoMarca`: adicionar `AMAZFIT` e `SAMSUNG` ao final; atualizar o
       Javadoc (a referência à "feature futura de capacidade por dispositivo" passa a apontar para
       esta change e para C3/C4 do levantamento). **Commit próprio, primeiro da branch, junto com
       1.2** (design D5: forward-only).
       Verify: `./mvnw clean verify` verde; `@Schema(example)` dos DTOs de onboarding continua válido.
-- [ ] 1.2 `FontePriority.PRIORIDADE_DISPOSITIVO`: mapear os dois valores novos com prior **3**
-      (design D2).
-      Verify: **criar** `FontePriorityTest` (não existe hoje) com teste parametrizado cobrindo os
-      **oito** valores — nenhum retorna 10, e os dois novos retornam 3 (CA1).
+- [ ] 1.2 Prior no enum (design D2 revisado): `DispositivoMarca` ganha construtor com `prior` e
+      método `prior()` (GARMIN 1; COROS, POLAR, SUUNTO 2; APPLE, AMAZFIT, SAMSUNG 3; OUTRO 4);
+      `ConfidenceScorerImpl.pontuarFonteConfiavel` passa a ler `marca.prior()`; remover
+      `FontePriority.PRIORIDADE_DISPOSITIVO` e `deDispositivo` e ajustar o Javadoc de
+      `FontePriority`. Mesmo commit forward-only da 1.1.
+      Verify: **criar** `DispositivoMarcaTest` parametrizado (`@EnumSource`) nos **oito** valores
+      com o prior esperado; `ConfidenceScorerTest` continua verde (GARMIN 15, OUTRO 0) e ganha os
+      casos APPLE/AMAZFIT/SAMSUNG = 0 (CA1).
 - [ ] 1.3 IT de onboarding: **criar** `OnboardingControllerIT` (não existe; o
       `OnboardingControllerTest` atual é slice com service e mapper mockados, não prova persistência)
       com `POST` → `GET .../onboarding` parametrizado nas duas marcas novas, autenticado com o
       post-processor `jwt()` e subject UUID (regra do `CLAUDE.md` do backend) (CA2).
       Verify: `./mvnw clean verify` verde, incluindo o `OnboardingControllerIT` novo.
+- [ ] 1.5 `@NotNull` em `AtletaOnboardingInputDto.dispositivoMarca` (design D7) + revalidação em
+      `OnboardingServiceImpl.salvarRascunho` (`InvalidArgumentException`/`DomainRuleViolationException`
+      conforme o padrão do service).
+      Verify: `OnboardingControllerTest` — `POST` sem marca → 400 com o campo na resposta;
+      `OnboardingServiceTest` — service rejeita marca nula; `AthleteOnboardingPage.isValid` já exige
+      a marca na etapa 1, então nenhum teste do front muda (CA2).
+- [ ] 1.6 `AtletaPerfilCoachOutputDto.relogio` (design D6 revisado): record aninhado
+      `RelogioDto(DispositivoMarca marca, String modelo)` com `@Schema`; em
+      `CoachAthleteProfileServiceImpl.buscarPerfil`, `buscarNullable("relogio", avisos, …)` lendo
+      `PerfilOnboardingAtletaRepository.findByAtletaIdAndTenantId` (injetar o repository); nulo sem
+      aviso quando não há perfil. Espelhar em `front/types/AtletaPerfilCoach.ts` (`relogio?:
+      { marca: string; modelo: string | null } | null`) — `src/api` é curado à mão, não regenerar.
+      Verify: `CoachAthleteProfileServiceImplTest` — com perfil (marca+modelo), sem perfil (nulo,
+      `avisos` sem "relogio"), repository lança (nulo, `avisos` contém "relogio");
+      `./mvnw clean verify` verde (CA6).
 - [ ] 1.4 Teste integrado score → tier → calibração (achado alto do Codex): atleta sem histórico,
       onboarding completo com FC máxima e pace limiar, `dispositivoMarca` em cada uma das duas
       marcas novas → score 35, tier B, calibração iniciada no primeiro snapshot; controle com
@@ -92,19 +113,23 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
 
 ## 4. Front — treinador (design D6) e chip
 
-- [ ] 4.1 `CoachAthleteProfilePage`: buscar a marca do atleta com `useAthleteWatchBrand(atletaId)`
-      (task 3.1) e **mockar o hook novo em `CoachAthleteProfilePage.test.tsx`**, que mocka cada hook
-      individualmente — sem isso a suíte existente chama o serviço real; renderizar a linha "Relógio: <marca> · <modelo> · <resumoParaCoach>" no
+- [ ] 4.1 `CoachAthleteProfilePage`: ler `profile.relogio` do `useAthleteProfile` já existente
+      (design D6 revisado — **sem hook novo, sem request novo**; o `STUB_PROFILE` do teste da página
+      ganha o campo) e renderizar a linha "Relógio: <marca> · <modelo> · <resumoParaCoach>" no
       cabeçalho (condicional, com "não verificado automaticamente" e "informada no onboarding, não
       confirmada"), chip de posicionamento e `avisos` de formato (COROS: um tipo de alvo por
       treino); `Alert` info para `SO_TREINO_REALIZADO`,
       `COMPATIVEL_VIA_APP`, `PARCIAL_POR_MODELO`; "Relógio não informado" sem perfil (CA6).
-      Verify: teste da página com os casos POLAR, GARMIN e sem perfil.
+      Verify: teste da página com os casos POLAR, GARMIN, `relogio` nulo e `avisos` contendo
+      "relogio" (linha mostra "Relógio indisponível", não "não informado").
 - [ ] 4.1b `CoachAthleteProfilePage`: link "O que pedir ao atleta" abre o `WatchConnectionGuide`
       da marca em `modoLeitura` (dialog responsivo), sem botão de conectar.
       Verify: teste da página — clique abre o guia da marca certa; sem perfil, o link não aparece.
-- [ ] 4.2 `SyncStatusChip`: tooltip de sucesso → "Enviado ao intervals.icu" (CA7).
-      Verify: `SyncStatusChip.test.tsx` atualizado e verde.
+- [ ] 4.2 `SyncStatusChip` (design D8): rótulo de sucesso "No relógio" → **"No intervals.icu"** e
+      tooltip → "Enviado ao intervals.icu"; atualizar o Javadoc do componente e o comentário em
+      `types/AtletaPerfilCoach.ts:49` (CA7).
+      Verify: `SyncStatusChip.test.tsx` — matriz de rótulos e asserção de tooltip atualizadas;
+      nenhum texto com "Garmin" ou "relógio" no caminho de sucesso.
 - [ ] 4.3 `npm run lint && npm run build && npm test` no front inteiro.
       Verify: tudo verde; sem `any`, sem lógica de negócio no componente (matriz e hook fora dele).
 

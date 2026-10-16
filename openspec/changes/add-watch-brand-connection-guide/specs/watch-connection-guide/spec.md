@@ -4,17 +4,21 @@
 
 ### Requirement: Marcas de relógio reconhecidas
 O sistema SHALL reconhecer em `DispositivoMarca` as marcas GARMIN, COROS, POLAR, SUUNTO, APPLE,
-AMAZFIT, SAMSUNG e OUTRO, aceitando qualquer uma delas no onboarding do atleta. Cada
-marca SHALL ter uma prioridade explícita em `FontePriority`; nenhuma SHALL cair no default de marca
-desconhecida.
+AMAZFIT, SAMSUNG e OUTRO, aceitando qualquer uma delas no onboarding do atleta e rejeitando um
+rascunho sem marca. Cada marca SHALL declarar a própria prioridade (`prior()`); não SHALL existir
+default de marca desconhecida.
 
 #### Scenario: Onboarding com marca nova
 - **WHEN** um rascunho de onboarding é salvo com `dispositivoMarca = AMAZFIT`
 - **THEN** o salvamento é aceito e a leitura subsequente devolve `AMAZFIT`
 
+#### Scenario: Rascunho sem marca
+- **WHEN** um rascunho de onboarding é salvo sem `dispositivoMarca`
+- **THEN** o salvamento é rejeitado com erro de validação no campo
+
 #### Scenario: Prior do scorer
-- **WHEN** `FontePriority.deDispositivo` é consultado para cada uma das oito marcas
-- **THEN** devolve o valor da tabela de prioridade, e nunca o default 10
+- **WHEN** `prior()` é consultado para cada uma das oito marcas
+- **THEN** devolve o valor da tabela de prioridade; uma constante sem prior não compila
 
 #### Scenario: Marca nova não dispensa a calibração
 - **WHEN** um atleta sem histórico, com onboarding completo, FC máxima e pace limiar, declara
@@ -75,7 +79,10 @@ os guias fechados e orientar o atleta a informar o relógio no onboarding.
   aparece com o rótulo "Suportado"
 
 ### Requirement: Treinador vê o relógio do atleta
-A página do atleta no contexto do treinador SHALL exibir a marca, o modelo (se informado) e o
+O perfil agregado do atleta para o treinador (`GET /api/v1/coach/atletas/{id}/perfil`) SHALL
+incluir `relogio { marca, modelo }`, lido do perfil de onboarding; nulo quando não há perfil, e
+nulo com `"relogio"` em `avisos` quando a consulta falha. A página do atleta no contexto do
+treinador SHALL exibir, a partir desse campo, a marca, o modelo (se informado) e o
 resumo do canal em linguagem de treinador, condicional ao que o sistema não verifica ("chegam ao
 relógio se o atleta ligou ..."; "não verificado automaticamente"), indicando que a marca é a
 informada no onboarding e não confirmada, com o posicionamento e os avisos de formato da marca. Quando o push ao relógio não é
@@ -97,10 +104,14 @@ dar acesso ao guia da marca em modo leitura ("O que pedir ao atleta"). Sem perfi
 - **WHEN** o treinador abre o perfil de um atleta sem perfil de onboarding
 - **THEN** vê "Relógio não informado" e o botão "Preencher onboarding"
 
+#### Scenario: Consulta do relógio falhou
+- **WHEN** a leitura do perfil de onboarding falha dentro do perfil agregado
+- **THEN** o restante do perfil é devolvido, `relogio` é nulo e `avisos` contém "relogio"
+
 ### Requirement: Texto do chip de sincronização neutro de marca
-O tooltip de sucesso do chip de sincronização SHALL dizer "Enviado ao intervals.icu", sem nomear
-uma marca.
+O chip de sincronização, no sucesso, SHALL dizer "No intervals.icu" (rótulo) e "Enviado ao
+intervals.icu" (tooltip), sem nomear marca nem afirmar chegada ao relógio.
 
 #### Scenario: Status sincronizado
 - **WHEN** o status é `SINCRONIZADO` ou `SINCRONIZADO_PARCIAL`
-- **THEN** o tooltip é "Enviado ao intervals.icu"
+- **THEN** o rótulo é "No intervals.icu" e o tooltip é "Enviado ao intervals.icu"
