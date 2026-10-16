@@ -21,6 +21,11 @@ Estado do código em 2026-10-15 (verificado):
 - `SyncStatusChip.resolveVisual` grava "Enviado ao intervals.icu/Garmin" no tooltip de sucesso.
 - `IntervalsIcuService.getStatus()` devolve `null` em 404 (atleta nunca conectou) — por isso a
   marca **não pode** vir do status de conexão: o guia é mais útil justamente antes de conectar.
+- `GET .../onboarding` devolve **204** (corpo vazio) quando não há perfil — não 404.
+  `OnboardingService.buscarRascunho` já traduz para `undefined`. O hook de leitura da marca (task
+  3.1) trata 204 como "sem marca", não como erro.
+- `useOnboarding` não busca no mount, expõe dez membros de edição e retém o perfil anterior quando
+  a resposta vem vazia — inadequado para só ler dois campos; a leitura da marca usa hook próprio.
 
 ## Decisões
 
@@ -62,8 +67,9 @@ acontecer; é defesa).
 
 ```ts
 // apps/menthoros-front/src/features/athlete/watchCompatibility.ts
-export type ModoPush = 'NATIVO' | 'NATIVO_JANELA_7_DIAS' | 'PARCIAL_POR_MODELO' | 'VIA_APP_PARCEIRO' | 'SEM_PUSH';
-export type ModoIngestao = 'NATIVO' | 'VIA_APP_PARCEIRO';
+export type ModoPush = 'NATIVO' | 'NATIVO_JANELA_7_DIAS' | 'PARCIAL_POR_MODELO' | 'VIA_APP_PARCEIRO' | 'SEM_PUSH' | 'NAO_VERIFICADO';
+export type ModoIngestao = 'NATIVO' | 'VIA_APP_PARCEIRO' | 'NAO_VERIFICADO';
+// NAO_VERIFICADO: marcas NAO_COBERTO (Suunto, Outro) — não afirmamos capacidade que não validamos.
 export type Posicionamento = 'SUPORTADO' | 'EM_VALIDACAO' | 'COMPATIVEL_VIA_APP' | 'PARCIAL_POR_MODELO' | 'SO_TREINO_REALIZADO' | 'NAO_COBERTO';
 
 export interface WatchCompatibility {

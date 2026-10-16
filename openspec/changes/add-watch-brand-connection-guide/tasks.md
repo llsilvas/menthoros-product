@@ -1,8 +1,8 @@
 # Tasks — add-watch-brand-connection-guide
 
 Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4), `menthoros-product`
-(bloco 5). Validação padrão: backend `./mvnw clean test`; front `npm run lint && npm run build`
-(+ `npm test` nos componentes tocados). Ordem de deploy: backend antes do front (design D5).
+(bloco 5). Validação padrão: backend `./mvnw clean verify` (o gate — `test` não roda os `*IT`); front
+`npm run lint && npm run build` (+ `npm test` nos componentes tocados). Ordem de deploy: backend antes do front (design D5).
 
 ## 0. Gate — decisões do founder (sem código)
 
@@ -12,9 +12,11 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
       já estão decididos — não reabrir.
       Verify: Premissa 1 marcada como decidida, com data.
 - [ ] 0.2 Congelar o proxy da métrica: consulta em `tb_integracao_externa` ×
-      `tb_perfil_onboarding_atleta` contando atletas conectados por marca e quantos têm
-      `ultimo_push`, excluindo marcas `SEM_PUSH`/`VIA_APP_PARCEIRO`, com o N. Registrar no proposal.
-      Verify: números, N e data no proposal.
+      `tb_perfil_onboarding_atleta` × `tb_treino_planejado` contando atletas conectados por marca e
+      quantos têm ao menos um treino planejado com `sincronizado_em IS NOT NULL` nos 7 dias após
+      `conectado_em`, excluindo marcas `SEM_PUSH`/`VIA_APP_PARCEIRO`, com o N. **Não usar
+      `ultima_sincronizacao`** (webhook e pull também gravam; não distingue push). Registrar no proposal.
+      Verify: números, N e data no proposal; a consulta cita `tb_treino_planejado.sincronizado_em`.
 - [ ] 0.3 Demanda real e registro de intervenções: (a) distribuição de marcas em
       `tb_perfil_onboarding_atleta.dispositivo_marca` e `tb_waitlist` (WatchBrand) — se zero
       não-Garmin nos primeiros clientes, **adiar a change** e registrar; (b) criar a planilha
@@ -28,14 +30,16 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
       Javadoc (a referência à "feature futura de capacidade por dispositivo" passa a apontar para
       esta change e para C3/C4 do levantamento). **Commit próprio, primeiro da branch, junto com
       1.2** (design D5: forward-only).
-      Verify: `./mvnw clean test` verde; `@Schema(example)` dos DTOs de onboarding continua válido.
+      Verify: `./mvnw clean verify` verde; `@Schema(example)` dos DTOs de onboarding continua válido.
 - [ ] 1.2 `FontePriority.PRIORIDADE_DISPOSITIVO`: mapear os dois valores novos com prior **3**
       (design D2).
-      Verify: teste parametrizado `FontePriorityTest` cobrindo os **oito** valores — nenhum retorna
-      10, e os dois novos retornam 3 (CA1).
-- [ ] 1.3 IT de onboarding: parametrizar o caso existente de `POST`/`GET .../onboarding` com as
-      duas marcas novas (CA2).
-      Verify: `./mvnw clean test` verde, incluindo `OnboardingControllerIT`.
+      Verify: **criar** `FontePriorityTest` (não existe hoje) com teste parametrizado cobrindo os
+      **oito** valores — nenhum retorna 10, e os dois novos retornam 3 (CA1).
+- [ ] 1.3 IT de onboarding: **criar** `OnboardingControllerIT` (não existe; o
+      `OnboardingControllerTest` atual é slice com service e mapper mockados, não prova persistência)
+      com `POST` → `GET .../onboarding` parametrizado nas duas marcas novas, autenticado com o
+      post-processor `jwt()` e subject UUID (regra do `CLAUDE.md` do backend) (CA2).
+      Verify: `./mvnw clean verify` verde, incluindo o `OnboardingControllerIT` novo.
 - [ ] 1.4 Teste integrado score → tier → calibração (achado alto do Codex): atleta sem histórico,
       onboarding completo com FC máxima e pace limiar, `dispositivoMarca` em cada uma das duas
       marcas novas → score 35, tier B, calibração iniciada no primeiro snapshot; controle com
@@ -48,8 +52,9 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
       (Amazfit, Samsung Galaxy Watch), **na ordem de prioridade do founder**
       (`Object.keys` do objeto de labels é o que ordena os chips do onboarding). Adicionar `labelDispositivoMarca(valor: string)`
       com fallback para o valor cru (front em cache recebendo valor desconhecido).
-      Verify: `npm run lint && npm run build`; `OnboardingPerfilStep` passa a exibir dez chips (teste
-      de snapshot/contagem atualizado).
+      Verify: `npm run lint && npm run build`; `OnboardingPerfilStep` passa a exibir **oito** chips
+      na ordem Garmin, Apple, Amazfit, COROS, Samsung, Polar, Suunto, Outro (teste de contagem e
+      ordem atualizado); teste unitário de `labelDispositivoMarca` com valor conhecido e desconhecido.
 - [ ] 2.2 Criar `features/athlete/watchCompatibility.ts` com os tipos de D3 e as oito entradas da
       tabela de D3, em PT-BR, curtas, com `verificadoEm: '2026-10'`, `docOficialUrl` e `fontes`
       (URLs do levantamento; Garmin cita o gate de 2026-07-14). Rótulos: `SUPORTADO` só Garmin;
@@ -63,10 +68,14 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
 
 ## 3. Front — perfil do atleta (design D4)
 
-- [ ] 3.1 Hook `useAthleteWatchBrand()` (ou reuso de `useOnboarding` sem `atletaId`) que devolve
-      `{ marca, modelo, loading }` a partir de `GET .../onboarding`; `marca = undefined` em 404 ou
-      `dispositivoMarca` nulo.
-      Verify: teste do hook com os três casos (perfil com marca, perfil sem marca, 404).
+- [ ] 3.1 Hook novo e enxuto `useAthleteWatchBrand(atletaId?)` que devolve
+      `{ marca, modelo, loading, error }` a partir de `OnboardingService.buscarRascunho` (busca no
+      mount; reseta ao trocar de atleta). **Não reusar `useOnboarding`**: ele não busca no mount,
+      expõe dez membros de edição e retém o perfil anterior quando a resposta vem vazia. Sem perfil
+      o endpoint devolve **204** (corpo vazio → `undefined` no service), não 404: `marca = undefined`
+      em 204 ou `dispositivoMarca` nulo; erro de rede vai para `error`, separado.
+      Verify: teste do hook com quatro casos (perfil com marca, perfil sem marca, 204, erro) e
+      troca de atleta populado → vazio limpa a marca.
 - [ ] 3.2 Componente `WatchConnectionGuide({ marcaAtual?, conectado, modoLeitura? })`: acordeão
       com as oito marcas, a atual aberta no topo com chip de posicionamento (e, em `EM_VALIDACAO`,
       a frase "estamos validando com atletas; se o treino não chegar, avise seu treinador"),
@@ -83,8 +92,9 @@ Repos: `apps/menthoros-backend` (bloco 1), `apps/menthoros-front` (blocos 2–4)
 
 ## 4. Front — treinador (design D6) e chip
 
-- [ ] 4.1 `CoachAthleteProfilePage`: buscar o perfil de onboarding do atleta (`useOnboarding(atletaId)`
-      ou serviço direto) e renderizar a linha "Relógio: <marca> · <modelo> · <resumoParaCoach>" no
+- [ ] 4.1 `CoachAthleteProfilePage`: buscar a marca do atleta com `useAthleteWatchBrand(atletaId)`
+      (task 3.1) e **mockar o hook novo em `CoachAthleteProfilePage.test.tsx`**, que mocka cada hook
+      individualmente — sem isso a suíte existente chama o serviço real; renderizar a linha "Relógio: <marca> · <modelo> · <resumoParaCoach>" no
       cabeçalho (condicional, com "não verificado automaticamente" e "informada no onboarding, não
       confirmada"), chip de posicionamento e `avisos` de formato (COROS: um tipo de alvo por
       treino); `Alert` info para `SO_TREINO_REALIZADO`,

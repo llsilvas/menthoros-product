@@ -33,7 +33,8 @@ o guia (C2) é a primeira ação que a consome.
   sozinho.
 - **Product review (2026-10-15, `product-reviewer`): Refine**, 12 achados, incorporados: (1) a
   métrica "queda de 50% nos tickets" partia de baseline zero — trocada por intervenções manuais
-  por atleta beta e proxy de `ultimoPush` excluindo marcas sem push; (2) **"Em validação" fixado**
+  por atleta beta e proxy de push por treino (`tb_treino_planejado.sincronizado_em`) excluindo
+  marcas sem push; (2) **"Em validação" fixado**
   para COROS/Suunto/Wahoo/Huawei, com critério de promoção a "Suportado" na própria matriz; (3) a
   linha do coach afirmava "chegam ao relógio automaticamente" mesmo sem saber se o atleta ligou o
   upload — reescrita como condicional, e a página do coach ganha o guia da marca em modo leitura
@@ -141,8 +142,9 @@ Zero código de integração: é informação no lugar certo.
   no default 10. Verificável por teste parametrizado.
 - **CA2 — onboarding aceita as marcas novas.** Given um rascunho de onboarding com
   `dispositivoMarca = "AMAZFIT"`, When `POST /api/v1/atletas/{id}/onboarding`, Then 200 e o
-  `GET` subsequente devolve `AMAZFIT`. Idem para `SAMSUNG`. Verificável por IT existente
-  parametrizado.
+  `GET` subsequente devolve `AMAZFIT`. Idem para `SAMSUNG`. Verificável por `OnboardingControllerIT`
+  **novo** (task 1.3), parametrizado — o `OnboardingControllerTest` atual mocka service e mapper e
+  não prova persistência.
 - **CA3 — guia da marca do atleta.** Given um atleta com `dispositivoMarca = COROS` no perfil de
   onboarding, When abre o perfil, Then o card de conexão mostra o guia COROS expandido (passos
   "Settings → Connections → COROS", "adicionar o calendário Intervals.icu Training Plan", "janela
@@ -180,9 +182,12 @@ baseline e observável: **% dos atletas beta não-Garmin que conectam e recebem 
 no relógio sem intervenção manual do founder ou do coach**. Alvo: **100% nos primeiros 3 a 5
 atletas por marca beta** (Apple e Amazfit primeiro, pela ordem do founder), com contagem manual de intervenções numa
 planilha semanal cuja criação é a task 0.3 — pré-requisito do deploy. Proxy automático: **% de
-atletas com `ultimoPush` preenchido 7 dias após conectar**, excluindo marcas `SEM_PUSH` e
-`VIA_APP_PARCEIRO`, com o N registrado (consulta em `tb_integracao_externa` ×
-`tb_perfil_onboarding_atleta`). Para o treinador, o resultado esperado é não precisar explicar
+atletas com ao menos um treino planejado com `tb_treino_planejado.sincronizado_em` preenchido nos
+7 dias após conectar**, excluindo marcas `SEM_PUSH` e `VIA_APP_PARCEIRO`, com o N registrado
+(consulta em `tb_integracao_externa` × `tb_perfil_onboarding_atleta` × `tb_treino_planejado`).
+`sincronizado_em` é gravado apenas por `TreinoPlanejado.marcarComoSincronizado`, no sucesso do push;
+o `ultimoPush` do DTO de status **não serve**: deriva de `ultima_sincronizacao`, que webhook e pull
+também gravam (achado do DoR, 2026-10-16). Para o treinador, o resultado esperado é não precisar explicar
 Connections/upload a cada atleta novo. Opcional, se a pergunta "o guia é lido?" ficar relevante:
 evento "guia aberto → conexão concluída" — fora desta change.
 
@@ -310,6 +315,17 @@ intervals.icu, só via bridge no celular — cai em `OUTRO` com uma linha no gui
    clientes, **adiar a change** — ela seria pós-pilot disfarçado.
 
 **Em aberto:**
+
+- (DoR 2026-10-16) `AtletaOnboardingInputDto.dispositivoMarca` não tem `@NotNull`, embora este
+  proposal a chame de obrigatória — decidir se o backend passa a validar (contrato novo) ou se a
+  obrigatoriedade é só do front; CA4 já trata marca nula como caso normal.
+- (DoR 2026-10-16, Codex) o `SyncStatusChip` continua com o rótulo visível "No relógio" para
+  Polar, que nunca recebe treino; a task 4.2 troca só o tooltip. Decidir se "No intervals.icu"
+  universal entra nesta change ou fica em C4/C6.
+- (revisão de arquitetura 2026-10-15) alternativa à task 4.1: expor `dispositivoMarca`/`modelo` em
+  `AtletaPerfilCoachDto` via o partial-failure de `CoachAthleteProfileServiceImpl`, em vez de um
+  hook a mais na página do coach; e prior como propriedade de `DispositivoMarca` em vez de tabela
+  em `FontePriority` (task 1.2). Decisão do founder antes do `/implement init`.
 
 - Quem é o dono da revisão periódica de `verificadoEm` (task 5.2 cria o item no Kanban; falta o
   nome).
