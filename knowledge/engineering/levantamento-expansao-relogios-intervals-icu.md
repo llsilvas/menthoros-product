@@ -193,8 +193,9 @@ beta consiga conectar sozinho.
 
 > **Atualização 2026-10-15 (decisão do founder):** a ordem de validação passa a seguir a
 > **estimativa de uso no Brasil**, não a facilidade técnica: Garmin (validado) → Apple Watch →
-> Amazfit → COROS → Samsung → Polar → Huawei → Suunto → Wahoo. O item 2 abaixo (COROS e Suunto
-> primeiro) fica superado; Apple e Amazfit, de circuito parcial, entram antes. Fonte da ordem:
+> Amazfit → COROS → Samsung → Polar. **Huawei, Suunto e Wahoo ficam fora** da primeira change
+> (`add-watch-brand-connection-guide`); entram num follow-up com demanda medida. O item 2 abaixo
+> (COROS e Suunto primeiro) fica superado; Apple e Amazfit, de circuito parcial, entram antes. Fonte da ordem:
 > `artifacts/decision-memo-add-watch-brand-connection-guide.md`, seção 8.
 
 1. Fazer **C1 + C2 agora** (≈ 3–5 dias): custo baixo, destrava beta de qualquer marca e

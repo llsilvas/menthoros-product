@@ -4,21 +4,21 @@
 
 ### Requirement: Marcas de relógio reconhecidas
 O sistema SHALL reconhecer em `DispositivoMarca` as marcas GARMIN, COROS, POLAR, SUUNTO, APPLE,
-HUAWEI, AMAZFIT, SAMSUNG, WAHOO e OUTRO, aceitando qualquer uma delas no onboarding do atleta. Cada
+AMAZFIT, SAMSUNG e OUTRO, aceitando qualquer uma delas no onboarding do atleta. Cada
 marca SHALL ter uma prioridade explícita em `FontePriority`; nenhuma SHALL cair no default de marca
 desconhecida.
 
 #### Scenario: Onboarding com marca nova
-- **WHEN** um rascunho de onboarding é salvo com `dispositivoMarca = HUAWEI`
-- **THEN** o salvamento é aceito e a leitura subsequente devolve `HUAWEI`
+- **WHEN** um rascunho de onboarding é salvo com `dispositivoMarca = AMAZFIT`
+- **THEN** o salvamento é aceito e a leitura subsequente devolve `AMAZFIT`
 
 #### Scenario: Prior do scorer
-- **WHEN** `FontePriority.deDispositivo` é consultado para cada uma das dez marcas
+- **WHEN** `FontePriority.deDispositivo` é consultado para cada uma das oito marcas
 - **THEN** devolve o valor da tabela de prioridade, e nunca o default 10
 
 #### Scenario: Marca nova não dispensa a calibração
 - **WHEN** um atleta sem histórico, com onboarding completo, FC máxima e pace limiar, declara
-  HUAWEI, AMAZFIT, SAMSUNG ou WAHOO
+  AMAZFIT ou SAMSUNG
 - **THEN** o score de confiança não atinge o tier A só pela marca e a calibração é iniciada no
   primeiro snapshot
 
@@ -33,9 +33,13 @@ gate manual fechado com atleta real SHALL ter posicionamento "Suportado"; as dem
 nativo SHALL ter "Em validação" com critério de promoção explícito. O resumo para o treinador
 SHALL NOT afirmar que o treino chega ao relógio sem a condição que o sistema não verifica.
 
-#### Scenario: Marcas nativas sem gate
-- **WHEN** a entrada de COROS, SUUNTO, WAHOO ou HUAWEI é lida
+#### Scenario: Marca nativa sem gate
+- **WHEN** a entrada de COROS é lida
 - **THEN** o posicionamento é "Em validação" e há um critério de promoção a "Suportado"
+
+#### Scenario: Marca fora do escopo
+- **WHEN** a entrada de SUUNTO ou OUTRO é lida
+- **THEN** o posicionamento é "Ainda não coberto", sem promessa de push ou ingestão
 
 #### Scenario: Apple e Samsung
 - **WHEN** a entrada de APPLE ou SAMSUNG é lida

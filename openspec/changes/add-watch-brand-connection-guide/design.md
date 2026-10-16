@@ -49,13 +49,12 @@ gate.
 
 | Marca | Prior | Justificativa |
 |---|---|---|
-| `WAHOO` | 3 | Nativo com laps, mas **sem gate** — fora da faixa confiável até o gate da seção 6 fechar |
-| `HUAWEI` | 3 | Nativo desde 2026-03, laps a confirmar, sem gate |
 | `AMAZFIT` | 3 | Ingestão nativa mas **sem laps** no intervals.icu — mesmo patamar da Apple |
 | `SAMSUNG` | 3 | Só via bridge (Health Sync); sem HRV; mesmo patamar da Apple |
 
-Os seis valores atuais não mudam. Promover Wahoo/Huawei a 2 depois do gate é uma linha, coberta
-pelo teste integrado da task 1.4 (score → tier → calibração). Teste parametrizado cobre os dez
+Os seis valores atuais não mudam (Suunto segue em 2, como hoje). Promover uma marca depois do
+gate é uma linha, coberta pelo teste integrado da task 1.4 (score → tier → calibração). Teste
+parametrizado cobre os oito
 (CA1). `getOrDefault(…, 10)` permanece para o caso de valor desconhecido em memória (não deve
 acontecer; é defesa).
 
@@ -65,7 +64,7 @@ acontecer; é defesa).
 // apps/menthoros-front/src/features/athlete/watchCompatibility.ts
 export type ModoPush = 'NATIVO' | 'NATIVO_JANELA_7_DIAS' | 'PARCIAL_POR_MODELO' | 'VIA_APP_PARCEIRO' | 'SEM_PUSH';
 export type ModoIngestao = 'NATIVO' | 'VIA_APP_PARCEIRO';
-export type Posicionamento = 'SUPORTADO' | 'EM_VALIDACAO' | 'COMPATIVEL_VIA_APP' | 'PARCIAL_POR_MODELO' | 'SO_TREINO_REALIZADO' | 'DESCONHECIDO';
+export type Posicionamento = 'SUPORTADO' | 'EM_VALIDACAO' | 'COMPATIVEL_VIA_APP' | 'PARCIAL_POR_MODELO' | 'SO_TREINO_REALIZADO' | 'NAO_COBERTO';
 
 export interface WatchCompatibility {
   marca: DispositivoMarca;
@@ -93,11 +92,12 @@ responde ao risco "conteúdo desatualiza".
 
 A **ordem das entradas** (e do acordeão em D4, dos chips do onboarding e dos gates) é a ordem de
 prioridade decidida pelo founder em 2026-10-15: Garmin, Apple, Amazfit, COROS, Samsung, Polar,
-Huawei, Suunto, Wahoo, Outro. A matriz é um array ordenado, não um `Record` — a ordem é
-conteúdo. Consequência honesta dessa ordem: as posições 2 e 3 (Apple, Amazfit) são as de
-circuito **parcial** (app parceiro / por modelo), então o gate manual delas vem antes do gate de
-COROS e Suunto, ao contrário da recomendação original do levantamento (seção 8), que ordenava
-por facilidade técnica e não por uso.
+e por último Suunto e Outro como "ainda não coberto" (Huawei e Wahoo nem entram no enum —
+ficam para um follow-up). A matriz é um array ordenado, não um `Record` — a ordem é conteúdo.
+Consequência honesta dessa ordem: as posições 2 e 3 (Apple, Amazfit) são as de circuito
+**parcial** (app parceiro / por modelo), então o gate manual delas vem antes do gate de COROS,
+ao contrário da recomendação original do levantamento (seção 8), que ordenava por facilidade
+técnica e não por uso.
 
 Conteúdo por marca (resumo; o texto final é PT-BR no arquivo):
 
@@ -105,19 +105,17 @@ Conteúdo por marca (resumo; o texto final é PT-BR no arquivo):
 |---|---|---|---|---|
 | GARMIN | SUPORTADO (gate 2026-07-14) | NATIVO | Connections → Garmin → marcar *Upload planned workouts* | — |
 | COROS | EM_VALIDACAO (→ SUPORTADO após gate com atleta real) | NATIVO_JANELA_7_DIAS | Connections → COROS; no app COROS, adicionar o calendário *Intervals.icu Training Plan* | só os próximos 7 dias; um tipo de alvo por treino; apagar no Menthoros não remove do relógio |
-| SUUNTO | EM_VALIDACAO | NATIVO | Connections → Suunto; treinos viram SuuntoPlus Guides | modelos 3/5/9 precisam de firmware mínimo; etapas por tempo, não por distância |
-| WAHOO | EM_VALIDACAO | NATIVO_JANELA_7_DIAS | Connections → Wahoo | foco em ciclismo (ELEMNT); próximos 7 dias |
-| HUAWEI | EM_VALIDACAO | NATIVO_JANELA_7_DIAS | Connections → Huawei (HUAWEI ID) | só corrida/caminhada/trilha; **um treino por vez** (o próximo); histórico de 1 ano |
+| SUUNTO | NAO_COBERTO | — | abrir Connections no intervals.icu e procurar a marca; avisar o treinador | fora do escopo desta change (decisão do founder); conteúdo do levantamento fica para o follow-up |
 | AMAZFIT | PARCIAL_POR_MODELO | PARCIAL_POR_MODELO | Zepp → conectar Intervals.icu | push automático só em **T-Rex 3 Pro** e **Balance 2**; demais: importar `.fit` no Zepp; atividade volta **sem laps** |
 | POLAR | SO_TREINO_REALIZADO | SEM_PUSH | Connections → Polar (só ingestão) | treino planejado **não** chega ao relógio; montar o alvo no Polar Flow à mão |
 | APPLE | COMPATIVEL_VIA_APP | VIA_APP_PARCEIRO | instalar *Intervals.icu Companion* (ou *Watchletic*), ligar Apple Health ↔ intervals.icu | app de terceiro; envio pode ser manual; natação sem estrutura |
 | SAMSUNG | COMPATIVEL_VIA_APP | VIA_APP_PARCEIRO | *Health Sync* (Samsung Health → intervals.icu) + *Watchletic for Wear OS* | app de terceiro; sem HRV; sono sim |
-| OUTRO | DESCONHECIDO | — | abrir Connections no intervals.icu e procurar a marca | — |
+| OUTRO | NAO_COBERTO | — | abrir Connections no intervals.icu e procurar a marca | — |
 
 ### D4 — Guia como acordeão com a marca do atleta aberta
 
 Em vez de "escolher a marca" (o que duplicaria o onboarding), o card mostra um acordeão com as
-dez marcas na ordem de prioridade do founder; a do perfil vem aberta no topo, as demais fechadas
+oito marcas na ordem de prioridade do founder; a do perfil vem aberta no topo, as demais fechadas
 abaixo de "Outro relógio?", mantendo a ordem. Xiaomi aparece como uma linha dentro de "Outro"
 (sem conexão com o intervals.icu; só via bridge no celular). Cobre
 a **consulta** ao guia de outra marca ("comprei outro relógio, o que faço?") sem endpoint de
@@ -139,7 +137,7 @@ Backend primeiro (enum aceita os valores), front depois (chips passam a oferecê
 
 **A adição ao enum nunca é revertida.** A primeira versão deste design previa um `UPDATE ... SET
 dispositivo_marca = 'OUTRO'` antes de reverter o backend. O Codex derrubou: uma aba do front
-aberta antes do rollback continua oferecendo `HUAWEI`, e `OnboardingServiceImpl.salvarRascunho`
+aberta antes do rollback continua oferecendo `AMAZFIT`, e `OnboardingServiceImpl.salvarRascunho`
 aceita e persiste — inclusive em perfil `COMPLETO`. Qualquer gravação entre o `UPDATE` e a subida
 do backend antigo reintroduz o valor, e o backend antigo falha ao carregar o perfil (também em
 `montarContexto`, na geração de plano). Fechar essa janela exigiria drenar escritas, e o `UPDATE`
@@ -167,7 +165,7 @@ o `WatchConnectionGuide` da marca em modo leitura (mesmo componente, sem botão 
 é o que o coach usa na hora do ticket. A linha deixa claro que a marca é **"informada no
 onboarding, não confirmada"** (o atleta pode ter trocado; ver D4) e mostra o chip de
 posicionamento (inclusive "Em validação") e os `avisos` de formato que afetam o treino que o
-coach aprova — um tipo de alvo por treino no COROS, sem etapa por distância no Suunto — porque o
+coach aprova — um tipo de alvo por treino no COROS — porque o
 `IntervalsIcuWorkoutConverter` hoje escolhe FC ou pace por etapa e prioriza distância, e tratar
 isso no push é C4. Sem perfil: "Relógio não informado" e o botão "Preencher onboarding"
 existente.

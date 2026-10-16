@@ -19,9 +19,14 @@ o guia (C2) é a primeira ação que a consome.
   **Não é o caso.** O onboarding do atleta já persiste `DispositivoMarca` (obrigatória) e
   `dispositivoModelo` (texto livre) em `tb_perfil_onboarding_atleta` desde a V67 (retrofit 10.6,
   2026-07-21), e o `ConfidenceScorer` já a usa como prior via `FontePriority`. O que falta é (a) o
-  enum conhecer Huawei, Amazfit, Samsung e Wahoo, (b) alguém ler a marca fora do scorer. **Não há
+  enum conhecer Amazfit e Samsung, (b) alguém ler a marca fora do scorer. **Não há
   migration nesta change**: a coluna é `VARCHAR(20)` e os valores novos cabem. `WatchBrand` (da
   waitlist) é um segundo enum para o mesmo conceito e **fica fora do escopo** (ver Non-goals).
+- **Escopo por marca (decisão do founder, 2026-10-15):** Huawei, Suunto e Wahoo **ficam fora
+  desta change** — sem valor novo no enum (Huawei, Wahoo), sem guia e sem gate (Suunto já existe
+  no enum e continua selecionável no onboarding, mas aparece no guia como "ainda não coberto").
+  O enum ganha só `AMAZFIT` e `SAMSUNG`; a matriz cobre Garmin, Apple, Amazfit, COROS, Samsung e
+  Polar. As três saem num follow-up quando houver demanda medida.
 - **Dependência zero.** Não depende de `intervals-icu-webhook-ingestion`, `add-sync-health-signal`
   nem de `first-party-ingestion-architecture`. É pré-requisito de C3–C6 do levantamento e do beta
   por marca (seção 6 do levantamento): sem o guia, um atleta beta de COROS não consegue conectar
@@ -64,8 +69,8 @@ só o canal Garmin foi validado de ponta a ponta (gate de 2026-07-14), e **toda 
 Garmin**: o card de conexão do atleta diz "receber os treinos planejados no relógio" para qualquer
 marca, e o chip do treinador diz "Enviado ao intervals.icu/Garmin" com o nome gravado.
 
-Para as demais marcas o circuito fecha de formas diferentes — nativo com janela de 7 dias (COROS,
-Suunto, Wahoo, Huawei), parcial por modelo (Amazfit), só ingestão (Polar), ou só com um app de
+Para as demais marcas o circuito fecha de formas diferentes — nativo com janela de 7 dias (COROS),
+parcial por modelo (Amazfit), só ingestão (Polar), ou só com um app de
 terceiro no celular (Apple Watch, Samsung). O atleta de qualquer uma delas conecta o intervals.icu,
 não liga a conexão do relógio em *Settings → Connections*, não marca "Upload planned workouts", e
 o treino aprovado nunca chega ao pulso. **O ticket "conectei e o treino não chegou" cai no
@@ -80,9 +85,9 @@ Zero código de integração: é informação no lugar certo.
 
 ### Backend (`apps/menthoros-backend`)
 
-- **`DispositivoMarca`** ganha `HUAWEI`, `AMAZFIT`, `SAMSUNG`, `WAHOO`. Ordem e nomes existentes
-  intactos (`GARMIN`, `COROS`, `POLAR`, `SUUNTO`, `APPLE`, `OUTRO`).
-- **`FontePriority.PRIORIDADE_DISPOSITIVO`** mapeia os quatro valores novos de forma explícita
+- **`DispositivoMarca`** ganha `AMAZFIT` e `SAMSUNG`. Ordem e nomes existentes intactos
+  (`GARMIN`, `COROS`, `POLAR`, `SUUNTO`, `APPLE`, `OUTRO`).
+- **`FontePriority.PRIORIDADE_DISPOSITIVO`** mapeia os dois valores novos de forma explícita
   (design D2), em vez de cair no default 10 — o default é para "marca desconhecida", e essas são
   conhecidas.
 - Nenhuma migration, nenhum endpoint novo, nenhum DTO novo. A marca já sai em
@@ -92,13 +97,13 @@ Zero código de integração: é informação no lugar certo.
 ### Frontend (`apps/menthoros-front`)
 
 - **`types/Onboarding.ts`:** union `DispositivoMarca` e `DISPOSITIVO_MARCA_LABELS` ganham as
-  quatro marcas; o chip group do onboarding passa a oferecê-las automaticamente.
+  duas marcas; o chip group do onboarding passa a oferecê-las automaticamente.
 - **Matriz de compatibilidade por marca** (`watchCompatibility.ts`, conteúdo estático em PT-BR,
   design D3): para cada marca, o **modo de push** (`NATIVO`, `NATIVO_JANELA_7_DIAS`,
   `PARCIAL_POR_MODELO`, `VIA_APP_PARCEIRO`, `SEM_PUSH`), o modo de ingestão, o rótulo de
-  posicionamento ("Suportado" só para Garmin; "Em validação" para COROS, Suunto, Wahoo e Huawei;
-  "Compatível via app parceiro" para Apple e Samsung; "Parcial por modelo" para Amazfit; "Só
-  treino realizado" para Polar), o critério de promoção a "Suportado" (gate da seção 6 do
+  posicionamento ("Suportado" só para Garmin; "Em validação" para COROS; "Compatível via app
+  parceiro" para Apple e Samsung; "Parcial por modelo" para Amazfit; "Só treino realizado" para
+  Polar; "Ainda não coberto" para Suunto e Outro), o critério de promoção a "Suportado" (gate da seção 6 do
   levantamento fechado com atleta real, data em `verificadoEm`) e os passos de conexão, curtos,
   com link para a documentação oficial do intervals.icu no que muda rápido (janela de dias, lista
   de modelos). Fonte: seção 2 do levantamento; a entrada Garmin cita o gate de 2026-07-14.
@@ -131,12 +136,12 @@ Zero código de integração: é informação no lugar certo.
 ## Critérios de aceite
 
 - **CA1 — enum e prior.** Given o backend, When `DispositivoMarca.values()` é lido, Then contém os
-  dez valores (seis atuais + `HUAWEI`, `AMAZFIT`, `SAMSUNG`, `WAHOO`), e
-  `FontePriority.deDispositivo(m)` retorna o valor da tabela D2 para cada um dos dez — nenhum cai
+  oito valores (seis atuais + `AMAZFIT`, `SAMSUNG`), e
+  `FontePriority.deDispositivo(m)` retorna o valor da tabela D2 para cada um dos oito — nenhum cai
   no default 10. Verificável por teste parametrizado.
 - **CA2 — onboarding aceita as marcas novas.** Given um rascunho de onboarding com
-  `dispositivoMarca = "HUAWEI"`, When `POST /api/v1/atletas/{id}/onboarding`, Then 200 e o
-  `GET` subsequente devolve `HUAWEI`. Idem para as outras três. Verificável por IT existente
+  `dispositivoMarca = "AMAZFIT"`, When `POST /api/v1/atletas/{id}/onboarding`, Then 200 e o
+  `GET` subsequente devolve `AMAZFIT`. Idem para `SAMSUNG`. Verificável por IT existente
   parametrizado.
 - **CA3 — guia da marca do atleta.** Given um atleta com `dispositivoMarca = COROS` no perfil de
   onboarding, When abre o perfil, Then o card de conexão mostra o guia COROS expandido (passos
@@ -150,9 +155,9 @@ Zero código de integração: é informação no lugar certo.
   Watchletic) sem a palavra "suportado". Given `POLAR`, Then o rótulo é "Só treino realizado" e o
   texto diz que o treino planejado **não** chega ao relógio pelo intervals.icu. Given `AMAZFIT`,
   Then o guia lista explicitamente os modelos com push automático (T-Rex 3 Pro, Balance 2) e diz
-  que os demais exigem importar o `.fit` no Zepp. Given `COROS`, `SUUNTO`, `WAHOO` ou `HUAWEI`,
-  Then o rótulo é "Em validação" com a frase de ação "estamos validando com atletas; se o treino
-  não chegar, avise seu treinador". Só `GARMIN` usa "Suportado". Verificável por asserção de
+  que os demais exigem importar o `.fit` no Zepp. Given `COROS`, Then o rótulo é "Em validação" com a frase de ação "estamos validando com atletas; se o treino
+  não chegar, avise seu treinador". Só `GARMIN` usa "Suportado". Given `SUUNTO` ou `OUTRO`, Then o rótulo é "Ainda não coberto" com
+  orientação genérica (abrir Connections no intervals.icu) e sem promessa. Verificável por asserção de
   texto nos testes.
 - **CA6 — treinador vê o relógio.** Given o coach abre `CoachAthleteProfilePage` de um atleta com
   `dispositivoMarca = POLAR`, Then vê "Relógio: Polar" e "Treinos aprovados não chegam ao relógio
@@ -173,7 +178,7 @@ Não há baseline de tickets (hoje nenhum atleta não-Garmin conectado; contagem
 founder, sem registro), então a métrica não pode ser "queda de X%". Métrica **primária**, sem
 baseline e observável: **% dos atletas beta não-Garmin que conectam e recebem o primeiro treino
 no relógio sem intervenção manual do founder ou do coach**. Alvo: **100% nos primeiros 3 a 5
-atletas por marca beta** (COROS e Suunto primeiro), com contagem manual de intervenções numa
+atletas por marca beta** (Apple e Amazfit primeiro, pela ordem do founder), com contagem manual de intervenções numa
 planilha semanal cuja criação é a task 0.3 — pré-requisito do deploy. Proxy automático: **% de
 atletas com `ultimoPush` preenchido 7 dias após conectar**, excluindo marcas `SEM_PUSH` e
 `VIA_APP_PARCEIRO`, com o N registrado (consulta em `tb_integracao_externa` ×
@@ -206,12 +211,12 @@ atleta o que ainda não foi verificado.
 
 ## Impacto
 
-- **Contrato de API:** aditivo. `DispositivoMarca` ganha quatro valores; clientes antigos do front
+- **Contrato de API:** aditivo. `DispositivoMarca` ganha dois valores; clientes antigos do front
   (cache do browser) que não conheçam os novos só os veriam como string desconhecida no label —
   o `DISPOSITIVO_MARCA_LABELS` precisa de fallback para o nome cru (task 2.1).
 - **Banco:** nenhum. `dispositivo_marca VARCHAR(20)` comporta `AMAZFIT`/`SAMSUNG` (7 chars).
 - **`ConfidenceScorer`:** atletas que hoje escolhem `OUTRO` por falta de opção e passarem a
-  escolher `HUAWEI`/`AMAZFIT` mudam de prior 4 para o da tabela D2 — efeito só em atletas novos
+  escolher `AMAZFIT`/`SAMSUNG` mudam de prior 4 para o da tabela D2 — efeito só em atletas novos
   ou que refizerem o onboarding; sem recálculo retroativo.
 - **Multi-tenant / segurança:** nenhum endpoint novo; o front consome `GET .../onboarding` que já
   aplica o tenant guard e já é acessível ao coach (botão "Preencher onboarding").
@@ -223,14 +228,14 @@ atleta o que ainda não foi verificado.
   `ConfidenceScorer` (D2), registrado como palpite conservador até os gates fecharem.
 - **Rollback:** revert do PR do **front** apenas. A adição ao enum é **forward-only** (design D5):
   reverter o backend sem os valores quebra o `@Enumerated(STRING)` em qualquer perfil que já
-  gravou `HUAWEI`/`AMAZFIT`/`SAMSUNG`/`WAHOO`, e um `UPDATE` de normalização não fecha a janela
+  gravou `AMAZFIT`/`SAMSUNG`, e um `UPDATE` de normalização não fecha a janela
   (aba antiga do front continua gravando). O commit do enum vai separado do resto do backend para
   poder ficar mesmo que o restante reverta.
 
 ## Riscos e mitigações
 
 - **Rollback do backend com valor novo gravado** (Alto, derrubado pelo Codex): se um atleta já
-  escolheu `HUAWEI` e o backend volta sem o valor, a leitura de `PerfilOnboardingAtleta` lança
+  escolheu `AMAZFIT` e o backend volta sem o valor, a leitura de `PerfilOnboardingAtleta` lança
   `IllegalArgumentException` — inclusive em `montarContexto` na geração de plano. Um `UPDATE` de
   normalização não resolve: uma aba antiga grava de novo entre o `UPDATE` e o deploy antigo.
   Mitigar: **enum forward-only** — commit separado, nunca revertido; deploy backend antes do
@@ -238,7 +243,7 @@ atleta o que ainda não foi verificado.
 - **Prior novo dispensa a calibração** (Alto, derrubado pelo Codex): prioridade ≤ 2 vale 15
   pontos no `ConfidenceScorer`; sem histórico, um atleta com onboarding completo, FC e pace
   limiar tem 35, e uma marca nova com prior 2 chegaria a 50 (tier A) — a calibração nunca
-  começa. Mitigar: as quatro marcas novas com prior **3** até o gate (design D2) e teste
+  começa. Mitigar: as duas marcas novas com prior **3** até o gate (design D2) e teste
   integrado de score → tier → início de calibração (task 1.4).
 - **Conteúdo desatualiza** (Alto, de produto): a matriz vem de fórum e guias de 2026-10; o
   intervals.icu muda integrações com frequência (Huawei entrou em 2026-03, Zepp em 2025). Mitigar:
@@ -258,7 +263,8 @@ atleta o que ainda não foi verificado.
 ## Open Questions & Assumptions
 
 **Ordem de prioridade por marca (decisão do founder, 2026-10-15):** Garmin → Apple Watch →
-Amazfit → COROS → Samsung → Polar → Huawei → Suunto → Wahoo. Estimativa de uso entre atletas de
+Amazfit → COROS → Samsung → Polar (Huawei, Suunto e Wahoo ficam fora desta change — decisão do
+founder no mesmo dia). Estimativa de uso entre atletas de
 assessoria no Brasil por triangulação (IDC, Counterpoint, Strava Year in Sport 2024/2025, imprensa
 brasileira; não existe ranking público por marca no país — ver memo do CPO). Vale para: ordem do
 acordeão no guia, ordem dos chips no onboarding, ordem dos gates manuais e do beta por marca.
@@ -269,22 +275,21 @@ intervals.icu, só via bridge no celular — cai em `OUTRO` com uma linha no gui
 **Decidido no product review (2026-10-15):**
 
 - **Rótulos de posicionamento:** "Suportado" **só Garmin** (gate 2026-07-14). **"Em validação"**
-  para COROS, Suunto, Wahoo e Huawei até o gate da seção 6 do levantamento fechar com um atleta
+  para COROS até o gate da seção 6 do levantamento fechar com um atleta
   real — a promoção é uma edição na matriz com data em `verificadoEm`, sem código. "Compatível via
   app parceiro" (Apple, Samsung), "Parcial por modelo" (Amazfit), "Só treino realizado" (Polar).
   Motivo: o custo de errar é assimétrico — "Suportado" falso vira promessa quebrada e ticket para o
-  coach; "Em validação" verdadeiro é só menos convidativo. Huawei é o pior caso (erro 500 com rampa,
-  um treino por vez).
+  coach; "Em validação" verdadeiro é só menos convidativo.
 - **Guia na etapa 1 do onboarding: fora desta change.** O onboarding é o fluxo mais sensível a
   abandono e tem spec própria. Follow-up registrado: `add-onboarding-watch-fit-hint` — uma linha
   informativa (não o guia) logo após escolher Polar/Apple/Samsung/Amazfit, depois do pilot.
 
 **Premissas assumidas (validar com o founder no gate 0):**
 
-1. **Expor as quatro marcas novas no chip do onboarding já.** Efeito colateral: quem escolhia
-   "Outro" passa a se declarar Huawei/Wahoo, marcas sem gate, e a superfície de ticket do pilot
-   cresce. Alternativa: liberar só as marcas do beta (COROS, Suunto) e manter as outras na matriz
-   para quando entrarem. Premissa: expor todas, com "Em validação" visível no guia — medir demanda
+1. **Expor as duas marcas novas no chip do onboarding já.** Efeito colateral: quem escolhia
+   "Outro" passa a se declarar Amazfit/Samsung, marcas de circuito parcial, e a superfície de
+   ticket do pilot cresce. Alternativa: segurar os chips até o gate de cada uma. Premissa: expor
+   as duas, com o rótulo ("Parcial por modelo" / "Compatível via app parceiro") visível no guia — medir demanda
    real vale mais que esconder a opção. Decisão do founder na task 0.1.
 2. **Trocar a marca após o onboarding concluído.** O Codex confirmou que `salvarRascunho` aceita
    e persiste em perfil `COMPLETO`, então um "Atualizar relógio" restrito a marca/modelo é viável
@@ -296,9 +301,9 @@ intervals.icu, só via bridge no celular — cai em `OUTRO` com uma linha no gui
    N+1 já sinalizado no próprio DTO). Premissa: uma linha no perfil basta para a rotina.
 4. **Modelo de dispositivo** (`dispositivoModelo`, texto livre) é mostrado ao coach como está,
    sem normalização. Não se usa para decidir nada (a lista de modelos Amazfit é texto do guia).
-5. **Prior do `ConfidenceScorer`** para as marcas novas é **3** para as quatro (design D2): o
+5. **Prior do `ConfidenceScorer`** para as marcas novas é **3** para as duas (design D2): o
    limiar de 15 pontos é binário em prioridade ≤ 2, e entrar na faixa confiável sem gate dispensa
-   a calibração. Promover Wahoo/Huawei a 2 é uma edição de uma linha depois do gate — com o
+   a calibração. Promover uma marca a 2 depois do gate é uma edição de uma linha — com o
    teste da task 1.4 provando o efeito no tier.
 6. **Há demanda real não-Garmin no pilot.** Não verificado: a distribuição de marcas no
    onboarding e na waitlist é a task 0.3. Se der zero atletas fora do Garmin nos primeiros

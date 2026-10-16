@@ -122,8 +122,10 @@ guia genérico não sabe que o atleta é Polar, então não evita a promessa err
 ## 8. Decisões do founder (gate)
 
 **Decidido em 2026-10-15 — ordem de prioridade por marca:** Garmin → Apple Watch → Amazfit →
-COROS → Samsung → Polar → Huawei → Suunto → Wahoo (estimativa de uso entre atletas de
-assessoria no Brasil, por triangulação; sem ranking público por marca no país). Aplicada à
+COROS → Samsung → Polar (estimativa de uso entre atletas de assessoria no Brasil, por
+triangulação; sem ranking público por marca no país). **Huawei, Suunto e Wahoo ficam fora desta
+change** (posições 7 e 8 da estimativa): sem enum novo, sem guia, sem gate — entram num follow-up
+quando a Proposta nova 1 mostrar demanda. Aplicada à
 ordem do guia, dos chips do onboarding e dos gates/beta. Ressalva registrada: as posições 2 e 3
 são as de circuito parcial (app parceiro / por modelo), então o beta começa pelas marcas mais
 difíceis de prometer — o rótulo "Compatível via app parceiro" / "Parcial por modelo" é o que
