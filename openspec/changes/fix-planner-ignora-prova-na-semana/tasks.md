@@ -277,7 +277,11 @@ decisão registrada. Nenhuma exige reabrir o design — são follow-ups na próp
   cobre só a preferência de `escolherDiaEspacado`, não essa proibição dura.
   - fix: `provas.stream().filter(d -> d != DayOfWeek.MONDAY).map(d -> d.minus(1))`.
   - verify: `SessionDayAllocatorTest` — prova MONDAY, dias SÁB/DOM, LONGO cai no DOMINGO.
-- [ ] 7.2 **LONGO virou âncora de intensidade sem decisão nem teste**
+- [x] 7.2 **LONGO virou âncora de intensidade sem decisão nem teste** — decisão do founder em
+  2026-10-16: **manter** (alinha ao `INTENSOS_ADJACENTES` do legado, que já trata LONGO como intenso).
+  Adendo na Decisão 6 do `design.md`; javadoc do `SessionDayAllocator` atualizado; teste
+  `SessionDayAllocatorTest.duraNaoViraVizinhaDoLongo` (semana cheia: LONGO domingo, dura quarta).
+  Branch `test/fix-planner-ignora-prova-na-semana-longo-ancora`. Sem mudança de código.
   (`SessionDayAllocator.java:85`, `diasComDura.add(alvo)` no passo 2). Não está na Decisão 6 nem em
   commit; muda o skeleton de toda semana, com ou sem prova. Caso: semana inteira disponível,
   LONGO + INTERVALADO — antes o intervalado caía na segunda, agora na quarta (máxima distância ao

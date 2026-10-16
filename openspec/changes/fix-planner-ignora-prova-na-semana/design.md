@@ -183,6 +183,16 @@ menos; sem ação. Deixá-lo com `day=null` faria `formatarBlocoSlots` (`PlanoTr
 pedir "(dia a definir)" ao LLM — que recolocaria a sessão onde quisesse. Remover é a única opção
 que preserva a garantia; o treinador decide se completa a semana.
 
+**Adendo 2026-10-16 (tasks.md 7.2, decisão do founder: manter).** O passo 2 também registra o dia
+do LONGO em `diasComDura`, então o passo 3 nunca coloca uma dura vizinha do longo — não só de uma
+prova. Entrou na implementação sem constar aqui; fica registrado porque alinha o skeleton ao legado:
+`WeeklyCoverageValidator.TIPOS_ALTA_INTENSIDADE` inclui `LONGO`, e `INTENSOS_ADJACENTES` já
+reprova LONGO colado numa dura — sem a âncora, o allocator produziria skeletons que o validador
+legado rejeita. É preferência (`escolherDiaEspacado` sempre devolve um dia se há candidato), não
+proibição: não gera slot órfão nem revisão falsa. Efeito colateral aceito: o baseline das métricas de
+shadow muda a partir do PR #180 (ex.: semana cheia, LONGO no domingo, a dura passa da segunda para a
+quarta). Teste: `SessionDayAllocatorTest.duraNaoViraVizinhaDoLongo`.
+
 ## Decisão 7 — Shadow: materializar (mantida da v2)
 
 `SessionCompositionResolver` compõe slot `PROVA` para cada preparatória, independente da fase; TSS
