@@ -285,7 +285,11 @@ decisão registrada. Nenhuma exige reabrir o design — são follow-ups na próp
   - decidir: manter (dura longe do longo é defensável) → nota na Decisão 6 do design + teste
     "dura não é vizinha do LONGO"; ou remover a linha.
   - verify: `SessionDayAllocatorTest` fixando o comportamento escolhido.
-- [ ] 7.3 **Em `POST_RACE`, prova preparatória da semana some do skeleton**
+- [x] 7.3 **Em `POST_RACE`, prova preparatória da semana some do skeleton** — feito em 2026-10-16,
+  branch `fix/fix-planner-ignora-prova-na-semana-post-race` (commit `dd410d6`): `preparatoriasNaSemana`
+  extraída e aplicada também no ramo `POST_RACE`; testes `PeriodizationPlannerTest.postRaceMantemPreparatoriaDaSemana`
+  e `PlannerEngineTest.postRaceComPreparatoriaNaSemana` (slot PROVA ancorado no sábado), red → green.
+  `./mvnw clean test`: 4657 testes, 0 Failures; 249 Errors idênticos aos da 7.1 (Testcontainers sem Docker).
   (`PeriodizationPlanner.java:32` devolve `List.of()` de preparatórias; `PlannerEngine.provasDaSemana`
   depende dela). Caso: prova alvo no domingo 12/10, 5k no sábado 18/10 — semana `POST_RACE`,
   determinante fora da janela, preparatórias vazias → sem slot PROVA, sem D-1 protegido, e o
