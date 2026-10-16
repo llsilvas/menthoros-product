@@ -257,6 +257,51 @@ desta change):
 - **Builder para `WeeklyCoverageContext`** (clean-code-reviewer): 3 construtores, 7 parâmetros no
   canônico. Revisitar se ganhar um 4º construtor/campo opcional.
 
+## Pós-merge — `/ponytail-review` do PR #180 (2026-10-16)
+
+Revisão da change já mergeada em `develop`, lendo o código conectado e não só o diff. Três
+correções pequenas antes do `/done`; a primeira é bug real, as outras duas são comportamento sem
+decisão registrada. Nenhuma exige reabrir o design — são follow-ups na própria change, com
+`verify:` como as demais.
+
+- [ ] 7.1 **Prova na segunda proíbe LONGO/dura no domingo da mesma semana**
+  (`SessionDayAllocator.java:66`). `proibidos` usa `d.minus(1)`, e `MONDAY.minus(1)` é `SUNDAY` —
+  o domingo *seguinte*, 6 dias depois da prova, não a véspera (que está no plano anterior; a semana
+  é segunda→domingo, como `LongRunAnchor.colado` já assume). Caso: prova em feriado de segunda,
+  atleta disponível sáb/dom, LONGO sem dia preferido → empurrado para sábado ou `day == null`
+  (removido + revisão do treinador com motivo falso). A nota do design sobre distância circular
+  cobre só a preferência de `escolherDiaEspacado`, não essa proibição dura.
+  - fix: `provas.stream().filter(d -> d != DayOfWeek.MONDAY).map(d -> d.minus(1))`.
+  - verify: `SessionDayAllocatorTest` — prova MONDAY, dias SÁB/DOM, LONGO cai no DOMINGO.
+- [ ] 7.2 **LONGO virou âncora de intensidade sem decisão nem teste**
+  (`SessionDayAllocator.java:85`, `diasComDura.add(alvo)` no passo 2). Não está na Decisão 6 nem em
+  commit; muda o skeleton de toda semana, com ou sem prova. Caso: semana inteira disponível,
+  LONGO + INTERVALADO — antes o intervalado caía na segunda, agora na quarta (máxima distância ao
+  domingo do LONGO). Divergência nova de shadow sem causa rastreável.
+  - decidir: manter (dura longe do longo é defensável) → nota na Decisão 6 do design + teste
+    "dura não é vizinha do LONGO"; ou remover a linha.
+  - verify: `SessionDayAllocatorTest` fixando o comportamento escolhido.
+- [ ] 7.3 **Em `POST_RACE`, prova preparatória da semana some do skeleton**
+  (`PeriodizationPlanner.java:32` devolve `List.of()` de preparatórias; `PlannerEngine.provasDaSemana`
+  depende dela). Caso: prova alvo no domingo 12/10, 5k no sábado 18/10 — semana `POST_RACE`,
+  determinante fora da janela, preparatórias vazias → sem slot PROVA, sem D-1 protegido, e o
+  compliance acusa `DIA_INDISPONIVEL` na PROVA de sábado se sábado não for dia disponível. O
+  caminho LLM (`provasNaJanelaEfetiva`) não tem o furo; só skeleton/shadow. O `List.of()` é
+  anterior à change, mas o conceito "provas da semana" criado aqui passou a depender dele.
+  - fix: no ramo `POST_RACE`, calcular `preparatoriasNaSemana` como no ramo normal (futuras não
+    canceladas até `referenceDate+6`, excluindo a determinante).
+  - verify: `PlannerEngineTest` — `POST_RACE` com preparatória na semana produz slot PROVA e
+    `provasDaSemana` com 1 item.
+- [ ] 7.4 (nice to have) **Motivo de revisão cita só a primeira prova**
+  (`PlannerEngine.removerPesadasSemDia`, `provasDaSemana.get(0)`). Com duas provas na semana o
+  treinador vê metade da causa. Juntar as datas com `joining(", ")`.
+
+Checado e sem achado: isenção por data no `SkeletonComplianceChecker`/`ConstraintValidator`
+(não isenta PROVA em data errada), ordem slots PROVA × `diasDeProva`, descarte/reinserção da PROVA
+no `PlanoLlmValidator` (idempotente), dedupe de PROVA no mesmo dia, sanitização centralizada,
+injeção de `ProvaNoPlanoService` no prompt builder (sem ciclo de bean), único caller de `allocate`.
+Veredito da revisão: 7.1 antes do `/done`; 7.2 e 7.3 antes da próxima auditoria do shadow.
+
 ## Fora de escopo (ver proposal.md "Non-goals")
 
 - Check novo de D-1; Estágio 2; cobertura desligada; LONGO + PROVA não vizinhos; correção
