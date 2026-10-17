@@ -304,7 +304,9 @@ decisão registrada. Nenhuma exige reabrir o design — são follow-ups na próp
     canceladas até `referenceDate+6`, excluindo a determinante).
   - verify: `PlannerEngineTest` — `POST_RACE` com preparatória na semana produz slot PROVA e
     `provasDaSemana` com 1 item.
-- [ ] 7.4 (nice to have) **Motivo de revisão cita só a primeira prova**
+- [ ] 7.4 (nice to have) **Motivo de revisão cita só a primeira prova** — **adiada no `/done` de
+  2026-10-17**: nice to have sem impacto no plano gerado (só no texto do motivo de revisão), fica
+  como follow-up fora desta change.
   (`PlannerEngine.removerPesadasSemDia`, `provasDaSemana.get(0)`). Com duas provas na semana o
   treinador vê metade da causa. Juntar as datas com `joining(", ")`.
 
@@ -313,6 +315,9 @@ Checado e sem achado: isenção por data no `SkeletonComplianceChecker`/`Constra
 no `PlanoLlmValidator` (idempotente), dedupe de PROVA no mesmo dia, sanitização centralizada,
 injeção de `ProvaNoPlanoService` no prompt builder (sem ciclo de bean), único caller de `allocate`.
 Veredito da revisão: 7.1 antes do `/done`; 7.2 e 7.3 antes da próxima auditoria do shadow.
+
+**Fechamento (`/done`, 2026-10-17):** 7.1 (PR #181), 7.3 (PR #182) e 7.2 (PR #183) mergeados em
+`develop` em 2026-10-16/17, além do PR #180 original (2026-10-12). 28/29 tasks; só a 7.4 adiada.
 
 ## Fora de escopo (ver proposal.md "Non-goals")
 

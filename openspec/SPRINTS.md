@@ -2,7 +2,21 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-12 (**`add-waitlist-proprietario-watchbrand-fields` entregue e
+**Última atualização:** 2026-10-17 (**`fix-planner-ignora-prova-na-semana` arquivada** —
+backend PRs **#180** (2026-10-12), **#181**, **#182** (2026-10-16) e **#183** (2026-10-17)
+mergeados em `develop`. Origem: plano do Leandro tinha LONGO de 21 km na véspera da meia (18/10):
+o validador de cobertura rejeitava treino no dia da prova quando ele não estava nos dias
+disponíveis, e o turno de reparo empurrava a prova para a véspera. Fix: dia de prova vira dia
+efetivo, PROVA entra antes da validação, âncora do longo isenta D-1/D/D+1, shadow isenta a data da
+prova e protege o D-1. Só backend. M · Full. `/ponytail-review` do PR #180 (2026-10-16) abriu
+quatro follow-ups pós-merge: 7.1 prova na segunda proibia LONGO/dura no domingo *seguinte*
+(`MONDAY.minus(1)`) — PR #181; 7.3 em `POST_RACE` a preparatória da semana sumia do skeleton — PR
+#182; 7.2 LONGO como âncora de intensidade — founder decidiu manter, fixado por adendo na Decisão 6
++ teste — PR #183; 7.4 motivo de revisão cita só a primeira prova — nice to have, **adiada** como
+follow-up fora da change. 28/29 tasks. Arquivada em
+`changes/archive/2026-10/2026-10-17-fix-planner-ignora-prova-na-semana/`.)
+
+**Anterior:** 2026-10-12 (**`add-waitlist-proprietario-watchbrand-fields` entregue e
 arquivada** — frontend PR **#156** mergeado em `develop` (squash). FE-02+FE-05 da análise de
 conversão do Instagram: `AccessRequestForm.tsx` ganha a opção "Dono de assessoria"
 (`PerfilWaitlist.PROPRIETARIO`) e o campo opcional "Relógio predominante dos atletas"
@@ -17,8 +31,7 @@ NO-GO do Codex por falta de cobertura E2E no novo fluxo — corrigido com cenár
 `tests/e2e/landing/acesso.spec.ts` (este formulário já é fluxo crítico, gate de consentimento
 LGPD da landing). `npm run lint/build/test:run`: 234 arquivos, 2030 testes, 0 falhas. Arquivada em
 `changes/archive/2026-10/2026-10-12-add-waitlist-proprietario-watchbrand-fields/`.)
-
-**Anterior:** 2026-10-12 (**`expand-waitlist-access-contract` arquivada** — backend PR
+Antes: 2026-10-12 (**`expand-waitlist-access-contract` arquivada** — backend PR
 **#177** mergeado em `develop` em 2026-10-11, arquivamento (`/done`) feito em 2026-10-12. BE-01 da
 análise de conversão do Instagram: fecha o contrato único de `POST /api/v1/waitlist` —
 `PerfilWaitlist.PROPRIETARIO`, `watchBrand`, `landingPath`/`referrer`, `policyVersion` carimbado
