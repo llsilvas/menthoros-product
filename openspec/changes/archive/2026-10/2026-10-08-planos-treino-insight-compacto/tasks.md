@@ -28,5 +28,5 @@ Repo: `apps/menthoros-front`, worktree `.worktrees/front-planos-treino-insight-c
       completo" abrindo o dialog.
 - [x] 3.2 Teste do `InsightTreinoDialog` (seções presentes/ausentes, toggle de "O que o atleta leu") e do
       `PlanoSemanaPanel` (3 KPIs, sem "Volume alvo").
-- [~] 3.3 `npm run lint && npm run build && npm run test:run` (feito no sandbox; repetir na máquina do founder) e conferência visual com
-      o artboard "Insights do treino" (Page 2 do canvas).
+- [x] 3.3 `npm run lint && npm run build && npm run test:run` — confirmado verde no CI do PR #141
+      ("Lint, build e testes" + "E2E (Playwright)", ambos SUCCESS), mergeado em `develop`.
