@@ -317,7 +317,7 @@ intervals.icu, só via bridge no celular — cai em `OUTRO` com uma linha no gui
    "Outro" passa a se declarar Amazfit/Samsung, marcas de circuito parcial, e a superfície de
    ticket do pilot cresce. Alternativa: segurar os chips até o gate de cada uma. Premissa: expor
    as duas, com o rótulo ("Parcial por modelo" / "Compatível via app parceiro") visível no guia — medir demanda
-   real vale mais que esconder a opção. Decisão do founder na task 0.1.
+   real vale mais que esconder a opção. Decisão do founder na task 0.1: **expor as duas (2026-10-19).**
 2. **Trocar a marca após o onboarding concluído.** O Codex confirmou que `salvarRascunho` aceita
    e persiste em perfil `COMPLETO`, então um "Atualizar relógio" restrito a marca/modelo é viável
    com o endpoint atual. **Fica fora** desta change (o acordeão cobre a consulta ao guia; o coach

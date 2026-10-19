@@ -2,7 +2,20 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-17 (**`fix-planner-ignora-prova-na-semana` arquivada** —
+**Última atualização:** 2026-10-19 (**`add-watch-brand-connection-guide` entregue e arquivada** —
+backend PRs **#186** (`relogio` no perfil do coach) e **#187** (Amazfit e Samsung no
+`DispositivoMarca`, `prior()` no enum, `dispositivoMarca` obrigatório); frontend PRs **#157**
+(guia por marca, chip "No intervals.icu"), **#158** (linha "Relógio" do coach) e **#159** (oito
+chips e matriz completa); manuais em `menthoros-docs` **#2**. M · Full. Entregue: Garmin suportado,
+Apple e Samsung via app parceiro, Amazfit por modelo, Coros em validação, Polar só ingestão,
+Suunto e Outro "ainda não coberto". **Adiado:** 0.2 e 0.3 (proxy da métrica e demanda real, gate do
+founder) e 5.2 (item do Kanban); gate manual por marca ainda só fechado no Garmin. Follow-up
+fora da change: `GlobalExceptionHandler` não devolve `fields` em `MethodArgumentNotValidException`
+com `problemdetails.enabled=true`. Arquivada em
+`changes/archive/2026-10/2026-10-19-add-watch-brand-connection-guide/`; spec promovida a
+`specs/watch-connection-guide/`.)
+
+**Anterior:** 2026-10-17 (**`fix-planner-ignora-prova-na-semana` arquivada** —
 backend PRs **#180** (2026-10-12), **#181**, **#182** (2026-10-16) e **#183** (2026-10-17)
 mergeados em `develop`. Origem: plano do Leandro tinha LONGO de 21 km na véspera da meia (18/10):
 o validador de cobertura rejeitava treino no dia da prova quando ele não estava nos dias
