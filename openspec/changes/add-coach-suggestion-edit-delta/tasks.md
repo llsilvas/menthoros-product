@@ -3,11 +3,17 @@
 Validação por bloco: backend `./mvnw clean test` (IT classes exigem `./mvnw clean verify` no
 gate final); frontend `npm run lint && npm run build && npm test`. Branch
 `feature/add-coach-suggestion-edit-delta` nos dois repos antes de qualquer código. Backend
-mergeia antes do front. Pré-requisito: `add-coach-suggestion-review-actions` já mergeada.
+mergeia antes do front.
+
+Pré-requisito: ✅ `add-coach-suggestion-review-actions` mergeada (arquivada 2026-09-27) e
+`add-coach-suggestion-decision-audit` mergeada (arquivada 2026-10-09). Migration nova = **V103**
+(a última é `V102__add_status_lifecycle_to_tb_waitlist.sql`). Atenção: `rejeitar` já recebe corpo
+`RejeitarSugestaoRequestDto` (`rejectionReason`) — o `versaoEsperada` da task 2.4 entra como
+**query param**, não no corpo.
 
 ## 1. Backend — modelo
 
-- [ ] 1.1 Migration `Vnn__Add_edit_delta_columns_tb_sugestao_coach.sql` (design D1): colunas
+- [ ] 1.1 Migration `V103__Add_edit_delta_columns_tb_sugestao_coach.sql` (design D1): colunas
       `summary_original` (text, nullable), `editado_pelo_coach` (boolean not null default
       false), `edited_at` (timestamptz, nullable), `versao` (bigint not null default 0). Sem
       alterar `chk_sugestao_status` nem `uk_sugestao_pending`.

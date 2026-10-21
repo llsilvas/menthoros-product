@@ -7,9 +7,11 @@
 
 ## Status
 
-Proposta. Depende de `add-coach-suggestion-review-actions` (que ainda não existe hoje: nenhuma
-tela chama os endpoints `aprovar`/`rejeitar` de `SugestaoCoach`). Esta change assume que aquela já
-mergeou e que o `CoachDialog` de `RecentSuggestionsPanel.tsx` já tem os botões Aprovar/Rejeitar.
+Pronta para implementação (2026-10-21). Dependência satisfeita: `add-coach-suggestion-review-actions`
+entregue e arquivada em 2026-09-27 (endpoints `aprovar`/`rejeitar` + botões Aprovar/Rejeitar no
+`CoachDialog` de `RecentSuggestionsPanel.tsx`). O "motivo da rejeição" (Open Question abaixo) também
+já foi implementado por `add-coach-suggestion-decision-audit` (arquivada 2026-10-09): campo
+`rejectionReason` na entidade, `RejeitarSugestaoRequestDto` e modal de motivo no front.
 
 ## Revisão de produto (2026-09-23, `product-reviewer`)
 
@@ -116,8 +118,8 @@ sugestões (`SugestaoCoachGeneratorJob`) e a confiança do coach nele.
 
 ## Dependências e ordem
 
-- Depende de `add-coach-suggestion-review-actions` (botões Aprovar/Rejeitar precisam existir no
-  mesmo dialog antes do botão Editar ser adicionado ao lado).
+- Depende de `add-coach-suggestion-review-actions` — ✅ já entregue (arquivada 2026-09-27): botões
+  Aprovar/Rejeitar existem no `CoachDialog` de `RecentSuggestionsPanel.tsx`.
 - Backend mergeia antes do front (o front lê `summaryOriginal`/`editadoPeloCoach`/`editedAt`, que
   só existem depois da migration).
 
@@ -180,13 +182,11 @@ hoje.
   migration na `CHECK constraint` e no índice parcial.
 - ✅ Só `summary` é editável (decisão de escopo, alinhada ao que o job realmente popula como texto
   livre).
-- **Assunção:** `add-coach-suggestion-review-actions` já mergeou antes desta implementar. Se a
-  ordem inverter, o botão Editar nasce sozinho no dialog (funciona, mas o dialog fica incompleto
-  até a outra change mergear).
-- **Aberto (founder):** vale a pena registrar o **motivo** da rejeição (texto livre) na mesma
-  leva? Ficou fora desta change por não estar no pedido original; se o founder quiser, é a
-  próxima change natural sobre `SugestaoCoach`.
-- **Aberto (founder, do product-reviewer):** faz sentido implementar este M/Full logo depois de
-  `review-actions`, ou observar uma janela de uso real primeiro — talvez já com o motivo de
-  rejeição acima, que é Fast/S e geraria o dado que hoje falta para validar a dor? A métrica de
-  sucesso desta change só fica interpretável depois que `review-actions` estiver em uso.
+- ✅ **Confirmada:** `add-coach-suggestion-review-actions` já mergeou (arquivada 2026-09-27).
+- ✅ **Resolvido:** o **motivo** da rejeição já foi implementado por
+  `add-coach-suggestion-decision-audit` (arquivada 2026-10-09) — campo `rejectionReason` +
+  `RejeitarSugestaoRequestDto`. Esta change não precisa fazê-lo; só preservar o campo existente
+  (a migration é aditiva).
+- ✅ **Resolvido (founder, 2026-10-21):** implementar agora, sem esperar janela de uso. A métrica
+  de sucesso passa a ser interpretável assim que esta change estiver em produção junto das duas
+  anteriores.
