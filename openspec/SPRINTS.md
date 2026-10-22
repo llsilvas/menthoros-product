@@ -2,7 +2,33 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-19 (**`add-watch-brand-connection-guide` entregue e arquivada** —
+**Última atualização:** 2026-10-22 (**`fix-tsb-rest-days-materialization` entregue e arquivada** —
+backend PR **#188** (mergeado em 2026-10-21). M · Full, só backend, sem migration. Entregue:
+`recalcularDesde(atleta, inicio, fim)` atômico e serializado por advisory lock, seed decaído pela
+distância até a última métrica, `TsbDecaimentoDiarioScheduler` (cron horário `0 30 * * * *`, hoje no
+fuso do atleta, teto de 400 linhas novas por execução, gauge `tsb.atletas_defasados`) e remoção de
+`processarDiasDescanso`. QA Full com Codex adversarial: lock do atleta antes de ler treinos na
+ingestão e gauge `-1` quando não consegue medir. Base do homelab já reparada pelo job (21 linhas em 2
+atletas; relatório em `docs/ops/tsb-rest-days-repair-report.md` do backend). **Adiado:** 8.4
+(conferir log do job e gauge = 0 com a versão final em execução no homelab). Aceitos: reescrita
+retroativa longa numa transação no primeiro deploy, `findById` por atleta a cada hora, sem leader
+election. Arquivada em `changes/archive/2026-10/2026-10-22-fix-tsb-rest-days-materialization/`; spec
+promovida a `specs/athlete-training-load/`.)
+
+**Anterior:** 2026-10-20 (**`fix-tsb-rest-days-materialization` aberta** — bug em
+produção reportado pelo founder: o PMC do dashboard virou "ilhas" a partir de 30/09, com CTL 0,3 em
+19/10 (impossível com τ = 42 vindo de ~15 em 29/09). Causa confirmada no código: nenhum processo
+materializa dias de descanso em `tb_metricas_diarias` (`processarDiasDescanso` é código morto) e
+`TsbDiaPersister` usa seed estritamente D-1 com fallback zero — todo treino após um dia sem linha
+reinicia CTL/ATL do zero. O backfill de 29/09 mascarava; o pull do intervals.icu sobre cursor
+(`fix-sync-cursor-data-loss`, 30/09) expôs. Afeta tudo que lê a tabela: PMC, `FaixaTsb`, ramp
+rate, home do atleta, Diagnóstico e fila de atenção. Fix em três camadas que se cobrem: D1
+`recalcularDesde` começa em `ultimaMetrica + 1`; D2 job diário `TsbDecaimentoDiarioScheduler`
+(00:30, fuso do atleta, teto 400 dias); D3 seed pela última linha anterior decaída pela distância;
+D4 remove o código morto; D5 reparo manual em produção. Só backend, sem migration, sem mudança de
+contrato. M · Full. 0/18 tasks. Front não muda — ele já não inventa valor para dia `missing`.)
+
+**Anterior:** 2026-10-19 (**`add-watch-brand-connection-guide` entregue e arquivada** —
 backend PRs **#186** (`relogio` no perfil do coach) e **#187** (Amazfit e Samsung no
 `DispositivoMarca`, `prior()` no enum, `dispositivoMarca` obrigatório); frontend PRs **#157**
 (guia por marca, chip "No intervals.icu"), **#158** (linha "Relógio" do coach) e **#159** (oito
