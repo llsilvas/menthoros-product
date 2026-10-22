@@ -40,14 +40,16 @@ edição.
 #### Scenario: Sugestão de outro tenant
 - **GIVEN** usuário autenticado no tenant A
 - **WHEN** chama o endpoint de editar para uma sugestão do tenant B
-- **THEN** o sistema retorna 404
+- **THEN** o sistema retorna 403 (id inexistente: 404)
 
 ### Requirement: Concorrência segura, incluindo aba desatualizada
 
 O sistema SHALL detectar tanto edições/decisões concorrentes quanto uma decisão tomada sobre uma
 versão da sugestão que já mudou desde que o cliente a leu, e rejeitar a que está desatualizada em
-vez de mutar silenciosamente. Editar, aprovar e rejeitar SHALL aceitar um identificador de versão
-esperada opcional, comparado antes de mutar.
+vez de mutar silenciosamente. Editar SHALL exigir o identificador de versão esperada; aprovar e
+rejeitar SHALL aceitá-lo como opcional. A comparação SHALL ocorrer na própria instrução de
+escrita, e toda decisão ou edição SHALL incrementar a versão. Estado terminal SHALL prevalecer
+sobre versão divergente (422 antes de 409).
 
 #### Scenario: Duas edições simultâneas
 - **GIVEN** duas edições concorrentes na mesma sugestão

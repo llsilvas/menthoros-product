@@ -80,31 +80,42 @@ Mesma exceção, mesmo mapeamento HTTP (422) que `aprovar` já usa para APPROVED
 no-op vs. REJECTED→APPROVED sendo erro — aqui toda transição fora de PENDING é erro (CA3), sem
 caso de no-op (editar duas vezes em PENDING é sempre válido, D2 cobre a semântica).
 
-### D4. Concorrência: `@Version` cobre escrita simultânea, não aba desatualizada
+### D4. Concorrência: `UPDATE` condicional com `versao`, sem `@Version`
 
-**Achado do pre-mortem Codex (2026-09-23):** `@Version` sozinho não entrega o que CA8 promete.
-Hibernate detecta transações de banco sobrepostas, não leituras de navegador desatualizadas. Se
-a aba A carrega a sugestão na versão 0, a aba B edita e comita (vira versão 1), e só depois A
-chama `aprovar` (sem nunca ter recarregado), a transação de A lê a versão 1 direto do banco e
-aprova um texto que nunca viu — sem conflito, sem 409, porque não houve sobreposição de
-transações. O mesmo vale para `rejeitar`. Isso é *pior* depois desta change, porque antes dela o
-`summary` era imutável — agora aprovar/rejeitar podem decidir sobre texto que mudou depois que o
-coach abriu o dialog.
+**Achados do pre-mortem Codex (2026-09-23) e do DoR (2026-10-22):**
 
-**Correção:** o DTO de saída passa a expor `versao`; os três endpoints que agem sobre a sugestão
-(`editar`, `aprovar`, `rejeitar`) passam a aceitar um parâmetro opcional `versaoEsperada` (Long).
-Quando presente, o service compara com a `versao` atual **antes de mutar**, dentro da mesma
-transação, e responde 409 (`ConflitoVersaoException`, mapeada no `GlobalExceptionHandler`) se
-divergir — cobrindo tanto a aba desatualizada quanto a escrita sobreposta que `@Version` já
-pegava. Quando ausente (chamada antiga, ex.: `aprovar`/`rejeitar` de `add-coach-suggestion-review-
-actions` antes desta change atualizar o frontend deles), o comportamento é o de hoje — sem
-checagem, para não quebrar um caller que ainda não foi atualizado. O `@Version` da entidade
-continua existindo como rede de segurança para o caso raro de duas transações concorrentes lerem
-a mesma versão e tentarem gravar ao mesmo tempo (a checagem explícita e o `@Version` cobrem
-janelas de tempo diferentes: pré-leitura vs. commit).
+1. `@Version` não pega aba desatualizada — Hibernate só detecta transações de banco sobrepostas,
+   não uma leitura de navegador antiga. A aba A lê `versao` 0, B edita (vira 1), A aprova sem
+   recarregar e decide sobre texto que nunca viu, sem 409.
+2. `@Version` também **não protege `editar` × `aprovar`/`rejeitar`**: `decidirSePendente` é um
+   `UPDATE` JPQL em massa (`SugestaoCoachRepository.java`) que não passa pelo lock otimista do
+   Hibernate nem incrementa `versao`. Um `editar` que carregou a sugestão PENDING antes de um
+   `aprovar` comitar gravaria texto numa sugestão já APPROVED (viola CA3).
 
-Sem necessidade de lock pessimista como em `ContratoAtleta` (sem scheduler disputando a mesma
-linha; as únicas escritas concorrentes possíveis são coach × coach).
+**Decisão:** `versao` é uma coluna `bigint` **comum** (sem `@Version`), incrementada à mão em todo
+`UPDATE` que muda o conteúdo ou o status, e comparada **dentro da cláusula `WHERE`** — a checagem e
+a escrita são uma única instrução atômica, sem janela entre ler e gravar. Segue o mesmo padrão que
+`decidirSePendente` já usa para `status = PENDING`.
+
+- `editar`: `UPDATE ... SET summary = :novo, summary_original = COALESCE(summary_original,
+  summary), editado_pelo_coach = true, edited_at = :agora, versao = versao + 1 WHERE id = :id AND
+  tenant_id = :tenantId AND status = 'PENDING' AND versao = :versaoEsperada`.
+  `versaoEsperada` é **obrigatório** no `PUT` (sem ele a segunda edição sobrescreveria a primeira
+  sem 409 — CA8).
+- `decidirSePendente` ganha `versao = versao + 1` no `SET` e `AND (:versaoEsperada IS NULL OR
+  versao = :versaoEsperada)` no `WHERE`. `versaoEsperada` é **opcional** em `aprovar`/`rejeitar`
+  (query param): ausente, comportamento de hoje, para não quebrar caller antigo.
+- **0 linhas afetadas** → o service recarrega a sugestão e decide, **nesta ordem**: inexistente/
+  outro tenant → 404/403 (já tratado por `findByIdAndTenantId` + `@RequireTenant`); status ≠
+  PENDING → 422 em `editar` (em `aprovar`/`rejeitar` valem as regras atuais: no-op ou 422);
+  senão (versão divergente) → `DomainConflictException` → 409. **Estado terminal vence versão
+  divergente.**
+- `DomainConflictException` já existe e já é mapeada em 409 no `GlobalExceptionHandler`; não se
+  cria `ConflitoVersaoException`.
+
+Sem lock pessimista (sem scheduler disputando a linha; únicas escritas concorrentes são coach ×
+coach). Sem `@Version`: a entidade não precisa de lock otimista porque nenhum caminho de escrita
+passa por `save` sobre sugestão existente — o job só faz `INSERT`.
 
 ### D5. Diff de palavras sem biblioteca nova — com limite explícito
 
@@ -125,9 +136,8 @@ direta no banco), já que o `@Size` do input deveria impedir o caso normal.
 
 - **Sem histórico de edições intermediárias:** aceito, é Non-Goal explícito; auditoria fina não
   tem consumidor hoje (mesmo racional de D1 em `add-contrato-atleta-mensalidade`).
-- **`@Version` novo pode quebrar código que já faz `SugestaoCoach.builder()...build()` sem
-  `versao`:** campo com default `0` no banco e na entidade (`@Builder.Default`), não exige
-  mudança no job gerador.
+- **Campos novos na entidade e `@Builder`/`@AllArgsConstructor`:** `versao` e `editadoPeloCoach`
+  com default no banco e na entidade (`@Builder.Default`); o job gerador (`INSERT`) não muda.
 - **Diff caseiro em vez de lib testada:** superfície pequena (frases curtas), coberto por testes
   parametrizados (inserção, remoção, substituição, texto idêntico).
 
@@ -138,10 +148,26 @@ Dois achados, ambos incorporados:
 1. **`@Version` não pega aba desatualizada** (D4 original) — Hibernate só detecta transações de
    banco sobrepostas, não uma leitura de navegador antiga; `aprovar`/`rejeitar` liam a linha mais
    recente e decidiam sobre texto que o coach nunca viu, sem 409. Corrigido com `versaoEsperada`
-   opcional nos três endpoints, checado antes de mutar dentro da transação (D4 revisado).
+   comparado no `WHERE` do `UPDATE` (D4 revisado após o DoR de 2026-10-22: sem `@Version`).
 2. **`summary` sem limite de tamanho** — `@NotBlank` sozinho não impede texto longo; o LCS e a
    renderização do diff rodariam sobre entrada não limitada. Corrigido com `@Size(max = 500)` no
    DTO e teto de tokens no `wordDiff` com fallback sem destaque (D5 revisado).
+
+## Contrato de API
+
+| Endpoint | Sucesso | Erros |
+|---|---|---|
+| `PUT /api/v1/coach/sugestoes/{id}` body `{summary, versaoEsperada}` (ambos obrigatórios) | 200 `SugestaoCoachOutputDto` | 400 (summary vazio, > 500, `versaoEsperada` ausente) · 403 (sem papel ou outro tenant, via `@RequireTenant`) · 404 (inexistente) · 409 (versão divergente) · 422 (não PENDING) |
+| `POST .../{id}/aprovar?versaoEsperada=` (opcional) | 200 | + 409 (versão divergente), demais inalterados |
+| `POST .../{id}/rejeitar?versaoEsperada=` (opcional) | 200 | + 409 (versão divergente), demais inalterados |
+
+No front, os dois 409 (versão divergente e "outra decisão concorrente") usam a **mesma mensagem**:
+"esta sugestão mudou desde que você abriu — recarregue".
+
+## Rollback
+
+Migration aditiva: reverter o deploy deixa as quatro colunas inertes (sem `DROP`). Ordem de
+rollback inversa à de merge: **front primeiro** (ele depende dos campos novos), depois backend.
 
 ## Migration Plan
 

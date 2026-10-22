@@ -7,7 +7,7 @@
 
 ## Status
 
-Pronta para implementação (2026-10-21). Dependência satisfeita: `add-coach-suggestion-review-actions`
+Pronta para implementação (2026-10-21); ajustada após DoR em 2026-10-22 (D4 sem `@Version`, `versaoEsperada` obrigatório no `PUT`, contrato de API, rollback, E2E). Dependência satisfeita: `add-coach-suggestion-review-actions`
 entregue e arquivada em 2026-09-27 (endpoints `aprovar`/`rejeitar` + botões Aprovar/Rejeitar no
 `CoachDialog` de `RecentSuggestionsPanel.tsx`). O "motivo da rejeição" (Open Question abaixo) também
 já foi implementado por `add-coach-suggestion-decision-audit` (arquivada 2026-10-09): campo
@@ -30,9 +30,9 @@ edit-delta já ou espera uma janela de uso real de `review-actions` primeiro.
 
 Dois achados de `needs-attention`, ambos incorporados ao design (ver `design.md`):
 
-1. **`@Version` não detecta aba desatualizada** (só sobreposição de transações no banco) — sem
+1. **`@Version` não detecta aba desatualizada** (só sobreposição de transações no banco) **nem protege editar × decidir** (a decisão é `UPDATE` em massa) — sem
    correção, um coach podia aprovar/rejeitar um `summary` que mudou desde que abriu o dialog, sem
-   nenhum erro. Corrigido com `versaoEsperada` opcional nos três endpoints (`editar`, `aprovar`,
+   nenhum erro. Corrigido com `versaoEsperada` (obrigatório em `editar`, opcional em `aprovar`/`rejeitar`) nos três endpoints (`editar`, `aprovar`,
    `rejeitar` — os dois últimos ganham esse parâmetro nesta change, ver "What Changes").
 2. **Sem limite de tamanho em `summary`** — o diff de palavras (D5) rodaria sobre texto colado sem
    limite. Corrigido com `@Size(max = 500)` no DTO e teto de tokens no diff, com fallback sem
@@ -59,23 +59,22 @@ sugestões (`SugestaoCoachGeneratorJob`) e a confiança do coach nele.
 - **Entidade `SugestaoCoach`** ganha: `summaryOriginal` (TEXT, nullable — snapshot do `summary`
   gerado pela IA, preenchido **só na primeira edição**, nunca sobrescrito depois),
   `editadoPeloCoach` (boolean, default `false`, mesma convenção de nome de `TreinoPlanejado`),
-  `editedAt` (timestamptz, nullable), `versao` (`@Version`, bigint, controle de concorrência —
-  a entidade não tinha lock otimista até hoje).
+  `editedAt` (timestamptz, nullable), `versao` (bigint, default 0, **coluna comum sem `@Version`**
+  — incrementada nos `UPDATE` condicionais e comparada no `WHERE`, ver design.md D4).
 - **`tipo`, `confidence` e `reasoningJson` continuam imutáveis** — só `summary` é editável. O
   job gerador (`SugestaoCoachGeneratorJob`) nunca escreve de novo numa sugestão existente
   (índice único por atleta+tipo+PENDING garante isso), então não há corrida entre job e edição.
 - **Endpoint `PUT /api/v1/coach/sugestoes/{id}`**, mesma autorização do controller
-  (`hasAnyRole('TECNICO','ADMIN')`) e `@RequireTenant`: body `{ summary: string, versaoEsperada?:
-  long }`. Regra: só sugestões **PENDING** podem ser editadas (`DomainRuleViolationException` →
-  422 para APPROVED/REJECTED, mesmo padrão de `aprovar`/`rejeitar` sobre estado terminal). Cada
-  chamada seta `summary` = novo valor; se `summaryOriginal` ainda é `null`, copia o `summary`
-  **anterior** para lá antes de sobrescrever (assim o delta é sempre "o que a IA gerou" vs. "o
-  texto atual", mesmo com múltiplas edições); `editadoPeloCoach = true`; `editedAt = agora`.
-- **`aprovar`/`rejeitar` (de `add-coach-suggestion-review-actions`) ganham um parâmetro opcional
-  `versaoEsperada`** (query param) — achado do pre-mortem: sem isso, um coach pode aprovar/
-  rejeitar um texto editado por outro depois que abriu o dialog, sem aviso (ver design.md D4).
-  Quando presente, o service compara com a `versao` atual antes de mutar e responde 409 se
-  divergir; quando ausente, comportamento inalterado.
+  (`hasAnyRole('TECNICO','ADMIN')`) e `@RequireTenant`: body `{ summary: string, versaoEsperada:
+  long }`, **ambos obrigatórios**. Implementado como `UPDATE` condicional (`status = PENDING AND
+  versao = :versaoEsperada`): 0 linhas → 422 se não PENDING (vence), senão 409. Na primeira
+  edição `summary_original` recebe o `summary` anterior (`COALESCE`), nunca é sobrescrito depois;
+  `editadoPeloCoach = true`; `editedAt = agora`; `versao + 1`. Contrato completo de códigos em
+  design.md.
+- **`aprovar`/`rejeitar` (de `add-coach-suggestion-review-actions`) ganham `versaoEsperada`
+  opcional** (query param) — achado do pre-mortem. `decidirSePendente` passa a incrementar
+  `versao` e a comparar `versaoEsperada` no `WHERE`; 409 se divergir; ausente, comportamento
+  inalterado (design.md D4).
 - **Migration** adiciona quatro colunas em `tb_sugestao_coach`: `summary_original`,
   `editado_pelo_coach`, `edited_at`, `versao`. Sem mudança no `CHECK chk_sugestao_status` nem no
   índice parcial `uk_sugestao_pending` — o enum de status não muda.
@@ -139,26 +138,35 @@ sugestões (`SugestaoCoachGeneratorJob`) e a confiança do coach nele.
 5. **Given** sugestão editada, **when** o coach abre o dialog, **then** vê original e atual, com
    as palavras diferentes destacadas.
 6. **Given** técnico de outro tenant, **when** chama `PUT .../sugestoes/{id}` de sugestão de
-   outro tenant, **then** 404 (mesmo padrão de `@RequireTenant` dos demais endpoints do
-   controller).
+   outro tenant, **then** 403 (mesmo comportamento de `@RequireTenant` nos demais endpoints do
+   controller); id inexistente → 404.
 7. **Given** `summary` vazio ou só espaços no body do `PUT`, **then** 400 (`@NotBlank`).
-8. **Given** duas edições concorrentes na mesma sugestão (dois coaches, mesma tela aberta em duas
-   abas), **when** a segunda chega depois da primeira já ter commitado, **then** falha com 409 em
-   vez de perder a primeira edição silenciosamente.
+8. **Given** dois coaches com a mesma tela aberta (mesma `versao` lida), **when** o segundo `PUT`
+   chega depois de o primeiro ter comitado, **then** 409 em vez de perder a primeira edição
+   silenciosamente.
 9. **Given** o coach A abre o dialog (lê `versao` = 0), o coach B edita o `summary` e comita
    (vira `versao` = 1), **when** o coach A clica Aprovar sem recarregar (envia
    `versaoEsperada = 0`), **then** o sistema responde 409 em vez de aprovar o texto que A nunca
    viu — mesmo sem sobreposição de transação de banco (cenário que `@Version` sozinho não cobre).
-10. **Given** `summary` com mais de 500 caracteres no body do `PUT`, **then** 400.
+10. **Given** `summary` com mais de 500 caracteres no body do `PUT`, **then** 400 (500 passa, 501
+    falha).
+11. **Given** sugestão já APPROVED/REJECTED **e** `versaoEsperada` desatualizada, **when** `PUT`,
+    **then** 422 (estado terminal vence versão divergente).
+12. **Given** o coach A carregou a sugestão PENDING e o coach B a aprova, **when** A envia o `PUT`
+    em seguida, **then** 422 e `summary` não muda (a decisão incrementa `versao`, nada é gravado
+    numa sugestão decidida).
+13. **Given** `PUT` sem `versaoEsperada`, **then** 400.
 
 ## Métrica de sucesso
 
-Rotina do treinador: **sugestões aprovadas com o texto que o coach realmente diria**, medido por
-`editadoPeloCoach = true` em % das sugestões APPROVED (não é uma meta de "mais alto melhor" — é
-sinal de uso; medir se o recurso é usado). Segunda métrica, mais direta: % de sugestões PENDING
-que hoje seriam rejeitadas só por redação e passam a ser editadas+aprovadas — medição qualitativa
-com as assessorias fundadoras 30 dias após o merge, já que o motivo da rejeição não é registrado
-hoje.
+Rotina do treinador, medida por query SQL em `tb_sugestao_coach` (dono: CPO, rodada manual no
+fechamento de sprint — sem painel novo):
+
+1. **Uso:** `editado_pelo_coach = true` em % das sugestões `APPROVED` na janela de 30 dias após o
+   merge em produção. Meta de piso: **≥ 10%** (abaixo disso o recurso não está sendo usado).
+2. **Valor:** nas assessorias fundadoras, ao menos 1 coach relata, na janela de 30 dias, que
+   editou em vez de rejeitar por redação (qualitativo; o `rejectionReason` de
+   `decision-audit` serve de linha de base).
 
 ## Riscos e mitigações
 
