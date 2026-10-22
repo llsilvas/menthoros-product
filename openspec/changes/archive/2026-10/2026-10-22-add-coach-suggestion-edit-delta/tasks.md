@@ -83,6 +83,11 @@ Pré-requisito: ✅ `add-coach-suggestion-review-actions` mergeada (arquivada 20
 ## 5. Integração e encerramento
 
 - [x] 5.1 Gate backend completo (`./mvnw clean verify`), gate front, `/qa` nos dois repos.
-- [ ] 5.2 Validação manual em `develop` (Railway): editar uma sugestão PENDING real duas vezes,
+- [ ] 5.2 **ADIADA** — Validação manual em `develop` (Railway): editar uma sugestão PENDING real duas vezes,
       confirmar que `summaryOriginal` não muda na segunda edição; abrir em duas abas e confirmar
       409 na segunda edição concorrente.
+      *Motivo do adiamento:* exige login e duas abas no ambiente real, o que não foi possível na
+      sessão de arquivamento. O comportamento está coberto por ITs no backend (editar x editar e
+      editar x aprovar em paralelo, `SugestaoCoachEditDeltaIT`) e por 3 cenários E2E no front
+      (`tests/e2e/coach/suggestion-edit-delta.spec.ts`, backend simulado). Falta apenas o
+      click-through em `develop`; se falhar, abrir change `fix-` nova.
