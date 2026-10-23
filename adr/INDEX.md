@@ -27,6 +27,7 @@ This index tracks all Architecture Decision Records (ADRs) for Menthoros, their 
 | [ADR-0010-expansao-agentes-ai-cron-otimizacao.md](./ADR-0010-expansao-agentes-ai-cron-otimizacao.md) | Expansao do time de agentes AI autonomos e otimizacao de custo | Aceito | 2026-07-29 | - | - |
 | [ADR-0011-composicao-deterministica-de-sessoes-por-fase.md](./ADR-0011-composicao-deterministica-de-sessoes-por-fase.md) | Composicao deterministica de sessoes por fase do planner | Aceito | 2026-09-09 | - | - |
 | [ADR-0012-modelo-de-carga-cold-start-e-recuperacao.md](./ADR-0012-modelo-de-carga-cold-start-e-recuperacao.md) | Modelo de carga do cold-start e reducao de RECOVERY no planner | Aceito | 2026-09-12 | - | - |
+| [ADR-0013-garmin-direto-como-canal-dos-atletas-garmin.md](./ADR-0013-garmin-direto-como-canal-dos-atletas-garmin.md) | Garmin Connect direto como canal dos atletas Garmin, intervals.icu para os demais | Aceito | 2026-10-23 | - | - |
 
 ## Update Checklist
 
