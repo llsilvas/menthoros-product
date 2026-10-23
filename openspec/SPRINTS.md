@@ -1405,6 +1405,30 @@ conecta, evitando duplicação cross-fonte.
 
 ---
 
+## Trilha Garmin direto — canal dos atletas Garmin (ADR-0013)
+
+Seção aberta em **2026-10-23**, após grilling com os documentos do Garmin Connect Developer
+Program v2.0 (15/10/2026). Decisão do founder (ADR-0013): o Garmin direto (Starter Access) vira o
+canal **obrigatório** do atleta Garmin; o intervals.icu **permanece** como canal das demais marcas.
+Um canal por atleta. A trilha intervals.icu acima não é descomissionada — `intervals-icu-webhook-
+ingestion` continua valendo para quem não é Garmin.
+
+**Por que direto:** sem conta intermediária para o atleta Garmin; FC em bpm absoluto no relógio
+(o intervals.icu só aceita `%lthr` — bug de 2026-10-01); FIT original pelo pipeline que já existe.
+Seam nova única: `GarminClient`. Estimativa ~20 dias úteis após revisão ponytail.
+
+| Ordem | Change | Tam. | Tasks | Objetivo | Dependência |
+|:---:|---|:---:|:---:|---|---|
+| 1 | `garmin-connection` | **L · Full** | 0/24 — **ready-for-agent 2026-10-23** | OAuth2 PKCE, `userId`, permissões, refresh (24 h / 90 d rotativo), revogação pelo app e pelo Garmin (webhook), exclusividade de canal, `CanalIntegracao.GARMIN`, card de conexão generalizado. Zero migration. | ADR-0013; client ID no Developer Portal |
+| 2 | `garmin-training-push` | **M · Full** | 0/10 — **ready-for-agent 2026-10-23** | `GarminTrainingAdapter` (`WorkoutChannel`) + bean composto por plataforma; bpm absoluto e pace em m/s; `externalId = workoutId`; 412/429/401. Sem throttle, sem migration. | (1) |
+| 3 | `garmin-activity-ingestion` | **M · Full** | 0/16 — **ready-for-agent 2026-10-23** | Webhook `activityFiles` → `tb_garmin_ping` → download único em 24 h → `FitTreinoPersister` existente; atribuição "Garmin [modelo]" em toda tela e export (licença 6.4); remove a flag `garminHabilitado`. | (1); (2) independente |
+
+> **Depois das três em produção:** change XS para o aviso e prazo de 30 dias dos atletas Garmin
+> que ainda estão no intervals.icu (número ainda não levantado — Q11 do grilling).
+> `add-watch-brand-connection-guide` mantém a premissa para as demais marcas.
+
+---
+
 ## Trilha atleta — revisão de design da Home e do Plano
 
 Seção aberta em **2026-08-26**, a partir de uma revisão de design feita sobre o código do shell do
