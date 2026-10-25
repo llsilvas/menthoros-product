@@ -133,19 +133,23 @@ canal obrigatório do atleta Garmin, e o intervals.icu permanece para as demais 
 - **CA9 — Webhook sem segredo.** When o webhook é chamado com segmento errado, Then 404, sem log
   do corpo; em qualquer chamada ao webhook, o segmento secreto aparece mascarado no log de request
   e no MDC.
-- **CA10 — Onboarding.** Given rascunho com `dispositivoMarca = GARMIN`, When salvo com
-  `canalIntegracao = INTERVALS_ICU` ou `MANUAL`, Then rejeitado com erro de validação no campo
-  `canalIntegracao`; com `GARMIN`, aceito. Marca não-Garmin com `canalIntegracao = GARMIN` também é
-  rejeitada.
+- **CA10 — Onboarding.** Given `garmin.habilitado=true` e rascunho com `dispositivoMarca = GARMIN`, When salvo com
+  `canalIntegracao = INTERVALS_ICU` ou `MANUAL`, Then rejeitado com 422 (`DomainRuleViolationException`,
+  mensagem citando o canal e a marca); com `GARMIN`, aceito. Com a flag false, marca GARMIN salva
+  como hoje. Marca não-Garmin com `canalIntegracao = GARMIN` é rejeitada sempre.
 - **CA11 — Guia.** Given atleta Garmin e `VITE_GARMIN_HABILITADO=true`, When abre o perfil, Then o
   card mostra "Conectar Garmin" acima do guia da marca, e o guia GARMIN descreve o canal direto, sem
   mencionar intervals.icu. Com a flag false, o card continua o de hoje (intervals.icu).
 - **CA12 — Treinador.** Given atleta Garmin conectado, When o treinador abre o perfil do atleta,
   Then o perfil agregado (`AtletaPerfilCoachOutputDto`) traz canal `GARMIN`, conexão ativa e
-  permissões, e a linha "Relógio" mostra Garmin com canal direto e estado da conexão.
-- **CA13 — Flag backend.** Given `garmin.habilitado=false`, When `authorize-url` ou o callback é
-  chamado, Then 503 "canal não configurado" e nada é gravado; webhook e status continuam
-  funcionando (revogação pelo Garmin não depende da flag).
+  permissões, e a linha "Relógio" mostra Garmin com canal direto e estado da conexão. Given
+  conexão revogada, Then o perfil traz `ativo=false` e `lastSyncError`, distinto de "nunca
+  conectou" (`conexaoCanal = null`).
+- **CA13 — Flag backend.** Given `garmin.habilitado=false` ou credenciais ausentes, When
+  `authorize-url` é chamado, Then 503 "canal não configurado" (`GarminCanalIndisponivelException`
+  + handler); When o callback é chamado, Then redireciona ao perfil com `garmin=error`; nada é
+  gravado nos dois casos; webhook e status continuam funcionando (revogação pelo Garmin não depende
+  da flag).
 
 ## Métrica de sucesso
 

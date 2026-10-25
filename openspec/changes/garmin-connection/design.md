@@ -99,9 +99,11 @@ demanda — atleta sem plano por 90 dias perderia a conexão sem aviso. Alternat
 `GarminConnectionService.ativar(atletaId, tenantId, …)`: reativa ou cria a linha GARMIN (UNIQUE
 atleta+plataforma — a reconexão reaproveita a linha com `ativo=false`), chama
 `integracaoExternaRepository` para `ativo=false` na linha INTERVALS_ICU e
-`pausarStravaAutomaticamente`. Antes de gravar, `findOtherActiveByExternalAthleteId` (já existe
-para o intervals.icu) rejeita `userId` já ativo em outro atleta — mesmo de outro tenant, porque o
-client ID é um só e o webhook roteia por `userId` sem tenant. O lado intervals.icu ganha o espelho:
+`pausarStravaAutomaticamente`. Antes de gravar, query nova **global**
+`findActiveByExternalAthleteIdAndPlataforma(userId, GARMIN)` (sem tenant — a existente
+`findOtherActiveByExternalAthleteIdAndPlataformaAndTenantId` filtra por tenant e não serve) rejeita
+`userId` já ativo em outro atleta, de qualquer tenant, porque o client ID é um só e o webhook
+roteia por `userId` sem tenant. A mesma query global atende o webhook (D6). O lado intervals.icu ganha o espelho:
 ao concluir o OAuth do intervals.icu, revoga a linha GARMIN (chamando `removerRegistro`
 best-effort). `StravaOAuthServiceImpl` passa a pausar se há INTERVALS_ICU **ou** GARMIN ativo (a
 query `findActiveByAtletaIdAndPlataformaInAndTenantId` de D5). São as duas únicas edições em código
@@ -125,7 +127,8 @@ no caminho e não em header como no Asaas; `StructuredLoggingFilter` mascara o �
 `/api/v1/garmin/webhook/*` antes de gravar a URI no MDC e no log — sem isso o segredo iria para o
 Railway a cada ping. Corpo é `Map<String, List<JsonNode>>` roteado pela chave (`deregistrations`,
 `userPermissionsChange`; chaves desconhecidas ignoradas com 200 — `activityFiles` será tratada na
-change de ingestão). Nesta change o processamento é inline (dois `UPDATE` por `userId`, bem abaixo
+change de ingestão). A linha é localizada pela query global por `userId` de D4 (o ping não tem
+tenant). Nesta change o processamento é inline (dois `UPDATE` por `userId`, bem abaixo
 dos 30 s do Garmin); a spec exige só "responder em menos de 30 s". A change de ingestão introduz
 a tabela de pings e o 200-antes-de-processar para `activityFiles`. Alternativa rejeitada: IP
 allowlist — o Garmin não a documenta.
@@ -138,9 +141,12 @@ allowlist — o Garmin não a documenta.
 DTOs novos: `GarminConnectionStatusDto` (ativo, userId mascarado, permissões
 `workoutImport`/`activityExport`, `ultimaSincronizacao`, `lastSyncError`) e
 `GarminAuthorizationUrlDto`. Para o treinador (CA12), `AtletaPerfilCoachOutputDto` ganha
-`conexaoCanal { plataforma, ativo, workoutImport, activityExport, lastSyncError }`, preenchido em
-`CoachAthleteProfileServiceImpl` pela `conexaoDeCanal` de D5 — sem endpoint novo para TREINADOR;
-`melhoresEsforcosIntegracaoConectada` continua derivado só do intervals.icu.
+`conexaoCanal { plataforma, ativo, workoutImport, activityExport, lastSyncError }` ou `null` se o
+atleta nunca conectou, preenchido em `CoachAthleteProfileServiceImpl` pela linha de canal mais
+recente **ativa ou não** (`findFirstByAtletaIdAndPlataformaInAndTenantIdOrderByAtualizadoEmDesc`
+— a `conexaoDeCanal` de D5 só devolve ativas e não distingue "revogada" de "nunca conectou") —
+sem endpoint novo para TREINADOR; `melhoresEsforcosIntegracaoConectada` continua derivado só do
+intervals.icu.
 
 ### D8: Front generalizado por plataforma, não duplicado, atrás de flag
 `IntervalsIcuConnectionCard` → `ConnectionCard` com prop `plataforma: 'GARMIN' | 'INTERVALS_ICU'`
@@ -149,18 +155,25 @@ ganham o parâmetro (param do hash `garmin` ou `intervals-icu`; `denied` é o te
 Garmin). O perfil escolhe a plataforma pela `dispositivoMarca` do onboarding (GARMIN → Garmin;
 resto → intervals.icu) **somente** quando `env.garminHabilitado` (`VITE_GARMIN_HABILITADO`, lida
 em `config/env.ts` como as demais `VITE_*`, default false) é true; com false, tudo segue como hoje,
-inclusive a opção de onboarding. `watchCompatibility.ts`: entrada GARMIN reescrita (passos do
-canal direto, `verificadoEm = '2026-10'`, sem `docOficialUrl` do intervals.icu) com posicionamento
-"Em validação" e critério de promoção "gate com atleta real do canal direto, em
-`garmin-activity-ingestion`" — o "Suportado" atual cita um gate feito via intervals.icu, que não
-vale para o canal direto.
+inclusive a opção de onboarding. `watchCompatibility.ts`: entrada GARMIN nova para o canal direto
+(passos de autorizar na conta Garmin, `verificadoEm = '2026-10'`, sem `docOficialUrl` do
+intervals.icu) com posicionamento "Em validação" e critério de promoção "gate com atleta real do
+canal direto, em `garmin-activity-ingestion`" — o "Suportado" atual cita um gate feito via
+intervals.icu, que não vale para o canal direto. A entrada atual (via intervals.icu) fica como
+`GARMIN_VIA_INTERVALS` e a matriz escolhe qual expor por `env.garminHabilitado`; com a flag
+desligada o guia continua o de hoje, coerente com o botão "Conectar com intervals.icu". A entrada
+antiga sai em `garmin-activity-ingestion` junto com a flag.
 
-### D9: Validação de canal × marca no backend, só GARMIN
-Em `OnboardingServiceImpl` ao salvar o rascunho/perfil: `dispositivoMarca = GARMIN ⇒
-canalIntegracao = GARMIN`; `dispositivoMarca ≠ GARMIN ⇒ canalIntegracao ≠ GARMIN`. Violação →
-`DomainRuleViolationException` com campo `canalIntegracao` (mesmo handler dos outros erros de
-domínio do onboarding; não é Bean Validation porque depende de dois campos). Sem backfill: vale
-para salvamentos a partir do deploy. Front esconde a opção inválida, backend rejeita.
+### D9: Validação de canal × marca no backend, só GARMIN, atrás da flag
+Em `OnboardingServiceImpl` ao salvar o rascunho/perfil, **somente com `garmin.habilitado=true`**:
+`dispositivoMarca = GARMIN ⇒ canalIntegracao = GARMIN`; `dispositivoMarca ≠ GARMIN ⇒
+canalIntegracao ≠ GARMIN`. Com a flag desligada, nenhuma regra nova (o front nem oferece
+`GARMIN`, e exigir um canal que a UI não mostra travaria o onboarding do atleta Garmin). A regra
+`≠ GARMIN ⇒ canal ≠ GARMIN` vale sempre, porque não depende da UI. Violação →
+`DomainRuleViolationException` (422 pelo handler existente, só `message`; a mensagem cita o canal e
+a marca — não é Bean Validation porque depende de dois campos, e o handler não carrega campo). Sem
+backfill: vale para salvamentos a partir do deploy. Front esconde a opção inválida, então o 422 é
+rede de segurança, não UX; backend rejeita.
 
 ### D10: Consentimento no card
 Texto fixo no card antes de "Conectar": transferência de treino ao Garmin (link para
@@ -171,10 +184,14 @@ lados onde ela é versionada (linhas 19–23 do arquivo). Sem tabela de consenti
 autorizar no Garmin é o registro (o Garmin guarda o consent).
 
 ### D11: Flag `garmin.habilitado` no backend
-`GarminProperties.habilitado` (`GARMIN_HABILITADO`, default false). False → `authorize-url` e
-callback respondem 503 "canal não configurado" sem gravar nada; status, delete e webhook seguem
-funcionando (revogação pelo Garmin e desconexão não podem depender da flag). `configurado()`
-(client ID/secret presentes) é condição separada, também 503. Removida em
+`GarminProperties.habilitado` (`GARMIN_HABILITADO`, default false). False, ou `configurado()`
+false (client ID/secret ausentes) → o service lança `GarminCanalIndisponivelException`; o
+`GlobalExceptionHandler` ganha um `@ExceptionHandler` que a mapeia para 503 "canal não
+configurado" (mesmo molde de `ConsentResolutionUnavailableException`; `DomainConflictException`
+seria 409, errado). O callback, que é um redirect de navegador sem JWT, não devolve 503: captura a
+exceção e redireciona ao perfil com `garmin=error`. Nada é gravado em nenhum dos casos. Status,
+delete e webhook seguem funcionando (revogação pelo Garmin e desconexão não podem depender da
+flag). Removida em
 `garmin-activity-ingestion` junto com a `VITE_`.
 
 ### D12: Métricas

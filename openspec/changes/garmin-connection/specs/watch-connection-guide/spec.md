@@ -71,7 +71,8 @@ os guias fechados e orientar o atleta a informar o relógio no onboarding.
 
 #### Scenario: Atleta Garmin com canal desabilitado
 - **WHEN** um atleta com marca GARMIN abre o perfil com o canal Garmin desabilitado no front
-- **THEN** o card é o de hoje: "Conectar com intervals.icu" e o guia GARMIN atual
+- **THEN** o card é o de hoje: "Conectar com intervals.icu" e o guia GARMIN via intervals.icu
+  (a matriz mantém as duas entradas e escolhe pela flag)
 
 ## ADDED Requirements
 
@@ -88,15 +89,25 @@ revogada, permissões concedidas), lidos do perfil agregado do atleta — sem ch
 - **WHEN** o treinador abre o perfil de um atleta sem nenhuma conexão
 - **THEN** a linha "Relógio" mostra a marca e "sem canal conectado"
 
+#### Scenario: Conexão revogada
+- **WHEN** o treinador abre o perfil de um atleta cuja conexão Garmin foi revogada
+- **THEN** a linha "Relógio" mostra "conexão revogada" com o motivo, e não "sem canal conectado"
+
 ### Requirement: Canal obrigatório pela marca
-O onboarding SHALL aceitar `canalIntegracao = GARMIN` e SHALL exigir exatamente esse canal quando
-`dispositivoMarca = GARMIN` (nem intervals.icu nem manual); qualquer outra marca SHALL NOT poder
-escolher `GARMIN`. A regra vale para salvamentos a partir da entrega, sem alterar rascunhos
-existentes.
+O onboarding SHALL aceitar `canalIntegracao = GARMIN`. Com o canal Garmin habilitado na
+configuração do backend, SHALL exigir exatamente esse canal quando `dispositivoMarca = GARMIN` (nem
+intervals.icu nem manual); com o canal desabilitado, a marca GARMIN SHALL salvar como hoje.
+Qualquer outra marca SHALL NOT poder escolher `GARMIN`, independentemente da flag. A regra vale
+para salvamentos a partir da entrega, sem alterar rascunhos existentes.
+
+#### Scenario: Canal desabilitado
+- **WHEN** o canal Garmin está desabilitado e um rascunho é salvo com `dispositivoMarca = GARMIN` e
+  `canalIntegracao = INTERVALS_ICU`
+- **THEN** o salvamento é aceito
 
 #### Scenario: Garmin com intervals.icu
 - **WHEN** um rascunho é salvo com `dispositivoMarca = GARMIN` e `canalIntegracao = INTERVALS_ICU`
-- **THEN** o salvamento é rejeitado com erro de validação no campo do canal
+- **THEN** o salvamento é rejeitado com erro de regra de domínio cuja mensagem cita o canal
 
 #### Scenario: Garmin com canal Garmin
 - **WHEN** um rascunho é salvo com `dispositivoMarca = GARMIN` e `canalIntegracao = GARMIN`
@@ -104,8 +115,8 @@ existentes.
 
 #### Scenario: COROS com canal Garmin
 - **WHEN** um rascunho é salvo com `dispositivoMarca = COROS` e `canalIntegracao = GARMIN`
-- **THEN** o salvamento é rejeitado com erro de validação no campo do canal
+- **THEN** o salvamento é rejeitado com erro de regra de domínio cuja mensagem cita o canal
 
 #### Scenario: Garmin com canal manual
 - **WHEN** um rascunho é salvo com `dispositivoMarca = GARMIN` e `canalIntegracao = MANUAL`
-- **THEN** o salvamento é rejeitado com erro de validação no campo do canal
+- **THEN** o salvamento é rejeitado com erro de regra de domínio cuja mensagem cita o canal

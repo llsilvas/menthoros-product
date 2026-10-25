@@ -50,8 +50,9 @@ test`. Pré-requisito: `garmin-connection` mergeada (`garmin-training-push` é i
 - [ ] 4.3 `MelhoresEsforcosPanel`/`EffortsBlock`: aviso de indisponibilidade quando o canal é
   Garmin, sem requisição; teste (CA9).
 - [ ] 4.4 Remover as flags `VITE_GARMIN_HABILITADO` (front) e `garmin.habilitado` (backend) e seus
-  testes; promover a entrada GARMIN de `watchCompatibility.ts` a "Suportado" após o gate com atleta
-  real pelo canal direto (5.2); `npm run lint && npm run build && npm test` verdes (CA10).
+  testes; apagar a entrada `GARMIN_VIA_INTERVALS` de `watchCompatibility.ts` e promover a entrada
+  GARMIN a "Suportado" após o gate com atleta real pelo canal direto (5.2); validação canal × marca
+  do onboarding passa a valer sem flag; `npm run lint && npm run build && npm test` verdes (CA10).
 
 ## 5. Integração
 

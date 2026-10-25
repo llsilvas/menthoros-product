@@ -30,9 +30,9 @@ PKCE SHALL ser descartado após 10 minutos ou após o primeiro uso.
   não aparece em log nem em resposta
 
 #### Scenario: Canal desligado por configuração
-- **WHEN** o canal Garmin está desabilitado ou sem credenciais configuradas e um atleta pede a URL
-  ou o Garmin chama o callback
-- **THEN** a resposta é "canal não configurado" (503) e nada é gravado
+- **WHEN** o canal Garmin está desabilitado ou sem credenciais configuradas
+- **THEN** o pedido de URL responde "canal não configurado" (503), o callback devolve o atleta ao
+  perfil com erro, e nada é gravado
 
 #### Scenario: Atleta recusa no Garmin
 - **WHEN** o Garmin redireciona sem código (consentimento negado)
