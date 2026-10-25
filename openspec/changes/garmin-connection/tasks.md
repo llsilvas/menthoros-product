@@ -1,100 +1,174 @@
 # Tasks — garmin-connection
 
 Backend valida com `./mvnw clean verify` (os `*IT` só rodam no `verify`); frontend com
-`npm run lint && npm run build && npm test`.
+`npm run lint && npm run build && npm test`. Testes HTTP de saída usam WireMock, como
+`IntervalsIcuClientImplTest` (`MockRestServiceServer` não atende `WebClient`).
 
-## 1. Configuração e cliente HTTP
+Ordem: seção 1 → 2 → 3 → 4 (backend, cada uma depende da anterior) → 5 (front, depende do
+cliente OpenAPI regenerado em 4.4) → 6. Revisado no DoR de 2026-10-25.
 
-- [ ] 1.1 `GarminProperties` (`garmin.client-id`, `client-secret`, `redirect-uri`,
+## 1. Configuração, migration e cliente HTTP
+
+- [ ] 1.1 Migration `V104__Add_refresh_token_expira_em_to_tb_integracao_externa.sql`: coluna
+  `refresh_token_expira_em TIMESTAMPTZ NULL`; campo `refreshTokenExpiraEm` em `IntegracaoExterna`.
+  verify: `./mvnw clean test` sobe com a migration; `@DataJpaTest` grava e lê o campo.
+- [ ] 1.2 `GarminProperties` (`garmin.habilitado`, `client-id`, `client-secret`, `redirect-uri`,
   `authorization-uri`, `token-uri`, `api-base-url`, `webhook-secret`) lidas de `GARMIN_*` em
-  `application.yml`; verificar que sem vars o contexto sobe e `GarminProperties.configurado()` é
-  false (`./mvnw clean test`).
-- [ ] 1.2 `GarminWebClientConfig` com bean `garminWebClient`, connect 5 s / read 10 s em código;
-  teste de timeout no molde de `StravaTimeoutTest`.
-- [ ] 1.3 `GarminClient` (interface) + `GarminClientImpl`: `trocarCode(code, verifier)`,
+  `application.yml`; `habilitado()` e `configurado()` separados (D11).
+  verify: sem vars o contexto sobe, `habilitado()` e `configurado()` são false.
+- [ ] 1.3 `GarminWebClientConfig` com bean `garminWebClient`, connect 5 s / read 10 s em código.
+  verify: teste de timeout no molde de `StravaTimeoutTest` (WireMock com delay > 10 s → erro).
+- [ ] 1.4 `GarminClient` (interface) + `GarminClientImpl`: `trocarCode(code, verifier)`,
   `renovar(refreshToken)`, `userId(token)`, `permissoes(token)`, `removerRegistro(token)`;
-  `GarminApiException(status, mensagem)` sem token; teste com `MockRestServiceServer` usando os
-  payloads do PDF OAuth2 PKCE (token com `expires_in`, `refresh_token`; `{"userId": …}`;
-  `{"permissions": […]}`).
+  `GarminApiException(status, mensagem)` sem token no texto; `TokenResponse` com `expires_in` e
+  `refresh_token_expires_in` (ausente → 90 dias).
+  verify: WireMock com os payloads do PDF OAuth2 PKCE; 4xx/5xx viram `GarminApiException`; a
+  mensagem da exceção não contém o token.
+- [ ] 1.5 `CacheConfig`: cache `garmin-pkce` registrado com `registerCustomCache` e
+  `expireAfterWrite(10 min)` próprio; demais caches inalterados.
+  verify: teste com `Ticker` falso prova que a entrada some após 10 min e que `atletas` segue com
+  o `defaultTtl`.
 
-## 2. OAuth PKCE e conexão
+## 2. OAuth PKCE, exclusividade e refresh
 
-- [ ] 2.1 `GarminOAuthServiceImpl.gerarAuthorizeUrl(atletaId)`: verifier aleatório 64 chars,
-  `code_challenge = base64url(sha256(verifier))`, `state = IntervalsIcuStateSigner.assinar`,
-  verifier em cache Caffeine `garmin-pkce` (TTL 10 min, chave `state`); teste verifica URL,
-  método S256 e que o cache tem o verifier (CA1).
-- [ ] 2.2 `GarminOAuthServiceImpl.concluir(state, code)`: valida state, retira o verifier do cache
-  (uma vez), troca o code, busca `userId` e permissões, grava `IntegracaoExterna(GARMIN)` com
-  `tokenExpiraEm = now + expires_in − 600 s` e `scopes` = permissões; teste cobre sucesso, state
-  inválido, verifier ausente, code ausente (recusa) — nada gravado nos três últimos (CA2, CA3).
-- [ ] 2.3 Exclusividade em `GarminConnectionServiceImpl.ativar`: desativa INTERVALS_ICU, chama
+- [ ] 2.1 `GarminStateSigner` (D2): HMAC-SHA256 com `garmin.client-secret`, payload
+  `garmin|atletaId|epoch|nonce`, TTL 10 min, skew 30 s; `assinar(atletaId)` / `validar(state)`.
+  verify: teste rejeita state do `IntervalsIcuStateSigner`, state sem prefixo, expirado e com
+  MAC alterado; dois `assinar` no mesmo segundo diferem (CA3).
+- [ ] 2.2 `GarminOAuthServiceImpl.gerarAuthorizeUrl(atletaId)`: 503 se `!habilitado()` ou
+  `!configurado()`; verifier aleatório 64 chars, `code_challenge = base64url(sha256(verifier))`,
+  verifier em `garmin-pkce` com chave `state`.
+  verify: teste confere URL (`oauth2Confirm`, `code_challenge_method=S256`, `client_id`, `state`)
+  e que o cache tem o verifier; com flag false, `DomainConflictException`/503 e cache vazio (CA1,
+  CA13).
+- [ ] 2.3 `GarminOAuthServiceImpl.concluir(state, code)`: valida state, consome o verifier com
+  `asMap().remove`, troca o code, busca `userId` e permissões, rejeita `userId` ativo em outro
+  atleta (`findOtherActiveByExternalAthleteId…`), reativa ou cria `IntegracaoExterna(GARMIN)` com
+  `tokenExpiraEm = now + expires_in`, `refreshTokenExpiraEm = now + refresh_token_expires_in`,
+  `scopes` = permissões; `code` ausente → resultado `denied`; contador `garmin.oauth.callback`.
+  verify: testes de sucesso (linha nova e linha reativada com mesmo `userId`), state inválido,
+  verifier ausente, segundo uso do mesmo state, `userId` de outro atleta, code ausente — nada
+  gravado nos cinco últimos; contador incrementa com a tag certa (CA2, CA3).
+- [ ] 2.4 Exclusividade (D4): `GarminConnectionServiceImpl.ativar` desativa INTERVALS_ICU e chama
   `pausarStravaAutomaticamente`; espelho em `IntervalsIcuOAuthServiceImpl` (revoga GARMIN com
-  `removerRegistro` best-effort); testes dos dois lados (CA4).
-- [ ] 2.4 `GarminOAuthServiceImpl.tokenValido(conexao)`: renova quando faltam < 600 s, grava
-  access + refresh novo + expiração na mesma transação; 400/401 no refresh → `ativo=false`,
-  tokens nulos, `lastSyncError`; teste com `InOrder` prova que nada do par antigo persiste após
-  falha (CA5).
-- [ ] 2.5 `@Scheduled` diário em `GarminOAuthServiceImpl` renovando conexões ativas com
-  `atualizadoEm` > 60 dias; teste unitário do filtro e da chamada (CA5).
-- [ ] 2.6 `GarminConnectionServiceImpl.desconectar`: `removerRegistro` best-effort (falha logada
-  sem token), `ativo=false`, tokens nulos; `status` devolve `GarminConnectionStatusDto` com
-  `workoutImport`/`activityExport` derivados de `scopes`; `conexaoDeCanal` usa a query nova
-  `findActiveByAtletaIdAndPlataformaInAndTenantId`; testes (CA6, CA8).
+  `removerRegistro` best-effort); `StravaOAuthServiceImpl` pausa se há INTERVALS_ICU **ou** GARMIN
+  ativo; query nova `findActiveByAtletaIdAndPlataformaInAndTenantId` (D5).
+  verify: testes dos três lados — Garmin sobre ICU, ICU sobre Garmin, Strava depois de Garmin nasce
+  `autoSyncPausado=true`; testes existentes do Strava continuam verdes (CA4).
+- [ ] 2.5 `GarminOAuthServiceImpl.tokenValido(conexao)`: renova quando `tokenExpiraEm − 600 s <
+  now`, grava access, refresh novo e as duas expirações na mesma transação; 400/401 → `ativo=false`,
+  tokens e expirações nulos, `lastSyncError`; contador `garmin.token.refresh`.
+  verify: teste com `InOrder` prova um único `save` com o par novo; na falha, nenhum campo do par
+  antigo persiste e o contador registra `falha` (CA5).
+- [ ] 2.6 `@Scheduled` diário renovando conexões GARMIN ativas com `refreshTokenExpiraEm < now +
+  30 d`.
+  verify: teste unitário do filtro (uma linha dentro, uma fora, uma inativa) e da chamada a
+  `tokenValido`; `save` de `scopes` ou `lastSyncError` não altera `refreshTokenExpiraEm` (CA5).
+- [ ] 2.7 `GarminConnectionServiceImpl.desconectar`: `removerRegistro` best-effort (falha logada
+  sem token), `ativo=false`, tokens e expirações nulos; `status` devolve `GarminConnectionStatusDto`
+  com `workoutImport`/`activityExport` derivados de `scopes`; `conexaoDeCanal` usa a query de D5.
+  verify: testes com Garmin ok e Garmin 500 (ambos concluem localmente); status com scopes
+  parciais; `TreinoRealizado` do atleta inalterado (CA6, CA8).
 
-## 3. Endpoints
+## 3. Endpoints, segurança e webhook
 
-- [ ] 3.1 `GarminConnectionController` em `/api/v1/integracoes/me/garmin` (`authorize-url`, status,
-  delete) com `@PreAuthorize`, `@Tag(name="garmin-connection")`, `@Operation`/`@ApiResponses`;
-  `@WebMvcTest` + teste de autorização no molde de `IntervalsIcuConnectionControllerAuthTest`.
-- [ ] 3.2 `GarminCallbackController` em `/api/v1/integracoes/garmin/callback` sem JWT, redireciona
-  ao perfil com `?garmin=ok|erro|recusado`; `permitAll` em `CoreSecurityConfig`; IT no molde de
-  `IntervalsIcuCallbackIT` (CA2, CA3).
-- [ ] 3.3 `GarminWebhookController` em `/api/v1/garmin/webhook/{segredo}` (`permitAll`): segredo em
-  comparação constante → 404; `deregistrations` → `ativo=false` por `userId`;
-  `userPermissionsChange` → `scopes`; chave desconhecida → 200; `@WebMvcTest` cobre os quatro
-  casos e que o corpo não vai ao log (CA7, CA8, CA9).
-- [ ] 3.4 Sem `GARMIN_*` configurado: `authorize-url` responde 503 com mensagem "canal não
-  configurado"; webhook responde 404; teste.
+- [ ] 3.1 `CoreSecurityProperties.garminPaths` (`/api/v1/integracoes/garmin/callback`,
+  `/api/v1/garmin/webhook/**`) aplicada em `CoreSecurityConfig`; `/api/v1/integracoes/me/garmin/**`
+  continua autenticado.
+  verify: teste de segurança prova callback e webhook anônimos permitidos e `/me/garmin` → 401 sem
+  JWT.
+- [ ] 3.2 `StructuredLoggingFilter` mascara o último segmento de `/api/v1/garmin/webhook/*` no MDC
+  e no log de request.
+  verify: teste com `ListAppender`/MDC prova que a URI gravada é `/api/v1/garmin/webhook/***` e
+  que outras URIs não mudam (CA9).
+- [ ] 3.3 `GarminConnectionController` em `/api/v1/integracoes/me/garmin` (`authorize-url`, status,
+  delete) com `@PreAuthorize`, `@Tag(name="garmin-connection")`, `@Operation`/`@ApiResponses`.
+  verify: `@WebMvcTest` dos três endpoints + teste de autorização no molde de
+  `IntervalsIcuConnectionControllerAuthTest` (ATLETA ok, TREINADOR 403).
+- [ ] 3.4 `GarminCallbackController` em `/api/v1/integracoes/garmin/callback` sem JWT, redireciona
+  ao perfil com `#/…?garmin=success|error|denied`; 503 quando desabilitado.
+  verify: IT no molde de `IntervalsIcuCallbackIT` cobrindo os três resultados e a flag (CA2, CA3,
+  CA13).
+- [ ] 3.5 `GarminWebhookController` em `/api/v1/garmin/webhook/{segredo}`: `MessageDigest.isEqual`
+  → 404 se errado ou não configurado; `deregistrations` → `ativo=false` + tokens nulos por
+  `userId`; `userPermissionsChange` → `scopes`; `userId` desconhecido e chave desconhecida → 200.
+  verify: `@WebMvcTest` cobre os cinco casos e prova (appender) que o corpo não vai ao log (CA7,
+  CA8, CA9).
+- [ ] 3.6 `CoachAthleteProfileServiceImpl`: `AtletaPerfilCoachOutputDto.conexaoCanal { plataforma,
+  ativo, workoutImport, activityExport, lastSyncError }` via `conexaoDeCanal`;
+  `melhoresEsforcosIntegracaoConectada` inalterado.
+  verify: teste do service com atleta Garmin, atleta ICU e atleta sem canal (CA12).
 
-## 4. Onboarding e canal
+## 4. Onboarding, enum e contrato
 
-- [ ] 4.1 `CanalIntegracao.GARMIN`; validação em `AtletaOnboardingService`: `GARMIN ⇒ canal ∈
-  {GARMIN, MANUAL}`, `≠ GARMIN ⇒ canal ≠ GARMIN`; testes parametrizados por marca (CA10).
-- [ ] 4.2 `FonteDados.GARMIN.description` → "Conexão direta com o Garmin Connect"; conferir que
-  nenhum teste quebra (`./mvnw clean test`).
-- [ ] 4.3 Regenerar o cliente OpenAPI do front (`npm run generate:api`) e confirmar que
-  `GarminConnectionService` e os DTOs aparecem com tipos corretos.
+- [ ] 4.1 `CanalIntegracao.GARMIN`; validação em `OnboardingServiceImpl` (D9): `GARMIN ⇒ canal =
+  GARMIN`, `≠ GARMIN ⇒ canal ≠ GARMIN`, `DomainRuleViolationException` com campo
+  `canalIntegracao`.
+  verify: teste parametrizado por marca × canal (GARMIN+ICU rejeita, GARMIN+MANUAL rejeita,
+  GARMIN+GARMIN aceita, COROS+GARMIN rejeita, COROS+ICU aceita) (CA10).
+- [ ] 4.2 `FonteDados.GARMIN.description` → "Conexão direta com o Garmin Connect" (delta de
+  contrato OpenAPI, só texto).
+  verify: `./mvnw clean test` verde; snapshot OpenAPI, se houver, atualizado.
+- [ ] 4.3 Contadores `garmin.oauth.callback` e `garmin.token.refresh` registrados (D12) — se não
+  cobertos em 2.3/2.5, fechar aqui.
+  verify: `/actuator/metrics/garmin.oauth.callback` existe no IT de 6.1.
+- [ ] 4.4 Regenerar o cliente OpenAPI do front (`npm run generate:api`).
+  verify: `GarminConnectionService`, `GarminConnectionStatusDto`, `GarminAuthorizationUrlDto`,
+  `CanalIntegracao.GARMIN` e `AtletaPerfilCoachOutputDto.conexaoCanal` tipados; `npm run build`.
 
 ## 5. Frontend
 
-- [ ] 5.1 `useIntervalsIcuConnection` → `useConnection(plataforma)` e
-  `useIntervalsIcuCallbackResult` → `useConnectionCallbackResult(plataforma)` lendo `?garmin=` ou
-  `?intervals=`; testes existentes adaptados e caso Garmin adicionado.
-- [ ] 5.2 `IntervalsIcuConnectionCard` → `ConnectionCard` com prop `plataforma`; texto de
-  consentimento (transferência ao Garmin + IA, dois links) acima de "Conectar Garmin"; estado
-  mostra permissões; teste cobre Garmin e intervals.icu (CA11, D10).
-- [ ] 5.3 `AthleteProfilePage` escolhe a plataforma pela `dispositivoMarca` (GARMIN → Garmin, resto
-  → intervals.icu), atrás da flag `garminHabilitado` (default false); teste das duas marcas.
-- [ ] 5.4 `watchCompatibility.ts`: entrada GARMIN reescrita para o canal direto (passos, avisos,
-  `resumoParaCoach`, `verificadoEm = '2026-10'`, sem citar intervals.icu); testes de
-  `WatchConnectionGuide` e `CoachWatchLine` atualizados (CA11, CA12).
-- [ ] 5.5 `OnboardingPerfilStep`: opção `GARMIN` visível só para marca GARMIN, `INTERVALS_ICU`
-  oculta para GARMIN; teste (CA10).
-- [ ] 5.6 `politicaPrivacidadeConteudo.ts`: seção "Transparência de IA" (nature e finalidade do
-  processamento, consentimento e revogação) e menção à transferência de treinos ao Garmin;
-  `npm run build`.
+- [ ] 5.1 `config/env.ts`: `garminHabilitado` lido de `VITE_GARMIN_HABILITADO` (default false),
+  mesmo padrão das demais `VITE_*`; `.env.example` e `env-config.js` atualizados.
+  verify: teste de `env` com var ausente → false, `"true"` → true.
+- [ ] 5.2 `useIntervalsIcuConnection` → `useConnection(plataforma)` e
+  `useIntervalsIcuCallbackResult` → `useConnectionCallbackResult(plataforma)` lendo `garmin` ou
+  `intervals-icu` no hash; `denied` só para Garmin.
+  verify: testes existentes do ICU adaptados e verdes; casos Garmin `success|error|denied`.
+- [ ] 5.3 `IntervalsIcuConnectionCard` → `ConnectionCard` com prop `plataforma`; consentimento
+  (transferência ao Garmin + IA, dois links) acima de "Conectar Garmin"; estado mostra permissões
+  (D10).
+  verify: teste cobre Garmin (links visíveis antes do botão, permissões parciais) e intervals.icu
+  inalterado (CA11).
+- [ ] 5.4 `AthleteProfilePage` escolhe a plataforma pela `dispositivoMarca` só com
+  `env.garminHabilitado`.
+  verify: teste GARMIN+flag → card Garmin; GARMIN sem flag → card ICU; COROS+flag → card ICU
+  (CA11).
+- [ ] 5.5 `watchCompatibility.ts`: entrada GARMIN reescrita para o canal direto (passos, avisos,
+  `resumoParaCoach`, `verificadoEm = '2026-10'`, posicionamento "Em validação" com critério de
+  promoção, sem citar intervals.icu).
+  verify: testes de `WatchConnectionGuide` e da matriz atualizados; grep de "intervals" na entrada
+  GARMIN vazio (CA11).
+- [ ] 5.6 `CoachWatchLine` lê `conexaoCanal` do perfil agregado e mostra canal + estado +
+  permissões.
+  verify: teste dos três cenários da spec `watch-connection-guide` (Garmin ativo, revogado, sem
+  canal) (CA12).
+- [ ] 5.7 `OnboardingPerfilStep`: com flag, marca GARMIN mostra só `GARMIN`; demais marcas não
+  mostram `GARMIN`; sem flag, comportamento atual.
+  verify: teste por marca × flag (CA10).
+- [ ] 5.8 `politicaPrivacidadeConteudo.ts`: seção de IA existente ganha a declaração de
+  transparência (15.10) e a transferência ao Garmin; versão da política atualizada nos dois lados.
+  verify: `npm run build`; teste da página procura o texto "transparência" e "Garmin".
 
 ## 6. Integração e operação
 
-- [ ] 6.1 IT de ponta a ponta: `authorize-url` → callback (Garmin stubado) → status mostra Garmin
-  ativo e intervals.icu inativo → webhook `deregistrations` → status inativo (CA1–CA7).
-- [ ] 6.2 Documentar em `menthoros-infra/docs` as vars `GARMIN_*`, o passo a passo do Developer
-  Portal (redirect, endpoints, domínio) e a troca do webhook testes → produção; `./mvnw clean
-  verify` e `npm run lint && npm run build && npm test` verdes.
+- [ ] 6.1 IT de ponta a ponta (WireMock como Garmin): `authorize-url` → callback → status Garmin
+  ativo e intervals.icu inativo → Strava conectado nasce pausado → webhook `userPermissionsChange`
+  → webhook `deregistrations` → status inativo; métricas presentes.
+  verify: `./mvnw clean verify` verde (CA1–CA8, CA13).
+- [ ] 6.2 Documentar em `menthoros-infra/docs` as vars `GARMIN_*` (inclusive `GARMIN_HABILITADO`) e
+  `VITE_GARMIN_HABILITADO`, o passo a passo do Developer Portal (redirect, endpoints, domínio) e a
+  troca do webhook testes → produção; arquivar
+  `menthoros-product/artifacts/docs/architecture/INTEGRACAO_GARMIN_STRAVA_CONSOLIDATED.md`.
+  verify: `./mvnw clean verify` e `npm run lint && npm run build && npm test` verdes; doc revisado
+  pelo founder.
 
 ## Workflow follow-up
 
 - Cadastrar domínio de produção no Garmin antes do deploy (revisão 24–48 h).
 - Guardar o texto de uso de IA enviado no cadastro do app como evidência da cláusula 15.11.
-- A flag `garminHabilitado` é removida em `garmin-activity-ingestion`, quando o canal fica
-  completo.
+- As flags `garmin.habilitado` e `VITE_GARMIN_HABILITADO` são removidas em
+  `garmin-activity-ingestion`, que também promove a entrada GARMIN a "Suportado" após o gate com
+  atleta real.
+- `garmin-training-push` troca os chamadores restantes de `IntervalsIcuConnectionService.conexaoAtiva`
+  por `conexaoDeCanal`.

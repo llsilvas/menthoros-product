@@ -70,7 +70,9 @@ Decisões derivadas, fixadas aqui para não serem reabertas:
 - **Histórico:** cold start aceito (ADR-0012); upload de FIT opcional sugerido na conexão.
 - **Atribuição:** "Garmin [modelo]" (de `deviceName`, ou "Garmin" quando desconhecido) em todo
   lugar que mostra treino realizado Garmin, inclusive exports, desde a primeira entrega.
-- **Webhook:** segmento secreto na URL por ambiente; só `userId` conhecido; 200 sempre.
+- **Webhook:** segmento secreto na URL por ambiente, mascarado em log; `userId` desconhecido
+  responde 200 sem efeito; segredo errado responde 404 (decisão de 2026-10-25 no DoR de
+  `garmin-connection`; antes dizia "200 sempre").
 - **Ambientes:** um client ID só; o webhook aponta para o ambiente de testes até o go-live e depois
   para produção (revisão de domínio de 24–48 h); local usa payloads gravados.
 - **Melhores esforços** (`pace-curves` do intervals.icu) ficam indisponíveis para atleta Garmin na

@@ -6,8 +6,10 @@
 O front SHALL manter uma matriz de compatibilidade com uma entrada por marca, contendo
 posicionamento, modo de push, modo de ingestão, passos de conexão em PT-BR, avisos, apps parceiros
 (quando houver), resumo para o treinador, mês de verificação e fontes. A entrada GARMIN SHALL
-descrever o canal Garmin direto (conexão na conta Garmin do atleta), com posicionamento
-"Suportado", push e ingestão `NATIVO`, e SHALL NOT mencionar o intervals.icu. Marcas cujo circuito
+descrever o canal Garmin direto (conexão na conta Garmin do atleta), com push e ingestão `NATIVO`,
+posicionamento "Em validação" e critério de promoção "gate com atleta real pelo canal direto" (o
+gate anterior foi feito via intervals.icu e não vale para o canal direto), e SHALL NOT mencionar o
+intervals.icu. Marcas cujo circuito
 só fecha com app de terceiro SHALL ter posicionamento "Compatível via app parceiro" e SHALL NOT usar
 a palavra "suportado". Marcas sem push ao relógio SHALL ter posicionamento "Só treino realizado".
 Marcas em que o push depende do modelo SHALL listar os modelos com push automático. Só marcas com
@@ -17,8 +19,8 @@ SHALL NOT afirmar que o treino chega ao relógio sem a condição que o sistema 
 
 #### Scenario: Garmin
 - **WHEN** a entrada de GARMIN é lida
-- **THEN** o posicionamento é "Suportado", os passos descrevem autorizar o Menthoros na conta
-  Garmin, e nenhum passo cita o intervals.icu
+- **THEN** o posicionamento é "Em validação" com critério de promoção explícito, os passos
+  descrevem autorizar o Menthoros na conta Garmin, e nenhum passo cita o intervals.icu
 
 #### Scenario: Marca nativa sem gate
 - **WHEN** a entrada de COROS é lida
@@ -43,8 +45,9 @@ SHALL NOT afirmar que o treino chega ao relógio sem a condição que o sistema 
 
 ### Requirement: Guia de conexão no perfil do atleta
 O card de conexão SHALL mostrar o guia da marca do atleta, lida do perfil de onboarding, antes e
-depois de conectar, com a ação "Conectar" acima do guia. Para marca GARMIN a ação SHALL conectar o
-canal Garmin direto; para as demais marcas SHALL conectar o intervals.icu. Os guias das demais
+depois de conectar, com a ação "Conectar" acima do guia. Para marca GARMIN, com o canal Garmin
+habilitado na configuração do front, a ação SHALL conectar o canal Garmin direto; para as demais
+marcas, e para GARMIN com o canal desabilitado, SHALL conectar o intervals.icu. Os guias das demais
 marcas SHALL ficar acessíveis sem alterar o perfil. Sem marca conhecida, o card SHALL mostrar todos
 os guias fechados e orientar o atleta a informar o relógio no onboarding.
 
@@ -60,17 +63,36 @@ os guias fechados e orientar o atleta a informar o relógio no onboarding.
 #### Scenario: Garmin inalterado
 - **WHEN** o atleta Garmin conecta e desconecta
 - **THEN** o fluxo de conexão, callback e confirmação segue o mesmo desenho do intervals.icu, agora
-  contra o canal Garmin direto; o guia Garmin aparece com o rótulo "Suportado"
+  contra o canal Garmin direto; o guia Garmin aparece com o rótulo "Em validação"
 
 #### Scenario: Atleta Garmin
-- **WHEN** um atleta com marca GARMIN abre o perfil
+- **WHEN** um atleta com marca GARMIN abre o perfil com o canal Garmin habilitado
 - **THEN** o card oferece "Conectar Garmin" acima do guia GARMIN, sem citar o intervals.icu
+
+#### Scenario: Atleta Garmin com canal desabilitado
+- **WHEN** um atleta com marca GARMIN abre o perfil com o canal Garmin desabilitado no front
+- **THEN** o card é o de hoje: "Conectar com intervals.icu" e o guia GARMIN atual
 
 ## ADDED Requirements
 
+### Requirement: Linha "Relógio" do treinador
+A linha "Relógio" do perfil do atleta na página do treinador SHALL mostrar, além de marca e
+modelo, o canal ativo do atleta (Garmin direto ou intervals.icu) e o estado da conexão (ativa,
+revogada, permissões concedidas), lidos do perfil agregado do atleta — sem chamada adicional.
+
+#### Scenario: Atleta Garmin conectado
+- **WHEN** o treinador abre o perfil de um atleta com conexão Garmin ativa
+- **THEN** a linha "Relógio" mostra Garmin, canal direto, conexão ativa e as permissões concedidas
+
+#### Scenario: Atleta sem canal
+- **WHEN** o treinador abre o perfil de um atleta sem nenhuma conexão
+- **THEN** a linha "Relógio" mostra a marca e "sem canal conectado"
+
 ### Requirement: Canal obrigatório pela marca
-O onboarding SHALL aceitar `canalIntegracao = GARMIN` e SHALL exigir esse canal quando
-`dispositivoMarca = GARMIN`; qualquer outra marca SHALL NOT poder escolher `GARMIN`.
+O onboarding SHALL aceitar `canalIntegracao = GARMIN` e SHALL exigir exatamente esse canal quando
+`dispositivoMarca = GARMIN` (nem intervals.icu nem manual); qualquer outra marca SHALL NOT poder
+escolher `GARMIN`. A regra vale para salvamentos a partir da entrega, sem alterar rascunhos
+existentes.
 
 #### Scenario: Garmin com intervals.icu
 - **WHEN** um rascunho é salvo com `dispositivoMarca = GARMIN` e `canalIntegracao = INTERVALS_ICU`
@@ -86,4 +108,4 @@ O onboarding SHALL aceitar `canalIntegracao = GARMIN` e SHALL exigir esse canal 
 
 #### Scenario: Garmin com canal manual
 - **WHEN** um rascunho é salvo com `dispositivoMarca = GARMIN` e `canalIntegracao = MANUAL`
-- **THEN** o salvamento é aceito (o atleta pode optar por lançar à mão)
+- **THEN** o salvamento é rejeitado com erro de validação no campo do canal
