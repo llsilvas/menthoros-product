@@ -113,7 +113,8 @@ pessimista, risco aceito (ver proposal).
 ### D5: `conexaoAtiva` por canal, preparando o push
 Nova query `findActiveByAtletaIdAndPlataformaInAndTenantId(atletaId, {INTERVALS_ICU, GARMIN},
 tenantId)` no repositório, exposta por `GarminConnectionService.conexaoDeCanal`. Nesta change a
-usam o status, o `StravaOAuthServiceImpl` (D4) e o `CoachAthleteProfileServiceImpl` (D7);
+usam o status e o `StravaOAuthServiceImpl` (D4) — não o treinador, que precisa também da linha
+revogada (D7);
 `garmin-training-push` troca os chamadores restantes de `IntervalsIcuConnectionService.conexaoAtiva`
 por ela. Deixar pronta aqui evita tocar a query duas vezes.
 

@@ -51,7 +51,8 @@ canal obrigatório do atleta Garmin, e o intervals.icu permanece para as demais 
   cláusula 15.10 e a menção à transferência de treinos ao Garmin (4.5); o consentimento aparece no
   card antes de conectar.
 - Flag de rollout nos dois lados: `garmin.habilitado` no backend (default false → 503 em
-  `authorize-url` e callback) e `VITE_GARMIN_HABILITADO` no front (default false → card e opção de
+  `authorize-url`; o callback redireciona ao perfil com `garmin=error`) e `VITE_GARMIN_HABILITADO`
+  no front (default false → card e opção de
   onboarding ocultos). Removida em `garmin-activity-ingestion`.
 - Migration `V104`: coluna `refresh_token_expira_em TIMESTAMPTZ NULL` em `tb_integracao_externa`
   (expiração do refresh token, informada pelo Garmin em `refresh_token_expires_in`). O resto da
