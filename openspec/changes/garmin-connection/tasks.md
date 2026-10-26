@@ -109,21 +109,31 @@ cliente OpenAPI regenerado em 4.4) → 6. Revisado no DoR de 2026-10-25.
 
 ## 4. Onboarding, enum e contrato
 
-- [ ] 4.1 `CanalIntegracao.GARMIN`; validação em `OnboardingServiceImpl` (D9): com
+- [x] 4.1 `CanalIntegracao.GARMIN`; validação em `OnboardingServiceImpl` (D9): com
   `garmin.habilitado`, `GARMIN ⇒ canal = GARMIN`; sempre, `≠ GARMIN ⇒ canal ≠ GARMIN`;
   `DomainRuleViolationException` (422, handler existente) com mensagem citando canal e marca.
   verify: teste parametrizado por marca × canal × flag (flag on: GARMIN+ICU rejeita, GARMIN+MANUAL
   rejeita, GARMIN+GARMIN aceita; flag off: GARMIN+ICU aceita; sempre: COROS+GARMIN rejeita,
   COROS+ICU aceita); mensagem contém "canal" (CA10).
-- [ ] 4.2 `FonteDados.GARMIN.description` → "Conexão direta com o Garmin Connect" (delta de
+- [x] 4.2 `FonteDados.GARMIN.description` → "Conexão direta com o Garmin Connect" (delta de
   contrato OpenAPI, só texto).
   verify: `./mvnw clean test` verde; snapshot OpenAPI, se houver, atualizado.
-- [ ] 4.3 Contadores `garmin.oauth.callback` e `garmin.token.refresh` registrados (D12) — se não
+- [x] 4.3 Contadores `garmin.oauth.callback` e `garmin.token.refresh` registrados (D12) — se não
   cobertos em 2.3/2.5, fechar aqui.
   verify: `/actuator/metrics/garmin.oauth.callback` existe no IT de 6.1.
-- [ ] 4.4 Regenerar o cliente OpenAPI do front (`npm run generate:api`).
+- [x] 4.4 Regenerar o cliente OpenAPI do front (`npm run generate:api`).
   verify: `GarminConnectionService`, `GarminConnectionStatusDto`, `GarminAuthorizationUrlDto`,
   `CanalIntegracao.GARMIN` e `AtletaPerfilCoachOutputDto.conexaoCanal` tipados; `npm run build`.
+
+  Notas de execução da seção 4:
+  - 4.1: a validação roda em `salvarRascunho` (único ponto que grava canal e marca); canal nulo
+    passa, porque o rascunho é parcial (CA8).
+  - 4.3: os contadores já nasceram em 2.3/2.5; a checagem em `/actuator/metrics` fica na 6.1.
+  - 4.4: o `src/api` do front é curado à mão (sem `models/`; `npm run generate:api` apagaria
+    serviços e um teste commitado). Em vez de regenerar, `GarminConnectionService.ts` foi escrito no
+    molde do `IntervalsIcuService`, e `CanalIntegracao.GARMIN` / `conexaoCanal` entraram em
+    `src/types/`. Os paths foram conferidos contra o `/api-docs` de um backend local.
+
 
 ## 5. Frontend
 
