@@ -9,28 +9,29 @@ cliente OpenAPI regenerado em 4.4) → 6. Revisado no DoR de 2026-10-25.
 
 ## 1. Configuração, migration e cliente HTTP
 
-- [ ] 1.1 Migration `V104__Add_refresh_token_expira_em_to_tb_integracao_externa.sql`: coluna
+- [x] 1.1 Migration `V104__Add_refresh_token_expira_em_to_tb_integracao_externa.sql`: coluna
   `refresh_token_expira_em TIMESTAMPTZ NULL`; campo `refreshTokenExpiraEm` em `IntegracaoExterna`.
   verify: `./mvnw clean test` sobe com a migration; `@DataJpaTest` grava e lê o campo.
-- [ ] 1.2 `GarminProperties` (`garmin.habilitado`, `client-id`, `client-secret`, `redirect-uri`,
+- [x] 1.2 `GarminProperties` (prefixo `app.garmin`, como `app.strava`/`app.intervals-icu`; `habilitado`, `client-id`, `client-secret`, `redirect-uri`,
   `authorization-uri`, `token-uri`, `api-base-url`, `webhook-secret`) lidas de `GARMIN_*` em
   `application.yml`; `habilitado()` e `configurado()` separados (D11);
   `GarminCanalIndisponivelException` + `@ExceptionHandler` 503 em `GlobalExceptionHandler` (molde
   de `ConsentResolutionUnavailableException`).
   verify: sem vars o contexto sobe, `habilitado()` e `configurado()` são false; teste do handler
   devolve 503 com `message` "canal não configurado".
-- [ ] 1.3 `GarminWebClientConfig` com bean `garminWebClient`, connect 5 s / read 10 s em código.
+- [x] 1.3 `GarminWebClientConfig` com bean `garminWebClient`, connect 5 s / read 10 s em código.
   verify: teste de timeout no molde de `StravaTimeoutTest` (WireMock com delay > 10 s → erro).
-- [ ] 1.4 `GarminClient` (interface) + `GarminClientImpl`: `trocarCode(code, verifier)`,
+- [x] 1.4 `GarminClient` (interface) + `GarminClientImpl`: `trocarCode(code, verifier)`,
   `renovar(refreshToken)`, `userId(token)`, `permissoes(token)`, `removerRegistro(token)`;
   `GarminApiException(status, mensagem)` sem token no texto; `TokenResponse` com `expires_in` e
   `refresh_token_expires_in` (ausente → 90 dias).
   verify: WireMock com os payloads do PDF OAuth2 PKCE; 4xx/5xx viram `GarminApiException`; a
   mensagem da exceção não contém o token.
-- [ ] 1.5 `CacheConfig`: cache `garmin-pkce` registrado com `registerCustomCache` e
+- [x] 1.5 `CacheConfig`: cache `garmin-pkce` registrado com `registerCustomCache` e
   `expireAfterWrite(10 min)` próprio; demais caches inalterados.
-  verify: teste com `Ticker` falso prova que a entrada some após 10 min e que `atletas` segue com
-  o `defaultTtl`.
+  verify: teste lê `policy().expireAfterWrite()` do cache nativo (10 min para `garmin-pkce`,
+  `defaultTtl` para `atletas`) e prova o consumo atômico via `asMap().remove` — equivalente ao
+  `Ticker` falso sem abrir seam na config.
 
 ## 2. OAuth PKCE, exclusividade e refresh
 
