@@ -36,7 +36,8 @@ o endpoint não SHALL reimplementar o cálculo.
 
 ### Requirement: Tabela de zonas visível na revisão e na edição do plano
 O front SHALL exibir, no painel de revisão do plano e nos dialogs de editar/adicionar treino, uma
-seção recolhível "Zonas do atleta" com as seis zonas (pace, FC, uso típico), as âncoras com datas, o chip de
+seção recolhível "Zonas do atleta" com as seis zonas (pace, FC, RPE típico como referência genérica
+com tooltip, uso típico), as âncoras com datas, o chip de
 ajuste por fadiga quando `segundosPorKm > 0` e aviso quando o último teste de limiar tem mais de
 90 dias. Estados de carregamento, erro e eixo indisponível SHALL ser explícitos.
 

@@ -11,7 +11,7 @@
 - [ ] **0.2 Medir no banco de dev** quantas etapas têm `ritmoAlvo` e `fcAlvoEtapa` nos formatos
   canônicos (`PACE_FAIXA`, `FC_BPM`), quantas casam uma zona do atleta (tolerância 1 bpm / 2 s) e
   quantas ficariam `PERSONALIZADO` — dimensiona o CA12. Contar antes de olhar linha a linha
-- [ ] **0.3 Decidir Q3** (RPE típico por zona na tabela: referência cinza ou omitir)
+- [x] **0.3 Decidir Q3** — ✅ 2026-10-26: RPE típico como referência em cinza com tooltip (opção 2)
 
 ## 1. Backend — zonas de pace contíguas (D2, D3)
 
@@ -101,7 +101,7 @@
 ## 5. Front — tabela e cards
 
 - [ ] **5.1** `AthleteZonesTable` (`features/coach/components/`): `Accordion` recolhido, 6 linhas
-  (zona com cor, nome, pace, FC ou "— (usar pace)", RPE típico se 0.3 disser sim, "uso típico" —
+  (zona com cor, nome, pace, FC ou "— (usar pace)", RPE típico em cinza com tooltip "escala genérica, não medida do atleta", "uso típico" —
   rodagem leve / base e longão / ritmo moderado / contínuo de limiar / tiros 3–5 min / tiros curtos),
   linha de âncoras
   com datas, chip "+N s/km por fadiga" quando `segundosPorKm > 0`, chip "limiar há N dias" com aviso
@@ -161,7 +161,7 @@
   `openspec/specs/coach-athlete-zones/spec.md` a partir dos deltas desta change
 - [ ] **8.2** Arquivar `coach-meta-intensidade-editor` como superseded, com ponteiro para esta
 - [ ] **8.3** Abrir change de follow-up: distribuição de intensidade semanal + CTL/ATL + variação vs.
-  semana anterior no cabeçalho do plano (fora de escopo aqui); revalidar fatores de pace (Q2);
+  semana anterior no cabeçalho do plano (fora de escopo aqui); revalidar fatores de pace → já aberta como `revalidar-fatores-pace-zonas`;
   prompt v2 prescrever `alvoPrimario`
 - [ ] **8.4** Validar ponta a ponta com conta real no intervals.icu: etapa Z5 com `alvoPrimario = PACE`
   chega ao relógio como alvo de ritmo, não de FC

@@ -161,12 +161,16 @@ etapa "Personalizado". O único caso sem escolha é físico, não de produto: Z6
 `paceLimiar`/`fcLimiar` têm um eixo só. Follow-up: lembrar a preferência do treinador por tipo de
 etapa (ver Fora de escopo).
 
-**Q2 — os fatores de pace.** 1,15–1,25 / 1,05–1,15 / 0,98–1,05 / 0,95–1,00 / 0,90–0,97 /
-0,82–0,90 não têm fonte documentada no código. A proposta só torna contíguos; não revalida contra
-Daniels/VDOT. Fica anotado como follow-up.
+**Q2 — RESOLVIDA como change própria (2026-10-26):** os fatores de pace (1,15–1,25 / 1,05–1,15 /
+… / 0,82–0,90) não têm fonte documentada. Comparados com Friel e Daniels para limiar 5:00, o lado
+rápido (Z4–Z6) bate, mas Z1–Z2 saem 20–40 s/km **mais rápidos** que as duas referências — mudar isso
+altera toda rodagem leve e longão gerados pela IA, para todos os atletas. Decisão de metodologia, não
+correção: vai em `revalidar-fatores-pace-zonas`, separada. Aqui só a contiguidade (D2).
 
-**Q3 — RPE típico por zona** na tabela (1–2, 3–4, 5–6, 7, 8–9, 9–10) é heurística de UI, não
-dado do atleta. Mostrar como referência cinza ou omitir?
+**Q3 — RESOLVIDA (2026-10-26, opção 2):** a tabela mostra o RPE típico por zona (1–2, 3–4, 5–6, 7,
+8–9, 9–10) **como referência**, em cinza, com tooltip "escala genérica de percepção, não medida do
+atleta". Serve para atleta sem relógio ou dia em que o relógio falha; é só uma coluna e sai fácil se
+ninguém usar. Não é editável por atleta nesta change.
 
 **Premissas:**
 
@@ -179,7 +183,7 @@ dado do atleta. Mostrar como referência cinza ou omitir?
 ## Fora de escopo
 
 - Distribuição de intensidade semanal e progressão no cabeçalho do plano (próxima change).
-- Revalidar os fatores de pace contra literatura (Q2).
+- Revalidar os fatores de pace contra literatura — change `revalidar-fatores-pace-zonas` (Q2).
 - Editor de limiares do atleta (o link "informar limiar" aponta para a tela existente).
 - Lembrar a preferência de eixo do treinador por tipo de etapa (substituiria a regra fixa de
   pré-preenchimento pela prática observada de cada treinador).
