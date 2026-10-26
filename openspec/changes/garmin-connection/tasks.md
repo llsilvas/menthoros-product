@@ -35,40 +35,40 @@ cliente OpenAPI regenerado em 4.4) → 6. Revisado no DoR de 2026-10-25.
 
 ## 2. OAuth PKCE, exclusividade e refresh
 
-- [ ] 2.1 `GarminStateSigner` (D2): HMAC-SHA256 com `garmin.client-secret`, payload
-  `garmin|atletaId|epoch|nonce`, TTL 10 min, skew 30 s; `assinar(atletaId)` / `validar(state)`.
+- [x] 2.1 `GarminStateSigner` (D2): HMAC-SHA256 com `garmin.client-secret`, payload
+  `garmin|atletaId|epoch|nonce` (separador real `.`, para o state ir na URL sem escape), TTL 10 min, skew 30 s; `assinar(atletaId)` / `validar(state)`.
   verify: teste rejeita state do `IntervalsIcuStateSigner`, state sem prefixo, expirado e com
   MAC alterado; dois `assinar` no mesmo segundo diferem (CA3).
-- [ ] 2.2 `GarminOAuthServiceImpl.gerarAuthorizeUrl(atletaId)`: `GarminCanalIndisponivelException`
+- [x] 2.2 `GarminOAuthServiceImpl.gerarAuthorizeUrl(atletaId)`: `GarminCanalIndisponivelException`
   se `!habilitado()` ou `!configurado()`; verifier aleatório 64 chars, `code_challenge =
   base64url(sha256(verifier))`, verifier em `garmin-pkce` com chave `state`.
   verify: teste confere URL (`oauth2Confirm`, `code_challenge_method=S256`, `client_id`, `state`)
   e que o cache tem o verifier; com flag false, exceção e cache vazio (CA1, CA13).
-- [ ] 2.3 `GarminOAuthServiceImpl.concluir(state, code)`: valida state, consome o verifier com
+- [x] 2.3 `GarminOAuthServiceImpl.concluir(state, code)`: valida state, consome o verifier com
   `asMap().remove`, troca o code, busca `userId` e permissões, rejeita `userId` ativo em outro
-  atleta via query global nova `findActiveByExternalAthleteIdAndPlataforma(userId, GARMIN)` (sem
-  tenant; `@DataJpaTest` com dois tenants), reativa ou cria `IntegracaoExterna(GARMIN)` com
+  atleta via query global `findActiveByExternalAthleteIdAndPlataforma(userId, GARMIN)` (já existia, sem
+  tenant; coberta em `IntegracaoExternaGarminQueriesTest` com dois tenants), reativa ou cria `IntegracaoExterna(GARMIN)` com
   `tokenExpiraEm = now + expires_in`, `refreshTokenExpiraEm = now + refresh_token_expires_in`,
   `scopes` = permissões; `code` ausente → resultado `denied`; contador `garmin.oauth.callback`.
   verify: testes de sucesso (linha nova e linha reativada com mesmo `userId`), state inválido,
   verifier ausente, segundo uso do mesmo state, `userId` de outro atleta (inclusive de outro
   tenant), code ausente — nada gravado nos cinco últimos; contador incrementa com a tag certa (CA2, CA3).
-- [ ] 2.4 Exclusividade (D4): `GarminConnectionServiceImpl.ativar` desativa INTERVALS_ICU e chama
+- [x] 2.4 Exclusividade (D4): `GarminConnectionServiceImpl.ativar` desativa INTERVALS_ICU e chama
   `pausarStravaAutomaticamente`; espelho em `IntervalsIcuOAuthServiceImpl` (revoga GARMIN com
   `removerRegistro` best-effort); `StravaOAuthServiceImpl` pausa se há INTERVALS_ICU **ou** GARMIN
   ativo; query nova `findActiveByAtletaIdAndPlataformaInAndTenantId` (D5).
   verify: testes dos três lados — Garmin sobre ICU, ICU sobre Garmin, Strava depois de Garmin nasce
   `autoSyncPausado=true`; testes existentes do Strava continuam verdes (CA4).
-- [ ] 2.5 `GarminOAuthServiceImpl.tokenValido(conexao)`: renova quando `tokenExpiraEm − 600 s <
+- [x] 2.5 `GarminOAuthServiceImpl.tokenValido(conexao)`: renova quando `tokenExpiraEm − 600 s <
   now`, grava access, refresh novo e as duas expirações na mesma transação; 400/401 → `ativo=false`,
   tokens e expirações nulos, `lastSyncError`; contador `garmin.token.refresh`.
   verify: teste com `InOrder` prova um único `save` com o par novo; na falha, nenhum campo do par
   antigo persiste e o contador registra `falha` (CA5).
-- [ ] 2.6 `@Scheduled` diário renovando conexões GARMIN ativas com `refreshTokenExpiraEm < now +
-  30 d`.
+- [x] 2.6 `@Scheduled` diário renovando conexões GARMIN ativas com `refreshTokenExpiraEm < now +
+  30 d`. Chama `renovar` (forçado), não `tokenValido`: com o access token ainda vigente este não renovaria nada.
   verify: teste unitário do filtro (uma linha dentro, uma fora, uma inativa) e da chamada a
   `tokenValido`; `save` de `scopes` ou `lastSyncError` não altera `refreshTokenExpiraEm` (CA5).
-- [ ] 2.7 `GarminConnectionServiceImpl.desconectar`: `removerRegistro` best-effort (falha logada
+- [x] 2.7 `GarminConnectionServiceImpl.desconectar(atletaId, tenantId)` (tenant explícito em todos os métodos; o controller o resolve): `removerRegistro` best-effort (falha logada
   sem token), `ativo=false`, tokens e expirações nulos; `status` devolve `GarminConnectionStatusDto`
   com `workoutImport`/`activityExport` derivados de `scopes`; `conexaoDeCanal` usa a query de D5.
   verify: testes com Garmin ok e Garmin 500 (ambos concluem localmente); status com scopes
