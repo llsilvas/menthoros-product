@@ -125,23 +125,34 @@ interface IntensidadeEtapa {
   senão `PERSONALIZADO`. Texto que não casa nenhum regex (legado "trote leve") fica em
   `PERSONALIZADO` com o texto preservado e aviso (CA12). **Nada é descartado** ao abrir e salvar.
 
-### D5 — `alvoPrimario`: regra default, treinador inverte
+### D5 — `alvoPrimario`: sempre do treinador; a regra só pré-preenche
 
-| Contexto da etapa | Default | Por quê |
+**Decisão de produto (2026-10-26): o eixo que vai ao relógio é escolha do treinador, sempre.** Cada
+treinador trabalha de um jeito; o produto não impõe método. Consequências no editor:
+
+- O toggle `Pace | FC` fica **sempre visível e habilitado** ao lado dos pills, em toda zona (Z1–Z5)
+  e em "Personalizado". Trocar é um clique; não há confirmação nem aviso por "fugir da regra".
+- A tabela abaixo é **só o valor inicial** quando o treinador escolhe uma zona e ainda não tocou no
+  eixo. Depois que ele toca, o editor não volta a mexer (nem ao trocar de zona).
+- Único caso sem toggle é físico: Z6 (não tem FC) e atleta sem um dos limiares — aí o eixo
+  disponível é o único, e o editor diz por quê.
+- Os avisos (CA12, CA13, FC fora da faixa típica) continuam **informativos**, nunca bloqueiam.
+
+| Contexto da etapa | Pré-preenchimento | Por quê |
 |---|---|---|
-| `tipoEtapa ∈ {INTERVALADO, TIRO}` ou zona ∈ {Z5, Z6} | `PACE` | FC leva 1–2 min para estabilizar; tiro de 800 m dura 3–4 |
-| `tipoEtapa ∈ {AQUECIMENTO, RECUPERACAO, DESAQUECIMENTO}` ou zona ∈ {Z1, Z2} | `FC` | esforço leve e longo; pace sofre com relevo/calor |
-| zona ∈ {Z3, Z4} em etapa `PRINCIPAL` | `FC` | mantém o comportamento atual (FC vence) para não mudar o push de planos existentes |
+| `tipoEtapa ∈ {INTERVALADO, TIRO}` ou zona ∈ {Z5, Z6} | `PACE` | FC leva 1–2 min para estabilizar |
+| `tipoEtapa ∈ {AQUECIMENTO, RECUPERACAO, DESAQUECIMENTO}` ou zona ∈ {Z1, Z2} | `FC` | esforço leve e longo |
+| zona ∈ {Z3, Z4} em etapa `PRINCIPAL` | `FC` | mantém o comportamento atual do push |
 | só um eixo preenchido | o preenchido | — |
 
-A regra é função pura no front (`defaultAlvoPrimario(tipoEtapa, zona)`), testada em unidade, e um
-toggle de dois estados ao lado dos pills deixa o treinador inverter. **Q1 do proposal**: a tabela
-acima é proposta minha a partir da prática comum; validar com um treinador antes de fixar os
-defaults — a mecânica (regra + override) não depende dos valores.
+A regra é função pura (`defaultAlvoPrimario(tipoEtapa, zona)`), testada em unidade, isolada para
+ser substituída sem tocar no seletor. **Follow-up** (fora de escopo): lembrar a preferência do
+treinador por tipo de etapa e usar isso como pré-preenchimento em vez da tabela — a prática de cada
+um vira o default dele.
 
-Alternativa descartada: só regra, sem override. O treinador que prescreve longão por pace em pista
-(plano, sem vento) perderia a escolha. Alternativa descartada: só escolha, sem default. Força um
-clique a mais em toda etapa e a maioria segue a regra.
+Alternativa descartada: regra sem override — contraria a decisão de produto. Alternativa descartada:
+sem pré-preenchimento — força um clique a mais em toda etapa, e quem segue a prática comum pagaria
+por quem não segue; o pré-preenchimento trocável atende os dois.
 
 ### D6 — `alvoPrimario` entra no contrato da etapa
 
@@ -205,4 +216,4 @@ em cinza ao lado — não reescreve o percentual em bpm sem o treinador escolher
 | Dois seletores divergirem (add × edit) | Um `ZoneSelector`; `QuantRow` e `BlocoCard` só o montam |
 | Teste de componente passar com zona errada (mock = código) | CA10/CA16 afirmam **valores** de bpm/pace vindos do endpoint, e o E2E usa backend real |
 | `ZoneKey` sem Z6 quebrar `activeTheme.zones[...]` | Estender o tipo e os mapas de cor/label antes do seletor; `tsc` acusa os pontos |
-| Regra de `alvoPrimario` (D5) não bater com a prática do treinador | Q1 bloqueante: validar antes de fixar; a mecânica regra+override não depende dos valores |
+| Pré-preenchimento de `alvoPrimario` (D5) não bater com a prática do treinador | É só valor inicial, trocável num clique e nunca reaplicado depois que o treinador toca; follow-up lembra a preferência dele |

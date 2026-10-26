@@ -6,8 +6,8 @@
 
 ## 0. Discovery e decisões
 
-- [ ] **0.1 Fechar Q1** (`alvoPrimario`: regra default + override) com um treinador — confirmar a
-  tabela de D5 ou ajustar os defaults. Registrar a resposta no design.md
+- [x] **0.1 Fechar Q1** — ✅ 2026-10-26: o eixo é **sempre do treinador**; a regra de D5 é só
+  pré-preenchimento trocável num clique, nunca reaplicada depois que ele toca. Registrado em D5
 - [ ] **0.2 Medir no banco de dev** quantas etapas têm `ritmoAlvo` e `fcAlvoEtapa` nos formatos
   canônicos (`PACE_FAIXA`, `FC_BPM`), quantas casam uma zona do atleta (tolerância 1 bpm / 2 s) e
   quantas ficariam `PERSONALIZADO` — dimensiona o CA12. Contar antes de olhar linha a linha
@@ -93,7 +93,7 @@
   `"143-150 bpm"`, `parseCanonical*` (mesmos regexes do backend), `matchZone(fc?, pace?, zones)` com
   tolerância 1 bpm / 2 s. Testes unitários com BVA nas tolerâncias — [CA8] [CA10]
   - Validação: `npx vitest run intensityFormat`
-- [ ] **4.5** `defaultAlvoPrimario(tipoEtapa, zona)` (tabela de D5, após 0.1) em
+- [ ] **4.5** `defaultAlvoPrimario(tipoEtapa, zona)` (tabela de D5 — só pré-preenchimento) em
   `src/features/coach/adapters/alvoPrimario.ts`; `@ParameterizedTest`-equivalente com `it.each`
   cobrindo todos os `tipoEtapa` × zonas — [CA9]
   - Validação: `npx vitest run alvoPrimario`
@@ -123,10 +123,13 @@
   - Validação: `npx vitest run etapaItem`
 - [ ] **6.2** `ZoneSelector` (`features/coach/components/etapas/ZoneSelector.tsx`): segmented
   Z1–Z6 + Personalizado; escolher Zn preenche pace/FC da `zones` e aplica `defaultAlvoPrimario`;
-  editar valor → `PERSONALIZADO`; limpar ambos → sem objetivo; toggle do eixo; Z6 força PACE; sem
-  `zones` (loading/erro) → só campos de valor, sem segmented. Props tipadas — [CA9] [CA14]
+  editar valor → `PERSONALIZADO`; limpar ambos → sem objetivo; toggle `Pace | FC` **sempre visível e
+  habilitado** (exceto quando só um eixo existe: Z6 ou limiar ausente), pré-preenchido por
+  `defaultAlvoPrimario` só enquanto o treinador não tocou nele; sem `zones` (loading/erro) → só
+  campos de valor, sem segmented. Props tipadas — [CA9] [CA14]
   - Validação: `npx vitest run ZoneSelector` (afirmar **valores** preenchidos para Z2 e Z5 de um
-    `zones` fixo; troca para Personalizado; sem pace)
+    `zones` fixo; troca para Personalizado; sem pace; eixo trocado pelo treinador **não** volta ao
+    default ao mudar a zona)
 - [ ] **6.3** Avisos inline (`role="alert"`, não bloqueiam): texto legado não parseável (CA12);
   pace e FC em zonas diferentes (CA13); FC fora da faixa típica do `tipoEtapa` (tabela de
   `EtapaFcValidator`, portada como constante no front com comentário apontando a origem)

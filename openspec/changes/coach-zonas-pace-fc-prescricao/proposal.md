@@ -119,7 +119,8 @@ e escolhe); visível na primeira tabela que o treinador abrir.
 
 - **CA9** — Given o editor, When o treinador edita uma etapa, Then a zona é um **seletor**
   (Z1–Z6 + Personalizado); escolher Zn preenche pace e FC com a faixa **deste atleta** e mostra os
-  dois; o treinador vê qual eixo vai ao relógio e pode trocá-lo.
+  dois; o eixo que vai ao relógio aparece pré-preenchido e **sempre trocável num clique**, em
+  qualquer zona e em "Personalizado" — nada no editor impede o treinador de escolher o eixo.
 - **CA10** — Given zona escolhida, When salva, Then o payload da etapa leva `fcAlvoEtapa` e
   `ritmoAlvo` em formato canônico e `alvoPrimario` com o eixo escolhido — o push resolve o mesmo
   bpm/pace que a tabela mostrou (afirmar o **valor**, não a presença do campo).
@@ -152,11 +153,13 @@ e escolhe); visível na primeira tabela que o treinador abrir.
 
 ## Open Questions & Assumptions
 
-**Q1 (bloqueante) — `alvoPrimario` é escolha do treinador ou regra?** O contrato do atleta já tem
-`alvoPrimario`, hoje derivado (FC vence quando os dois existem). Proposta: **regra como default,
-treinador pode inverter** — pace em `INTERVALADO`/`TIRO`/Z5–Z6, FC em `AQUECIMENTO`/`RECUPERACAO`/
-`DESAQUECIMENTO`/Z1–Z2, os dois em Z3–Z4 com FC como primário. Precisa de campo persistido na
-etapa (hoje é derivado). Validar a regra com um treinador antes de fixar.
+**Q1 — RESOLVIDA (2026-10-26, decisão do produto):** o eixo que vai ao relógio (`alvoPrimario`) é
+**sempre decisão do treinador**. Cada treinador trabalha de um jeito; o produto não engessa. A regra
+por tipo de etapa (pace em intervalado/tiro, FC em etapa leve) entra só como **pré-preenchimento
+visível e trocável num clique**, nunca como restrição — e o treinador pode definir o eixo mesmo em
+etapa "Personalizado". O único caso sem escolha é físico, não de produto: Z6 e atleta sem
+`paceLimiar`/`fcLimiar` têm um eixo só. Follow-up: lembrar a preferência do treinador por tipo de
+etapa (ver Fora de escopo).
 
 **Q2 — os fatores de pace.** 1,15–1,25 / 1,05–1,15 / 0,98–1,05 / 0,95–1,00 / 0,90–0,97 /
 0,82–0,90 não têm fonte documentada no código. A proposta só torna contíguos; não revalida contra
@@ -178,4 +181,6 @@ dado do atleta. Mostrar como referência cinza ou omitir?
 - Distribuição de intensidade semanal e progressão no cabeçalho do plano (próxima change).
 - Revalidar os fatores de pace contra literatura (Q2).
 - Editor de limiares do atleta (o link "informar limiar" aponta para a tela existente).
+- Lembrar a preferência de eixo do treinador por tipo de etapa (substituiria a regra fixa de
+  pré-preenchimento pela prática observada de cada treinador).
 - Resolver alvo no push — feito em `fix-fc-alvo-base-inconsistente`.

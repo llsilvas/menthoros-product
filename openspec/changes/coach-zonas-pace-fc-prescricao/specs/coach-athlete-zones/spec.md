@@ -68,7 +68,9 @@ um valor.
 Nos dialogs de editar e adicionar treino, a intensidade de cada etapa SHALL ser escolhida por um
 seletor de zona (Z1–Z6 e Personalizado). Escolher uma zona SHALL preencher `ritmoAlvo` e
 `fcAlvoEtapa` com as faixas do atleta em formato canônico (`"M:SS-M:SS/km"`, `"NNN-NNN bpm"`) e
-definir `alvoPrimario` por regra, que o treinador pode inverter. Não SHALL existir campo de texto
+pré-preencher `alvoPrimario` por regra; o eixo SHALL ficar sempre visível e trocável pelo treinador,
+em qualquer zona e em "Personalizado", e o editor não SHALL reaplicar o pré-preenchimento depois que o
+treinador o alterou. Não SHALL existir campo de texto
 livre de intensidade, nem por etapa nem no nível do treino; a zona do treino SHALL ser derivada das
 etapas.
 
@@ -77,6 +79,10 @@ etapas.
   `fcLimiar = 168`
 - **THEN** `ritmoAlvo = "4:37-4:58/km"` (já com o ajuste por fadiga vigente), `fcAlvoEtapa =
   "168-178 bpm"`, `alvoPrimario = PACE`, e os dois valores aparecem na etapa com o pace em destaque
+
+#### Scenario: Treinador troca o eixo
+- **WHEN** o treinador troca o eixo de PACE para FC numa etapa Z5 e depois muda a zona para Z4
+- **THEN** `alvoPrimario` permanece FC — a escolha dele prevalece sobre a regra
 
 #### Scenario: Editar o valor à mão
 - **WHEN** o treinador altera o pace preenchido pela zona
@@ -89,6 +95,7 @@ etapas.
 #### Scenario: Z6 sem FC
 - **WHEN** o treinador escolhe Z6
 - **THEN** só `ritmoAlvo` é preenchido e `alvoPrimario = PACE`; o toggle de eixo fica desabilitado
+  com a explicação "Z6 não tem alvo de FC" — único caso em que o treinador não escolhe
 
 #### Scenario: Atleta sem pace de limiar
 - **WHEN** o treinador escolhe uma zona para atleta sem `paceLimiar`
