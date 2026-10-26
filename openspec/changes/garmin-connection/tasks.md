@@ -76,31 +76,31 @@ cliente OpenAPI regenerado em 4.4) → 6. Revisado no DoR de 2026-10-25.
 
 ## 3. Endpoints, segurança e webhook
 
-- [ ] 3.1 `CoreSecurityProperties.garminPaths` (`/api/v1/integracoes/garmin/callback`,
+- [x] 3.1 `CoreSecurityProperties.garminPaths` (`/api/v1/integracoes/garmin/callback`,
   `/api/v1/garmin/webhook/**`) aplicada em `CoreSecurityConfig`; `/api/v1/integracoes/me/garmin/**`
   continua autenticado.
   verify: teste de segurança prova callback e webhook anônimos permitidos e `/me/garmin` → 401 sem
   JWT.
-- [ ] 3.2 `StructuredLoggingFilter` mascara o último segmento de `/api/v1/garmin/webhook/*` no MDC
+- [x] 3.2 `StructuredLoggingFilter` mascara o último segmento de `/api/v1/garmin/webhook/*` no MDC
   e no log de request.
   verify: teste com `ListAppender`/MDC prova que a URI gravada é `/api/v1/garmin/webhook/***` e
   que outras URIs não mudam (CA9).
-- [ ] 3.3 `GarminConnectionController` em `/api/v1/integracoes/me/garmin` (`authorize-url`, status,
+- [x] 3.3 `GarminConnectionController` em `/api/v1/integracoes/me/garmin` (`authorize-url`, status,
   delete) com `@PreAuthorize`, `@Tag(name="garmin-connection")`, `@Operation`/`@ApiResponses`.
   verify: `@WebMvcTest` dos três endpoints + teste de autorização no molde de
   `IntervalsIcuConnectionControllerAuthTest` (ATLETA ok, TREINADOR 403).
-- [ ] 3.4 `GarminCallbackController` em `/api/v1/integracoes/garmin/callback` sem JWT, redireciona
+- [x] 3.4 `GarminCallbackController` em `/api/v1/integracoes/garmin/callback` sem JWT, redireciona
   ao perfil com `#/…?garmin=success|error|denied`; `GarminCanalIndisponivelException` capturada →
   redirect com `garmin=error` (navegador, não 503).
-  verify: IT no molde de `IntervalsIcuCallbackIT` cobrindo os três resultados e a flag desligada
+  verify (feito como `@WebMvcTest` com a cadeia de segurança real, não IT): molde de `IntervalsIcuCallbackIT` cobrindo os três resultados e a flag desligada
   → redirect `error` sem gravação (CA2, CA3, CA13).
-- [ ] 3.5 `GarminWebhookController` em `/api/v1/garmin/webhook/{segredo}`: `MessageDigest.isEqual`
+- [x] 3.5 `GarminWebhookController` em `/api/v1/garmin/webhook/{segredo}`: `MessageDigest.isEqual`
   → 404 se errado ou não configurado; `deregistrations` → `ativo=false` + tokens nulos por
   `userId` (query global de 2.3); `userPermissionsChange` → `scopes`; `userId` desconhecido e
   chave desconhecida → 200.
   verify: `@WebMvcTest` cobre os cinco casos e prova (appender) que o corpo não vai ao log (CA7,
   CA8, CA9).
-- [ ] 3.6 `CoachAthleteProfileServiceImpl`: `AtletaPerfilCoachOutputDto.conexaoCanal { plataforma,
+- [x] 3.6 `CoachAthleteProfileServiceImpl`: `AtletaPerfilCoachOutputDto.conexaoCanal { plataforma,
   ativo, workoutImport, activityExport, lastSyncError }` (ou `null`) via query nova
   `findFirstByAtletaIdAndPlataformaInAndTenantIdOrderByAtualizadoEmDesc` (ativa ou não);
   `melhoresEsforcosIntegracaoConectada` inalterado.
