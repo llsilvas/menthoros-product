@@ -85,7 +85,8 @@
   `useCallback`, erro nunca engolido. Teste com o serviço mockado (sucesso, erro, 404 → `null`)
   - Validação: `npx vitest run useAthleteTrainingZones`
 - [ ] **4.3** `ZoneKey` → `'Z1'|…|'Z6'`; `zone`/`zoneLabel` em `theme.premium.ts` e `zones` em
-  `activeTheme.ts` ganham Z6 (cor e rótulo "Sprint"). Conferir `tsc` nos consumidores
+  `activeTheme.ts` ganham Z6 (cor e rótulo "Sprint"; lightness distinta de Z5 — D9 V10). Abrir PR
+  no design system Menthoros adicionando `zone-6` com o mesmo hex. Conferir `tsc` nos consumidores
   (`selectWorkoutProfile`, `ZonesBlock`, `scale.ts`)
   - Validação: `npm run build`
 - [ ] **4.4** Util puro `src/features/coach/adapters/intensityFormat.ts`: `formatPaceRange(segMin, segMax)`
@@ -112,7 +113,8 @@
   - Validação: `npx vitest run PlanoDetalhePanel`
 - [ ] **5.3** Adapter `buildIntensityLineFromEtapa(etapa, zones)` → `{ zona, pace, fc, primario }`;
   `TreinoTag` (PlanoDetalhePanel) e `TreinoCard` (CurrentWeekPlan) usam para a linha de meta:
-  `Zn · pace · fc`, primário em destaque; sem `paceLimiar` → só FC + "pace indisponível" — [CA8]
+  **ordem fixa pace → FC**, primário em `text-primary` + 600, secundário `text-secondary`, sem lime
+  (D9 V3/V4); sem `paceLimiar` → só FC + "pace indisponível"; personalizado sem chip (V7) — [CA8] [CA18]
   - Validação: `npx vitest run PlanoDetalhePanel CurrentWeekPlan buildIntensityLine`
 
 ## 6. Front — editor (D4, D5, D7, D8)
@@ -122,7 +124,9 @@
   Testes de ida e volta (incluindo legado "trote leve" preservado) — [CA10] [CA12]
   - Validação: `npx vitest run etapaItem`
 - [ ] **6.2** `ZoneSelector` (`features/coach/components/etapas/ZoneSelector.tsx`): segmented
-  Z1–Z6 + Personalizado; escolher Zn preenche pace/FC da `zones` e aplica `defaultAlvoPrimario`;
+  Z1–Z6 + Personalizado (≥ 40 px; "Personalizado" selecionado em `surface-raised`, não lime);
+  toggle com rótulo visível "Relógio:" (44 px; lime só no segmento selecionado); pills de valor em
+  ordem pace → FC sem lime (D9 V3–V6, V8); escolher Zn preenche pace/FC da `zones` e aplica `defaultAlvoPrimario`;
   editar valor → `PERSONALIZADO`; limpar ambos → sem objetivo; toggle `Pace | FC` **sempre visível e
   habilitado** (exceto quando só um eixo existe: Z6 ou limiar ausente), pré-preenchido por
   `defaultAlvoPrimario` só enquanto o treinador não tocou nele; sem `zones` (loading/erro) → só
@@ -134,15 +138,20 @@
   pace e FC em zonas diferentes (CA13); FC fora da faixa típica do `tipoEtapa` (tabela de
   `EtapaFcValidator`, portada como constante no front com comentário apontando a origem)
   - Validação: `npx vitest run ZoneSelector`
-- [ ] **6.4** `TreinoEditDialog`: `BlocoCard` troca o `TextField "Zona alvo"` + `RPE` por
-  `ZoneSelector`; `AthleteZonesTable` no topo do conteúdo; footer perde `zonaAlvo` editável e mostra
+- [ ] **6.4** `TreinoEditDialog`: **só a etapa em foco expandida**, as demais como linha resumo
+  (`StepSummaryRow`: chip da zona · pace · FC · "relógio X" · ícone de aviso), clique expande (D9 V5)
+  — [CA19]; `BlocoCard` troca o `TextField "Zona alvo"` + `RPE` por `ZoneSelector`; `AthleteZonesTable` no topo do conteúdo; footer perde `zonaAlvo` editável e mostra
   a zona derivada (`selectWorkoutProfile(...).targetZone`); `montarPatch` envia `zonaAlvo` derivada
   quando mudou. `blocoStateDe`/`camposDe` passam `ritmoAlvo` e `alvoPrimario` — [CA9] [CA11]
   - Validação: `npx vitest run TreinoEditDialog`
 - [ ] **6.5** `TreinoAddDialog`: `QuantRow` usa `ZoneSelector`; remove o `TextField "Zona alvo"`
   de fallback (`:685`) — zona do treino derivada igual ao edit — [CA15]
   - Validação: `npx vitest run TreinoAddDialog`
-- [ ] **6.6** `npm run lint && npm run build && npm run test:run` verdes
+- [ ] **6.6** Teste de componente de contraste: rótulos de `ZoneSelector`, `AthleteZonesTable` e
+  cards resolvem para `text-secondary` (`#94A3B8`), nunca `text-muted`; texto de alerta em
+  `text-primary`; nenhum `primary-500` em `TreinoTag`/`TreinoCard` (D9 V1–V3) — [CA17] [CA18]
+  - Validação: `npx vitest run ZoneSelector AthleteZonesTable PlanoDetalhePanel`
+- [ ] **6.7** `npm run lint && npm run build && npm run test:run` verdes
 
 ## 7. E2E (fluxo coach-in-the-loop — obrigatório)
 

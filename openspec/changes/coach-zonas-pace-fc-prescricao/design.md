@@ -217,3 +217,25 @@ em cinza ao lado — não reescreve o percentual em bpm sem o treinador escolher
 | Teste de componente passar com zona errada (mock = código) | CA10/CA16 afirmam **valores** de bpm/pace vindos do endpoint, e o E2E usa backend real |
 | `ZoneKey` sem Z6 quebrar `activeTheme.zones[...]` | Estender o tipo e os mapas de cor/label antes do seletor; `tsc` acusa os pontos |
 | Pré-preenchimento de `alvoPrimario` (D5) não bater com a prática do treinador | É só valor inicial, trocável num clique e nunca reaplicado depois que o treinador toca; follow-up lembra a preferência dele |
+
+### D9 — Decisões visuais (mockup + design critique, 2026-10-26)
+
+Mockup no canvas **Zonas na prescrição** (https://claude.ai/artifact/35bHzwZJHiaj72FTq3Rbwb), com o
+design system Menthoros instalado: painel de revisão, editor, 8 estados do `ZoneSelector`, cards.
+A critique achou duas falhas objetivas e três de usabilidade; viram regra aqui.
+
+| # | Regra | Por quê |
+|---|---|---|
+| V1 | **Rótulos de 11–12 px em `text-secondary` (`surface-400`, `#94A3B8`)**, nunca `text-muted` (`surface-500`, `#64748B`). `text-muted` só em hint terciária ≥ 12 px sobre `surface-900`. | `#64748B` sobre `surface-800` = 3,4:1 e sobre `surface-raised` = 3,0:1 — falha 4,5:1. `#94A3B8` = 6,4:1 |
+| V2 | **Texto de alerta em `text-primary`; só o ícone na cor semântica** (`semantic-danger`/`semantic-warning`). | `#EF4444` a 12 px sobre `surface-800` = 4,3:1, falha por pouco |
+| V3 | **Lime (`primary-500`) só em ação e seleção.** Em leitura (painel, cards, etapas expandidas) o eixo primário é `text-primary` + peso 600 e o secundário `text-secondary`. No editor, lime só no segmento selecionado do toggle `Relógio: Pace | FC`. "Personalizado" selecionado é `surface-raised` com borda `text-secondary`. | Regra do DS ("lime sem disciplina" foi defeito real); lime em leitura compete com Aprovar |
+| V4 | **Ordem fixa pace → FC** em todo card, linha de etapa e pill. O primário se distingue só por peso/cor, nunca pela posição. | Em mono as colunas alinham; ordem variável obriga a reler cada card |
+| V5 | **Editor: só a etapa em foco expandida.** As demais viram uma linha resumo (`chip da zona · pace · FC · relógio X`, aviso como ícone); clique expande. | Com 3 etapas o dialog já passava de 1200 px; um intervalado real passa de 2000 |
+| V6 | **Toggle de eixo com rótulo visível "Relógio:"**, além do `aria-label`. | O propósito não pode depender de hint abaixo |
+| V7 | **Personalizado não tem chip** no card; os valores bastam. "Sem meta" com borda sólida `surface-700`; tracejado só em dia de descanso. | "Pers." era críptico; tracejado significava duas coisas |
+| V8 | **Alvos ≥ 40 px** nos segmentos de zona, **44 px** no toggle e botões. `role="radio"` em `radiogroup`, `role="alert"` nos avisos, `aria-describedby` do aviso para o campo que o gerou. | Toque em tablet; semântica para leitor de tela |
+| V9 | **Chip da zona na cor `zone-N`, texto `primary-contrast`.** Borda esquerda do card segue o **tipo de treino** (`categorical-*`), não a zona. | Dois canais sem competir; já é assim hoje |
+| V10 | **Z6 precisa de token `zone-6`** no DS, com lightness distinta de `zone-5`. No mockup, `categorical-magenta` como proposta. Task 4.3 adiciona o token no front e abre PR no DS. | Hoje `ZoneKey` para em Z5 |
+
+Deixado para depois de ver renderizado: variante compacta da tabela de zonas (faixa horizontal de
+6 chips, ~80 px) para quando expandir a tabela não empurrar a semana para fora da tela.

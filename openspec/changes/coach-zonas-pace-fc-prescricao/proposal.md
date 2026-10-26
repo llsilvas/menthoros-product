@@ -4,6 +4,7 @@
 **Status:** proposta
 **Criado:** 2026-10-26
 **Repos afetados:** `apps/menthoros-backend`, `apps/menthoros-front` — PR coordenado, backend primeiro
+**Mockup:** canvas [Zonas na prescrição](https://claude.ai/artifact/35bHzwZJHiaj72FTq3Rbwb) (design system Menthoros) — decisões visuais em `design.md` D9
 
 > **Absorve `coach-meta-intensidade-editor`** (M · Full, criada 2026-08-02). Aquela change estava
 > bloqueada por `fix-fc-alvo-base-inconsistente`, arquivada em 2026-09-01 — o bloqueio já caiu. Os
@@ -136,6 +137,18 @@ e escolhe); visível na primeira tabela que o treinador abrir.
   preenchida, o eixo vai para FC, e há link para informar o limiar.
 - **CA15** — Given o `TreinoAddDialog`, Then usa o mesmo `ZoneSelector` — não resta um segundo
   texto livre no caminho de adicionar treino.
+
+**Visual** (design critique, 2026-10-26 — ver D9)
+
+- **CA17** — Given qualquer tela desta change, Then nenhum texto fica abaixo de 4,5:1 sobre a
+  superfície em que está (3:1 em ≥ 24 px); rótulos de campo e cabeçalhos de tabela usam
+  `text-secondary`, nunca `text-muted`; texto de alerta em `text-primary` com ícone na cor semântica.
+  Verificável por teste de componente que inspeciona a cor computada dos rótulos.
+- **CA18** — Given painel, cards e etapas expandidas (leitura), Then o eixo primário é `text-primary`
+  + peso 600 e **não há `primary-500`** fora de botões de ação; no editor, lime só no segmento
+  selecionado do toggle de eixo. Ordem pace → FC fixa em todo lugar.
+- **CA19** — Given um treino com N etapas no editor, Then só a etapa em foco está expandida; as
+  demais mostram uma linha resumo com chip da zona, pace, FC, eixo do relógio e aviso como ícone.
 
 **E2E**
 
