@@ -127,7 +127,7 @@
 
 ## 5. Front — tabela e cards
 
-- [ ] **5.1** `AthleteZonesTable` (`features/coach/components/`): `Accordion` recolhido, 6 linhas
+- [x] **5.1** `AthleteZonesTable` (`features/coach/components/`): `Accordion` recolhido, 6 linhas
   (zona com cor, nome, pace, FC ou "— (usar pace)", RPE típico em cinza com tooltip "escala genérica, não medida do atleta", "uso típico" —
   rodagem leve / base e longão / ritmo moderado / contínuo de limiar / tiros 3–5 min / tiros curtos),
   linha de âncoras
@@ -136,11 +136,11 @@
   `fcLimiarEstimada`. Estados: `loading` (skeleton), `error`, sem pace (coluna "indisponível —
   cadastre o pace de limiar", **sem link**) — [CA7]
   - Validação: `npx vitest run AthleteZonesTable` (presença dos valores de Z2/Z6, chips, estados)
-- [ ] **5.2** `PlanoDetalhePanel`: buscar zonas do `plano.atletaId` (campo entregue pela task 3.0 —
+- [x] **5.2** `PlanoDetalhePanel`: buscar zonas do `plano.atletaId` (campo entregue pela task 3.0 —
   portar `atletaId` para o tipo do plano no front) e renderizar `AthleteZonesTable` entre métricas
   e treinos — [CA7]
   - Validação: `npx vitest run PlanoDetalhePanel`
-- [ ] **5.3** Adapter `buildIntensityLineFromEtapa(etapa, zones)` → `{ zona, pace, fc, primario }`;
+- [x] **5.3** Adapter `buildIntensityLineFromEtapa(etapa, zones)` → `{ zona, pace, fc, primario }`;
   `TreinoTag` (PlanoDetalhePanel) e `TreinoCard` (CurrentWeekPlan) usam para a linha de meta:
   **ordem fixa pace → FC**, primário em `text-primary` + 600, secundário `text-secondary`, sem lime
   (D9 V3/V4); sem `paceLimiar` → só FC + "pace indisponível", **exceto** etapa com `ritmoAlvo` persistido, que exibe o valor como está (regressão em `buildIntensityLine`); personalizado sem chip (V7) — [CA8] [CA18]
