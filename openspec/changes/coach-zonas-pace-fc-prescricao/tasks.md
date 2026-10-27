@@ -68,10 +68,10 @@
 
 ## 3. Backend — endpoint de zonas (D1)
 
-- [ ] **3.0** `PlanoSemanalOutputDto.atletaId` (campo aditivo, `@Schema`) + mapper + teste do mapper
+- [x] **3.0** `PlanoSemanalOutputDto.atletaId` (campo aditivo, `@Schema`) + mapper + teste do mapper
   + atualizar a spec de contrato do plano. **Antes da 5.2** — [CA2b]
   - Validação: `./mvnw test -Dtest=*PlanoSemanal*Mapper*Test,PlanoServiceImplTest`
-- [ ] **3.1** `CoachAthleteZonesService` (interface) + `CoachAthleteZonesServiceImpl`: monta
+- [x] **3.1** `CoachAthleteZonesService` (interface) + `CoachAthleteZonesServiceImpl`: monta
   `AthleteTrainingZonesOutputDto` a partir de `ZonaTreinoService` (faixas **base**, as do prompt) e
   calcula `ajusteFadiga` com `PaceZoneCalculator.calcularZonasAjustadasPorTsbProntidao` e o TSB de
   prontidão de hoje — **informativo, não soma nas faixas** (D1). `fcMaxima { bpm, estimada }` vem de `getFcMaximaComFallback()` (o mesmo de
@@ -79,25 +79,26 @@
   `atleta.getFcLimiar() == null`. Checar `paceLimiar` antes de calcular pace (D3). Javadoc
   `Idempotent/Side Effects/Tenant-aware` — [CA1] [CA2] [CA3]
   - Validação: `./mvnw test -Dtest=CoachAthleteZonesServiceImplTest`
-- [ ] **3.2** `CoachAthleteZonesServiceImplTest` (`@Nested`, AssertJ): limiares completos (valores
+- [x] **3.2** `CoachAthleteZonesServiceImplTest` (`@Nested`, AssertJ): limiares completos (valores
   absolutos de Z2 e Z6, `fc` de Z6 nulo com motivo); TSB −12 → `ajusteFadiga` 7 s/km **e faixas
   inalteradas**; TSB ≥ 0 → 0; `paceLimiar` null **e** 0 → `pace` nulo, `motivoPace = SEM_PACE_LIMIAR`,
   nunca 5,83;
   `fcLimiar` null → `fcLimiarEstimada = true`; `fcMaxima.estimada` true/false conforme `getFcMaximaComFallback()`; cross-tenant → `DomainNotFoundException`
   — [CA1] [CA2] [CA3] [CA4]
   - Validação: `./mvnw test -Dtest=CoachAthleteZonesServiceImplTest`
-- [ ] **3.3** DTOs em `dto/output/`: `AthleteTrainingZonesOutputDto` (record, `@JsonInclude(NON_NULL)`,
+- [x] **3.3** DTOs em `dto/output/`: `AthleteTrainingZonesOutputDto` (record, `@JsonInclude(NON_NULL)`,
   `@Schema` em cada campo; pace em `segKm` inteiros; nested `Ancoras`, `AjusteFadiga`,
   `Disponibilidade`, `FcMaxima`, `ZonaDto`)
   - Validação: `./mvnw clean compile`
-- [ ] **3.4** `CoachAthleteZonesController` — `GET /api/v1/coach/atletas/{atletaId}/zonas`,
+- [x] **3.4** `CoachAthleteZonesController` — `GET /api/v1/coach/atletas/{atletaId}/zonas`,
   `@Tag(name = "coach-athlete-zones")`, `@Operation`, `@ApiResponses` (200/404/403),
-  `@RequireTenant(resourceParamIndex = 0)`, `@PreAuthorize` igual ao `/perfil`; injeta só a interface
-  - Validação: `./mvnw test -Dtest=CoachAthleteZonesControllerTest` (`@WebMvcTest` + `@MockBean`)
-- [ ] **3.5** `CoachAthleteZonesControllerIT`: JWT via `jwt()` post-processor (subject UUID, `ROLE_TECNICO`,
+  **sem** `@RequireTenant` (o aspecto responde 403; a spec pede 404 — CA4), `@PreAuthorize` igual ao
+  `/perfil`; injeta só a interface
+  - Validação: `./mvnw test -Dtest=CoachAthleteZonesControllerTest` (`@ExtendWith(MockitoExtension)`, como o do `/perfil`)
+- [x] **3.5** `CoachAthleteZonesControllerIT`: JWT via `jwt()` post-processor (subject UUID, `ROLE_TECNICO`,
   claim `tenant_id`), atleta de outro tenant → 404 — [CA4]
   - Validação: `./mvnw clean verify`
-- [ ] **3.6** `./mvnw clean verify` verde no backend; anotar no PR qual comando rodou
+- [x] **3.6** `./mvnw clean verify` verde no backend; anotar no PR qual comando rodou
 
 ## 4. Front — tipos, serviço, hook, tokens
 

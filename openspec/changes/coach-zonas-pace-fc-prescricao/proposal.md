@@ -113,8 +113,9 @@ e escolhe); visível na primeira tabela que o treinador abrir.
 - **CA3** — Given atleta **sem** `paceLimiar`, Then as zonas vêm com `pace` ausente,
   `disponibilidade.pace = false` e `motivo = SEM_PACE_LIMIAR` — nunca `0:00–0:00` nem o fallback
   sintético 5,83 (`ZoneResolver.PACE_LIMIAR_FALLBACK_MIN_KM` é para o push, não para exibir).
-- **CA4** — Given atleta de outro tenant, Then `404` (não `403`), igual aos demais endpoints
-  `/coach/atletas/{id}/*`.
+- **CA4** — Given atleta de outro tenant, Then `404` (não `403`). Os demais endpoints
+  `/coach/atletas/{id}/*` usam `@RequireTenant` e respondem `403`; este não usa o aspecto, para que
+  o 404 do serviço não revele que o atleta existe em outra assessoria.
 - **CA5** — Given `paceLimiar = 5.00`, When `calcularZonasPace`, Then para todo par de zonas
   adjacentes `paceMin(Zn) == paceMax(Zn+1)` — sem sobreposição e sem buraco; Z3 = 5:00–5:15,
   Z4 = 4:45–5:00, Z5 = 4:30–4:45.
