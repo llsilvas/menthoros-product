@@ -137,38 +137,53 @@ cliente OpenAPI regenerado em 4.4) → 6. Revisado no DoR de 2026-10-25.
 
 ## 5. Frontend
 
-- [ ] 5.1 `config/env.ts`: `garminHabilitado` lido de `VITE_GARMIN_HABILITADO` (default false),
+- [x] 5.1 `config/env.ts`: `garminHabilitado` lido de `VITE_GARMIN_HABILITADO` (default false),
   mesmo padrão das demais `VITE_*`; `.env.example` e `env-config.js` atualizados.
   verify: teste de `env` com var ausente → false, `"true"` → true.
-- [ ] 5.2 `useIntervalsIcuConnection` → `useConnection(plataforma)` e
+- [x] 5.2 `useIntervalsIcuConnection` → `useConnection(plataforma)` e
   `useIntervalsIcuCallbackResult` → `useConnectionCallbackResult(plataforma)` lendo `garmin` ou
   `intervals-icu` no hash; `denied` só para Garmin.
   verify: testes existentes do ICU adaptados e verdes; casos Garmin `success|error|denied`.
-- [ ] 5.3 `IntervalsIcuConnectionCard` → `ConnectionCard` com prop `plataforma`; consentimento
+- [x] 5.3 `IntervalsIcuConnectionCard` → `ConnectionCard` com prop `plataforma`; consentimento
   (transferência ao Garmin + IA, dois links) acima de "Conectar Garmin"; estado mostra permissões
   (D10).
   verify: teste cobre Garmin (links visíveis antes do botão, permissões parciais) e intervals.icu
   inalterado (CA11).
-- [ ] 5.4 `AthleteProfilePage` escolhe a plataforma pela `dispositivoMarca` só com
+- [x] 5.4 `AthleteProfilePage` escolhe a plataforma pela `dispositivoMarca` só com
   `env.garminHabilitado`.
   verify: teste GARMIN+flag → card Garmin; GARMIN sem flag → card ICU; COROS+flag → card ICU
   (CA11).
-- [ ] 5.5 `watchCompatibility.ts`: entrada GARMIN nova para o canal direto (passos, avisos,
+- [x] 5.5 `watchCompatibility.ts`: entrada GARMIN nova para o canal direto (passos, avisos,
   `resumoParaCoach`, `verificadoEm = '2026-10'`, posicionamento "Em validação" com critério de
   promoção, sem citar intervals.icu); a atual vira `GARMIN_VIA_INTERVALS`; a matriz expõe uma ou
   outra por `env.garminHabilitado`.
   verify: testes de `WatchConnectionGuide` e da matriz nas duas flags; com flag on, grep de
   "intervals" na entrada GARMIN vazio; com flag off, entrada idêntica à de hoje (CA11).
-- [ ] 5.6 `CoachWatchLine` lê `conexaoCanal` do perfil agregado e mostra canal + estado +
+- [x] 5.6 `CoachWatchLine` lê `conexaoCanal` do perfil agregado e mostra canal + estado +
   permissões.
   verify: teste dos três cenários da spec `watch-connection-guide` (Garmin ativo, revogado com
   motivo, sem canal → "sem canal conectado") (CA12).
-- [ ] 5.7 `OnboardingPerfilStep`: com flag, marca GARMIN mostra só `GARMIN`; demais marcas não
+- [x] 5.7 `OnboardingPerfilStep`: com flag, marca GARMIN mostra só `GARMIN`; demais marcas não
   mostram `GARMIN`; sem flag, comportamento atual.
   verify: teste por marca × flag (CA10).
-- [ ] 5.8 `politicaPrivacidadeConteudo.ts`: seção de IA existente ganha a declaração de
+- [x] 5.8 `politicaPrivacidadeConteudo.ts`: seção de IA existente ganha a declaração de
   transparência (15.10) e a transferência ao Garmin; versão da política atualizada nos dois lados.
   verify: `npm run build`; teste da página procura o texto "transparência" e "Garmin".
+
+  Notas de execução da seção 5:
+  - 5.1: a flag também é injetada em runtime (`docker-entrypoint.sh` + `env-config.js`), para o
+    Railway virar sem rebuild; `VITE_GARMIN_HABILITADO` no build continua valendo.
+  - 5.3: o card Garmin mostra a nota de permissão parcial quando falta `workoutImport` ou
+    `activityExport`; a política do Menthoros é linkada em `/#/privacidade`.
+  - 5.4: com a flag ligada o card espera a marca carregar (evita piscar intervals.icu -> Garmin);
+    o card e a página buscam o rascunho de onboarding cada um (2 GETs).
+  - 5.7: o componente real é `OnboardingRelogioStep` (o `OnboardingPerfilStep` do texto não existe).
+    Rascunho antigo Garmin + intervals.icu é corrigido para GARMIN com a flag ligada.
+  - 5.8: texto da seção 3.1 da política escrito aqui como rascunho para revisão jurídica.
+    `POLITICA_VERSAO` subiu para 2026-10-26 só no front; o `app.lgpd.policy-version` do backend NÃO
+    foi alterado (subir a versão exige novo aceite de todos os coaches e o procedimento é publicar o
+    front primeiro) — decisão pendente do founder.
+
 
 ## 6. Integração e operação
 
