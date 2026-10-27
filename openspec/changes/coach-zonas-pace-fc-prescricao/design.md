@@ -57,7 +57,7 @@ cacheável no front (por `atletaId`) evita acoplar o dialog ao agregado.
 }
 ```
 
-- **Pace em segundos/km inteiros**, não `BigDecimal` decimal-minuto: o front formata `5:52` sem
+- **Pace em segundos/km inteiros**, não `BigDecimal` decimal-minuto: o front formata `5:45` sem
   erro de arredondamento e o contrato não vaza a representação interna (`5.87`).
 - **`fcLimiarEstimada`** = `atleta.getFcLimiar() == null` (veio do fallback etário). A tabela mostra
   as faixas como estimativa. **O seletor não copia bpm de limiar estimado para `fcAlvoEtapa`**:
@@ -186,7 +186,7 @@ preenchida → precisa persistir.
   imports (mecânico) ou referenciar `TreinoHojeDto.AlvoPrimario` direto — escolher na task 2.2 o que
   gerar menos diff. Dois enums com os mesmos valores divergiriam em silêncio.
 - `EtapaTreino.alvoPrimario VARCHAR(10) NULL` (**`NENHUM` tem 6 caracteres**; `VARCHAR(5)` rejeitaria
-  "sem objetivo"). Migration `V105__add_alvo_primario_etapa_treino.sql` (último atual: V104; conferir
+  "sem objetivo"). Migration `V106__add_alvo_primario_etapa_treino.sql` (último atual: V105; conferir
   no momento do merge — sessão paralela pode ter tomado o número), aditiva, nullable, `CHECK IN
   ('PACE','FC','NENHUM')`, sem backfill. `NULL` = legado → derivação atual. **`NENHUM` explícito**
   = o treinador escolheu "sem objetivo": nem FC nem pace vão ao relógio, mesmo que `fcAlvoEtapa` ou
@@ -246,6 +246,14 @@ entidade; aqui o campo é novo mas espelha um existente).
   entrega a `selectWorkoutProfile` a zona já resolvida como fonte de maior precedência; a regex passa
   a aceitar `Z6`. Etapas carregadas do backend (sem `zonaEtapa`) usam `matchZone` (D4, hidratação)
   contra as zonas do atleta antes de cair no texto.
+- **Personalizado não ressuscita zona textual.** Etapa com `fcAlvoEtapa`/`ritmoAlvo` explícitos que
+  não casam nenhuma zona (`matchZone` falha) é `PERSONALIZADO` e **não** cai no fallback de texto da
+  descrição ("Corrida contínua Z2"): a zona derivada daquela etapa é `null`. Fallback textual só
+  vale quando a etapa não tem alvo numérico. Teste: salvar personalizado, reabrir, zona não volta a Z2.
+- **Treino só por distância.** `selectWorkoutProfile` hoje descarta etapas sem duração
+  (`selectWorkoutProfile.ts:370`); a agregação da zona do treino passa a ponderar por distância quando
+  não há duração, e retorna `null` (exibido como "—", `zonaAlvo` omitida do patch) se nenhuma
+  etapa tem peso. Nunca derruba o salvar.
 
 ### D8 — Legado no editor (CA12)
 

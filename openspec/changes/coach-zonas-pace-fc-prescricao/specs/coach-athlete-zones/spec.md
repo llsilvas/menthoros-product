@@ -12,7 +12,7 @@ cálculo. O ajuste por fadiga SHALL ser informativo e separado das faixas.
 
 #### Scenario: Atleta com limiares completos
 - **WHEN** o treinador consulta as zonas de um atleta com `paceLimiar = 5.00` e `fcLimiar = 168`
-- **THEN** Z2 devolve `pace = 322–352 s/km` (5:22–5:52) e `fc = 143–150`; Z6 devolve pace
+- **THEN** Z2 devolve `pace = 322–352 s/km` (5:15–5:45) e `fc = 143–150`; Z6 devolve pace
   `253–277 s/km` e `fc` ausente com `motivoFc = FC_NAO_ESTABILIZA`
 
 #### Scenario: Ajuste por fadiga
@@ -58,13 +58,14 @@ Quando um eixo não está disponível para o atleta, o card SHALL omiti-lo e sin
 um valor.
 
 #### Scenario: Etapa com os dois eixos
-- **WHEN** a etapa tem `fcAlvoEtapa = "143-150 bpm"`, `ritmoAlvo = "5:22-5:52/km"` e
+- **WHEN** a etapa tem `fcAlvoEtapa = "143-150 bpm"`, `ritmoAlvo = "5:15-5:45/km"` e
   `alvoPrimario = FC`
-- **THEN** o card mostra `Z2 · 5:22–5:52 · 143–150 bpm` com a FC em destaque
+- **THEN** o card mostra `Z2 · 5:15–5:45 · 143–150 bpm` com a FC em destaque
 
 #### Scenario: Atleta sem pace
 - **WHEN** o atleta não tem `paceLimiar`
-- **THEN** o card mostra só a FC e "pace indisponível"
+- **THEN** o card mostra só a FC e "pace indisponível"; se a etapa tem `ritmoAlvo` persistido, o
+  valor é exibido como está e não há aviso
 
 ### Requirement: Zona como seletor no editor de etapas
 Nos dialogs de editar e adicionar treino, a intensidade de cada etapa SHALL ser escolhida por um

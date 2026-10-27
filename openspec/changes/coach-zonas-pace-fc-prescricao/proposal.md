@@ -57,7 +57,7 @@ e escolhe); visível na primeira tabela que o treinador abrir.
    Z5 = 0,90–0,95; Z1, Z2 e Z6 inalteradas). Muda o prompt da IA — passa pelo eval gate.
 3. **Tabela "Zonas do atleta"** no painel de revisão do plano e no editor, recolhível, com âncoras,
    idade do limiar e ajuste por fadiga.
-4. **Cards mostram a zona com o valor** (`Z2 · 143–150 bpm · 5:22–5:52`), com um eixo em destaque
+4. **Cards mostram a zona com o valor** (`Z2 · 143–150 bpm · 5:15–5:45`), com um eixo em destaque
    conforme o tipo da etapa/treino.
 5. **Editor: zona vira seletor por etapa (Z1–Z6 + Personalizado)** no `EtapasEditor` compartilhado,
    preenche pace e FC do atleta, e o treinador escolhe (ou aceita o default por regra) **qual eixo
@@ -81,7 +81,7 @@ e escolhe); visível na primeira tabela que o treinador abrir.
   (`plan-generation-eval-set`, modo candidato).
 - **Dados legados:** `fcAlvoEtapa` em texto livre continua lido; o editor mostra como
   "Personalizado" com o texto, nunca descarta (CA12).
-- **Uma migration aditiva** (`V105__add_alvo_primario_etapa_treino.sql`, coluna nullable com
+- **Uma migration aditiva** (`V106__add_alvo_primario_etapa_treino.sql`, coluna nullable com
   `CHECK`, sem backfill — conferir o número no merge). Sem mudança no modelo de zonas de FC.
 - **Campo aditivo `atletaId`** em `PlanoSemanalOutputDto` (CA2b).
 - **Dependências e sequenciamento:** `coach-meta-intensidade-editor` (absorvida; arquivar como
@@ -100,11 +100,11 @@ e escolhe); visível na primeira tabela que o treinador abrir.
 **Backend**
 
 - **CA1** — Given atleta com `paceLimiar = 5.00` e `fcLimiar = 168`, When
-  `GET /coach/atletas/{id}/zonas`, Then devolve 6 zonas; Z2 tem `pace = 5:22–5:52`
+  `GET /coach/atletas/{id}/zonas`, Then devolve 6 zonas; Z2 tem `pace = 5:15–5:45`
   (×1,05–1,15) e `fc = 143–150` (85–89 %); Z6 tem pace e **`fc` ausente** com motivo
   `FC_NAO_ESTABILIZA`.
 - **CA2** — Given o mesmo atleta com TSB de prontidão −12, Then as faixas de `zonas[].pace`
-  continuam as **base** (Z2 = 5:22–5:52) e o corpo declara `ajusteFadiga = { segundosPorKm: 7,
+  continuam as **base** (Z2 = 5:15–5:45) e o corpo declara `ajusteFadiga = { segundosPorKm: 7,
   tsbProntidao: -12 }` como informação separada. Given TSB ≥ 0, Then `ajusteFadiga.segundosPorKm = 0`.
   (O prompt da IA recebe a faixa base — `PlanoTreinoPromptBuilder:664`; o método ajustado por
   prontidão não tem chamador em produção. Ver design D1.)
@@ -126,10 +126,12 @@ e escolhe); visível na primeira tabela que o treinador abrir.
 - **CA7** — Given plano em revisão de atleta com limiares, When o treinador abre o painel, Then
   existe a seção "Zonas do atleta" (recolhida por padrão) com as 6 linhas, as âncoras, a data do
   último teste e o chip de ajuste por fadiga quando `segundosPorKm > 0`.
-- **CA8** — Given etapa com `fcAlvoEtapa = "143-150 bpm"` e `ritmoAlvo = "5:22-5:52/km"`, Then o
-  card mostra `Z2 · 5:22–5:52 · 143–150 bpm`; o eixo em destaque é o `alvoPrimario` da etapa.
+- **CA8** — Given etapa com `fcAlvoEtapa = "143-150 bpm"` e `ritmoAlvo = "5:15-5:45/km"`, Then o
+  card mostra `Z2 · 5:15–5:45 · 143–150 bpm`; o eixo em destaque é o `alvoPrimario` da etapa.
   Given atleta sem `paceLimiar`, Then o card mostra só a FC e um aviso "pace indisponível" — sem
-  número inventado.
+  número inventado — **a menos que a etapa tenha `ritmoAlvo` persistido**: alvo explícito é sempre
+  exibido como está (o resolver o envia ao relógio sem consultar o limiar); o aviso cobre só a
+  ausência de faixa calculável.
 
 **Editor** (absorvidos de `coach-meta-intensidade-editor`)
 
@@ -139,7 +141,9 @@ e escolhe); visível na primeira tabela que o treinador abrir.
   qualquer zona e em "Personalizado" — nada no editor impede o treinador de escolher o eixo.
 - **CA10** — Given zona escolhida, When salva, Then o payload da etapa leva `fcAlvoEtapa` e
   `ritmoAlvo` em formato canônico e `alvoPrimario` com o eixo escolhido — o push resolve o mesmo
-  bpm/pace que a tabela mostrou (afirmar o **valor**, não a presença do campo).
+  bpm/pace que a tabela mostrou (afirmar o **valor**, não a presença do campo). Exceção: FC acima da máxima do atleta
+  (`IntervalsIcuFcAlvoResolver:103` descarta o literal — ex.: Z5 168–178 com máxima 175) **não vai ao
+  relógio**; o editor avisa e o teste cobre a resolução real, incluindo máxima estimada.
 - **CA11** — Given o editor, Then **não existe campo de texto livre** rotulado "Zona alvo": nem por
   etapa nem global. A zona do treino é derivada das etapas (`selectWorkoutProfile`) e exibida, não
   digitada. O RPE por etapa some; o RPE do treino fica.
@@ -167,7 +171,8 @@ e escolhe); visível na primeira tabela que o treinador abrir.
 - **CA17** — Given qualquer tela desta change, Then nenhum texto fica abaixo de 4,5:1 sobre a
   superfície em que está (3:1 em ≥ 24 px); rótulos de campo e cabeçalhos de tabela usam
   `text-secondary`, nunca `text-muted`; texto de alerta em `text-primary` com ícone na cor semântica.
-  Verificável por teste de componente que inspeciona a cor computada dos rótulos.
+  Teste de componente afirma o **token resolvido** dos rótulos (`text-secondary`); a razão de
+  contraste em si é checagem manual de design review (jsdom não calcula contraste de forma confiável).
 - **CA18** — Given painel, cards e etapas expandidas (leitura), Then o eixo primário é `text-primary`
   + peso 600 e **não há `primary-500`** fora de botões de ação; no editor, lime só no segmento
   selecionado do toggle de eixo. Ordem pace → FC fixa em todo lugar.

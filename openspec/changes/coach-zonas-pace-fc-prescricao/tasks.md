@@ -4,7 +4,7 @@
 > **Gate de PR:** o PR do backend (endpoint, `atletaId`, `alvoPrimario`, D2) entra em `develop` e
 > sobe no ambiente de testes **antes** de abrir o do front; as seções 4–7 só começam depois.
 > Anchors verificados em 2026-10-26 e **revisados após a DoR do mesmo dia** (front: `EtapasEditor`
-> compartilhado; backend: `EtapaAlvoResolver`, enum `AlvoPrimario` existente, V105). Absorve `coach-meta-intensidade-editor` — ao arquivar esta,
+> compartilhado; backend: `EtapaAlvoResolver`, enum `AlvoPrimario` existente, V106). Absorve `coach-meta-intensidade-editor` — ao arquivar esta,
 > arquivar aquela como superseded.
 
 ## 0. Discovery e decisões
@@ -33,7 +33,7 @@
 
 ## 2. Backend — `alvoPrimario` na etapa (D6)
 
-- [ ] **2.1** Migration `V105__add_alvo_primario_etapa_treino.sql` (último atual: V104; reconferir
+- [ ] **2.1** Migration `V106__add_alvo_primario_etapa_treino.sql` (último atual: V105; reconferir
   no momento do commit): `alvo_primario VARCHAR(10) NULL CHECK (alvo_primario IN
   ('PACE','FC','NENHUM'))` em `tb_etapa_treino`. **`VARCHAR(10)`: `NENHUM` tem 6 caracteres.**
   Aditiva, nullable, sem backfill
@@ -57,8 +57,10 @@
   teste de regressão: duas etapas idênticas com eixos diferentes não viram repetição — [CA14b]
   - Validação: `./mvnw test -Dtest=IntervalsIcuWorkoutConverterTest`
 - [ ] **2.5** Persistência via `PATCH /coach/planos/{planoId}/treinos/{id}` e `POST .../treinos`:
-  `expandirBloco` propaga `alvoPrimario` às sub-etapas. Teste de serviço cobrindo bloco e etapa avulsa
-  - Validação: `./mvnw test -Dtest=PlanoServiceImplTest`
+  `TreinoPlanejadoServiceImpl.expandirBloco` (`:441`) **e a cópia `comRepeticoes` (`:417`, expansão
+  legada por `repeticoes`)** propagam `alvoPrimario` às sub-etapas. Teste em
+  `TreinoPlanejadoServiceImplTest` cobrindo bloco, repetição legada e etapa avulsa
+  - Validação: `./mvnw test -Dtest=TreinoPlanejadoServiceImplTest`
 
 ## 3. Backend — endpoint de zonas (D1)
 
@@ -108,7 +110,7 @@
   (`selectWorkoutProfile`, `ZonesBlock`, `scale.ts`)
   - Validação: `npm run build`
 - [ ] **4.4** Util puro `src/features/coach/adapters/intensityFormat.ts`: `formatPaceRange(segMin, segMax)`
-  → `"5:22–5:52"`, `toCanonicalPace(seg, seg)` → `"5:22-5:52/km"`, `toCanonicalFc(min, max)` →
+  → `"5:15–5:45"`, `toCanonicalPace(seg, seg)` → `"5:15-5:45/km"`, `toCanonicalFc(min, max)` →
   `"143-150 bpm"`, `parseCanonical*` (mesmos regexes do backend), `matchZone(fc?, pace?, zones)` com
   tolerância 1 bpm / 2 s. Testes unitários com BVA nas tolerâncias — [CA8] [CA10]
   - Validação: `npx vitest run intensityFormat`
@@ -182,9 +184,15 @@
   das PRs #168–170 e conferir que `TreinoEditDialog.test.tsx`/`tiposTreino.ts` não estão pendentes
   — [CA11] [CA15]
   - Validação: `npx vitest run TreinoEditDialog TreinoAddDialog`
+- [ ] **6.5b** `TreinoAddDialog.tsx:323`: remover o `TextField "Zona predominante"` (hoje editável); o
+  payload do add envia `zonaAlvo` derivada. Teste: o Add **não renderiza** o campo — [CA11] [CA15]
+  - Validação: `npx vitest run TreinoAddDialog`
 - [ ] **6.6** Teste de componente de contraste: rótulos de `ZoneSelector`, `AthleteZonesTable` e
   cards resolvem para `text-secondary` (`#94A3B8`), nunca `text-muted`; texto de alerta em
   `text-primary`; nenhum `primary-500` em `TreinoTag`/`TreinoCard` (D9 V1–V3) — [CA17] [CA18]
+  - O teste afirma a **cor de token resolvida** (renderizar sob o `ThemeProvider` real e comparar
+    `getComputedStyle().color` com o valor de `text-secondary`), não a razão de contraste. A razão
+    4,5:1 é checagem manual de design review, registrada no PR.
   - Validação: `npx vitest run ZoneSelector AthleteZonesTable PlanoDetalhePanel`
 - [ ] **6.7** `npm run lint && npm run build && npm run test:run` verdes
 
