@@ -221,12 +221,12 @@
 
 ## 7. E2E (fluxo coach-in-the-loop — obrigatório)
 
-- [ ] **7.1** `tests/e2e/coach/plano-zonas-editor.spec.ts`: login coach → plano em revisão → abre
+- [x] **7.1** `tests/e2e/coach/plano-zonas-editor.spec.ts`: login coach → plano em revisão → abre
   "Zonas do atleta" e lê Z5 → edita etapa INTERVALADO → escolhe Z5 → afirma pace e FC preenchidos
   **iguais** aos da tabela → salva → intercepta o `PATCH` e afirma `ritmoAlvo`/`fcAlvoEtapa`
   canônicos e `alvoPrimario = "PACE"` → card mostra `Z5 · pace · fc` — [CA16]
   - Validação: `npm run test:e2e`
-- [ ] **7.2** Cenário sem `paceLimiar` (atleta de seed sem pace): seletor preenche só FC, aviso
+- [x] **7.2** Cenário sem `paceLimiar` (atleta de seed sem pace): seletor preenche só FC, aviso
   visível, `PATCH` sem `ritmoAlvo` — [CA14]
   - Validação: `npm run test:e2e`
 
