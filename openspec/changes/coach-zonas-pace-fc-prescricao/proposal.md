@@ -28,13 +28,13 @@ km, tipo, duração, `zonaAlvo` como texto ("Z2-Z3") e RPE. "Z2" não diz nada s
 atleta com LTHR 168 é 143–150 bpm; para outro com LTHR 180 é 153–160. O treinador que conhece o
 atleta sabe de cabeça; o que tem 30 atletas não sabe, e é esse o treinador para quem o produto existe.
 
-**O que o editor faz hoje** (`TreinoEditDialog.tsx:278`, `TreinoAddDialog.QuantRow`): o campo
-rotulado "Zona alvo" é `TextField` livre que grava em `fcAlvoEtapa`. Aceita "Z5", "126-143 bpm" e
-"trote leve" como se fossem a mesma coisa — só os dois primeiros viram alvo no relógio
-(`IntervalsIcuTargetParser`). `ritmoAlvo` existe no contrato, a IA preenche em toda etapa, e o
-editor **não exibe nem edita** (`etapaItem.ts:20-28`: "viaja de ida e volta intacto"). O RPE por
-etapa é campo inerte: `camposDe()` descarta (`TreinoEditDialog.tsx:106`). A "Zona alvo" global do
-treino é um terceiro texto livre, redundante com as etapas.
+**O que o editor faz hoje** (reverificado em 2026-10-26, depois das PRs #168–170): Editar e
+Adicionar treino compartilham `etapas/EtapasEditor.tsx`. Nele, "Zona (FC)" (`:215`) é `TextField`
+livre que grava em `fcAlvoEtapa`: aceita "Z5", "126-143 bpm" e "trote leve" como se fossem a mesma
+coisa — só os dois primeiros viram alvo no relógio (`IntervalsIcuTargetParser`). `Ritmo`
+(`ritmoAlvo`) já é editável, mas escondido em "detalhes" (`:241`), também como texto livre sem
+formato. O RPE por etapa já foi removido. O rodapé do `TreinoEditDialog` ainda tem "Zona
+predominante" como texto livre editável, redundante com as etapas.
 
 **Por que pace e FC juntos, e não um só.** Não medem a mesma coisa: a FC tem atraso de ~1–2 min e
 deriva com calor e sono; o pace sofre com relevo e vento. A prática de prescrição usa pace como alvo
@@ -59,9 +59,10 @@ e escolhe); visível na primeira tabela que o treinador abrir.
    idade do limiar e ajuste por fadiga.
 4. **Cards mostram a zona com o valor** (`Z2 · 143–150 bpm · 5:22–5:52`), com um eixo em destaque
    conforme o tipo da etapa/treino.
-5. **Editor: zona vira seletor por etapa (Z1–Z6 + Personalizado)**, preenche pace e FC do atleta,
-   e o treinador escolhe (ou aceita o default por regra) **qual eixo vai ao relógio**. Some o texto
-   livre, some a "Zona alvo" global (derivada das etapas), some o RPE inerte por etapa.
+5. **Editor: zona vira seletor por etapa (Z1–Z6 + Personalizado)** no `EtapasEditor` compartilhado,
+   preenche pace e FC do atleta, e o treinador escolhe (ou aceita o default por regra) **qual eixo
+   vai ao relógio**. Some o texto livre de intensidade por etapa e a "Zona predominante" editável
+   do rodapé (passa a ser derivada das etapas).
 6. **Validação como aviso, não bloqueio**: FC fora da faixa típica do tipo de etapa (tabela de
    `EtapaFcValidator`), pace e FC em zonas diferentes, texto legado não parseável.
 
@@ -75,14 +76,24 @@ e escolhe); visível na primeira tabela que o treinador abrir.
 
 - **Contrato de API:** endpoint novo (aditivo). O patch/add de etapa **não muda de shape**: continua
   `fcAlvoEtapa` + `ritmoAlvo` + `alvoPrimario`; o editor passa a gravá-los em formato canônico
-  (`"168-178 bpm"`, `"4:37-4:58/km"`) que o parser já lê. Ver Open Question Q1 para `alvoPrimario`.
+  (`"168-178 bpm"`, `"4:30-4:45/km"`) que o parser já lê. Ver Open Question Q1 para `alvoPrimario`.
 - **Prompt da IA:** a tabela de pace muda (item 2) → eval gate obrigatório
   (`plan-generation-eval-set`, modo candidato).
 - **Dados legados:** `fcAlvoEtapa` em texto livre continua lido; o editor mostra como
   "Personalizado" com o texto, nunca descarta (CA12).
-- **Sem migration.** Sem mudança no modelo de zonas de FC.
-- **Front:** `PlanoDetalhePanel`, `CurrentWeekPlan`, `TreinoEditDialog`, `TreinoAddDialog`,
-  `etapaItem.ts`, novo hook e componente `ZoneSelector`. Fluxo coach-in-the-loop → E2E obrigatório.
+- **Uma migration aditiva** (`V105__add_alvo_primario_etapa_treino.sql`, coluna nullable com
+  `CHECK`, sem backfill — conferir o número no merge). Sem mudança no modelo de zonas de FC.
+- **Campo aditivo `atletaId`** em `PlanoSemanalOutputDto` (CA2b).
+- **Dependências e sequenciamento:** `coach-meta-intensidade-editor` (absorvida; arquivar como
+  superseded) e `revalidar-fatores-pace-zonas` (depois desta — herda as faixas contíguas) existem
+  em `changes/`. O editor de etapas foi refatorado nas PRs #168–170 (`EtapasEditor` compartilhado):
+  esta change parte desse código e não deve começar com alterações pendentes em
+  `TreinoEditDialog.test.tsx`/`tiposTreino.ts` na árvore. Antes de abrir a branch do front, auditar
+  outras changes ativas que toquem `PlanoDetalhePanel`/`EtapasEditor` (`planos-dialog-padrao-inbox`,
+  `refine-inbox-mobile-breakpoint`, `coach-meta-intensidade-editor`).
+- **Rollback:** ver design, seção "Rollback".
+- **Front:** `PlanoDetalhePanel`, `CurrentWeekPlan`, `EtapasEditor`, `TreinoEditDialog` (rodapé),
+  `etapaItem.ts`, `selectWorkoutProfile`, novo hook e componente `ZoneSelector`. Fluxo coach-in-the-loop → E2E obrigatório.
 
 ## Critérios de aceite
 
@@ -92,9 +103,13 @@ e escolhe); visível na primeira tabela que o treinador abrir.
   `GET /coach/atletas/{id}/zonas`, Then devolve 6 zonas; Z2 tem `pace = 5:22–5:52`
   (×1,05–1,15) e `fc = 143–150` (85–89 %); Z6 tem pace e **`fc` ausente** com motivo
   `FC_NAO_ESTABILIZA`.
-- **CA2** — Given o mesmo atleta com TSB de prontidão −12, Then cada faixa de pace vem com
-  +7 s/km e o corpo declara `ajusteFadiga = { segundosPorKm: 7, tsbProntidao: -12 }`. Given TSB
-  ≥ 0, Then `ajusteFadiga.segundosPorKm = 0`.
+- **CA2** — Given o mesmo atleta com TSB de prontidão −12, Then as faixas de `zonas[].pace`
+  continuam as **base** (Z2 = 5:22–5:52) e o corpo declara `ajusteFadiga = { segundosPorKm: 7,
+  tsbProntidao: -12 }` como informação separada. Given TSB ≥ 0, Then `ajusteFadiga.segundosPorKm = 0`.
+  (O prompt da IA recebe a faixa base — `PlanoTreinoPromptBuilder:664`; o método ajustado por
+  prontidão não tem chamador em produção. Ver design D1.)
+- **CA2b** — Given o `PlanoSemanalOutputDto`, Then ele traz `atletaId` (campo aditivo), para o painel
+  buscar as zonas do atleta certo.
 - **CA3** — Given atleta **sem** `paceLimiar`, Then as zonas vêm com `pace` ausente,
   `disponibilidade.pace = false` e `motivo = SEM_PACE_LIMIAR` — nunca `0:00–0:00` nem o fallback
   sintético 5,83 (`ZoneResolver.PACE_LIMIAR_FALLBACK_MIN_KM` é para o push, não para exibir).
@@ -134,7 +149,16 @@ e escolhe); visível na primeira tabela que o treinador abrir.
 - **CA13** — Given o treinador escolhe "Personalizado" e informa pace em Z5 e FC em Z2 para o
   atleta, Then aparece aviso de divergência; salvar continua permitido.
 - **CA14** — Given atleta sem `paceLimiar`, When o treinador escolhe uma zona, Then só a FC é
-  preenchida, o eixo vai para FC, e há link para informar o limiar.
+  preenchida, o eixo vai para FC, e há aviso "sem pace de limiar" (sem link: o front não tem fluxo
+  de cadastro de limiar e o backend não aceita limiar em nenhum DTO de entrada — fora de escopo).
+  Given **FC de limiar estimada** (`fcLimiarEstimada = true`), Then a FC **não** é copiada para
+  `fcAlvoEtapa` (só o pace é preenchido, eixo PACE) — um bpm literal furaria a regra "sem limiar
+  medido, sem meta" do `IntervalsIcuFcAlvoResolver`. Given Z6 de atleta sem `paceLimiar`, Then nada
+  é preenchido e `alvoPrimario = NENHUM`.
+- **CA14b** — Given `alvoPrimario` persistido, Then: `NENHUM` explícito vence texto presente (nem
+  push nem `/me/treinos/hoje` emitem alvo); `NULL` mantém a derivação atual; eixo escolhido sem
+  valor resolve como `NENHUM`; etapas iguais com `alvoPrimario` diferente **não** são agrupadas como
+  repetição (backend `etapasEquivalentes` e front `assinatura`).
 - **CA15** — Given o `TreinoAddDialog`, Then usa o mesmo `ZoneSelector` — não resta um segundo
   texto livre no caminho de adicionar treino.
 
@@ -158,8 +182,13 @@ e escolhe); visível na primeira tabela que o treinador abrir.
 
 ## Métrica de sucesso
 
-- Tempo de edição de uma etapa com meta de intensidade cai (hoje o treinador precisa calcular ou
-  consultar fora) — medir pelo intervalo abrir-dialog → salvar nas edições com mudança de alvo.
+- **Primária (verificável sem instrumentação nova):** % de etapas editadas pelo treinador, nas 4
+  semanas após o deploy, cujo `fcAlvoEtapa`/`ritmoAlvo` casa uma zona do atleta (tolerância 1 bpm /
+  2 s) — meta ≥ 70 %. Mede se o seletor virou o caminho normal em vez do texto livre. Consulta
+  direta no banco; baseline hoje ≈ 0 % por construção (não há seletor).
+- **Secundária (exige evento novo — fora desta change se não houver telemetria):** tempo
+  abrir-dialog → salvar nas edições com mudança de alvo. Sem baseline nem instrumentação hoje; não
+  bloqueia o aceite.
 - **Zero** etapas novas com `fcAlvoEtapa`/`ritmoAlvo` fora do formato canônico após o deploy
   (hoje: 0 no dev, mas só porque a IA gera quase tudo — a change fecha a porta).
 - Rejeição de plano por "intensidade errada" (motivo em `reviewComment`) não aumenta.

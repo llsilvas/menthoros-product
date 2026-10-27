@@ -19,9 +19,13 @@ Estado do código em 2026-10-26 (verificado):
   `getFcLimiarCalculada()` nunca é null (fallback 0,85 × FCmax etária).
 - `CoachAthleteProfileController` em `/api/v1/coach/atletas/{atletaId}/perfil` — padrão de
   `@RequireTenant(resourceParamIndex = 0)` + `404` cross-tenant.
-- Front: `TreinoEditDialog.BlocoCard` tem `TextField "Zona alvo"` → `fcAlvoEtapa`; `RPE` por etapa
-  descartado em `camposDe()`; `StepRow.ritmoAlvo` preservado mas sem campo; `selectWorkoutProfile`
-  já deriva a zona predominante das etapas; `TreinoAddDialog.QuantRow` repete o texto livre.
+- Front (reverificado em 2026-10-26, depois das PRs #168–170): `TreinoEditDialog` e `TreinoAddDialog`
+  **compartilham `etapas/EtapasEditor.tsx`**. O `BlocoCard` de lá tem `TextField "Zona (FC)"`
+  (`zonaAlvo` ↔ `fcAlvoEtapa`, :215) e, dentro de "detalhes", um campo `Ritmo` editável (`ritmoAlvo`,
+  :241). RPE por etapa **já saiu**; `QuantRow` **não existe mais**. O rodapé do `TreinoEditDialog`
+  ainda tem `TextField "Zona predominante"` (~:500) e RPE do treino, ambos editáveis.
+  `selectWorkoutProfile` (`features/workout/profile/`) identifica a zona por **regex no texto**
+  (`/z(?:ona\s*)?([1-5])\b/`) — não lê faixas numéricas e não conhece Z6.
 - Spec `athlete-today-workout` já expõe por etapa `alvoPrimario: 'FC' | 'PACE' | 'NENHUM'`, derivado
   (FC vence se os dois existem).
 - `coach-meta-intensidade-editor` (change aberta, 2026-08-02) desenhou o seletor de meta no modelo
@@ -55,14 +59,26 @@ cacheável no front (por `atletaId`) evita acoplar o dialog ao agregado.
 
 - **Pace em segundos/km inteiros**, não `BigDecimal` decimal-minuto: o front formata `5:52` sem
   erro de arredondamento e o contrato não vaza a representação interna (`5.87`).
-- **`fcLimiarEstimada`** = `atleta.getFcLimiar() == null` (veio do fallback etário). O front mostra
-  como estimativa; o push já não manda estimativa ao relógio (CA10 da change de FC).
+- **`fcLimiarEstimada`** = `atleta.getFcLimiar() == null` (veio do fallback etário). A tabela mostra
+  as faixas como estimativa. **O seletor não copia bpm de limiar estimado para `fcAlvoEtapa`**:
+  `IntervalsIcuFcAlvoResolver.resolverBpmLiteral` aceita qualquer bpm plausível sem exigir limiar
+  medido, então um literal gravado a partir de estimativa furaria a proteção "sem limiar medido, sem
+  meta" que vale para zona e percentual (comentário em `IntervalsIcuFcAlvoResolver:~67`). Com
+  `fcLimiarEstimada = true` o seletor preenche só o pace, deixa a FC vazia com aviso "limiar de FC
+  estimado — informe a FC à mão ou cadastre o limiar", e o eixo vai para PACE.
 - **Sem `paceLimiar`:** `pace: null` em todas as zonas e `disponibilidade.motivoPace = "SEM_PACE_LIMIAR"`.
   Não usar o fallback 5,83 do `ZoneResolver`. **Isso exige** que `ZonaTreinoService.calcularZonasPace`
   deixe de devolver `0.00–0.00` em silêncio — ver D3.
-- Ajuste por fadiga vem de `PaceZoneCalculator.calcularZonasAjustadasPorTsbProntidao`, com o TSB
-  de prontidão de **hoje** (mesma fonte que o prompt usa). É o que a IA usou; é o que o treinador
-  precisa ver para entender por que Z2 não bate com a conta de cabeça.
+- **`zonas[].pace` são as faixas BASE** (`ZonaTreinoService.calcularZonasPace`), as mesmas que
+  `PlanoTreinoPromptBuilder:664` entrega à IA (`calcularZonas(atleta)`). Verificado em 2026-10-26:
+  `PaceZoneCalculator.calcularZonasAjustadasPorTsbProntidao` **não tem chamador em produção** — o
+  prompt nunca recebeu pace ajustado. Mostrar a faixa ajustada como "a que a IA usou" seria falso.
+  Prescrever semana futura com a fadiga de hoje também seria errado: o cansaço de hoje não define o
+  esforço da semana que vem.
+- **`ajusteFadiga` é informativo**, calculado por `calcularZonasAjustadasPorTsbProntidao` com o TSB de
+  prontidão de hoje: o front mostra o chip "hoje +7 s/km" e o treinador decide se corrige à mão. O
+  seletor de zona **não** soma o ajuste ao preencher; o valor gravado é o da faixa base. O ajuste é
+  recalculado a cada leitura (sem cache longo) e **não** altera alvos já persistidos.
 
 Service: `CoachAthleteZonesService` (interface + impl), `@Transactional(readOnly = true)`,
 `Idempotent: YES · Side Effects: NONE · Tenant-aware: YES`. Delega a `ZonaTreinoService` e
@@ -107,7 +123,7 @@ Modelo da etapa no editor:
 ```ts
 interface IntensidadeEtapa {
   zona: 'Z1'|'Z2'|'Z3'|'Z4'|'Z5'|'Z6'|'PERSONALIZADO'|null;  // null = sem objetivo
-  ritmoAlvo: string | null;    // "4:37-4:58/km"  (canônico, casa PACE_FAIXA)
+  ritmoAlvo: string | null;    // "4:30-4:45/km"  (canônico, casa PACE_FAIXA; faixa base, sem ajuste)
   fcAlvoEtapa: string | null;  // "168-178 bpm"   (canônico, casa FC_BPM)
   alvoPrimario: 'PACE' | 'FC' | 'NENHUM';
 }
@@ -134,8 +150,12 @@ treinador trabalha de um jeito; o produto não impõe método. Consequências no
   e em "Personalizado". Trocar é um clique; não há confirmação nem aviso por "fugir da regra".
 - A tabela abaixo é **só o valor inicial** quando o treinador escolhe uma zona e ainda não tocou no
   eixo. Depois que ele toca, o editor não volta a mexer (nem ao trocar de zona).
-- Único caso sem toggle é físico: Z6 (não tem FC) e atleta sem um dos limiares — aí o eixo
-  disponível é o único, e o editor diz por quê.
+- Único caso sem toggle é físico: Z6 (não tem FC), atleta sem um dos limiares, FC de limiar apenas
+  estimada (D1) — aí o eixo disponível é o único, e o editor diz por quê. Se **nenhum** eixo está
+  disponível (Z6 de atleta sem `paceLimiar`; ou limpar o único valor), `alvoPrimario = NENHUM`, a
+  etapa fica sem meta e o editor mostra "Z6 precisa do pace de limiar do atleta". Limpar um eixo
+  com o outro preenchido move o `alvoPrimario` para o que sobrou; o toggle só habilita eixo que tem
+  valor.
 - Os avisos (CA12, CA13, FC fora da faixa típica) continuam **informativos**, nunca bloqueiam.
 
 | Contexto da etapa | Pré-preenchimento | Por quê |
@@ -156,16 +176,36 @@ por quem não segue; o pré-preenchimento trocável atende os dois.
 
 ### D6 — `alvoPrimario` entra no contrato da etapa
 
-Hoje é **derivado** no `IntervalsIcuWorkoutConverter.stepDeEtapa` (FC vence) e no
-`/me/treinos/hoje`. Com D5 o treinador pode querer pace mesmo com FC preenchida → precisa persistir.
+Hoje é **derivado** em `EtapaAlvoResolver.resolver` (FC resolvida vence; sem FC, pace; sem nenhum,
+`NENHUM`), que espelha a precedência de `IntervalsIcuWorkoutConverter.stepDeEtapa` — o Javadoc do
+resolver exige que as duas mudem juntas e há teste comparando-os. O enum já existe:
+`TreinoHojeDto.AlvoPrimario { FC, PACE, NENHUM }`. Com D5 o treinador pode querer pace mesmo com FC
+preenchida → precisa persistir.
 
-- `EtapaTreino.alvoPrimario VARCHAR(5) NULL` (migration `V<n+1>__add_alvo_primario_etapa_treino.sql`,
-  `CHECK IN ('PACE','FC','NENHUM')`). `NULL` = legado → mantém a derivação atual (FC vence). Sem
-  backfill: o comportamento dos planos existentes não muda.
+- **Reusar o enum existente**, sem criar um segundo: mover `AlvoPrimario` para `enums/` e ajustar os
+  imports (mecânico) ou referenciar `TreinoHojeDto.AlvoPrimario` direto — escolher na task 2.2 o que
+  gerar menos diff. Dois enums com os mesmos valores divergiriam em silêncio.
+- `EtapaTreino.alvoPrimario VARCHAR(10) NULL` (**`NENHUM` tem 6 caracteres**; `VARCHAR(5)` rejeitaria
+  "sem objetivo"). Migration `V105__add_alvo_primario_etapa_treino.sql` (último atual: V104; conferir
+  no momento do merge — sessão paralela pode ter tomado o número), aditiva, nullable, `CHECK IN
+  ('PACE','FC','NENHUM')`, sem backfill. `NULL` = legado → derivação atual. **`NENHUM` explícito**
+  = o treinador escolheu "sem objetivo": nem FC nem pace vão ao relógio, mesmo que `fcAlvoEtapa` ou
+  `ritmoAlvo` tenham texto. `NULL` com os dois campos vazios também resolve para `NENHUM`, mas por
+  derivação — a diferença é que o explícito vence quando há texto.
 - `EtapaInputDto.alvoPrimario` (opcional), `EtapaTreinoDto.alvoPrimario` (saída). `TreinoPlanejadoPatchDto`
   e `TreinoPlanejadoAddDto` herdam via `EtapaInputDto`.
-- `IntervalsIcuWorkoutConverter.stepDeEtapa` e `AtletaTreinoHojeServiceImpl`: se `alvoPrimario != null`,
-  obedecer; senão derivar como hoje. Um teste por caminho em cada.
+- **O ponto único de mudança é `EtapaAlvoResolver`** (usado pelo `/me/treinos/hoje`) **e
+  `IntervalsIcuWorkoutConverter.stepDeEtapa`** (push): se `alvoPrimario != null`, obedecer; senão
+  derivar como hoje. `AtletaTreinoHojeServiceImpl` só consome o resolver — não muda. Um teste por
+  caminho; o teste de paridade resolver × converter cobre também `alvoPrimario` explícito.
+- **Equivalência de repetição:** `IntervalsIcuWorkoutConverter.etapasEquivalentes` (backend) e
+  `VOCABULARIO_EDITOR.assinatura` (`etapaItem.ts`) hoje comparam `ritmoAlvo`/`fcAlvoEtapa` mas não
+  `alvoPrimario`. Duas etapas iguais com eixos diferentes seriam agrupadas num bloco repetido e uma
+  delas perderia a escolha do treinador. `alvoPrimario` entra na comparação nos dois lados, com teste
+  de regressão em cada.
+- **Eixo sem valor:** `alvoPrimario = PACE` com `ritmoAlvo` vazio (ou `FC` com `fcAlvoEtapa` vazio)
+  resolve como `NENHUM` no relógio — não inventa alvo. O editor impede o estado (toggle só habilita
+  eixo preenchido); o backend tolera por defesa.
 - A IA **não** preenche `alvoPrimario` nesta change (schema do LLM intocado) — plano gerado nasce
   `NULL` e o treinador define ao editar. Follow-up: prompt v2 prescrever o eixo.
 
@@ -183,8 +223,8 @@ entidade; aqui o campo é novo mas espelha um existente).
   renomear nem fundir.
 - `ZoneSelector` em `src/features/coach/components/etapas/ZoneSelector.tsx`: segmented Z1–Z6 +
   Personalizado, dois campos de valor, toggle de eixo, avisos. Props: `zones | null`,
-  `value: IntensidadeEtapa`, `tipoEtapa`, `onChange`, `disabled`. Substitui o `TextField` em
-  `BlocoCard` (edit) e `QuantRow` (add). Cores das zonas via `activeTheme.zones` (`ZoneKey` já é
+  `value: IntensidadeEtapa`, `tipoEtapa`, `onChange`, `disabled`. Substitui os campos "Zona (FC)" e
+  "Ritmo" do `BlocoCard` em `EtapasEditor.tsx` — **um único ponto**, que serve edit e add. Cores das zonas via `activeTheme.zones` (`ZoneKey` já é
   `Z1–Z5`; **estender para `Z6`** em `tokens.ts`/`theme.premium.ts` — hoje o tipo não tem Z6).
 - `AthleteZonesTable` em `src/features/coach/components/AthleteZonesTable.tsx`: `<details>`-like
   (MUI `Accordion`, recolhido), 6 linhas, chips de ajuste e idade do limiar (> 90 dias → aviso,
@@ -194,9 +234,18 @@ entidade; aqui o campo é novo mas espelha um existente).
   puro `buildIntensityLineFromEtapa(etapa, zones)` em `features/coach/adapters/` — testável sem DOM.
 - Avisos (CA13, CA12, CA14) seguem o padrão do aviso de remoção de aquecimento já existente no
   dialog: faixa inline `role="alert"`, não bloqueia salvar.
-- `RPE` por etapa removido de `BlocoCard`; `zonaAlvo` global removida do footer; a zona do treino
-  passa a ser exibida (não editável) a partir de `selectWorkoutProfile(...).targetZone`. O patch
-  **continua enviando `zonaAlvo`** derivada, para o backend que a lê (`PlanoLlmValidator`, badge).
+- O `TextField "Zona predominante"` do rodapé do `TreinoEditDialog` deixa de ser editável: a zona do
+  treino passa a ser exibida a partir de `selectWorkoutProfile(...).targetZone`. O patch **continua
+  enviando `zonaAlvo`** derivada, para o backend que a lê (`PlanoLlmValidator`, badge). O RPE do
+  treino fica.
+- **`selectWorkoutProfile` precisa aprender a zona escolhida.** Hoje ele lê texto (`Z2` em
+  `fcAlvoEtapa`/descrição) e ignora faixas numéricas; o seletor grava `"143-150 bpm"` em
+  `fcAlvoEtapa`, então a zona derivada voltaria `null` ou, pior, outra, vinda de uma descrição
+  antiga ("Corrida contínua Z2") que ganha da inferência. Solução: o `ZoneSelector` também grava a
+  zona na etapa (`zonaEtapa`, campo do view-model do editor, sem novo campo de contrato) e o adapter
+  entrega a `selectWorkoutProfile` a zona já resolvida como fonte de maior precedência; a regex passa
+  a aceitar `Z6`. Etapas carregadas do backend (sem `zonaEtapa`) usam `matchZone` (D4, hidratação)
+  contra as zonas do atleta antes de cair no texto.
 
 ### D8 — Legado no editor (CA12)
 
@@ -213,10 +262,30 @@ em cinza ao lado — não reescreve o percentual em bpm sem o treinador escolher
 | Tabela de pace muda o prompt e a IA passa a prescrever diferente | D2 só estreita Z3/Z5 (nenhum pace muda de zona onde já era único); eval gate em modo candidato no PR |
 | Mostrar o fallback 5,83 ou `0:00` como zona real | CA3 + D3: service checa limiar antes; teste com `paceLimiar = null` e `= 0` |
 | `alvoPrimario` persistido muda o push de planos antigos | `NULL` = derivação atual; sem backfill; teste de regressão no converter com `alvoPrimario == null` |
-| Dois seletores divergirem (add × edit) | Um `ZoneSelector`; `QuantRow` e `BlocoCard` só o montam |
+| Dois seletores divergirem (add × edit) | Um `ZoneSelector`; `EtapasEditor` (compartilhado por Editar e Adicionar) o monta uma vez |
 | Teste de componente passar com zona errada (mock = código) | CA10/CA16 afirmam **valores** de bpm/pace vindos do endpoint, e o E2E usa backend real |
 | `ZoneKey` sem Z6 quebrar `activeTheme.zones[...]` | Estender o tipo e os mapas de cor/label antes do seletor; `tsc` acusa os pontos |
 | Pré-preenchimento de `alvoPrimario` (D5) não bater com a prática do treinador | É só valor inicial, trocável num clique e nunca reaplicado depois que o treinador toca; follow-up lembra a preferência dele |
+
+### Pré-requisito de contrato — `atletaId` no plano
+
+`PlanoSemanalOutputDto` traz `atletaNome` e **não** `atletaId` (verificado em 2026-10-26), e
+`PlanoDetalhePanel` não usa o id. O painel precisa do id para chamar `/coach/atletas/{id}/zonas`.
+Campo aditivo `atletaId` no DTO, no mapper e na spec de contrato, entregue **antes** do front
+(task 3.0). Alternativa descartada: buscar o id por nome — frágil e vaza homônimos.
+
+### Rollback
+
+- **Front:** revert do PR. Nenhum dado depende dele; os campos gravados (`fcAlvoEtapa`, `ritmoAlvo`)
+  já eram lidos pelo parser antes.
+- **Backend `alvoPrimario`:** a coluna é nullable e aditiva; com revert do código ela fica órfã e
+  inócua (nenhum leitor). Não precisa de migration de volta. Etapas gravadas com o campo voltam à
+  derivação antiga (FC vence) — o relógio pode mudar de eixo nessas etapas.
+- **Backend D2 (fatores de pace):** revert dos dois números. **Planos já gerados com os fatores
+  novos mantêm o texto de pace que a IA escreveu** — a mudança afeta só geração futura e a tabela
+  exibida; não há reprocessamento de plano existente nem a favor nem contra.
+- **Ordem de entrega:** PR do backend em `develop` (endpoint, `atletaId`, `alvoPrimario`, D2) **antes**
+  de abrir o do front; o front depende do contrato no ambiente de testes.
 
 ### D9 — Decisões visuais (mockup + design critique, 2026-10-26)
 

@@ -1,7 +1,10 @@
 # Tasks — coach-zonas-pace-fc-prescricao (L · Full · backend + front)
 
 > Branch coordenada nos dois repos; **backend primeiro** (o front consome o endpoint).
-> Anchors verificados em 2026-10-26. Absorve `coach-meta-intensidade-editor` — ao arquivar esta,
+> **Gate de PR:** o PR do backend (endpoint, `atletaId`, `alvoPrimario`, D2) entra em `develop` e
+> sobe no ambiente de testes **antes** de abrir o do front; as seções 4–7 só começam depois.
+> Anchors verificados em 2026-10-26 e **revisados após a DoR do mesmo dia** (front: `EtapasEditor`
+> compartilhado; backend: `EtapaAlvoResolver`, enum `AlvoPrimario` existente, V105). Absorve `coach-meta-intensidade-editor` — ao arquivar esta,
 > arquivar aquela como superseded.
 
 ## 0. Discovery e decisões
@@ -30,34 +33,49 @@
 
 ## 2. Backend — `alvoPrimario` na etapa (D6)
 
-- [ ] **2.1** Migration `V<n+1>__add_alvo_primario_etapa_treino.sql`: `alvo_primario VARCHAR(5) NULL
-  CHECK (alvo_primario IN ('PACE','FC','NENHUM'))` em `tb_etapa_treino`. Conferir o último `V` antes
-  - Validação: `./mvnw clean compile` + subir com `docker compose up -d` e checar Flyway
-- [ ] **2.2** `EtapaTreino.alvoPrimario` (enum `AlvoPrimario { PACE, FC, NENHUM }` em `enums/`),
-  `EtapaInputDto.alvoPrimario` (opcional, `@Schema`), `EtapaTreinoDto.alvoPrimario`; mappers com
-  null-check — [CA10]
+- [ ] **2.1** Migration `V105__add_alvo_primario_etapa_treino.sql` (último atual: V104; reconferir
+  no momento do commit): `alvo_primario VARCHAR(10) NULL CHECK (alvo_primario IN
+  ('PACE','FC','NENHUM'))` em `tb_etapa_treino`. **`VARCHAR(10)`: `NENHUM` tem 6 caracteres.**
+  Aditiva, nullable, sem backfill
+  - Validação: `./mvnw clean compile` + subir com `docker compose up -d` e checar Flyway; teste de
+    persistência gravando e relendo `NENHUM`
+- [ ] **2.2** `EtapaTreino.alvoPrimario` **reusando o enum existente** `TreinoHojeDto.AlvoPrimario
+  { FC, PACE, NENHUM }` (mover para `enums/` com imports ajustados, ou referenciar direto — o que
+  gerar menos diff; **não criar segundo enum**). `EtapaInputDto.alvoPrimario` (opcional, `@Schema`),
+  `EtapaTreinoDto.alvoPrimario`; mappers com null-check — [CA10]
   - Validação: `./mvnw test -Dtest=*Mapper*Test`
-- [ ] **2.3** `IntervalsIcuWorkoutConverter.stepDeEtapa`: obedecer `alvoPrimario` quando não nulo;
-  nulo → derivação atual. Dois testes novos em `IntervalsIcuWorkoutConverterTest` (PACE com FC
-  preenchida → emite pace; nulo com os dois → emite FC, como hoje) — [CA10]
-  - Validação: `./mvnw test -Dtest=IntervalsIcuWorkoutConverterTest`
-- [ ] **2.4** `AtletaTreinoHojeServiceImpl`: mesma regra para `alvoPrimario` do `/me/treinos/hoje`;
-  teste em `AtletaTreinoHojeServiceImplTest`
+- [ ] **2.3** `EtapaAlvoResolver.resolver` **e** `IntervalsIcuWorkoutConverter.stepDeEtapa`: obedecer
+  `alvoPrimario` quando não nulo (`NENHUM` explícito vence texto presente; eixo escolhido sem valor →
+  `NENHUM`); nulo → derivação atual. Testes: `EtapaAlvoResolverTest` (um por cenário de CA14b) e o
+  teste de paridade resolver × converter cobrindo `alvoPrimario` explícito — [CA10] [CA14b]
+  - Validação: `./mvnw test -Dtest=EtapaAlvoResolverTest,IntervalsIcuWorkoutConverterTest`
+- [ ] **2.4** `AtletaTreinoHojeServiceImpl` só consome o resolver — **conferir que não duplica a
+  regra** e que `EtapaTreinoDto.alvoPrimario` chega na resposta; teste em
+  `AtletaTreinoHojeServiceImplTest` com `alvoPrimario = PACE` e FC preenchida
   - Validação: `./mvnw test -Dtest=AtletaTreinoHojeServiceImplTest`
+- [ ] **2.4b** `IntervalsIcuWorkoutConverter.etapasEquivalentes` passa a comparar `alvoPrimario`;
+  teste de regressão: duas etapas idênticas com eixos diferentes não viram repetição — [CA14b]
+  - Validação: `./mvnw test -Dtest=IntervalsIcuWorkoutConverterTest`
 - [ ] **2.5** Persistência via `PATCH /coach/planos/{planoId}/treinos/{id}` e `POST .../treinos`:
   `expandirBloco` propaga `alvoPrimario` às sub-etapas. Teste de serviço cobrindo bloco e etapa avulsa
   - Validação: `./mvnw test -Dtest=PlanoServiceImplTest`
 
 ## 3. Backend — endpoint de zonas (D1)
 
+- [ ] **3.0** `PlanoSemanalOutputDto.atletaId` (campo aditivo, `@Schema`) + mapper + teste do mapper
+  + atualizar a spec de contrato do plano. **Antes da 5.2** — [CA2b]
+  - Validação: `./mvnw test -Dtest=*PlanoSemanal*Mapper*Test,PlanoServiceImplTest`
 - [ ] **3.1** `CoachAthleteZonesService` (interface) + `CoachAthleteZonesServiceImpl`: monta
-  `AthleteTrainingZonesOutputDto` a partir de `ZonaTreinoService` + `PaceZoneCalculator`
-  (`calcularZonasAjustadasPorTsbProntidao` com o TSB de prontidão de hoje). Checar `paceLimiar`
-  antes de calcular pace (D3). Javadoc `Idempotent/Side Effects/Tenant-aware` — [CA1] [CA2] [CA3]
+  `AthleteTrainingZonesOutputDto` a partir de `ZonaTreinoService` (faixas **base**, as do prompt) e
+  calcula `ajusteFadiga` com `PaceZoneCalculator.calcularZonasAjustadasPorTsbProntidao` e o TSB de
+  prontidão de hoje — **informativo, não soma nas faixas** (D1). `fcLimiarEstimada` vem de
+  `atleta.getFcLimiar() == null`. Checar `paceLimiar` antes de calcular pace (D3). Javadoc
+  `Idempotent/Side Effects/Tenant-aware` — [CA1] [CA2] [CA3]
   - Validação: `./mvnw test -Dtest=CoachAthleteZonesServiceImplTest`
 - [ ] **3.2** `CoachAthleteZonesServiceImplTest` (`@Nested`, AssertJ): limiares completos (valores
-  absolutos de Z2 e Z6, `fc` de Z6 nulo com motivo); TSB −12 → +7 s/km e `ajusteFadiga`; TSB ≥ 0
-  → 0; `paceLimiar` null **e** 0 → `pace` nulo, `motivoPace = SEM_PACE_LIMIAR`, nunca 5,83;
+  absolutos de Z2 e Z6, `fc` de Z6 nulo com motivo); TSB −12 → `ajusteFadiga` 7 s/km **e faixas
+  inalteradas**; TSB ≥ 0 → 0; `paceLimiar` null **e** 0 → `pace` nulo, `motivoPace = SEM_PACE_LIMIAR`,
+  nunca 5,83;
   `fcLimiar` null → `fcLimiarEstimada = true`; cross-tenant → `DomainNotFoundException`
   — [CA1] [CA2] [CA3] [CA4]
   - Validação: `./mvnw test -Dtest=CoachAthleteZonesServiceImplTest`
@@ -105,11 +123,14 @@
   (zona com cor, nome, pace, FC ou "— (usar pace)", RPE típico em cinza com tooltip "escala genérica, não medida do atleta", "uso típico" —
   rodagem leve / base e longão / ritmo moderado / contínuo de limiar / tiros 3–5 min / tiros curtos),
   linha de âncoras
-  com datas, chip "+N s/km por fadiga" quando `segundosPorKm > 0`, chip "limiar há N dias" com aviso
-  > 90. Estados: `loading` (skeleton), `error`, sem pace (coluna "indisponível" + link) — [CA7]
+  com datas, chip "hoje +N s/km (fadiga)" quando `segundosPorKm > 0` — informativo, as faixas da
+  tabela são as base —, chip "limiar há N dias" com aviso > 90, selo "estimada" na FC quando
+  `fcLimiarEstimada`. Estados: `loading` (skeleton), `error`, sem pace (coluna "indisponível —
+  cadastre o pace de limiar", **sem link**) — [CA7]
   - Validação: `npx vitest run AthleteZonesTable` (presença dos valores de Z2/Z6, chips, estados)
-- [ ] **5.2** `PlanoDetalhePanel`: buscar zonas do `plano.atletaId` (conferir se o DTO traz o id;
-  se não, adicionar no backend em 3.x) e renderizar `AthleteZonesTable` entre métricas e treinos — [CA7]
+- [ ] **5.2** `PlanoDetalhePanel`: buscar zonas do `plano.atletaId` (campo entregue pela task 3.0 —
+  portar `atletaId` para o tipo do plano no front) e renderizar `AthleteZonesTable` entre métricas
+  e treinos — [CA7]
   - Validação: `npx vitest run PlanoDetalhePanel`
 - [ ] **5.3** Adapter `buildIntensityLineFromEtapa(etapa, zones)` → `{ zona, pace, fc, primario }`;
   `TreinoTag` (PlanoDetalhePanel) e `TreinoCard` (CurrentWeekPlan) usam para a linha de meta:
@@ -119,34 +140,48 @@
 
 ## 6. Front — editor (D4, D5, D7, D8)
 
-- [ ] **6.1** `etapaItem.ts`: `StepRow`/`SubStep` ganham `alvoPrimario?: 'PACE'|'FC'|'NENHUM'`;
-  `serializarItens` emite `ritmoAlvo`, `fcAlvoEtapa`, `alvoPrimario`; `itensFromEtapas` hidrata.
-  Testes de ida e volta (incluindo legado "trote leve" preservado) — [CA10] [CA12]
+- [ ] **6.1** `etapaItem.ts`: `StepRow`/`SubStep` ganham `alvoPrimario?: 'PACE'|'FC'|'NENHUM'` e
+  `zonaEtapa?: ZoneKey` (view-model do editor, não vai no contrato); `serializarItens` emite
+  `ritmoAlvo`, `fcAlvoEtapa`, `alvoPrimario`; `itensFromEtapas` hidrata. **`VOCABULARIO_EDITOR.assinatura`
+  passa a incluir `alvoPrimario`** (etapas iguais com eixos diferentes não viram repetição).
+  Testes de ida e volta (incluindo legado "trote leve" preservado) e de assinatura — [CA10] [CA12] [CA14b]
   - Validação: `npx vitest run etapaItem`
 - [ ] **6.2** `ZoneSelector` (`features/coach/components/etapas/ZoneSelector.tsx`): segmented
   Z1–Z6 + Personalizado (≥ 40 px; "Personalizado" selecionado em `surface-raised`, não lime);
   toggle com rótulo visível "Relógio:" (44 px; lime só no segmento selecionado); pills de valor em
-  ordem pace → FC sem lime (D9 V3–V6, V8); escolher Zn preenche pace/FC da `zones` e aplica `defaultAlvoPrimario`;
-  editar valor → `PERSONALIZADO`; limpar ambos → sem objetivo; toggle `Pace | FC` **sempre visível e
-  habilitado** (exceto quando só um eixo existe: Z6 ou limiar ausente), pré-preenchido por
-  `defaultAlvoPrimario` só enquanto o treinador não tocou nele; sem `zones` (loading/erro) → só
-  campos de valor, sem segmented. Props tipadas — [CA9] [CA14]
+  ordem pace → FC sem lime (D9 V3–V6, V8); escolher Zn preenche pace/FC da `zones` (faixa **base**,
+  sem somar `ajusteFadiga`) e aplica `defaultAlvoPrimario`; **`fcLimiarEstimada` → não preenche a FC**
+  (D1); editar valor → `PERSONALIZADO`; limpar ambos → `alvoPrimario = NENHUM`; limpar um → o eixo
+  passa ao que sobrou; toggle `Pace | FC` **sempre visível**, habilitado só para eixo com valor
+  (Z6, limiar ausente e FC estimada deixam um eixo só, com explicação), pré-preenchido por
+  `defaultAlvoPrimario` só enquanto o treinador não tocou nele; Z6 sem `paceLimiar` → nada
+  preenchido, `NENHUM`; sem `zones` (loading/erro) → só campos de valor, sem segmented. Grava
+  `zonaEtapa`. Props tipadas — [CA9] [CA14]
   - Validação: `npx vitest run ZoneSelector` (afirmar **valores** preenchidos para Z2 e Z5 de um
-    `zones` fixo; troca para Personalizado; sem pace; eixo trocado pelo treinador **não** volta ao
-    default ao mudar a zona)
+    `zones` fixo; troca para Personalizado; sem pace; FC estimada; Z6 sem pace; eixo trocado pelo
+    treinador **não** volta ao default ao mudar a zona)
+- [ ] **6.2b** `selectWorkoutProfile` (`features/workout/profile/`): aceitar `Z6` na regex e dar
+  precedência à `zonaEtapa` resolvida (D7); etapas sem `zonaEtapa` usam `matchZone` contra as zonas
+  do atleta antes do texto. Teste: etapa com `fcAlvoEtapa = "143-150 bpm"` e descrição antiga
+  "Corrida contínua Z3" deriva Z2 quando as faixas casam Z2
+  - Validação: `npx vitest run selectWorkoutProfile`
 - [ ] **6.3** Avisos inline (`role="alert"`, não bloqueiam): texto legado não parseável (CA12);
   pace e FC em zonas diferentes (CA13); FC fora da faixa típica do `tipoEtapa` (tabela de
   `EtapaFcValidator`, portada como constante no front com comentário apontando a origem)
   - Validação: `npx vitest run ZoneSelector`
-- [ ] **6.4** `TreinoEditDialog`: **só a etapa em foco expandida**, as demais como linha resumo
-  (`StepSummaryRow`: chip da zona · pace · FC · "relógio X" · ícone de aviso), clique expande (D9 V5)
-  — [CA19]; `BlocoCard` troca o `TextField "Zona alvo"` + `RPE` por `ZoneSelector`; `AthleteZonesTable` no topo do conteúdo; footer perde `zonaAlvo` editável e mostra
-  a zona derivada (`selectWorkoutProfile(...).targetZone`); `montarPatch` envia `zonaAlvo` derivada
-  quando mudou. `blocoStateDe`/`camposDe` passam `ritmoAlvo` e `alvoPrimario` — [CA9] [CA11]
-  - Validação: `npx vitest run TreinoEditDialog`
-- [ ] **6.5** `TreinoAddDialog`: `QuantRow` usa `ZoneSelector`; remove o `TextField "Zona alvo"`
-  de fallback (`:685`) — zona do treino derivada igual ao edit — [CA15]
-  - Validação: `npx vitest run TreinoAddDialog`
+- [ ] **6.4** `etapas/EtapasEditor.tsx` (compartilhado por Editar e Adicionar): o `BlocoCard` troca
+  os campos "Zona (FC)" (`:215`) e "Ritmo" (`:241`, hoje dentro de "detalhes") por `ZoneSelector`;
+  `blocoStateDe`/`camposDe` (`:66-84`) passam `ritmoAlvo`, `alvoPrimario` e `zonaEtapa`. **Só a etapa
+  em foco expandida**, as demais como linha resumo (`StepSummaryRow`: chip da zona · pace · FC ·
+  "relógio X" · ícone de aviso), clique expande (D9 V5) — [CA9] [CA11] [CA15] [CA19]
+  - Validação: `npx vitest run EtapasEditor etapaItem`
+- [ ] **6.5** `TreinoEditDialog` e `TreinoAddDialog`: `AthleteZonesTable` no topo do conteúdo (zonas
+  do atleta via `useAthleteTrainingZones`); o rodapé do `TreinoEditDialog` troca o `TextField "Zona
+  predominante"` (~:500) pela zona derivada (`selectWorkoutProfile(...).targetZone`, não editável);
+  `montarPatch`/payload do add enviam `zonaAlvo` derivada. **Rebasear sobre o código atual**: partir
+  das PRs #168–170 e conferir que `TreinoEditDialog.test.tsx`/`tiposTreino.ts` não estão pendentes
+  — [CA11] [CA15]
+  - Validação: `npx vitest run TreinoEditDialog TreinoAddDialog`
 - [ ] **6.6** Teste de componente de contraste: rótulos de `ZoneSelector`, `AthleteZonesTable` e
   cards resolvem para `text-secondary` (`#94A3B8`), nunca `text-muted`; texto de alerta em
   `text-primary`; nenhum `primary-500` em `TreinoTag`/`TreinoCard` (D9 V1–V3) — [CA17] [CA18]

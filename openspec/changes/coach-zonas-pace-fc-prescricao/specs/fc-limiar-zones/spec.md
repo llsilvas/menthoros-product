@@ -1,6 +1,9 @@
-# fc-limiar-zones (delta — MODIFIED)
+# fc-limiar-zones (delta — ADDED)
 
-## MODIFIED Requirements
+A spec canônica não tem requisito sobre zonas de pace (só FC, bpm no prompt, schema e validação),
+então este é `ADDED`: a contiguidade das faixas de pace passa a ser contrato explícito.
+
+## ADDED Requirements
 
 ### Requirement: Zonas de pace contíguas sobre o pace de limiar
 O sistema SHALL calcular as 6 zonas de pace multiplicando `paceLimiar` pelos fatores
