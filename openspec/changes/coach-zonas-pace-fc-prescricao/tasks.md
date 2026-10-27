@@ -28,7 +28,7 @@
   `TreinoNormalizadorZonaHelpersTest`, `EvalRunnerTest` se aplicável) — afirmar os novos valores,
   não relaxar a asserção
   - Validação: `./mvnw clean test`
-- [ ] **1.4 Eval gate**: `./mvnw -Peval test -Dtest=EvalRunnerTest -Dmodo=candidato`
+- [x] **1.4 Eval gate**: `./mvnw -Peval test -Dtest=EvalRunnerTest -Dmodo=candidato`
   (`OPENAI_API_KEY`); colar a tabela no PR do backend — [CA6]
 
 ## 2. Backend — `alvoPrimario` na etapa (D6)
