@@ -1,7 +1,9 @@
 # coach-meta-intensidade-editor — meta de intensidade no editor, no modelo do Garmin
 
 **Tamanho:** M · **Trilha:** Full
-**Status:** proposta
+**Status:** proposta — **absorvida por `coach-zonas-pace-fc-prescricao`** (2026-10-26): o bloqueio
+(`fix-fc-alvo-base-inconsistente`) foi arquivado em 2026-09-01 e os CA1–CA7 daqui entraram lá como
+CA9–CA13, junto com a tabela de zonas do atleta que dá sentido ao seletor. Arquivar como superseded.
 **Criado:** 2026-08-02
 
 > **Depende de `fix-fc-alvo-base-inconsistente`**, que estabelece a meta de intensidade como escolha
