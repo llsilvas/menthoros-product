@@ -18,13 +18,13 @@
 
 ## 1. Backend — zonas de pace contíguas (D2, D3)
 
-- [ ] **1.1** `ZonaTreinoService.PACE_FATORES`: Z3 → `{1.00, 1.05}`, Z5 → `{0.90, 0.95}`.
+- [x] **1.1** `ZonaTreinoService.PACE_FATORES`: Z3 → `{1.00, 1.05}`, Z5 → `{0.90, 0.95}`.
   Javadoc: faixas contíguas, `0.00–0.00` é sentinela "sem limiar" — [CA5]
   - Validação: `./mvnw test -Dtest=ZonaTreinoServiceTest,PaceZoneCalculatorTest,PaceZoneSemanticaTest`
-- [ ] **1.2** Teste parametrizado em `ZonaTreinoServiceTest`: para `paceLimiar ∈ {4.00, 5.00, 6.50}`,
+- [x] **1.2** Teste parametrizado em `ZonaTreinoServiceTest`: para `paceLimiar ∈ {4.00, 5.00, 6.50}`,
   `paceMin(Zn) == paceMax(Zn+1)` para n = 1..5; valores absolutos de Z3/Z4/Z5 com limiar 5.00 — [CA5]
   - Validação: `./mvnw test -Dtest=ZonaTreinoServiceTest`
-- [ ] **1.3** Ajustar os testes que fixavam os fatores antigos (`PaceZoneSemanticaTest`,
+- [x] **1.3** Ajustar os testes que fixavam os fatores antigos (`PaceZoneSemanticaTest`,
   `TreinoNormalizadorZonaHelpersTest`, `EvalRunnerTest` se aplicável) — afirmar os novos valores,
   não relaxar a asserção
   - Validação: `./mvnw clean test`
