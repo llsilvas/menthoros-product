@@ -207,6 +207,23 @@ cliente OpenAPI regenerado em 4.4) → 6. Revisado no DoR de 2026-10-25.
     Revisão do founder pendente.
 
 
+## Quality gate (QA)
+
+Revisão em paralelo (código, segurança, design do backend; front). Corrigido antes do PR:
+webhook confere o segredo antes de ler o corpo (404 mesmo com corpo malformado), com teto de corpo,
+rate limit no callback e no webhook, segredo mínimo de 32 caracteres, teto de 100 itens e item ruim
+não derruba o lote; `renovar` serializado por conexão e relendo a linha antes de tratar 400/401
+como revogação; perfil do treinador prefere o canal ativo; migration `V105` (índice único parcial do
+userId Garmin ativo) com `DataIntegrityViolationException` virando `CONTA_JA_VINCULADA`; revogação
+de credenciais centralizada em `IntegracaoExterna.revogarCredenciais`; front valida a URL de
+consentimento (https + domínio do provedor), runtime manda na flag, guia do treinador segue o canal
+real e o onboarding assume `GARMIN` quando é a única opção.
+
+Ficou fora, por decisão ou por custo: cifrar tokens em repouso (padrão das outras integrações),
+extrair `GarminTokenService`/`PkceStore` do `GarminOAuthServiceImpl`, cache do PKCE compartilhado
+entre réplicas, rate limit do `authorize-url`, `aria-busy` no botão de conectar, link de privacidade
+com `RouterLink`, subir `app.lgpd.policy-version` no backend (exige novo aceite dos coaches).
+
 ## Workflow follow-up
 
 - Cadastrar domínio de produção no Garmin antes do deploy (revisão 24–48 h).
