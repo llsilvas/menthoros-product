@@ -187,16 +187,25 @@ cliente OpenAPI regenerado em 4.4) → 6. Revisado no DoR de 2026-10-25.
 
 ## 6. Integração e operação
 
-- [ ] 6.1 IT de ponta a ponta (WireMock como Garmin): `authorize-url` → callback → status Garmin
+- [x] 6.1 IT de ponta a ponta (WireMock como Garmin): `authorize-url` → callback → status Garmin
   ativo e intervals.icu inativo → Strava conectado nasce pausado → webhook `userPermissionsChange`
   → webhook `deregistrations` → status inativo; métricas presentes.
   verify: `./mvnw clean verify` verde (CA1–CA8, CA13).
-- [ ] 6.2 Documentar em `menthoros-infra/docs` as vars `GARMIN_*` (inclusive `GARMIN_HABILITADO`) e
+- [x] 6.2 Documentar em `menthoros-infra/docs` as vars `GARMIN_*` (inclusive `GARMIN_HABILITADO`) e
   `VITE_GARMIN_HABILITADO`, o passo a passo do Developer Portal (redirect, endpoints, domínio) e a
   troca do webhook testes → produção; arquivar
   `menthoros-product/artifacts/docs/architecture/INTEGRACAO_GARMIN_STRAVA_CONSOLIDATED.md`.
   verify: `./mvnw clean verify` e `npm run lint && npm run build && npm test` verdes; doc revisado
   pelo founder.
+
+  Notas de execução da seção 6:
+  - 6.1: `GarminConnectionFlowIT` cobre authorize-url, callback, exclusividade com o intervals.icu,
+    Strava nascendo pausado, webhooks de permissão e desregistro, e as métricas. A conferência de
+    `/actuator/metrics` (4.3) foi feita pelo `MeterRegistry`, que é a fonte do endpoint.
+  - 6.2: doc em `menthoros-infra/docs/garmin-direto-operacao.md` (branch
+    `docs/garmin-direto-operacao`, sem push); doc antigo movido para `artifacts/docs/archive/`.
+    Revisão do founder pendente.
+
 
 ## Workflow follow-up
 
