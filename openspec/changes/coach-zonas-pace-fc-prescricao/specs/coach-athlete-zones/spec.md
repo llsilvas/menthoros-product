@@ -12,12 +12,12 @@ cálculo. O ajuste por fadiga SHALL ser informativo e separado das faixas.
 
 #### Scenario: Atleta com limiares completos
 - **WHEN** o treinador consulta as zonas de um atleta com `paceLimiar = 5.00` e `fcLimiar = 168`
-- **THEN** Z2 devolve `pace = 322–352 s/km` (5:15–5:45) e `fc = 143–150`; Z6 devolve pace
-  `253–277 s/km` e `fc` ausente com `motivoFc = FC_NAO_ESTABILIZA`
+- **THEN** Z2 devolve `pace = 315–345 s/km` (5:15–5:45) e `fc = 143–150`; Z6 devolve pace
+  `246–270 s/km` e `fc` ausente com `motivoFc = FC_NAO_ESTABILIZA`
 
 #### Scenario: Ajuste por fadiga
 - **WHEN** o TSB de prontidão do atleta hoje é −12
-- **THEN** as faixas de `zonas[].pace` permanecem as **base** (Z2 continua `322–352 s/km` para
+- **THEN** as faixas de `zonas[].pace` permanecem as **base** (Z2 continua `315–345 s/km` para
   `paceLimiar = 5.00`) e o corpo declara `ajusteFadiga = { segundosPorKm: 7, tsbProntidao: -12 }`;
   com TSB ≥ 0, `segundosPorKm = 0`
 

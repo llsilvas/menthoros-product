@@ -57,10 +57,14 @@
   teste de regressão: duas etapas idênticas com eixos diferentes não viram repetição — [CA14b]
   - Validação: `./mvnw test -Dtest=IntervalsIcuWorkoutConverterTest`
 - [ ] **2.5** Persistência via `PATCH /coach/planos/{planoId}/treinos/{id}` e `POST .../treinos`:
-  `TreinoPlanejadoServiceImpl.expandirBloco` (`:441`) **e a cópia `comRepeticoes` (`:417`, expansão
-  legada por `repeticoes`)** propagam `alvoPrimario` às sub-etapas. Teste em
-  `TreinoPlanejadoServiceImplTest` cobrindo bloco, repetição legada e etapa avulsa
-  - Validação: `./mvnw test -Dtest=TreinoPlanejadoServiceImplTest`
+  `TreinoPlanejadoServiceImpl.buildEtapaSimples` (chamado por `expandirBloco` `:325` e
+  `aplicarEtapasPatch` `:441`) **e o construtor de 9 argumentos de `comRepeticoes` (`:417-428`, copia
+  campo a campo)** propagam `alvoPrimario`. Teste em `TreinoPlanejadoServiceTest` cobrindo bloco,
+  repetição legada e etapa avulsa
+  - Validação: `./mvnw test -Dtest=TreinoPlanejadoServiceTest`
+- [ ] **2.6** `TreinoPlanejadoServiceImpl:364`: `zonaAlvo = ""` no patch **limpa** o campo (hoje null/ausente
+  mantém). Teste: treino Z2 → patch com `""` → `zonaAlvo` nula, e patch sem o campo continua mantendo
+  - Validação: `./mvnw test -Dtest=TreinoPlanejadoServiceTest`
 
 ## 3. Backend — endpoint de zonas (D1)
 
@@ -70,7 +74,8 @@
 - [ ] **3.1** `CoachAthleteZonesService` (interface) + `CoachAthleteZonesServiceImpl`: monta
   `AthleteTrainingZonesOutputDto` a partir de `ZonaTreinoService` (faixas **base**, as do prompt) e
   calcula `ajusteFadiga` com `PaceZoneCalculator.calcularZonasAjustadasPorTsbProntidao` e o TSB de
-  prontidão de hoje — **informativo, não soma nas faixas** (D1). `fcLimiarEstimada` vem de
+  prontidão de hoje — **informativo, não soma nas faixas** (D1). `fcMaxima { bpm, estimada }` vem de `getFcMaximaComFallback()` (o mesmo de
+  `IntervalsIcuFcAlvoResolver:101`); `fcLimiarEstimada` vem de
   `atleta.getFcLimiar() == null`. Checar `paceLimiar` antes de calcular pace (D3). Javadoc
   `Idempotent/Side Effects/Tenant-aware` — [CA1] [CA2] [CA3]
   - Validação: `./mvnw test -Dtest=CoachAthleteZonesServiceImplTest`
@@ -137,7 +142,7 @@
 - [ ] **5.3** Adapter `buildIntensityLineFromEtapa(etapa, zones)` → `{ zona, pace, fc, primario }`;
   `TreinoTag` (PlanoDetalhePanel) e `TreinoCard` (CurrentWeekPlan) usam para a linha de meta:
   **ordem fixa pace → FC**, primário em `text-primary` + 600, secundário `text-secondary`, sem lime
-  (D9 V3/V4); sem `paceLimiar` → só FC + "pace indisponível"; personalizado sem chip (V7) — [CA8] [CA18]
+  (D9 V3/V4); sem `paceLimiar` → só FC + "pace indisponível", **exceto** etapa com `ritmoAlvo` persistido, que exibe o valor como está (regressão em `buildIntensityLine`); personalizado sem chip (V7) — [CA8] [CA18]
   - Validação: `npx vitest run PlanoDetalhePanel CurrentWeekPlan buildIntensityLine`
 
 ## 6. Front — editor (D4, D5, D7, D8)
@@ -169,8 +174,10 @@
   - Validação: `npx vitest run selectWorkoutProfile`
 - [ ] **6.3** Avisos inline (`role="alert"`, não bloqueiam): texto legado não parseável (CA12);
   pace e FC em zonas diferentes (CA13); FC fora da faixa típica do `tipoEtapa` (tabela de
-  `EtapaFcValidator`, portada como constante no front com comentário apontando a origem)
-  - Validação: `npx vitest run ZoneSelector`
+  `EtapaFcValidator`, portada como constante no front com comentário apontando a origem); **FC
+  acima de `zones.fcMaxima.bpm`** (não vai ao relógio, `IntervalsIcuFcAlvoResolver:103`) — [CA10]
+  - Validação: `npx vitest run ZoneSelector` (inclui Z5 168–178 com máxima 175 → aviso) e, no backend,
+    `./mvnw test -Dtest=IntervalsIcuFcAlvoResolverTest` com o mesmo caso, máxima estimada incluída
 - [ ] **6.4** `etapas/EtapasEditor.tsx` (compartilhado por Editar e Adicionar): o `BlocoCard` troca
   os campos "Zona (FC)" (`:215`) e "Ritmo" (`:241`, hoje dentro de "detalhes") por `ZoneSelector`;
   `blocoStateDe`/`camposDe` (`:66-84`) passam `ritmoAlvo`, `alvoPrimario` e `zonaEtapa`. **Só a etapa
@@ -180,12 +187,12 @@
 - [ ] **6.5** `TreinoEditDialog` e `TreinoAddDialog`: `AthleteZonesTable` no topo do conteúdo (zonas
   do atleta via `useAthleteTrainingZones`); o rodapé do `TreinoEditDialog` troca o `TextField "Zona
   predominante"` (~:500) pela zona derivada (`selectWorkoutProfile(...).targetZone`, não editável);
-  `montarPatch`/payload do add enviam `zonaAlvo` derivada. **Rebasear sobre o código atual**: partir
+  `montarPatch` envia `zonaAlvo` derivada (`""` quando não há zona derivável, task 2.6). **Rebasear sobre o código atual**: partir
   das PRs #168–170 e conferir que `TreinoEditDialog.test.tsx`/`tiposTreino.ts` não estão pendentes
   — [CA11] [CA15]
   - Validação: `npx vitest run TreinoEditDialog TreinoAddDialog`
 - [ ] **6.5b** `TreinoAddDialog.tsx:323`: remover o `TextField "Zona predominante"` (hoje editável); o
-  payload do add envia `zonaAlvo` derivada. Teste: o Add **não renderiza** o campo — [CA11] [CA15]
+  payload do add (único ponto que trata o Add) envia `zonaAlvo` derivada. Teste: o Add **não renderiza** o campo — [CA11] [CA15]
   - Validação: `npx vitest run TreinoAddDialog`
 - [ ] **6.6** Teste de componente de contraste: rótulos de `ZoneSelector`, `AthleteZonesTable` e
   cards resolvem para `text-secondary` (`#94A3B8`), nunca `text-muted`; texto de alerta em

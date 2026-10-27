@@ -49,10 +49,11 @@ cacheável no front (por `atletaId`) evita acoplar o dialog ao agregado.
     "fcLimiar": 168, "dataUltimoTesteFc": "2026-09-12", "fcLimiarEstimada": false
   },
   "ajusteFadiga": { "segundosPorKm": 7, "tsbProntidao": -12.3 },
+  "fcMaxima": { "bpm": 175, "estimada": true },
   "disponibilidade": { "pace": true, "fc": true, "motivoPace": null },
   "zonas": [
-    { "numero": 1, "nome": "Recuperação", "pace": { "minSegKm": 352, "maxSegKm": 382 }, "fc": { "min": 126, "max": 143 } },
-    { "numero": 6, "nome": "Sprint",      "pace": { "minSegKm": 253, "maxSegKm": 277 }, "fc": null, "motivoFc": "FC_NAO_ESTABILIZA" }
+    { "numero": 1, "nome": "Recuperação", "pace": { "minSegKm": 345, "maxSegKm": 375 }, "fc": { "min": 126, "max": 143 } },
+    { "numero": 6, "nome": "Sprint",      "pace": { "minSegKm": 246, "maxSegKm": 270 }, "fc": null, "motivoFc": "FC_NAO_ESTABILIZA" }
   ]
 }
 ```
@@ -129,7 +130,7 @@ interface IntensidadeEtapa {
 }
 ```
 
-- **Escolher Zn** copia `pace` e `fc` da zona (do endpoint, já com ajuste por fadiga) para os dois
+- **Escolher Zn** copia `pace` e `fc` da zona (do endpoint, faixa **base** — o ajuste por fadiga é só informativo, D1) para os dois
   campos e aplica a **regra default** de `alvoPrimario` (D5). Z6 preenche só pace, força `PACE`.
 - **Editar pace ou FC à mão** muda `zona` para `PERSONALIZADO` sem apagar o outro campo.
 - **Limpar os dois** → `zona = null`, `alvoPrimario = 'NENHUM'` — "sem objetivo" como escolha, igual
@@ -253,7 +254,9 @@ entidade; aqui o campo é novo mas espelha um existente).
 - **Treino só por distância.** `selectWorkoutProfile` hoje descarta etapas sem duração
   (`selectWorkoutProfile.ts:370`); a agregação da zona do treino passa a ponderar por distância quando
   não há duração, e retorna `null` (exibido como "—", `zonaAlvo` omitida do patch) se nenhuma
-  etapa tem peso. Nunca derruba o salvar.
+  etapa tem peso. Nunca derruba o salvar. Como `TreinoPlanejadoServiceImpl:364` mantém o valor
+  anterior quando `zonaAlvo` falta ou é nulo, o front envia `zonaAlvo = ""` para limpar e o backend
+  trata string vazia como limpeza explícita (task 2.6) — senão um treino antes Z2 continuaria Z2.
 
 ### D8 — Legado no editor (CA12)
 
