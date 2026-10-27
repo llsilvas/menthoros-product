@@ -33,36 +33,36 @@
 
 ## 2. Backend — `alvoPrimario` na etapa (D6)
 
-- [ ] **2.1** Migration `V106__add_alvo_primario_etapa_treino.sql` (último atual: V105; reconferir
+- [x] **2.1** Migration `V106__add_alvo_primario_etapa_treino.sql` (último atual: V105; reconferir
   no momento do commit): `alvo_primario VARCHAR(10) NULL CHECK (alvo_primario IN
   ('PACE','FC','NENHUM'))` em `tb_etapa_treino`. **`VARCHAR(10)`: `NENHUM` tem 6 caracteres.**
   Aditiva, nullable, sem backfill
   - Validação: `./mvnw clean compile` + subir com `docker compose up -d` e checar Flyway; teste de
     persistência gravando e relendo `NENHUM`
-- [ ] **2.2** `EtapaTreino.alvoPrimario` **reusando o enum existente** `TreinoHojeDto.AlvoPrimario
+- [x] **2.2** `EtapaTreino.alvoPrimario` **reusando o enum existente** `TreinoHojeDto.AlvoPrimario
   { FC, PACE, NENHUM }` (mover para `enums/` com imports ajustados, ou referenciar direto — o que
   gerar menos diff; **não criar segundo enum**). `EtapaInputDto.alvoPrimario` (opcional, `@Schema`),
   `EtapaTreinoDto.alvoPrimario`; mappers com null-check — [CA10]
   - Validação: `./mvnw test -Dtest=*Mapper*Test`
-- [ ] **2.3** `EtapaAlvoResolver.resolver` **e** `IntervalsIcuWorkoutConverter.stepDeEtapa`: obedecer
+- [x] **2.3** `EtapaAlvoResolver.resolver` **e** `IntervalsIcuWorkoutConverter.stepDeEtapa`: obedecer
   `alvoPrimario` quando não nulo (`NENHUM` explícito vence texto presente; eixo escolhido sem valor →
   `NENHUM`); nulo → derivação atual. Testes: `EtapaAlvoResolverTest` (um por cenário de CA14b) e o
   teste de paridade resolver × converter cobrindo `alvoPrimario` explícito — [CA10] [CA14b]
   - Validação: `./mvnw test -Dtest=EtapaAlvoResolverTest,IntervalsIcuWorkoutConverterTest`
-- [ ] **2.4** `AtletaTreinoHojeServiceImpl` só consome o resolver — **conferir que não duplica a
+- [x] **2.4** `AtletaTreinoHojeServiceImpl` só consome o resolver — **conferir que não duplica a
   regra** e que `EtapaTreinoDto.alvoPrimario` chega na resposta; teste em
   `AtletaTreinoHojeServiceImplTest` com `alvoPrimario = PACE` e FC preenchida
   - Validação: `./mvnw test -Dtest=AtletaTreinoHojeServiceImplTest`
-- [ ] **2.4b** `IntervalsIcuWorkoutConverter.etapasEquivalentes` passa a comparar `alvoPrimario`;
+- [x] **2.4b** `IntervalsIcuWorkoutConverter.etapasEquivalentes` passa a comparar `alvoPrimario`;
   teste de regressão: duas etapas idênticas com eixos diferentes não viram repetição — [CA14b]
   - Validação: `./mvnw test -Dtest=IntervalsIcuWorkoutConverterTest`
-- [ ] **2.5** Persistência via `PATCH /coach/planos/{planoId}/treinos/{id}` e `POST .../treinos`:
+- [x] **2.5** Persistência via `PATCH /coach/planos/{planoId}/treinos/{id}` e `POST .../treinos`:
   `TreinoPlanejadoServiceImpl.buildEtapaSimples` (chamado por `expandirBloco` `:325` e
   `aplicarEtapasPatch` `:441`) **e o construtor de 9 argumentos de `comRepeticoes` (`:417-428`, copia
   campo a campo)** propagam `alvoPrimario`. Teste em `TreinoPlanejadoServiceTest` cobrindo bloco,
   repetição legada e etapa avulsa
   - Validação: `./mvnw test -Dtest=TreinoPlanejadoServiceTest`
-- [ ] **2.6** `TreinoPlanejadoServiceImpl:364`: `zonaAlvo = ""` no patch **limpa** o campo (hoje null/ausente
+- [x] **2.6** `TreinoPlanejadoServiceImpl:364`: `zonaAlvo = ""` no patch **limpa** o campo (hoje null/ausente
   mantém). Teste: treino Z2 → patch com `""` → `zonaAlvo` nula, e patch sem o campo continua mantendo; no **POST (Add, `:292`)** string vazia/blank é normalizada para `null`, nunca gravada literal
   - Validação: `./mvnw test -Dtest=TreinoPlanejadoServiceTest`
 
