@@ -148,13 +148,13 @@
 
 ## 6. Front — editor (D4, D5, D7, D8)
 
-- [ ] **6.1** `etapaItem.ts`: `StepRow`/`SubStep` ganham `alvoPrimario?: 'PACE'|'FC'|'NENHUM'` e
+- [x] **6.1** `etapaItem.ts`: `StepRow`/`SubStep` ganham `alvoPrimario?: 'PACE'|'FC'|'NENHUM'` e
   `zonaEtapa?: ZoneKey` (view-model do editor, não vai no contrato); `serializarItens` emite
   `ritmoAlvo`, `fcAlvoEtapa`, `alvoPrimario`; `itensFromEtapas` hidrata. **`VOCABULARIO_EDITOR.assinatura`
   passa a incluir `alvoPrimario`** (etapas iguais com eixos diferentes não viram repetição).
   Testes de ida e volta (incluindo legado "trote leve" preservado) e de assinatura — [CA10] [CA12] [CA14b]
   - Validação: `npx vitest run etapaItem`
-- [ ] **6.2** `ZoneSelector` (`features/coach/components/etapas/ZoneSelector.tsx`): segmented
+- [x] **6.2** `ZoneSelector` (`features/coach/components/etapas/ZoneSelector.tsx`): segmented
   Z1–Z6 + Personalizado (≥ 40 px; "Personalizado" selecionado em `surface-raised`, não lime);
   toggle com rótulo visível "Relógio:" (44 px; lime só no segmento selecionado); pills de valor em
   ordem pace → FC sem lime (D9 V3–V6, V8); escolher Zn preenche pace/FC da `zones` (faixa **base**,
@@ -168,43 +168,56 @@
   - Validação: `npx vitest run ZoneSelector` (afirmar **valores** preenchidos para Z2 e Z5 de um
     `zones` fixo; troca para Personalizado; sem pace; FC estimada; Z6 sem pace; eixo trocado pelo
     treinador **não** volta ao default ao mudar a zona)
-- [ ] **6.2b** (inclui D7 treino só por distância: `ProfileEtapaInput` ganha `distanciaKm`, os adapters o
+- [x] **6.2b** (inclui D7 treino só por distância: `ProfileEtapaInput` ganha `distanciaKm`, os adapters o
   transportam, `selectWorkoutProfile` pondera por distância quando não há duração e devolve `null` sem
   peso; regressão passando pelo adapter real, não só pelo seletor) `selectWorkoutProfile` (`features/workout/profile/`): aceitar `Z6` na regex e dar
   precedência à `zonaEtapa` resolvida (D7); etapas sem `zonaEtapa` usam `matchZone` contra as zonas
   do atleta antes do texto. Teste: etapa com `fcAlvoEtapa = "143-150 bpm"` e descrição antiga
   "Corrida contínua Z3" deriva Z2 quando as faixas casam Z2
   - Validação: `npx vitest run selectWorkoutProfile`
-- [ ] **6.3** Avisos inline (`role="alert"`, não bloqueiam): texto legado não parseável (CA12);
+- [x] **6.3** Avisos inline (`role="alert"`, não bloqueiam): texto legado não parseável (CA12);
   pace e FC em zonas diferentes (CA13); FC fora da faixa típica do `tipoEtapa` (tabela de
   `EtapaFcValidator`, portada como constante no front com comentário apontando a origem); **FC
   acima de `zones.fcMaxima.bpm`** (não vai ao relógio, `IntervalsIcuFcAlvoResolver:103`) — [CA10]
   - Validação: `npx vitest run ZoneSelector` (inclui Z5 168–178 com máxima 175 → aviso) e, no backend,
     `./mvnw test -Dtest=IntervalsIcuFcAlvoResolverTest` com o mesmo caso, máxima estimada incluída
-- [ ] **6.4** `etapas/EtapasEditor.tsx` (compartilhado por Editar e Adicionar): o `BlocoCard` troca
+- [x] **6.4** `etapas/EtapasEditor.tsx` (compartilhado por Editar e Adicionar): o `BlocoCard` troca
   os campos "Zona (FC)" (`:215`) e "Ritmo" (`:241`, hoje dentro de "detalhes") por `ZoneSelector`;
   `blocoStateDe`/`camposDe` (`:66-84`) passam `ritmoAlvo`, `alvoPrimario` e `zonaEtapa`. **Só a etapa
   em foco expandida**, as demais como linha resumo (`StepSummaryRow`: chip da zona · pace · FC ·
   "relógio X" · ícone de aviso), clique expande (D9 V5) — [CA9] [CA11] [CA15] [CA19]
   - Validação: `npx vitest run EtapasEditor etapaItem`
-- [ ] **6.5** `TreinoEditDialog` e `TreinoAddDialog`: `AthleteZonesTable` no topo do conteúdo (zonas
+- [x] **6.5** `TreinoEditDialog` e `TreinoAddDialog`: `AthleteZonesTable` no topo do conteúdo (zonas
   do atleta via `useAthleteTrainingZones`); o rodapé do `TreinoEditDialog` troca o `TextField "Zona
   predominante"` (~:500) pela zona derivada (`selectWorkoutProfile(...).targetZone`, não editável);
   `montarPatch` envia `zonaAlvo` derivada (`""` quando não há zona derivável, task 2.6). **Rebasear sobre o código atual**: partir
   das PRs #168–170 e conferir que `TreinoEditDialog.test.tsx`/`tiposTreino.ts` não estão pendentes
   — [CA11] [CA15]
   - Validação: `npx vitest run TreinoEditDialog TreinoAddDialog`
-- [ ] **6.5b** `TreinoAddDialog.tsx:323`: remover o `TextField "Zona predominante"` (hoje editável); o
+- [x] **6.5b** `TreinoAddDialog.tsx:323`: remover o `TextField "Zona predominante"` (hoje editável); o
   payload do add (único ponto que trata o Add) envia `zonaAlvo` derivada. Teste: o Add **não renderiza** o campo — [CA11] [CA15]
   - Validação: `npx vitest run TreinoAddDialog`
-- [ ] **6.6** Teste de componente de contraste: rótulos de `ZoneSelector`, `AthleteZonesTable` e
+- [x] **6.6** Teste de componente de contraste: rótulos de `ZoneSelector`, `AthleteZonesTable` e
   cards resolvem para `text-secondary` (`#94A3B8`), nunca `text-muted`; texto de alerta em
   `text-primary`; nenhum `primary-500` em `TreinoTag`/`TreinoCard` (D9 V1–V3) — [CA17] [CA18]
   - O teste afirma a **cor de token resolvida** (renderizar sob o `ThemeProvider` real e comparar
     `getComputedStyle().color` com o valor de `text-secondary`), não a razão de contraste. A razão
     4,5:1 é checagem manual de design review, registrada no PR.
   - Validação: `npx vitest run ZoneSelector AthleteZonesTable PlanoDetalhePanel`
-- [ ] **6.7** `npm run lint && npm run build && npm run test:run` verdes
+- [x] **6.7** `npm run lint && npm run build && npm run test:run` verdes
+
+> **Desvios conscientes da seção 6 (2026-10-27):**
+> - **D9 V5 aplicada só à intensidade.** Distância e duração ficam visíveis em todas as etapas; o que
+>   recolhe em linha-resumo (`StepSummaryRow`) nas etapas fora de foco é o seletor de intensidade, a
+>   parte alta do card. Recolher o card inteiro quebraria o acesso direto a "Duração (min)" que o
+>   editor e seus testes sempre tiveram.
+> - **`zonaAlvo` do treino só entra no patch/payload quando há zona derivável.** `targetZone` é `null`
+>   sempre que o perfil está degradado (alguma etapa sem zona confiável), então enviar `""` nesse caso
+>   apagaria a zona de treinos gerados pela IA a cada edição. Limitação conhecida: o treino que perde
+>   toda zona derivável mantém a anterior. O backend aceita `""` para limpar (task 2.6); usar quando
+>   houver critério confiável de "perdeu".
+> - **`fieldSx` corrigido:** rótulos de campo estavam em `surface[500]` (text-muted); passam a
+>   `surface[400]` (CA17).
 
 ## 7. E2E (fluxo coach-in-the-loop — obrigatório)
 

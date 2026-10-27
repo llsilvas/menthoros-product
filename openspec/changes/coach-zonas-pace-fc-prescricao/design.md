@@ -256,10 +256,11 @@ entidade; aqui o campo é novo mas espelha um existente).
   não há duração, e retorna `null` (exibido como "—") se nenhuma etapa tem peso. Nunca derruba o
   salvar. `ProfileEtapaInput` (`features/workout/profile/input.ts:13`) passa a transportar a distância.
 - **Limpar × preservar `zonaAlvo`.** `TreinoPlanejadoServiceImpl:364` preserva o valor quando
-  `zonaAlvo` falta ou é nulo. Regra do front: **omitir** o campo (preserva) quando as `zones` ainda
-  não resolveram (loading/erro) ou o treinador não alterou intensidade de nenhuma etapa; enviar
-  `zonaAlvo = ""` (limpa; backend, task 2.6) **só** quando `zones` resolveu, alguma etapa de
-  intensidade mudou e `null` é o resultado. Assim uma falha de carregamento nunca apaga a zona.
+  `zonaAlvo` falta ou é nulo. Regra implementada no front: **enviar** a zona derivada só quando as
+  etapas mudaram e há zona derivável; caso contrário **omitir** (preserva). Motivo: `targetZone` é
+  `null` em todo perfil degradado, e limpar nesse caso apagaria a zona de treinos da IA a cada edição;
+  uma falha de carregamento das zonas também nunca apaga. O backend aceita `""` para limpar (task
+  2.6), sem uso no front por ora.
 
 ### D8 — Legado no editor (CA12)
 
