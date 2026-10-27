@@ -102,25 +102,25 @@
 
 ## 4. Front — tipos, serviço, hook, tokens
 
-- [ ] **4.1** Gerar o cliente para scratch (`npm run generate:api`), portar à mão:
+- [x] **4.1** Gerar o cliente para scratch (`npm run generate:api`), portar à mão:
   `src/api/services/CoachAthleteZonesService.ts` (fachada), `src/types/AthleteTrainingZones.ts`,
   `alvoPrimario` em `EtapaTreinoDto` e `EtapaInputPayload` (`src/types/PlanoReview.ts`). Não
   commitar a saída crua
   - Validação: `npm run build`
-- [ ] **4.2** `src/hooks/useAthleteTrainingZones.ts` — `{ zones, loading, error, fetchZones }`,
+- [x] **4.2** `src/hooks/useAthleteTrainingZones.ts` — `{ zones, loading, error, fetchZones }`,
   `useCallback`, erro nunca engolido. Teste com o serviço mockado (sucesso, erro, 404 → `null`)
   - Validação: `npx vitest run useAthleteTrainingZones`
-- [ ] **4.3** `ZoneKey` → `'Z1'|…|'Z6'`; `zone`/`zoneLabel` em `theme.premium.ts` e `zones` em
+- [x] **4.3** `ZoneKey` → `'Z1'|…|'Z6'`; `zone`/`zoneLabel` em `theme.premium.ts` e `zones` em
   `activeTheme.ts` ganham Z6 (cor e rótulo "Sprint"; lightness distinta de Z5 — D9 V10). Abrir PR
-  no design system Menthoros adicionando `zone-6` com o mesmo hex. Conferir `tsc` nos consumidores
+  no design system Menthoros adicionando `zone-6` com o mesmo hex (**pendente**, fora deste repo: Z6 = `categorical.magenta` `#E364A6`). Conferir `tsc` nos consumidores
   (`selectWorkoutProfile`, `ZonesBlock`, `scale.ts`)
   - Validação: `npm run build`
-- [ ] **4.4** Util puro `src/features/coach/adapters/intensityFormat.ts`: `formatPaceRange(segMin, segMax)`
+- [x] **4.4** Util puro `src/features/coach/adapters/intensityFormat.ts`: `formatPaceRange(segMin, segMax)`
   → `"5:15–5:45"`, `toCanonicalPace(seg, seg)` → `"5:15-5:45/km"`, `toCanonicalFc(min, max)` →
   `"143-150 bpm"`, `parseCanonical*` (mesmos regexes do backend), `matchZone(fc?, pace?, zones)` com
   tolerância 1 bpm / 2 s. Testes unitários com BVA nas tolerâncias — [CA8] [CA10]
   - Validação: `npx vitest run intensityFormat`
-- [ ] **4.5** `defaultAlvoPrimario(tipoEtapa, zona)` (tabela de D5 — só pré-preenchimento) em
+- [x] **4.5** `defaultAlvoPrimario(tipoEtapa, zona)` (tabela de D5 — só pré-preenchimento) em
   `src/features/coach/adapters/alvoPrimario.ts`; `@ParameterizedTest`-equivalente com `it.each`
   cobrindo todos os `tipoEtapa` × zonas — [CA9]
   - Validação: `npx vitest run alvoPrimario`
