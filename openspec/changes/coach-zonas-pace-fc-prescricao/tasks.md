@@ -63,7 +63,7 @@
   repetição legada e etapa avulsa
   - Validação: `./mvnw test -Dtest=TreinoPlanejadoServiceTest`
 - [ ] **2.6** `TreinoPlanejadoServiceImpl:364`: `zonaAlvo = ""` no patch **limpa** o campo (hoje null/ausente
-  mantém). Teste: treino Z2 → patch com `""` → `zonaAlvo` nula, e patch sem o campo continua mantendo
+  mantém). Teste: treino Z2 → patch com `""` → `zonaAlvo` nula, e patch sem o campo continua mantendo; no **POST (Add, `:292`)** string vazia/blank é normalizada para `null`, nunca gravada literal
   - Validação: `./mvnw test -Dtest=TreinoPlanejadoServiceTest`
 
 ## 3. Backend — endpoint de zonas (D1)
@@ -83,12 +83,12 @@
   absolutos de Z2 e Z6, `fc` de Z6 nulo com motivo); TSB −12 → `ajusteFadiga` 7 s/km **e faixas
   inalteradas**; TSB ≥ 0 → 0; `paceLimiar` null **e** 0 → `pace` nulo, `motivoPace = SEM_PACE_LIMIAR`,
   nunca 5,83;
-  `fcLimiar` null → `fcLimiarEstimada = true`; cross-tenant → `DomainNotFoundException`
+  `fcLimiar` null → `fcLimiarEstimada = true`; `fcMaxima.estimada` true/false conforme `getFcMaximaComFallback()`; cross-tenant → `DomainNotFoundException`
   — [CA1] [CA2] [CA3] [CA4]
   - Validação: `./mvnw test -Dtest=CoachAthleteZonesServiceImplTest`
 - [ ] **3.3** DTOs em `dto/output/`: `AthleteTrainingZonesOutputDto` (record, `@JsonInclude(NON_NULL)`,
   `@Schema` em cada campo; pace em `segKm` inteiros; nested `Ancoras`, `AjusteFadiga`,
-  `Disponibilidade`, `ZonaDto`)
+  `Disponibilidade`, `FcMaxima`, `ZonaDto`)
   - Validação: `./mvnw clean compile`
 - [ ] **3.4** `CoachAthleteZonesController` — `GET /api/v1/coach/atletas/{atletaId}/zonas`,
   `@Tag(name = "coach-athlete-zones")`, `@Operation`, `@ApiResponses` (200/404/403),
@@ -167,7 +167,9 @@
   - Validação: `npx vitest run ZoneSelector` (afirmar **valores** preenchidos para Z2 e Z5 de um
     `zones` fixo; troca para Personalizado; sem pace; FC estimada; Z6 sem pace; eixo trocado pelo
     treinador **não** volta ao default ao mudar a zona)
-- [ ] **6.2b** `selectWorkoutProfile` (`features/workout/profile/`): aceitar `Z6` na regex e dar
+- [ ] **6.2b** (inclui D7 treino só por distância: `ProfileEtapaInput` ganha `distanciaKm`, os adapters o
+  transportam, `selectWorkoutProfile` pondera por distância quando não há duração e devolve `null` sem
+  peso; regressão passando pelo adapter real, não só pelo seletor) `selectWorkoutProfile` (`features/workout/profile/`): aceitar `Z6` na regex e dar
   precedência à `zonaEtapa` resolvida (D7); etapas sem `zonaEtapa` usam `matchZone` contra as zonas
   do atleta antes do texto. Teste: etapa com `fcAlvoEtapa = "143-150 bpm"` e descrição antiga
   "Corrida contínua Z3" deriva Z2 quando as faixas casam Z2

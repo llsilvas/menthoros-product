@@ -253,10 +253,13 @@ entidade; aqui o campo é novo mas espelha um existente).
   vale quando a etapa não tem alvo numérico. Teste: salvar personalizado, reabrir, zona não volta a Z2.
 - **Treino só por distância.** `selectWorkoutProfile` hoje descarta etapas sem duração
   (`selectWorkoutProfile.ts:370`); a agregação da zona do treino passa a ponderar por distância quando
-  não há duração, e retorna `null` (exibido como "—", `zonaAlvo` omitida do patch) se nenhuma
-  etapa tem peso. Nunca derruba o salvar. Como `TreinoPlanejadoServiceImpl:364` mantém o valor
-  anterior quando `zonaAlvo` falta ou é nulo, o front envia `zonaAlvo = ""` para limpar e o backend
-  trata string vazia como limpeza explícita (task 2.6) — senão um treino antes Z2 continuaria Z2.
+  não há duração, e retorna `null` (exibido como "—") se nenhuma etapa tem peso. Nunca derruba o
+  salvar. `ProfileEtapaInput` (`features/workout/profile/input.ts:13`) passa a transportar a distância.
+- **Limpar × preservar `zonaAlvo`.** `TreinoPlanejadoServiceImpl:364` preserva o valor quando
+  `zonaAlvo` falta ou é nulo. Regra do front: **omitir** o campo (preserva) quando as `zones` ainda
+  não resolveram (loading/erro) ou o treinador não alterou intensidade de nenhuma etapa; enviar
+  `zonaAlvo = ""` (limpa; backend, task 2.6) **só** quando `zones` resolveu, alguma etapa de
+  intensidade mudou e `null` é o resultado. Assim uma falha de carregamento nunca apaga a zona.
 
 ### D8 — Legado no editor (CA12)
 

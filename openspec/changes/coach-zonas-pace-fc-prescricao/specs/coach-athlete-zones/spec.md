@@ -27,6 +27,10 @@ cálculo. O ajuste por fadiga SHALL ser informativo e separado das faixas.
   `disponibilidade.motivoPace = SEM_PACE_LIMIAR`; nenhuma faixa `0:00–0:00` nem o fallback sintético
   do push é devolvido
 
+#### Scenario: FC acima da máxima do atleta
+- **WHEN** a zona escolhida tem FC acima de `fcMaxima.bpm` (ex.: Z5 168–178 com máxima 175)
+- **THEN** o editor avisa que a FC não vai ao relógio (o push a descarta); salvar continua permitido
+
 #### Scenario: FC de limiar estimada
 - **WHEN** o atleta não tem `fcLimiar` informado e o valor vem do fallback etário
 - **THEN** as zonas de FC são devolvidas e `ancoras.fcLimiarEstimada = true`
