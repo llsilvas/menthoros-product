@@ -219,6 +219,28 @@
 > - **`fieldSx` corrigido:** rótulos de campo estavam em `surface[500]` (text-muted); passam a
 >   `surface[400]` (CA17).
 
+> **Alinhamento ao protótipo e desvios assumidos (2026-10-27, após `/code-review`):**
+> - **Valores como pills em zona escolhida.** O protótipo mostra pace e FC somente leitura quando há
+>   zona; ajustar exige "Personalizado" (campos "Pace alvo"/"FC alvo (bpm)", que completam `/km` e
+>   `bpm` ao sair). A spec dizia "editar o valor muda para Personalizado"; o resultado é o mesmo, com
+>   um clique a mais.
+> - **Zona do treino por onde o valor cai (`zonaPorValor`).** D7 pedia que alvo numérico que não casa
+>   zona fosse `null`. Faixa de IA ou digitada raramente casa a zona inteira, e `null` deixava a
+>   zona predominante em "—" na maioria dos treinos reais. Para o perfil (predominante, gráfico) a
+>   etapa vale pela zona onde os valores caem; o seletor segue mostrando Personalizado e o card, sem
+>   chip (V7). FC e pace em zonas diferentes: vale o eixo do relógio.
+> - **`zonaPredominante` próprio** (15% do tempo das etapas com zona escolhida, texto "X min em Zn")
+>   porque o `targetZone` do perfil é `null` em todo perfil degradado. Vale ao `zonaAlvo` gravado.
+> - **Fora da spec, vindo do protótipo:** rótulo do card com a série ("INTERVALADO · 6 × 800 m") e
+>   a variante "sem meta".
+> - **Dívida declarada:** `RITMO_NOMINAL_SEG_KM = 360` pesa a distância de etapa sem duração nem
+>   ritmo; trocar pelo ritmo do atleta se a leitura enganar.
+> - **Estado do eixo na etapa.** `eixoTocado` vive no item de edição (view-model), não no
+>   componente: o seletor só monta na etapa em foco e recolher/reabrir não pode devolver o eixo à
+>   regra de pré-preenchimento (D5).
+> - **Fora do escopo desta change:** painel de detalhe do treino na revisão (lista numerada de
+>   etapas, "Por que a IA prescreveu") e o seletor de tipo de treino em pills — existem no protótipo.
+
 ## 7. E2E (fluxo coach-in-the-loop — obrigatório)
 
 - [x] **7.1** `tests/e2e/coach/plano-zonas-editor.spec.ts`: login coach → plano em revisão → abre
