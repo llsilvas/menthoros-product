@@ -1,0 +1,164 @@
+### Requirement: Zonas de treino do atleta expostas ao treinador
+O sistema SHALL expor `GET /api/v1/coach/atletas/{atletaId}/zonas` devolvendo as seis zonas de
+treino do atleta (Z1–Z6) com faixa de pace (segundos/km, inteiros) e faixa de FC (bpm), as âncoras
+(`paceLimiarMinKm`, `fcLimiar`, datas dos últimos testes, `fcLimiarEstimada`), o ajuste por fadiga
+aplicado ao pace (`segundosPorKm`, `tsbProntidao`) e a disponibilidade de cada eixo. As faixas SHALL
+ser as faixas base que `ZonaTreinoService` produz para o prompt — o endpoint não SHALL reimplementar o
+cálculo. O ajuste por fadiga SHALL ser informativo e separado das faixas.
+
+#### Scenario: Atleta com limiares completos
+- **WHEN** o treinador consulta as zonas de um atleta com `paceLimiar = 5.00` e `fcLimiar = 168`
+- **THEN** Z2 devolve `pace = 315–345 s/km` (5:15–5:45) e `fc = 143–150`; Z6 devolve pace
+  `246–270 s/km` e `fc` ausente com `motivoFc = FC_NAO_ESTABILIZA`
+
+#### Scenario: Ajuste por fadiga
+- **WHEN** o TSB de prontidão do atleta hoje é −12
+- **THEN** as faixas de `zonas[].pace` permanecem as **base** (Z2 continua `315–345 s/km` para
+  `paceLimiar = 5.00`) e o corpo declara `ajusteFadiga = { segundosPorKm: 7, tsbProntidao: -12 }`;
+  com TSB ≥ 0, `segundosPorKm = 0`
+
+#### Scenario: Atleta sem pace de limiar
+- **WHEN** o atleta não tem `paceLimiar` (nulo ou ≤ 0)
+- **THEN** todas as zonas vêm com `pace` ausente, `disponibilidade.pace = false` e
+  `disponibilidade.motivoPace = SEM_PACE_LIMIAR`; nenhuma faixa `0:00–0:00` nem o fallback sintético
+  do push é devolvido
+
+#### Scenario: FC acima da máxima do atleta
+- **WHEN** a zona escolhida tem FC acima de `fcMaxima.bpm` (ex.: Z5 168–178 com máxima 175)
+- **THEN** o editor avisa que a FC não vai ao relógio (o push a descarta); salvar continua permitido
+
+#### Scenario: FC de limiar estimada
+- **WHEN** o atleta não tem `fcLimiar` informado e o valor vem do fallback etário
+- **THEN** as zonas de FC são devolvidas e `ancoras.fcLimiarEstimada = true`
+
+#### Scenario: Atleta de outro tenant
+- **WHEN** o treinador consulta um `atletaId` que existe em outro tenant
+- **THEN** o endpoint responde `404`
+
+### Requirement: Tabela de zonas visível na revisão e na edição do plano
+O front SHALL exibir, no painel de revisão do plano e nos dialogs de editar/adicionar treino, uma
+seção recolhível "Zonas do atleta" com as seis zonas (pace, FC, RPE típico como referência genérica
+com tooltip, uso típico), as âncoras com datas, o chip de
+ajuste por fadiga quando `segundosPorKm > 0` e aviso quando o último teste de limiar tem mais de
+90 dias. Estados de carregamento, erro e eixo indisponível SHALL ser explícitos.
+
+#### Scenario: Plano em revisão
+- **WHEN** o treinador abre um plano em `AGUARDANDO_REVISAO`
+- **THEN** a seção existe, recolhida, e ao expandir mostra as seis linhas com os valores do endpoint
+
+#### Scenario: Sem pace de limiar
+- **WHEN** o atleta não tem `paceLimiar`
+- **THEN** a coluna de pace mostra "indisponível — cadastre o pace de limiar do atleta" (texto, sem
+  link: não existe hoje fluxo de cadastro de limiar no front); a coluna de FC segue preenchida
+
+### Requirement: Cards do plano mostram a zona com o valor
+Cada card de treino planejado (painel de revisão e plano vigente) SHALL mostrar, por etapa
+principal, a zona e as faixas resolvidas (`Zn · pace · fc`), com o eixo `alvoPrimario` em destaque.
+Quando um eixo não está disponível para o atleta, o card SHALL omiti-lo e sinalizar, nunca inventar
+um valor.
+
+#### Scenario: Etapa com os dois eixos
+- **WHEN** a etapa tem `fcAlvoEtapa = "143-150 bpm"`, `ritmoAlvo = "5:15-5:45/km"` e
+  `alvoPrimario = FC`
+- **THEN** o card mostra `Z2 · 5:15–5:45 · 143–150 bpm` com a FC em destaque
+
+#### Scenario: Atleta sem pace
+- **WHEN** o atleta não tem `paceLimiar`
+- **THEN** o card mostra só a FC e "pace indisponível"; se a etapa tem `ritmoAlvo` persistido, o
+  valor é exibido como está e não há aviso
+
+### Requirement: Zona como seletor no editor de etapas
+Nos dialogs de editar e adicionar treino, a intensidade de cada etapa SHALL ser escolhida por um
+seletor de zona (Z1–Z6 e Personalizado). Escolher uma zona SHALL preencher `ritmoAlvo` e
+`fcAlvoEtapa` com as faixas do atleta em formato canônico (`"M:SS-M:SS/km"`, `"NNN-NNN bpm"`) e
+pré-preencher `alvoPrimario` por regra; o eixo SHALL ficar sempre visível e trocável pelo treinador,
+em qualquer zona e em "Personalizado", e o editor não SHALL reaplicar o pré-preenchimento depois que o
+treinador o alterou. Não SHALL existir campo de texto
+livre de intensidade, nem por etapa nem no nível do treino; a zona do treino SHALL ser derivada das
+etapas.
+
+#### Scenario: Escolher Z5 em etapa INTERVALADO
+- **WHEN** o treinador escolhe Z5 numa etapa `INTERVALADO` de atleta com `paceLimiar = 5.00`,
+  `fcLimiar = 168` medido e TSB de prontidão ≥ 0
+- **THEN** `ritmoAlvo = "4:30-4:45/km"` (0,90–0,95 × 5:00, faixa base), `fcAlvoEtapa =
+  "168-178 bpm"`, `alvoPrimario = PACE`, e os dois valores aparecem na etapa com o pace em destaque
+
+#### Scenario: Ajuste por fadiga não é somado ao preencher
+- **WHEN** o mesmo atleta tem TSB de prontidão −12 (`ajusteFadiga.segundosPorKm = 7`) e o treinador
+  escolhe Z5
+- **THEN** `ritmoAlvo` continua `"4:30-4:45/km"`; o chip "hoje +7 s/km" é só informativo
+
+#### Scenario: FC de limiar estimada não vira alvo
+- **WHEN** o treinador escolhe uma zona para atleta com `fcLimiarEstimada = true`
+- **THEN** só `ritmoAlvo` é preenchido, `fcAlvoEtapa` fica vazio com aviso de limiar estimado, e
+  `alvoPrimario = PACE`; o treinador pode digitar a FC à mão (vira "Personalizado")
+
+#### Scenario: Treinador troca o eixo
+- **WHEN** o treinador troca o eixo de PACE para FC numa etapa Z5 e depois muda a zona para Z4
+- **THEN** `alvoPrimario` permanece FC — a escolha dele prevalece sobre a regra
+
+#### Scenario: Editar o valor à mão
+- **WHEN** o treinador altera o pace preenchido pela zona
+- **THEN** o seletor passa a "Personalizado" e a FC preenchida é mantida
+
+#### Scenario: Sem objetivo
+- **WHEN** o treinador limpa pace e FC
+- **THEN** a etapa salva com `alvoPrimario = NENHUM`, distinguível de etapa legada sem o campo
+
+#### Scenario: Z6 sem FC
+- **WHEN** o treinador escolhe Z6
+- **THEN** só `ritmoAlvo` é preenchido e `alvoPrimario = PACE`; o toggle de eixo fica desabilitado
+  com a explicação "Z6 não tem alvo de FC" — único caso em que o treinador não escolhe
+
+#### Scenario: Atleta sem pace de limiar
+- **WHEN** o treinador escolhe uma zona para atleta sem `paceLimiar`
+- **THEN** só `fcAlvoEtapa` é preenchido, `alvoPrimario = FC`, e aparece aviso "sem pace de limiar"
+  (sem link — o cadastro de limiar está fora desta change)
+
+#### Scenario: Z6 sem pace de limiar
+- **WHEN** o treinador escolhe Z6 para atleta sem `paceLimiar`
+- **THEN** nenhum valor é preenchido, `alvoPrimario = NENHUM` e o editor explica "Z6 precisa do pace
+  de limiar do atleta"; salvar continua permitido
+
+#### Scenario: Limpar um eixo
+- **WHEN** a etapa tem pace e FC, `alvoPrimario = PACE`, e o treinador limpa o pace
+- **THEN** `alvoPrimario` passa a FC (o que sobrou); se limpar também a FC, `alvoPrimario = NENHUM`
+
+#### Scenario: Legado não parseável
+- **WHEN** uma etapa com `fcAlvoEtapa = "trote leve"` é aberta
+- **THEN** o seletor mostra "Personalizado" com o texto preservado e aviso de que não vira alvo no
+  relógio; salvar sem alterar não modifica o campo
+
+#### Scenario: Pace e FC em zonas diferentes
+- **WHEN** o treinador informa pace que cai em Z5 e FC que cai em Z2 para o atleta
+- **THEN** aparece aviso de divergência e salvar continua permitido
+
+### Requirement: `alvoPrimario` persistido por etapa
+A etapa de treino planejado SHALL carregar `alvoPrimario ∈ {PACE, FC, NENHUM}`, opcional. Quando
+presente, o push para o relógio e `GET /me/treinos/hoje` SHALL obedecê-lo; quando ausente (legado),
+SHALL manter a derivação atual (FC vence se os dois existem).
+
+#### Scenario: PACE com FC preenchida
+- **WHEN** a etapa tem `fcAlvoEtapa` e `ritmoAlvo` e `alvoPrimario = PACE`
+- **THEN** o push emite alvo de ritmo e a FC vai como texto secundário
+
+#### Scenario: Legado sem o campo
+- **WHEN** a etapa tem os dois alvos e `alvoPrimario` nulo
+- **THEN** o push emite FC, como antes desta change
+
+#### Scenario: NENHUM explícito vence texto presente
+- **WHEN** a etapa tem `fcAlvoEtapa` e `ritmoAlvo` preenchidos e `alvoPrimario = NENHUM`
+- **THEN** nem o push nem `/me/treinos/hoje` emitem alvo; `alvoPrimario` da resposta é `NENHUM`
+
+#### Scenario: NULL sem nenhum alvo
+- **WHEN** a etapa não tem `fcAlvoEtapa`, nem `ritmoAlvo`, e `alvoPrimario` é nulo
+- **THEN** resolve para `NENHUM` por derivação, igual a hoje
+
+#### Scenario: Eixo escolhido sem valor
+- **WHEN** `alvoPrimario = PACE` e `ritmoAlvo` está vazio
+- **THEN** resolve como `NENHUM` — não inventa alvo, não cai para a FC
+
+#### Scenario: Etapas iguais com eixos diferentes
+- **WHEN** duas etapas consecutivas têm mesmo tipo, duração, distância, pace e FC, mas
+  `alvoPrimario` diferente
+- **THEN** não são agrupadas como repetição de um mesmo bloco, no push nem no editor

@@ -254,9 +254,9 @@
 
 ## 8. Fechamento
 
-- [ ] **8.1** Atualizar `openspec/specs/fc-limiar-zones/spec.md` e criar
+- [x] **8.1** Atualizar `openspec/specs/fc-limiar-zones/spec.md` e criar
   `openspec/specs/coach-athlete-zones/spec.md` a partir dos deltas desta change
-- [ ] **8.2** Arquivar `coach-meta-intensidade-editor` como superseded, com ponteiro para esta
+- [x] **8.2** Arquivar `coach-meta-intensidade-editor` como superseded, com ponteiro para esta
 - [ ] **8.3** Abrir change de follow-up: distribuição de intensidade semanal + CTL/ATL + variação vs.
   semana anterior no cabeçalho do plano (fora de escopo aqui); revalidar fatores de pace → já aberta como `revalidar-fatores-pace-zonas`;
   prompt v2 prescrever `alvoPrimario`
