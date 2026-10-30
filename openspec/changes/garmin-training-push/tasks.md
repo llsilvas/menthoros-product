@@ -4,7 +4,7 @@ Backend valida com `./mvnw clean verify`. Pré-requisito: `garmin-connection` me
 
 ## 1. Cliente Garmin — Training API
 
-- [ ] 1.1 `GarminClient` ganha `criarWorkout(token, JsonNode)`, `atualizarWorkout(token, id,
+- [x] 1.1 `GarminClient` ganha `criarWorkout(token, JsonNode)`, `atualizarWorkout(token, id,
   JsonNode)`, `deletarWorkout(token, id)`, `criarSchedule(token, workoutId, LocalDate)`,
   `atualizarSchedule(token, scheduleId, workoutId, LocalDate)`, `deletarSchedule(token, id)`,
   `listarSchedules(token, inicio, fim)`, `buscarWorkout(token, id)`; teste com
