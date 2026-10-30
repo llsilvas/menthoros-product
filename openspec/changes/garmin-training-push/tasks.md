@@ -28,9 +28,10 @@ Backend valida com `./mvnw clean verify`. Pré-requisito: `garmin-connection` me
   Os dois chamadores foram ajustados para compilar: `IntervalsIcuPushListener` já monta o conjunto
   (id novo do push, ou o `externalId` anterior em erro/claim perdido) e `PlanoDeletadoListener` passa
   `Set.of()`. Teste do conjunto montado pelo listener fica na 3.2.
-- [ ] 2.4 `WorkoutChannelPorPlataforma` (`@Primary`, delega por `conexao.getPlataforma()`); teste
-  unitário das três operações para GARMIN e INTERVALS_ICU; `./mvnw clean test` prova que o contexto
-  sobe com dois adapters.
+- [x] 2.4 `WorkoutChannelPorPlataforma` (`@Primary`, delega por `conexao.getPlataforma()`); teste
+  unitário das três operações para GARMIN e INTERVALS_ICU. O contexto com dois adapters foi provado
+  em teste leve (`AnnotationConfigApplicationContext`); o `./mvnw clean verify` com Docker (contexto
+  real da aplicação) fica para a validação final.
 
 ## 3. Chamadores
 
