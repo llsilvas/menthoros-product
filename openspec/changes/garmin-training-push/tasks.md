@@ -13,7 +13,8 @@ Backend valida com `./mvnw clean verify`. Pré-requisito: `garmin-connection` me
 
 ## 2. Adapter e composição
 
-- [ ] 2.1 `GarminTrainingAdapter implements WorkoutChannel`: `montarPayload(StructuredWorkout)`
+- [x] 2.1 `GarminWorkoutPayloadMapper.montar(StructuredWorkout)` (classe própria, sem estado; o
+  `GarminTrainingAdapter` da 2.2 delega a ela, e só vira bean com o `@Primary` da 2.4)
   conforme D5 (TIME/DISTANCE/OPEN, PACE em m/s, HEART_RATE em bpm, REPEAT_UNTIL_STEPS_CMPLT,
   stepOrder global, limite 100 steps → `ERRO_VALIDACAO`); teste unitário puro do payload com o
   treino de CA1 e CA2 e com pace único.
