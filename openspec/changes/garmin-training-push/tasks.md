@@ -18,7 +18,7 @@ Backend valida com `./mvnw clean verify`. Pré-requisito: `garmin-connection` me
   conforme D5 (TIME/DISTANCE/OPEN, PACE em m/s, HEART_RATE em bpm, REPEAT_UNTIL_STEPS_CMPLT,
   stepOrder global, limite 100 steps → `ERRO_VALIDACAO`); teste unitário puro do payload com o
   treino de CA1 e CA2 e com pace único.
-- [ ] 2.2 `GarminTrainingAdapter.push`: sem `eventIdArmazenado` → `POST workout` + `POST schedule`;
+- [x] 2.2 `GarminTrainingAdapter.push`: sem `eventIdArmazenado` → `POST workout` + `POST schedule`;
   com id → `PUT workout` + schedule localizado por `workoutId` na data (recria se ausente, move se a
   data mudou); mapeamento de erro D6 com renovação em 401; `tocarEvento` no-op; testes no molde de
   `IntervalsIcuAdapterTest` (CA1–CA3, CA6–CA8).
