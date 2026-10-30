@@ -22,9 +22,12 @@ Backend valida com `./mvnw clean verify`. Pré-requisito: `garmin-connection` me
   com id → `PUT workout` + schedule localizado por `workoutId` na data (recria se ausente, move se a
   data mudou); mapeamento de erro D6 com renovação em 401; `tocarEvento` no-op; testes no molde de
   `IntervalsIcuAdapterTest` (CA1–CA3, CA6–CA8).
-- [ ] 2.3 `WorkoutChannel.removerOrfaos` ganha `Set<String> idsArmazenadosAtuais`;
-  `IntervalsIcuAdapter` ignora; `GarminTrainingAdapter` apaga schedule + workout de
-  `workoutProvider == "Menthoros"` fora do conjunto, 404 tolerado; testes (CA4).
+- [x] 2.3 `WorkoutChannel.removerOrfaos` ganha `Set<String> idsArmazenadosAtuais` (5º parâmetro: o
+  método já tinha `externalIdsAtuais`); `IntervalsIcuAdapter` ignora; `GarminTrainingAdapter` apaga
+  schedule + workout de `workoutProvider == "Menthoros"` fora do conjunto, 404 tolerado; testes (CA4).
+  Os dois chamadores foram ajustados para compilar: `IntervalsIcuPushListener` já monta o conjunto
+  (id novo do push, ou o `externalId` anterior em erro/claim perdido) e `PlanoDeletadoListener` passa
+  `Set.of()`. Teste do conjunto montado pelo listener fica na 3.2.
 - [ ] 2.4 `WorkoutChannelPorPlataforma` (`@Primary`, delega por `conexao.getPlataforma()`); teste
   unitário das três operações para GARMIN e INTERVALS_ICU; `./mvnw clean test` prova que o contexto
   sobe com dois adapters.
