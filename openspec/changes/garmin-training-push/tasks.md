@@ -35,9 +35,12 @@ Backend valida com `./mvnw clean verify`. Pré-requisito: `garmin-connection` me
 
 ## 3. Chamadores
 
-- [ ] 3.1 `IntervalsIcuConnectionService.conexaoAtiva` passa a usar
-  `findActiveByAtletaIdAndPlataformaInAndTenantId` (INTERVALS_ICU, GARMIN); JavaDoc atualizado;
-  testes existentes do service ajustados + caso GARMIN.
+- [x] 3.1 Os três chamadores de canal (`IntervalsIcuPushListener`, `IntervalsIcuRetrySchedulerImpl`,
+  `IntervalsIcuPlanoDeletadoListener`) passam a usar `GarminConnectionService.conexaoDeCanal` (já
+  existente, INTERVALS_ICU ou GARMIN). **Desvio do D2:** `IntervalsIcuConnectionService.conexaoAtiva`
+  NÃO mudou — ela tem outros 7 chamadores (ingestão de atividades, backfill de laps, melhor esforço,
+  OAuth, persister, perfil do coach) que usam o token na API do intervals.icu, e uma conexão Garmin
+  ali faria chamadas ao intervals.icu com credencial do Garmin. Testes dos chamadores ajustados.
 - [ ] 3.2 `IntervalsIcuPushProcessor` grava `conexao.getPlataforma().name()` no lugar de
   `PLATAFORMA`; `IntervalsIcuPushListener` monta `idsArmazenadosAtuais` e passa ao
   `removerOrfaos`; `IntervalsIcuPlanoDeletadoListener` apaga via canal da conexão (Garmin: schedule
