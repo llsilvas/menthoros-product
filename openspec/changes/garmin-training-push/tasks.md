@@ -46,8 +46,10 @@ Backend valida com `./mvnw clean verify`. Pré-requisito: `garmin-connection` me
   monta `idsArmazenadosAtuais` (teste: id novo, id anterior em erro, sem id fora); o
   `IntervalsIcuPlanoDeletadoListener` já apaga via `WorkoutChannel`, que o composto roteia por
   plataforma, então não precisou de código novo (a parte Garmin é a `removerOrfaos` da 2.3).
-- [ ] 3.3 Mensagens de erro curadas por plataforma no `PushResult` (texto "Garmin Connect" vs
-  "intervals.icu"); teste.
+- [x] 3.3 Mensagens persistidas por plataforma (`FonteDados.getLabel()`: "Garmin Connect" /
+  "intervals.icu"): erro inesperado do processor (`treino.erroSincronizacao`) e falha de autenticação
+  do listener (`conexao.lastSyncError`); testes nos dois. Os textos do adapter Garmin já eram
+  próprios (2.2) e os motivos de FC são neutros. Logs internos continuam citando intervals.icu.
 
 ## 4. Integração
 
