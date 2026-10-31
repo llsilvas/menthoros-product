@@ -41,10 +41,11 @@ Backend valida com `./mvnw clean verify`. Pré-requisito: `garmin-connection` me
   NÃO mudou — ela tem outros 7 chamadores (ingestão de atividades, backfill de laps, melhor esforço,
   OAuth, persister, perfil do coach) que usam o token na API do intervals.icu, e uma conexão Garmin
   ali faria chamadas ao intervals.icu com credencial do Garmin. Testes dos chamadores ajustados.
-- [ ] 3.2 `IntervalsIcuPushProcessor` grava `conexao.getPlataforma().name()` no lugar de
-  `PLATAFORMA`; `IntervalsIcuPushListener` monta `idsArmazenadosAtuais` e passa ao
-  `removerOrfaos`; `IntervalsIcuPlanoDeletadoListener` apaga via canal da conexão (Garmin: schedule
-  + workout); testes existentes verdes + cenário Garmin em cada um (CA5, CA9, CA10).
+- [x] 3.2 `IntervalsIcuPushProcessor` grava `conexao.getPlataforma().name()` no lugar de
+  `PLATAFORMA` (teste CA5: conexão Garmin grava `["GARMIN"]` e o workoutId); `IntervalsIcuPushListener`
+  monta `idsArmazenadosAtuais` (teste: id novo, id anterior em erro, sem id fora); o
+  `IntervalsIcuPlanoDeletadoListener` já apaga via `WorkoutChannel`, que o composto roteia por
+  plataforma, então não precisou de código novo (a parte Garmin é a `removerOrfaos` da 2.3).
 - [ ] 3.3 Mensagens de erro curadas por plataforma no `PushResult` (texto "Garmin Connect" vs
   "intervals.icu"); teste.
 
