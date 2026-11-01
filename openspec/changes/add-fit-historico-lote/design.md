@@ -56,16 +56,11 @@ parte `arquivo`).
 - Log de auditoria: atletaId, tenantId, `novo`/`existente` (sem nome de arquivo nem conteúdo).
 - Sem novo método de serviço: a regra é a mesma, só muda quem chama.
 
-### D4 — Resumo e erros por arquivo no front
+### D4 — Resumo e erros por arquivo (movido para o front)
 
-O hook `useImportarHistoricoFit` mantém a fila e, por arquivo, o desfecho: `importado` (201),
-`existente` (200) ou `erro` (com mensagem curada: 422 → "Arquivo .fit inválido", 404 → "Atleta não
-encontrado", rede → "Falha de conexão"). Erro em um arquivo não interrompe a fila. O resumo final
-lista contagens e os arquivos com erro. O teto de 200 arquivos por seleção evita fila sem fim e
-memória excessiva.
-
-Reenviar a mesma seleção é seguro (D de idempotência), então "tentar de novo os que falharam" é
-reenviar os que ficaram com erro.
+Movido para a change `add-fit-historico-lote-front` (hook de fila, resumo, teto de 200 arquivos).
+O contrato que ela consome é o desta change: erro em um arquivo (422) não invalida os demais, e
+reenviar uma seleção é seguro porque o endpoint é idempotente (CA2).
 
 ### D5 — Sem mudança de dados nem de contrato existente
 
@@ -73,21 +68,17 @@ Sem migration. O `externalId` usa o mesmo formato que `garmin-activity-ingestion
 treino importado aqui não duplica quando a ingestão direta passar a receber o mesmo evento (CA8).
 Teste de CA8 fixa esse formato do lado do dado, sem depender da implementação da ingestão direta.
 
-### D6 — Lugar na UI
+### D6 — Lugar na UI (movido para o front)
 
-Seção "Importar histórico" em `CoachAthleteProfilePage`, perto dos dados de integração/dispositivo
-do atleta. Texto orienta: "Selecione os arquivos .fit do atleta (as últimas ~12 semanas já
-calibram a carga)". Segue os padrões do front: lógica no hook, componente apresentacional, estados
-de loading/erro/vazio explícitos, tokens do tema, textos em PT-BR.
+Movido para `add-fit-historico-lote-front`. Nesta change não há UI.
 
 ## Rollback
 
-Sem migration. Reverter o PR do backend remove o endpoint; reverter o do front remove a seção.
-Treinos já importados são registros normais de `TreinoRealizado` (fonte `FIT`) e não precisam de
-reversão.
+Sem migration. Reverter o PR do backend remove o endpoint. Treinos já importados são registros
+normais de `TreinoRealizado` (`fonte_dados = GARMIN`, mesma origem da ingestão direta) e não
+precisam de reversão; a limpeza de um lote errado é por SQL de ops (ver `tasks.md`, Notas).
 
 ## Ordem de entrega
 
-1. Backend (endpoint + testes + IT de custo) → `develop` → `main`.
-2. Front (cliente `src/api` portado à mão, hook, seção, testes e E2E) → `develop` → `main`.
-O backend sozinho já é útil por API; o front sem o backend não é.
+Backend (endpoint + testes + IT de custo) → `develop` → `main`. O pilot usa o endpoint por `curl`.
+O front só entra quando o gatilho do `proposal.md` disparar.
