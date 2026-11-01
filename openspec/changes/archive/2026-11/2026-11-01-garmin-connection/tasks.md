@@ -233,3 +233,14 @@ com `RouterLink`, subir `app.lgpd.policy-version` no backend (exige novo aceite 
   entrada GARMIN a "Suportado" após o gate com atleta real.
 - `garmin-training-push` troca os chamadores restantes de `IntervalsIcuConnectionService.conexaoAtiva`
   por `conexaoDeCanal`.
+
+## Fechamento (2026-11-01)
+
+Entregue: seções 1–6 (32/32) e QA. PRs mergeados — backend #192 (develop) e #194 (main), front #171,
+infra #20 e #21. Conexão OAuth validada com atleta real (2026-10-30) e treinos chegando ao relógio
+de um atleta cadastrado (2026-11-01, via `garmin-training-push`).
+
+Adiado / fora desta change: ver "Ficou fora" no Quality gate e "Workflow follow-up" acima.
+Pendências do founder: revisão jurídica do texto 3.1 da política, `app.lgpd.policy-version` no
+backend (exige novo aceite dos coaches), cadastro do domínio de produção no Garmin e guarda do
+texto de IA do cadastro (cláusula 15.11).
