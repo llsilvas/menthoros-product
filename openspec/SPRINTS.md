@@ -1420,7 +1420,7 @@ Seam nova única: `GarminClient`. Estimativa ~20 dias úteis após revisão pony
 | Ordem | Change | Tam. | Tasks | Objetivo | Dependência |
 |:---:|---|:---:|:---:|---|---|
 | 1 | `garmin-connection` | **L · Full** | 32/32 — **arquivada 2026-11-01** (backend #192/#194, front #171, em produção) | OAuth2 PKCE, `userId`, permissões, refresh (24 h / 90 d rotativo), revogação pelo app e pelo Garmin (webhook), exclusividade de canal, `CanalIntegracao.GARMIN`, card de conexão generalizado. Zero migration. | ADR-0013; client ID no Developer Portal |
-| 2 | `garmin-training-push` | **M · Full** | 0/10 — **ready-for-agent 2026-10-23** | `GarminTrainingAdapter` (`WorkoutChannel`) + bean composto por plataforma; bpm absoluto e pace em m/s; `externalId = workoutId`; 412/429/401. Sem throttle, sem migration. | (1) |
+| 2 | `garmin-training-push` | **M · Full** | 10/10 — **arquivada 2026-11-01** (backend #197/#198, em produção) | `GarminTrainingAdapter` (`WorkoutChannel`) + bean composto por plataforma; bpm absoluto e pace em m/s; `externalId = workoutId`; 412/429/401. Sem throttle, sem migration. | (1) |
 | 3 | `garmin-activity-ingestion` | **M · Full** | 0/16 — **ready-for-agent 2026-10-23** | Webhook `activityFiles` → `tb_garmin_ping` → download único em 24 h → `FitTreinoPersister` existente; atribuição "Garmin [modelo]" em toda tela e export (licença 6.4); remove a flag `garminHabilitado`. | (1); (2) independente |
 
 > **Depois das três em produção:** change XS para o aviso e prazo de 30 dias dos atletas Garmin

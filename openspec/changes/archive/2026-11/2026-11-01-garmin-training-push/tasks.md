@@ -58,12 +58,24 @@ Backend valida com `./mvnw clean verify`. Pré-requisito: `garmin-connection` me
   e do workout órfão, sem tocar o treino mantido; Garmin stubado por WireMock; CA1, CA3, CA4, CA9).
   Executado com Docker: verde. O cenário do atleta intervals.icu no mesmo teste ficou de fora: o
   roteamento por plataforma é provado no `WorkoutChannelPorPlataformaTest`.
-- [ ] 4.2 **ADIADA.** Spike em relógio real (base do create, bpm e pace no visor, 100 steps) e doc em
+- [x] 4.2 Spike em relógio real (base do create, bpm e pace no visor, 100 steps) e doc em
   `menthoros-infra/docs`: exige um relógio Garmin e o app aprovado com a Training API V2 habilitada,
   que não existem neste ambiente. Os paths e formatos de resposta seguem os do `design.md`, ainda sem
   chamada real. Fazer antes de ligar `GARMIN_HABILITADO` em produção.
+  **Feito em 2026-11-01 em produção:** primeiro envio real; os treinos chegaram ao relógio de um atleta
+  cadastrado (confirmado pelo founder). O doc do spike em `menthoros-infra/docs` **não foi escrito**,
+  e a resposta real de listar schedules e buscar workout (usadas só ao reaprovar) segue sem conferência.
 
 ## Workflow follow-up
 
 - Se o spike mostrar que o PUT exige `stepId`, ajustar o adapter na própria task 2.2 antes do
   merge.
+
+## Fechamento (2026-11-01)
+
+Entregue: client, mapper, adapter, composição por plataforma, órfãos e IT (WireMock); backend #197
+(develop) e #198 (main), mais as correções #199/#200 (log de causa de falha) e #201/#202 (`scheduleId`
+numérico). Envio real validado no relógio de um atleta cadastrado.
+
+Adiado: doc do spike em `menthoros-infra/docs`; conferência da resposta real de listar schedules e
+buscar workout. Follow-up aberto: `garmin-reenvio-plano`.
