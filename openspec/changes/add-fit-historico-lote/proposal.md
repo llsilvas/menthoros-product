@@ -9,6 +9,16 @@ tela de envio em lote é a change `add-fit-historico-lote-front`, adiada até o 
 
 ## Status
 
+- **STANDBY (2026-11-01, decisão do founder).** Spec corrigida após 2 rodadas de DoR (a 3ª não foi
+  rodada); sem branch e sem código. **Motivo:** a premissa de que o treinador consegue obter os `.fit`
+  não foi confirmada. A lista de atividades do Garmin Connect só exporta CSV em lote, a engrenagem da
+  atividade testada não mostrou "Exportar original" e o pedido de dados da conta
+  (`garmin.com/account/datamanagement`) ainda não foi feito. **Para retomar:** (1) confirmar que o
+  pedido de dados entrega `.fit` em `DI_CONNECT/DI-Connect-Uploaded-Files/`; (2) rodar a 3ª rodada do
+  DoR; (3) `/implement init add-fit-historico-lote`. Se o Garmin não entregar `.fit` para esse atleta,
+  reavaliar: CSV (perde etapas e FC por segundo) ou esperar a `garmin-activity-ingestion`. O gate de
+  LGPD (task 0.1) continua valendo.
+
 - draft (2026-11-01): aberta a partir da conversa sobre CSV do Garmin Connect. O CSV foi descartado
   (só resumo por atividade, sem etapas nem FC por segundo); o `.fit` é a fonte rica e o pipeline já
   existe. A ingestão direta do Garmin (`garmin-activity-ingestion`) não traz histórico — está nos
