@@ -53,9 +53,12 @@ Backend valida com `./mvnw clean verify`. Pré-requisito: `garmin-connection` me
 
 ## 4. Integração
 
-- [ ] 4.1 IT: `PlanoAprovadoEvent` com atleta Garmin (Garmin stubado) → treinos `SINCRONIZADO` com
-  `externalId` numérico; re-aprovação com treino removido → DELETE do órfão; atleta intervals.icu
-  no mesmo teste segue o fluxo antigo (CA1, CA3, CA4, CA9).
+- [ ] 4.1 IT `GarminTrainingPushIT` escrito e compilando (aprovação com atleta Garmin → treinos
+  `SINCRONIZADO` com `externalId` numérico e `exportadoPara=["GARMIN"]`; re-aprovação sem um treino →
+  DELETE do schedule e do workout órfão, sem tocar o treino mantido; Garmin stubado por WireMock;
+  CA1, CA3, CA4, CA9). **Ainda não executado:** o Docker (Testcontainers) estava desligado; marcar
+  `[x]` depois de rodar `./mvnw verify`. O cenário do atleta intervals.icu no mesmo teste ficou de
+  fora: o roteamento por plataforma é provado no `WorkoutChannelPorPlataformaTest`.
 - [ ] 4.2 Spike documentado em `menthoros-infra/docs`: resultado do push num relógio real no
   ambiente de testes (base do create, bpm e pace no visor, 100 steps); `./mvnw clean verify`
   verde.
