@@ -24,7 +24,7 @@ criar nova linha.
 
 ### Requirement: Arquivo inválido, tenant e papel
 
-O sistema SHALL responder 422 sem criar treino para arquivo que não é `.fit` válido, 404 sem gravar
+O sistema SHALL responder 422 sem criar treino para arquivo que não é `.fit` válido, 403 sem gravar
 nada para atleta de outro tenant e 403 para usuário `ATLETA`.
 
 #### Scenario: Arquivo inválido
@@ -35,7 +35,7 @@ nada para atleta de outro tenant e 403 para usuário `ATLETA`.
 #### Scenario: Atleta de outro tenant
 - **GIVEN** atleta que pertence a outro tenant
 - **WHEN** o treinador envia um `.fit`
-- **THEN** a resposta é 404 e nada é gravado
+- **THEN** a resposta é 403 e nada é gravado
 
 #### Scenario: Usuário atleta
 - **GIVEN** usuário com papel `ATLETA`
@@ -53,7 +53,8 @@ Garmin com o mesmo `externalId`.
 - **WHEN** o treino é registrado
 - **THEN** nenhuma análise de IA é criada
 
-#### Scenario: Mesmo treino chega depois pelo Garmin direto
+#### Scenario: Mesmo externalId chega por outra origem GARMIN
 - **GIVEN** treino importado por `.fit` com `externalId` `<atletaId>-<serial>-<start>`
-- **WHEN** a ingestão direta registra um treino com o mesmo `externalId`
+- **WHEN** `registrar` recebe um treino com o mesmo `externalId` e `fonte_dados = GARMIN`
+  (premissa: a ingestão direta, ainda não implementada, produzirá esse formato)
 - **THEN** nenhuma linha nova é criada

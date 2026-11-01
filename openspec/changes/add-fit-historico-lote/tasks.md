@@ -13,17 +13,27 @@ Backend valida com `./mvnw clean verify`. O front está na change `add-fit-histo
 ## 1. Backend — endpoint do treinador
 
 - [ ] 1.1 `POST /api/v1/coach/atletas/{atletaId}/treinos/importar-fit` (D3): `@PreAuthorize`
-  TECNICO/ADMIN, `@RequireTenant(resourceParamIndex = 0)`, `@Operation`/`@ApiResponses`
-  (201/200/403/404/422), chama `FitUploadService.importar`; reaproveita `TreinoRealizadoOutputDto`.
-  `@WebMvcTest` isolado dos códigos e dos papéis (CA3, CA5), rodado sozinho (ver memória sobre
-  verify local x CI).
-- [ ] 1.2 Log de auditoria (atletaId, tenantId, novo/existente), sem nome de arquivo nem conteúdo;
-  teste do log ou da chamada ao serviço com o `atletaId` do path (não do JWT).
-- [ ] 1.3 IT (Testcontainers) com `.fit` de fixture: importa 1 arquivo (CA1), reenvia (CA2), atleta de
-  outro tenant (CA4), confirma que nenhuma chamada de LLM é feita (CA7: `WorkoutAnalysisListener` não
-  cria análise) e mede o tempo de 50 arquivos em sequência; registra o resultado em "Notas" abaixo.
-- [ ] 1.4 Teste de dedup (CA8): treino importado por `.fit` e `registrar` com o mesmo `externalId`
-  de outra origem `GARMIN` não duplica (o `.fit` já grava `fonte_dados = GARMIN`).
+  TECNICO/ADMIN, `@RequireTenant(resourceParamIndex = 0)` com `atletaId` como **primeiro parâmetro**,
+  `@Operation`/`@ApiResponses` (201/200/403/422), chama `FitUploadService.importar`; reaproveita
+  `TreinoRealizadoOutputDto`.
+  `@WebMvcTest` isolado dos códigos e dos papéis: 422 (CA3), 403 para `ATLETA` (CA5), 401 sem
+  token e `ADMIN` permitido; rodado sozinho (ver memória sobre verify local x CI).
+  verify: `./mvnw test -Dtest=<ControllerTest>` verde.
+- [ ] 1.2 Log de auditoria (atletaId, tenantId, novo/existente), sem nome de arquivo nem conteúdo.
+  Teste separado: o serviço é chamado com o `atletaId` do path (não do JWT).
+  verify: teste do controller verde.
+- [ ] 1.3 IT (Testcontainers, HTTP com o aspecto `@RequireTenant` ativo) com `.fit` de fixture:
+  importa 1 arquivo (CA1), reenvia (CA2), atleta de outro tenant devolve 403 e nada é gravado (CA4);
+  CA7 com fixture de mais de 30 dias e sem RPE: nenhuma interação com o roteador de modelo e nenhuma
+  `AnaliseWorkout` criada; mede o tempo de 50 arquivos em sequência **e do reenvio dos mesmos 50**;
+  registra o resultado em "Notas". Teste de corrida (dois envios simultâneos do mesmo
+  arquivo): asserta uma linha só e reenvio devolvendo 200; registra em "Notas" o status real do
+  perdedor (não prometido).
+  verify: `./mvnw verify -Dit.test=<IT>` verde.
+- [ ] 1.4 Teste de dedup (CA8, premissa): treino importado por `.fit` e `registrar` com o mesmo
+  `externalId` e `fonte_dados = GARMIN` não duplica. Ao implementar `garmin-activity-ingestion`,
+  conferir que o `externalId` dela bate com este formato (registrar lá, não aqui).
+  verify: teste verde.
 - Validação: `./mvnw clean verify`.
 
 ## 2. Fechamento

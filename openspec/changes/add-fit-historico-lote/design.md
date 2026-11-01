@@ -38,10 +38,13 @@ progresso honesto compensa.
 
 ### D2 — Fila sequencial (concorrência 1)
 
-Cada `registrar` recalcula a carga diária do atleta da data do treino até hoje. Dois uploads
-concorrentes do mesmo atleta disputariam o upsert das métricas diárias. Sequencial elimina a
-disputa sem lock novo no servidor. Se o IT mostrar tempo por arquivo alto, o ajuste é otimizar o
-recalculo (change própria), não paralelizar.
+Cada `registrar` recalcula a carga diária do atleta da data do treino até hoje (inclusive no
+reenvio de duplicata). O recálculo já toma lock transacional por atleta (`TsbServiceImpl`), então
+uploads concorrentes não corrompem o upsert; ficariam enfileirados no lock. Sequencial evita essa
+contenção e o acúmulo de custo, sem lock novo. Ele **não** resolve a corrida de inserção do mesmo
+arquivo: nesse caso o UNIQUE impede a duplicata, mas a transação perdedora é abortada e o cliente
+recebe erro (hoje 500, status não prometido; ver `proposal.md`); reenviar devolve o registro existente. Se o IT mostrar tempo por arquivo alto, o
+ajuste é otimizar o recálculo (change própria), não paralelizar.
 
 ### D3 — Endpoint do treinador, reaproveitando o serviço
 
@@ -49,10 +52,14 @@ recalculo (change própria), não paralelizar.
 parte `arquivo`).
 
 - `@PreAuthorize("hasAnyRole('TECNICO','ADMIN')")` e `@RequireTenant(resourceParamIndex = 0)`,
-  como os demais endpoints de treinador com `{atletaId}` no path.
-- Chama `fitUploadService.importar(atletaId, stream)` sem alteração. O persister já garante o
-  isolamento por tenant (404).
-- Respostas e códigos iguais ao endpoint do atleta (201/200/422), mais 403 e 404.
+  como os demais endpoints de treinador com `{atletaId}` no path. **Assinatura:** `atletaId`
+  (`@PathVariable UUID`) é o primeiro parâmetro do método; `@RequestPart MultipartFile arquivo`
+  vem depois.
+- Chama `fitUploadService.importar(atletaId, stream)` sem alteração. O aspecto `@RequireTenant`
+  barra atleta de outro tenant antes do persister (`AccessDeniedException` → **403**); o persister
+  (`findByIdAndTenantId`) fica como segunda barreira.
+- Respostas e códigos iguais ao endpoint do atleta (201/200/422), mais 403 (papel ou tenant). Corrida de
+  inserção do mesmo arquivo: erro sem status prometido (hoje 500); reenviar resolve.
 - Log de auditoria: atletaId, tenantId, `novo`/`existente` (sem nome de arquivo nem conteúdo).
 - Sem novo método de serviço: a regra é a mesma, só muda quem chama.
 
