@@ -53,15 +53,15 @@ Backend valida com `./mvnw clean verify`. Pré-requisito: `garmin-connection` me
 
 ## 4. Integração
 
-- [ ] 4.1 IT `GarminTrainingPushIT` escrito e compilando (aprovação com atleta Garmin → treinos
-  `SINCRONIZADO` com `externalId` numérico e `exportadoPara=["GARMIN"]`; re-aprovação sem um treino →
-  DELETE do schedule e do workout órfão, sem tocar o treino mantido; Garmin stubado por WireMock;
-  CA1, CA3, CA4, CA9). **Ainda não executado:** o Docker (Testcontainers) estava desligado; marcar
-  `[x]` depois de rodar `./mvnw verify`. O cenário do atleta intervals.icu no mesmo teste ficou de
-  fora: o roteamento por plataforma é provado no `WorkoutChannelPorPlataformaTest`.
-- [ ] 4.2 Spike documentado em `menthoros-infra/docs`: resultado do push num relógio real no
-  ambiente de testes (base do create, bpm e pace no visor, 100 steps); `./mvnw clean verify`
-  verde.
+- [x] 4.1 IT `GarminTrainingPushIT` (aprovação com atleta Garmin → treinos `SINCRONIZADO` com
+  `externalId` numérico e `exportadoPara=["GARMIN"]`; re-aprovação sem um treino → DELETE do schedule
+  e do workout órfão, sem tocar o treino mantido; Garmin stubado por WireMock; CA1, CA3, CA4, CA9).
+  Executado com Docker: verde. O cenário do atleta intervals.icu no mesmo teste ficou de fora: o
+  roteamento por plataforma é provado no `WorkoutChannelPorPlataformaTest`.
+- [ ] 4.2 **ADIADA.** Spike em relógio real (base do create, bpm e pace no visor, 100 steps) e doc em
+  `menthoros-infra/docs`: exige um relógio Garmin e o app aprovado com a Training API V2 habilitada,
+  que não existem neste ambiente. Os paths e formatos de resposta seguem os do `design.md`, ainda sem
+  chamada real. Fazer antes de ligar `GARMIN_HABILITADO` em produção.
 
 ## Workflow follow-up
 
