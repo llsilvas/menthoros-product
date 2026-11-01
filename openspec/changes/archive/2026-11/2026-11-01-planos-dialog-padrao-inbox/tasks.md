@@ -65,12 +65,15 @@ estava em `refactor/extract-adherence-calculator` com alterações de outra sess
       limite com 6 concluídas e teste de 403 do controller — não bloqueantes, registrados como débito.
 - [x] 5.5 Front: `services/PlanoSemanasService.ts` (wrapper não gerado) e `usePlanoSemanal` consumindo o
       endpoint novo (e sem os `console.log` de debug). *verify:* tsc + eslint.
-- [~] 5.6 `./mvnw clean compile` limpo (883 arquivos) e `PlanoServiceImplTest` verde em 2026-10-04.
+- [x] 5.6 (fechada: CI do PR #162, `Build e testes (verify)`, passou com Docker) `./mvnw clean compile` limpo (883 arquivos) e `PlanoServiceImplTest` verde em 2026-10-04.
       **`./mvnw clean verify` completo não fechou nesta sessão** — sandbox sem Docker, as 244 falhas são
       todas Testcontainers (`Could not find a valid Docker environment`), nenhuma nos arquivos deste
       commit. Rodar o verify completo (com Docker) na máquina do dev antes do merge, junto com a
       conferência manual: atleta com >4 concluídas mostra só 4.
 - [ ] 5.7 Reviews da trilha Full: `product-reviewer` e pré-mortem cross-model antes do merge.
+      **Não feita — adiada sem execução:** o merge (front #140, backend #162, ambos em 2026-10-04)
+      aconteceu antes. O `/qa` de 2026-10-04 (frontend-reviewer, clean-code-reviewer e `codex exec`)
+      cobriu o código, não a visão de produto.
 
 ## 3. Validação e fechamento
 
@@ -79,7 +82,13 @@ estava em `refactor/extract-adherence-calculator` com alterações de outra sess
       fechar o modal de conclusão).
 - [x] 3.2 `npm run lint && npm run build && npm run test:run` na máquina do dev — rodado no `/qa` de
       2026-10-04 (1941 testes, 229 arquivos, zero falhas).
-- [ ] 3.3 Conferir no navegador autenticado: Atletas → Planos de um atleta com histórico.
+- [x] 3.3 Conferir no navegador autenticado: Atletas → Planos de um atleta com histórico.
+      **Conferido em 2026-11-01** no front local (`localhost:5174`), atleta Leandro Silva, coach
+      logado: dialog "5 planos" (1 planejado + 4 concluídas), abas de semana mais recente primeiro, sem
+      aba de situação; semana concluída com KPIs, progresso, objetivo e `TreinoCard` no padrão do
+      inbox. **Não verificado:** atleta com mais de 4 concluídas mostrando só 4 (o único atleta com
+      histórico tem 4); tráfego de rede do endpoint `/semanas`. Observação sem conclusão: o card de
+      20/10 (Realizado) mostra "0 km" de distância e esforço esperado "–".
 - [x] 3.4 Card no Kanban: criado em **🏃 Fazendo** (`menthoros-brain`).
 
 ## Notas de execução (2026-10-04)
