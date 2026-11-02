@@ -28,7 +28,7 @@ Redesenho (design.md, decisões 5 a 10; canvas https://claude.ai/artifact/KqSdJi
 ## 3. E2E (fluxo crítico: entrada de dados que alimenta o motor)
 
 - [x] 3.1 Spec em `tests/e2e/atletas/` (ao lado de `lista.spec.ts`): abrir edição, conferir a data, alterar objetivo, salvar sem redigitar a data
-- [ ] 3.1b Mesmo spec ou irmão: cadastro novo completo pelos chips e selects, peso com vírgula, confirmar o atleta na lista
+- [x] 3.1b Mesmo spec ou irmão: cadastro novo completo pelos chips e selects, peso com vírgula, confirmar o atleta na lista
 - [x] 3.2 Validação: `npm run test:e2e` (128 passed, 34s; o erro de proxy do Vite para o Keycloak no fim do log é ruído de um teste sem IdP e não falhou nada). Original: se não der para escrever (backend com o campo ainda não publicado em `develop`), registrar aqui como item adiado, com o motivo
 
 ## 4. Fechamento
