@@ -13,11 +13,22 @@
 - [ ] 2.2 Teste de componente em `AtletaDialog.test.tsx`: abrir com `atleta` que tem `dataNascimento` e esperar o campo preenchido
 - [ ] 2.3 Teste de componente: editar só o objetivo e salvar chama `onSave` com a data original; verificar também em `salvarAtleta` (`CoachAthletesPage`) que o merge `{...atletaParaEditar, ...dados}` leva a data no `PUT`, sem presumir
 - [ ] 2.4 Teste de componente: atleta sem data abre vazio e bloqueia o salvamento
-- [ ] 2.5 Validação: `npm run lint && npm run build && npm run test:run`
+- [ ] 2.5 Validação parcial: `npm run lint && npm run build && npm run test:run`
+
+Redesenho (design.md, decisões 5 a 10; canvas https://claude.ai/artifact/KqSdJiuCUNoK3Jyf38NCqw):
+
+- [ ] 2.6 Teste primeiro: cadastro novo abre com sexo, nível, longão, peso e altura vazios; salvar assim mostra erro nos cinco e não chama `onSave`; edição abre com os valores do atleta
+- [ ] 2.7 `AtletaFormState` local com `''` nos campos de escolha e `string` em peso/altura; `getInitialFormData`, `validateForm` e conversão para `CreateAtleta`/`UpdateAtleta` antes do `onSave`
+- [ ] 2.8 Teste primeiro: `72,5` em peso chega como `pesoKg: 72.5`; vazio e `0` bloqueiam. Depois: `inputMode="decimal"`, `endAdornment` com unidade, parse com `replace(',', '.')`
+- [ ] 2.9 Teste primeiro: marcar Terça e Sábado deixa só "Terça" e "Sábado" no longão; sem dia marcado o select fica desabilitado; desmarcar o dia do longão limpa a escolha; legado com longão fora dos dias aparece como opção extra. Depois: lista única `DIAS_SEMANA`, chips com `aria-pressed`, select derivado
+- [ ] 2.10 Três grupos com `Typography variant="overline"`, `Grid size={{ xs: 12, sm: 6 }}`, `maxWidth="md"`, remoção de `Card`/`CardHeader` internos; teste de que o subtítulo e o rodapé não contêm "linguagem visual" nem "padronizados"
+- [ ] 2.11 Copy: subtítulo, rótulos em caixa de frase, botão "Adicionar atleta"/"Salvar alterações"; conferir que `CoachAthletesPage` não depende do texto antigo do botão ("Salvar")
+- [ ] 2.12 Validação: `npm run lint && npm run build && npm run test:run`; `frontend-reviewer` contra o `CLAUDE.md` (sem hex, sem `any`, nada interativo dentro de `FormControlLabel`)
 
 ## 3. E2E (fluxo crítico: entrada de dados que alimenta o motor)
 
 - [ ] 3.1 Spec em `tests/e2e/atletas/` (ao lado de `lista.spec.ts`): abrir edição, conferir a data, alterar objetivo, salvar sem redigitar a data
+- [ ] 3.1b Mesmo spec ou irmão: cadastro novo completo pelos chips e selects, peso com vírgula, confirmar o atleta na lista
 - [ ] 3.2 Validação: `npm run test:e2e`; se não der para escrever (backend com o campo ainda não publicado em `develop`), registrar aqui como item adiado, com o motivo
 
 ## 4. Fechamento

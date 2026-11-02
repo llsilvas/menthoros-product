@@ -34,3 +34,59 @@ sem alterar a data, a requisição de atualização SHALL levar a data original.
 #### Scenario: Atleta sem data cadastrada
 - **WHEN** o treinador abre a edição de um atleta sem data de nascimento
 - **THEN** o campo SHALL vir vazio e o formulário SHALL exigir o preenchimento antes de salvar
+
+### Requirement: Campos de escolha sem valor pré-selecionado
+No cadastro de atleta novo, os campos sexo, nível de experiência e dia do treino longo SHALL começar
+vazios e SHALL ser obrigatórios; o formulário SHALL NOT enviar o cadastro enquanto algum deles
+estiver vazio. Na edição, esses campos SHALL vir com os valores cadastrados.
+
+#### Scenario: Cadastro salvo sem escolher sexo
+- **WHEN** o treinador preenche nome, data, peso, altura e objetivo e salva sem escolher sexo, nível
+  ou dia do longão
+- **THEN** o formulário SHALL mostrar erro nesses três campos e SHALL NOT chamar o salvamento
+
+#### Scenario: Edição preserva as escolhas
+- **WHEN** o treinador abre a edição de um atleta com sexo `FEMININO` e nível `AVANCADO`
+- **THEN** os campos SHALL vir com "Feminino" e "Avançado" selecionados
+
+### Requirement: Peso e altura aceitam vírgula e ponto
+Os campos de peso e altura SHALL começar vazios, SHALL exibir a unidade ("kg", "cm") junto ao campo
+e SHALL aceitar vírgula ou ponto como separador decimal. Valor vazio, não numérico ou menor ou igual
+a zero SHALL ser erro de validação.
+
+#### Scenario: Peso com vírgula
+- **WHEN** o treinador digita `72,5` em peso e salva um formulário válido
+- **THEN** o salvamento SHALL receber `pesoKg` igual a `72.5`
+
+#### Scenario: Peso vazio
+- **WHEN** o treinador salva sem preencher peso
+- **THEN** o formulário SHALL mostrar erro em peso e SHALL NOT chamar o salvamento
+
+### Requirement: Dias disponíveis como chips e dia do longão derivado
+Os dias disponíveis SHALL ser escolhidos por chips, um por dia da semana, com rótulo acentuado
+("Terça", "Sábado"). O dia do treino longo SHALL oferecer apenas os dias marcados como disponíveis
+e SHALL ficar desabilitado quando nenhum estiver marcado. Desmarcar o dia escolhido como longão
+SHALL limpar essa escolha. Na edição, um dia do longão cadastrado fora dos dias disponíveis SHALL
+continuar visível como opção até o treinador trocá-lo.
+
+#### Scenario: Longão só entre os dias marcados
+- **WHEN** o treinador marca Terça e Sábado
+- **THEN** o select do dia do longão SHALL listar apenas "Terça" e "Sábado"
+
+#### Scenario: Nenhum dia marcado
+- **WHEN** nenhum dia disponível está marcado
+- **THEN** o select do dia do longão SHALL estar desabilitado
+
+#### Scenario: Desmarcar o dia do longão
+- **WHEN** o longão é Sábado e o treinador desmarca Sábado nos dias disponíveis
+- **THEN** o dia do longão SHALL ficar vazio
+
+### Requirement: Formulário em três grupos e legível no celular
+O formulário SHALL agrupar os campos em "Identificação", "Perfil físico e objetivo" e
+"Disponibilidade e saúde", SHALL usar largura `md` e, abaixo do breakpoint `sm`, SHALL dispor os
+campos em uma coluna. O subtítulo e o rodapé SHALL NOT conter texto sobre padronização visual
+interna.
+
+#### Scenario: Viewport estreita
+- **WHEN** o dialog abre em largura menor que o breakpoint `sm`
+- **THEN** cada campo SHALL ocupar a largura inteira
