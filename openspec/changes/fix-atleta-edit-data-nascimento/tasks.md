@@ -1,11 +1,11 @@
 ## 1. Backend (`apps/menthoros-backend`, branch `fix/fix-atleta-edit-data-nascimento`)
 
 - [ ] 1.1 Contar atletas sem `data_nascimento` no banco de teste e registrar o número no `design.md` (o DTO compartilhado entre POST, PUT, lista e GET por id já está decidido)
-- [ ] 1.2 Teste primeiro: `AtletaMapperTest` com atleta de `dataNascimento` conhecida exige o campo no DTO; e sem data, campo nulo
-- [ ] 1.3 Adicionar `LocalDate dataNascimento` ao fim de `AtletaOutputDto` e ajustar `withBilling`
-- [ ] 1.4 Teste de controller/serialização: `GET /api/v1/atletas/{id}` devolve `dataNascimento` em `yyyy-MM-dd` e mantém `idade`; atleta legado omite o campo
-- [ ] 1.5 Testes de acesso: atleta de outro tenant retorna 404, e o papel atleta não lê a data de outro atleta; `AthleteDtoAmountExposureTest` e `AthleteBillingExposureTest` seguem verdes
-- [ ] 1.6 Validação: `./mvnw clean verify`; PR para `develop`, mergeado antes do front
+- [x] 1.2 Teste primeiro: `AtletaMapperTest` com atleta de `dataNascimento` conhecida exige o campo no DTO; e sem data, campo nulo
+- [x] 1.3 Adicionar `LocalDate dataNascimento` ao fim de `AtletaOutputDto` e ajustar `withBilling`
+- [x] 1.4 Teste de controller/serialização: `GET /api/v1/atletas/{id}` devolve `dataNascimento` em `yyyy-MM-dd` e mantém `idade`; atleta legado omite o campo
+- [x] 1.5 Testes de acesso (`AtletaPorIdContratoTest`): atleta de outro tenant retorna 404, e o papel atleta recebe 403 em `GET /atletas/{id}`; `AthleteDtoAmountExposureTest` e `AthleteBillingExposureTest` seguem verdes
+- [x] 1.6 Validação: `./mvnw clean verify` (4942 unitários + 253 integração, 0 falhas); PR #203 para `develop` aberto. **Falta mergear antes do front.**
 
 ## 2. Frontend (`apps/menthoros-front`, branch `fix/fix-atleta-edit-data-nascimento`)
 
