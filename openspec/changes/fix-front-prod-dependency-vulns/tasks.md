@@ -39,8 +39,9 @@ outra sessão no repo.
 - [x] 3.2 `npm run lint && npm run build && npm test` (CA3).
       verify: tudo verde.
       Feito: lint, build e 2441 testes verdes.
-- [ ] 3.3 E2E: `npx playwright test` local, ou conferir o check `E2E (Playwright)` no PR (CA4).
+- [x] 3.3 E2E: `npx playwright test` local, ou conferir o check `E2E (Playwright)` no PR (CA4).
       verify: login, navegação e uma chamada autenticada passam.
+      Feito local: `npx playwright test` = 126 passaram, 0 falharam (31,7 s). O check `E2E (Playwright)` do PR #180 ainda confirma na CI.
 - [ ] 3.4 Verificação manual rápida em `npm run dev`: login pelo Keycloak, abrir dashboard do coach,
       trocar de rota. Console sem erro novo.
       verify: sem erro no console.
