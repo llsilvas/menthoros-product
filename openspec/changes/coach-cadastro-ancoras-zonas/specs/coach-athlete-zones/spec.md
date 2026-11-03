@@ -4,8 +4,9 @@
 O sistema SHALL expor `PUT /api/v1/coach/atletas/{atletaId}/zonas/ancoras` para o treinador gravar as
 âncoras de FC (limiar, máxima, data do teste, origem) e/ou de pace (limiar em segundos/km, data do
 teste, origem). Grupo ausente SHALL manter os valores atuais daquele eixo. O grupo de FC SHALL exigir
-o limiar; a máxima é opcional (vazia mantém a vigente) e, informada ou vigente, SHALL ser maior que o
-limiar. Os limites aceitos SHALL ser os mesmos das restrições do banco. A resposta SHALL ser a mesma tabela de zonas
+o limiar; a máxima é opcional (vazia mantém a vigente). A máxima informada ou, se vazia, a gravada
+SHALL ser no mínimo o topo da Z5 (`round(limiar × 1,06)`); máxima estimada SHALL NOT bloquear o
+salvamento. Os limites aceitos SHALL ser os mesmos das restrições do banco. A resposta SHALL ser a mesma tabela de zonas
 do `GET .../zonas`, recalculada. Acesso restrito a `TECNICO`/`ADMIN`; atleta de outro tenant responde `404`.
 
 #### Scenario: Cadastrar pace de limiar
@@ -18,9 +19,22 @@ do `GET .../zonas`, recalculada. Acesso restrito a `TECNICO`/`ADMIN`; atleta de 
 - **WHEN** o corpo traz só o grupo `pace`
 - **THEN** `fcLimiar`, `fcMaxima`, data e origem de FC permanecem como estavam
 
-#### Scenario: FC máxima não maior que o limiar
-- **WHEN** `fc.maxima = 165` e `fc.limiar = 168`
-- **THEN** a resposta é `400` apontando `fc.maxima` e nada é gravado
+#### Scenario: FC máxima abaixo do topo da Z5
+- **WHEN** `fc.maxima = 169` e `fc.limiar = 168`
+- **THEN** a resposta é `400` apontando `fc.maxima` (mínimo 178) e nada é gravado
+
+#### Scenario: Máxima estimada não bloqueia
+- **WHEN** o atleta não tem `fc_maxima` gravada nem data de nascimento e o treinador envia só
+  `fc.limiar = 185`
+- **THEN** a resposta é `200` e `fcMaxima.estimada` continua `true`
+
+#### Scenario: Atleta de outro tenant
+- **WHEN** o `atletaId` pertence a outro tenant
+- **THEN** o PUT e a simulação respondem `404`; perfil sem `TECNICO`/`ADMIN` recebe `403`
+
+#### Scenario: Reenvio ao intervals.icu
+- **WHEN** o treinador salva o grupo `fc` de um atleta com intervals.icu conectado e o intervals.icu falha
+- **THEN** a resposta continua `200` e os valores ficam gravados; a falha só gera log
 
 ### Requirement: Simulação das zonas sem persistir
 O sistema SHALL expor `POST /api/v1/coach/atletas/{atletaId}/zonas/simulacao`, com o mesmo corpo do
@@ -34,8 +48,15 @@ este endpoint para a prévia e não SHALL reimplementar o cálculo das zonas.
 ### Requirement: Diálogo de cadastro de zonas a partir do card
 O card "Zonas do atleta" SHALL oferecer "Editar zonas" quando o host permitir edição, abrindo um
 diálogo com abas "Zonas de FC" e "Zonas de Ritmo", campos de âncora, prévia das seis zonas vinda da
-simulação e o aviso de que só os próximos planos usam os novos valores. Salvar SHALL atualizar o card
-sem recarregar a página.
+simulação e o aviso "Os próximos planos usam estes valores. Treinos já criados com alvo em bpm ou
+ritmo fixo não mudam." Salvar SHALL atualizar, sem recarregar a página, todos os consumidores das
+zonas do mesmo atleta que estiverem montados.
+
+#### Scenario: Consumidores atualizados
+- **WHEN** `PlanoDetalhePanel` e `CurrentWeekPlan` do mesmo atleta estão montados e o treinador salva
+  no diálogo
+- **THEN** o card e o seletor de zona passam a usar as novas faixas, e uma resposta mais antiga que
+  chegue depois é descartada
 
 #### Scenario: FC estimada
 - **WHEN** `ancoras.fcLimiarEstimada = true`
