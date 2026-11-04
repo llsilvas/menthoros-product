@@ -38,9 +38,9 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
 
 ## 4. Números e fontes carregadas
 
-- [ ] 4.1 `tabular-nums` nas células numéricas de `AthleteZonesTable` e da prévia do
+- [x] 4.1 `tabular-nums` nas células numéricas de `AthleteZonesTable` e da prévia do
   `AthleteZonesDialog` (CA5), com teste de componente. Só essas duas; outras tabelas ficam fora.
-- [ ] 4.2 (depende de 3.1) `index.html`: remover Syne do link do Google Fonts; Inter `wght@300;400;500;600;700;800`
+- [x] 4.2 (depende de 3.1) `index.html`: remover Syne do link do Google Fonts; Inter `wght@300;400;500;600;700;800`
   (CA7, D5). *verify:* `npm run build`; telas sem fallback inesperado no smoke.
 
 ## 5. E2E e revisão visual
@@ -75,3 +75,5 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
 - 3.1: componentes que leem `typography.h4/h6.fontFamily` do tema (`ConfirmDialog`, `CoachDialog`,
   blocos de progresso do atleta) já resolvem para Inter, sem mudança. Guarda de regressão do CA4 em
   `src/theme/semSyne.test.ts`.
+- 4.1: a prévia já tinha `tabular-nums` em De/Até; faltava a coluna Referência. As faixas manuais
+  (inputs e Referência) também receberam. 4.2: guarda do CA7 em `src/theme/semSyne.test.ts`.
