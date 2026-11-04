@@ -45,19 +45,19 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
 
 ## 5. E2E e revisão visual
 
-- [ ] 5.1 Novo `tests/e2e/coach/smoke-tema.spec.ts` no molde do atleta: rotas do coach e do shell
+- [x] 5.1 Novo `tests/e2e/coach/smoke-tema.spec.ts` no molde do atleta: rotas do coach e do shell
   legado, sem scroll horizontal. Dados via `page.route` no molde de
   `tests/e2e/coach/zonas-cadastro.spec.ts` (`mockarApis`: `users/me`, revisão com um plano, `zonas`
   preenchidas); abrir o diálogo de zonas antes da varredura. Afirmar que a primeira família
   computada de todo elemento visível com texto próprio está em {Inter, JetBrains Mono} e
   `document.fonts.check` para 400 e 800 (CA1). Estender o smoke do atleta com a mesma asserção
   (hoje só rejeita Syne). *verify:* `npm run test:e2e -- smoke-tema`.
-- [ ] 5.2 CA6: E2E ou teste de componente afirmando o título do `CoachDialog` em Inter e `heading`
+- [x] 5.2 CA6: E2E ou teste de componente afirmando o título do `CoachDialog` em Inter e `heading`
   nível 2. *verify:* `npm run test:run -- CoachDialog` (ou o spec E2E da 5.1) verde.
 - [ ] 5.3 Revisão visual (screenshots) de: inbox do coach, revisão de plano + diálogo de zonas, lista
   de atletas legada, home do atleta. Anexar em "Notas". *verify:* o founder aprova por escrito em
   "Notas"; critério: títulos distinguíveis do corpo e números legíveis sem zoom em 100%.
-- [ ] 5.4 Gate final: `npm run lint && npm run build && npm run test:run && npm run test:e2e`. A suíte
+- [x] 5.4 Gate final: `npm run lint && npm run build && npm run test:run && npm run test:e2e`. A suíte
   E2E inteira cobre os fluxos de coach-in-the-loop (aprovar/rejeitar plano, editar treino, fechar
   semana) que passam pelo `CoachDialog`; nenhum pode regredir.
 
@@ -77,3 +77,12 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
   `src/theme/semSyne.test.ts`.
 - 4.1: a prévia já tinha `tabular-nums` em De/Até; faltava a coluna Referência. As faixas manuais
   (inputs e Referência) também receberam. 4.2: guarda do CA7 em `src/theme/semSyne.test.ts`.
+- 5.1: o smoke novo achou um defeito fora da lista do proposal: `<button>` nativo não herda
+  `font-family` e os filtros da revisão de plano saíam em **Arial**. Corrigido na raiz em
+  `src/index.css` (`button, input, select, textarea { font-family: inherit }`), commit `7e7753e`.
+- 5.1: **follow-up fora do escopo** — a toolbar do `DashboardLayout` (shell legado) estoura 8px de
+  largura em 1280px (`scrollWidth` 1288). Medido também em `origin/develop`, antes desta change: não é
+  regressão. O smoke do legado verifica só a fonte, com comentário apontando para cá.
+- 5.4 (2026-11-04): lint ok, build ok, 2568 testes unitários e 135 E2E verdes.
+- 5.3: screenshots (inbox do coach, revisão + diálogo de zonas, lista de atletas legada, home do
+  atleta) enviadas ao founder; aguardando aprovação.
