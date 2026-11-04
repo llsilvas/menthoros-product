@@ -33,6 +33,10 @@ em 2026-11-04. Só backend, sem migration, sem mudança de contrato de API.
 - `IntervalsIcuFcAlvoResolver`: `HrTarget(min(inicio, fim), max(inicio, fim))`. Vale para os dois
   canais — o resolver é compartilhado.
 - `GarminTrainingPushIT`: o stub do PUT passa a exigir `ownerId` e `workoutId` no corpo.
+- `GarminWorkoutPayloadMapper` (incluído em 2026-11-04 a pedido do founder): bloco cujo último
+  filho é descanso (`intensity=REST`, trote sem meta) leva `skipLastRestStep: true` (Training API
+  §3.1, `WorkoutRepeatStep`). Sem isso, depois do último tiro o atleta ainda faz o trote do bloco
+  antes do desaquecimento.
 
 **Não toca:** criação de workout/schedule, `removerOrfaos`, scheduler de retry, contrato REST,
 schema.
@@ -54,6 +58,9 @@ schema.
   `targetValueLow=140`, `targetValueHigh=150`.
 - **CA6 — IT.** `GarminTrainingPushIT` falha se o PUT chegar sem `ownerId` ou com `workoutId`
   diferente do path.
+- **CA7 — Pula o último descanso.** Given intervalado 6x(1 km + 2 min de trote sem meta) seguido de
+  desaquecimento, Then o `WorkoutRepeatStep` sai com `skipLastRestStep: true`. Given bloco cujo
+  último passo tem meta (recuperação por FC no fartlek), Then o campo não é enviado.
 
 ## Métrica de sucesso
 
@@ -71,6 +78,10 @@ schema.
   seria ±2%. Confirmar com o founder.
 - **Alternativa rejeitada:** persistir o `ownerId` da resposta do create — economiza a chamada,
   mas exige migration e não cobre os workouts já criados.
+- **Não verificado:** a doc só diz que `skipLastRestStep` é ligado automaticamente em
+  `LAP_SWIMMING`; não diz o default para `RUNNING` nem quais relógios respeitam o campo. Validar
+  no device (task 3.1). Recuperação com meta de FC vai como `ACTIVE` e não é pulada — escolha
+  consciente: o relógio só pula o que é descanso livre.
 - **Não verificado:** se o 400 acontece mesmo em produção — nenhuma re-aprovação Garmin foi
   observada até hoje. O fix segue a doc; a task 3.1 confirma.
 

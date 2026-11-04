@@ -20,9 +20,16 @@ antes do PR (o `GarminTrainingPushIT` só roda no `verify`).
   (CA4).
 - [x] 2.2 `IntervalsIcuFcAlvoResolver`: `HrTarget(min, max)`; teste "150-140 bpm" → (140, 150) e
   teste do mapper Garmin com Low < High (CA5). `./mvnw clean test`.
+- [x] 2.3 `GarminWorkoutPayloadMapper`: `skipLastRestStep: true` no `WorkoutRepeatStep` cujo último
+  filho é `REST` (trote sem meta); bloco que termina em passo com meta não leva o campo (CA7).
+  Testes no mapper e na simulação 6x1 km / fartlek.
+- [x] 2.4 `GarminTreinoSimulacaoTest`: simulação ponta a ponta (treino planejado → conversor →
+  payload) de rodagem, tempo run, longão progressivo, simulado, 6x1 km, 10x200 m, fartlek,
+  ondulado, escolha de alvo e limite de 100 steps.
 
 ## 3. Validação real
 
 - [ ] 3.1 No ambiente de testes, re-aprovar um plano de atleta Garmin conectado: confirmar que o GET
   traz `ownerId`, que o PUT volta 200 e que o treino atualizado aparece no relógio; conferir no
-  device o alerta de pace com a faixa ±5 s/km. Registrar resultado aqui.
+  device o alerta de pace com a faixa ±5 s/km e que, num intervalado, o relógio vai do último tiro
+  direto ao desaquecimento (`skipLastRestStep`). Registrar resultado aqui.
