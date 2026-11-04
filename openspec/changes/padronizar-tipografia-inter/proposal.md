@@ -74,20 +74,29 @@ quase toda label e número.
 - Reverte a decisão de manter Syne nos títulos do coach (commit `aea904a`, "tipografia pelo tema,
   escopada ao shell do coach").
 
+## Rollback
+
+`git revert` do PR no front. Sem schema, sem contrato de API, sem migração de dado. O revert
+restaura os três temas, os overrides e o link do Google Fonts com a Syne no mesmo commit, então não
+há estado parcial possível entre "tema sem Syne" e "fonte não carregada".
+
 ## Critérios de aceite
 
 - **CA1** — Given as rotas cobertas pelos smokes (coach, atleta e shell legado), com dados
-  preenchidos na revisão de plano e no card/diálogo de zonas, When a tela renderiza, Then todo
-  elemento de texto visível tem `font-family` computada começando por `Inter`, exceto os consumidores
-  da exceção mono (item 7), e a Inter está carregada (`document.fonts.check`).
+  preenchidos na revisão de plano e no card/diálogo de zonas, When a tela renderiza, Then a
+  **primeira família** da `font-family` computada de todo elemento visível com nó de texto próprio é
+  `Inter` ou `JetBrains Mono` (a exceção mono se verifica pela própria família, sem allowlist de
+  componente), e `document.fonts.check('400 16px Inter')` e `document.fonts.check('800 16px Inter')`
+  são verdadeiros. Qualquer outra família (Syne, Space Grotesk, fallback do sistema) falha.
 - **CA2** — Given o tema global, When se lê `appTheme.typography`, Then `fontFamily` e as variantes
   h1–h6 começam por `"Inter"`.
 - **CA3** — Given `coachTheme` e `athleteTheme`, When se leem h1–h4, Then a família começa por
-  `"Inter"` e o tamanho de cada variante é o mesmo de antes da change.
+  `"Inter"`, o tamanho de cada variante é o mesmo de antes da change e o peso é ≥ 700 (D3).
 - **CA4** — Given o código-fonte em `src/` fora de `src/landing/` e `WaitlistPage`, When se procura
   `Syne`, Then não há ocorrência em código executável (comentário histórico pode ficar).
 - **CA5** — Given o card e o diálogo de zonas, When renderizam valores de bpm e pace, Then as células
-  numéricas têm `font-variant-numeric: tabular-nums`.
+  numéricas têm `font-variant-numeric: tabular-nums`. Outras tabelas de métricas ficam fora desta
+  change (follow-up, se o founder pedir).
 - **CA6** — Given o título de um `CoachDialog`, When abre (ex.: diálogo de zonas), Then o título está
   em Inter e continua sendo `heading` de nível 2.
 - **CA7** — Given o `index.html`, When a change termina, Then a Syne não é mais pedida ao Google Fonts
@@ -95,13 +104,13 @@ quase toda label e número.
 
 ## Métrica de sucesso
 
-- **Objetiva (gate):** CA1 verde nos smokes do coach e do atleta, e nenhuma variante de texto dos
-  temas abaixo de 11px (invariante que já existe em `coachTheme.test.ts`).
+- **Objetiva (gate):** CA1 verde nos smokes do coach e do atleta, e nenhuma variante de texto do
+  `coachTheme` abaixo de 11px (invariante que já existe em `coachTheme.test.ts`; não se aplica aos
+  tokens de gráfico).
 - **Rotina do treinador:** na revisão de plano e no diálogo de zonas, o treinador lê números e labels
-  sem esforço. **Resultado esperado: neutro** nas métricas de rotina. Tempo por revisão e taxa de
-  aceitação de plano não devem piorar nos 30 dias após o deploy. Não há linha de base de
-  legibilidade; a motivação é a avaliação do founder sobre o protótipo, e a aprovação final é dele
-  (task 5.3).
+  sem esforço. **Gate manual:** aprovação escrita do founder sobre as screenshots da task 5.3. Não há
+  métrica de rotina que esta change possa mover de forma mensurável; tempo por revisão e aceitação
+  de plano não são gate e não são acompanhados por ela.
 
 ## Open Questions & Assumptions
 

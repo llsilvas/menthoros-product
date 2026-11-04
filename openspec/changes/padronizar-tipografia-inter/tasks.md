@@ -17,11 +17,13 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
   `coachTheme.test.ts:57` ("não altera a tipografia global"). *verify:* vermelho antes,
   verde depois.
 - [ ] 1.3 `appTheme`: família padrão `font.text`; h1–h6 em Inter com pesos de D3.
-- [ ] 1.4 `font.display` em `theme.premium.ts` passa a Inter (D2). *verify:* `npm run test:run`.
+- [ ] 1.4 `font.display` em `theme.premium.ts` passa a `'"Inter", system-ui, sans-serif'`: **Syne e
+  Space Grotesk saem da pilha** (D2, CA4). Atualizar o comentário de `AthleteBottomNav.tsx:73`
+  ("o body global é Syne"). *verify:* `npm run test:run`; `grep -n Syne src/theme` vazio.
 
 ## 2. Temas aninhados
 
-- [ ] 2.1 Teste primeiro: `coachTheme` h1–h4 em Inter, tamanhos inalterados (CA3); substituir o
+- [ ] 2.1 Teste primeiro: `coachTheme` h1–h4 em Inter, tamanhos inalterados, peso ≥ 700 (CA3); substituir o
   `it('mantém Syne nos títulos')`. Idem `athleteTheme` (`'títulos em font.display'`), conforme Q1.
 - [ ] 2.2 `coachTheme`: remover `SYNE`; h1–h4 em Inter com pesos de D3.
 - [ ] 2.3 `athleteTheme`: segue o token (nada a mudar se 1.4 bastar); conferir. *verify:* testes do
@@ -36,18 +38,20 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
 
 ## 4. Números e fontes carregadas
 
-- [ ] 4.1 `tabular-nums` nas células numéricas do card e do diálogo de zonas (CA5), com teste de
-  componente. Levantar as tabelas de métricas em Inter sem `tabular-nums` e aplicar.
+- [ ] 4.1 `tabular-nums` nas células numéricas de `AthleteZonesTable` e da prévia do
+  `AthleteZonesDialog` (CA5), com teste de componente. Só essas duas; outras tabelas ficam fora.
 - [ ] 4.2 `index.html`: remover Syne do link do Google Fonts; Inter `wght@300;400;500;600;700;800`
   (CA7, D5). *verify:* `npm run build`; telas sem fallback inesperado no smoke.
 
 ## 5. E2E e revisão visual
 
 - [ ] 5.1 Novo `tests/e2e/coach/smoke-tema.spec.ts` no molde do atleta: rotas do coach e do shell
-  legado, sem scroll horizontal, com dados preenchidos na revisão de plano e no card/diálogo de
-  zonas. Afirmar `font-family` computada começando por Inter (fora da exceção mono) e
-  `document.fonts.check('16px Inter')` (CA1). Estender o smoke do atleta para afirmar Inter, não só
-  ausência de Syne. *verify:* `npm run test:e2e -- smoke-tema`.
+  legado, sem scroll horizontal. Dados via `page.route` no molde de
+  `tests/e2e/coach/zonas-cadastro.spec.ts` (`mockarApis`: `users/me`, revisão com um plano, `zonas`
+  preenchidas); abrir o diálogo de zonas antes da varredura. Afirmar que a primeira família
+  computada de todo elemento visível com texto próprio está em {Inter, JetBrains Mono} e
+  `document.fonts.check` para 400 e 800 (CA1). Estender o smoke do atleta com a mesma asserção
+  (hoje só rejeita Syne). *verify:* `npm run test:e2e -- smoke-tema`.
 - [ ] 5.2 CA6: E2E ou teste de componente afirmando o título do `CoachDialog` em Inter e `heading`
   nível 2.
 - [ ] 5.3 Revisão visual (screenshots) de: inbox do coach, revisão de plano + diálogo de zonas, lista

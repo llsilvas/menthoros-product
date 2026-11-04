@@ -8,7 +8,7 @@ Syne SHALL NOT ser usada em nenhuma tela logada. A landing e a waitlist ficam fo
 
 #### Scenario: Nenhum texto em Syne nas telas logadas
 - **WHEN** qualquer rota do coach, do atleta ou do shell legado renderiza
-- **THEN** todo texto visível fora da exceção mono tem `font-family` computada começando por `Inter`
+- **THEN** a primeira família computada de todo texto visível é `Inter` ou, na exceção mono, `JetBrains Mono`
 - **AND** nenhum elemento visível tem `font-family` computada começando por `Syne`
 
 #### Scenario: Títulos de diálogo do coach em Inter

@@ -39,9 +39,9 @@ Onde já existe (23 pontos), nada muda.
 
 ### D5 — Carga de fontes no `index.html`
 
-Remover `family=Syne` do link do Google Fonts **só depois** do grep da task 4.1 provar zero
-consumidor fora de comentário. Inter passa a `wght@400;500;600;700;800`. Space Grotesk e JetBrains
-Mono ficam (landing, waitlist, mono). Inter mantém o peso 300 (consumidor em `PlanoDetalhePanel`).
+Remover `family=Syne` do link do Google Fonts **só depois** do grep da task 3.1 provar zero
+consumidor fora de comentário. Inter passa a `wght@300;400;500;600;700;800`. Space Grotesk e JetBrains
+Mono ficam (landing, waitlist, mono). O 300 fica porque `PlanoDetalhePanel` o usa.
 
 ## Riscos e mitigações
 
@@ -67,6 +67,24 @@ conferidos no código e incorporados:
 4. O gate de 11px conflitava com tokens de gráfico de 9–10px (`theme.premium.ts:222-224`). → gate
    restrito às variantes de texto dos temas; tokens de gráfico em Non-goals.
 5. `coachTheme.test.ts:57` afirma Syne literal no `appTheme.ts`. → task 1.2 inclui esse teste.
+
+DoR (2026-11-04): spec-reviewer **NOT READY** (3 Important) e revisão cross-model via DeepSeek
+(Codex sem cota) **NOT READY**. Os dois apontaram a mesma lacuna: a exceção mono não era
+verificável por máquina. Incorporado:
+
+- CA1 verifica a **primeira família computada** contra {Inter, JetBrains Mono}; a exceção mono se
+  prova pela família, sem allowlist de componente. Qualquer outra (inclusive fallback de sistema
+  vindo de portal ou widget de terceiro) falha, de propósito: é exatamente o defeito procurado.
+- Carga de fonte checada nos pesos 400 e 800, não só "Inter carregada".
+- Task 5.1 diz como semear dados (`page.route`, no molde de `zonas-cadastro.spec.ts`).
+- Seção Rollback no proposal.
+- Task 1.4 tira `Syne` da pilha de `font.display`; consumidores conhecidos: `athleteTheme` (h1–h6) e
+  o token `headerTitle` (`theme.premium.ts:219`), ambos só pela família.
+- Métrica de rotina deixa de ser gate; gate é manual do founder.
+- CA3 testa peso ≥ 700 nos títulos; CA5 limitado ao card e ao diálogo de zonas.
+
+Descartado: "reverter `aea904a` re-acopla o coach ao tema global". Os temas aninhados continuam (D1);
+só o valor da família dos títulos muda.
 
 Revisão de produto: **Refine (leve)**. Incorporado: natureza de polimento com teto de esforço,
 métrica declarada neutra, Q1/Q2 como pendentes, aprovação visual pelo founder e E2E dos fluxos de
