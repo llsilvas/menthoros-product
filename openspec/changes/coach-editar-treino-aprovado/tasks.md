@@ -20,18 +20,18 @@ começa com o backend desta change **e** o PR #188 do front em `develop`.
 
 ## 1. Backend (worktree `.worktrees/backend-coach-editar-treino-aprovado`)
 
-- [ ] 1.1 Migration `V109__add_post_approval_edit.sql`: coluna `edited_after_approval_at TIMESTAMPTZ
+- [x] 1.1 Migration `V109__add_post_approval_edit.sql`: coluna `edited_after_approval_at TIMESTAMPTZ
   NULL` em `tb_treino_planejado` (sem backfill) e tabela `tb_planned_workout_post_approval_edit` (D7,
   FK `ON DELETE CASCADE`, índice `(tenant_id, planned_workout_id)`); campo `editedAfterApprovalAt` em
   `entity/TreinoPlanejado`, entidade `PlannedWorkoutPostApprovalEdit`, enum `WorkoutEditReason`
   (`PAIN_INJURY`, `SCHEDULE`, `LOAD`, `OTHER`) e repositório.
   verify: `./mvnw clean verify` sobe o Flyway no Testcontainers sem erro; um teste de repositório
   grava e lê uma linha com JSONB e motivo nulo.
-- [ ] 1.2 Reuso de domínio: `TreinoPlanejado.reiniciarSincronizacao(agora)` (já em `develop`) serve à
+- [x] 1.2 Reuso de domínio: `TreinoPlanejado.reiniciarSincronizacao(agora)` (já em `develop`) serve à
   edição. Só atualizar o JavaDoc para citar a edição pós-aprovação; teste unitário cobrindo treino
   sem `externalId` (o caso de `ERRO_*` já tem teste em `TreinoPlanejadoTest`).
   verify: `TreinoPlanejadoTest` verde; nenhum método de domínio novo.
-- [ ] 1.3 Regra de editabilidade (D1, regras 1 e 2) num ponto único, ex.
+- [x] 1.3 Regra de editabilidade (D1, regras 1 e 2) num ponto único, ex.
   `services/helper/ApprovedWorkoutEditPolicy`: entra `TreinoPlanejado`, `hoje` de
   `AtletaHojeResolver.hojeDe(atleta)` e `temRelogio` (`conexaoCanal` presente, ativa ou revogada);
   sai editável ou o motivo da recusa.
