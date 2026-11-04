@@ -6,7 +6,7 @@
 
 ## 0. Decisões e design
 
-- [ ] **0.1** Confirmar Q1–Q3 com o treinador (recomendação em `design.md`: Q1 apaga, Q2 vale igual, Q3 lacuna aceita)
+- [x] **0.1** Q1–Q3 aprovadas (2026-11-04): Q1 apaga com confirmação, Q2 vale igual, Q3 lacuna ok e sobreposição não
 - [x] **0.2** Escrever `design.md` — D1 a D8
 - [x] **0.3** Mapear consumidores de `ZonaTreinoService` — tabela em `design.md` (7 consomem faixa; 4 com teste de contrato)
 - [x] **0.4** Critérios de aceite e delta de spec em `specs/coach-athlete-zones/spec.md`

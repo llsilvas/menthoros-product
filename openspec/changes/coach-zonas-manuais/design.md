@@ -203,7 +203,7 @@ fallbacks de hoje. Registrado para não virar escopo implícito.
 - Front: Vitest do validador e do adapter; Testing Library do diálogo (alternar modo, editar, erro
   inline, recalcular com confirmação, salvar chama o endpoint certo); E2E Playwright (CA7).
 
-## Decisões de produto (Q1–Q3 do proposal) — recomendação, a confirmar na task 0.1
+## Decisões de produto (Q1–Q3 do proposal) — aprovadas pelo usuário em 2026-11-04
 
 - **Q1 — voltar para `LIMIAR` apaga as faixas manuais** (política de perda de dado — exige aprovação explícita). Sem estado escondido: o que o GET mostra é o
   que existe. O custo (perder edições num clique errado) é coberto pela confirmação no diálogo.

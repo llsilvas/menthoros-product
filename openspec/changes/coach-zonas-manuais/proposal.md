@@ -42,7 +42,7 @@ aceitar o cálculo Friel (FC) e os fatores de pace — ou não usar as zonas do 
 - **CA1** — Eixo FC em `MANUAL` com Z2 = 140–150: o prompt da IA, o `ZoneResolver` e o push usam
   140–150 para Z2, não o Friel.
 - **CA2** — Voltar o eixo para `LIMIAR` faz os consumidores voltarem ao cálculo; as faixas manuais
-  daquele eixo são apagadas (Q1, recomendação em `design.md`, a confirmar).
+  daquele eixo são apagadas (Q1).
 - **CA3** — Faixas sobrepostas ou De ≥ Até → `400` com a zona apontada; o diálogo mostra o mesmo
   erro antes de salvar.
 - **CA4** — Pace em `MANUAL` e FC em `LIMIAR` coexistem (eixos independentes).
@@ -68,12 +68,11 @@ treinos enviados ao relógio com a faixa manual — se ninguém usar, o modo é 
 
 ## Open Questions & Assumptions
 
-- **Q1** — Voltar para `LIMIAR` guarda ou apaga as faixas manuais?
-- **Q2** — O ajuste por fadiga (`PaceZoneCalculator`) se aplica sobre pace manual?
-- **Q3** — Faixas com lacuna (ex.: Z2 até 150, Z3 a partir de 153) são aceitas?
+- **Q1 (decidida 2026-11-04)** — Voltar para `LIMIAR` **apaga** as faixas manuais daquele eixo, com confirmação no diálogo.
+- **Q2 (decidida 2026-11-04)** — O ajuste por fadiga **vale igual** sobre pace manual (segue só informativo).
+- **Q3 (decidida 2026-11-04)** — Lacuna entre zonas é aceita; sobreposição não.
 - **A1** — Z6 continua sem faixa de FC também no modo manual (`FC_NAO_ESTABILIZA`).
 - **UX (revisão do protótipo, 2026-11-03)** — "Recalcular a partir do limiar" descarta edições:
   pedir confirmação. Zona inválida sinalizada por `aria-invalid` + texto na própria linha, não só cor.
   Inputs De/Até com ≥ 44 px de altura.
-- Q1–Q3 têm recomendação em `design.md` (Q1 apaga, Q2 vale igual, Q3 lacuna aceita) — a confirmar
-  na task 0.1.
+- Q1–Q3 aprovadas pelo usuário em 2026-11-04 (task 0.1).
