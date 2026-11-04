@@ -55,32 +55,38 @@ backend mergeado em `develop` (2.1 depende de 1.4 e 1.5).
 
 ## 2. Frontend — botão e chip
 
-- [ ] 2.1 Portar à mão o contrato novo para `src/api` (método do serviço, `channelConnected`,
+- [x] 2.1 Portar à mão o contrato novo para `src/api` (método do serviço, `channelConnected`,
   `syncError` e `syncInProgress` no item de treino), preservando o padrão do cliente curado; rodar o
   `generate:api` só para referência.
   verify: `npm run build` sem erro de tipo.
-- [ ] 2.2 `useReenviarSincronizacao` (expõe `reenviando`, `erro`, `reenviar`; 409 vira "Envio em
+- [x] 2.2 `useReenviarSincronizacao` (expõe `reenviando`, `erro`, `reenviar`; 409 vira "Envio em
   andamento"); teste do hook.
   verify: teste do hook cobre sucesso, 409 e erro genérico.
-- [ ] 2.3 `CurrentWeekPlan`: botão "Reenviar ao relógio" visível só com treino em `ERRO_*` (CA7),
+- [x] 2.3 `CurrentWeekPlan`: botão "Reenviar ao relógio" visível só com treino em `ERRO_*` (CA7),
   desabilitado durante a chamada e, com tooltip, quando `channelConnected` é falso (CA10) ou há
   treino com `syncInProgress = true` (CA11, D1b), com feedback "Reenvio
   solicitado" e de erro; teste de componente.
   verify: teste de componente cobre CA7, CA10 e CA11 (`syncInProgress`).
-- [ ] 2.3b Motivo legível (CA9, D4b): função pura em `features/coach/adapters/` que mapeia
+- [x] 2.3b Motivo legível (CA9, D4b): função pura em `features/coach/adapters/` que mapeia
   `statusSincronizacao` + `syncError` em `{ motivo, acao }` (inclui `SINCRONIZADO_PARCIAL`
   → "Enviado com ajustes"), exibida no plano da semana; teste do adapter para os cinco `ERRO_*` e o
   parcial.
   verify: teste do adapter verde.
-- [ ] 2.4 `SyncStatusChip`: textos neutros de canal e uso de `channelConnected` (CA8), inclusive
+- [x] 2.4 `SyncStatusChip`: textos neutros de canal e uso de `channelConnected` (CA8), inclusive
   na condição `mostraSync` do `CurrentWeekPlan` (~:61) e na prop do chip (~:88); ajustar
   `SyncStatusChip.test.tsx`.
   verify: nenhum texto "intervals.icu" no chip; atleta só-Garmin conectado não vê "Não conectado".
-- [ ] 2.5 E2E (Playwright): treinador com plano de treinos em erro vê o botão, clica e a chamada
+- [x] 2.5 E2E (Playwright): treinador com plano de treinos em erro vê o botão, clica e a chamada
   sai; sem treino em erro o botão não aparece. Se o ambiente não permitir, registrar aqui o motivo
   como item adiado (CLAUDE.md do front).
   verify: `npm run test:e2e` verde ou adiamento registrado.
 - Validação: `npm run lint && npm run build && npm run test:run`; `npm run test:e2e` na 2.5.
+- [x] 2.6 QA (2026-11-04): frontend-reviewer + clean-code-reviewer, sem Critical. Corrigido: regra de
+  erro centralizada em `isErroSync`, 422 com mensagem fixa (não repassa texto da API), `resent = 0`
+  com aviso próprio sem recarregar, aviso de sucesso preso ao `planoId`, "sem canal" só quando
+  nenhum treino tem canal. Fora: alias `@/` nos imports (arquivo já usa relativo), extrair
+  `ReenvioRelogio` (arquivo < 350 linhas).
+  verify: lint, build, `test:run` (2603) e `test:e2e` (138) verdes.
 
 ## 3. Fechamento
 
