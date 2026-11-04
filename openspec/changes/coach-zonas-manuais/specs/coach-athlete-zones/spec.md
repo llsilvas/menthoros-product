@@ -85,9 +85,9 @@ confirmação. O card SHALL mostrar o modo de cada eixo.
 - **THEN** a linha Z3 fica com `aria-invalid` e mensagem, e "Salvar" fica desabilitado
 
 #### Scenario: Limiar novo com eixo manual
-- **WHEN** o treinador grava um novo pace de limiar com o ritmo em `MANUAL`
-- **THEN** o diálogo informa que as faixas manuais de ritmo continuam valendo e oferece "Recalcular a
-  partir do limiar"; as faixas gravadas não mudam
+- **WHEN** o treinador altera o pace de limiar no diálogo com o ritmo em `MANUAL`
+- **THEN** o diálogo informa, antes de salvar, que as faixas manuais de ritmo continuam valendo e
+  aponta "Recalcular a partir do limiar"; salvar só o limiar não muda as faixas gravadas
 
 #### Scenario: Faixa manual chega ao editor de etapas (E2E)
 - **WHEN** o treinador muda o ritmo para manual, edita Z2 e salva

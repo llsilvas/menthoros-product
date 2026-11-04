@@ -36,21 +36,24 @@
 
 ## 2. Front (`.worktrees/coach-zonas-manuais-front`)
 
-> Começar depois de `fix/coach-cadastro-ancoras-zonas-previa` entrar em `develop` (mexe em
-> `AthleteZonesDialog.tsx`/`zoneAnchors.ts`), ou rebasear sobre ela.
+> A branch do front foi criada **sobre** `fix/coach-cadastro-ancoras-zonas-previa` (1 commit, `7501df0`,
+> ainda sem PR em 2026-11-04), que mexe em `AthleteZonesDialog.tsx`/`zoneAnchors.ts`. O PR desta change
+> no front só entra depois daquele — ou leva o commit junto.
 
-- [ ] **2.0** Cliente curado: `salvarZonasManuais` em `CoachAthleteZonesService`, `modos`/`*PeloLimiar` em `AthleteTrainingZones`; `aplicarZona` aceita FC com `modos.fc === 'MANUAL'`
+- [x] **2.0** Cliente curado: `salvarZonasManuais` em `CoachAthleteZonesService`, `modos`/`*PeloLimiar` em `AthleteTrainingZones`; `aplicarZona` aceita FC com `modos.fc === 'MANUAL'`
   - verify: `npm run build` + Vitest de `aplicarZona` com FC manual e `fcLimiarEstimada = true`
   - depende de: 1.4
-- [ ] **2.1** `validateManualZones` (adapter puro) + seletor de modo por aba, tabela De/Até pré-preenchida,
+- [x] **2.1** `validateManualZones` (adapter puro) + seletor de modo por aba, tabela De/Até pré-preenchida,
   "Recalcular a partir do limiar" (de `*PeloLimiar`, desabilitado sem limiar) com confirmação, validação inline, confirmação ao voltar de manual, salvar em sequência âncoras → manuais com falha parcial — D7 [CA3]
   - verify: Vitest do validador; Testing Library do diálogo (alternar, editar, erro com `aria-invalid`, recalcular, recalcular indisponível, salvar, falha só da 2ª chamada)
-- [ ] **2.1b** Aviso ao salvar limiar de eixo em `MANUAL`, com "Recalcular a partir do limiar" — D7
+- [x] **2.1b** Aviso ao alterar o limiar de eixo em `MANUAL`, apontando "Recalcular a partir do limiar" — D7
+  (aviso antes de salvar, não depois: o diálogo fecha no 200)
   - verify: teste de componente do cenário "Limiar novo com eixo manual"
-- [ ] **2.2** Chip de modo no card — [CA5]
+- [x] **2.2** Chip de modo no card — [CA5]
   - verify: teste de componente "FC: pelo limiar · Ritmo: manual"
-- [ ] **2.3** E2E: modo manual de ritmo refletido no card e no seletor de zona — [CA7]
+- [x] **2.3** E2E: modo manual de ritmo refletido no card e no seletor de zona — [CA7]
   - verify: `npm run lint && npm run build && npm run test:run && npm run test:e2e`
+  - 2026-11-04: lint ok, 2548 testes unitários, 129 E2E (inclui `tests/e2e/coach/zonas-manuais.spec.ts`)
 
 ## 3. Métrica
 
@@ -60,3 +63,11 @@
   Sem instrumentação nova: o "depois de entrar em manual" usa o `updated_at` do atleta como
   aproximação (limite conhecido — subestima se o atleta foi editado depois).
   - verify: a consulta roda no ambiente de testes e devolve números coerentes com os atletas de teste
+  - Pendente, pós-deploy: primeira parte pronta abaixo; a segunda depende da tabela de envio ao
+    relógio, a definir quando a consulta rodar.
+    ```sql
+    SELECT tenant_id,
+           count(*) FILTER (WHERE modo_zonas_fc = 'MANUAL' OR modo_zonas_pace = 'MANUAL') AS com_manual,
+           count(*) AS ativos
+      FROM tb_atleta WHERE ativo = 'ATIVO' GROUP BY tenant_id;
+    ```

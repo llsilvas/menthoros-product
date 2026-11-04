@@ -186,9 +186,10 @@ fallbacks de hoje. Registrado para não virar escopo implícito.
 - Salvar: chama `PUT .../zonas/manuais` (método novo `salvarZonasManuais` no cliente curado
   `CoachAthleteZonesService`), pelo hook `useAthleteZoneAnchorsEditor` (que já orquestra o PUT de
   âncoras). Voltar um eixo `MANUAL` para "pelo limiar" pede confirmação (apaga as faixas, Q1).
-- **Aviso de limiar novo com eixo manual:** salvar âncora de um eixo que está em `MANUAL` mostra,
-  depois do 200, "As faixas manuais de <eixo> continuam valendo" com a ação "Recalcular a partir do
-  limiar" (proposal, riscos). Não bloqueia o salvamento.
+- **Aviso de limiar novo com eixo manual:** alterar a âncora de um eixo que está em `MANUAL` mostra,
+  antes de salvar, "As faixas manuais de <eixo> continuam valendo" apontando "Recalcular a partir do
+  limiar" (proposal, riscos). Não bloqueia o salvamento. Antes, não depois do 200: o diálogo fecha
+  ao salvar.
 - Card/tabela (`AthleteZonesTable`): chip "FC: pelo limiar · Ritmo: manual" (CA5).
 - `ZoneSelector` do editor de etapas consome o mesmo GET — herda a faixa efetiva de ritmo sem mudança;
   a de FC depende do ajuste em `aplicarZona` acima (CA7).
