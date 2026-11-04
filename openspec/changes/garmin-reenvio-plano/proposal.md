@@ -75,32 +75,11 @@ treinador (coach-in-the-loop) e gasta uma geração de IA.
   422 e nenhum evento é publicado.
 - **CA4 — Isolamento de tenant.** Given plano de outro tenant, When reenvia, Then 403
   (`@RequireTenant`) e nenhum evento é publicado. Given id de plano inexistente, Then 404.
-- **CA11 — Push em andamento.** Given plano com ao menos um treino em `AGUARDANDO_RETRY`, ou em
-  `SINCRONIZANDO` com `ultimaTentativaSincronizacao` há menos de 10 min, When reenvia, Then 409,
-  nenhum treino é reiniciado e nenhum evento é publicado. No front o botão aparece desabilitado com
-  tooltip "Envio em andamento" só com treino em `AGUARDANDO_RETRY`; com `SINCRONIZANDO` o clique
-  passa e o 409 mostra a mesma mensagem. `SINCRONIZANDO` mais antigo que 10 min é tratado como preso (processo
-  caiu no meio do claim) e não bloqueia.
-- **CA5 — Sem treinos em erro.** Given plano `APROVADO` sem nenhum treino em `ERRO_*`, When
-  reenvia, Then `resent = 0` e nenhum evento é publicado.
-- **CA6 — Canal pela conexão.** Given atleta Garmin e atleta intervals.icu, When cada um tem o plano
-  reenviado, Then o push vai pelo canal da conexão ativa de cada atleta (sem lógica nova no
-  endpoint).
-- **CA7 — Botão no plano da semana.** Given plano com ao menos um treino em `ERRO_*`, When o
-  treinador abre o plano da semana, Then vê o botão "Reenviar ao relógio"; sem treino em erro, o
-  botão não aparece. Ao clicar, o botão fica desabilitado enquanto a chamada corre e o resultado
-  (sucesso ou erro) é mostrado.
-- **CA8 — Chip neutro de canal.** Given atleta com conexão Garmin e treino `SINCRONIZADO`, When o
-  treinador vê o chip, Then o texto não cita intervals.icu; e o atleta Garmin conectado não aparece
-  como "Não conectado".
-- **CA9 — Motivo legível.** Given treino em `ERRO_AUTENTICACAO`, `ERRO_VALIDACAO`, `ERRO_LIMITE_RATE`,
-  `ERRO_TEMPORARIO` ou `ERRO_PERMANENTE`, When o treinador abre o plano da semana, Then vê o motivo
-  em português e a ação sugerida (ex.: autenticação → "peça ao atleta para reautorizar o Garmin
-  Connect"; validação → "ajuste o treino"; limite/temporário → "o sistema tenta de novo; reenvie se
-  persistir").
-- **CA10 — Atleta sem canal.** Given atleta sem conexão de canal ativa, When o treinador vê o
-  plano com treino em erro, Then o botão aparece desabilitado com tooltip "Atleta sem canal
-  conectado" e nenhuma chamada é feita.
+- **CA11 — Push em andamento.** Given plano com ao menos um treino em `AGUARDANDO_RETRY` há menos de
+  30 min, ou em `SINCRONIZANDO` há menos de 10 min, When reenvia, Then 409, nenhum treino é
+  reiniciado e nenhum evento é publicado. No front o botão aparece desabilitado com tooltip "Envio em
+  andamento" quando algum treino tem `syncInProgress = true` (calculado pelo backend). Fora dessas
+  janelas o treino é tratado como preso e não bloqueia.
 
 ## Métrica de sucesso
 

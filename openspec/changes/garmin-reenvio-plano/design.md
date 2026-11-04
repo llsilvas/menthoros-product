@@ -46,18 +46,27 @@ O endpoint reinicia a sincronização dos treinos em erro do plano e republica o
 
 ### D1b — Push em andamento bloqueia o reenvio (CA11)
 
-O service responde 409 (`ConflictException` ou equivalente já mapeado no `GlobalExceptionHandler`)
-quando algum treino do plano está em `AGUARDANDO_RETRY`, ou em `SINCRONIZANDO` com
-`ultimaTentativaSincronizacao` mais recente que 10 min. `SINCRONIZANDO` mais antigo é tratado como
-preso: o scheduler não varre esse status (`IntervalsIcuRetrySchedulerImpl`), então bloquear para
-sempre deixaria o treinador sem saída — o mesmo incidente que esta change resolve. Os treinos
-presos não são reiniciados (só `ERRO_*` são); o reprocessamento do plano inteiro os reenvia pela
-idempotência (o claim de `IntervalsIcuPushProcessor` ~:181 não filtra por status).
+O service responde 409 (`DomainConflictException`) quando algum treino do plano está em
+`AGUARDANDO_RETRY` com `ultimaTentativaSincronizacao` há menos de 30 min, ou em `SINCRONIZANDO` há
+menos de 10 min (`TreinoPlanejado.envioEmAndamento`, janelas em constantes). Fora da janela o
+treino é tratado como **preso** e não bloqueia: o scheduler pula sem mutar o treino quando o atleta
+não tem conexão (`IntervalsIcuRetrySchedulerImpl` ~:121) e nunca varre `SINCRONIZANDO`, então
+bloquear sem prazo deixaria o treinador sem saída — o mesmo incidente que esta change resolve (QA de
+2026-11-04: code-reviewer + clean-code-reviewer). 30 min = dois ciclos do scheduler (`PT15M`).
+`reiniciarSincronizacao` grava `agora` em `ultimaTentativaSincronizacao` para servir de relógio.
+Os treinos presos não são reiniciados (só `ERRO_*` são); o reprocessamento do plano inteiro os
+reenvia pela idempotência (o claim de `IntervalsIcuPushProcessor` ~:181 não filtra por status).
 
-O front **só desabilita por `AGUARDANDO_RETRY`**, que nunca fica preso (o scheduler o varre). Para
-`SINCRONIZANDO` o front não tem o relógio (`ultimaTentativaSincronizacao` não vai ao DTO), então
-deixa o clique passar e o 409 do backend vira a mensagem "Envio em andamento". Desabilitar por
-`SINCRONIZANDO` no front recriaria o beco sem saída do incidente (DeepSeek, DoR 2026-11-04).
+**Sem canal, 422 e nada é reiniciado** (CA10 no backend): reiniciar sem conexão criaria exatamente
+um `AGUARDANDO_RETRY` preso. A checagem só roda quando há treino em erro (sem erro, `resent = 0`).
+
+O front **não calcula a regra**: o item de treino do perfil ganha `syncInProgress`
+(= `envioEmAndamento(agora)` no backend) e o botão desabilita se algum treino tiver `true`. Assim a
+janela vale igual nos dois lados e o front não precisa do relógio (DeepSeek, DoR 2026-11-04). O 409
+continua como rede de segurança para a corrida entre carregar a tela e clicar.
+
+**Check-then-act sem lock (aceito):** dois cliques simultâneos podem publicar dois eventos; o push é
+idempotente (claim com `@Version`), então o custo é só de chamadas ao canal.
 
 **Premissa do limiar de 10 min:** um push em voo nunca passa de 10 min porque cada chamada HTTP ao
 canal tem timeout de segundos. Se não tiver, um reenvio após 10 min pode reclamar um treino ainda em
@@ -78,8 +87,8 @@ Fica registrado como premissa; hoje há um único ouvinte (verificado por busca 
 
 ### D3 — Reset de sincronização no domínio
 
-`TreinoPlanejado.reiniciarSincronizacao()` grava `tentativasSincronizacao = 0`,
-`ultimaTentativaSincronizacao = null`, `erroSincronizacao = null` e `statusSincronizacao =
+`TreinoPlanejado.reiniciarSincronizacao(agora)` grava `tentativasSincronizacao = 0`,
+`ultimaTentativaSincronizacao = agora` (relógio da janela de D1b), `erroSincronizacao = null` e `statusSincronizacao =
 AGUARDANDO_RETRY`. Só é chamado para treinos em `ERRO_*` (qualquer variante, inclusive
 `ERRO_PERMANENTE`). `externalId` e `exportadoPara` ficam como estão: o push seguinte atualiza o
 workout existente em vez de criar outro.
@@ -138,7 +147,8 @@ path segue o vocabulário dos irmãos (`/aprovar`, `/rejeitar`).
 - 403: sem permissão ou plano de outro tenant (`@RequireTenant`).
 - 404: plano não encontrado no tenant.
 - 409: push em andamento no plano (D1b), sem reset nem evento.
-- 422: plano fora de `APROVADO` (mesmo tipo de erro da transição ilegal de `aprovar`).
+- 422: plano fora de `APROVADO` (mesmo tipo de erro da transição ilegal de `aprovar`), ou atleta
+  sem canal conectado com treino em erro (D1b).
 
 Busca de plano por `findByIdAndTenantId`; a busca dos treinos em erro também filtra por
 `tenantId`. Log de auditoria: planoId, tenantId, `resent` (sem dados do atleta).
@@ -147,8 +157,8 @@ Busca de plano por `findByIdAndTenantId`; a busca dos treinos em erro também fi
 
 O botão fica no cabeçalho do plano da semana, condicionado a `treinos.some(statusSincronizacao
 começa com 'ERRO_')`, e desabilitado com tooltip quando `channelConnected` é falso (CA10) ou
-quando algum treino está em `AGUARDANDO_RETRY` (CA11, "Envio em andamento"); `SINCRONIZANDO` não
-desabilita (D1b) e o 409 do backend vira a mesma mensagem. Segue o padrão de hook do CLAUDE.md do front (`useReenviarSincronizacao`
+quando algum treino tem `syncInProgress = true` (CA11, "Envio em andamento", D1b); o 409 do backend
+vira a mesma mensagem. Segue o padrão de hook do CLAUDE.md do front (`useReenviarSincronizacao`
 expõe `reenviando`, `erro`, `reenviar`), não chama o serviço gerado direto do componente.
 Depois do sucesso, recarrega o plano para o chip refletir o novo estado; como o push é assíncrono,
 o estado pode levar alguns segundos para mudar, então a tela mostra "Reenvio solicitado" e permite

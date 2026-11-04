@@ -46,10 +46,17 @@ backend mergeado em `develop` (2.1 depende de 1.4 e 1.5).
   verify: IT verde em `./mvnw clean verify`.
 - Validação: `./mvnw clean verify`.
 
+- [x] 1.7 QA (2026-11-04): code-reviewer + clean-code-reviewer apontaram `AGUARDANDO_RETRY` preso
+  sem canal (409 eterno). Corrigido: 422 sem canal sem reiniciar, janela de 30 min para
+  `AGUARDANDO_RETRY` (reset grava `agora`), `syncInProgress` no item de treino, constantes das
+  janelas, `@JsonInclude` no DTO, mensagem do 422 sem enum. Aceitos e registrados: check-then-act
+  sem lock; reenvio repetido a cada janela zera tentativas (risco de cota já aceito no proposal).
+  verify: `./mvnw clean verify`.
+
 ## 2. Frontend — botão e chip
 
-- [ ] 2.1 Portar à mão o contrato novo para `src/api` (método do serviço, `channelConnected` e
-  `syncError` no item de treino), preservando o padrão do cliente curado; rodar o
+- [ ] 2.1 Portar à mão o contrato novo para `src/api` (método do serviço, `channelConnected`,
+  `syncError` e `syncInProgress` no item de treino), preservando o padrão do cliente curado; rodar o
   `generate:api` só para referência.
   verify: `npm run build` sem erro de tipo.
 - [ ] 2.2 `useReenviarSincronizacao` (expõe `reenviando`, `erro`, `reenviar`; 409 vira "Envio em
@@ -57,9 +64,9 @@ backend mergeado em `develop` (2.1 depende de 1.4 e 1.5).
   verify: teste do hook cobre sucesso, 409 e erro genérico.
 - [ ] 2.3 `CurrentWeekPlan`: botão "Reenviar ao relógio" visível só com treino em `ERRO_*` (CA7),
   desabilitado durante a chamada e, com tooltip, quando `channelConnected` é falso (CA10) ou há
-  treino em `AGUARDANDO_RETRY` (CA11; `SINCRONIZANDO` não desabilita, D1b), com feedback "Reenvio
+  treino com `syncInProgress = true` (CA11, D1b), com feedback "Reenvio
   solicitado" e de erro; teste de componente.
-  verify: teste de componente cobre CA7, CA10, CA11 e o caso `SINCRONIZANDO` com botão habilitado.
+  verify: teste de componente cobre CA7, CA10 e CA11 (`syncInProgress`).
 - [ ] 2.3b Motivo legível (CA9, D4b): função pura em `features/coach/adapters/` que mapeia
   `statusSincronizacao` + `syncError` em `{ motivo, acao }` (inclui `SINCRONIZADO_PARCIAL`
   → "Enviado com ajustes"), exibida no plano da semana; teste do adapter para os cinco `ERRO_*` e o
