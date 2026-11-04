@@ -38,6 +38,22 @@ O endpoint reinicia a sincronização dos treinos em erro do plano e republica o
   tratamento de erro que o listener já tem.
 - **Reenvio por treino:** exige ação por linha e novo ponto de entrada no processor; fica para uma
   change própria.
+- **Filtrar o listener para só os treinos em erro** (DoR 2026-11-04, descartado pelo founder):
+  `IntervalsIcuPushListener` não filtra por status e alimenta `removerOrfaos` com os `externalId` de
+  todos os treinos processados; filtrar exigiria também repassar os ids dos `SINCRONIZADO`, senão a
+  reconciliação apagaria treinos bons do relógio. **Aceito:** o reenvio reprocessa o plano inteiro,
+  de forma idempotente, e o custo de cota foi recalculado no `proposal.md`.
+
+### D1b — Push em andamento bloqueia o reenvio (CA11)
+
+O service responde 409 (`ConflictException` ou equivalente já mapeado no `GlobalExceptionHandler`)
+quando algum treino do plano está em `AGUARDANDO_RETRY`, ou em `SINCRONIZANDO` com
+`ultimaTentativaSincronizacao` mais recente que 10 min. `SINCRONIZANDO` mais antigo é tratado como
+preso: o scheduler não varre esse status (`IntervalsIcuRetrySchedulerImpl`), então bloquear para
+sempre deixaria o treinador sem saída — o mesmo incidente que esta change resolve. Os treinos
+presos não são reiniciados (só `ERRO_*` são); o reprocessamento do plano inteiro os reenvia pela
+idempotência. O front aplica a mesma regra só por status (sem relógio) para desabilitar o botão;
+o 409 é a rede de segurança.
 
 ### D2 — O evento é publicado dentro de transação
 
@@ -46,7 +62,7 @@ log (foi o que obrigou o IT do `garmin-training-push` a chamar o listener direto
 service é `@Transactional` e publica depois de gravar o reset. Teste de integração cobre o caminho
 completo (endpoint → commit → listener).
 
-**Mitigação para ouvintes futuros:** o evento carrega `OrigemAprovacao` hoje? Não: só ids. Se um
+**Mitigação para ouvintes futuros:** o evento só carrega ids (sem origem da aprovação). Se um
 ouvinte que notifique o atleta na aprovação for criado, ele precisa distinguir reenvio de aprovação.
 Fica registrado como premissa; hoje há um único ouvinte (verificado por busca de
 `PlanoAprovadoEvent` em `src/main`).
@@ -65,18 +81,29 @@ se perca (reinício do processo entre o commit e o listener assíncrono): rede d
 ### D4 — Chip de status ciente do canal
 
 O campo `atletaConectadoIntervalsIcu` do perfil só enxerga o intervals.icu. Adiciona-se o campo
-`atletaConectadoCanal` ao DTO, calculado por `GarminConnectionService.conexaoDeCanal(...)
-.isPresent()`, e o front passa a usá-lo no chip. O campo antigo permanece (outros consumidores)
-e nada é renomeado aqui, pela regra de não renomear campo de DTO fora de uma change que já mexe na
-entidade. Os textos do `SyncStatusChip` ficam neutros ("No relógio", "Atleta sem canal conectado").
+`atletaConectadoCanal` **no record do item de treino** (o mesmo nível de
+`atletaConectadoIntervalsIcu`, `AtletaPerfilCoachOutputDto` ~:228, preenchido em
+`CoachAthleteProfileServiceImpl` ~:326), calculado **uma vez por perfil** por
+`GarminConnectionService.conexaoDeCanal(...).isPresent()`. É um cálculo **separado** do boolean de
+`CoachAthleteProfileServiceImpl` ~:140, que também alimenta `melhoresEsforcosIntegracaoConectada`
+(~:212) e não muda. O campo antigo permanece (outros consumidores) e nada é renomeado aqui, pela
+regra de não renomear campo de DTO fora de uma change que já mexe na entidade.
+
+No front, `CurrentWeekPlan` troca `treino.atletaConectadoIntervalsIcu` por
+`treino.atletaConectadoCanal` nos dois pontos (~:61 condição `mostraSync`, ~:88 prop do chip), e
+os textos do `SyncStatusChip` ficam neutros ("No relógio", "Atleta sem canal conectado").
 
 ### D4b — Motivo legível do erro
 
 A mensagem de erro do treino (`erroSincronizacao`) fica no banco e não chega ao front (nenhum DTO
-a expõe). O item de treino do perfil ganha o campo `erroSincronizacao` (texto curado pelo backend:
-`GarminTrainingAdapter.mensagemCurada` e as mensagens do processor, sem corpo de terceiro nem
-token). O front traduz o **tipo** (`statusSincronizacao`) em motivo e ação sugerida ao treinador,
-com a mensagem do backend como detalhe:
+a expõe). Nem toda mensagem gravada é curada: `IntervalsIcuPushProcessor` (~:136) concatena o
+`getMessage()` de exceção inesperada. Por isso o item de treino do perfil ganha `erroSincronizacao`
+**só quando o status é `ERRO_VALIDACAO` ou `SINCRONIZADO_PARCIAL`** — nesses dois a mensagem é
+nossa (`DomainRuleViolationException` do conversor, `GarminTrainingAdapter` ~:61, e `motivoParcial`
+do processor) e diz ao treinador o que ajustar no treino. Nos demais status o campo vai `null`. O
+front traduz o **tipo** (`statusSincronizacao`) em motivo e ação sugerida ao treinador, com a
+mensagem do backend como detalhe quando presente. `SINCRONIZADO_PARCIAL` mostra o chip de
+sincronizado com o detalhe "Enviado com ajustes: <mensagem>":
 
 | Status | Motivo mostrado | Ação sugerida |
 |---|---|---|
@@ -97,6 +124,7 @@ clique.
 - 200 `{ "reenviados": <int> }` (inclusive `0`: nada em erro, nenhum evento).
 - 403: sem permissão ou plano de outro tenant (`@RequireTenant`).
 - 404: plano não encontrado no tenant.
+- 409: push em andamento no plano (D1b), sem reset nem evento.
 - 422: plano fora de `APROVADO` (mesmo tipo de erro da transição ilegal de `aprovar`).
 
 Busca de plano por `findByIdAndTenantId`; a busca dos treinos em erro também filtra por
@@ -105,7 +133,9 @@ Busca de plano por `findByIdAndTenantId`; a busca dos treinos em erro também fi
 ### D6 — Botão no front
 
 O botão fica no cabeçalho do plano da semana, condicionado a `treinos.some(statusSincronizacao
-começa com 'ERRO_')`, e desabilitado com tooltip quando `atletaConectadoCanal` é falso (CA10). Segue o padrão de hook do CLAUDE.md do front (`useReenviarSincronizacao`
+começa com 'ERRO_')`, e desabilitado com tooltip quando `atletaConectadoCanal` é falso (CA10) ou
+quando algum treino está em `AGUARDANDO_RETRY`/`SINCRONIZANDO` (CA11, "Envio em andamento"); um 409
+do backend vira a mesma mensagem. Segue o padrão de hook do CLAUDE.md do front (`useReenviarSincronizacao`
 expõe `reenviando`, `erro`, `reenviar`), não chama o serviço gerado direto do componente.
 Depois do sucesso, recarrega o plano para o chip refletir o novo estado; como o push é assíncrono,
 o estado pode levar alguns segundos para mudar, então a tela mostra "Reenvio solicitado" e permite

@@ -67,12 +67,19 @@ treinador (coach-in-the-loop) e gasta uma geração de IA.
   treinos ficam com `tentativasSincronizacao = 0`, `erroSincronizacao = null` e o push é tentado
   logo após o commit; a resposta traz `reenviados = 4`.
 - **CA2 — Só o que está em erro é reiniciado.** Given plano com 2 treinos `SINCRONIZADO` e 2
-  `ERRO_AUTENTICACAO`, When reenvia, Then os `SINCRONIZADO` mantêm status e `externalId`; só os 2
-  em erro têm as tentativas zeradas.
+  `ERRO_AUTENTICACAO`, When reenvia, Then só os 2 em erro têm as tentativas zeradas e `reenviados = 2`.
+  O listener reprocessa o plano inteiro (decisão de 2026-11-04, ver D1): os `SINCRONIZADO` são
+  reenviados de forma idempotente e terminam com o mesmo `externalId` e status `SINCRONIZADO`
+  (ou `SINCRONIZADO_PARCIAL`, se já estavam assim).
 - **CA3 — Plano não aprovado.** Given plano `AGUARDANDO_REVISAO` ou `REJEITADO`, When reenvia, Then
   422 e nenhum evento é publicado.
-- **CA4 — Isolamento de tenant.** Given plano de outro tenant, When reenvia, Then 403/404 e nenhum
-  evento é publicado.
+- **CA4 — Isolamento de tenant.** Given plano de outro tenant, When reenvia, Then 403
+  (`@RequireTenant`) e nenhum evento é publicado. Given id de plano inexistente, Then 404.
+- **CA11 — Push em andamento.** Given plano com ao menos um treino em `AGUARDANDO_RETRY`, ou em
+  `SINCRONIZANDO` com `ultimaTentativaSincronizacao` há menos de 10 min, When reenvia, Then 409,
+  nenhum treino é reiniciado e nenhum evento é publicado; no front o botão aparece desabilitado com
+  tooltip "Envio em andamento". `SINCRONIZANDO` mais antigo que 10 min é tratado como preso (processo
+  caiu no meio do claim) e não bloqueia.
 - **CA5 — Sem treinos em erro.** Given plano `APROVADO` sem nenhum treino em `ERRO_*`, When
   reenvia, Then `reenviados = 0` e nenhum evento é publicado.
 - **CA6 — Canal pela conexão.** Given atleta Garmin e atleta intervals.icu, When cada um tem o plano
@@ -121,9 +128,11 @@ a resposta.
   própria se o treinador reportar confusão após o reenvio.
 - **Aberto:** a mensagem do botão e do tooltip ("relógio" x nome do canal). Assumido "Reenviar ao
   relógio" por ser neutro; o treinador pode preferir "Reenviar treinos".
-- **Aberto:** o `SyncStatusChip` hoje mostra "Não conectado" quando `atletaConectadoIntervalsIcu` é
-  falso. Como o atleta só-Garmin tem esse campo falso, hoje o chip esconde o status real dele. A D4
-  propõe o sinal novo, a confirmar no código do perfil do atleta durante a task 1.4.
+- **Resolvido (DoR 2026-11-04):** o `SyncStatusChip` mostra "Não conectado" quando
+  `atletaConectadoIntervalsIcu` é falso, o que esconde o status do atleta só-Garmin. A D4 fixa o
+  campo novo no item de treino, ao lado do antigo.
+- **Resolvido (DoR 2026-11-04):** reenvio reprocessa o plano inteiro (aceito, sem filtro no
+  listener) e o botão bloqueia com push em andamento (CA11).
 
 ## Riscos e mitigações
 
@@ -131,8 +140,8 @@ a resposta.
 |---|---|
 | Clique duplo dispara dois pushes em paralelo | O processor já faz claim com `@Version`; o segundo perde o claim e não age (log existente). O botão também desabilita durante a chamada. |
 | Reenviar para atleta sem conexão ativa | O listener registra "sem conexão ativa" e nada acontece; o treino segue em erro. A resposta ao treinador não promete envio, só `reenviados`. |
-| Lote grande de treinos esbarra no rate limit do Garmin (429) | Training API V2 §2.3, Starter: **100 chamadas/min por app**, somando OAuth e API. Cada treino custa ≥ 2 chamadas (create do workout + schedule), mais refresh de token. Um atleta não chega perto, mas reenviar (ou aprovar em lote, `BatchPlanDialog`) para ~10+ atletas de uma vez passa de 100/min. 429 cai no retry existente (`ERRO_LIMITE_RATE`, varredura a cada 15 min) — mas **consome** uma das 5 tentativas, porque o claim incrementa `tentativasSincronizacao` antes da chamada; como a janela do Garmin é de 1 min, as 4 tentativas seguintes quase certamente passam. Aceito nesta change, sem throttle próprio. Se o lote virar rotina, espaçar o push por app. |
-| Reenvios repetidos esgotam a cota diária do atleta | Training API V2 §2.3, Starter: **200 chamadas/usuário/dia**, janela móvel de 24 h. Cada reenvio pode custar até 5 tentativas × 2 chamadas por treino; um treinador insistindo num plano com causa permanente queima a cota e trava também o push dos outros treinos do atleta até a janela andar. Mitigação: o botão fica desabilitado enquanto algum treino do plano estiver em `AGUARDANDO_RETRY`/`SINCRONIZANDO` (CA a confirmar no design) e o motivo legível (CA9) indica quando reenviar não resolve (autenticação, validação). |
+| Lote grande de treinos esbarra no rate limit do Garmin (429) | Training API V2 §2.3, Starter: **100 chamadas/min por app**, somando OAuth e API. Cada treino custa ≥ 2 chamadas (create/update do workout + schedule), mais refresh de token, e o reenvio custa **todos os treinos do plano** (≤ 7 por semana, não só os em erro: o listener reprocessa o plano inteiro), mais a listagem de `removerOrfaos`. Um atleta não chega perto (~15 chamadas por reenvio), mas reenviar (ou aprovar em lote, `BatchPlanDialog`) para ~10+ atletas de uma vez passa de 100/min. 429 cai no retry existente (`ERRO_LIMITE_RATE`, varredura a cada 15 min) — mas **consome** uma das 5 tentativas, porque o claim incrementa `tentativasSincronizacao` antes da chamada; como a janela do Garmin é de 1 min, as 4 tentativas seguintes quase certamente passam. Aceito nesta change, sem throttle próprio. Se o lote virar rotina, espaçar o push por app. |
+| Reenvios repetidos esgotam a cota diária do atleta | Training API V2 §2.3, Starter: **200 chamadas/usuário/dia**, janela móvel de 24 h. Cada clique custa ~15 chamadas (plano inteiro, ver linha acima), e os treinos em erro voltam a consumir até 5 tentativas × 2 chamadas pelo retry; um treinador insistindo num plano com causa permanente queima a cota (~13 cliques/dia esgotam 200) e trava também o push dos outros treinos do atleta até a janela andar. Mitigação: o botão fica desabilitado e o backend devolve 409 enquanto houver push em andamento (CA11), e o motivo legível (CA9) indica quando reenviar não resolve (autenticação, validação). |
 | Reset de tentativas esconde uma causa que sempre falha | O treino volta a `ERRO_*` e, em 5 tentativas, a `ERRO_PERMANENTE`. O log do client (mesmo erro, sem corpo) mostra a causa; o reenvio não mascara. |
 | `ERRO_AUTENTICACAO` por falta de Training API V2 continua falhando | Esperado: o botão só reenvia. A mensagem do treino ("Autorize o envio de treinos no Garmin Connect") continua visível. |
 
