@@ -221,7 +221,7 @@ fallbacks de hoje. Registrado para não virar escopo implícito.
   avisa que as faixas manuais continuam valendo e oferece recalcular (proposal, riscos).
 - **Eval (CA6):** o eval set **não tem limiar numérico** — o modo `candidato` chama a LLM real e o juiz
   está marcado "NÃO CALIBRADO" (`EvalRunnerTest`). O critério verificável é o do modo auditoria, que é
-  determinístico: uma fixture nova com `AthleteZones` em `MANUAL` resolvida pelo `EvalAgreementGrader`
-  com 0 divergências de zona, e as fixtures existentes com o mesmo número de divergências de antes da
-  change (baseline gravado no `tasks.md` antes da 1.3). O modo `candidato` roda se houver
+  determinístico: as fixtures existentes com o mesmo número de divergências de antes da change
+  (baseline no `tasks.md`). O caso manual não vira fixture: o set é v1, selado por manifest, e o grader
+  compara só tipo e TSS — fica num teste do `SessionResolver` (etapa v2 com faixa manual). O modo `candidato` roda se houver
   `OPENAI_API_KEY`, como registro, sem critério de aprovação.

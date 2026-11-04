@@ -47,8 +47,8 @@ aceitar o cálculo Friel (FC) e os fatores de pace — ou não usar as zonas do 
   erro antes de salvar.
 - **CA4** — Pace em `MANUAL` e FC em `LIMIAR` coexistem (eixos independentes).
 - **CA5** — `GET .../zonas` expõe `modo` por eixo; o card mostra "FC: pelo limiar · Ritmo: manual".
-- **CA6** — Eval set em modo auditoria (determinístico): fixture com atleta em `MANUAL` com 0
-  divergências de zona; as demais com as mesmas divergências do baseline anterior à change.
+- **CA6** — Eval set em modo auditoria (determinístico) com as mesmas divergências do baseline
+  anterior à change; etapa v2 de atleta em `MANUAL` resolvida com a faixa manual (`SessionResolverTest`).
 - **CA7 (E2E)** — Treinador muda o ritmo para manual, edita Z2, salva; card e seletor de zona do
   editor de etapas mostram a faixa editada.
 

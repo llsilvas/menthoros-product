@@ -13,20 +13,24 @@
 
 ## 1. Backend (`.worktrees/coach-zonas-manuais-backend`)
 
-- [ ] **1.1** Migration `V108` + `Atleta` (`modoZonasFc/Pace`, `zonasManuaisFc/Pace` JSONB) + record `FaixaZonaManual` — D1
+- [x] **1.1** Migration `V108` + `Atleta` (`modoZonasFc/Pace`, `zonasManuaisFc/Pace` JSONB) + record `FaixaZonaManual` — D1
   - verify: teste de integração de repositório grava e relê as faixas; CHECK rejeita `MANUAL` sem faixas
-- [ ] **1.2** `AthleteZoneManualValidator` — D4 [CA3]
+- [x] **1.2** `AthleteZoneManualValidator` — D4 [CA3]
   - verify: um teste por regra (zona faltando/repetida, `min ≥ max`, limites, sobreposição, ordem) + lacuna e borda aceitas
-- [ ] **1.3** Precedência: `ZonaTreinoService.calcularZonasFC/Pace(Atleta|AthleteZones)`, `AthleteZones.de(Atleta)`,
+- [x] **1.3** Precedência: `ZonaTreinoService.calcularZonasFC/Pace(Atleta|AthleteZones)`, `AthleteZones.de(Atleta)`,
   `ZoneResolver`/`SessionResolver`/`IaServiceImpl`, `IntervalsIcuFcAlvoResolver` (ZONE manual sem limiar),
   `PlanoLlmValidator.contexto` (condição aceita FC manual), `identificarZona*`, todos os fallbacks do `PlanoTreinoPromptBuilder`, barreira de máxima no `ZONE` manual, classificação com lacuna/borda — D2 [CA1, CA2, CA4]
   - verify: testes de contrato — prompt lista Z2 manual; `ZoneResolver.bpm(Z2)` manual; push ZONE manual sem `fcLimiar`; `zonasFC` do contexto da v1 com FC manual sem limiar nem máxima; eixos independentes; ida e volta s/km→min/km→s/km de 120 a 900; prompt completo com pace manual sem limiar (sem "USAR APENAS FC"); Z5 manual acima da máxima descartada no push; `identificarZonaFC` em lacuna, borda, abaixo de Z1 e acima do topo
   - depende de: 1.1
-- [ ] **1.4** `PUT .../zonas/manuais` (`UPDATE` atômico por eixo) + `modos`, faixa efetiva e `pacePeloLimiar`/`fcPeloLimiar` no GET + `disponibilidade.pace`/ajuste com pace manual — D3 [CA2, CA5]
+- [x] **1.4** `PUT .../zonas/manuais` (`UPDATE` atômico por eixo) + `modos`, faixa efetiva e `pacePeloLimiar`/`fcPeloLimiar` no GET + `disponibilidade.pace`/ajuste com pace manual — D3 [CA2, CA5]
   - verify: `@WebMvcTest` (200, 400 com `fields`, 404 de outro tenant), `@ApiResponse` 200/400/401/403/404 no controller, + teste do serviço (LIMIAR apaga as faixas, grupo ausente mantém, dois PUTs de eixos diferentes preservam os dois, `pacePeloLimiar` ausente sem limiar)
   - depende de: 1.1, 1.2, 1.3
-- [ ] **1.5** Eval gate da prescrição com fixture de atleta em `MANUAL` — [CA6]
-  - antes da 1.3: gravar aqui o baseline de divergências por fixture do modo auditoria
+- [x] **1.5** Eval gate da prescrição com atleta em `MANUAL` — [CA6]
+  - baseline (antes da 1.3, 2026-11-04): `intermediario-1.json` 3 comparados, 2 divergências. Depois da 1.4: idem.
+  - O set real tem uma fixture só, em **schema v1** (zona não passa pelo `SessionResolver`) e selada por
+    `manifest.sha256`; o `EvalAgreementGrader` compara só `tipoTreino` e `tssPlanejado`. Uma fixture
+    sintética em MANUAL não mediria nada e furaria a premissa de dado real. O caso manual ficou em
+    `SessionResolverTest.zonasManuaisChegamNaEtapa` (etapa v2 com Z2 manual → `140-150 bpm`, `5:20-5:50/km`).
   - verify: `./mvnw clean verify` + `./mvnw -Peval test -Dtest=EvalRunnerTest` (auditoria): fixture manual com 0 divergências de zona, demais iguais ao baseline; `-Dmodo=candidato` só com `OPENAI_API_KEY`, como registro
   - depende de: 1.3
 
