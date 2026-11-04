@@ -90,7 +90,7 @@ se perca (reinício do processo entre o commit e o listener assíncrono): rede d
 ### D4 — Chip de status ciente do canal
 
 O campo `atletaConectadoIntervalsIcu` do perfil só enxerga o intervals.icu. Adiciona-se o campo
-`atletaConectadoCanal` **no record do item de treino** (o mesmo nível de
+`channelConnected` **no record do item de treino** (o mesmo nível de
 `atletaConectadoIntervalsIcu`, `AtletaPerfilCoachOutputDto` ~:228, preenchido em
 `CoachAthleteProfileServiceImpl` ~:326), calculado **uma vez por perfil** por
 `GarminConnectionService.conexaoDeCanal(...).isPresent()`. É um cálculo **separado** do boolean de
@@ -99,14 +99,14 @@ O campo `atletaConectadoIntervalsIcu` do perfil só enxerga o intervals.icu. Adi
 regra de não renomear campo de DTO fora de uma change que já mexe na entidade.
 
 No front, `CurrentWeekPlan` troca `treino.atletaConectadoIntervalsIcu` por
-`treino.atletaConectadoCanal` nos dois pontos (~:61 condição `mostraSync`, ~:88 prop do chip), e
+`treino.channelConnected` nos dois pontos (~:61 condição `mostraSync`, ~:88 prop do chip), e
 os textos do `SyncStatusChip` ficam neutros ("No relógio", "Atleta sem canal conectado").
 
 ### D4b — Motivo legível do erro
 
 A mensagem de erro do treino (`erroSincronizacao`) fica no banco e não chega ao front (nenhum DTO
 a expõe). Nem toda mensagem gravada é curada: `IntervalsIcuPushProcessor` (~:136) concatena o
-`getMessage()` de exceção inesperada. Por isso o item de treino do perfil ganha `erroSincronizacao`
+`getMessage()` de exceção inesperada. Por isso o item de treino do perfil ganha `syncError`
 **só quando o status é `ERRO_VALIDACAO` ou `SINCRONIZADO_PARCIAL`** — nesses dois a mensagem é
 nossa (`DomainRuleViolationException` do conversor, `GarminTrainingAdapter` ~:61, e `motivoParcial`
 do processor) e diz ao treinador o que ajustar no treino. Nos demais status o campo vai `null`. O
@@ -128,21 +128,25 @@ clique.
 
 ### D5 — Contrato do endpoint
 
+Nomes do contrato em inglês (ADR-0007, `CLAUDE.md` do backend prevalece sobre a spec): DTO
+`WorkoutResendOutputDto(resent)` e, no item de treino do perfil, `channelConnected` e `syncError`. O
+path segue o vocabulário dos irmãos (`/aprovar`, `/rejeitar`).
+
 `POST /api/v1/coach/planos/{id}/reenviar-sincronizacao`, sem corpo.
 
-- 200 `{ "reenviados": <int> }` (inclusive `0`: nada em erro, nenhum evento).
+- 200 `{ "resent": <int> }` (inclusive `0`: nada em erro, nenhum evento).
 - 403: sem permissão ou plano de outro tenant (`@RequireTenant`).
 - 404: plano não encontrado no tenant.
 - 409: push em andamento no plano (D1b), sem reset nem evento.
 - 422: plano fora de `APROVADO` (mesmo tipo de erro da transição ilegal de `aprovar`).
 
 Busca de plano por `findByIdAndTenantId`; a busca dos treinos em erro também filtra por
-`tenantId`. Log de auditoria: planoId, tenantId, `reenviados` (sem dados do atleta).
+`tenantId`. Log de auditoria: planoId, tenantId, `resent` (sem dados do atleta).
 
 ### D6 — Botão no front
 
 O botão fica no cabeçalho do plano da semana, condicionado a `treinos.some(statusSincronizacao
-começa com 'ERRO_')`, e desabilitado com tooltip quando `atletaConectadoCanal` é falso (CA10) ou
+começa com 'ERRO_')`, e desabilitado com tooltip quando `channelConnected` é falso (CA10) ou
 quando algum treino está em `AGUARDANDO_RETRY` (CA11, "Envio em andamento"); `SINCRONIZANDO` não
 desabilita (D1b) e o 409 do backend vira a mesma mensagem. Segue o padrão de hook do CLAUDE.md do front (`useReenviarSincronizacao`
 expõe `reenviando`, `erro`, `reenviar`), não chama o serviço gerado direto do componente.
@@ -158,6 +162,6 @@ scheduler já trata).
 
 ## Ordem de entrega
 
-1. Backend (endpoint + reset + campo `atletaConectadoCanal`) → `develop` → `main`.
+1. Backend (endpoint + reset + campo `channelConnected`) → `develop` → `main`.
 2. Front (hook, botão, chip) → `develop` → `main`, depois do cliente `src/api` portado à mão.
 O backend sozinho já é útil por API; o front sem o backend não é.

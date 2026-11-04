@@ -43,7 +43,7 @@ treinador (coach-in-the-loop) e gasta uma geração de IA.
   deixa de assumir intervals.icu: textos neutros de canal e o estado "Não conectado" passa a
   considerar também a conexão Garmin do atleta.
 - **Backend (contrato de leitura):** o item de treino do plano no perfil do atleta passa a expor
-  `erroSincronizacao` (hoje só `statusSincronizacao` chega ao front; a mensagem fica no banco).
+  `syncError` (hoje só `statusSincronizacao` chega ao front; a mensagem fica no banco).
 - **Fora de escopo (non-goals):** reenvio por treino individual; reenvio automático ao conectar o
   Garmin; mudar o limite de 5 tentativas ou a cadência do scheduler; tela de histórico de
   sincronização; reenvio de plano não aprovado.
@@ -65,9 +65,9 @@ treinador (coach-in-the-loop) e gasta uma geração de IA.
 - **CA1 — Reenvio de plano com treinos em erro.** Given plano `APROVADO` com 4 treinos em
   `ERRO_PERMANENTE` e `tentativasSincronizacao = 5`, When o treinador chama o reenvio, Then os 4
   treinos ficam com `tentativasSincronizacao = 0`, `erroSincronizacao = null` e o push é tentado
-  logo após o commit; a resposta traz `reenviados = 4`.
+  logo após o commit; a resposta traz `resent = 4`.
 - **CA2 — Só o que está em erro é reiniciado.** Given plano com 2 treinos `SINCRONIZADO` e 2
-  `ERRO_AUTENTICACAO`, When reenvia, Then só os 2 em erro têm as tentativas zeradas e `reenviados = 2`.
+  `ERRO_AUTENTICACAO`, When reenvia, Then só os 2 em erro têm as tentativas zeradas e `resent = 2`.
   O listener reprocessa o plano inteiro (decisão de 2026-11-04, ver D1): os `SINCRONIZADO` são
   reenviados de forma idempotente e terminam com o mesmo `externalId` e status `SINCRONIZADO`
   (ou `SINCRONIZADO_PARCIAL`, se já estavam assim).
@@ -82,7 +82,7 @@ treinador (coach-in-the-loop) e gasta uma geração de IA.
   passa e o 409 mostra a mesma mensagem. `SINCRONIZANDO` mais antigo que 10 min é tratado como preso (processo
   caiu no meio do claim) e não bloqueia.
 - **CA5 — Sem treinos em erro.** Given plano `APROVADO` sem nenhum treino em `ERRO_*`, When
-  reenvia, Then `reenviados = 0` e nenhum evento é publicado.
+  reenvia, Then `resent = 0` e nenhum evento é publicado.
 - **CA6 — Canal pela conexão.** Given atleta Garmin e atleta intervals.icu, When cada um tem o plano
   reenviado, Then o push vai pelo canal da conexão ativa de cada atleta (sem lógica nova no
   endpoint).
@@ -106,7 +106,7 @@ treinador (coach-in-the-loop) e gasta uma geração de IA.
 
 Treino em `ERRO_PERMANENTE` ou `ERRO_AUTENTICACAO` volta a `SINCRONIZADO` por ação do treinador na
 tela, sem acesso ao banco e sem excluir o plano: **0 intervenções manuais de banco** para reenviar
-um plano e **1 clique** do treinador. Medido por: o log do endpoint (plano, tenant, `reenviados`) e
+um plano e **1 clique** do treinador. Medido por: o log do endpoint (plano, tenant, `resent`) e
 a taxa de treinos `ERRO_*` do plano antes e depois do clique. Sinal do lado do treinador: **% dos
 reenvios cujos treinos terminam `SINCRONIZADO`** e a **reincidência** de erro após o reenvio; se a
 reincidência for alta, o problema é estrutural (ex.: Training API V2 não habilitada) e o botão não é
@@ -124,7 +124,7 @@ a resposta.
   único ouvinte hoje (verificado em 2026-11-01). Um ouvinte novo que notifique o atleta na aprovação
   passaria a notificar também no reenvio; a D2 do `design.md` registra a mitigação.
 - **Resolvido (revisão de produto):** botão e motivo legível entram **juntos**; botão desabilitado
-  para atleta sem canal (o endpoint continua devolvendo `reenviados` e nunca promete envio).
+  para atleta sem canal (o endpoint continua devolvendo `resent` e nunca promete envio).
 - **Gatilho para promover fora de escopo:** reenvio por treino e polling pós-clique viram change
   própria se o treinador reportar confusão após o reenvio.
 - **Aberto:** a mensagem do botão e do tooltip ("relógio" x nome do canal). Assumido "Reenviar ao
