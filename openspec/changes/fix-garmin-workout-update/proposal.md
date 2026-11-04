@@ -60,7 +60,9 @@ schema.
   diferente do path.
 - **CA7 — Pula o último descanso.** Given intervalado 6x(1 km + 2 min de trote sem meta) seguido de
   desaquecimento, Then o `WorkoutRepeatStep` sai com `skipLastRestStep: true`. Given bloco cujo
-  último passo tem meta (recuperação por FC no fartlek), Then o campo não é enviado.
+  último passo tem meta (recuperação por FC no fartlek), Then o campo não é enviado. Só etapa
+  `RECUPERACAO` é pulada (`WorkoutStep.recovery`): passo sem meta que não é recuperação — tiro
+  livre, km livre de alternado — nunca é cortado (achado do gate de QA, Codex, 2026-11-04).
 
 ## Métrica de sucesso
 
