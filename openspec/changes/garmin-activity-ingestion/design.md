@@ -28,7 +28,9 @@ Ver `proposal.md` e ADR-0013. Estado que molda o desenho:
 **Goals:**
 - Zero mapper novo: o FIT é a verdade e o pipeline já existe.
 - Nunca perder um arquivo por causa do download único: o ping é persistido antes do 200.
-- Nunca guardar o binário (licença 15.11(e)).
+- Nunca guardar o binário. A licença não proíbe guardar o FIT em si — 15.11(e) proíbe reter dado
+  Garmin de forma que permita treinar/avaliar IA; descartar após o parse elimina o risco e o custo
+  de armazenamento, e o treino parseado já carrega o que o produto usa.
 - Atribuição completa na primeira entrega (licença 6.4; 14 dias para corrigir).
 
 **Non-Goals:**
@@ -41,28 +43,47 @@ Ver `proposal.md` e ADR-0013. Estado que molda o desenho:
 ### D1: `tb_garmin_ping` como fila durável mínima
 Colunas: `id`, `tenant_id`, `atleta_id` (resolvido na recepção via `IntegracaoExterna(GARMIN,
 externalAthleteId=userId)`), `user_id`, `summary_id` UNIQUE, `activity_id`, `callback_url`,
-`activity_type`, `device_name`, `start_time`, `manual`, `status` (PENDENTE, PROCESSADO,
-DESCARTADO, ERRO), `motivo`, `tentativas`, `treino_realizado_id` nullable, `criado_em`,
-`processado_em`. Sem `bytea`. Padrão de tabela do CLAUDE.md do backend (UUID, TIMESTAMPTZ,
+`activity_type`, `device_name`, `start_time`, `manual`, `status` (PENDENTE, SINCRONIZANDO,
+PROCESSADO, DESCARTADO, ERRO), `motivo`, `tentativas`, `proxima_tentativa_em`,
+`sincronizando_desde` nullable, `treino_realizado_id` nullable, `criado_em`, `processado_em`.
+Sem `bytea`. Padrão de tabela do CLAUDE.md do backend (UUID, TIMESTAMPTZ,
 índice `(tenant_id, status)` e `(status, criado_em)`). Alternativa rejeitada: baixar inline no
 request — se a persistência falhar depois do 200, o arquivo some para sempre.
 
 ### D2: Recepção decide descarte sem rede
 `GarminWebhookController` → `GarminPingService.registrar(List<JsonNode>)` em transação curta:
-`summaryId` repetido → ignora; `activityType` fora do conjunto de corrida, `manual=true`,
-`fileType != FIT`, ou `userId` sem conexão ativa → `DESCARTADO` com motivo; senão `PENDENTE`. O
-controller responde 200 depois disso (dois `INSERT`, bem abaixo de 30 s). Conjunto de corrida:
-`RUNNING, TRAIL_RUNNING, TREADMILL_RUNNING, INDOOR_RUNNING, VIRTUAL_RUN, TRACK_RUNNING, ULTRA_RUN`.
+`summaryId` repetido → ignora; `userId` sem nenhuma `IntegracaoExterna(GARMIN)` → **não grava**,
+só loga (ADR-0013: "200 sem efeito"; sem atleta não há `tenant_id`, que é `NOT NULL`);
+`activityType` fora do conjunto de corrida, `manual=true`, `fileType != FIT`, ou conexão do
+atleta inativa → `DESCARTADO` com motivo; senão `PENDENTE`. O controller responde 200 depois
+disso (dois `INSERT`, bem abaixo de 30 s); se o `INSERT` falhar, responde 5xx para o Garmin
+reenviar o ping (Activity API §8.2: ping com status ≠ 200 é reenviado com backoff), e o dedup por
+`summaryId` absorve a reentrega. Conjunto de corrida (Activity API, Appendix A): `RUNNING,
+INDOOR_RUNNING, OBSTACLE_RUN, STREET_RUNNING, TRACK_RUNNING, TRAIL_RUNNING, TREADMILL_RUNNING,
+ULTRA_RUN, VIRTUAL_RUN`.
 
 ### D3: `GarminPingProcessorScheduler` a cada minuto
-Lote de até 20 pings `PENDENTE` ordenados por `criado_em` (mais antigo primeiro = mais perto de
-expirar), com `tentativas < 5` e `criado_em > now − 24 h`. Para cada um: marca `SINCRONIZANDO`
-(claim em TX própria, como o processor do intervals.icu); fora de TX, `GarminClient.baixarArquivo`
-+ `FitParseService.parse`; em TX, `FitTreinoPersister.persistir(atletaId, dados, deviceName)` e
-`PROCESSADO` com `treino_realizado_id`. Erros: 5xx/timeout → `PENDENTE`, `tentativas+1`; 410/404
-→ `ERRO`; `FitParseException` → `ERRO` sem retry; `DataIntegrityViolation` do dedup é tratado por
+Lote de até 20 pings `PENDENTE` com `proxima_tentativa_em <= now` e `criado_em > now − 24 h`,
+ordenados por `criado_em` (mais antigo primeiro = mais perto de expirar). Para cada um: marca
+`SINCRONIZANDO` com `sincronizando_desde = now` (claim em TX própria, como o processor do
+intervals.icu); fora de TX, `GarminClient.baixarArquivo` + `FitParseService.parse`; em TX,
+`FitTreinoPersister.persistir(atletaId, dados, deviceName)` e `PROCESSADO` com
+`treino_realizado_id`. **Antes do download**, o `callbackURL` é validado: esquema `https`, host
+`apis.garmin.com` e path `/wellness-api/rest/activityFile`; fora disso → `ERRO "callbackURL
+inválido"` sem requisição (a URL chega no corpo de um request externo — sem a checagem o backend
+faz GET em host arbitrário, SSRF; o segredo no path do webhook não basta). Erros: 5xx/timeout/429
+→ `PENDENTE`, `tentativas+1` e
+`proxima_tentativa_em = now + min(2^tentativas, 60) min`; **sem teto de tentativas** — o limite é a
+janela de 24 h, porque o link continua válido e uma queda do Garmin maior que alguns minutos não
+pode queimar o arquivo (mesmo erro do `garmin-reenvio-plano`: 5 tentativas em 5 min). 410/404 →
+`ERRO` (link já consumido, não há reenvio possível; o caminho é o upload manual do FIT); 401/403/412
+→ `ERRO` sem retry com motivo de permissão (Activity API Appendix B: token inválido, consentimento
+retirado ou `ACTIVITY_EXPORT` ausente — mesmo mapeamento do `GarminTrainingAdapter` no push), que
+alimenta o estado de conexão do `watch-connection-guide`;
+`FitParseException` → `ERRO` sem retry; `DataIntegrityViolation` do dedup é tratado por
 `registrar` (treino existente) → `PROCESSADO`. Pings com mais de 24 h → `ERRO "expirado"` pelo
-mesmo job. Alternativa rejeitada: `@Async` por ping — perde o controle de lote e de retry que o
+mesmo job. **Reclaim:** ping `SINCRONIZANDO` há mais de 10 min (processo caiu após o claim) volta a
+`PENDENTE` com `tentativas+1`; se o link já tiver sido consumido, o retry dá 410 e vai a `ERRO`. Alternativa rejeitada: `@Async` por ping — perde o controle de lote e de retry que o
 scheduler dá de graça. `shortcut: 20 pings/min por instância; com 50/min de cota do Garmin e
 mais de ~200 corridas/dia, subir o lote`.
 
@@ -77,10 +98,16 @@ escrita para um campo que cabe na primeira.
 dias para investigação.
 
 ### D6: Atribuição por componente único no front
-`FonteAttribution({ fonteDados, deviceName })` renderiza "Garmin [deviceName]" ou "Garmin" para
+`FonteAttribution({ fonteDados, deviceName })` renderiza o modelo do dispositivo ou "Garmin" para
 `GARMIN`, nada para as demais fontes; usado nos cinco pontos de exibição e nos exports (texto
 plano em CSV, linha abaixo do título no PDF). Não usa o logo (evita as regras do tag logo).
 Alternativa rejeitada: `fonteDados.label` genérico — a licença pede o modelo do dispositivo.
+
+Texto: o `deviceName` vem inconsistente na Activity API — "Garmin Fenix 8" no exemplo de
+`activityFiles` (§6.4), "Forerunner 910XT" no de `activities` (§4.1) e "unknown" em atividade
+manual (§6.2). Regra: `deviceName` vazio, nulo ou `unknown` (case-insensitive) → "Garmin"; começa
+com "Garmin" (case-insensitive) → exibe como vem; senão → "Garmin " + `deviceName`. Evita "Garmin
+Garmin Fenix 8". O backend guarda o valor cru; a normalização é só de exibição.
 
 ### D7: Melhores esforços
 `MelhoresEsforcosPanel`/`EffortsBlock`: se a conexão de canal é Garmin, renderiza aviso e não
@@ -99,6 +126,10 @@ Garmin" quando a conexão de canal não é intervals.icu, em vez de tentar `pace
   atual do persister); colisão só se dois arquivos do mesmo atleta tiverem o mesmo `startTime`.
 - [Cota de 50 downloads/min] → lote de 20/min por instância, uma instância. Ver D3.
 - [`deviceName` ausente] → "Garmin" (permitido pelas brand guidelines).
+- [Análise de IA sobre treino Garmin] → `IngestaoTreinoRealizadoService.registrar` publica
+  `TreinoRegistradoEvent`, e o `WorkoutAnalysisListener` envia o treino ao LLM. Pela 15.11, a
+  saída também é dado Garmin: não pode alimentar treino de modelo e a análise exibida precisa da
+  atribuição. Ver Open Questions.
 - [Atribuição esquecida num ponto novo da UI] → teste de componente cobre os cinco pontos; a
   licença dá 14 dias para corrigir.
 
@@ -116,3 +147,13 @@ Garmin" quando a conexão de canal não é intervals.icu, em vez de tentar `pace
 - Se o Garmin mandar `activityFiles` também para atividade editada depois (mesmo `activityId`,
   `summaryId` novo), o dedup do persister já evita duplicar; decidir se atualiza o treino
   existente só quando aparecer um caso real. Não muda spec nem tasks.
+- **Bloqueia o go-live (task 4.4) — aviso prévio 6.6.** A licença exige avisar o Garmin
+  (`connect-support@developer.garmin.com`, com mockups e descrição da conformidade) **30 dias antes**
+  de lançar UI nova que exibe dado Garmin. Esta change cria cinco pontos de exibição mais exports.
+  Falta confirmar se o aviso já foi enviado (inclusive para `garmin-connection`) e a data; o
+  `activityFiles` em produção não deve ser habilitado antes do prazo.
+- **Bloqueia o go-live (task 4.4) — IA sobre dado Garmin (15.10/15.11).** Confirmar com o founder:
+  (a) o texto de IA enviado no cadastro do app está guardado como evidência (pendência herdada de
+  `garmin-connection`); (b) o provedor do LLM não usa os dados para treino (termos da API);
+  (c) a declaração de transparência de IA está na política de privacidade; (d) a análise
+  pós-treino exibida leva a atribuição "Garmin [modelo]" — se sim, entra no escopo da task 4.2.

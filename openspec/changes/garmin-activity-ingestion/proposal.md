@@ -71,8 +71,9 @@ registrar a atribuição "Garmin [modelo]" que a licença exige.
 - **CA1 — Ping gravado antes de processar.** Given POST com `{"activityFiles":[…]}` e segredo
   correto, When recebido, Then cada item vira linha `PENDENTE` em `tb_garmin_ping` (unicidade por
   `summaryId`; repetido é ignorado) e a resposta 200 sai sem nenhuma chamada ao Garmin.
-- **CA2 — Filtro.** Given item com `activityType` fora de {RUNNING, TRAIL_RUNNING,
-  TREADMILL_RUNNING, INDOOR_RUNNING, VIRTUAL_RUN, TRACK_RUNNING, ULTRA_RUN} ou `manual=true`,
+- **CA2 — Filtro.** Given item com `activityType` fora de {RUNNING, INDOOR_RUNNING, OBSTACLE_RUN,
+  STREET_RUNNING, TRACK_RUNNING, TRAIL_RUNNING, TREADMILL_RUNNING, ULTRA_RUN, VIRTUAL_RUN} ou
+  `manual=true`,
   Then a linha nasce `DESCARTADO` com motivo e o `callbackURL` nunca é chamado.
 - **CA3 — Ingestão.** Given ping `PENDENTE` de `userId` conectado e `callbackURL` que devolve
   `corrida-15km-16laps.fit`, When o job roda, Then existe `TreinoRealizado(fonteDados=GARMIN,
@@ -82,12 +83,21 @@ registrar a atribuição "Garmin [modelo]" que a licença exige.
 - **CA4 — Idempotente com upload manual.** Given o atleta já subiu o mesmo FIT à mão, When o ping
   chega, Then nenhum treino novo é criado e o ping fica `PROCESSADO` apontando para o existente.
 - **CA5 — Download falha.** Given `callbackURL` responde 5xx ou timeout, Then o ping volta a
-  `PENDENTE` com `tentativas+1`; na 5ª falha fica `ERRO` com motivo. Given 410 (já baixado),
-  Then `ERRO` imediato sem retry.
-- **CA6 — userId desconhecido ou conexão inativa.** Then o ping fica `DESCARTADO` com motivo,
-  sem download.
+  `PENDENTE` com `tentativas+1` e `proxima_tentativa_em` com backoff exponencial (teto 60 min);
+  não há limite de tentativas, só a janela de 24 h (CA7). Given 410 (já baixado), Then `ERRO`
+  imediato sem retry.
+- **CA6 — userId desconhecido ou conexão inativa.** Given `userId` sem conexão Garmin registrada,
+  Then responde 200 e nada é gravado (só log). Given atleta com conexão inativa, Then o ping fica
+  `DESCARTADO` com motivo. Em ambos, sem download.
+- **CA6b — callbackURL fora do Garmin.** Given ping com `callbackURL` cujo host não é
+  `apis.garmin.com` (ou esquema ≠ https, ou path ≠ `/wellness-api/rest/activityFile`), Then o ping
+  vai a `ERRO "callbackURL inválido"` e nenhuma requisição sai.
+- **CA6c — Permissão.** Given download responde 401, 403 ou 412, Then `ERRO` sem retry com motivo
+  de permissão; 429 segue o backoff do CA5.
 - **CA7 — Janela de 24 h.** Given ping `PENDENTE` com `criadoEm` > 23 h, Then o job o processa
   antes dos demais; passado de 24 h sem sucesso, fica `ERRO` "expirado".
+- **CA7b — Reclaim.** Given ping `SINCRONIZANDO` com `sincronizando_desde` > 10 min, Then volta a
+  `PENDENTE` com `tentativas+1`; nunca fica preso.
 - **CA8 — Atribuição.** Given treino `fonteDados=GARMIN` com `deviceName`, When exibido no card de
   hoje, na análise, na lista do treinador, no calendário e num export, Then o texto "Garmin
   Forerunner 970" aparece junto ao título, fora de tooltip ou área recolhida; sem `deviceName`,
@@ -104,8 +114,11 @@ registrar a atribuição "Garmin [modelo]" que a licença exige.
 
 ## Open Questions & Assumptions
 
-- **Assumido:** `deviceName` do ping é a string que a licença chama de "device model" ("Garmin
-  Forerunner 970"); exibida como vem, sem normalização.
+- **Assumido:** `deviceName` do ping é a string que a licença chama de "device model". A Activity
+  API devolve às vezes com o prefixo "Garmin" ("Garmin Fenix 8") e às vezes sem ("Forerunner
+  910XT"); a exibição normaliza (D6) para nunca duplicar o prefixo.
+- **Bloqueante do go-live:** aviso prévio de 30 dias ao Garmin (licença 6.6) e as confirmações de
+  IA (15.10/15.11). Detalhe em `design.md`, Open Questions.
 - **Assumido:** `TipoTreino` do treino Garmin segue a regra atual do pipeline FIT (`CONTINUO`
   fixo, D0.6 da change de FIT). Inferir LONGO/TEMPO_RUN como o intervals.icu faz é melhoria
   separada.
