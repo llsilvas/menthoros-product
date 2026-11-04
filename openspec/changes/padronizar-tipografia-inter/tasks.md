@@ -86,3 +86,15 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
 - 5.4 (2026-11-04): lint ok, build ok, 2568 testes unitários e 135 E2E verdes.
 - 5.3: screenshots (inbox do coach, revisão + diálogo de zonas, lista de atletas legada, home do
   atleta) enviadas ao founder; **aprovadas pelo founder em 2026-11-04**.
+- /qa (2026-11-04): frontend-reviewer e clean-code aprovaram com ressalvas; DeepSeek no lugar do
+  Codex (sem cota até 12:12). Sem Critical. Corrigido em `75ec502`: fixture `tests/fixtures/fontes.ts`,
+  carga da Inter pelas `FontFace` baixadas (`fonts.load` aceitava o 700 num pedido de 800; provado
+  tirando o 800 do `index.html`), `fonts.ready` no lugar de timeout, regex do `semSyne` para Syne
+  como fallback, linha da prévia pelo nome. Descartados com motivo: regra global de `index.css`
+  "vaza" para a landing (a landing não tem `<button>` nativo com fonte própria; herdar a fonte do
+  `landingTheme` é o comportamento correto); parse de `rem` em `coachTheme.test.ts` (o tema sempre
+  emite rem via `px()`); títulos repetidos em `appTheme` e `coachTheme` (o coach sobrepõe tamanho
+  junto, a repetição é explícita).
+- **Follow-up:** `font.display` ficou igual a `font.text` (D2, decisão de não renomear). Colapsar o
+  token, ou marcá-lo `@deprecated`, é change à parte. Idem o `fontFamily: (t) => t.typography.h4.fontFamily`
+  redundante no `CoachDialog`.
