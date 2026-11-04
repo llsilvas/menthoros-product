@@ -2,7 +2,15 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-04 (**`landing-oferta-fundadora-v2` arquivada** — front PR #177
+**Última atualização:** 2026-11-04 (**`implement-worktree-por-change` arquivada** — workflow PR #5
+(mergeado em 2026-11-04, plugin 1.10.0). S · Fast, só `menthoros-workflow`: `/implement init` cria worktree
+por change em `.worktrees/<repo>-<change-id>` e entra por `cd` (sem `EnterWorktree`, que com o hook do
+`rtk` bloqueia git); `/done` limpa sem checkout; `git-guard` bloqueia troca de branch no diretório
+principal de repo com `develop`. **Adiado:** 3.2, teste manual do `init`/`done` numa sessão nova.
+**Follow-up:** `CLAUDE.md` raiz. Arquivada em
+`changes/archive/2026-11/2026-11-04-implement-worktree-por-change/`.)
+
+**Anterior:** 2026-11-04 (**`landing-oferta-fundadora-v2` arquivada** — front PR #177
 (mergeado em 2026-11-01). S · Fast, só `src/landing/**`: oferta fundadora v2 e estado real das
 integrações (Garmin direto; outras marcas "em teste via intervals.icu"). 10/12 tasks. **Adiado:** 4.3,
 confirmação do founder para A1–A3 (o merge saiu sem ela; A3, processo de estorno, segue aberta).
