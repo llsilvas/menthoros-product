@@ -52,8 +52,17 @@ quando algum treino do plano está em `AGUARDANDO_RETRY`, ou em `SINCRONIZANDO` 
 preso: o scheduler não varre esse status (`IntervalsIcuRetrySchedulerImpl`), então bloquear para
 sempre deixaria o treinador sem saída — o mesmo incidente que esta change resolve. Os treinos
 presos não são reiniciados (só `ERRO_*` são); o reprocessamento do plano inteiro os reenvia pela
-idempotência. O front aplica a mesma regra só por status (sem relógio) para desabilitar o botão;
-o 409 é a rede de segurança.
+idempotência (o claim de `IntervalsIcuPushProcessor` ~:181 não filtra por status).
+
+O front **só desabilita por `AGUARDANDO_RETRY`**, que nunca fica preso (o scheduler o varre). Para
+`SINCRONIZANDO` o front não tem o relógio (`ultimaTentativaSincronizacao` não vai ao DTO), então
+deixa o clique passar e o 409 do backend vira a mensagem "Envio em andamento". Desabilitar por
+`SINCRONIZANDO` no front recriaria o beco sem saída do incidente (DeepSeek, DoR 2026-11-04).
+
+**Premissa do limiar de 10 min:** um push em voo nunca passa de 10 min porque cada chamada HTTP ao
+canal tem timeout de segundos. Se não tiver, um reenvio após 10 min pode reclamar um treino ainda em
+voo e, no primeiro envio (sem `externalId`), criar workout duplicado no relógio. Conferir o timeout
+do `GarminClient`/cliente intervals.icu na task 1.2; sem timeout configurado, o limiar vira bug.
 
 ### D2 — O evento é publicado dentro de transação
 
@@ -134,8 +143,8 @@ Busca de plano por `findByIdAndTenantId`; a busca dos treinos em erro também fi
 
 O botão fica no cabeçalho do plano da semana, condicionado a `treinos.some(statusSincronizacao
 começa com 'ERRO_')`, e desabilitado com tooltip quando `atletaConectadoCanal` é falso (CA10) ou
-quando algum treino está em `AGUARDANDO_RETRY`/`SINCRONIZANDO` (CA11, "Envio em andamento"); um 409
-do backend vira a mesma mensagem. Segue o padrão de hook do CLAUDE.md do front (`useReenviarSincronizacao`
+quando algum treino está em `AGUARDANDO_RETRY` (CA11, "Envio em andamento"); `SINCRONIZANDO` não
+desabilita (D1b) e o 409 do backend vira a mesma mensagem. Segue o padrão de hook do CLAUDE.md do front (`useReenviarSincronizacao`
 expõe `reenviando`, `erro`, `reenviar`), não chama o serviço gerado direto do componente.
 Depois do sucesso, recarrega o plano para o chip refletir o novo estado; como o push é assíncrono,
 o estado pode levar alguns segundos para mudar, então a tela mostra "Reenvio solicitado" e permite

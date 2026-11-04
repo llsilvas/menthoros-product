@@ -18,8 +18,10 @@ backend mergeado em `develop` (2.1 depende de 1.4 e 1.5).
 - [ ] 1.2 `TreinoPlanejadoRepository`: busca dos treinos do plano por `(planoId, tenantId)` em
   `ERRO_*` (para o reset) e checagem de push em andamento (`AGUARDANDO_RETRY`, ou `SINCRONIZANDO`
   com `ultimaTentativaSincronizacao` > agora − 10 min) (D1b); teste de repositório com treinos de
-  dois tenants e um `SINCRONIZANDO` antigo que não conta.
-  verify: teste de repositório verde; o treino do outro tenant nunca volta.
+  dois tenants e um `SINCRONIZANDO` antigo que não conta. Conferir que o `GarminClient` e o cliente
+  intervals.icu têm timeout HTTP de segundos (premissa do limiar de 10 min, D1b); se não tiverem,
+  PARAR e levar ao founder.
+  verify: teste de repositório verde; o treino do outro tenant nunca volta; timeouts citados aqui.
 - [ ] 1.3 `PlanoReviewService.reenviarSincronizacao(planoId, tenantId)` (`@Transactional`, D2/D5/D1b):
   404 sem plano no tenant, 422 fora de `APROVADO`, 409 com push em andamento, reinicia os treinos em
   `ERRO_*`, publica `PlanoAprovadoEvent` só se `reenviados > 0`, devolve a contagem e loga
@@ -55,9 +57,9 @@ backend mergeado em `develop` (2.1 depende de 1.4 e 1.5).
   verify: teste do hook cobre sucesso, 409 e erro genérico.
 - [ ] 2.3 `CurrentWeekPlan`: botão "Reenviar ao relógio" visível só com treino em `ERRO_*` (CA7),
   desabilitado durante a chamada e, com tooltip, quando `atletaConectadoCanal` é falso (CA10) ou há
-  treino em `AGUARDANDO_RETRY`/`SINCRONIZANDO` (CA11), com feedback "Reenvio solicitado" e de erro;
-  teste de componente.
-  verify: teste de componente cobre CA7, CA10 e CA11.
+  treino em `AGUARDANDO_RETRY` (CA11; `SINCRONIZANDO` não desabilita, D1b), com feedback "Reenvio
+  solicitado" e de erro; teste de componente.
+  verify: teste de componente cobre CA7, CA10, CA11 e o caso `SINCRONIZANDO` com botão habilitado.
 - [ ] 2.3b Motivo legível (CA9, D4b): função pura em `features/coach/adapters/` que mapeia
   `statusSincronizacao` + `erroSincronizacao` em `{ motivo, acao }` (inclui `SINCRONIZADO_PARCIAL`
   → "Enviado com ajustes"), exibida no plano da semana; teste do adapter para os cinco `ERRO_*` e o

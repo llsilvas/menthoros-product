@@ -77,8 +77,9 @@ treinador (coach-in-the-loop) e gasta uma geração de IA.
   (`@RequireTenant`) e nenhum evento é publicado. Given id de plano inexistente, Then 404.
 - **CA11 — Push em andamento.** Given plano com ao menos um treino em `AGUARDANDO_RETRY`, ou em
   `SINCRONIZANDO` com `ultimaTentativaSincronizacao` há menos de 10 min, When reenvia, Then 409,
-  nenhum treino é reiniciado e nenhum evento é publicado; no front o botão aparece desabilitado com
-  tooltip "Envio em andamento". `SINCRONIZANDO` mais antigo que 10 min é tratado como preso (processo
+  nenhum treino é reiniciado e nenhum evento é publicado. No front o botão aparece desabilitado com
+  tooltip "Envio em andamento" só com treino em `AGUARDANDO_RETRY`; com `SINCRONIZANDO` o clique
+  passa e o 409 mostra a mesma mensagem. `SINCRONIZANDO` mais antigo que 10 min é tratado como preso (processo
   caiu no meio do claim) e não bloqueia.
 - **CA5 — Sem treinos em erro.** Given plano `APROVADO` sem nenhum treino em `ERRO_*`, When
   reenvia, Then `reenviados = 0` e nenhum evento é publicado.
