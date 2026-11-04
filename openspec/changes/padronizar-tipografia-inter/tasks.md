@@ -25,13 +25,13 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
 
 - [ ] 2.1 Teste primeiro: `coachTheme` h1–h4 em Inter, tamanhos inalterados, peso ≥ 700 (CA3); substituir o
   `it('mantém Syne nos títulos')`. Idem `athleteTheme` (`'títulos em font.display'`), conforme Q1.
-- [ ] 2.2 `coachTheme`: remover `SYNE`; h1–h4 em Inter com pesos de D3.
+- [ ] 2.2 `coachTheme`: remover `SYNE`; h1–h4 em Inter com pesos de D3. *verify:* `npm run test:run -- coachTheme` verde.
 - [ ] 2.3 `athleteTheme`: segue o token (nada a mudar se 1.4 bastar); conferir. *verify:* testes do
   tema e `AthleteLayout.test.tsx` verdes.
 
 ## 3. Overrides fixos
 
-- [ ] 3.1 Remover `fontFamily: 'Syne, sans-serif'` de `CoachInboxPage`, `HomePage`, `AtletasList`,
+- [ ] 3.1 (depende de 1.x e 2.x) Remover `fontFamily: 'Syne, sans-serif'` de `CoachInboxPage`, `HomePage`, `AtletasList`,
   `DetalheTreinoDialog`, `AtletaDialog`. Revisar `CoachDialog` (lê `h4.fontFamily`, passa a Inter
   pelo tema) e atualizar o comentário dele. Grep por `typography.h[1-6].fontFamily` e constantes
   locais com Syne. *verify:* CA4 — `grep -rn "Syne" src` só em comentário, landing e waitlist.
@@ -40,7 +40,7 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
 
 - [ ] 4.1 `tabular-nums` nas células numéricas de `AthleteZonesTable` e da prévia do
   `AthleteZonesDialog` (CA5), com teste de componente. Só essas duas; outras tabelas ficam fora.
-- [ ] 4.2 `index.html`: remover Syne do link do Google Fonts; Inter `wght@300;400;500;600;700;800`
+- [ ] 4.2 (depende de 3.1) `index.html`: remover Syne do link do Google Fonts; Inter `wght@300;400;500;600;700;800`
   (CA7, D5). *verify:* `npm run build`; telas sem fallback inesperado no smoke.
 
 ## 5. E2E e revisão visual
@@ -53,7 +53,7 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
   `document.fonts.check` para 400 e 800 (CA1). Estender o smoke do atleta com a mesma asserção
   (hoje só rejeita Syne). *verify:* `npm run test:e2e -- smoke-tema`.
 - [ ] 5.2 CA6: E2E ou teste de componente afirmando o título do `CoachDialog` em Inter e `heading`
-  nível 2.
+  nível 2. *verify:* `npm run test:run -- CoachDialog` (ou o spec E2E da 5.1) verde.
 - [ ] 5.3 Revisão visual (screenshots) de: inbox do coach, revisão de plano + diálogo de zonas, lista
   de atletas legada, home do atleta. Anexar em "Notas". *verify:* o founder aprova por escrito em
   "Notas"; critério: títulos distinguíveis do corpo e números legíveis sem zoom em 100%.
