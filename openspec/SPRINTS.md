@@ -2,7 +2,13 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-04 (**cinco changes arquivadas** em `changes/archive/2026-11/`,
+**Última atualização:** 2026-11-04 (**`landing-oferta-fundadora-v2` arquivada** — front PR #177
+(mergeado em 2026-11-01). S · Fast, só `src/landing/**`: oferta fundadora v2 e estado real das
+integrações (Garmin direto; outras marcas "em teste via intervals.icu"). 10/12 tasks. **Adiado:** 4.3,
+confirmação do founder para A1–A3 (o merge saiu sem ela; A3, processo de estorno, segue aberta).
+Arquivada em `changes/archive/2026-11/2026-11-04-landing-oferta-fundadora-v2/`.)
+
+**Anterior:** 2026-11-04 (**cinco changes arquivadas** em `changes/archive/2026-11/`,
 nenhuma tinha linha própria neste plano: `coach-cadastro-ancoras-zonas` (backend #209, front #182) e
 `coach-zonas-manuais` (backend #211, front #183), com deltas promovidos a `specs/coach-athlete-zones/`;
 `fix-garmin-workout-update` (backend #212); `fix-front-prod-dependency-vulns` (front #180);
