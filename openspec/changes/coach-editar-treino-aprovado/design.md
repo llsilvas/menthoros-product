@@ -235,10 +235,10 @@ aquecimento/desaquecimento continuam como hoje no `TreinoEditDialog`.
 
 - **R1 — Garmin pode não entregar a revisão ao relógio** (hipótese do pre-mortem, não verificada). O
   adapter atualiza o workout, mas `garantirSchedule` não mexe no schedule quando já existe um na
-  data (`GarminTrainingAdapter.java:151`). Mitigação: task 0.1 valida com Garmin real (workout
-  sincronizado no relógio, editado na mesma data) **antes da task 1.4**. Se o relógio não pegar a
-  versão nova, a task 1.8a (recriar o schedule no caminho de edição) passa a valer; até lá o dialog
-  não promete prazo.
+  data (`GarminTrainingAdapter.java:151`). Mitigação: a integração Garmin só existe em produção, então
+  a task 0.1 valida **depois do deploy** (workout sincronizado no relógio, editado na mesma data). O
+  dialog não promete prazo. Se o relógio não pegar a versão nova, recriar o schedule no caminho de
+  edição vira change de follow-up (decisão 2026-11-04).
 - **R2 — Atleta já sincronizou a versão antiga (treino de hoje).** Eliminado no v1: treino de hoje
   com relógio não é editável (D1). Custo aceito: o treinador não ajusta o treino do dia pelo app.
 - **R3 — Claim preso em `SINCRONIZANDO`** (processo cai entre claim e marcação). A regra 3 do D1 e o
@@ -263,7 +263,6 @@ lápis em plano aprovado.
 
 ## Ordem de entrega
 
-1. Task 0.1 (validação Garmin real), antes da task 1.4 e antes de prometer qualquer coisa no texto
-   do dialog.
-2. Backend desta change, PR para `develop`.
-3. Frontend, PR para `develop` depois do backend desta change **e** do PR #188 em `develop`.
+1. Backend desta change, PR para `develop`.
+2. Frontend, PR para `develop` depois do backend desta change **e** do PR #188 em `develop`.
+3. Task 0.1 (validação Garmin real) depois do deploy em produção; resultado negativo abre follow-up.

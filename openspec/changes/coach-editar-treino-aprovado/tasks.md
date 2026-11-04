@@ -8,15 +8,19 @@ já está em `develop` (PR #213): reusar `reiniciarSincronizacao`, `JANELA_SINCR
 `conexaoCanal` e `CLAIM_PERDIDO` (D2, D6). Identificadores novos em inglês (D3). Paths relativos a
 `src/main/java/br/com/menthoros/backend/` (backend) e `src/` (front).
 
-Ordem: 0.1 antes de 1.4. 1.1 → 1.2 → 1.3 → 1.4 → 1.5 → 1.6 → 1.7 → 1.8 → 1.9 → 1.10. A seção 2 só
+Ordem: 1.1 → 1.2 → 1.3 → 1.4 → 1.5 → 1.6 → 1.7 → 1.8 → 1.9 → 1.10. A seção 2 só
 começa com o backend desta change **e** o PR #188 do front em `develop`.
 
-## 0. Validação antes de implementar
+## 0. Validação em produção (depois do deploy)
 
-- [ ] 0.1 Garmin real (R1): workout já sincronizado no relógio, editado no Garmin Connect via API na
-  mesma data. Registrar aqui o resultado, com data e modelo do relógio.
-  verify: relógio mostra a versão nova depois de um sync manual, sem mexer no schedule → 1.8a fica
-  cancelada; não mostra → 1.8a passa a valer e entra na ordem antes da 1.9.
+A integração Garmin só existe em produção (decisão 2026-11-04): a hipótese R1 não pode ser validada
+antes do merge. A change entra sem recriar o schedule, e o dialog não promete prazo de entrega ao
+relógio.
+
+- [ ] 0.1 Garmin real (R1), **pós-deploy em produção**: editar um treino já sincronizado no relógio,
+  na mesma data. Registrar aqui o resultado, com data e modelo do relógio.
+  verify: relógio mostra a versão nova depois de um sync manual → R1 encerrado; não mostra → abrir
+  change de follow-up para recriar o schedule no caminho de edição (era a 1.8a).
 
 ## 1. Backend (worktree `.worktrees/backend-coach-editar-treino-aprovado`)
 
@@ -66,9 +70,6 @@ começa com o backend desta change **e** o PR #188 do front em `develop`.
   `AFTER_COMMIT`): resolve o canal de novo e chama `pushProcessor.processar` só para o treino; sem
   canal, pula sem mutar.
   verify: teste unitário com mocks (com canal chama `processar` uma vez; sem canal não chama).
-- [ ] 1.8a **Condicional à 0.1:** recriar o schedule do Garmin no caminho de edição (só se o relógio
-  não pegar a versão nova). Cancelar com a justificativa da 0.1 se não for preciso.
-  verify: IT do `GarminTrainingPushIT` com o schedule recriado na mesma data.
 - [ ] 1.9 IT (`@TransactionalEventListener` só dispara com transação, WireMock do canal):
   - plano aprovado com 4 treinos `SINCRONIZADO` → PATCH em 1 → só ele é empurrado, mesmo
     `externalId` (CA6); atleta Garmin e atleta intervals.icu (CA7);
