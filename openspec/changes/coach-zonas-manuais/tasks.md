@@ -1,30 +1,58 @@
 # Tasks — coach-zonas-manuais (L · Full · backend + front)
 
-> **Bloqueada por `coach-cadastro-ancoras-zonas`.** Não iniciar antes do merge daquela em `develop`.
-> Branch: `feat/coach-zonas-manuais` nos dois repos; backend primeiro.
+> Desbloqueada: `coach-cadastro-ancoras-zonas` mergeada em `develop` (front #182, backend #209).
+> Branch: `feat/coach-zonas-manuais` nos dois repos (worktrees em `.worktrees/coach-zonas-manuais-*`);
+> backend primeiro. Decisões e contrato em `design.md`.
 
 ## 0. Decisões e design
 
-- [ ] **0.1** Fechar Q1–Q3 do proposal com o treinador
-- [ ] **0.2** Escrever `design.md`: tabela das faixas manuais (por atleta, eixo, zona, tenant),
-  campo de modo por eixo, precedência dentro de `ZonaTreinoService`, contrato (extensão do corpo de
-  `PUT .../zonas/ancoras` ou endpoint próprio)
-- [ ] **0.3** Mapear os 15 consumidores de `ZonaTreinoService` e marcar quais precisam de teste de contrato
-- [ ] **0.4** Fechar os critérios de aceite e o delta de spec em `specs/coach-athlete-zones/`
+- [ ] **0.1** Confirmar Q1–Q3 com o treinador (recomendação em `design.md`: Q1 apaga, Q2 vale igual, Q3 lacuna aceita)
+- [x] **0.2** Escrever `design.md` — D1 a D8
+- [x] **0.3** Mapear consumidores de `ZonaTreinoService` — tabela em `design.md` (7 consomem faixa; 4 com teste de contrato)
+- [x] **0.4** Critérios de aceite e delta de spec em `specs/coach-athlete-zones/spec.md`
 
-## 1. Backend
+## 1. Backend (`.worktrees/coach-zonas-manuais-backend`)
 
-- [ ] **1.1** Migration + entidade das faixas manuais e do modo por eixo
-- [ ] **1.2** Validação das faixas (De < Até, sem sobreposição, limites) — [CA3]
-- [ ] **1.3** Precedência em `ZonaTreinoService` + testes por consumidor crítico — [CA1, CA2, CA4]
-- [ ] **1.4** Contrato de escrita e `modo` no GET — [CA5]
-- [ ] **1.5** Eval gate da prescrição — [CA6]
-  - Validação: `./mvnw clean verify` + `./mvnw -Peval test -Dtest=EvalRunnerTest -Dmodo=candidato`
+- [ ] **1.1** Migration `V108` + `Atleta` (`modoZonasFc/Pace`, `zonasManuaisFc/Pace` JSONB) + record `FaixaZonaManual` — D1
+  - verify: teste de integração de repositório grava e relê as faixas; CHECK rejeita `MANUAL` sem faixas
+- [ ] **1.2** `AthleteZoneManualValidator` — D4 [CA3]
+  - verify: um teste por regra (zona faltando/repetida, `min ≥ max`, limites, sobreposição, ordem) + lacuna e borda aceitas
+- [ ] **1.3** Precedência: `ZonaTreinoService.calcularZonasFC/Pace(Atleta|AthleteZones)`, `AthleteZones.de(Atleta)`,
+  `ZoneResolver`/`SessionResolver`/`IaServiceImpl`, `IntervalsIcuFcAlvoResolver` (ZONE manual sem limiar),
+  `PlanoLlmValidator.contexto` (condição aceita FC manual), `identificarZona*`, todos os fallbacks do `PlanoTreinoPromptBuilder`, barreira de máxima no `ZONE` manual, classificação com lacuna/borda — D2 [CA1, CA2, CA4]
+  - verify: testes de contrato — prompt lista Z2 manual; `ZoneResolver.bpm(Z2)` manual; push ZONE manual sem `fcLimiar`; `zonasFC` do contexto da v1 com FC manual sem limiar nem máxima; eixos independentes; ida e volta s/km→min/km→s/km de 120 a 900; prompt completo com pace manual sem limiar (sem "USAR APENAS FC"); Z5 manual acima da máxima descartada no push; `identificarZonaFC` em lacuna, borda, abaixo de Z1 e acima do topo
+  - depende de: 1.1
+- [ ] **1.4** `PUT .../zonas/manuais` (`UPDATE` atômico por eixo) + `modos`, faixa efetiva e `pacePeloLimiar`/`fcPeloLimiar` no GET + `disponibilidade.pace`/ajuste com pace manual — D3 [CA2, CA5]
+  - verify: `@WebMvcTest` (200, 400 com `fields`, 404 de outro tenant), `@ApiResponse` 200/400/401/403/404 no controller, + teste do serviço (LIMIAR apaga as faixas, grupo ausente mantém, dois PUTs de eixos diferentes preservam os dois, `pacePeloLimiar` ausente sem limiar)
+  - depende de: 1.1, 1.2, 1.3
+- [ ] **1.5** Eval gate da prescrição com fixture de atleta em `MANUAL` — [CA6]
+  - antes da 1.3: gravar aqui o baseline de divergências por fixture do modo auditoria
+  - verify: `./mvnw clean verify` + `./mvnw -Peval test -Dtest=EvalRunnerTest` (auditoria): fixture manual com 0 divergências de zona, demais iguais ao baseline; `-Dmodo=candidato` só com `OPENAI_API_KEY`, como registro
+  - depende de: 1.3
 
-## 2. Front
+## 2. Front (`.worktrees/coach-zonas-manuais-front`)
 
-- [ ] **2.1** Seletor de modo por aba, tabela editável pré-preenchida, "Recalcular a partir do limiar",
-  validação inline — [CA3]
+> Começar depois de `fix/coach-cadastro-ancoras-zonas-previa` entrar em `develop` (mexe em
+> `AthleteZonesDialog.tsx`/`zoneAnchors.ts`), ou rebasear sobre ela.
+
+- [ ] **2.0** Cliente curado: `salvarZonasManuais` em `CoachAthleteZonesService`, `modos`/`*PeloLimiar` em `AthleteTrainingZones`; `aplicarZona` aceita FC com `modos.fc === 'MANUAL'`
+  - verify: `npm run build` + Vitest de `aplicarZona` com FC manual e `fcLimiarEstimada = true`
+  - depende de: 1.4
+- [ ] **2.1** `validateManualZones` (adapter puro) + seletor de modo por aba, tabela De/Até pré-preenchida,
+  "Recalcular a partir do limiar" (de `*PeloLimiar`, desabilitado sem limiar) com confirmação, validação inline, confirmação ao voltar de manual, salvar em sequência âncoras → manuais com falha parcial — D7 [CA3]
+  - verify: Vitest do validador; Testing Library do diálogo (alternar, editar, erro com `aria-invalid`, recalcular, recalcular indisponível, salvar, falha só da 2ª chamada)
+- [ ] **2.1b** Aviso ao salvar limiar de eixo em `MANUAL`, com "Recalcular a partir do limiar" — D7
+  - verify: teste de componente do cenário "Limiar novo com eixo manual"
 - [ ] **2.2** Chip de modo no card — [CA5]
+  - verify: teste de componente "FC: pelo limiar · Ritmo: manual"
 - [ ] **2.3** E2E: modo manual de ritmo refletido no card e no seletor de zona — [CA7]
-  - Validação: `npm run lint && npm run build && npm run test:run && npm run test:e2e`
+  - verify: `npm run lint && npm run build && npm run test:run && npm run test:e2e`
+
+## 3. Métrica
+
+- [ ] **3.1** Consulta da métrica de sucesso, registrada aqui e rodada em produção aos 60 dias do deploy:
+  `% de atletas ativos com modo_zonas_fc = 'MANUAL' OR modo_zonas_pace = 'MANUAL'` por tenant, e
+  quantos desses tiveram treino enviado ao relógio (intervals.icu/Garmin) depois de entrar em manual.
+  Sem instrumentação nova: o "depois de entrar em manual" usa o `updated_at` do atleta como
+  aproximação (limite conhecido — subestima se o atleta foi editado depois).
+  - verify: a consulta roda no ambiente de testes e devolve números coerentes com os atletas de teste
