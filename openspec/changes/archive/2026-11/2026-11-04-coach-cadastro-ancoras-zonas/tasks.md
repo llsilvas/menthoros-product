@@ -14,7 +14,7 @@
   consumidores de `fc_maxima` (`getFcMaxima`, `getFcMaximaCalculada`, `getFcMaximaComFallback`) e
   confirmar que nenhum recalcula por idade quando há valor gravado. Registrar no proposal
   - verify: lista com arquivo:linha no proposal; A1 marcada resolvida ou virada em risco
-- [ ] **0.3** Fechar Q3 (critério no proposal) e confirmar com treinador o enum `FonteLimiar` (A2)
+- [ ] **0.3** **Adiada (2026-11-04, arquivamento): falta só a confirmação do enum com um treinador.** Fechar Q3 (critério no proposal) e confirmar com treinador o enum `FonteLimiar` (A2)
   - verify: decisão registrada no proposal. **Bloqueia 1.1** (o CHECK da migration trava o enum)
   - estado (2026-11-03): enum fechado e aplicado na V107 (A2); Q3 fechada como **pré-pilot** (ambos
     registrados no proposal). **Pendente:** a confirmação do enum com um treinador — por isso segue `[ ]`
@@ -54,7 +54,8 @@
 - [x] **2.7** Integração com PostgreSQL: limites dos CHECKs, simulação relida em transação separada,
   404 entre tenants (PUT e simulação), dois PUTs concorrentes em eixos diferentes — [CA4, CA5, CA6, CA18]
   - Validação: `./mvnw clean verify`
-- [ ] **2.8** PR do backend → `develop`; conferir no ambiente de testes com um atleta real
+- [x] **2.8** PR do backend → `develop`; conferir no ambiente de testes com um atleta real
+  - PR #209 mergeado em 2026-11-04. Conferência com atleta real no ambiente de testes não registrada (adiada).
 
 ## 3. Front — contrato e lógica (D7)
 
@@ -88,12 +89,12 @@
   teste com plano em `AGUARDANDO_REVISAO` e `pace_limiar` nulo (reaproveitar o seed existente do E2E
   de revisão, se houver; senão criar via API no `beforeAll`)
   - Validação: `npm run test:e2e`
-- [ ] **5.2** Atualizar `openspec/specs/coach-athlete-zones/spec.md` com o delta desta change ao arquivar
-- [ ] **5.3** PR do front → `develop`
+- [x] **5.2** Atualizar `openspec/specs/coach-athlete-zones/spec.md` com o delta desta change ao arquivar
+- [x] **5.3** PR do front → `develop` — PR #182 mergeado em 2026-11-04
 
 ## Follow-ups do `/qa` do front (2026-11-03)
 
-Não bloqueiam o PR; sem change própria ainda.
+Não bloqueiam o PR; sem change própria ainda. **Adiados no arquivamento (2026-11-04).**
 
 - [ ] **F1** Data "futura" validada com o dia do navegador (`zoneAnchors.ts`); o backend decide pelo fuso
   do atleta. Tornar a comparação informativa ou usar o dia do atleta

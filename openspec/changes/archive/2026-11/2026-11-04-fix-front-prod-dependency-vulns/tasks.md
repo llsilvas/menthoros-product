@@ -42,16 +42,17 @@ outra sessão no repo.
 - [x] 3.3 E2E: `npx playwright test` local, ou conferir o check `E2E (Playwright)` no PR (CA4).
       verify: login, navegação e uma chamada autenticada passam.
       Feito local: `npx playwright test` = 126 passaram, 0 falharam (31,7 s). O check `E2E (Playwright)` do PR #180 ainda confirma na CI.
-- [ ] 3.4 Verificação manual rápida em `npm run dev`: login pelo Keycloak, abrir dashboard do coach,
+- [ ] 3.4 **Adiada (2026-11-04, arquivamento): não registrada; E2E da CI cobriu login e navegação.** Verificação manual rápida em `npm run dev`: login pelo Keycloak, abrir dashboard do coach,
       trocar de rota. Console sem erro novo.
       verify: sem erro no console.
 
 ## 4. Entrega
 
-- [ ] 4.1 Commit por path explícito (`git add package.json package-lock.json`), mensagem
+- [x] 4.1 Commit por path explícito (`git add package.json package-lock.json`), mensagem
       `fix(deps): atualiza axios e react-router e corrige transitivas vulneráveis`. PR `fix/front-prod-dependency-vulns`
       para `develop` (via `/pr`), promoção `develop → main`, depois `/done`.
       verify: CI verde (`Lint, build e testes` e `E2E (Playwright)`).
+      Feito: PR #180 mergeado em 2026-11-02.
 
 ## Fora desta change (registrar como itens separados)
 

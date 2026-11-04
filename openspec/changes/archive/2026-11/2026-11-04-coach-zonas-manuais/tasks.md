@@ -57,7 +57,7 @@
 
 ## 3. Métrica
 
-- [ ] **3.1** Consulta da métrica de sucesso, registrada aqui e rodada em produção aos 60 dias do deploy:
+- [ ] **3.1** **Adiada (2026-11-04, arquivamento): roda aos 60 dias do deploy; PRs backend #211 e front #183 mergeados.** Consulta da métrica de sucesso, registrada aqui e rodada em produção aos 60 dias do deploy:
   `% de atletas ativos com modo_zonas_fc = 'MANUAL' OR modo_zonas_pace = 'MANUAL'` por tenant, e
   quantos desses tiveram treino enviado ao relógio (intervals.icu/Garmin) depois de entrar em manual.
   Sem instrumentação nova: o "depois de entrar em manual" usa o `updated_at` do atleta como

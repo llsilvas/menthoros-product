@@ -20,11 +20,12 @@ Branch `fix/index-html-cache-control` (tipo dominante `fix`); worktree se houver
       Feito: `/`, `/index.html` e rota inexistente → `no-cache`; `/assets/*` → `immutable`; `/env-config.js` →
       `no-store`; `If-None-Match` → 304. Nota: `/env-config.js` saiu com `no-cache` **e** `no-store` (o `expires -1`
       do bloco existente emite um `Cache-Control` a mais); efeito é o mesmo, não é regressão desta change.
-- [ ] 2.2 Depois do deploy em `develop` e em `main`: `curl -sI https://app.menthoros.com/` mostra
+- [x] 2.2 Depois do deploy em `develop` e em `main`: `curl -sI https://app.menthoros.com/` mostra
       `cache-control: no-cache` pela borda (resolve a A2 do proposal).
       verify: cabeçalho presente na resposta pública.
+      Feito (2026-11-04): `curl -sI https://app.menthoros.com/` → `cache-control: no-cache`.
 
 ## 3. Entrega
 
-- [ ] 3.1 Marcar as tasks, PR `fix/index-html-cache-control` para `develop` (via `/pr`), promoção
-      `develop → main`, depois `/done`.
+- [x] 3.1 Marcar as tasks, PR `fix/index-html-cache-control` para `develop` (via `/pr`), promoção
+      `develop → main`, depois `/done`. PR #179 mergeado em 2026-11-01.

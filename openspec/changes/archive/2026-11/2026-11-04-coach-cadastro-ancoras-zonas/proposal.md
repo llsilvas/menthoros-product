@@ -146,6 +146,12 @@ importado, o que não é o caso dos atletas recém-cadastrados de uma assessoria
 - **Primária:** % de atletas ativos com `pace_limiar` **e** `fc_limiar` cadastrados, entre atletas de
   treinadores ativos (treinador com ao menos uma revisão de plano nos últimos 14 dias). Medida por
   query no banco, base na task 0.1. **Meta: ≥ 70% em 30 dias após o deploy.**
+  **Linha de base (2026-11-03, task 0.1) — provisória:** medida no banco do homelab apontado pelo
+  `.env` do backend (dev, Flyway em V106), **não em produção**: 1 assessoria, 6 atletas ativos,
+  1 com `pace_limiar > 0` (17%), 3 com `fc_limiar` (50%), 1 com os dois (**17%**). "Treinador ativo" =
+  assessoria com plano semanal em `APROVADO`/`REJEITADO` e `updated_at` nos últimos 14 dias (aproximação:
+  `updated_at` também muda por outras edições); a única assessoria atende. Amostra pequena demais para
+  servir de referência — **reconferir em produção antes do deploy** com a mesma consulta (por tenant).
 - **Secundária (valor, não preenchimento):** taxa de aceitação de planos pelo treinador nos 60 dias
   após o deploy, separando atletas pelo **estado atual** (`fc_limiar` gravado e `fonte_limiar_fc`
   não nula vs. estimado). Aproximação aceita: sem histórico de limiar (fora do escopo), um plano
@@ -188,9 +194,27 @@ importado, o que não é o caso dos atletas recém-cadastrados de uma assessoria
 - **A1 (premissa)** — A FC máxima informada substitui a estimada (`fcMaxima.estimada = false`) e passa
   a ser o teto do push (`descarta FC acima de bpm`). Confirmar que nenhum outro consumidor recalcula a
   máxima por idade ignorando `fc_maxima` — **task 0.2**.
+  **Resolvida (2026-11-03, task 0.2).** Último número de migration conferido: V106, então a nova é
+  V107. Nenhum consumidor recalcula por idade quando há valor gravado: os dois accessors devolvem o
+  gravado e só estimam quando é nulo (`Atleta.java:201` `getFcMaximaCalculada` → 180 sem nascimento,
+  `220 - idade` com; `:210` `getFcMaximaComFallback` → 190 sem nascimento). Consumidores (linhas em
+  `968ffe0`): `getFcMaximaCalculada` em `IaServiceImpl:328`, `PlanoTreinoPromptBuilder:683,702,706,759`,
+  `PlanoLlmValidator:288-289`, `TssCalculatorService:157,162`, `ZonaTreinoService:71,126`;
+  `getFcMaximaComFallback` em `CoachAthleteZonesServiceImpl:75`, `RecuperacaoPromptFormatter:39`,
+  `IntervalsIcuFcAlvoResolver:101`; `getFcMaxima` cru (nulo = sem valor) em `AthleteProfileMapper:33`,
+  `IntervalsIcuOAuthServiceImpl:207` (hoje em `IntervalsIcuFcSyncer`), `RecuperacaoPromptFormatter:143`,
+  `PlanoTreinoPromptBuilder:703` (rótulo "(estimada)"), `IntervalsIcuFcAlvoResolver:125`,
+  `OnboardingServiceImpl:434`. **Efeito a conhecer:** a máxima real vira o teto do push, então um bpm
+  literal já criado acima dela passa a ser descartado (teste `AntesEDepoisDoCadastro` no resolver);
+  o aviso do diálogo cobre isso (task 4.1).
 - **A2 (premissa)** — `FonteLimiar` = `TESTE_CAMPO`, `PROVA`, `LABORATORIO`, `RELOGIO_PLATAFORMA`
   (Garmin e intervals.icu detectam LTHR — fonte comum no dia a dia). "Estimada pela idade" não é
   origem gravável: é o que acontece quando não há valor. Fechar o enum antes da migration (o CHECK trava).
+  **Enum fechado (2026-11-03) e aplicado na V107.** O protótipo oferecia outras opções (Teste 30 min,
+  Prova de 10 km, Meia maratona, "Estimada pela idade"); o front se ajusta ao enum (task 4.1). O
+  protocolo do teste (30 min, 10 km, meia) é o dado que muda o fator de pace e fica para
+  `revalidar-fatores-pace-zonas`, não vira coluna aqui. **Ainda sem confirmação de um treinador** —
+  a task 0.3 segue aberta nessa metade.
 - **Decisões padrão (2026-11-03, reversíveis):** reenviar `lthr`/`max_hr` ao intervals.icu ao salvar
   (CA15); registrar cada salvamento só em log, sem tabela de histórico. Se o sinal "estimado → corrigido"
   for necessário para a métrica secundária, a tabela entra em change própria.
@@ -200,6 +224,13 @@ importado, o que não é o caso dos atletas recém-cadastrados de uma assessoria
   Define se esta change é pré-pilot. Critério: se o pilot vai mandar treino com meta de FC ao relógio
   (intervals.icu/Garmin), é pré-pilot — sem limiar medido o push descarta FC em zona/%. Afeta só a
   prioridade, não o escopo; fecha na task 0.3.
+  **Fechada (2026-11-03): é pré-pilot.** Pelo critério acima: o produto envia treino com meta de FC
+  ao relógio (intervals.icu e Garmin) e, sem limiar medido, o push descarta alvo de FC em zona/%
+  (`IntervalsIcuFcAlvoResolver`) — com estimativa, o pilot rodaria com o relógio sem meta de FC no
+  caso mais comum. Decisão pelo critério, não por informação nova: não há plano de pilot documentado
+  no product nem no Kanban, e o plano de pilot que dissesse o contrário (só ritmo, sem FC no relógio)
+  reabre a questão. Consequência: o front (seções 3 a 5) entra antes do pilot, logo depois do merge do
+  PR do backend.
 - **Resolvido (2026-11-03)** — A sincronização do intervals.icu **lê** `fc_limiar`/`fc_maxima` e
   envia ao intervals.icu; não grava em `tb_atleta`. Nada sobrescreve o que o treinador cadastra.
   `Atleta.getFcLimiarCalculada()` usa `0.85 × getFcMaximaCalculada()` quando `fc_limiar` é nulo, então

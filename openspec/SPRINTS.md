@@ -2,7 +2,16 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-10-22 (**`fix-tsb-rest-days-materialization` entregue e arquivada** —
+**Última atualização:** 2026-11-04 (**cinco changes arquivadas** em `changes/archive/2026-11/`,
+nenhuma tinha linha própria neste plano: `coach-cadastro-ancoras-zonas` (backend #209, front #182) e
+`coach-zonas-manuais` (backend #211, front #183), com deltas promovidos a `specs/coach-athlete-zones/`;
+`fix-garmin-workout-update` (backend #212); `fix-front-prod-dependency-vulns` (front #180);
+`fix-index-html-cache-control` (front #179, `no-cache` conferido em produção). **Adiados:** validação
+no relógio do PUT Garmin (3.1), métrica de zonas manuais aos 60 dias (3.1), confirmação do enum
+`FonteLimiar` com treinador (0.3) e follow-ups F1–F3 do front de âncoras, verificação manual do bump
+de dependências (3.4).)
+
+**Anterior:** 2026-10-22 (**`fix-tsb-rest-days-materialization` entregue e arquivada** —
 backend PR **#188** (mergeado em 2026-10-21). M · Full, só backend, sem migration. Entregue:
 `recalcularDesde(atleta, inicio, fim)` atômico e serializado por advisory lock, seed decaído pela
 distância até a última métrica, `TsbDecaimentoDiarioScheduler` (cron horário `0 30 * * * *`, hoje no

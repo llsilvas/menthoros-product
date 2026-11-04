@@ -29,7 +29,7 @@ antes do PR (o `GarminTrainingPushIT` só roda no `verify`).
 
 ## 3. Validação real
 
-- [ ] 3.1 No ambiente de testes, re-aprovar um plano de atleta Garmin conectado: confirmar que o GET
+- [ ] 3.1 **Adiada (2026-11-04, arquivamento): código mergeado no backend #212; validação no relógio ainda não feita.** No ambiente de testes, re-aprovar um plano de atleta Garmin conectado: confirmar que o GET
   traz `ownerId`, que o PUT volta 200 e que o treino atualizado aparece no relógio; conferir no
   device o alerta de pace com a faixa ±5 s/km e que, num intervalado, o relógio vai do último tiro
   direto ao desaquecimento (`skipLastRestStep`). Registrar resultado aqui.
