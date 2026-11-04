@@ -98,3 +98,6 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
 - **Follow-up:** `font.display` ficou igual a `font.text` (D2, decisão de não renomear). Colapsar o
   token, ou marcá-lo `@deprecated`, é change à parte. Idem o `fontFamily: (t) => t.typography.h4.fontFamily`
   redundante no `CoachDialog`.
+- **Fechamento (2026-11-04):** entregue pelo front PR #186 (mergeado em `develop` em 2026-11-04). O
+  ajuste do botão "Salvar zonas" numa linha só (`7fb347b`) chegou depois do merge e segue no PR #187.
+  Adiados: overflow de 8px do `DashboardLayout` e o colapso de `font.display` (follow-ups acima).
