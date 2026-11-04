@@ -23,10 +23,10 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
 
 ## 2. Temas aninhados
 
-- [ ] 2.1 Teste primeiro: `coachTheme` h1–h4 em Inter, tamanhos inalterados, peso ≥ 700 (CA3); substituir o
+- [x] 2.1 Teste primeiro: `coachTheme` h1–h4 em Inter, tamanhos inalterados, peso ≥ 700 (CA3); substituir o
   `it('mantém Syne nos títulos')`. Idem `athleteTheme` (`'títulos em font.display'`), conforme Q1.
-- [ ] 2.2 `coachTheme`: remover `SYNE`; h1–h4 em Inter com pesos de D3. *verify:* `npm run test:run -- coachTheme` verde.
-- [ ] 2.3 `athleteTheme`: segue o token (nada a mudar se 1.4 bastar); conferir. *verify:* testes do
+- [x] 2.2 `coachTheme`: remover `SYNE`; h1–h4 em Inter com pesos de D3. *verify:* `npm run test:run -- coachTheme` verde.
+- [x] 2.3 `athleteTheme`: segue o token (nada a mudar se 1.4 bastar); conferir. *verify:* testes do
   tema e `AthleteLayout.test.tsx` verdes.
 
 ## 3. Overrides fixos
@@ -70,3 +70,5 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
   waitlist usam `landingTheme`, standalone (não estende `appTheme`).
 - 1.2/1.4: a troca do token já muda os títulos do atleta, então o `it` de `athleteTheme.test.ts`
   sobre Space Grotesk foi ajustado aqui (antecipa parte da 2.1).
+- 2.3: `athleteTheme` não precisou de mudança de código; segue o token `font.display` (1.4). Só o
+  comentário mudou.
