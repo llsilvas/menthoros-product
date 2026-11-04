@@ -54,7 +54,7 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
   (hoje só rejeita Syne). *verify:* `npm run test:e2e -- smoke-tema`.
 - [x] 5.2 CA6: E2E ou teste de componente afirmando o título do `CoachDialog` em Inter e `heading`
   nível 2. *verify:* `npm run test:run -- CoachDialog` (ou o spec E2E da 5.1) verde.
-- [ ] 5.3 Revisão visual (screenshots) de: inbox do coach, revisão de plano + diálogo de zonas, lista
+- [x] 5.3 Revisão visual (screenshots) de: inbox do coach, revisão de plano + diálogo de zonas, lista
   de atletas legada, home do atleta. Anexar em "Notas". *verify:* o founder aprova por escrito em
   "Notas"; critério: títulos distinguíveis do corpo e números legíveis sem zoom em 100%.
 - [x] 5.4 Gate final: `npm run lint && npm run build && npm run test:run && npm run test:e2e`. A suíte
@@ -85,4 +85,4 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
   regressão. O smoke do legado verifica só a fonte, com comentário apontando para cá.
 - 5.4 (2026-11-04): lint ok, build ok, 2568 testes unitários e 135 E2E verdes.
 - 5.3: screenshots (inbox do coach, revisão + diálogo de zonas, lista de atletas legada, home do
-  atleta) enviadas ao founder; aguardando aprovação.
+  atleta) enviadas ao founder; **aprovadas pelo founder em 2026-11-04**.
