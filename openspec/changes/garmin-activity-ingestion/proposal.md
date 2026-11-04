@@ -34,7 +34,7 @@ registrar a atribuição "Garmin [modelo]" que a licença exige.
   `deviceName` para a atribuição.
 - Front: atribuição **"Garmin [modelo]"** (ou "Garmin" quando desconhecido) visível junto ao
   título em todo lugar que mostra treino realizado com `fonteDados = GARMIN` — card do atleta,
-  análise, calendário/lista do treinador e exports. Flag `garminHabilitado` removida: o canal
+  análise, calendário/lista do treinador (o produto não exporta treinos). Flag `garminHabilitado` removida: o canal
   fica disponível ao atleta Garmin.
 - "Melhores esforços" fica indisponível para atleta de canal Garmin (painel com aviso), até
   `add-athlete-best-efforts` calcular a partir do FIT.
@@ -60,7 +60,7 @@ registrar a atribuição "Garmin [modelo]" que a licença exige.
   deviceName)`, `TreinoRealizadoOutputDto.deviceName`, `TreinoMapper`. Dedup e TSS/carga do dia
   continuam em `IngestaoTreinoRealizadoService.registrar` — nada novo ali.
 - **Frontend:** componente `FonteAttribution` ("Garmin [modelo]") usado em `TodayFeedbackCard`,
-  análise do treino, `RecentTrainingsPanel`, calendário do treinador e exports PDF/CSV;
+  análise do treino (`WorkoutDetailDrawer`), `RecentTrainingsPanel` e `CoachCalendarPage`;
   `MelhoresEsforcosPanel`/`EffortsBlock` com estado "indisponível para Garmin";
   `SyncStatusChip`/`CoachWatchLine` com dados da conexão Garmin; remoção de `garminHabilitado`.
 - **Não toca:** `FitParseServiceImpl`, `IngestaoTreinoRealizadoService`, scheduler/pull do
@@ -99,7 +99,7 @@ registrar a atribuição "Garmin [modelo]" que a licença exige.
 - **CA7b — Reclaim.** Given ping `SINCRONIZANDO` com `sincronizando_desde` > 10 min, Then volta a
   `PENDENTE` com `tentativas+1`; nunca fica preso.
 - **CA8 — Atribuição.** Given treino `fonteDados=GARMIN` com `deviceName`, When exibido no card de
-  hoje, na análise, na lista do treinador, no calendário e num export, Then o texto "Garmin
+  hoje, na análise, na lista do treinador e no calendário, Then o texto "Garmin
   Forerunner 970" aparece junto ao título, fora de tooltip ou área recolhida; sem `deviceName`,
   aparece "Garmin". Treino de outra fonte não mostra atribuição Garmin.
 - **CA9 — Esforços.** Given atleta com conexão Garmin ativa, Then a aba/painel de melhores

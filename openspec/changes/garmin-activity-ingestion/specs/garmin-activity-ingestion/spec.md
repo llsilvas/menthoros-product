@@ -3,7 +3,7 @@
 ## Purpose
 Entrada do treino realizado do atleta Garmin: o Garmin avisa que há um arquivo de atividade, o
 sistema o baixa uma única vez dentro da janela, transforma no treino realizado pelo mesmo caminho
-do upload de FIT, e exibe a origem "Garmin [modelo]" em toda tela e export.
+do upload de FIT, e exibe a origem "Garmin [modelo]" em toda tela que mostra o treino.
 
 ## ADDED Requirements
 
@@ -11,8 +11,10 @@ do upload de FIT, e exibe a origem "Garmin [modelo]" em toda tela e export.
 Cada aviso de arquivo de atividade recebido do Garmin SHALL ser registrado de forma durável e
 respondido com sucesso antes de qualquer download ou processamento. Avisos repetidos para a mesma
 atividade SHALL ser ignorados. Avisos de atividade que não é corrida, de atividade criada
-manualmente no Garmin Connect, ou de usuário sem conexão ativa SHALL ser registrados como
-descartados, com motivo, sem download.
+manualmente no Garmin Connect, de arquivo que não é FIT, ou de atleta com conexão Garmin inativa
+SHALL ser registrados como descartados, com motivo, sem download. Aviso de usuário Garmin que
+nunca se conectou SHALL NOT ser registrado (não há atleta a quem atribuí-lo) e a resposta continua
+sendo sucesso. Se o registro durável falhar, a resposta SHALL ser erro, para o Garmin reenviar.
 
 #### Scenario: Aviso de corrida
 - **WHEN** chega um aviso de arquivo de atividade de corrida de um atleta conectado
@@ -31,15 +33,26 @@ descartados, com motivo, sem download.
 - **WHEN** chega um aviso de atividade criada manualmente no Garmin Connect
 - **THEN** o aviso é descartado com motivo e o arquivo não é baixado
 
-#### Scenario: Usuário sem conexão
-- **WHEN** chega um aviso de um usuário Garmin sem conexão ativa
+#### Scenario: Conexão inativa
+- **WHEN** chega um aviso de um atleta cuja conexão Garmin está inativa
 - **THEN** o aviso é descartado com motivo e o arquivo não é baixado
+
+#### Scenario: Usuário desconhecido
+- **WHEN** chega um aviso de um usuário Garmin sem nenhuma conexão registrada
+- **THEN** nada é registrado, o arquivo não é baixado e a resposta é sucesso
+
+#### Scenario: Falha ao registrar
+- **WHEN** o registro durável do aviso falha
+- **THEN** a resposta é erro e o reenvio do Garmin não duplica o que já tinha sido registrado
 
 ### Requirement: Download único dentro da janela
 O arquivo SHALL ser baixado uma única vez, em até 24 horas do aviso, e processado em memória; o
-conteúdo bruto SHALL NOT ser guardado após o processamento. Falha transitória de download SHALL
-gerar nova tentativa, limitada a cinco; link já consumido ou expirado SHALL encerrar o aviso com
-erro sem nova tentativa. Avisos mais próximos de expirar SHALL ser processados primeiro.
+conteúdo bruto SHALL NOT ser guardado após o processamento. Falha transitória de download (erro do
+servidor, tempo esgotado, limite de requisições) SHALL gerar nova tentativa com espera crescente de
+até 60 minutos entre elas, sem limite de tentativas — o único limite é a janela de 24 horas. Link
+já consumido ou expirado, falta de permissão ou endereço de download fora do Garmin SHALL encerrar
+o aviso com erro sem nova tentativa. Avisos mais próximos de expirar SHALL ser processados
+primeiro. Aviso preso em processamento SHALL voltar a pendente.
 
 #### Scenario: Download bem-sucedido
 - **WHEN** o processamento baixa o arquivo e o treino é registrado
@@ -48,7 +61,20 @@ erro sem nova tentativa. Avisos mais próximos de expirar SHALL ser processados 
 
 #### Scenario: Garmin instável
 - **WHEN** o download falha por erro do servidor ou tempo esgotado
-- **THEN** o aviso volta a pendente com a tentativa contada; na quinta falha fica em erro com motivo
+- **THEN** o aviso volta a pendente com a tentativa contada e a próxima tentativa agendada com
+  espera crescente (teto de 60 minutos); seis falhas seguidas dentro da janela não o levam a erro
+
+#### Scenario: Endereço de download fora do Garmin
+- **WHEN** o endereço de download do aviso não é HTTPS no host e caminho de arquivos do Garmin
+- **THEN** o aviso fica em erro com motivo e nenhuma requisição é feita
+
+#### Scenario: Sem permissão
+- **WHEN** o Garmin recusa o download por autorização ou consentimento ausente
+- **THEN** o aviso fica em erro com motivo de permissão, sem nova tentativa
+
+#### Scenario: Processamento interrompido
+- **WHEN** um aviso está em processamento há mais de 10 minutos
+- **THEN** ele volta a pendente com a tentativa contada
 
 #### Scenario: Link já usado
 - **WHEN** o Garmin responde que o arquivo já foi baixado
@@ -80,9 +106,9 @@ enviado pelo Garmin e subido à mão SHALL produzir um único treino.
 
 ### Requirement: Atribuição de origem Garmin
 Todo lugar que mostra um treino realizado de fonte Garmin — card do atleta, análise do treino,
-lista e calendário do treinador, exports em PDF ou CSV — SHALL exibir "Garmin [modelo]" junto ao
-título do treino, visível sem interação, ou "Garmin" quando o modelo é desconhecido. Treinos de
-outras fontes SHALL NOT exibir atribuição Garmin.
+lista e calendário do treinador — SHALL exibir
+"Garmin [modelo]" junto ao título do treino, visível sem interação, ou "Garmin" quando o modelo é
+desconhecido. Treinos de outras fontes SHALL NOT exibir atribuição Garmin.
 
 #### Scenario: Card de hoje
 - **WHEN** o atleta vê o card do treino realizado de hoje vindo do Garmin
@@ -92,10 +118,6 @@ outras fontes SHALL NOT exibir atribuição Garmin.
 #### Scenario: Lista do treinador
 - **WHEN** o treinador vê a lista de treinos recentes com três treinos Garmin
 - **THEN** cada linha traz a atribuição, ou o cabeçalho a traz uma vez para a lista inteira
-
-#### Scenario: Export
-- **WHEN** o treinador exporta treinos do atleta em PDF ou CSV
-- **THEN** a atribuição acompanha cada treino Garmin no arquivo
 
 #### Scenario: Modelo desconhecido
 - **WHEN** o Garmin não informou o modelo do dispositivo

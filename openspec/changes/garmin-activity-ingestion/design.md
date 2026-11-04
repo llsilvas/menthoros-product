@@ -20,8 +20,16 @@ Ver `proposal.md` e ADR-0013. Estado que molda o desenho:
 - `IntervalsIcuRetrySchedulerImpl` é o molde de `@Scheduled` que processa um lote de linhas
   pendentes com transações curtas e HTTP fora delas.
 - `MelhorEsforcoServiceImpl` usa `pace-curves` do intervals.icu (não existe no Garmin).
-- Front: `TodayFeedbackCard`, `RecentTrainingsPanel`, `CoachCalendarPage`, análise do treino,
-  exports; `SyncStatusChip`, `CoachWatchLine`; flag `garminHabilitado` de `garmin-connection`.
+- Front: `TodayFeedbackCard`, `RecentTrainingsPanel`, `CoachCalendarPage`, análise do treino
+  (`WorkoutDetailDrawer`); `SyncStatusChip`, `CoachWatchLine`; flag `garminHabilitado` de
+  `garmin-connection`. O produto não exporta treinos.
+- Webhook: `GarminWebhookController` valida o segredo e chama `GarminWebhookService.processar(Map)`
+  sempre devolvendo 200; o roteamento por chave está em `GarminWebhookServiceImpl`, deliberadamente
+  sem `@Transactional` no lote, cada item em transação própria e exceção por item engolida com log.
+- `GarminConnectionStatusDto` já tem `activityExport`; falta só a data da última atividade.
+- `FitTreinoPersister.persistir(atletaId, dados)` devolve `FitImportResultado` com `novo()` e o id
+  do treino (novo ou existente).
+- Última migration em `develop`: `V108__add_zonas_manuais_atleta.sql`.
 
 ## Goals / Non-Goals
 
@@ -47,18 +55,31 @@ externalAthleteId=userId)`), `user_id`, `summary_id` UNIQUE, `activity_id`, `cal
 PROCESSADO, DESCARTADO, ERRO), `motivo`, `tentativas`, `proxima_tentativa_em`,
 `sincronizando_desde` nullable, `treino_realizado_id` nullable, `criado_em`, `processado_em`.
 Sem `bytea`. Padrão de tabela do CLAUDE.md do backend (UUID, TIMESTAMPTZ,
-índice `(tenant_id, status)` e `(status, criado_em)`). Alternativa rejeitada: baixar inline no
+índice `(tenant_id, status)` e `(status, criado_em)`). Migration `V109__create_tb_garmin_ping.sql`
+(conferir o último número antes de criar). Tipos: `summary_id`/`activity_id`/`user_id`
+`VARCHAR(100)`, `callback_url VARCHAR(1000)`, `activity_type VARCHAR(50)`, `device_name
+VARCHAR(255)`, `start_time TIMESTAMPTZ`, `manual BOOLEAN NOT NULL`, `status VARCHAR(20) NOT NULL`
+com `CHECK` nos cinco valores, `motivo VARCHAR(500)`, `tentativas INT NOT NULL DEFAULT 0`,
+`proxima_tentativa_em TIMESTAMPTZ NOT NULL`; `tenant_id`/`atleta_id` `NOT NULL` com FK.
+`summary_id` UNIQUE **global**, não por tenant: o `summaryId` é único no Garmin. Alternativa
+rejeitada: baixar inline no
 request — se a persistência falhar depois do 200, o arquivo some para sempre.
 
 ### D2: Recepção decide descarte sem rede
-`GarminWebhookController` → `GarminPingService.registrar(List<JsonNode>)` em transação curta:
-`summaryId` repetido → ignora; `userId` sem nenhuma `IntegracaoExterna(GARMIN)` → **não grava**,
+`GarminWebhookServiceImpl.processar` ganha a chave `activityFiles` e delega a
+`GarminPingService.registrar(List<JsonNode>)`. O controller não muda. `registrar` segue a regra de
+insert-or-ignore do CLAUDE.md do backend: **sem `@Transactional`**, cada item é um `save` em
+transação própria, e `DataIntegrityViolationException` na UNIQUE de `summary_id` = repetido →
+ignora. Diferente de `deregistrations`/`userPermissionsChange`, `activityFiles` **não passa pelo
+`porItem` que engole exceção**: qualquer outra falha de gravação propaga, o
+`GlobalExceptionHandler` (handler genérico) responde 500 e o Garmin reenvia o lote inteiro — o que
+já foi gravado é absorvido pelo dedup. Engolir aqui perderia o arquivo para sempre.
+`userId` sem nenhuma `IntegracaoExterna(GARMIN)` → **não grava**,
 só loga (ADR-0013: "200 sem efeito"; sem atleta não há `tenant_id`, que é `NOT NULL`);
 `activityType` fora do conjunto de corrida, `manual=true`, `fileType != FIT`, ou conexão do
 atleta inativa → `DESCARTADO` com motivo; senão `PENDENTE`. O controller responde 200 depois
-disso (dois `INSERT`, bem abaixo de 30 s); se o `INSERT` falhar, responde 5xx para o Garmin
-reenviar o ping (Activity API §8.2: ping com status ≠ 200 é reenviado com backoff), e o dedup por
-`summaryId` absorve a reentrega. Conjunto de corrida (Activity API, Appendix A): `RUNNING,
+disso (um `INSERT` por item, bem abaixo de 30 s; Activity API §8.2: ping com status ≠ 200 é
+reenviado com backoff). Conjunto de corrida (Activity API, Appendix A): `RUNNING,
 INDOOR_RUNNING, OBSTACLE_RUN, STREET_RUNNING, TRACK_RUNNING, TRAIL_RUNNING, TREADMILL_RUNNING,
 ULTRA_RUN, VIRTUAL_RUN`.
 
@@ -99,8 +120,8 @@ dias para investigação.
 
 ### D6: Atribuição por componente único no front
 `FonteAttribution({ fonteDados, deviceName })` renderiza o modelo do dispositivo ou "Garmin" para
-`GARMIN`, nada para as demais fontes; usado nos cinco pontos de exibição e nos exports (texto
-plano em CSV, linha abaixo do título no PDF). Não usa o logo (evita as regras do tag logo).
+`GARMIN`, nada para as demais fontes; usado nos pontos de exibição (`TodayFeedbackCard`,
+`WorkoutDetailDrawer`, `RecentTrainingsPanel`, `CoachCalendarPage`). Não usa o logo (evita as regras do tag logo).
 Alternativa rejeitada: `fonteDados.label` genérico — a licença pede o modelo do dispositivo.
 
 Texto: o `deviceName` vem inconsistente na Activity API — "Garmin Fenix 8" no exemplo de
@@ -116,6 +137,14 @@ Garmin" quando a conexão de canal não é intervals.icu, em vez de tentar `pace
 
 ### D8: Flag `garminHabilitado` removida
 Último passo da change; a conexão Garmin passa a ser oferecida a todo atleta com marca GARMIN.
+Sítios: backend `GarminProperties.habilitado` + `application.yml` (`GARMIN_HABILITADO`) + a
+checagem em `GarminOAuthServiceImpl`; front `src/config/env.ts`, `public/env-config.js`,
+`docker/docker-entrypoint.sh`, `AthleteProfilePage`, `OnboardingRelogioStep`,
+`watchCompatibility.ts` e os testes que os cobrem (`env`, `ConnectionCardGarmin`, `CoachWatchLine`,
+`OnboardingRelogioStep`, `AthleteProfilePage`, `watchCompatibility`).
+`GarminCanalIndisponivelException` continua para o caso "sem client ID/secret"; só o javadoc perde
+a menção à flag. Env var `GARMIN_HABILITADO`/`VITE_GARMIN_HABILITADO` que sobrar no Railway é
+ignorada; apagá-las é passo manual pós-deploy.
 
 ## Risks / Trade-offs
 
@@ -130,7 +159,7 @@ Garmin" quando a conexão de canal não é intervals.icu, em vez de tentar `pace
   `TreinoRegistradoEvent`, e o `WorkoutAnalysisListener` envia o treino ao LLM. Pela 15.11, a
   saída também é dado Garmin: não pode alimentar treino de modelo e a análise exibida precisa da
   atribuição. Ver Open Questions.
-- [Atribuição esquecida num ponto novo da UI] → teste de componente cobre os cinco pontos; a
+- [Atribuição esquecida num ponto novo da UI] → teste de componente cobre os quatro pontos; a
   licença dá 14 dias para corrigir.
 
 ## Migration Plan
@@ -149,7 +178,7 @@ Garmin" quando a conexão de canal não é intervals.icu, em vez de tentar `pace
   existente só quando aparecer um caso real. Não muda spec nem tasks.
 - **Bloqueia o go-live (task 4.4) — aviso prévio 6.6.** A licença exige avisar o Garmin
   (`connect-support@developer.garmin.com`, com mockups e descrição da conformidade) **30 dias antes**
-  de lançar UI nova que exibe dado Garmin. Esta change cria cinco pontos de exibição mais exports.
+  de lançar UI nova que exibe dado Garmin. Esta change cria quatro pontos de exibição.
   Falta confirmar se o aviso já foi enviado (inclusive para `garmin-connection`) e a data; o
   `activityFiles` em produção não deve ser habilitado antes do prazo.
 - **Bloqueia o go-live (task 4.4) — IA sobre dado Garmin (15.10/15.11).** Confirmar com o founder:

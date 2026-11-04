@@ -1,64 +1,100 @@
 # Tasks — garmin-activity-ingestion
 
-Backend valida com `./mvnw clean verify`; frontend com `npm run lint && npm run build && npm
-test`. Pré-requisito: `garmin-connection` mergeada (`garmin-training-push` é independente).
+Backend valida com `./mvnw clean verify`; frontend com `npm run lint && npm run build && npm run
+test:run`. Pré-requisito: `garmin-connection` mergeada (arquivada em 2026-11-01).
+`garmin-training-push` é independente.
 
-## 1. Fila de pings
+Ordem: 1 → 2 → 3.1 no backend (cada task depende da anterior); 3.2 backend antes do front;
+4.1 depois que o backend com `deviceName` e `ultimaAtividadeEm` estiver no ar (regenera o
+cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activity-ingestion` e
+`front-garmin-activity-ingestion`.
 
-- [ ] 1.1 Migration `Vxx__create_tb_garmin_ping.sql` conforme D1 (UUID, TIMESTAMPTZ, `summary_id`
-  UNIQUE, `proxima_tentativa_em`, `sincronizando_desde`, índices `(tenant_id, status)` e
-  `(status, criado_em)`); `./mvnw clean test` sobe com a migration.
-- [ ] 1.2 Entidade `GarminPing` + `GarminPingRepository` (`findPendentesPorAntiguidade(limite,
-  agora, desde)`, `findExpirados`, `findSincronizandoPresos`, `deleteProcessadosAntesDe`);
-  `@DataJpaTest` dos quatro.
-- [ ] 1.3 `GarminPingService.registrar(List<JsonNode>)` (D2): dedup por `summaryId`, resolução
-  `userId → IntegracaoExterna(GARMIN)` → `atletaId`/`tenantId`, descarte por modalidade, `manual`,
-  `fileType` e conexão inativa; `userId` desconhecido não grava; testes parametrizados por
-  `activityType` (os 9 de corrida + amostra de não-corrida) e pelos motivos de descarte (CA1, CA2,
-  CA6).
-- [ ] 1.4 `GarminWebhookController` roteia `activityFiles` para `registrar` e responde 200 depois
-  do `INSERT`; `@WebMvcTest` prova que nenhuma chamada HTTP de saída acontece no request (CA1).
+## 1. Fila de pings (backend)
 
-## 2. Processamento
+- [ ] 1.1 Migration `V109__create_tb_garmin_ping.sql` conforme D1: UUID, TIMESTAMPTZ, tipos e
+  `CHECK` do `status` do D1, `summary_id` UNIQUE global, `tenant_id`/`atleta_id` `NOT NULL` com FK,
+  `proxima_tentativa_em`, `sincronizando_desde`, índices `(tenant_id, status)` e
+  `(status, criado_em)`. Conferir o último `V` em `develop` antes de numerar.
+  verify: `./mvnw clean test` sobe o contexto com a migration aplicada no Testcontainers.
+- [ ] 1.2 Entidade `GarminPing` + enum de status + `GarminPingRepository`
+  (`findPendentesPorAntiguidade(limite, agora, desde)`, `findExpirados`,
+  `findSincronizandoPresos`, `deleteAntesDe(status, data)`).
+  verify: `@DataJpaTest` dos quatro métodos, inclusive a ordem por `criado_em` e o filtro de
+  `proxima_tentativa_em`.
+- [ ] 1.3 `GarminPingService.registrar(List<JsonNode>)` (D2), **sem `@Transactional`**: um `save`
+  por item; `DataIntegrityViolationException` em `summary_id` = repetido, ignora; resolve
+  `userId → IntegracaoExterna(GARMIN)` → `atletaId`/`tenantId`; `userId` sem conexão registrada
+  não grava; descarte com motivo por modalidade, `manual=true`, `fileType != FIT` e conexão inativa;
+  outras falhas de gravação propagam.
+  verify: testes parametrizados pelos 9 `activityType` de corrida + amostra de não-corrida, por
+  cada motivo de descarte, `userId` desconhecido (nada gravado), `summaryId` repetido (ignorado) e
+  falha de gravação propagando (CA1, CA2, CA6).
+- [ ] 1.4 `GarminWebhookServiceImpl.processar` trata a chave `activityFiles` delegando a
+  `registrar` **fora do `porItem`** (exceção não é engolida); controller sem mudança.
+  verify: teste do service — `activityFiles` chega a `registrar`, falha de gravação propaga;
+  `@WebMvcTest` do controller — 200 com lote válido, 500 quando `registrar` lança, e nenhuma
+  chamada a `GarminClient` durante o request (CA1).
 
-- [ ] 2.1 `GarminClient.baixarArquivo(callbackUrl)` devolvendo `byte[]`/`InputStream`; valida
-  esquema/host/path do `callbackURL` antes de qualquer requisição (CA6b); erros HTTP viram
-  `GarminApiException` com status; teste com `MockRestServiceServer` (sucesso, 401, 403, 404, 410,
-  412, 429, 5xx, timeout) e teste de URL rejeitada sem requisição (host alheio, http, path alheio).
-- [ ] 2.2 `FitTreinoPersister.persistir(atletaId, dados, deviceName)`; `FitUploadServiceImpl` passa
-  `null`; `TreinoMapper`/`TreinoRealizadoOutputDto` expõem `deviceName`; testes existentes
-  ajustados + asserção do `deviceName` (D4).
-- [ ] 2.3 `GarminPingProcessorScheduler` (D3): claim em TX própria, download + parse fora de TX,
-  persistência em TX, transições `PROCESSADO`/`PENDENTE+tentativas+backoff`/`ERRO` por tipo de falha,
-  expiração em 24 h, reclaim de `SINCRONIZANDO` preso, ordem por antiguidade; testes unitários no
-  molde de `IntervalsIcuRetrySchedulerImpl` cobrindo CA3–CA7b (inclui 6 falhas 5xx seguidas dentro
-  da janela sem virar `ERRO`).
-- [ ] 2.4 `@Scheduled` diário de limpeza (D5); teste do filtro de datas.
+## 2. Processamento (backend)
+
+- [ ] 2.1 `GarminClient.baixarArquivo(callbackUrl)` devolvendo `byte[]`; valida esquema `https`,
+  host `apis.garmin.com` e path `/wellness-api/rest/activityFile` antes de qualquer requisição
+  (CA6b); erros HTTP viram `GarminApiException` com status.
+  verify: `MockRestServiceServer` para sucesso, 401, 403, 404, 410, 412, 429, 5xx e timeout; URL
+  rejeitada (host alheio, `http`, path alheio) sem nenhuma requisição.
+- [ ] 2.2 `FitTreinoPersister.persistir(atletaId, dados, deviceName)` — o `FitImportResultado`
+  (`novo()` + id do treino) é o que o scheduler usa para o CA4; `FitUploadServiceImpl` passa
+  `null`; `TreinoMapper`/`TreinoRealizadoOutputDto` expõem `deviceName` (campo novo anulável no
+  OpenAPI, não quebra o cliente).
+  verify: testes existentes do persister e do upload verdes com a assinatura nova + asserção de
+  `deviceName` persistido e no DTO (D4).
+- [ ] 2.3 `GarminPingProcessorScheduler` (D3): reclaim de `SINCRONIZANDO` preso > 10 min,
+  expiração > 24 h, lote de 20 por antiguidade, claim em TX própria, download + parse fora de TX,
+  persistência em TX; transições `PROCESSADO` / `PENDENTE` + `tentativas+1` + backoff
+  `min(2^tentativas, 60)` min sem teto de tentativas / `ERRO` por tipo de falha (410/404,
+  401/403/412, `FitParseException`, URL inválida). Premissa: uma instância (D3 `shortcut`).
+  verify: testes unitários no molde de `IntervalsIcuRetrySchedulerImpl` cobrindo CA3–CA7b, inclusive
+  6 falhas 5xx seguidas dentro da janela sem virar `ERRO` e 429 seguindo o backoff.
+- [ ] 2.4 `@Scheduled` diário de limpeza (D5): `PROCESSADO`/`DESCARTADO` > 30 dias, `ERRO` > 90
+  dias.
+  verify: teste do filtro de datas e status.
 
 ## 3. Melhores esforços e estado da conexão
 
 - [ ] 3.1 `MelhorEsforcoServiceImpl`: conexão de canal Garmin → `DomainConflictException`
-  "indisponível para o canal Garmin"; teste (CA9).
+  "indisponível para o canal Garmin", sem chamar `pace-curves`.
+  verify: teste unitário — 409 e nenhuma interação com `IntervalsIcuClient` (CA9).
 - [ ] 3.2 `GarminConnectionStatusDto` ganha `ultimaAtividadeEm` (do ping `PROCESSADO` mais
-  recente) e `activityExport`; `AtletaPerfilCoachOutputDto`/`CoachWatchLine` mostram canal direto,
-  estado e última atividade; `SyncStatusChip` lê a conexão Garmin; testes de componente para os
-  três cenários da spec `watch-connection-guide`.
+  recente; `activityExport` já existe); `AtletaPerfilCoachOutputDto` expõe o mesmo; no front,
+  `CoachWatchLine` mostra canal direto, estado e última atividade e `SyncStatusChip` lê a conexão
+  Garmin.
+  verify: teste do service do status com e sem ping processado; testes de componente para os três
+  cenários da spec `watch-connection-guide` (ativa, sem permissão, revogada).
 
 ## 4. Atribuição no front
 
-- [ ] 4.1 Regenerar cliente OpenAPI (`deviceName`, `ultimaAtividadeEm`); componente
-  `FonteAttribution` com teste: GARMIN+modelo sem prefixo ("Forerunner 970" → "Garmin Forerunner
-  970"), GARMIN+modelo com prefixo ("Garmin Fenix 8" sem duplicar), GARMIN sem modelo / `unknown`
-  → "Garmin", outra fonte → nada (CA8, D6).
-- [ ] 4.2 Inserir `FonteAttribution` junto ao título em `TodayFeedbackCard`, análise do treino,
-  `RecentTrainingsPanel`, `CoachCalendarPage` e nos exports PDF/CSV; um teste por ponto afirmando
-  o texto visível sem interação (CA8).
+- [ ] 4.1 Regenerar o cliente OpenAPI (`deviceName`, `ultimaAtividadeEm`); componente
+  `FonteAttribution` (D6).
+  verify: teste do componente — GARMIN + "Forerunner 970" → "Garmin Forerunner 970"; GARMIN +
+  "Garmin Fenix 8" sem duplicar; GARMIN sem modelo ou `unknown` → "Garmin"; outra fonte → nada
+  (CA8).
+- [ ] 4.2 Inserir `FonteAttribution` junto ao título em `TodayFeedbackCard`, `WorkoutDetailDrawer`
+  (análise do treino), `RecentTrainingsPanel` e `CoachCalendarPage`.
+  verify: um teste por ponto afirmando o texto visível sem interação (CA8); `CoachCalendarPage` não
+  tem teste hoje — criar o do ponto.
 - [ ] 4.3 `MelhoresEsforcosPanel`/`EffortsBlock`: aviso de indisponibilidade quando o canal é
-  Garmin, sem requisição; teste (CA9).
-- [ ] 4.4 Remover as flags `VITE_GARMIN_HABILITADO` (front) e `garmin.habilitado` (backend) e seus
-  testes; apagar a entrada `GARMIN_VIA_INTERVALS` de `watchCompatibility.ts` e promover a entrada
-  GARMIN a "Suportado" após o gate com atleta real pelo canal direto (5.2); validação canal × marca
-  do onboarding passa a valer sem flag; `npm run lint && npm run build && npm test` verdes (CA10).
+  Garmin, sem requisição.
+  verify: teste de componente — texto "Indisponível para o canal Garmin por enquanto" e nenhuma
+  chamada ao service (CA9).
+- [ ] 4.4 Remover a flag (D8), depois do gate 5.2. Backend: `GarminProperties.habilitado`,
+  `application.yml` (`GARMIN_HABILITADO`), checagem em `GarminOAuthServiceImpl`, javadoc de
+  `GarminCanalIndisponivelException` (a exceção fica para "sem client ID/secret"). Front:
+  `src/config/env.ts`, `public/env-config.js`, `docker/docker-entrypoint.sh`,
+  `AthleteProfilePage`, `OnboardingRelogioStep`, `watchCompatibility.ts` (apagar
+  `GARMIN_VIA_INTERVALS`, promover GARMIN a "Suportado") e os testes correspondentes. Validação
+  canal × marca do onboarding passa a valer sem flag.
+  verify: `grep -ri "garmin.\?habilitado"` vazio nos dois repos; stack gate verde nos dois (CA10).
+  Pós-deploy, manual: apagar `GARMIN_HABILITADO`/`VITE_GARMIN_HABILITADO` do Railway.
 
 ## 5. Integração
 
@@ -66,9 +102,17 @@ test`. Pré-requisito: `garmin-connection` mergeada (`garmin-training-push` é i
   com `callbackURL` stubada devolvendo `src/test/resources/fit/corrida-15km-16laps.fit` →
   `TreinoRealizado(GARMIN, deviceName, 16 etapas, TSS)` → segundo POST igual não duplica → upload
   manual do mesmo FIT não duplica (CA1, CA3, CA4).
+  verify: o IT passa em `./mvnw clean verify`.
 - [ ] 5.2 Validar no ambiente de testes com relógio real (summary type `activityFiles` habilitado
-  no portal) e registrar em `menthoros-infra/docs`: tempo ping → treino, `deviceName` real;
-  `./mvnw clean verify` verde.
+  no portal) e registrar em `menthoros-infra/docs`: tempo ping → treino, `deviceName` real.
+  verify: treino real aparece com "Garmin [modelo]" no card e na lista do treinador; registro
+  commitado no `menthoros-infra`.
+
+## Gates de go-live (não bloqueiam implementar)
+
+- Aviso prévio de 30 dias ao Garmin (licença 6.6) enviado, com data — antes de habilitar
+  `activityFiles` em produção. Dono: founder.
+- Confirmações de IA 15.10/15.11 (design, Open Questions). Dono: founder.
 
 ## Workflow follow-up
 
