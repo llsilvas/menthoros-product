@@ -31,7 +31,7 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
 
 ## 3. Overrides fixos
 
-- [ ] 3.1 (depende de 1.x e 2.x) Remover `fontFamily: 'Syne, sans-serif'` de `CoachInboxPage`, `HomePage`, `AtletasList`,
+- [x] 3.1 (depende de 1.x e 2.x) Remover `fontFamily: 'Syne, sans-serif'` de `CoachInboxPage`, `HomePage`, `AtletasList`,
   `DetalheTreinoDialog`, `AtletaDialog`. Revisar `CoachDialog` (lê `h4.fontFamily`, passa a Inter
   pelo tema) e atualizar o comentário dele. Grep por `typography.h[1-6].fontFamily` e constantes
   locais com Syne. *verify:* CA4 — `grep -rn "Syne" src` só em comentário, landing e waitlist.
@@ -72,3 +72,6 @@ Branch (criada no `/implement init`): `refactor/padronizar-tipografia-inter`.
   sobre Space Grotesk foi ajustado aqui (antecipa parte da 2.1).
 - 2.3: `athleteTheme` não precisou de mudança de código; segue o token `font.display` (1.4). Só o
   comentário mudou.
+- 3.1: componentes que leem `typography.h4/h6.fontFamily` do tema (`ConfirmDialog`, `CoachDialog`,
+  blocos de progresso do atleta) já resolvem para Inter, sem mudança. Guarda de regressão do CA4 em
+  `src/theme/semSyne.test.ts`.
