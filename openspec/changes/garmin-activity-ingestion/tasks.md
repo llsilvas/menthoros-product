@@ -42,14 +42,14 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
 
 ## 2. Processamento (backend)
 
-- [ ] 2.1 `GarminClient.baixarArquivo(callbackUrl)` devolvendo `byte[]`; `GarminWebClientConfig`
+- [x] 2.1 `GarminClient.baixarArquivo(callbackUrl)` devolvendo `byte[]`; `GarminWebClientConfig`
   ganha `maxInMemorySize` de 16 MiB (o padrão de 256 KiB é menor que a fixture de 584 KB); valida esquema `https`,
   host `apis.garmin.com` e path `/wellness-api/rest/activityFile` antes de qualquer requisição
   (CA6b); erros HTTP viram `GarminApiException` com status.
   verify: download da fixture `corrida-15km-16laps.fit` pelo `garminWebClient` real (MockWebServer
   ou WireMock) sem `DataBufferLimitException`; stub para sucesso, 401, 403, 404, 410, 412, 429, 5xx e timeout; URL
   rejeitada (host alheio, `http`, path alheio) sem nenhuma requisição.
-- [ ] 2.2 `FitTreinoPersister.persistir(atletaId, dados, deviceName)` — o `FitImportResultado`
+- [x] 2.2 `FitTreinoPersister.persistir(atletaId, dados, deviceName)` — o `FitImportResultado`
   (`novo()` + id do treino) é o que o scheduler usa para o CA4; `FitUploadServiceImpl` passa
   `null`; na duplicata, preenche `deviceName` do existente só se nulo, sem repetir TSS/evento/carga
   (D4). `deviceName` (campo anulável, não quebra o cliente) nos quatro DTOs:
@@ -58,7 +58,7 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
   verify: testes existentes do persister e do upload verdes com a assinatura nova + asserção de
   `deviceName` persistido, preenchido na duplicata e presente em cada DTO (teste do montador, não
   só do record).
-- [ ] 2.3 `GarminPingProcessorScheduler` (D3): reclaim de `SINCRONIZANDO` preso > 10 min,
+- [x] 2.3 `GarminPingProcessorScheduler` (D3): reclaim de `SINCRONIZANDO` preso > 10 min,
   expiração > 24 h, lote de 20 por antiguidade; por ping, `TenantContext` do ping instalado e limpo
   em `finally`; claim em TX própria; revalida conexão ativa (inativa → `DESCARTADO`, sem
   download); download + parse fora de TX; persistência em TX gravando
@@ -69,7 +69,7 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
   6 falhas 5xx seguidas dentro da janela sem virar `ERRO`, 429 seguindo o backoff, conexão revogada
   entre a recepção e o job (sem download), lote com pings de dois tenants (cada treino no seu tenant,
   contexto limpo depois) e `ultimaSincronizacao` gravada.
-- [ ] 2.4 `@Scheduled` diário de limpeza (D5): `PROCESSADO`/`DESCARTADO` > 30 dias, `ERRO` > 90
+- [x] 2.4 `@Scheduled` diário de limpeza (D5): `PROCESSADO`/`DESCARTADO` > 30 dias, `ERRO` > 90
   dias.
   verify: teste do filtro de datas e status.
 
