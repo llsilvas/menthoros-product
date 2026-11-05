@@ -11,7 +11,7 @@
 
 - [x] **0.1 Fechar Q1** — ✅ 2026-10-26: o eixo é **sempre do treinador**; a regra de D5 é só
   pré-preenchimento trocável num clique, nunca reaplicada depois que ele toca. Registrado em D5
-- [ ] **0.2 Medir no banco de dev** quantas etapas têm `ritmoAlvo` e `fcAlvoEtapa` nos formatos
+- [ ] **0.2** **Adiada (2026-11-05, arquivamento): medição não feita antes do merge; vale como diagnóstico, não bloqueia.** Medir no banco de dev quantas etapas têm `ritmoAlvo` e `fcAlvoEtapa` nos formatos
   canônicos (`PACE_FAIXA`, `FC_BPM`), quantas casam uma zona do atleta (tolerância 1 bpm / 2 s) e
   quantas ficariam `PERSONALIZADO` — dimensiona o CA12. Contar antes de olhar linha a linha
 - [x] **0.3 Decidir Q3** — ✅ 2026-10-26: RPE típico como referência em cinza com tooltip (opção 2)
@@ -257,8 +257,8 @@
 - [x] **8.1** Atualizar `openspec/specs/fc-limiar-zones/spec.md` e criar
   `openspec/specs/coach-athlete-zones/spec.md` a partir dos deltas desta change
 - [x] **8.2** Arquivar `coach-meta-intensidade-editor` como superseded, com ponteiro para esta
-- [ ] **8.3** Abrir change de follow-up: distribuição de intensidade semanal + CTL/ATL + variação vs.
+- [ ] **8.3** **Adiada (2026-11-05, arquivamento): follow-up de change própria; `revalidar-fatores-pace-zonas` já aberta, distribuição de intensidade/CTL/ATL e prompt v2 com `alvoPrimario` ainda sem change.** Abrir change de follow-up: distribuição de intensidade semanal + CTL/ATL + variação vs.
   semana anterior no cabeçalho do plano (fora de escopo aqui); revalidar fatores de pace → já aberta como `revalidar-fatores-pace-zonas`;
   prompt v2 prescrever `alvoPrimario`
-- [ ] **8.4** Validar ponta a ponta com conta real no intervals.icu: etapa Z5 com `alvoPrimario = PACE`
+- [ ] **8.4** **Adiada (2026-11-05, arquivamento): depende de conta real no intervals.icu.** Validar ponta a ponta com conta real no intervals.icu: etapa Z5 com `alvoPrimario = PACE`
   chega ao relógio como alvo de ritmo, não de FC

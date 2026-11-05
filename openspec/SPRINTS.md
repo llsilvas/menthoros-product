@@ -2,7 +2,14 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-04 (**`implement-worktree-por-change` arquivada** — workflow PR #5
+**Última atualização:** 2026-11-05 (**`coach-zonas-pace-fc-prescricao` arquivada** — backend PR #193 e
+front PR #173 (mergeados em `develop`). M · Full. 41/44 tasks. **Adiado:** 0.2 (medição dos formatos
+canônicos no banco de dev), 8.4 (validação ponta a ponta com conta real no intervals.icu). **Follow-up:**
+8.3 — `revalidar-fatores-pace-zonas` já aberta; distribuição de intensidade semanal + CTL/ATL e prompt
+v2 com `alvoPrimario` ainda sem change. Arquivada em
+`changes/archive/2026-11/2026-11-05-coach-zonas-pace-fc-prescricao/`.)
+
+**Anterior:** 2026-11-04 (**`implement-worktree-por-change` arquivada** — workflow PR #5
 (mergeado em 2026-11-04, plugin 1.10.0). S · Fast, só `menthoros-workflow`: `/implement init` cria worktree
 por change em `.worktrees/<repo>-<change-id>` e entra por `cd` (sem `EnterWorktree`, que com o hook do
 `rtk` bloqueia git); `/done` limpa sem checkout; `git-guard` bloqueia troca de branch no diretório
