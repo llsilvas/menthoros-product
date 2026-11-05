@@ -31,7 +31,9 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
   falha de gravação propagando (CA1, CA2, CA6).
 - [ ] 1.4 `GarminWebhookServiceImpl.processar` trata a chave `activityFiles` delegando a
   `registrar` **fora do `porItem`** (exceção não é engolida); falha de gravação que não é o dedup
-  vira `GarminPingRegistroException` sem causa, com log só do tipo (D2); controller sem mudança.
+  vira `GarminPingRegistroException` sem causa, com log só do tipo (D2); item sem `userId`,
+  `summaryId`, `callbackURL` ou `startTimeInSeconds` é pulado antes do `save` (nenhuma violação de
+  `NOT NULL`/`CHECK` chega ao log do Hibernate); controller sem mudança.
   verify: teste do service — `activityFiles` chega a `registrar`, falha de gravação propaga sem a
   mensagem SQL;
   `@WebMvcTest` do controller — 200 com lote válido, 500 quando `registrar` lança, e nenhuma
@@ -39,10 +41,12 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
 
 ## 2. Processamento (backend)
 
-- [ ] 2.1 `GarminClient.baixarArquivo(callbackUrl)` devolvendo `byte[]`; valida esquema `https`,
+- [ ] 2.1 `GarminClient.baixarArquivo(callbackUrl)` devolvendo `byte[]`; `GarminWebClientConfig`
+  ganha `maxInMemorySize` de 16 MiB (o padrão de 256 KiB é menor que a fixture de 584 KB); valida esquema `https`,
   host `apis.garmin.com` e path `/wellness-api/rest/activityFile` antes de qualquer requisição
   (CA6b); erros HTTP viram `GarminApiException` com status.
-  verify: `MockRestServiceServer` para sucesso, 401, 403, 404, 410, 412, 429, 5xx e timeout; URL
+  verify: download da fixture `corrida-15km-16laps.fit` pelo `garminWebClient` real (MockWebServer
+  ou WireMock) sem `DataBufferLimitException`; stub para sucesso, 401, 403, 404, 410, 412, 429, 5xx e timeout; URL
   rejeitada (host alheio, `http`, path alheio) sem nenhuma requisição.
 - [ ] 2.2 `FitTreinoPersister.persistir(atletaId, dados, deviceName)` — o `FitImportResultado`
   (`novo()` + id do treino) é o que o scheduler usa para o CA4; `FitUploadServiceImpl` passa
@@ -73,30 +77,31 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
 - [ ] 3.1 `MelhorEsforcoServiceImpl`: conexão de canal Garmin → `DomainConflictException`
   "indisponível para o canal Garmin", sem chamar `pace-curves`.
   verify: teste unitário — 409 e nenhuma interação com `IntervalsIcuClient` (CA9).
-- [ ] 3.2 Front: `CoachWatchLine` mostra canal direto, estado e última atividade (`ultimaSincronizacao`
-  e `activityExport`, que o `GarminConnectionStatusDto` já expõe — nenhum campo novo) e
-  `SyncStatusChip` lê a conexão Garmin.
-  verify: testes de componente para os três cenários da spec `watch-connection-guide` (ativa, sem
+- [ ] 3.2 Backend: `AtletaPerfilCoachOutputDto.ConexaoCanalDto` ganha `ultimaSincronizacao`
+  (anulável) e o montador a preenche da `IntegracaoExterna`. Front: `CoachWatchLine` mostra canal
+  direto, estado e última atividade e `SyncStatusChip` lê a conexão Garmin.
+  verify: teste do montador com e sem `ultimaSincronizacao`; testes de componente para os três cenários da spec `watch-connection-guide` (ativa, sem
   permissão, revogada).
 
 ## 4. Atribuição no front
 
 - [ ] 4.1 Regenerar o cliente OpenAPI (`deviceName`) e alinhar os tipos manuais
-  (`AthleteRealizadoHoje`, `TreinoRealizadoDto`, `RealizadoRecenteDto`); componente
+  (`AthleteRealizadoHoje`, `TreinoRealizadoDto`, `RealizadoRecenteDto`, `ConexaoCanalDto`); componente
   `FonteAttribution` (D6).
   verify: teste do componente — GARMIN + "Forerunner 970" → "Garmin Forerunner 970"; GARMIN +
   "Garmin Fenix 8" sem duplicar; GARMIN sem modelo ou `unknown` → "Garmin"; outra fonte → nada
   (CA8).
-- [ ] 4.2 Inserir `FonteAttribution` junto ao título em `TodayFeedbackCard`, `RecentTrainingsList`,
+- [ ] 4.2 Inserir `FonteAttribution` junto ao título em `TodayFeedbackCard`, `TodayCompletedCard`
+  (assume depois do feedback), `RecentTrainingsList`,
   `RecentTrainingsPanel` e `DetalheTreinoDialog`. A análise de IA do `WorkoutDetailDrawer` só entra
   se a Open Question (d) do design confirmar — pausar e perguntar ao chegar aqui.
   verify: um teste por ponto afirmando o texto visível sem interação (CA8), com o `deviceName`
   vindo no formato do DTO real.
-- [ ] 4.3 Hook de melhores esforços trata o 409 como estado "indisponível";
-  `EffortsBlock`/`MelhoresEsforcosPanel` renderizam o aviso (D7). Quem dispara a busca é a página
-  (`AthleteProgressPage` e a do treinador), não os painéis.
-  verify: teste da página/hook — resposta 409 vira o texto "Indisponível para o canal Garmin por
-  enquanto" no atleta e no treinador (CA9).
+- [ ] 4.3 Atleta: o hook de esforços de `AthleteProgressPage` trata o 409 como "indisponível" e o
+  `EffortsBlock` renderiza o aviso. Treinador: `MelhoresEsforcosPanel` mostra o aviso quando
+  `conexaoCanal.plataforma == GARMIN` (o perfil agregado devolve 200 com lista vazia, D7).
+  verify: teste do hook/página do atleta com 409 e teste do painel do treinador com canal Garmin —
+  ambos mostram "Indisponível para o canal Garmin por enquanto" (CA9).
 - [ ] 4.4 Remover a flag (D8), depois do gate 5.2. Backend: `GarminProperties.habilitado`,
   `application.yml` (`GARMIN_HABILITADO`), checagem em `GarminOAuthServiceImpl`, javadoc de
   `GarminCanalIndisponivelException` (a exceção fica para "sem client ID/secret"). Front:

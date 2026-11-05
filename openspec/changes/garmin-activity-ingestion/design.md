@@ -41,7 +41,10 @@ Ver `proposal.md` e ADR-0013. Estado que molda o desenho:
 - Webhook: `GarminWebhookController` valida o segredo e chama `GarminWebhookService.processar(Map)`
   sempre devolvendo 200; o roteamento por chave está em `GarminWebhookServiceImpl`, deliberadamente
   sem `@Transactional` no lote, cada item em transação própria e exceção por item engolida com log.
-- `GarminConnectionStatusDto` já tem `activityExport` e `ultimaSincronizacao` — nenhum campo novo.
+- `GarminConnectionStatusDto` (tela do atleta) já tem `activityExport` e `ultimaSincronizacao`. O
+  treinador lê outro DTO: `CoachWatchLine` consome `AtletaPerfilCoachOutputDto.ConexaoCanalDto`,
+  que tem `plataforma`, `ativo`, `workoutImport`, `activityExport` e `lastSyncError`, mas **não**
+  `ultimaSincronizacao` — esse campo entra nele e no montador.
 - `FitTreinoPersister.persistir(atletaId, dados)` devolve `FitImportResultado` com `novo()` e o id
   do treino (novo ou existente).
 - Última migration em `develop`: `V108__add_zonas_manuais_atleta.sql`.
@@ -92,6 +95,12 @@ já foi gravado é absorvido pelo dedup. Engolir aqui perderia o arquivo para se
 propaga sanitizada:** `registrar` captura a exceção de gravação que não é o dedup, loga só o tipo
 (como o `porItem`) e lança `GarminPingRegistroException` **sem causa** — o handler genérico
 responde 500 sem que a mensagem SQL (que pode conter o `callback_url` com token) chegue ao log.
+Isso não basta sozinho: o `SqlExceptionHelper` do Hibernate loga a mensagem do Postgres antes do
+catch (`org.hibernate` em WARN no `logback-spring.xml`). Por isso `registrar` **valida antes do
+`save`** os campos obrigatórios (`userId`, `summaryId`, `callbackURL`, `startTimeInSeconds`) e
+pula o item inválido com log só do motivo — assim nenhuma violação de `NOT NULL`/`CHECK` ("Failing
+row contains") acontece. A única violação esperada é a UNIQUE de `summary_id`, cuja mensagem traz
+só o `summaryId`; o resto (conexão, timeout) não carrega dados da linha.
 `userId` sem nenhuma `IntegracaoExterna(GARMIN)` → **não grava**,
 só loga (ADR-0013: "200 sem efeito"; sem atleta não há `tenant_id`, que é `NOT NULL`);
 `activityType` fora do conjunto de corrida, `manual=true`, `fileType != FIT`, ou conexão do
@@ -113,6 +122,10 @@ download; fora de TX, `GarminClient.baixarArquivo` + `FitParseService.parse`; em
 `FitTreinoPersister.persistir(atletaId, dados, deviceName)`, `PROCESSADO` com
 `treino_realizado_id` e `IntegracaoExterna.ultimaSincronizacao = now` (o mesmo campo que o
 intervals.icu grava e que o `GarminConnectionStatusDto` já expõe; sobrevive à limpeza do D5).
+O download usa o `garminWebClient`, cujo limite de agregação em memória é o padrão do Spring
+(256 KiB) — menor que a própria fixture (584 KB); o client ganha `maxInMemorySize` de 16 MiB
+(FIT de ultra longa fica em poucos MB) e o teste do download passa pelo WebClient real com a
+fixture, não só por mock. Estourar o limite depois de consumir o link perderia o arquivo (410).
 **Antes do download**, o `callbackURL` é validado: esquema `https`, host
 `apis.garmin.com` e path `/wellness-api/rest/activityFile`; fora disso → `ERRO "callbackURL
 inválido"` sem requisição (a URL chega no corpo de um request externo — sem a checagem o backend
@@ -149,8 +162,9 @@ dias para investigação.
 
 ### D6: Atribuição por componente único no front
 `FonteAttribution({ fonteDados, deviceName })` renderiza o modelo do dispositivo ou "Garmin" para
-`GARMIN`, nada para as demais fontes; usado nos quatro pontos que exibem treino realizado:
-`TodayFeedbackCard`, `RecentTrainingsList`, `RecentTrainingsPanel` e `DetalheTreinoDialog`. A
+`GARMIN`, nada para as demais fontes; usado nos cinco pontos que exibem treino realizado:
+`TodayFeedbackCard` e `TodayCompletedCard` (substitui o primeiro depois do feedback, mesmo
+`AthleteRealizadoHoje`), `RecentTrainingsList`, `RecentTrainingsPanel` e `DetalheTreinoDialog`. A
 análise de IA do `WorkoutDetailDrawer` só entra se a Open Question (d) confirmar — e aí o DTO da
 análise precisa trazer `fonteDados`/`deviceName`. Não usa o logo (evita as regras do tag logo).
 Alternativa rejeitada: `fonteDados.label` genérico — a licença pede o modelo do dispositivo.
@@ -164,9 +178,12 @@ Garmin Fenix 8". O backend guarda o valor cru; a normalização é só de exibi�
 ### D7: Melhores esforços
 Backend: `MelhorEsforcoServiceImpl` devolve 409 "indisponível para o canal Garmin" quando a
 conexão de canal não é intervals.icu, em vez de tentar `pace-curves` — é aqui que a chamada ao
-intervals.icu é cortada. Front: quem busca é a página (`AthleteProgressPage` e a página do
-treinador), não os painéis; o hook de esforços trata o 409 como estado "indisponível" e
-`EffortsBlock`/`MelhoresEsforcosPanel` renderizam o aviso. Sem detectar canal no front.
+intervals.icu é cortada. Front do atleta: quem busca é `AthleteProgressPage`, não o
+`EffortsBlock`; o hook de esforços trata o 409 como estado "indisponível" e o bloco renderiza o
+aviso. Front do treinador: os esforços vêm no perfil agregado, e
+`CoachAthleteProfileServiceImpl.buscarLista` engole a falha (lista vazia + `avisos`, resposta 200)
+— então o `MelhoresEsforcosPanel` decide pelo `conexaoCanal.plataforma == GARMIN` do próprio
+perfil, que já está no DTO.
 
 ### D8: Flag `garminHabilitado` removida
 Último passo da change; a conexão Garmin passa a ser oferecida a todo atleta com marca GARMIN.
@@ -196,7 +213,7 @@ ignorada; apagá-las é passo manual pós-deploy.
   `TreinoRegistradoEvent`, e o `WorkoutAnalysisListener` envia o treino ao LLM. Pela 15.11, a
   saída também é dado Garmin: não pode alimentar treino de modelo e a análise exibida precisa da
   atribuição. Ver Open Questions.
-- [Atribuição esquecida num ponto novo da UI] → teste de componente cobre os quatro pontos; a
+- [Atribuição esquecida num ponto novo da UI] → teste de componente cobre os cinco pontos; a
   licença dá 14 dias para corrigir.
 
 ## Migration Plan
@@ -215,7 +232,7 @@ ignorada; apagá-las é passo manual pós-deploy.
   existente só quando aparecer um caso real. Não muda spec nem tasks.
 - **Bloqueia o go-live (task 4.4) — aviso prévio 6.6.** A licença exige avisar o Garmin
   (`connect-support@developer.garmin.com`, com mockups e descrição da conformidade) **30 dias antes**
-  de lançar UI nova que exibe dado Garmin. Esta change cria quatro pontos de exibição.
+  de lançar UI nova que exibe dado Garmin. Esta change cria cinco pontos de exibição.
   Falta confirmar se o aviso já foi enviado (inclusive para `garmin-connection`) e a data; o
   `activityFiles` em produção não deve ser habilitado antes do prazo.
 - **Bloqueia o go-live (task 4.4) — IA sobre dado Garmin (15.10/15.11).** Confirmar com o founder:
