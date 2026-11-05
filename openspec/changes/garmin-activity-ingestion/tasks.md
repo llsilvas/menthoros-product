@@ -75,10 +75,10 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
 
 ## 3. Melhores esforços e estado da conexão
 
-- [ ] 3.1 `MelhorEsforcoServiceImpl`: conexão de canal Garmin → `DomainConflictException`
+- [x] 3.1 `MelhorEsforcoServiceImpl`: conexão de canal Garmin → `DomainConflictException`
   "indisponível para o canal Garmin", sem chamar `pace-curves`.
   verify: teste unitário — 409 e nenhuma interação com `IntervalsIcuClient` (CA9).
-- [ ] 3.2 Backend: `AtletaPerfilCoachOutputDto.ConexaoCanalDto` ganha `ultimaSincronizacao`
+- [x] 3.2 Backend: `AtletaPerfilCoachOutputDto.ConexaoCanalDto` ganha `ultimaSincronizacao`
   (anulável) e o montador a preenche da `IntegracaoExterna`. Front: `CoachWatchLine` mostra canal
   direto, estado e última atividade e `SyncStatusChip` lê a conexão Garmin.
   verify: teste do montador com e sem `ultimaSincronizacao`; testes de componente para os três cenários da spec `watch-connection-guide` (ativa, sem
