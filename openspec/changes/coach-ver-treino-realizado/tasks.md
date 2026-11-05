@@ -26,12 +26,29 @@ Sequência e dependências:
 
 ## 0. Validação antes de implementar
 
-- [ ] 0.1 **Bloqueia 1.2 e 2.2.** Ler mensagens `record` (`timestamp`, `heart_rate`) de um `.fit`
+- [x] 0.1 **Bloqueia 1.2 e 2.2.** Ler mensagens `record` (`timestamp`, `heart_rate`) de um `.fit`
   real de 2 h e de um ultra, medindo tempo e memória do parse (A7, R6). Registrar aqui.
   verify: número de amostras, intervalo típico entre amostras e tempo de parse anotados aqui.
-- [ ] 0.2 Semântica de `duracaoMin` por origem (`.fit`, Strava, intervals.icu, manual): elapsed ou
+  **Resultado (2026-11-05):** sonda com FIT SDK 21.205.0 sobre `corrida-15km-16laps.fit` (o
+  `.fit` de `~/Downloads` é a mesma atividade; não havia `.fit` de 2 h ou ultra à mão). 5.619
+  `record`, todos com FC; intervalo de 1 s em 5.613 casos e 5 pausas maiores que 5 s (10, 34, 56 e
+  247 s, mais uma); nenhum timestamp repetido. Parse completo em 40–95 ms, ~50 MB de heap
+  transitório (dominado pelo SDK). Session: elapsed 6.032 s, timer 5.613 s, `enhanced_max_speed`
+  3,387 m/s, temperatura 19–27 °C. Soma esperada pelas regras do D6: 5.613 + 5 × 5 + 1 = 5.639 s.
+  Extrapolação para ultra de 24 h a 1 Hz: ~86 mil amostras, ~3 MB em `(long, int)` e ~1,5 s de
+  parse — aceitável sem streaming; R6 fica sem ação.
+- [x] 0.2 Semântica de `duracaoMin` por origem (`.fit`, Strava, intervals.icu, manual): elapsed ou
   tempo em movimento (A5). Registrar aqui.
   verify: uma linha por origem, com o arquivo:linha onde `duracaoMin` é preenchido.
+  **Resultado (2026-11-05):**
+  - `.fit`: **elapsed** (`FitTreinoPersister.java:127`, `Session.total_elapsed_time`); o tempo em
+    movimento fica em coluna própria (`total_timer_time`).
+  - Strava: **movimento** (`StravaActivityServiceImpl.java:650`, `moving_time`).
+  - intervals.icu: **movimento** (`IntervalsIcuActivityMapper.java:89`, `moving_time`).
+  - manual: o que o atleta digita (`TreinoServiceImpl.java:587`).
+  Consequência: o comparativo já usa tempo em movimento com fallback (D5). No D6, a cobertura
+  mínima passa a usar o mesmo denominador (tempo em movimento, fallback `duracaoMin`): com
+  elapsed, um treino com pausa longa cairia abaixo de 50 % sem falta de FC.
 - [ ] 0.4 Reexecutar o pre-mortem Codex sobre esta revisão (o DoR de 2026-11-05 cobriu parte).
 - [ ] 0.8 Contar nos tenants piloto: atletas com zonas de FC confiáveis (D6) e fração dos treinos
   realizados das últimas 4 semanas por fonte (`.fit`/Garmin × Strava × intervals.icu × manual)
@@ -86,7 +103,7 @@ Sequência e dependências:
   `services/helper/ZonaTreinoService.zonasFC(atleta)` só quando confiáveis (D6), chama o
   calculador e grava `tempo_em_zonas` com os limites. Testes: atleta `MANUAL`, atleta com
   `fcLimiar`, atleta só com FC estimada → nulo, `.fit` real (CA9, CA10).
-  verify: com `corrida-15km-16laps.fit`, soma das zonas ≈ duração do treino (±1 s pelas regras).
+  verify: com `corrida-15km-16laps.fit`, soma das zonas = 5.639 s (±1 s; ver 0.1).
 - [ ] 2.3 Expor `tempoEmZonas` no DTO (D3); teste do mapper e do `@WebMvcTest`.
   verify: JSON do `GET /realizados/{id}` no formato do D3; ausente quando nulo.
 - [ ] 2.4 Teste: mudar as zonas do atleta depois do import não altera `tempoEmZonas` do treino

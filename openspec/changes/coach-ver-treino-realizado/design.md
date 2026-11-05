@@ -146,8 +146,10 @@ tolerância passa pela 0.9).
   vira tempo em zona). Última amostra → 1 s. Intervalo ≤ 0 (timestamp repetido ou invertido) →
   amostra ignorada. Amostra sem FC → ignorada, e o intervalo dela não é atribuído a ninguém.
   Função pura `TempoEmZonasCalculator.calcular(amostras, zonas)` com teste unitário de cada regra.
-- **Cobertura mínima:** se a soma dos pesos for menor que 50 % de `duracaoMin` (FC ausente na maior
-  parte do treino), `tempo_em_zonas` nulo — percentual sobre um pedaço do treino engana.
+- **Cobertura mínima:** se a soma dos pesos for menor que 50 % do tempo em movimento da sessão
+  (fallback `duracaoMin`; FC ausente na maior parte do treino), `tempo_em_zonas` nulo — percentual
+  sobre um pedaço do treino engana. Tempo em movimento e não `duracaoMin`, porque no `.fit`
+  `duracaoMin` é elapsed (task 0.2) e uma pausa longa derrubaria a cobertura sem falta de FC.
 - Guarda o resultado **e os limites usados** (A6) em `tempo_em_zonas JSONB`: o histórico não muda
   quando as zonas do atleta mudam.
 - `fonte` no JSON (`FIT_RECORDS`) deixa espaço para outras origens sem migrar o formato.
