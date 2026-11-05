@@ -42,7 +42,7 @@ relógio.
   verify: teste parametrizado com `Clock` fixo: `PENDENTE` amanhã (ok), `REALIZADO`, `PERDIDO` de
   hoje, ontem, hoje com e sem relógio, hoje com conexão revogada (recusa), e a virada 23h30 São
   Paulo / 02h30 UTC (ok para amanhã SP).
-- [ ] 1.4 `services/impl/TreinoPlanejadoServiceImpl.editarTreino` em plano `APROVADO`:
+- [x] 1.4 `services/impl/TreinoPlanejadoServiceImpl.editarTreino` em plano `APROVADO`:
   `validarEstadoDoPlanoParaEdicao` (`:262`) aceita `APROVADO`; regra do 1.3 (422); 409 só com
   `SINCRONIZANDO` dentro de `JANELA_SINCRONIZANDO` (D1 regra 3, não `AGUARDANDO_RETRY`);
   exportabilidade do resultado via `IntervalsIcuWorkoutConverter` antes do commit (422); intenção de
@@ -50,34 +50,37 @@ relógio.
   `editedAfterApprovalAt`; evento só com canal; `OptimisticLockingFailureException` vira 409.
   verify: testes de CA1, CA2, CA3, CA3a, CA3b, CA3c (inclui `SINCRONIZANDO` fora da janela → 200 e
   `AGUARDANDO_RETRY` → 200), CA4, CA5, CA8 e CA9 em `TreinoPlanejadoServiceImplTest`.
-- [ ] 1.5 Registro da edição (D7): `editReason` opcional em `dto/input/TreinoPlanejadoPatchDto`;
+- [x] 1.5 Registro da edição (D7): `editReason` opcional em `dto/input/TreinoPlanejadoPatchDto`;
   `snapshot_before` antes do patch e `snapshot_after` depois, gravados na mesma transação só em
   `APROVADO` e só após as validações; nenhum log com o JSON ou o motivo.
   verify: teste de CA11b (com motivo, sem motivo, revisão não grava, 409/422 não gravam, `tenant_id`
   gravado).
-- [ ] 1.6 `dto/output/AtletaPerfilCoachOutputDto`: item de treino ganha `editedAfterApprovalAt` e
+- [x] 1.6 `dto/output/AtletaPerfilCoachOutputDto`: item de treino ganha `editedAfterApprovalAt` e
   `editable` (mesma política do 1.3); **sem** campo de canal novo (D6). No
   `CoachAthleteProfileServiceImpl`, reusar a consulta de `conexaoDeCanal` já feita para
   `channelConnected` (`:324`) e a `conexaoCanal` do perfil; nenhuma consulta por treino.
   verify: `CoachAthleteProfileServiceImplTest` com atleta Garmin, intervals.icu, revogado e sem
   conexão; contagem de chamadas ao `GarminConnectionService` não cresce com o número de treinos.
-- [ ] 1.7 `services/impl/IntervalsIcuPushProcessor.claimNaTx`: treino `SINCRONIZANDO` dentro de
+- [x] 1.7 `services/impl/IntervalsIcuPushProcessor.claimNaTx`: treino `SINCRONIZANDO` dentro de
   `JANELA_SINCRONIZANDO` devolve `CLAIM_PERDIDO`, sem mutação; fora da janela, claim normal (D2).
   verify: teste unitário dos dois casos no `IntervalsIcuPushProcessorTest` e regressão verde de
   `IntervalsIcuPushProcessorTest`, `IntervalsIcuPushListener*Test` e
   `IntervalsIcuRetrySchedulerImpl*Test`.
-- [ ] 1.8 `WorkoutEditedAfterApprovalEvent` + `WorkoutEditedPushListener` (`@Async("intervalsIcuPushExecutor")`,
+- [x] 1.8 `WorkoutEditedAfterApprovalEvent` + `WorkoutEditedPushListener` (`@Async("intervalsIcuPushExecutor")`,
   `AFTER_COMMIT`): resolve o canal de novo e chama `pushProcessor.processar` só para o treino; sem
   canal, pula sem mutar.
   verify: teste unitário com mocks (com canal chama `processar` uma vez; sem canal não chama).
-- [ ] 1.9 IT (`@TransactionalEventListener` só dispara com transação, WireMock do canal):
+- [x] 1.9 IT (`@TransactionalEventListener` só dispara com transação, WireMock do canal):
   - plano aprovado com 4 treinos `SINCRONIZADO` → PATCH em 1 → só ele é empurrado, mesmo
     `externalId` (CA6); atleta Garmin e atleta intervals.icu (CA7);
   - atleta Garmin, treino sem `externalId`, push da aprovação e da edição concorrendo → um único
     `criarWorkout` com o conteúdo editado (CA8b).
+  Entregue em `PostApprovalEditPushIT` (Garmin): CA6, CA8b e CA3c/CA11b ponta a ponta. CA7 no IT só
+  pelo Garmin; a rota por canal é a do `conexaoDeCanal` + `CompositeWorkoutChannel` já cobertos, e o
+  listener novo não escolhe canal (resolve e repassa), coberto em `WorkoutEditedPushListenerTest`.
   verify: IT verde no `./mvnw clean verify`; WireMock confere 1 chamada de update e 0 de create
   extra.
-- [ ] 1.10 `@Operation` do PATCH: regra nova, `editReason`, os 422 e o 409.
+- [x] 1.10 `@Operation` do PATCH: regra nova, `editReason`, os 422 e o 409.
   verify: `/v3/api-docs` local mostra `editReason` no schema do patch e as respostas 409/422.
 - Validação da seção: `./mvnw clean verify` e os `@WebMvcTest` afetados isolados (ver memória sobre
   verify local x CI).
