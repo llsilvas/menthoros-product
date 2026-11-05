@@ -90,23 +90,23 @@ relógio.
 Pré-condição: PR #188 (`garmin-reenvio-plano`, front) e o backend desta change em `develop`. Criar o
 worktree `.worktrees/front-coach-editar-treino-aprovado` só então, a partir de `origin/develop`.
 
-- [ ] 2.1 Portar à mão para `src/types/AtletaPerfilCoach.ts` e `src/types/TreinoPlanejado.ts`:
+- [x] 2.1 Portar à mão para `src/types/AtletaPerfilCoach.ts` e `src/types/TreinoPlanejado.ts`:
   `editedAfterApprovalAt`, `editable` e `editReason` no patch. Canal vem do `conexaoCanal` que já
   existe.
   verify: `npm run build` sem erro de tipo.
-- [ ] 2.2 `features/coach/components/TreinoEditDialog.tsx`: prop `aviso` (D4/D8) com caixa
+- [x] 2.2 `features/coach/components/TreinoEditDialog.tsx`: prop `aviso` (D4/D8) com caixa
   informativa por canal, motivo opcional (`aria-pressed`) e rótulo do botão; faixa de erro 409/422
   sem fechar (D5).
   verify: teste de componente dos três casos (Garmin, intervals.icu, sem canal), do motivo indo no
   patch, do erro e do dialog sem a prop igual a hoje (`TreinoEditDialog.test.tsx` atual verde).
-- [ ] 2.3 `features/coach/components/CurrentWeekPlan.tsx`: cabeçalho da semana aprovada (D8); lápis
+- [x] 2.3 `features/coach/components/CurrentWeekPlan.tsx`: cabeçalho da semana aprovada (D8); lápis
   guiado por `editable`; cadeado com rótulo para realizado, perdido e treino de hoje com relógio;
   passa o `aviso` ao dialog; snackbar após salvar.
   verify: teste de componente (CA10, CA11); `CurrentWeekPlan.reenvio.test.tsx` do #188 segue verde.
-- [ ] 2.4 `features/coach/components/TreinoPlanejadoCard.tsx`: selo "Editado após aprovação" quando
+- [x] 2.4 `features/coach/components/TreinoPlanejadoCard.tsx`: selo "Editado após aprovação" quando
   `editedAfterApprovalAt` existe (CA12).
   verify: teste do card com e sem o campo.
-- [ ] 2.5 E2E Playwright (CA13): plano aprovado → editar treino pendente com motivo → salvar → selo
+- [x] 2.5 E2E Playwright (CA13): plano aprovado → editar treino pendente com motivo → salvar → selo
   no card; treino realizado sem lápis.
   verify: `npm run test:e2e` verde local.
 - Validação da seção: `npm run lint && npm run build && npm run test:run && npm run test:e2e`.
