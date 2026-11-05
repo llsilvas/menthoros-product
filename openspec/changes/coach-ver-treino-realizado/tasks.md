@@ -101,21 +101,26 @@ Sequência e dependências:
 
 ## 2. Backend — tempo em zonas
 
-- [ ] 2.1 `TempoEmZonasCalculator.calcular(amostras, zonas)` puro, com as regras do D6. Testes:
+- [x] 2.1 `TempoEmZonasCalculator.calcular(amostras, zonas)` puro, com as regras do D6. Testes:
   série regular; pausa > 5 s; última amostra; timestamp repetido/invertido; amostra sem FC; borda
   compartilhada; lacuna entre faixas manuais; FC abaixo de Z1 e acima de Z5; cobertura < 50 % →
   nulo; sem amostras; soma ±1 s (CA9).
   verify: teste unitário por regra, sem Spring.
-- [ ] 2.2 Parse coleta `(timestamp, heartRate)` dos `record` (D2); persister resolve as zonas por
+- [x] 2.2 Parse coleta `(timestamp, heartRate)` dos `record` (D2); persister resolve as zonas por
   `services/helper/ZonaTreinoService.zonasFC(atleta)` só quando confiáveis (D6), chama o
   calculador e grava `tempo_em_zonas` com os limites. Testes: atleta `MANUAL`, atleta com
   `fcLimiar`, atleta só com FC estimada → nulo, `.fit` real (CA9, CA10).
   verify: com `corrida-15km-16laps.fit`, soma das zonas = 5.639 s (±1 s; ver 0.1).
-- [ ] 2.3 Expor `tempoEmZonas` no DTO (D3); teste do mapper e do `@WebMvcTest`.
+  **Feito (2026-11-05):** `FitAmostraFc` em `dto/fit`; parse guarda até 200 mil amostras (~55 h a
+  1 Hz) e acima disso descarta todas, sem recusar o arquivo. Zona do topo grava `bpmMax` nulo (ela
+  recebe tudo acima). FC de limiar `0` não conta como informada.
+- [x] 2.3 Expor `tempoEmZonas` no DTO (D3); teste do mapper e do `@WebMvcTest`.
   verify: JSON do `GET /realizados/{id}` no formato do D3; ausente quando nulo.
-- [ ] 2.4 Teste: mudar as zonas do atleta depois do import não altera `tempoEmZonas` do treino
+  **Já entregue na 1.4** (`TreinoMapperExecucaoTest`, `TreinoRealizadoControllerTest`).
+- [x] 2.4 Teste: mudar as zonas do atleta depois do import não altera `tempoEmZonas` do treino
   (CA9).
   verify: teste de integração com troca de zonas entre import e leitura.
+  **Feito:** `FitTempoEmZonasHistoricoIT` (import real → muda o limiar → detalhe igual).
 - Validação: `./mvnw clean verify`.
 
 ## 3. Frontend — contrato e dados
