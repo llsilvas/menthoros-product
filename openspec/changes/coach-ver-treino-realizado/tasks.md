@@ -4,12 +4,34 @@ Backend valida com `./mvnw clean verify`; frontend com `npm run lint && npm run 
 test:run` e `npm run test:e2e` (fluxo cruza o contrato da API: E2E cobre abrir o dialog).
 Referência visual: canvas artboard B e `prototype/execucao-treino` (`d02e770`).
 
+## Plano de execução (refinado no `/implement init`, 2026-11-05)
+
+Branch `feat/coach-ver-treino-realizado` nos dois repos, base `origin/develop` (backend `bac3833`,
+front `d1a687e`). Worktrees: `.worktrees/backend-coach-ver-treino-realizado` e
+`.worktrees/front-coach-ver-treino-realizado`.
+
+Sequência e dependências:
+
+1. **0.1** primeiro (usa `src/test/resources/fit/corrida-15km-16laps.fit`, 570 KB, mais um `.fit`
+   longo real): destrava 1.2 e 2.2.
+2. **Backend 1.1 → 1.2 → 1.3 → 1.4**; **1.5** e **1.6** independentes (podem vir em qualquer ponto).
+3. **2.1** é puro e não depende de nada: pode ir junto com a seção 1. **2.2** depende de 0.1, 1.1 e
+   1.3; **2.3** de 1.4 e 2.2; **2.4** de 2.2.
+4. **Front 3.x** depende só do contrato (D3), não do backend rodando: tipos à mão + fixture.
+   A fixture real (R3) é capturada depois de 1.4/2.3 e substitui a escrita à mão.
+5. **4.x** depende de 3.x. **4.5** (E2E) roda contra o backend local com 1.x e 2.x.
+6. **0.8** e **0.2** antes de abrir o PR; **0.9** antes do merge.
+7. PRs: backend primeiro (aditivo, não quebra o front atual); front depois. Se 0.8 der cobertura
+   baixa, as tasks 2.x saem num PR seguinte do backend (Q3).
+
 ## 0. Validação antes de implementar
 
 - [ ] 0.1 **Bloqueia 1.2 e 2.2.** Ler mensagens `record` (`timestamp`, `heart_rate`) de um `.fit`
   real de 2 h e de um ultra, medindo tempo e memória do parse (A7, R6). Registrar aqui.
+  verify: número de amostras, intervalo típico entre amostras e tempo de parse anotados aqui.
 - [ ] 0.2 Semântica de `duracaoMin` por origem (`.fit`, Strava, intervals.icu, manual): elapsed ou
   tempo em movimento (A5). Registrar aqui.
+  verify: uma linha por origem, com o arquivo:linha onde `duracaoMin` é preenchido.
 - [ ] 0.4 Reexecutar o pre-mortem Codex sobre esta revisão (o DoR de 2026-11-05 cobriu parte).
 - [ ] 0.8 Contar nos tenants piloto: atletas com zonas de FC confiáveis (D6) e fração dos treinos
   realizados das últimas 4 semanas por fonte (`.fit`/Garmin × Strava × intervals.icu × manual)
@@ -28,19 +50,29 @@ Referência visual: canvas artboard B e `prototype/execucao-treino` (`d02e770`).
 ## 1. Backend — sessão e contrato
 
 - [ ] 1.1 Migration `V111` (só `ADD COLUMN ... NULL`): `velocidade_max_kmh`, `temperatura_min_c`,
-  `temperatura_max_c`, `tempo_em_zonas JSONB` em `tb_treino_realizado`; campos em `TreinoRealizado`.
-  Reconferir `V109`/`V110` em `develop` e branches abertas.
-- [ ] 1.2 `FitParseServiceImpl`: `velocidadeMediaKmh`, `velocidadeMaxKmh`, `temperaturaMinC`,
-  `temperaturaMaxC` da Session (D2) em `FitSessionData`/`SessaoBruta`; teste com `.fit` com e sem
-  os campos (CA12).
-- [ ] 1.3 `FitTreinoPersister`: gravar os campos novos e o ritmo/velocidade média da sessão; teste.
-- [ ] 1.4 `TreinoRealizadoOutputDto` + `TreinoMapper`: `velocidadeMaxKmh`, `temperaturaMinC`,
-  `temperaturaMaxC`, `elapsedTimeSeg`; `EtapaRealizadaOutputDto`: elevação ganho/perda (D3). Teste
-  do mapper e `@WebMvcTest` do `GET /realizados/{id}` com presença e ausência (`NON_NULL`).
+  `temperatura_max_c`, `tempo_em_zonas JSONB` em `tb_treino_realizado`; campos em
+  `entity/TreinoRealizado.java`. Reconferir `V109`/`V110` em `develop` e branches abertas.
+  verify: `./mvnw clean verify` sobe o contexto com Flyway (Testcontainers) sem erro de validação.
+- [ ] 1.2 `services/impl/FitParseServiceImpl.java`: `velocidadeMediaKmh`, `velocidadeMaxKmh`,
+  `temperaturaMinC`, `temperaturaMaxC` da Session (D2) em `dto/fit/FitSessionData.java` /
+  `SessaoBruta`; teste com `.fit` com e sem os campos (CA12).
+  verify: `FitParseServiceImplTest` com `corrida-15km-16laps.fit` lê os quatro campos; sentinela → `null`.
+- [ ] 1.3 `services/helper/FitTreinoPersister.java`: gravar os campos novos e o ritmo/velocidade
+  média da sessão; teste.
+  verify: `FitTreinoPersisterTest` afirma os campos persistidos e o fallback quando ausentes.
+- [ ] 1.4 `dto/output/TreinoRealizadoOutputDto.java` + `mapper/TreinoMapper.java`:
+  `velocidadeMaxKmh`, `temperaturaMinC`, `temperaturaMaxC`, `elapsedTimeSeg`;
+  `dto/output/EtapaRealizadaOutputDto.java`: elevação ganho/perda (D3). Teste do mapper e
+  `@WebMvcTest` do `GET /realizados/{id}` com presença e ausência (`NON_NULL`).
+  verify: `TreinoRealizadoControllerTest` isolado (memória: verify local mascarou contexto quebrado).
 - [ ] 1.5 `TreinoPlanejadoResumoDto` (`AtletaPerfilCoachOutputDto`): `treinoRealizadoId`, montado
-  do vínculo planejado↔realizado, e `ritmoAlvo`; distância ausente sai nula, não `0.0` (D3, CA1,
-  CA4). Teste da montagem com e sem vínculo e com distância ausente.
+  de `TreinoPlanejado.treinoRealizado` em `CoachAthleteProfileServiceImpl.java:329`, e
+  `ritmoAlvo`; distância ausente sai nula, não `0.0` (D3, CA1, CA4). Teste da montagem com e sem
+  vínculo e com distância ausente.
+  verify: `CoachAthleteProfileServiceImplTest` cobre os três casos; sem N+1 novo (vínculo já
+  carregado ou `JOIN FETCH`).
 - [ ] 1.6 Teste de isolamento de tenant no `GET /realizados/{id}` (CA14), se ainda não existir.
+  verify: teste de outro tenant → 404.
 - Validação: `./mvnw clean verify`.
 
 ## 2. Backend — tempo em zonas
@@ -49,44 +81,60 @@ Referência visual: canvas artboard B e `prototype/execucao-treino` (`d02e770`).
   série regular; pausa > 5 s; última amostra; timestamp repetido/invertido; amostra sem FC; borda
   compartilhada; lacuna entre faixas manuais; FC abaixo de Z1 e acima de Z5; cobertura < 50 % →
   nulo; sem amostras; soma ±1 s (CA9).
+  verify: teste unitário por regra, sem Spring.
 - [ ] 2.2 Parse coleta `(timestamp, heartRate)` dos `record` (D2); persister resolve as zonas por
-  `ZonaTreinoService.zonasFC(atleta)` só quando confiáveis (D6), chama o calculador e grava
-  `tempo_em_zonas` com os limites. Testes: atleta `MANUAL`, atleta com `fcLimiar`, atleta só com
-  FC estimada → nulo, `.fit` real (CA9, CA10).
+  `services/helper/ZonaTreinoService.zonasFC(atleta)` só quando confiáveis (D6), chama o
+  calculador e grava `tempo_em_zonas` com os limites. Testes: atleta `MANUAL`, atleta com
+  `fcLimiar`, atleta só com FC estimada → nulo, `.fit` real (CA9, CA10).
+  verify: com `corrida-15km-16laps.fit`, soma das zonas ≈ duração do treino (±1 s pelas regras).
 - [ ] 2.3 Expor `tempoEmZonas` no DTO (D3); teste do mapper e do `@WebMvcTest`.
+  verify: JSON do `GET /realizados/{id}` no formato do D3; ausente quando nulo.
 - [ ] 2.4 Teste: mudar as zonas do atleta depois do import não altera `tempoEmZonas` do treino
   (CA9).
+  verify: teste de integração com troca de zonas entre import e leitura.
 - Validação: `./mvnw clean verify`.
 
 ## 3. Frontend — contrato e dados
 
 - [ ] 3.1 Tipo de leitura `TreinoRealizadoDetalhe` alinhado ao DTO (D3); `TreinoService.obterRealizado`
-  passa a devolvê-lo. Conferir consumidores atuais (`useDecouplingRealizado`).
-  `treinoRealizadoId` e `ritmoAlvo` em `types/AtletaPerfilCoach.ts` (resumo; distância anulável) e
-  `treinoRealizadoId` em `types/PlanoReview.ts`; ajustar consumidores do resumo ao `null`.
-- [ ] 3.2 Adapter `buildExecucaoFromDetalhe(detalhe, planejado)` (D4, D5): linhas do comparativo
-  com diferença e critério, zonas com alvo normalizado (`Z2`, `z2-z3`, inválido → vazio) e
-  "% no alvo", linhas das etapas e Total da sessão, grupos do acordeão, `--` para ausente, vírgula
-  decimal. Testes com fixture capturada do backend (R3), incluindo treino manual sem voltas e sem
-  zonas.
-- [ ] 3.3 `useTreinoRealizadoDetalhe(id)` e `useAnaliseTreinoRealizado(id, temRpe)` com
-  `status`/`data`/`refetch` (D4). Mapeamento 200 `COMPLETED` → pronta, 204 + RPE → indisponível,
-  204 sem RPE → semRpe, `FAILED`/erro → erro, sem banner (CA5–CA7). Testes.
+  (`src/api/services/TreinoService.ts`) passa a devolvê-lo. Conferir consumidores atuais
+  (`useDecouplingRealizado`). `treinoRealizadoId` e `ritmoAlvo` em `src/types/AtletaPerfilCoach.ts`
+  (resumo; distância anulável) e `treinoRealizadoId` em `src/types/PlanoReview.ts`; ajustar
+  consumidores do resumo ao `null` (`CurrentWeekPlan`, `coachInboxAdapters`).
+  verify: `npm run build` sem erro de tipo; testes atuais de `CurrentWeekPlan` verdes.
+- [ ] 3.2 Adapter `features/coach/adapters/treinoRealizadoDetalheAdapters.ts`
+  (`buildExecucaoFromDetalhe(detalhe, planejado)`, D4, D5): linhas do comparativo com diferença e
+  critério, zonas com alvo normalizado (`Z2`, `z2-z3`, inválido → vazio) e "% no alvo", linhas das
+  etapas e Total da sessão, grupos do acordeão, `--` para ausente, vírgula decimal. Testes com
+  fixture capturada do backend (R3), incluindo treino manual sem voltas e sem zonas.
+  verify: `*.test.ts` puro cobre cada linha do D5 e cada forma de `zonaAlvo`.
+- [ ] 3.3 `features/coach/hooks/useTreinoRealizadoDetalhe(id)` e `useAnaliseTreinoRealizado(id,
+  temRpe)` com `status`/`data`/`refetch` (D4). Mapeamento 200 `COMPLETED` → pronta, 204 + RPE →
+  indisponível, 204 sem RPE → semRpe, `FAILED`/erro → erro, sem banner (CA5–CA7). Testes.
+  verify: teste de hook por estado, com o serviço mockado.
 - Validação: `npm run lint && npm run build && npm run test:run`.
 
 ## 4. Frontend — tela
 
-- [ ] 4.1 `ExecucaoTreinoDialog` + `ExecucaoAnaliseBanner` + `ExecucaoComparativo` (CA3–CA7, CA13).
+- [ ] 4.1 `ExecucaoTreinoDialog` (sobre `src/shared/components/CoachDialog.tsx`) +
+  `ExecucaoAnaliseBanner` + `ExecucaoComparativo` (CA3–CA7, CA13).
+  verify: testes de componente para carregando, erro com "Tentar de novo" e os quatro estados da
+  análise.
 - [ ] 4.2 `ExecucaoZonas` (CA8, CA10) e `ExecucaoEtapas` com cabeçalho fixo e estado vazio (CA11).
+  verify: testes de alvo único, faixa, sem alvo, sem `tempoEmZonas`, sem voltas.
 - [ ] 4.3 `ExecucaoDadosRelogio` (acordeão fechado; só RPE e comentário em percepção — Q2).
-- [ ] 4.4 Botão "Ver realizado": `TreinoPlanejadoCard` via `actions`/`rodape` em `CurrentWeekPlan`
-  e `PlanoDetalhePanel`; `TreinoCard` (Planos) via `onVerRealizado`, trocando o fetch inline da
-  análise pelo hook da 3.3 e repassando o estado inteiro ao dialog (D4, CA3) (CA1, CA2). Testes:
+  verify: teste confirma fechado por padrão e `--` em ausentes.
+- [ ] 4.4 Botão "Ver realizado": `features/coach/components/TreinoPlanejadoCard.tsx` via
+  `actions`/`rodape` em `CurrentWeekPlan` e `PlanoDetalhePanel`; `TreinoCard` (Planos, renderizado
+  em `PlanoSemanaPanel.tsx:195`) via `onVerRealizado`, trocando o fetch inline da análise pelo
+  hook da 3.3 e repassando o estado inteiro ao dialog (D4, CA3) (CA1, CA2). Testes:
   abrir antes da resposta da análise, depois de 204 e depois de falha, com uma única chamada; testes
   de componente com router real (regra de links do front).
-- [ ] 4.5 E2E: (a) Planos → "Ver realizado" → comparativo, faixa de zonas, etapas, acordeão;
-  (b) shell do coach (`CurrentWeekPlan`) → "Ver realizado" abre o mesmo dialog; (c) análise 204
-  com RPE (texto de indisponível) e sem RPE.
+  verify: botão presente só com `treinoRealizadoId` nos três lugares; uma chamada de análise.
+- [ ] 4.5 E2E em `tests/e2e/coach/` (novo `execucao-treino.spec.ts`): (a) Planos → "Ver realizado"
+  → comparativo, faixa de zonas, etapas, acordeão; (b) shell do coach (`CurrentWeekPlan`) → "Ver
+  realizado" abre o mesmo dialog; (c) análise 204 com RPE (texto de indisponível) e sem RPE.
+  verify: `npm run test:e2e -- execucao-treino` verde e visitando os três caminhos.
 - Validação: `npm run lint && npm run build && npm run test:run && npm run test:e2e`.
 
 ## 5. Verificação manual
