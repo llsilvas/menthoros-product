@@ -86,7 +86,7 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
 
 ## 4. Atribuição no front
 
-- [ ] 4.1 Regenerar o cliente OpenAPI (`deviceName`) e alinhar os tipos manuais
+- [x] 4.1 Regenerar o cliente OpenAPI (`deviceName`) e alinhar os tipos manuais
   (`AthleteRealizadoHoje`, `TreinoRealizadoDto`, `RealizadoRecenteDto`, `ConexaoCanalDto`); componente
   `FonteAttribution` (D6).
   verify: teste do componente — GARMIN + "Forerunner 970" → "Garmin Forerunner 970"; GARMIN +
@@ -98,7 +98,7 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
   se a Open Question (d) do design confirmar — pausar e perguntar ao chegar aqui.
   verify: um teste por ponto afirmando o texto visível sem interação (CA8), com o `deviceName`
   vindo no formato do DTO real.
-- [ ] 4.3 Atleta: o hook de esforços de `AthleteProgressPage` trata o 409 como "indisponível" e o
+- [x] 4.3 Atleta: o hook de esforços de `AthleteProgressPage` trata o 409 como "indisponível" e o
   `EffortsBlock` renderiza o aviso. Treinador: `MelhoresEsforcosPanel` mostra o aviso quando
   `conexaoCanal.plataforma == GARMIN` (o perfil agregado devolve 200 com lista vazia, D7).
   verify: teste do hook/página do atleta com 409 e teste do painel do treinador com canal Garmin —
