@@ -66,30 +66,37 @@ Sequência e dependências:
 
 ## 1. Backend — sessão e contrato
 
-- [ ] 1.1 Migration `V111` (só `ADD COLUMN ... NULL`): `velocidade_max_kmh`, `temperatura_min_c`,
+- [x] 1.1 Migration `V111` (só `ADD COLUMN ... NULL`): `velocidade_max_kmh`, `temperatura_min_c`,
   `temperatura_max_c`, `tempo_em_zonas JSONB` em `tb_treino_realizado`; campos em
   `entity/TreinoRealizado.java`. Reconferir `V109`/`V110` em `develop` e branches abertas.
   verify: `./mvnw clean verify` sobe o contexto com Flyway (Testcontainers) sem erro de validação.
-- [ ] 1.2 `services/impl/FitParseServiceImpl.java`: `velocidadeMediaKmh`, `velocidadeMaxKmh`,
+- [x] 1.2 `services/impl/FitParseServiceImpl.java`: `velocidadeMediaKmh`, `velocidadeMaxKmh`,
   `temperaturaMinC`, `temperaturaMaxC` da Session (D2) em `dto/fit/FitSessionData.java` /
   `SessaoBruta`; teste com `.fit` com e sem os campos (CA12).
   verify: `FitParseServiceImplTest` com `corrida-15km-16laps.fit` lê os quatro campos; sentinela → `null`.
-- [ ] 1.3 `services/helper/FitTreinoPersister.java`: gravar os campos novos e o ritmo/velocidade
+- [x] 1.3 `services/helper/FitTreinoPersister.java`: gravar os campos novos e o ritmo/velocidade
   média da sessão; teste.
   verify: `FitTreinoPersisterTest` afirma os campos persistidos e o fallback quando ausentes.
-- [ ] 1.4 `dto/output/TreinoRealizadoOutputDto.java` + `mapper/TreinoMapper.java`:
+  **Feito parcialmente de propósito (2026-11-05):** grava `velocidadeMedia` (km/h), mas
+  `paceMedia` continua nulo no `.fit`. `paceMedia` alimenta TSS (`TssCalculatorService`),
+  inferência de limiar, projeção de prova e prompts. Preenchê-lo mudaria esses cálculos para todo
+  import `.fit`, fora do escopo desta change. O ritmo da tela sai da velocidade (front, 3.2).
+  Velocidade fora de (0, 150] km/h → nula.
+- [x] 1.4 `dto/output/TreinoRealizadoOutputDto.java` + `mapper/TreinoMapper.java`:
   `velocidadeMaxKmh`, `temperaturaMinC`, `temperaturaMaxC`, `elapsedTimeSeg`;
   `dto/output/EtapaRealizadaOutputDto.java`: elevação ganho/perda (D3). Teste do mapper e
   `@WebMvcTest` do `GET /realizados/{id}` com presença e ausência (`NON_NULL`).
   verify: `TreinoRealizadoControllerTest` isolado (memória: verify local mascarou contexto quebrado).
-- [ ] 1.5 `TreinoPlanejadoResumoDto` (`AtletaPerfilCoachOutputDto`): `treinoRealizadoId`, montado
+- [x] 1.5 `TreinoPlanejadoResumoDto` (`AtletaPerfilCoachOutputDto`): `treinoRealizadoId`, montado
   de `TreinoPlanejado.treinoRealizado` em `CoachAthleteProfileServiceImpl.java:329`, e
   `ritmoAlvo`; distância ausente sai nula, não `0.0` (D3, CA1, CA4). Teste da montagem com e sem
   vínculo e com distância ausente.
   verify: `CoachAthleteProfileServiceImplTest` cobre os três casos; sem N+1 novo (vínculo já
   carregado ou `JOIN FETCH`).
-- [ ] 1.6 Teste de isolamento de tenant no `GET /realizados/{id}` (CA14), se ainda não existir.
+- [x] 1.6 Teste de isolamento de tenant no `GET /realizados/{id}` (CA14), se ainda não existir.
   verify: teste de outro tenant → 404.
+  **Já existia:** `OnboardingSensitiveDataAccessIT.outroTenantERejeitado` (TECNICO de outro tenant
+  → 404, via `findByIdAndTenantId`). Nada novo.
 - Validação: `./mvnw clean verify`.
 
 ## 2. Backend — tempo em zonas
