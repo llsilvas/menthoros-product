@@ -36,6 +36,19 @@ dados do relógio num acordeão.
   cobertura e telemetria obrigatória, não-objetivo explícito do banner, CA9 reescrito, tolerâncias
   validadas com treinador antes do merge (task 0.9). **Não acatado:** cortar o botão do card legado
   (Planos) — foi lá que o treinador aprovou o botão.
+- **DoR do `/implement init` (2026-11-05):** `spec-reviewer` READY WITH GAPS, Codex NOT READY.
+  Incorporados nesta revisão:
+  - `treinoRealizadoId` no `TreinoPlanejadoResumoDto`; sem ele o shell do coach não sabe quando
+    mostrar o botão (blocker).
+  - Política de "atleta com zonas" fechada: manual ou limiar informado, nunca estimado.
+  - Regras de borda do calculador fechadas.
+  - `zonaAlvo` em faixa (`z2-z3`) agregada.
+  - 204 com RPE vira texto de indisponibilidade, não "em andamento".
+  - Telemetria de front tirada do escopo (não existe mecanismo); a cobertura passa a ser medida por
+    consulta no banco.
+  - Reuso da análise já buscada pelo `TreinoCard`.
+  - Migration `V111`.
+  - E2E no shell do coach.
 
 ## Why
 
@@ -64,6 +77,9 @@ não faz. Não alimenta o loop de aprendizado — neutro para o moat, declarado 
 - **Front — botão no card:** ação "Ver realizado" quando o treino tem `treinoRealizadoId`, no
   `TreinoCard` da tela Planos (`components/features/planos`, onde o protótipo foi aprovado) e no
   `TreinoPlanejadoCard` do shell do coach (`CurrentWeekPlan`, `PlanoDetalhePanel`).
+- **Backend — `treinoRealizadoId` no `TreinoPlanejadoResumoDto`** (`AtletaPerfilCoachOutputDto`),
+  que alimenta o `CurrentWeekPlan`: hoje o resumo não tem o vínculo, e o shell do coach não tem como
+  decidir o botão (CA1). Aditivo, `NON_NULL`.
 - **Front — dialog de execução** (`CoachDialog`, largura `lg`), de cima para baixo:
   1. **Cabeçalho:** tipo, data, estado "Realizado", fonte.
   2. **Banner da análise da IA**, quando houver análise `COMPLETED`: rótulo "Análise da IA",
@@ -89,7 +105,9 @@ não faz. Não alimenta o loop de aprendizado — neutro para o moat, declarado 
 - **Backend — tempo em zonas de FC:** no import do `.fit`, somar o tempo das amostras (`record`)
   por zona de FC **do atleta** vigente no momento do import, e guardar o resultado com os limites
   usados. Exposto no detalhe como `tempoEmZonas`. Treinos de outras fontes, sem amostra ou de atleta
-  sem zonas de FC ficam sem o campo (CA10).
+  sem zonas de FC **confiáveis** ficam sem o campo (CA10). Confiável = eixo de FC em modo `MANUAL`
+  com faixas, ou `fcLimiar` informada; zonas derivadas só de FC máxima estimada (idade ou 180) não
+  contam (D6).
 - Campo ausente vira `--`, como no Garmin.
 
 ## Fora de escopo
@@ -101,7 +119,10 @@ não faz. Não alimenta o loop de aprendizado — neutro para o moat, declarado 
   Menthoros) e reprocessamento de treinos já importados (o `.fit` não é guardado).
 - Gráficos de série temporal (FC/ritmo ao longo do treino).
 - Estado "análise em andamento" vindo da API: o endpoint devolve 204 tanto para pendente quanto para
-  inexistente. A tela infere pelo RPE (CA6–CA7); distinguir na API é outra change.
+  inexistente (e treino antigo nunca é analisado — `WorkoutAnalysisEligibility`). A tela não promete
+  andamento (CA6–CA7); distinguir na API é outra change.
+- **Telemetria de front:** o front não tem mecanismo de analytics, e criar um é outra change. O uso
+  do dialog é medido por entrevista e a cobertura por consulta no banco (ver Métrica).
 - Visão do atleta (já tem `WorkoutDetailDrawer`).
 - Treino realizado sem planejado vinculado (não aparece no card do plano).
 - Ligar a abertura do dialog ao loop de aprendizado.
@@ -111,28 +132,34 @@ não faz. Não alimenta o loop de aprendizado — neutro para o moat, declarado 
 ## Critérios de aceite
 
 - **CA1** — Given um treino planejado com `treinoRealizadoId`, When o treinador vê o card (Planos
-  ou shell do coach), Then o card mostra o botão "Ver realizado".
+  ou shell do coach), Then o card mostra o botão "Ver realizado". No shell do coach o id vem do
+  `TreinoPlanejadoResumoDto` do perfil do atleta.
 - **CA2** — Given um treino sem `treinoRealizadoId`, Then o botão não aparece.
 - **CA3** — Given o treinador clica "Ver realizado", When o dialog abre, Then ele chama
-  `GET /api/v1/treinos/realizados/{id}` e `GET /api/v1/analises/treino/{id}` uma vez cada, mostra
-  carregando enquanto o detalhe não chega e não bloqueia a tela esperando a análise.
+  `GET /api/v1/treinos/realizados/{id}` uma vez e a análise no máximo uma vez — o `TreinoCard` de
+  Planos já busca a análise e a repassa ao dialog, sem segunda chamada —, mostra carregando enquanto
+  o detalhe não chega e não bloqueia a tela esperando a análise.
 - **CA4** — Given o detalhe carregado, Then a tabela planejado × realizado mostra distância,
   duração, ritmo, zona, FC média e RPE; o que faltar de um lado aparece `--` e a diferença fica
   neutra.
 - **CA5** — Given a análise `COMPLETED`, Then o banner mostra causa, nota, `summary` e
   `recommendation`; campo ausente da análise some do banner sem deixar espaço vazio.
 - **CA6** — Given a análise responde 204 e o treino **tem** RPE, Then aparece a faixa neutra
-  "Análise da IA em andamento".
+  "Análise da IA indisponível para este treino no momento" — sem prometer que vai chegar (treino
+  antigo nunca é analisado).
 - **CA7** — Given a análise responde 204 e o treino **não tem** RPE, Then aparece a nota "A análise
   da IA depende do RPE do atleta". Given a análise `FAILED` ou erro na busca da análise, Then nenhum
   banner aparece e o resto do dialog funciona.
 - **CA8** — Given o detalhe com `tempoEmZonas`, Then a faixa mostra as cinco zonas na ordem Z1→Z5,
-  com a zona alvo do planejado destacada e o percentual do tempo nela.
-- **CA9** — Given um `.fit` com amostras de FC importado para um atleta com zonas de FC definidas,
-  Then o treino guarda o tempo por zona e os limites de bpm usados, e a soma das zonas é igual ao
-  tempo coberto pelas amostras **com o teto de 5 s por intervalo entre amostras** (D6), ±1 s no
-  total; mudar as zonas do atleta depois não altera o treino já importado.
-- **CA10** — Given um treino sem `tempoEmZonas` (outra fonte, sem amostras ou atleta sem zonas),
+  com a zona alvo do planejado destacada e o percentual do tempo nela. `zonaAlvo` em faixa
+  (`z2-z3`) destaca todas as zonas da faixa e soma o percentual; `zonaAlvo` ausente ou fora de
+  Z1–Z5 (ex.: Z6 de pace) não destaca nada e a linha Zona do comparativo fica neutra.
+- **CA9** — Given um `.fit` com amostras de FC importado para um atleta com zonas de FC confiáveis
+  (eixo FC `MANUAL` com faixas, ou `fcLimiar` informada), Then o treino guarda o tempo por zona e
+  os limites de bpm usados, e a soma das zonas é igual à soma dos pesos das amostras pelas regras
+  do D6, ±1 s no total; mudar as zonas do atleta depois não altera o treino já importado.
+- **CA10** — Given um treino sem `tempoEmZonas` (outra fonte, sem amostras, FC em menos da metade
+  do treino ou atleta sem zonas confiáveis),
   Then a seção de zonas mostra "Tempo em zonas indisponível para este treino" e a importação não
   falha.
 - **CA11** — Given o detalhe com `etapasRealizadas`, Then a tabela lista as voltas por `ordem`, o
@@ -152,18 +179,20 @@ não faz. Não alimenta o loop de aprendizado — neutro para o moat, declarado 
   a maioria relata não precisar mais sair do Menthoros para revisar execução.
 - **Principal — tempo:** minutos por revisão de atleta na semana, antes e depois, autorrelatado
   pelos treinadores piloto na mesma entrevista.
-- **Secundária — uso:** aberturas do dialog por treinador ativo por semana (evento D7,
-  **obrigatório nesta change**).
-- **Secundária — cobertura:** % das aberturas em que a faixa de zonas aparece (não cai no CA10).
-  Abaixo de 50 % depois de 4 semanas, o investimento em zonas não se pagou: priorizar zonas de
-  Strava/intervals.icu ou rever o desenho.
+- **Secundária — uso:** na mesma entrevista, com que frequência o treinador abre o dialog na
+  revisão semanal. Sem evento de front nesta change (ver Fora de escopo).
+- **Secundária — cobertura:** % dos treinos realizados dos tenants piloto, importados nas 4 semanas
+  após o deploy, com `tempo_em_zonas` não nulo — consulta SQL, sem telemetria. Abaixo de 50 %, o
+  investimento em zonas não se pagou: priorizar zonas de Strava/intervals.icu ou rever o desenho.
 
 ## Dependências
 
-- **Migrations:** `V108` já foi usada (`add_zonas_manuais_atleta`) e `garmin-activity-ingestion`
-  reserva `V109`. Usar o próximo número livre em `develop` no momento do commit.
-- **Zonas de FC do atleta:** usa a fonte vigente de zonas (`coach-athlete-zones` /
-  `V108__add_zonas_manuais_atleta`). Sem zonas de FC, sem tempo em zonas (CA10).
+- **Migrations:** `V108` usada (`add_zonas_manuais_atleta`), `V109` de `coach-editar-treino-aprovado`
+  e `V110` de `garmin-activity-ingestion`, ambas em branch. Esta change usa **`V111`**; conferir
+  `db/migration` em `develop` e as branches abertas no commit da migration.
+- **Zonas de FC do atleta:** `ZonaTreinoService.zonasFC(atleta)`, a mesma fonte do `ZoneResolver`
+  (manual ou derivada de limiar, por `AthleteZones.de`). Sem zonas confiáveis, sem tempo em zonas
+  (CA10).
 - **`add-workout-metrics-analyzer`:** planeja `AthleteZoneProfile` e tempo em zona a partir de
   amostras, mas depende de `first-party-ingestion-architecture`. Esta change entrega um cálculo
   mínimo no import do `.fit` e o contrato `tempoEmZonas`; quando aquela chegar, passa a ser a dona do
@@ -185,6 +214,10 @@ não faz. Não alimenta o loop de aprendizado — neutro para o moat, declarado 
   timestamp) sem custo relevante; conferir na task 0.1 com um `.fit` de 2 h.
 - **A8 — Tolerâncias da diferença** (distância ±10 %, duração ±10 min, ≥ 60 % do tempo na zona
   alvo, RPE ±1) são as do protótipo; ajustar com o treinador piloto, sem mudar o desenho.
+- **A9 — Zonas estimadas não contam.** FC máxima por idade (ou 180 sem idade) gera zonas que o
+  treinador não definiu; mostrar tempo nelas daria precisão falsa. Ver CA9/CA10.
+- **Gates 0.8 e 0.9:** aprovação do dono do produto. 0.8 baixa → faixa de zonas em PR posterior
+  (Q3). 0.9 reprovada → ajustar as constantes de tolerância antes do merge; o desenho não muda.
 - **Q3 — Cobertura de zonas nos pilotos (aberta, task 0.8):** quantos atletas têm zonas de FC e
   que fração dos treinos entra por `.fit`. Se for baixa, a faixa de zonas sai num PR posterior ao
   do dialog (mesma change, ordem de entrega), para não segurar o resto.

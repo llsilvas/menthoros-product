@@ -9,6 +9,10 @@ O card de um treino planejado que tem treino realizado vinculado SHALL oferecer 
 - **WHEN** o treino planejado tem `treinoRealizadoId`
 - **THEN** o card mostra o botão "Ver realizado"
 
+#### Scenario: Resumo do perfil expõe o vínculo
+- **WHEN** o perfil do atleta para o treinador lista os treinos da semana
+- **THEN** cada treino planejado com realizado vinculado traz `treinoRealizadoId`
+
 #### Scenario: Treino sem realizado vinculado
 - **WHEN** o treino planejado não tem `treinoRealizadoId`
 - **THEN** o card não mostra o botão
@@ -39,7 +43,11 @@ conteúdo de IA, sem bloquear o restante da tela enquanto é buscada.
 
 #### Scenario: Análise ainda não disponível com RPE
 - **WHEN** a análise responde 204 e o treino tem RPE
-- **THEN** aparece a faixa neutra "Análise da IA em andamento"
+- **THEN** aparece a faixa neutra "Análise da IA indisponível para este treino no momento"
+
+#### Scenario: Análise já buscada pelo card
+- **WHEN** o card já buscou a análise do treino
+- **THEN** o dialog usa esse resultado e não chama o endpoint de análise de novo
 
 #### Scenario: Análise ainda não disponível sem RPE
 - **WHEN** a análise responde 204 e o treino não tem RPE
@@ -54,9 +62,22 @@ conteúdo de IA, sem bloquear o restante da tela enquanto é buscada.
 O backend SHALL calcular e guardar, no import de um `.fit` com amostras de FC, o tempo do treino
 em cada zona de FC do atleta vigente no import, junto dos limites usados, e expô-lo no detalhe.
 
-#### Scenario: `.fit` com amostras e atleta com zonas
-- **WHEN** o `.fit` tem amostras de FC e o atleta tem zonas de FC
+#### Scenario: `.fit` com amostras e atleta com zonas confiáveis
+- **WHEN** o `.fit` tem amostras de FC e o atleta tem zonas de FC manuais ou FC de limiar informada
 - **THEN** o detalhe expõe `tempoEmZonas` com as cinco zonas, limites de bpm e segundos
+
+#### Scenario: Atleta só com zonas estimadas
+- **WHEN** as zonas de FC do atleta vêm só de FC máxima estimada (idade ou valor padrão)
+- **THEN** `tempoEmZonas` fica ausente
+
+#### Scenario: Pausa e amostras inválidas
+- **WHEN** há intervalo maior que 5 s entre amostras, timestamp repetido ou amostra sem FC
+- **THEN** o intervalo conta no máximo 5 s, e amostras com timestamp repetido ou sem FC não somam
+  tempo
+
+#### Scenario: Borda entre zonas
+- **WHEN** um bpm é o limite superior de uma zona e o inferior da seguinte
+- **THEN** ele conta na zona de baixo
 
 #### Scenario: Zonas mudam depois do import
 - **WHEN** as zonas do atleta mudam depois que o treino foi importado
@@ -70,6 +91,14 @@ em cada zona de FC do atleta vigente no import, junto dos limites usados, e exp�
 #### Scenario: Zona alvo destacada
 - **WHEN** o detalhe tem `tempoEmZonas` e o planejado tem zona alvo
 - **THEN** a faixa destaca a zona alvo e mostra o percentual do tempo nela
+
+#### Scenario: Zona alvo em faixa
+- **WHEN** a zona alvo é uma faixa como `z2-z3`
+- **THEN** a faixa destaca todas as zonas do intervalo e soma o percentual
+
+#### Scenario: Zona alvo não reconhecida
+- **WHEN** a zona alvo está ausente ou fora de Z1–Z5
+- **THEN** nenhuma zona é destacada e a linha Zona do comparativo fica neutra
 
 ### Requirement: Tabela de etapas
 
