@@ -11,17 +11,18 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
 
 ## 1. Fila de pings (backend)
 
-- [ ] 1.1 Migration `V109__create_tb_garmin_ping.sql` conforme D1: UUID, TIMESTAMPTZ, tipos e
+- [x] 1.1 Migration `V110__create_tb_garmin_ping.sql` (V109 reservada por
+  `coach-editar-treino-aprovado`; identificadores em inglês, ADR-0007) conforme D1: UUID, TIMESTAMPTZ, tipos e
   `CHECK` do `status` do D1, `summary_id` UNIQUE global, `tenant_id`/`atleta_id` `NOT NULL` com FK,
   `proxima_tentativa_em`, `sincronizando_desde`, índices `(tenant_id, status)` e
   `(status, criado_em)`. Conferir o último `V` em `develop` antes de numerar.
   verify: `./mvnw clean test` sobe o contexto com a migration aplicada no Testcontainers.
-- [ ] 1.2 Entidade `GarminPing` + enum de status + `GarminPingRepository`
+- [x] 1.2 Entidade `GarminPing` + enum de status + `GarminPingRepository`
   (`findPendentesPorAntiguidade(limite, agora, desde)`, `findExpirados`,
   `findSincronizandoPresos`, `deleteAntesDe(status, data)`).
   verify: `@DataJpaTest` dos quatro métodos, inclusive a ordem por `criado_em` e o filtro de
   `proxima_tentativa_em`.
-- [ ] 1.3 `GarminPingService.registrar(List<JsonNode>)` (D2), **sem `@Transactional`**: um `save`
+- [x] 1.3 `GarminPingService.registrar(List<JsonNode>)` (D2), **sem `@Transactional`**: um `save`
   por item; `DataIntegrityViolationException` em `summary_id` = repetido, ignora; resolve
   `userId → IntegracaoExterna(GARMIN)` → `atletaId`/`tenantId`; `userId` sem conexão registrada
   não grava; descarte com motivo por modalidade, `manual=true`, `fileType != FIT` e conexão inativa;
@@ -29,7 +30,7 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
   verify: testes parametrizados pelos 9 `activityType` de corrida + amostra de não-corrida, por
   cada motivo de descarte, `userId` desconhecido (nada gravado), `summaryId` repetido (ignorado) e
   falha de gravação propagando (CA1, CA2, CA6).
-- [ ] 1.4 `GarminWebhookServiceImpl.processar` trata a chave `activityFiles` delegando a
+- [x] 1.4 `GarminWebhookServiceImpl.processar` trata a chave `activityFiles` delegando a
   `registrar` **fora do `porItem`** (exceção não é engolida); falha de gravação que não é o dedup
   vira `GarminPingRegistroException` sem causa, com log só do tipo (D2); item sem `userId`,
   `summaryId`, `callbackURL` ou `startTimeInSeconds` é pulado antes do `save` (nenhuma violação de
