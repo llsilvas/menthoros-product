@@ -110,3 +110,32 @@ worktree `.worktrees/front-coach-editar-treino-aprovado` só então, a partir de
   no card; treino realizado sem lápis.
   verify: `npm run test:e2e` verde local.
 - Validação da seção: `npm run lint && npm run build && npm run test:run && npm run test:e2e`.
+
+## 3. QA (2026-11-04)
+
+Revisores: `code-reviewer`, `security-reviewer`, `frontend-reviewer`, `clean-code-reviewer`. Nenhum
+Critical. Aplicado (backend `1d1b906`, `f4f7566`; front `6311892`):
+
+- Rótulo do cadeado pelo motivo do backend: o perfil ganha `editRejection` (`NOT_PENDING`,
+  `PAST_DAY`, `TODAY_ON_WATCH`); o front não deduz mais o dia pelo navegador (apontado por dois
+  revisores).
+- Perfil sem `editable` (backend antigo) fica sem lápis e sem cadeado.
+- "Atleta com relógio" num ponto só (`PostApprovalEditCoordinator.hasWatch`), usado pelo PATCH e
+  pelo perfil; `Clock` injetado no `IntervalsIcuPushProcessor`.
+- Teste que trava a ordem: o registro grava o "depois" antes de reiniciar a sincronização.
+- `excluirTreino` recusa plano `APROVADO` (422): a exclusão apagaria em cascata o registro da edição
+  e deixaria o workout órfão no relógio (decisão do founder). O DELETE ganha `@RequireTenant` e
+  `@Operation`.
+- Front: `WatchChannel`/`NOME_CANAL` no adapter, erro anterior limpo ao salvar de novo, snackbar não
+  fecha no clique fora.
+
+Rejeitado após checar o código: `editable` em plano `REJEITADO` (o perfil só monta treinos em
+`APROVADO` e `AGUARDANDO_REVISAO`).
+
+Desvio do D8, registrado: o cabeçalho da semana aprovada tem o chip "Aprovado" e o texto de apoio,
+sem "por você em DD/MM" (o perfil não traz quem aprovou nem quando) e sem o título "Semana DD–DD
+mmm" (a seção já se chama "Plano da semana").
+
+Adiados (Minor): etapas novas sem id no snapshot "depois"; duas consultas de canal por PATCH;
+`editable` true em treino `SINCRONIZANDO` (o PATCH responde 409, transitório); `podeEditar` com três
+estados no `CurrentWeekPlan`.
