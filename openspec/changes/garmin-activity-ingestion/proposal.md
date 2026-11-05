@@ -34,7 +34,7 @@ registrar a atribuição "Garmin [modelo]" que a licença exige.
   `deviceName` para a atribuição.
 - Front: atribuição **"Garmin [modelo]"** (ou "Garmin" quando desconhecido) visível junto ao
   título em todo lugar que mostra treino realizado com `fonteDados = GARMIN` — card do atleta,
-  análise, calendário/lista do treinador (o produto não exporta treinos). Flag `garminHabilitado` removida: o canal
+  lista de treinos do atleta, lista do treinador e detalhe do treino (o produto não exporta treinos). Flag `garminHabilitado` removida: o canal
   fica disponível ao atleta Garmin.
 - "Melhores esforços" fica indisponível para atleta de canal Garmin (painel com aviso), até
   `add-athlete-best-efforts` calcular a partir do FIT.
@@ -49,7 +49,7 @@ registrar a atribuição "Garmin [modelo]" que a licença exige.
 
 ### Modified Capabilities
 - `watch-connection-guide`: a linha "Relógio" do treinador e o chip de sincronização passam a
-  refletir a conexão Garmin direta (última atividade recebida, erro de permissão
+  refletir a conexão Garmin direta (última atividade recebida — `ultimaSincronizacao` da conexão, gravada a cada ping processado —, erro de permissão
   `ACTIVITY_EXPORT`).
 
 ## Impact
@@ -60,7 +60,8 @@ registrar a atribuição "Garmin [modelo]" que a licença exige.
   deviceName)`, `TreinoRealizadoOutputDto.deviceName`, `TreinoMapper`. Dedup e TSS/carga do dia
   continuam em `IngestaoTreinoRealizadoService.registrar` — nada novo ali.
 - **Frontend:** componente `FonteAttribution` ("Garmin [modelo]") usado em `TodayFeedbackCard`,
-  análise do treino (`WorkoutDetailDrawer`), `RecentTrainingsPanel` e `CoachCalendarPage`;
+  `RecentTrainingsList`, `RecentTrainingsPanel` e `DetalheTreinoDialog` (o calendário do treinador
+  não mostra realizado);
   `MelhoresEsforcosPanel`/`EffortsBlock` com estado "indisponível para Garmin";
   `SyncStatusChip`/`CoachWatchLine` com dados da conexão Garmin; remoção de `garminHabilitado`.
 - **Não toca:** `FitParseServiceImpl`, `IngestaoTreinoRealizadoService`, scheduler/pull do
@@ -99,11 +100,12 @@ registrar a atribuição "Garmin [modelo]" que a licença exige.
 - **CA7b — Reclaim.** Given ping `SINCRONIZANDO` com `sincronizando_desde` > 10 min, Then volta a
   `PENDENTE` com `tentativas+1`; nunca fica preso.
 - **CA8 — Atribuição.** Given treino `fonteDados=GARMIN` com `deviceName`, When exibido no card de
-  hoje, na análise, na lista do treinador e no calendário, Then o texto "Garmin
+  hoje, na lista do atleta, na lista do treinador e no detalhe do treino, Then o texto "Garmin
   Forerunner 970" aparece junto ao título, fora de tooltip ou área recolhida; sem `deviceName`,
   aparece "Garmin". Treino de outra fonte não mostra atribuição Garmin.
 - **CA9 — Esforços.** Given atleta com conexão Garmin ativa, Then a aba/painel de melhores
-  esforços mostra "Indisponível para o canal Garmin por enquanto" em vez de chamar o intervals.icu.
+  esforços mostra "Indisponível para o canal Garmin por enquanto"; o backend responde 409 sem chamar
+  o intervals.icu.
 - **CA10 — Flag removida.** Then `garminHabilitado` não existe mais e o atleta Garmin vê "Conectar
   Garmin" sem configuração.
 

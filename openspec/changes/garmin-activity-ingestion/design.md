@@ -20,13 +20,28 @@ Ver `proposal.md` e ADR-0013. Estado que molda o desenho:
 - `IntervalsIcuRetrySchedulerImpl` é o molde de `@Scheduled` que processa um lote de linhas
   pendentes com transações curtas e HTTP fora delas.
 - `MelhorEsforcoServiceImpl` usa `pace-curves` do intervals.icu (não existe no Garmin).
-- Front: `TodayFeedbackCard`, `RecentTrainingsPanel`, `CoachCalendarPage`, análise do treino
-  (`WorkoutDetailDrawer`); `SyncStatusChip`, `CoachWatchLine`; flag `garminHabilitado` de
-  `garmin-connection`. O produto não exporta treinos.
+- Front — pontos que exibem treino realizado com fonte, cada um com seu DTO:
+  `TodayFeedbackCard` (`AtletaHomeDto` → `AthleteRealizadoHoje`), `RecentTrainingsList` do atleta
+  (`TreinoRealizadoDto`), `RecentTrainingsPanel` do treinador
+  (`AtletaPerfilCoachOutputDto.RealizadoRecenteDto`) e `DetalheTreinoDialog` (`TreinoService`).
+  `CoachCalendarPage` não mostra realizado e `WorkoutDetailDrawer` mostra o planejado + análise de
+  IA. `SyncStatusChip`, `CoachWatchLine`; flag `garminHabilitado` de `garmin-connection`. O produto
+  não exporta treinos.
+- `FitTreinoPersister.persistir` exige `TenantContext.getRequiredTenantId()`; o scheduler não tem
+  request. Molde para instalar/limpar o contexto: `StravaWebhookServiceImpl` (`setTenantId` +
+  `clear` em `finally`).
+- `IngestaoTreinoRealizadoServiceImpl` devolve o treino existente na duplicata sem tocá-lo.
+- `GlobalExceptionHandler` mapeia `DataIntegrityViolationException` para 409 e loga a causa SQL; o
+  handler genérico loga a exceção com cadeia de causas. Violação de `NOT NULL` no Postgres inclui
+  "Failing row contains (...)" — a linha inteira, com o `callback_url`, que carrega token.
+- `IntegracaoExterna.ultimaSincronizacao` existe e já sai em `GarminConnectionStatusDto`, mas
+  nenhum código Garmin a grava hoje (só o intervals.icu, em `IntervalsIcuRetrySchedulerImpl`).
+- Melhores esforços no front: `AthleteProgressPage` dispara `fetchMelhoresEsforcos` sozinha;
+  `EffortsBlock`/`MelhoresEsforcosPanel` são apresentacionais.
 - Webhook: `GarminWebhookController` valida o segredo e chama `GarminWebhookService.processar(Map)`
   sempre devolvendo 200; o roteamento por chave está em `GarminWebhookServiceImpl`, deliberadamente
   sem `@Transactional` no lote, cada item em transação própria e exceção por item engolida com log.
-- `GarminConnectionStatusDto` já tem `activityExport`; falta só a data da última atividade.
+- `GarminConnectionStatusDto` já tem `activityExport` e `ultimaSincronizacao` — nenhum campo novo.
 - `FitTreinoPersister.persistir(atletaId, dados)` devolve `FitImportResultado` com `novo()` e o id
   do treino (novo ou existente).
 - Última migration em `develop`: `V108__add_zonas_manuais_atleta.sql`.
@@ -73,7 +88,10 @@ transação própria, e `DataIntegrityViolationException` na UNIQUE de `summary_
 ignora. Diferente de `deregistrations`/`userPermissionsChange`, `activityFiles` **não passa pelo
 `porItem` que engole exceção**: qualquer outra falha de gravação propaga, o
 `GlobalExceptionHandler` (handler genérico) responde 500 e o Garmin reenvia o lote inteiro — o que
-já foi gravado é absorvido pelo dedup. Engolir aqui perderia o arquivo para sempre.
+já foi gravado é absorvido pelo dedup. Engolir aqui perderia o arquivo para sempre. **A falha
+propaga sanitizada:** `registrar` captura a exceção de gravação que não é o dedup, loga só o tipo
+(como o `porItem`) e lança `GarminPingRegistroException` **sem causa** — o handler genérico
+responde 500 sem que a mensagem SQL (que pode conter o `callback_url` com token) chegue ao log.
 `userId` sem nenhuma `IntegracaoExterna(GARMIN)` → **não grava**,
 só loga (ADR-0013: "200 sem efeito"; sem atleta não há `tenant_id`, que é `NOT NULL`);
 `activityType` fora do conjunto de corrida, `manual=true`, `fileType != FIT`, ou conexão do
@@ -85,11 +103,17 @@ ULTRA_RUN, VIRTUAL_RUN`.
 
 ### D3: `GarminPingProcessorScheduler` a cada minuto
 Lote de até 20 pings `PENDENTE` com `proxima_tentativa_em <= now` e `criado_em > now − 24 h`,
-ordenados por `criado_em` (mais antigo primeiro = mais perto de expirar). Para cada um: marca
+ordenados por `criado_em` (mais antigo primeiro = mais perto de expirar). Para cada um, com
+`TenantContext.setTenantId(ping.tenantId)` instalado e limpo em `finally` (molde
+`StravaWebhookServiceImpl` — o persister exige o contexto e o scheduler não tem request): marca
 `SINCRONIZANDO` com `sincronizando_desde = now` (claim em TX própria, como o processor do
-intervals.icu); fora de TX, `GarminClient.baixarArquivo` + `FitParseService.parse`; em TX,
-`FitTreinoPersister.persistir(atletaId, dados, deviceName)` e `PROCESSADO` com
-`treino_realizado_id`. **Antes do download**, o `callbackURL` é validado: esquema `https`, host
+intervals.icu); **revalida a conexão** — sem `IntegracaoExterna(GARMIN)` ativa para o atleta
+(desconectou ou foi desregistrado enquanto o ping esperava) → `DESCARTADO "conexão inativa"`, sem
+download; fora de TX, `GarminClient.baixarArquivo` + `FitParseService.parse`; em TX,
+`FitTreinoPersister.persistir(atletaId, dados, deviceName)`, `PROCESSADO` com
+`treino_realizado_id` e `IntegracaoExterna.ultimaSincronizacao = now` (o mesmo campo que o
+intervals.icu grava e que o `GarminConnectionStatusDto` já expõe; sobrevive à limpeza do D5).
+**Antes do download**, o `callbackURL` é validado: esquema `https`, host
 `apis.garmin.com` e path `/wellness-api/rest/activityFile`; fora disso → `ERRO "callbackURL
 inválido"` sem requisição (a URL chega no corpo de um request externo — sem a checagem o backend
 faz GET em host arbitrário, SSRF; o segredo no path do webhook não basta). Erros: 5xx/timeout/429
@@ -110,9 +134,14 @@ mais de ~200 corridas/dia, subir o lote`.
 
 ### D4: `deviceName` entra pelo persister
 `FitTreinoPersister.persistir(UUID atletaId, FitSessionData dados, @Nullable String deviceName)`;
-`FitUploadServiceImpl` passa `null`. `TreinoMapper` expõe `deviceName` no
-`TreinoRealizadoOutputDto`. Alternativa rejeitada: `UPDATE` depois da persistência — segunda
-escrita para um campo que cabe na primeira.
+`FitUploadServiceImpl` passa `null`. Na duplicata (`novo() == false`, o atleta subiu o FIT antes
+do ping), o persister preenche `deviceName` no treino existente **só se estiver nulo**, sem
+repetir TSS/evento/carga — senão o modelo que o Garmin informou se perde. O `deviceName` chega à
+tela pelos quatro DTOs do Context: `TreinoMapper`/`TreinoRealizadoOutputDto` (lista do atleta e
+`DetalheTreinoDialog`), `AtletaHomeDto` (realizado de hoje) e
+`AtletaPerfilCoachOutputDto.RealizadoRecenteDto` (lista do treinador), cada um com seu montador.
+Alternativa rejeitada: `UPDATE` depois da persistência — segunda escrita para um campo que cabe
+na primeira.
 
 ### D5: Limpeza dos pings
 `@Scheduled` diário apaga pings `PROCESSADO`/`DESCARTADO` com mais de 30 dias; `ERRO` fica 90
@@ -120,8 +149,10 @@ dias para investigação.
 
 ### D6: Atribuição por componente único no front
 `FonteAttribution({ fonteDados, deviceName })` renderiza o modelo do dispositivo ou "Garmin" para
-`GARMIN`, nada para as demais fontes; usado nos pontos de exibição (`TodayFeedbackCard`,
-`WorkoutDetailDrawer`, `RecentTrainingsPanel`, `CoachCalendarPage`). Não usa o logo (evita as regras do tag logo).
+`GARMIN`, nada para as demais fontes; usado nos quatro pontos que exibem treino realizado:
+`TodayFeedbackCard`, `RecentTrainingsList`, `RecentTrainingsPanel` e `DetalheTreinoDialog`. A
+análise de IA do `WorkoutDetailDrawer` só entra se a Open Question (d) confirmar — e aí o DTO da
+análise precisa trazer `fonteDados`/`deviceName`. Não usa o logo (evita as regras do tag logo).
 Alternativa rejeitada: `fonteDados.label` genérico — a licença pede o modelo do dispositivo.
 
 Texto: o `deviceName` vem inconsistente na Activity API — "Garmin Fenix 8" no exemplo de
@@ -131,9 +162,11 @@ com "Garmin" (case-insensitive) → exibe como vem; senão → "Garmin " + `devi
 Garmin Fenix 8". O backend guarda o valor cru; a normalização é só de exibição.
 
 ### D7: Melhores esforços
-`MelhoresEsforcosPanel`/`EffortsBlock`: se a conexão de canal é Garmin, renderiza aviso e não
-chama o endpoint. Backend: `MelhorEsforcoServiceImpl` devolve 409 "indisponível para o canal
-Garmin" quando a conexão de canal não é intervals.icu, em vez de tentar `pace-curves`.
+Backend: `MelhorEsforcoServiceImpl` devolve 409 "indisponível para o canal Garmin" quando a
+conexão de canal não é intervals.icu, em vez de tentar `pace-curves` — é aqui que a chamada ao
+intervals.icu é cortada. Front: quem busca é a página (`AthleteProgressPage` e a página do
+treinador), não os painéis; o hook de esforços trata o 409 como estado "indisponível" e
+`EffortsBlock`/`MelhoresEsforcosPanel` renderizam o aviso. Sem detectar canal no front.
 
 ### D8: Flag `garminHabilitado` removida
 Último passo da change; a conexão Garmin passa a ser oferecida a todo atleta com marca GARMIN.
@@ -151,6 +184,10 @@ ignorada; apagá-las é passo manual pós-deploy.
 - [Falha entre download e persistência] → o link já foi consumido (410 no retry); o ping vai a
   `ERRO` com motivo e o treinador vê "treino não chegou" via `watch-connection-guide`; o atleta
   pode subir o FIT à mão (mesmo dedup). Aceito: janela de risco de milissegundos.
+- [Upload manual e ping no mesmo instante] → corrida genuína no `TreinoDedupHelper` (risco
+  residual já documentado nele): a TX do scheduler faz rollback, o retry dá 410 e o ping vai a
+  `ERRO` com o treino existindo pelo upload. Nada se perde; só a linha de auditoria fica errada.
+  Aceito.
 - [FIT de relógio antigo sem `serialNumber`] → `externalId` usa `0` como serial (comportamento
   atual do persister); colisão só se dois arquivos do mesmo atleta tiverem o mesmo `startTime`.
 - [Cota de 50 downloads/min] → lote de 20/min por instância, uma instância. Ver D3.

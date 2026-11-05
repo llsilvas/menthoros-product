@@ -105,8 +105,8 @@ enviado pelo Garmin e subido à mão SHALL produzir um único treino.
 - **THEN** o aviso fica em erro com motivo, sem nova tentativa, e nada é persistido
 
 ### Requirement: Atribuição de origem Garmin
-Todo lugar que mostra um treino realizado de fonte Garmin — card do atleta, análise do treino,
-lista e calendário do treinador — SHALL exibir
+Todo lugar que mostra um treino realizado de fonte Garmin — card do treino de hoje, lista de
+treinos do atleta, lista de treinos recentes do treinador e detalhe do treino — SHALL exibir
 "Garmin [modelo]" junto ao título do treino, visível sem interação, ou "Garmin" quando o modelo é
 desconhecido. Treinos de outras fontes SHALL NOT exibir atribuição Garmin.
 
@@ -134,4 +134,4 @@ treinador SHALL ver o painel com a mensagem de indisponibilidade, sem chamada ao
 #### Scenario: Atleta Garmin abre Esforços
 - **WHEN** um atleta com conexão Garmin ativa abre a aba de esforços
 - **THEN** vê "Indisponível para o canal Garmin por enquanto" e nenhuma requisição ao intervals.icu
-  é feita
+  é feita, nem pelo atleta nem pelo treinador
