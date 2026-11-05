@@ -92,7 +92,7 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
   verify: teste do componente — GARMIN + "Forerunner 970" → "Garmin Forerunner 970"; GARMIN +
   "Garmin Fenix 8" sem duplicar; GARMIN sem modelo ou `unknown` → "Garmin"; outra fonte → nada
   (CA8).
-- [ ] 4.2 Inserir `FonteAttribution` junto ao título em `TodayFeedbackCard`, `TodayCompletedCard`
+- [x] 4.2 Inserir `FonteAttribution` junto ao título em `TodayFeedbackCard`, `TodayCompletedCard`
   (assume depois do feedback), `RecentTrainingsList`,
   `RecentTrainingsPanel` e `DetalheTreinoDialog`, e na análise de IA (`WorkoutAnalysisCard`) —
   Open Question (d) confirmada em 2026-11-05. Backend: `TreinoPlanejadoOutputDto` ganha
