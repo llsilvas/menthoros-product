@@ -125,22 +125,29 @@ Sequência e dependências:
 
 ## 3. Frontend — contrato e dados
 
-- [ ] 3.1 Tipo de leitura `TreinoRealizadoDetalhe` alinhado ao DTO (D3); `TreinoService.obterRealizado`
+- [x] 3.1 Tipo de leitura `TreinoRealizadoDetalhe` alinhado ao DTO (D3); `TreinoService.obterRealizado`
   (`src/api/services/TreinoService.ts`) passa a devolvê-lo. Conferir consumidores atuais
   (`useDecouplingRealizado`). `treinoRealizadoId` e `ritmoAlvo` em `src/types/AtletaPerfilCoach.ts`
   (resumo; distância anulável) e `treinoRealizadoId` em `src/types/PlanoReview.ts`; ajustar
   consumidores do resumo ao `null` (`CurrentWeekPlan`, `coachInboxAdapters`).
   verify: `npm run build` sem erro de tipo; testes atuais de `CurrentWeekPlan` verdes.
-- [ ] 3.2 Adapter `features/coach/adapters/treinoRealizadoDetalheAdapters.ts`
+- [x] 3.2 Adapter `features/coach/adapters/treinoRealizadoDetalheAdapters.ts`
   (`buildExecucaoFromDetalhe(detalhe, planejado)`, D4, D5): linhas do comparativo com diferença e
   critério, zonas com alvo normalizado (`Z2`, `z2-z3`, inválido → vazio) e "% no alvo", linhas das
   etapas e Total da sessão, grupos do acordeão, `--` para ausente, vírgula decimal. Testes com
   fixture capturada do backend (R3), incluindo treino manual sem voltas e sem zonas.
   verify: `*.test.ts` puro cobre cada linha do D5 e cada forma de `zonaAlvo`.
-- [ ] 3.3 `features/coach/hooks/useTreinoRealizadoDetalhe(id)` e `useAnaliseTreinoRealizado(id,
+  **Feito (2026-11-05), com uma pendência:** a fixture do teste segue a forma do D3 com os números
+  da sonda da 0.1, mas **não foi capturada de um backend rodando** (R3). Capturar na 4.5, com o
+  backend local, e trocar a fixture se divergir. View model em `features/coach/types/ExecucaoTreino.ts`
+  (nome distinto do tipo de API `TreinoRealizadoDetalhe`). Ritmo do `.fit` sai de `velocidadeMedia`
+  (ver 1.3).
+- [x] 3.3 `features/coach/hooks/useTreinoRealizadoDetalhe(id)` e `useAnaliseTreinoRealizado(id,
   temRpe)` com `status`/`data`/`refetch` (D4). Mapeamento 200 `COMPLETED` → pronta, 204 + RPE →
   indisponível, 204 sem RPE → semRpe, `FAILED`/erro → erro, sem banner (CA5–CA7). Testes.
   verify: teste de hook por estado, com o serviço mockado.
+  **Feito:** status ganhou `ociosa` (sem id). Sem RPE o hook não chama o backend (a análise depende
+  do RPE), como o `TreinoCard` já fazia. `PENDING` conta como indisponível.
 - Validação: `npm run lint && npm run build && npm run test:run`.
 
 ## 4. Frontend — tela
