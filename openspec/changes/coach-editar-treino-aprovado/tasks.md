@@ -76,7 +76,7 @@ relógio.
   - atleta Garmin, treino sem `externalId`, push da aprovação e da edição concorrendo → um único
     `criarWorkout` com o conteúdo editado (CA8b).
   Entregue em `PostApprovalEditPushIT` (Garmin): CA6, CA8b e CA3c/CA11b ponta a ponta. CA7 no IT só
-  pelo Garmin; a rota por canal é a do `conexaoDeCanal` + `CompositeWorkoutChannel` já cobertos, e o
+  pelo Garmin; a rota por canal é a do `conexaoDeCanal` + `WorkoutChannelPorPlataforma` já cobertos, e o
   listener novo não escolhe canal (resolve e repassa), coberto em `WorkoutEditedPushListenerTest`.
   verify: IT verde no `./mvnw clean verify`; WireMock confere 1 chamada de update e 0 de create
   extra.
