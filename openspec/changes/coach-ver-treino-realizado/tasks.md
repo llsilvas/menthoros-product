@@ -152,25 +152,33 @@ Sequência e dependências:
 
 ## 4. Frontend — tela
 
-- [ ] 4.1 `ExecucaoTreinoDialog` (sobre `src/shared/components/CoachDialog.tsx`) +
+- [x] 4.1 `ExecucaoTreinoDialog` (sobre `src/shared/components/CoachDialog.tsx`) +
   `ExecucaoAnaliseBanner` + `ExecucaoComparativo` (CA3–CA7, CA13).
   verify: testes de componente para carregando, erro com "Tentar de novo" e os quatro estados da
   análise.
-- [ ] 4.2 `ExecucaoZonas` (CA8, CA10) e `ExecucaoEtapas` com cabeçalho fixo e estado vazio (CA11).
+- [x] 4.2 `ExecucaoZonas` (CA8, CA10) e `ExecucaoEtapas` com cabeçalho fixo e estado vazio (CA11).
   verify: testes de alvo único, faixa, sem alvo, sem `tempoEmZonas`, sem voltas.
-- [ ] 4.3 `ExecucaoDadosRelogio` (acordeão fechado; só RPE e comentário em percepção — Q2).
+- [x] 4.3 `ExecucaoDadosRelogio` (acordeão fechado; só RPE e comentário em percepção — Q2).
   verify: teste confirma fechado por padrão e `--` em ausentes.
-- [ ] 4.4 Botão "Ver realizado": `features/coach/components/TreinoPlanejadoCard.tsx` via
+- [x] 4.4 Botão "Ver realizado": `features/coach/components/TreinoPlanejadoCard.tsx` via
   `actions`/`rodape` em `CurrentWeekPlan` e `PlanoDetalhePanel`; `TreinoCard` (Planos, renderizado
   em `PlanoSemanaPanel.tsx:195`) via `onVerRealizado`, trocando o fetch inline da análise pelo
   hook da 3.3 e repassando o estado inteiro ao dialog (D4, CA3) (CA1, CA2). Testes:
   abrir antes da resposta da análise, depois de 204 e depois de falha, com uma única chamada; testes
   de componente com router real (regra de links do front).
   verify: botão presente só com `treinoRealizadoId` nos três lugares; uma chamada de análise.
-- [ ] 4.5 E2E em `tests/e2e/coach/` (novo `execucao-treino.spec.ts`): (a) Planos → "Ver realizado"
+  **Feito (2026-11-05):** `VerRealizadoAcao` (botão + dialog) usado nos três cards. No `TreinoCard`
+  de Planos o botão e o dialog ficam dentro do próprio card, que já é dono do estado da análise —
+  em vez do prop `onVerRealizado` do D4, que obrigaria o pai a receber esse estado. Sem router nos
+  testes de componente: o dialog não tem links.
+- [x] 4.5 E2E em `tests/e2e/coach/` (novo `execucao-treino.spec.ts`): (a) Planos → "Ver realizado"
   → comparativo, faixa de zonas, etapas, acordeão; (b) shell do coach (`CurrentWeekPlan`) → "Ver
   realizado" abre o mesmo dialog; (c) análise 204 com RPE (texto de indisponível) e sem RPE.
   verify: `npm run test:e2e -- execucao-treino` verde e visitando os três caminhos.
+  **Feito:** 4 cenários verdes; suíte E2E completa verde (142). Como os demais specs do coach, o
+  backend é interceptado com `page.route` (não roda contra o backend local, como este item
+  previa); o payload segue o D3. **Pendente da 3.2/R3:** capturar o JSON real de um `.fit`
+  importado no backend local e conferir contra a fixture — vai junto da 5.1.
 - Validação: `npm run lint && npm run build && npm run test:run && npm run test:e2e`.
 
 ## 5. Verificação manual
