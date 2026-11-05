@@ -94,8 +94,10 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
   (CA8).
 - [ ] 4.2 Inserir `FonteAttribution` junto ao título em `TodayFeedbackCard`, `TodayCompletedCard`
   (assume depois do feedback), `RecentTrainingsList`,
-  `RecentTrainingsPanel` e `DetalheTreinoDialog`. A análise de IA do `WorkoutDetailDrawer` só entra
-  se a Open Question (d) do design confirmar — pausar e perguntar ao chegar aqui.
+  `RecentTrainingsPanel` e `DetalheTreinoDialog`, e na análise de IA (`WorkoutAnalysisCard`) —
+  Open Question (d) confirmada em 2026-11-05. Backend: `TreinoPlanejadoOutputDto` ganha
+  `completedSource`/`completedDeviceName` do realizado vinculado (o diálogo carrega o planejado) e
+  `AthleteWorkoutAnalysisOutputDto.Executado` ganha `fonteDados`/`deviceName`.
   verify: um teste por ponto afirmando o texto visível sem interação (CA8), com o `deviceName`
   vindo no formato do DTO real.
 - [x] 4.3 Atleta: o hook de esforços de `AthleteProgressPage` trata o 409 como "indisponível" e o

@@ -150,9 +150,14 @@ mais de ~200 corridas/dia, subir o lote`.
 `FitUploadServiceImpl` passa `null`. Na duplicata (`novo() == false`, o atleta subiu o FIT antes
 do ping), o persister preenche `deviceName` no treino existente **só se estiver nulo**, sem
 repetir TSS/evento/carga — senão o modelo que o Garmin informou se perde. O `deviceName` chega à
-tela pelos quatro DTOs do Context: `TreinoMapper`/`TreinoRealizadoOutputDto` (lista do atleta e
-`DetalheTreinoDialog`), `AtletaHomeDto` (realizado de hoje) e
-`AtletaPerfilCoachOutputDto.RealizadoRecenteDto` (lista do treinador), cada um com seu montador.
+tela pelos DTOs do Context: `TreinoMapper`/`TreinoRealizadoOutputDto` (lista do atleta),
+`AtletaHomeDto` (realizado de hoje), `AtletaPerfilCoachOutputDto.RealizadoRecenteDto` (lista do
+treinador), cada um com seu montador. Dois a mais, decididos na implementação (2026-11-05):
+`TreinoPlanejadoOutputDto` ganha `completedSource`/`completedDeviceName`, lidos do realizado
+vinculado como já faz com `percepcaoEsforcoRealizado` — o `DetalheTreinoDialog` carrega o
+**planejado**, cujo `fonteDados` é a fonte do plano (`IA_GERADO`/`MANUAL`), não a do realizado; e
+`AthleteWorkoutAnalysisOutputDto.Executado` ganha `fonteDados`/`deviceName` para a análise de IA
+(Open Question (d), confirmada).
 Alternativa rejeitada: `UPDATE` depois da persistência — segunda escrita para um campo que cabe
 na primeira.
 
@@ -164,9 +169,11 @@ dias para investigação.
 `FonteAttribution({ fonteDados, deviceName })` renderiza o modelo do dispositivo ou "Garmin" para
 `GARMIN`, nada para as demais fontes; usado nos cinco pontos que exibem treino realizado:
 `TodayFeedbackCard` e `TodayCompletedCard` (substitui o primeiro depois do feedback, mesmo
-`AthleteRealizadoHoje`), `RecentTrainingsList`, `RecentTrainingsPanel` e `DetalheTreinoDialog`. A
-análise de IA do `WorkoutDetailDrawer` só entra se a Open Question (d) confirmar — e aí o DTO da
-análise precisa trazer `fonteDados`/`deviceName`. Não usa o logo (evita as regras do tag logo).
+`AthleteRealizadoHoje`), `RecentTrainingsList`, `RecentTrainingsPanel` e `DetalheTreinoDialog`,
+mais a análise de IA (`WorkoutAnalysisCard`, que serve o `WorkoutDetailDrawer` e os cards da
+Home) — Open Question (d) confirmada pelo founder em 2026-11-05. Onde o componente já mostrava a
+fonte, o rótulo genérico do Garmin dá lugar ao modelo (`rotuloGarmin`), sem repetir "Garmin" ao
+lado. Não usa o logo (evita as regras do tag logo).
 Alternativa rejeitada: `fonteDados.label` genérico — a licença pede o modelo do dispositivo.
 
 Texto: o `deviceName` vem inconsistente na Activity API — "Garmin Fenix 8" no exemplo de
@@ -239,4 +246,5 @@ ignorada; apagá-las é passo manual pós-deploy.
   (a) o texto de IA enviado no cadastro do app está guardado como evidência (pendência herdada de
   `garmin-connection`); (b) o provedor do LLM não usa os dados para treino (termos da API);
   (c) a declaração de transparência de IA está na política de privacidade; (d) a análise
-  pós-treino exibida leva a atribuição "Garmin [modelo]" — se sim, entra no escopo da task 4.2.
+  pós-treino exibida leva a atribuição "Garmin [modelo]" — **confirmado em 2026-11-05: sim**,
+  entrou na task 4.2.
