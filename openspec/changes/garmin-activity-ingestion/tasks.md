@@ -117,7 +117,7 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
 
 ## 5. Integração
 
-- [ ] 5.1 IT de ponta a ponta: POST `activityFiles` (segredo correto) → ping `PENDENTE` → scheduler
+- [x] 5.1 IT de ponta a ponta: POST `activityFiles` (segredo correto) → ping `PENDENTE` → scheduler
   com `callbackURL` stubada devolvendo `src/test/resources/fit/corrida-15km-16laps.fit` →
   `TreinoRealizado(GARMIN, deviceName, 16 etapas, TSS)` → segundo POST igual não duplica → upload
   manual do mesmo FIT não duplica (CA1, CA3, CA4).
