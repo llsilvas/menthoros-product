@@ -49,7 +49,14 @@ original não é guardado.
 
 `AtletaPerfilCoachOutputDto.TreinoPlanejadoResumoDto` ganha `treinoRealizadoId` (UUID, nulo quando
 não há vínculo), montado a partir do vínculo planejado↔realizado que a tela Planos já usa. Sem ele o
-`CurrentWeekPlan` não decide o botão. O tipo do front (`types/AtletaPerfilCoach.ts`) acompanha.
+`CurrentWeekPlan` não decide o botão. O tipo do front (`types/AtletaPerfilCoach.ts`) acompanha;
+`types/PlanoReview.ts` (consumido pelo `PlanoDetalhePanel`) também ganha o campo — o DTO completo
+do backend já o expõe.
+
+O comparativo do shell usa o resumo como "planejado", então o resumo precisa preservar o que o
+CA4 exige: ganha `ritmoAlvo`, e a distância ausente passa a sair nula em vez de `0.0`
+(`CoachAthleteProfileServiceImpl`, montagem do resumo). Conferir os consumidores atuais do resumo
+no front (`CurrentWeekPlan`, `coachInboxAdapters`) para o `null`.
 
 ```json
 "tempoEmZonas": {
@@ -91,9 +98,12 @@ features/coach/
   duração `MM:SS`/`HH:MM:SS`. Reusar helpers de `utils/` e de `planoSemanaUtils` se existirem.
 - **Linha Total** das etapas vem da sessão (CA11): somar voltas diverge com pausa ou volta parcial.
 - O detalhe e a análise são buscados em paralelo, só ao abrir (lazy); a análise não bloqueia.
-  Exceção: o `TreinoCard` de Planos já busca a análise num `useEffect` (quando há RPE). Ele passa o
-  resultado ao dialog por prop (`analiseInicial`), e o hook do dialog não busca de novo quando o
-  prop existe — um estado só, sem chamada duplicada. Sem o prop (shell do coach), o dialog busca.
+  Exceção: o `TreinoCard` de Planos já busca a análise num `useEffect` (quando há RPE). O fetch
+  inline do card é trocado pelo hook `useAnaliseTreinoRealizado`, e o card repassa ao dialog o
+  **estado inteiro do hook** (`analise` prop: `{ status, data, refetch }`, com `status` em
+  `loading | pronta | indisponivel | semRpe | erro`), não só o resultado. Um único dono da
+  requisição: abrir antes da resposta mostra o carregando do mesmo estado; 204 e falha chegam
+  distintos. Sem o prop (shell do coach), o dialog chama o hook ele mesmo.
 - `ExecucaoTreinoDialog` (ver) não se confunde com o `TreinoRealizadoDialog` existente em
   `components/features/planos` (registrar execução), usado em `planosDialog.tsx`.
 - Cabeçalho fixo da tabela: `position: sticky` no `th` dentro de um box com `maxHeight: 360px` e

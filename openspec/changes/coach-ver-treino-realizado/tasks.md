@@ -38,7 +38,8 @@ Referência visual: canvas artboard B e `prototype/execucao-treino` (`d02e770`).
   `temperaturaMaxC`, `elapsedTimeSeg`; `EtapaRealizadaOutputDto`: elevação ganho/perda (D3). Teste
   do mapper e `@WebMvcTest` do `GET /realizados/{id}` com presença e ausência (`NON_NULL`).
 - [ ] 1.5 `TreinoPlanejadoResumoDto` (`AtletaPerfilCoachOutputDto`): `treinoRealizadoId`, montado
-  do vínculo planejado↔realizado (D3, CA1). Teste da montagem com e sem vínculo.
+  do vínculo planejado↔realizado, e `ritmoAlvo`; distância ausente sai nula, não `0.0` (D3, CA1,
+  CA4). Teste da montagem com e sem vínculo e com distância ausente.
 - [ ] 1.6 Teste de isolamento de tenant no `GET /realizados/{id}` (CA14), se ainda não existir.
 - Validação: `./mvnw clean verify`.
 
@@ -61,16 +62,16 @@ Referência visual: canvas artboard B e `prototype/execucao-treino` (`d02e770`).
 
 - [ ] 3.1 Tipo de leitura `TreinoRealizadoDetalhe` alinhado ao DTO (D3); `TreinoService.obterRealizado`
   passa a devolvê-lo. Conferir consumidores atuais (`useDecouplingRealizado`).
-  `treinoRealizadoId` em `types/AtletaPerfilCoach.ts` (resumo do treino planejado).
+  `treinoRealizadoId` e `ritmoAlvo` em `types/AtletaPerfilCoach.ts` (resumo; distância anulável) e
+  `treinoRealizadoId` em `types/PlanoReview.ts`; ajustar consumidores do resumo ao `null`.
 - [ ] 3.2 Adapter `buildExecucaoFromDetalhe(detalhe, planejado)` (D4, D5): linhas do comparativo
   com diferença e critério, zonas com alvo normalizado (`Z2`, `z2-z3`, inválido → vazio) e
   "% no alvo", linhas das etapas e Total da sessão, grupos do acordeão, `--` para ausente, vírgula
   decimal. Testes com fixture capturada do backend (R3), incluindo treino manual sem voltas e sem
   zonas.
-- [ ] 3.3 `useTreinoRealizadoDetalhe(id)` e `useAnaliseTreinoRealizado(id, temRpe, analiseInicial?)`
-  com `loading`/`error`/`refetch`; com `analiseInicial` não busca. Mapeamento 200 `COMPLETED` →
-  pronta, 204 + RPE → indisponível no momento, 204 sem RPE → semRpe, `FAILED`/erro → sem banner
-  (CA5–CA7). Testes.
+- [ ] 3.3 `useTreinoRealizadoDetalhe(id)` e `useAnaliseTreinoRealizado(id, temRpe)` com
+  `status`/`data`/`refetch` (D4). Mapeamento 200 `COMPLETED` → pronta, 204 + RPE → indisponível,
+  204 sem RPE → semRpe, `FAILED`/erro → erro, sem banner (CA5–CA7). Testes.
 - Validação: `npm run lint && npm run build && npm run test:run`.
 
 ## 4. Frontend — tela
@@ -79,9 +80,10 @@ Referência visual: canvas artboard B e `prototype/execucao-treino` (`d02e770`).
 - [ ] 4.2 `ExecucaoZonas` (CA8, CA10) e `ExecucaoEtapas` com cabeçalho fixo e estado vazio (CA11).
 - [ ] 4.3 `ExecucaoDadosRelogio` (acordeão fechado; só RPE e comentário em percepção — Q2).
 - [ ] 4.4 Botão "Ver realizado": `TreinoPlanejadoCard` via `actions`/`rodape` em `CurrentWeekPlan`
-  e `PlanoDetalhePanel`; `TreinoCard` (Planos) via `onVerRealizado`, repassando a análise já
-  buscada (`analiseInicial`, CA3) (CA1, CA2). Testes de componente com router real (regra de links
-  do front).
+  e `PlanoDetalhePanel`; `TreinoCard` (Planos) via `onVerRealizado`, trocando o fetch inline da
+  análise pelo hook da 3.3 e repassando o estado inteiro ao dialog (D4, CA3) (CA1, CA2). Testes:
+  abrir antes da resposta da análise, depois de 204 e depois de falha, com uma única chamada; testes
+  de componente com router real (regra de links do front).
 - [ ] 4.5 E2E: (a) Planos → "Ver realizado" → comparativo, faixa de zonas, etapas, acordeão;
   (b) shell do coach (`CurrentWeekPlan`) → "Ver realizado" abre o mesmo dialog; (c) análise 204
   com RPE (texto de indisponível) e sem RPE.
