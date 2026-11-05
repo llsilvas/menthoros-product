@@ -21,7 +21,7 @@ Sequência e dependências:
    A fixture real (R3) é capturada depois de 1.4/2.3 e substitui a escrita à mão.
 5. **4.x** depende de 3.x. **4.5** (E2E) roda contra o backend local com 1.x e 2.x.
 6. **0.8** e **0.2** antes de abrir o PR; **0.9** antes do merge.
-7. PRs: backend primeiro (aditivo, não quebra o front atual); front depois. Se 0.8 der cobertura
+7. PRs: **front primeiro** (recomendação do QA, ver seção QA — confirmar no `/pr`); backend depois. Se 0.8 der cobertura
    baixa, as tasks 2.x saem num PR seguinte do backend (Q3).
 
 ## 0. Validação antes de implementar
@@ -180,6 +180,23 @@ Sequência e dependências:
   previa); o payload segue o D3. **Pendente da 3.2/R3:** capturar o JSON real de um `.fit`
   importado no backend local e conferir contra a fixture — vai junto da 5.1.
 - Validação: `npm run lint && npm run build && npm run test:run && npm run test:e2e`.
+
+## QA (2026-11-05)
+
+Revisores Claude (code, security, clean-code backend; frontend, clean-code front), Codex no front
+(no backend o Codex recusou por capacidade duas vezes; DeepSeek no lugar). Corrigido:
+- N+1 no plano vigente do perfil do coach: realizado e sensações em fetch join
+  (`PlanoSemanalRepositoryVigenteRealizadoIT`).
+- Nota de execução da IA em escala 1–10 (o front mostrava /100).
+- Tolerâncias do D5 decididas pelo valor exato, não pelo arredondado da tela; folga de ponto
+  flutuante na fronteira.
+- Teto do peso por amostra adaptativo (`max(5 s, 2 × intervalo típico)`, D6) — decisão do dono do
+  produto: gravação inteligente do Garmin subcontaria com teto fixo.
+- Regra de zonas confiáveis em `ZonaTreinoService.zonasFCConfiaveis`; `NaN` de velocidade descarta o
+  campo; tabela de voltas focável; valores parciais sem zero inventado.
+- **Ordem dos PRs — recomendação:** front primeiro. O backend tira `distanciaKm = 0.0` do resumo; com o
+  front antigo em produção, treino sem distância mostraria "undefined km". O front novo funciona
+  com o backend antigo (sem vínculo, o botão não aparece).
 
 ## 5. Verificação manual
 

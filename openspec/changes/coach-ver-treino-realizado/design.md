@@ -142,8 +142,12 @@ tolerância passa pela 0.9).
   `[bpmMin, bpmMax]` contém o bpm vence (borda compartilhada fica na zona de baixo). bpm abaixo de
   Z1 → Z1; acima do topo → Z5; bpm numa lacuna entre faixas manuais → a zona imediatamente abaixo.
   Os limites gravados são os das faixas usadas, como vieram, para que a legenda bata com a soma.
-- **Peso de cada amostra:** segundos até a próxima amostra, com teto de 5 s (pausa do relógio não
-  vira tempo em zona). Última amostra → 1 s. Intervalo ≤ 0 (timestamp repetido ou invertido) →
+- **Peso de cada amostra:** segundos até a próxima amostra, com teto de `max(5 s, 2 × intervalo
+  típico)` — pausa do relógio não vira tempo em zona. Intervalo típico = mediana dos intervalos
+  positivos entre amostras consecutivas (1 s sem nenhum). A 1 Hz o teto fica em 5 s; na gravação
+  inteligente do Garmin (2 a 10 s entre amostras) ele acompanha o relógio — com teto fixo de 5 s,
+  uma gravação a cada 8 s perderia ~40 % do tempo e cairia abaixo da cobertura mínima (achado do
+  QA, 2026-11-05). Última amostra → o intervalo típico. Intervalo ≤ 0 (timestamp repetido ou invertido) →
   amostra ignorada. Amostra sem FC → ignorada, e o intervalo dela não é atribuído a ninguém.
   Função pura `TempoEmZonasCalculator.calcular(amostras, zonas)` com teste unitário de cada regra.
 - **Cobertura mínima:** se a soma dos pesos for menor que 50 % do tempo em movimento da sessão

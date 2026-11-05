@@ -71,9 +71,13 @@ em cada zona de FC do atleta vigente no import, junto dos limites usados, e exp�
 - **THEN** `tempoEmZonas` fica ausente
 
 #### Scenario: Pausa e amostras inválidas
-- **WHEN** há intervalo maior que 5 s entre amostras, timestamp repetido ou amostra sem FC
-- **THEN** o intervalo conta no máximo 5 s, e amostras com timestamp repetido ou sem FC não somam
-  tempo
+- **WHEN** há intervalo maior que o teto entre amostras, timestamp repetido ou amostra sem FC
+- **THEN** o intervalo conta no máximo o teto (5 s, ou o dobro do intervalo típico de gravação
+  quando maior), e amostras com timestamp repetido ou sem FC não somam tempo
+
+#### Scenario: Gravação inteligente
+- **WHEN** o relógio grava uma amostra a cada vários segundos (gravação inteligente)
+- **THEN** cada amostra vale o intervalo até a seguinte, e o tempo em zonas não fica subcontado
 
 #### Scenario: Borda entre zonas
 - **WHEN** um bpm é o limite superior de uma zona e o inferior da seguinte
