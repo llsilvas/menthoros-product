@@ -115,10 +115,11 @@ não precisavam esperar a mudança de contrato.
   treinador do piloto antes de generalizar (review de produto).
 - **Decisão (ver D5):** medida derivada não vai ao backend. Consequência: o treino gravado tem só
   o que o treinador digitou; o editor recalcula o campo vazio ao reabrir.
-- **Aberto (produto):** o piloto tem treinadores que prescrevem tiros curtos? Sem isso, a change
-  é conveniência e pode esperar.
-- **Aberto (produto):** editar só o segundo de uma etapa gerada pela IA conta como edição para a
-  acceptance rate? Hoje contaria (4 min → 4:10 é diferença). Decidir antes de medir.
+- **Decidido (founder, 2026-11-05):** o piloto tem treinadores que prescrevem tiros curtos — a
+  change segue agora.
+- **Decidido (founder, 2026-11-05):** editar só o segundo de uma etapa gerada pela IA **conta**
+  como edição para a acceptance rate, como qualquer outra mudança. Nenhum tratamento especial no
+  diff IA × coach.
 - **Aberto:** o `WorkoutAnalysisPromptDataBuilder` e a análise pós-treino comparam
   planejado × realizado em minutos; com `duracaoSeg` disponível, usar segundos ali é melhoria
   separada, fora desta change.
