@@ -1,8 +1,14 @@
 # Tasks — add-etapa-duracao-segundos
 
-Depende de `coach-etapa-calculos-auxiliares` mergeada. Backend primeiro (deploy antes do front:
-ver risco de compatibilidade no `design.md`). Validação por bloco: backend `./mvnw clean verify`;
-front `npm run lint && npm run build && npm run test:run`; E2E onde indicado.
+Depende de `coach-etapa-calculos-auxiliares` — mergeada (front #197) e arquivada em 2026-11-05.
+Backend primeiro (deploy antes do front: ver risco de compatibilidade no `design.md`). Validação por
+bloco: backend `./mvnw clean verify`; front `npm run lint && npm run build && npm run test:run`; E2E
+onde indicado.
+
+Branches `feat/add-etapa-duracao-segundos` nos dois repos, criadas em 2026-11-05 no `/implement init`:
+- backend: worktree `.worktrees/backend-add-etapa-duracao-segundos`, base `e451e58`;
+- front: worktree `.worktrees/front-add-etapa-duracao-segundos`, base `9b45273`.
+Ordem: bloco 1 → 2 → PR backend; bloco 3 só depois do backend em `develop`; 4 depois dos dois merges.
 
 ## 1. Backend — contrato e persistência (`apps/menthoros-backend`)
 
