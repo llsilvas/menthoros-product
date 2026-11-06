@@ -1,6 +1,6 @@
 ## 1. Backend (`apps/menthoros-backend`, branch `fix/fix-atleta-edit-data-nascimento`)
 
-- [ ] 1.1 Contar atletas sem `data_nascimento` no banco de teste e registrar o número no `design.md` (o DTO compartilhado entre POST, PUT, lista e GET por id já está decidido)
+- [x] 1.1 (2026-11-05: 0 de 3 atletas sem `data_nascimento` no banco de testes do Railway `develop`) Contar atletas sem `data_nascimento` no banco de teste e registrar o número no `design.md` (o DTO compartilhado entre POST, PUT, lista e GET por id já está decidido)
 - [x] 1.2 Teste primeiro: `AtletaMapperTest` com atleta de `dataNascimento` conhecida exige o campo no DTO; e sem data, campo nulo
 - [x] 1.3 Adicionar `LocalDate dataNascimento` ao fim de `AtletaOutputDto` e ajustar `withBilling`
 - [x] 1.4 Teste de controller/serialização: `GET /api/v1/atletas/{id}` devolve `dataNascimento` em `yyyy-MM-dd` e mantém `idade`; atleta legado omite o campo
@@ -33,5 +33,5 @@ Redesenho (design.md, decisões 5 a 10; canvas https://claude.ai/artifact/KqSdJi
 
 ## 4. Fechamento
 
-- [ ] 4.1 Atualizar este `tasks.md` com o que foi entregue e o que foi adiado
-- [ ] 4.2 Após merge nos dois repos, arquivar com `/done fix-atleta-edit-data-nascimento`
+- [x] 4.1 (2026-11-05: tudo entregue; front saiu no PR #196 numa branch limpa a partir de `develop`, sem os commits de logo da branch local antiga) Atualizar este `tasks.md` com o que foi entregue e o que foi adiado
+- [x] 4.2 (2026-11-05: backend #203 e front #196 mergeados) Após merge nos dois repos, arquivar com `/done fix-atleta-edit-data-nascimento`

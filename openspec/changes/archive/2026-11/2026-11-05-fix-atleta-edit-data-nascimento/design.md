@@ -116,4 +116,4 @@ quebra.
 
 ## Open Questions
 
-- Quantos atletas legados estão sem data de nascimento? (task 1.1)
+- Quantos atletas legados estão sem data de nascimento? (task 1.1) **Resposta 2026-11-05:** 0 de 3 no banco de testes do Railway (`develop`); produção não medida.

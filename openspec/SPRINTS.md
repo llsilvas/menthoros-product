@@ -2,7 +2,14 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-05 (**`coach-zonas-pace-fc-prescricao` arquivada** — backend PR #193 e
+**Última atualização:** 2026-11-05 (**`fix-atleta-edit-data-nascimento` arquivada** — backend PR #203 e
+front PR #196 (mergeados em `develop`). M · Full. 23/23 tasks. Edição de atleta abre com a data de
+nascimento (`AtletaOutputDto.dataNascimento`) e `AtletaDialog` redesenhado. O front saiu numa branch
+limpa: a local antiga misturava a troca de logo (`chore/logo-oficial-sidebar-coach`), que ficou de
+fora em `wip/fix-atleta-com-logo`. 0 de 3 atletas sem data no banco de testes. Arquivada em
+`changes/archive/2026-11/2026-11-05-fix-atleta-edit-data-nascimento/`.)
+
+**Anterior:** 2026-11-05 (**`coach-zonas-pace-fc-prescricao` arquivada** — backend PR #193 e
 front PR #173 (mergeados em `develop`). M · Full. 41/44 tasks. **Adiado:** 0.2 (medição dos formatos
 canônicos no banco de dev), 8.4 (validação ponta a ponta com conta real no intervals.icu). **Follow-up:**
 8.3 — `revalidar-fatores-pace-zonas` já aberta; distribuição de intensidade semanal + CTL/ATL e prompt
