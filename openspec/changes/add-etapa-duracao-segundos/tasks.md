@@ -12,20 +12,25 @@ Ordem: bloco 1 → 2 → PR backend; bloco 3 só depois do backend em `develop`;
 
 ## 1. Backend — contrato e persistência (`apps/menthoros-backend`)
 
-- [ ] 1.1 Migration `V112__add_duracao_seg_etapa_treino.sql` (V111 é a última em `develop`; conferir
+- [x] 1.1 Migration `V112__add_duracao_seg_etapa_treino.sql` (V111 é a última em `develop`; conferir
       antes do merge que nenhuma outra branch tomou a V112): `ADD COLUMN IF NOT EXISTS duracao_seg
       INTEGER NULL`, com rollback no comentário. `EtapaTreino.duracaoSeg`. verify: `./mvnw flyway:info`
       local + contexto sobe.
-- [ ] 1.2 `EtapaInputDto.duracaoSeg` (`@Positive`) e `EtapaTreinoDto.duracaoSeg`; `TreinoMapper`.
-      `EtapaInputDto` é record com construtor secundário de 9 argumentos (`EtapaInputDto.java:66`):
-      grep dos chamadores (`new EtapaInputDto(`) e ajuste de todos, inclusive testes. Teste
-      concreto de compatibilidade: PATCH com propriedade desconhecida no DTO devolve 200.
+- [x] 1.2 `EtapaInputDto.duracaoSeg` (`@Positive`) e `EtapaTreinoDto.duracaoSeg`; `TreinoMapper`.
+      **Feito:** o campo entrou por último nos dois records, e as assinaturas antigas (9 e 10 args
+      no input; 10 e 11 no output) viraram construtores secundários — nenhum dos 50 chamadores
+      mudou. `safeGetEtapas` passa o segundo. Teste de compatibilidade em
+      `CoachTreinoControllerTest.ignoraPropriedadeDesconhecida` (200 com campo extra).
       verify: `./mvnw clean test -Dtest=*Mapper*,*EtapaInput*,*TreinoPlanejadoController*`.
-- [ ] 1.3 `TreinoPlanejadoServiceImpl.buildEtapaSimples`: deriva `duracaoMin = round(seg/60)` sem
+- [x] 1.3 `TreinoPlanejadoServiceImpl.buildEtapaSimples`: deriva `duracaoMin = round(seg/60)` sem
       piso quando `duracaoSeg` presente; sem ele, comportamento atual. `comRepeticoes` transporta
       `duracaoSeg`. Testes CA1 e CA2 (incoerente; `duracaoSeg: 10` grava `duracaoMin = 0`; etapa
       criada via `construirEtapasParaAdicao`; sub-etapa de bloco expandido mantém o segundo). verify: `./mvnw clean test -Dtest=TreinoPlanejadoServiceImplTest`.
-- [ ] 1.4 Confirmar que não há caminho entidade → `EtapaTreinoLlmDto` → entidade que perderia o
+- [x] 1.4 **Confirmado:** não há caminho entidade → `EtapaTreinoLlmDto` → entidade (os quatro
+      usos fora da pipeline de geração — `PlanQualityChecker`, `Passo`, `NormalizacaoDeTreino`,
+      `SessionResolver` — montam o DTO de entradas próprias). O campo não entrou no DTO; teste
+      `LlmJsonSchemaBuilderTest.etapaSemDuracaoSeg` prende a ausência no schema.
+      Confirmar que não há caminho entidade → `EtapaTreinoLlmDto` → entidade que perderia o
       segundo; se houver, excluir `duracaoSeg` explicitamente do schema em `LlmJsonSchemaBuilder`.
       Teste que afirma a ausência do campo no schema gerado. verify: `./mvnw clean test -Dtest=LlmJsonSchemaBuilderTest`.
 - [ ] 1.5 Suite completa: `./mvnw clean verify` — CA4 (nenhum teste dos leitores de `duracaoMin`
@@ -33,10 +38,19 @@ Ordem: bloco 1 → 2 → PR backend; bloco 3 só depois do backend em `develop`;
 
 ## 2. Backend — intervals.icu
 
-- [ ] 2.1 `IntervalsIcuWorkoutConverter`: duração do step de etapa usa `duracaoSeg ?? duracaoMin×60`;
+- [x] 2.1 `IntervalsIcuWorkoutConverter`: duração do step de etapa usa `duracaoSeg ?? duracaoMin×60`;
       comparação de etapas iguais inclui `duracaoSeg`. Testes CA3 (segundos; só minutos; dois tiros
       4:10 e 4:40 não viram a mesma etapa). verify: `./mvnw clean test -Dtest=IntervalsIcuWorkoutConverterTest`.
-- [ ] 2.2 `/qa` backend → `/pr add-etapa-duracao-segundos` (backend). Deploy em develop antes do front.
+- [~] 2.2 `/qa` backend (2026-11-05): code-reviewer, security-reviewer e clean-code-reviewer sem
+      Critical; DeepSeek no lugar do Codex (sem cota). Convergência corrigida no commit de QA:
+      derivação do minuto movida para `EtapaMapper.derivarDuracaoMin` (`@AfterMapping`, ponto único
+      de todo `toEntity`, arredondamento inteiro `(seg + 30) / 60`), `CoachAthleteProfileServiceImpl.
+      safeGetEtapasResumo` passa o segundo, `@Max(86400)` em `duracaoSeg`, casos 10/29/30/89/90 s
+      e 400 para `duracaoSeg` inválido. Rebatido: o achado do DeepSeek de que o bloco expandido
+      pularia a derivação era falso (`expandirBloco` chama `buildEtapaSimples`), mas o mapper
+      resolve de qualquer modo. Mantidos: `duracaoMin` sem `@Max` (pré-existente); sem `CHECK` no
+      banco (validação no DTO). → `/pr add-etapa-duracao-segundos` (backend). Deploy em develop
+      antes do front.
 
 ## 3. Frontend — contrato e editor (`apps/menthoros-front`)
 
