@@ -41,25 +41,30 @@ sobre `origin/develop` antes do bloco 2.
 
 ## 3. Resumo da série
 
-- [ ] 3.1 Extrair de `totaisDeItens` a conta por item (`totaisDoItem(item)`), reutilizada pelo
+- [x] 3.1 Extrair de `totaisDeItens` a conta por item (`totaisDoItem(item)`), reutilizada pelo
       total; teste em `etapaItem.test.ts`. verify: vitest do arquivo.
-- [ ] 3.2 Cabeçalho da série em `EtapasEditor` mostra `N× · min · km` com `data-testid`
+- [x] 3.2 Cabeçalho da série em `EtapasEditor` mostra `N× · min · km` com `data-testid`
       `resumo-serie-${idx}`; atualiza com repetições e etapas. Teste de componente (CA7).
-      verify: lint + build + vitest.
+      **Feito:** `resumoDaSerie` em `etapaItem.ts`; asserções no `TreinoEditDialog.test.tsx`
+      (hidratação `4× · 20 min`, stepper `5× · 25 min`). verify: lint + build + vitest.
 
 ## 4. Distribuição por zona no total
 
-- [ ] 4.1 Formatador puro `formatarDistribuicao(distribuicao, totalSeg)` em
+- [x] 4.1 **Feito** como `distribuicaoDeZonas(blocks)` (recebe os blocos do perfil: o total e o
+      tempo sem zona saem dali, sem segundo parâmetro). Formatador puro `formatarDistribuicao(distribuicao, totalSeg)` em
       `adapters/zonaPredominante.ts`: denominador é o tempo total das etapas (`blocks` somados,
       inclusive sem zona), resto como "sem zona"; percentuais inteiros somando 100 pelo maior
       resto; ordem por zona; vizinhas contíguas agrupadas (`Z1–Z2`); `null` sem nenhuma zona.
       Testes dos três exemplos do CA8. verify: vitest do arquivo.
-- [ ] 4.2 `TreinoEditDialog` e `TreinoAddDialog` mostram o texto ao lado do total
-      (`data-testid="distribuicao-zonas"`). Decidir o corte para mais de três zonas olhando a tela
-      e registrar aqui. verify: lint + build + testes dos dialogs.
+- [x] 4.2 `TreinoEditDialog` e `TreinoAddDialog` mostram o texto ao lado do total
+      (`data-testid="distribuicao-zonas"`). **Decisão:** sem corte por quantidade — as zonas
+      vizinhas já viram uma faixa, então o pior caso real (Z1, Z3, Z5 + sem zona) são quatro
+      partes, que cabem na linha do total em fonte mono 0.68rem. Teste no `TreinoEditDialog`
+      (fartlek: `60% Z1–Z2 · 40% Z4`). verify: lint + build + testes dos dialogs.
 
 ## 5. Fechamento
 
 - [ ] 5.1 Suíte completa: `npm run lint && npm run build && npm run test:run && npm run test:e2e`.
-- [ ] 5.2 Atualizar `openspec/specs/coach-athlete-zones/spec.md` (delta: sugestão de zona no
-      Personalizado) e marcar as tasks. `/qa` → `/pr coach-etapa-calculos-auxiliares` → `/done`.
+- [~] 5.2 Delta em `specs/coach-athlete-zones/spec.md` da change (requisito "Zona como seletor"
+      MODIFIED com o cenário "Zona sugerida no Personalizado") **feito**; a promoção para
+      `openspec/specs/` acontece no `/done`. `/qa` → `/pr coach-etapa-calculos-auxiliares` → `/done`.
