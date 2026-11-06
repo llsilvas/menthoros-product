@@ -1637,6 +1637,30 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
+### `coach-etapa-calculos-auxiliares` ✅ **ARQUIVADA** — o editor de etapas faz as contas pelo treinador (2026-11-05)
+
+**Entregue:** `menthoros-front` PR **#197**, mergeado em `develop` (`9b45273`). Arquivada em
+`changes/archive/2026-11/2026-11-05-coach-etapa-calculos-auxiliares/`;
+delta portado à mão para `specs/coach-athlete-zones/`, porque a spec principal tem requisitos fora da
+seção `## Requirements` e o `openspec archive` recusa a promoção automática. S · Fast · só front, sem
+mudança de contrato.
+
+**O problema:** o editor pedia distância, duração, pace e FC de cada etapa e não calculava nada
+entre eles — um tiro de 4 min a 4:50/km exigia a conta da distância de cabeça, a série de 4× não
+dizia quanto somava, e um pace digitado virava "Personalizado" sem dizer em que zona caía.
+
+**O que faz:**
+- **Distância derivada de pace × duração**, marcada "calculado de pace × duração"; valor digitado
+  fica. **A derivada não vai ao PATCH:** o conversor do intervals.icu descarta a duração quando há
+  distância, e o tiro de 4 min viraria um tiro de 0,83 km no relógio (achado do pre-mortem Codex).
+- **Zona sugerida no Personalizado:** "Pace cai em Z5 para este atleta", pela mesma leitura que o
+  perfil do treino usa.
+- **Resumo da série** no cabeçalho (`4× · 24 min · 4,3 km`) e **distribuição por zona** no total
+  (`60% Z1–Z2 · 40% Z4`, sobre o tempo total das etapas).
+
+**Fica para `add-etapa-duracao-segundos`** (M · Full, backend + front): duração derivada de
+distância × pace, que exige `duracao_seg` no contrato.
+
 ### `fix-sync-cursor-data-loss` ✅ **ARQUIVADA** — o pull de atividades não perde mais treinos (2026-09-30)
 
 **Entregue:** `menthoros-backend` PR **#153**, mergeado em `develop`. Arquivada em

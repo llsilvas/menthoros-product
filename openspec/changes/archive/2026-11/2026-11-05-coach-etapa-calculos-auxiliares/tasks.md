@@ -74,6 +74,7 @@ sobre `origin/develop` antes do bloco 2.
       distância vazia (decisão do proposal), distância apagada à mão volta a ser derivável (vazio é
       "sem valor", documentado em teste), `fontFamily: 'monospace'` solto no total do
       `TreinoEditDialog` (padrão dos vizinhos, pré-existente).
-- [~] 5.2 Delta em `specs/coach-athlete-zones/spec.md` da change (requisito "Zona como seletor"
-      MODIFIED com o cenário "Zona sugerida no Personalizado") **feito**; a promoção para
-      `openspec/specs/` acontece no `/done`. `/qa` → `/pr coach-etapa-calculos-auxiliares` → `/done`.
+- [x] 5.2 Delta em `specs/coach-athlete-zones/spec.md` da change (requisito "Zona como seletor"
+      MODIFIED com o cenário "Zona sugerida no Personalizado"), promovido no arquivamento.
+      PR front llsilvas/menthoros-front#197 mergeado em `develop` (`9b45273`, 2026-11-05).
+      Arquivada em 2026-11-05.

@@ -75,7 +75,8 @@ pré-preencher `alvoPrimario` por regra; o eixo SHALL ficar sempre visível e tr
 em qualquer zona e em "Personalizado", e o editor não SHALL reaplicar o pré-preenchimento depois que o
 treinador o alterou. Não SHALL existir campo de texto
 livre de intensidade, nem por etapa nem no nível do treino; a zona do treino SHALL ser derivada das
-etapas.
+etapas. Em "Personalizado", o seletor SHALL informar em que zona do atleta o valor digitado cai e por
+qual eixo, sem alterar a escolha: escolher a zona continua sendo o clique no seletor.
 
 #### Scenario: Escolher Z5 em etapa INTERVALADO
 - **WHEN** o treinador escolhe Z5 numa etapa `INTERVALADO` de atleta com `paceLimiar = 5.00`,
@@ -132,6 +133,12 @@ etapas.
 #### Scenario: Pace e FC em zonas diferentes
 - **WHEN** o treinador informa pace que cai em Z5 e FC que cai em Z2 para o atleta
 - **THEN** aparece aviso de divergência e salvar continua permitido
+
+#### Scenario: Zona sugerida no Personalizado
+- **WHEN** a etapa está em "Personalizado" com pace `4:35/km` para atleta cuja Z5 vai de 4:30 a 4:45
+- **THEN** o seletor mostra "Pace cai em Z5 para este atleta"; com só a FC `150-158 bpm`, mostra
+  "FC cai em Z3 para este atleta"; com os dois eixos em zonas diferentes vale o `alvoPrimario`, e
+  sem eixo nada é sugerido; valor fora de toda zona ou atleta sem zonas não sugere nada
 
 ### Requirement: `alvoPrimario` persistido por etapa
 A etapa de treino planejado SHALL carregar `alvoPrimario ∈ {PACE, FC, NENHUM}`, opcional. Quando
