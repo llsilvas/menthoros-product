@@ -2,9 +2,8 @@
 
 Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint && npm run build &&
 npm run test:run`; E2E onde indicado. Branch: `feat/coach-etapa-calculos-auxiliares` (worktree
-`.worktrees/front-coach-etapa-calculos-auxiliares`, base `efc127b`). O código parcial de 1.1–1.3
-está sem commit nessa árvore; a branch está atrás de `develop` — atualizar (rebase sobre
-`origin/develop`) depois do commit do bloco 1, antes do bloco 2.
+`.worktrees/front-coach-etapa-calculos-auxiliares`). Bloco 1 commitado em `14b0590` e rebaseado
+sobre `origin/develop` antes do bloco 2.
 
 ## 1. Distância derivada de pace × duração
 
@@ -15,18 +14,19 @@ está sem commit nessa árvore; a branch está atrás de `develop` — atualizar
       verify: `npx vitest run src/features/coach/components/etapas/etapaItem.test.ts`.
 - [x] 1.2 `BlocoCard` chama o recálculo ao mudar duração ou intensidade (pace/zona); digitar a
       distância zera o marcador. verify: lint + build.
-- [~] 1.3 E2E em `tests/e2e/coach/plano-zonas-editor.spec.ts`: escolher Z5 numa etapa de 30 min
-      preenche `6.49`; valor digitado vence. **Refazer a asserção do PATCH** em dois casos: etapa
-      com derivado → PATCH sem `distanciaKm`; etapa com `7` digitado → PATCH com `distanciaKm: 7`.
-      Reabrir o treino mostra a derivada de novo. verify: `npx playwright test plano-zonas-editor`.
-- [ ] 1.4 Derivado fora do payload e regras fechadas no DoR: `serializarItens` omite `distanciaKm`
+- [x] 1.3 E2E em `tests/e2e/coach/plano-zonas-editor.spec.ts`: escolher Z5 numa etapa de 30 min
+      preenche `6.49` marcada como calculada; PATCH sem `distanciaKm`; reabrir mostra `6.49` de
+      novo; `7` digitado vence e vai ao PATCH. **Feito:** as três etapas do fixture têm pace e
+      duração, então a hidratação deriva as três — a asserção do texto de apoio usa `.nth(1)`.
+      verify: `npx playwright test plano-zonas-editor` (9 passed com `plan-review-edicao`).
+- [x] 1.4 Derivado fora do payload e regras fechadas no DoR: `serializarItens` omite `distanciaKm`
       quando `distanciaAuto`; hidratação recalcula a distância vazia como derivada; valor gravado
       nunca é derivado — remover a regra "igual à conta anterior" de `recalcularDistancia`, com
       teste que prova (gravado `2` com 10 min a 5:00 não acompanha); duração vazia/zero ou pace
       vazio limpam a derivada (pace incompleto mantém); derivação usa `parseInt` da duração. Indicação visual do campo calculado no
       `BlocoCard` (texto de apoio "calculado de pace × duração"). Testes CA1, CA4 e CA5 revistos.
       verify: vitest do arquivo + lint + build.
-- [ ] 1.5 Commit do bloco na branch (`feat(coach): distancia da etapa derivada de pace e duracao`).
+- [x] 1.5 Commit do bloco na branch: `14b0590` (`feat(coach): distancia da etapa derivada de pace e duracao`).
 
 ## 2. Zona sugerida no Personalizado
 
