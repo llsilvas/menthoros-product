@@ -74,8 +74,10 @@ editado); se existir, a exclusão explícita no schema entra no escopo, senão o
 ### D4 — Editor em `m:ss`
 
 `StepRow.duracaoMin: string` vira `duracao: string` em `m:ss`. Serialização:
-`duracaoSeg = parse(m:ss)`, `duracaoMin = max(1, round(seg/60))` (o front também envia o minuto,
-para cliente e servidor concordarem e o PATCH continuar válido em backend antigo).
+`duracaoSeg = parse(m:ss)` e `duracaoMin = round(seg/60)`, **omitido quando dá 0** — `@Positive`
+em `EtapaInputDto.duracaoMin` rejeita 0, e o servidor deriva o mesmo valor de `duracaoSeg` (D1), então
+o minuto enviado é só compatibilidade com backend que ainda não conheça `duracaoSeg`. Sem piso em
+nenhum dos lados: front e servidor derivam o mesmo número.
 Hidratação: `duracaoSeg ?? duracaoMin × 60`. `normalizarDuracao` no blur (`4` → `4:00`,
 `4:7` → `4:07`; `1:30:00` aceito como `h:mm:ss`); **inválido bloqueia o salvar** com erro no
 campo — omitir do payload apagaria a duração gravada, porque `aplicarEtapasPatch` substitui
@@ -118,10 +120,21 @@ e o marca derivado. Totais do dialog e perfil usam os itens (com derivado), não
 - **Sinal IA × coach.** Editar só o segundo de uma etapa gerada vira diferença no diff que
   alimenta a acceptance rate. Decisão registrada em Open Questions do proposal.
 - **Backend novo com front antigo**: o front antigo manda só `duracaoMin`; comportamento igual ao
-  atual (CA2). **Front novo com backend antigo**: o PATCH leva `duracaoSeg` e `duracaoMin`; o
-  backend antigo ignora o desconhecido? — **verificar**: se `@JsonIgnoreProperties` não estiver
-  ativo no DTO, o PATCH falha com 400. Deploy do backend primeiro, e a task 1.x confirma o
-  comportamento do Jackson.
+  atual (CA2). **Front novo com backend antigo**: o PATCH leva `duracaoSeg` e `duracaoMin`. O Spring
+  Boot ignora propriedade desconhecida por padrão (`FAIL_ON_UNKNOWN_PROPERTIES` só aparece
+  desligado em `DuplicateKeyTolerantOutputConverter`, nenhuma config global o liga), então o
+  backend antigo grava o minuto e descarta o segundo, sem 400. A task 1.2 fixa isso com um teste
+  (PATCH com campo extra devolve 200). Deploy do backend primeiro mesmo assim, para o segundo não
+  se perder na janela.
+- **Etapa abaixo de 30 s some do TSS e do prompt** (`duracaoMin = 0`): 20 tiros de 10 s valem 0
+  min para esses leitores, contra 3:20 reais. O relógio e o perfil do treino (front, em segundos)
+  ficam certos. Aceito nesta change e registrado como follow-up: usar `duracaoSeg` em
+  `TssCalculatorService` e `WorkoutAnalysisPromptDataBuilder`.
+- **Reabrir deriva de novo a duração** — e se as zonas do atleta mudarem? Não muda: a derivação
+  usa o `ritmoAlvo` gravado na etapa, não a zona recalculada. Só escolher a zona de novo troca o
+  pace, e aí o treinador está editando.
+- **Assinatura de série com `duracaoSeg`**: etapas já gravadas não têm o campo (`null` dos dois
+  lados), então a inferência de série em treinos existentes não muda.
 - **Fixtures**: testes do front que montam `StepRow.duracaoMin` precisam do campo novo; estimar
   pelo grep antes de começar (task 3.1).
 - **Perfil do treino**: `droppedBlocks` descarta etapa sem duração utilizável; com segundos, uma

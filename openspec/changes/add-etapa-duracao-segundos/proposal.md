@@ -103,8 +103,14 @@ não precisavam esperar a mudança de contrato.
 - Pre-mortem Codex (2026-11-05): **NOT READY**, 10 achados, todos conferidos no código e
   absorvidos no `design.md` (D1 construtor compartilhado e `comRepeticoes`; D2 distância vence
   duração no conversor → derivado fora do payload, assinatura do editor; D3 schema por reflexão;
-  D4 inválido bloqueia; D5 cenário contraditório corrigido; piso de 1 min removido). Reavaliar no
-  `/implement init`.
+  D4 inválido bloqueia; D5 cenário contraditório corrigido; piso de 1 min removido).
+- DoR (2026-11-05, `/implement init`): spec-reviewer READY WITH GAPS + DeepSeek NOT READY (Codex
+  sem cota). Convergência: a spec e o D4 ainda tinham o piso `max(1, …)` que o D1 removera —
+  alinhado em "round, sem piso; front omite `duracaoMin` quando dá 0". Gaps menores absorvidos:
+  migration V112, chamadores do construtor de `EtapaInputDto`, teste concreto de compatibilidade
+  (Spring ignora propriedade desconhecida por padrão), E2E do PATCH sem duração. Rebatidos no
+  `design.md`: reabrir não muda a duração derivada quando as zonas mudam (usa o `ritmoAlvo`
+  gravado); etapas existentes não têm `duracaoSeg`, então a inferência de série não muda.
 
 ## Open Questions & Assumptions
 

@@ -6,16 +6,19 @@ front `npm run lint && npm run build && npm run test:run`; E2E onde indicado.
 
 ## 1. Backend — contrato e persistência (`apps/menthoros-backend`)
 
-- [ ] 1.1 Migration `V11x__add_duracao_seg_etapa_treino.sql`: `ADD COLUMN IF NOT EXISTS duracao_seg
+- [ ] 1.1 Migration `V112__add_duracao_seg_etapa_treino.sql` (V111 é a última em `develop`; conferir
+      antes do merge que nenhuma outra branch tomou a V112): `ADD COLUMN IF NOT EXISTS duracao_seg
       INTEGER NULL`, com rollback no comentário. `EtapaTreino.duracaoSeg`. verify: `./mvnw flyway:info`
       local + contexto sobe.
 - [ ] 1.2 `EtapaInputDto.duracaoSeg` (`@Positive`) e `EtapaTreinoDto.duracaoSeg`; `TreinoMapper`.
-      Confirmar que o DTO tolera propriedade desconhecida (compatibilidade front novo × backend
-      antigo) e registrar aqui o resultado. verify: `./mvnw clean test -Dtest=*Mapper*,*EtapaInput*`.
-- [ ] 1.3 `TreinoPlanejadoServiceImpl.buildEtapaSimples`: deriva `duracaoMin = round(seg/60)` quando
-      `duracaoSeg` presente; sem ele, comportamento atual. `comRepeticoes` transporta `duracaoSeg`.
-      Testes CA1 e CA2 (incoerente; etapa criada via `construirEtapasParaAdicao`; sub-etapa de
-      bloco expandido mantém o segundo). verify: `./mvnw clean test -Dtest=TreinoPlanejadoServiceImplTest`.
+      `EtapaInputDto` é record com construtor secundário de 9 argumentos (`EtapaInputDto.java:66`):
+      grep dos chamadores (`new EtapaInputDto(`) e ajuste de todos, inclusive testes. Teste
+      concreto de compatibilidade: PATCH com propriedade desconhecida no DTO devolve 200.
+      verify: `./mvnw clean test -Dtest=*Mapper*,*EtapaInput*,*TreinoPlanejadoController*`.
+- [ ] 1.3 `TreinoPlanejadoServiceImpl.buildEtapaSimples`: deriva `duracaoMin = round(seg/60)` sem
+      piso quando `duracaoSeg` presente; sem ele, comportamento atual. `comRepeticoes` transporta
+      `duracaoSeg`. Testes CA1 e CA2 (incoerente; `duracaoSeg: 10` grava `duracaoMin = 0`; etapa
+      criada via `construirEtapasParaAdicao`; sub-etapa de bloco expandido mantém o segundo). verify: `./mvnw clean test -Dtest=TreinoPlanejadoServiceImplTest`.
 - [ ] 1.4 Confirmar que não há caminho entidade → `EtapaTreinoLlmDto` → entidade que perderia o
       segundo; se houver, excluir `duracaoSeg` explicitamente do schema em `LlmJsonSchemaBuilder`.
       Teste que afirma a ausência do campo no schema gerado. verify: `./mvnw clean test -Dtest=LlmJsonSchemaBuilderTest`.
@@ -50,8 +53,10 @@ front `npm run lint && npm run build && npm run test:run`; E2E onde indicado.
       campo editado. Ajustar `workout/profile/input.ts` (`fromEtapaTreino`, `fromEtapaTreinoDto`,
       `minutosDe` → segundos), `selectWorkoutProfile.ts:249` e os totais dos dialogs
       (`formatDuration`). verify: lint + build + testes do editor e do perfil.
-- [ ] 3.5 E2E `tests/e2e/coach/plano-zonas-editor.spec.ts`: `1` km + Z5 preenche a duração; digitar
-      `4:10` leva `duracaoSeg: 250` no PATCH; etapa carregada com `duracaoSeg` abre em `4:10`.
+- [ ] 3.5 E2E `tests/e2e/coach/plano-zonas-editor.spec.ts`: `1` km + Z5 preenche a duração e o
+      PATCH leva `distanciaKm: 1` sem duração (derivada fora do payload); digitar `4:10` leva
+      `duracaoSeg: 250` e `duracaoMin: 4`; `0:10` leva `duracaoSeg: 10` sem `duracaoMin`; etapa
+      carregada com `duracaoSeg` abre em `4:10`.
       verify: `npx playwright test plano-zonas-editor plan-review-edicao`.
 - [ ] 3.6 Suite completa do front + `/qa` → `/pr add-etapa-duracao-segundos` (front).
 

@@ -4,7 +4,8 @@
 
 A etapa de um treino planejado SHALL aceitar e devolver `duracaoSeg` (segundos, inteiro positivo,
 opcional) além de `duracaoMin`. Quando `duracaoSeg` é informado, o sistema SHALL derivar
-`duracaoMin = max(1, round(duracaoSeg / 60))` e ignorar o `duracaoMin` enviado. Sem `duracaoSeg`,
+`duracaoMin = round(duracaoSeg / 60)`, sem piso (etapa abaixo de 30 s grava `duracaoMin = 0`, que
+os leitores em minutos tratam como ausente), e ignorar o `duracaoMin` enviado. Sem `duracaoSeg`,
 `duracaoMin` SHALL ser gravado como hoje e `duracaoSeg` fica ausente.
 
 #### Scenario: Etapa gravada em segundos
@@ -18,6 +19,11 @@ opcional) além de `duracaoMin`. Quando `duracaoSeg` é informado, o sistema SHA
 #### Scenario: Segundo e minuto incoerentes
 - **WHEN** a etapa chega com `duracaoSeg: 250` e `duracaoMin: 7`
 - **THEN** vale o segundo: `duracaoMin` gravado é 4
+
+#### Scenario: Etapa abaixo de 30 segundos
+- **WHEN** a etapa chega com `duracaoSeg: 10` e sem `duracaoMin`
+- **THEN** grava `duracaoSeg = 10` e `duracaoMin = 0`; o relógio recebe 10 s e os leitores em
+  minutos tratam a etapa como sem duração
 
 ### Requirement: Relógio recebe a duração exata
 
