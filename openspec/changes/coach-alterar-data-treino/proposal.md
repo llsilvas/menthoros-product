@@ -144,8 +144,7 @@ reenvio (se houver) os atualiza pelo `externalId`/`eventId` como hoje.
 - **Decisão:** o atleta não recebe notificação da mudança de dia em plano aprovado — mesmo
   comportamento da edição pós-aprovação atual; o relógio recebe o evento na nova data. Notificar
   o atleta é change à parte.
-- **Aberto (produto):** pedido de treinador do piloto ou achado interno? Registrar antes do
-  `/implement run`.
+- **Origem (2026-11-06):** pedido de treinador do piloto.
 - **Decisão (DoR, Codex):** duplicata no Garmin após persistência local perdida é gap do reenvio
   unitário, pré-existente e sem vínculo recuperável (só `workoutId`); fora de escopo, follow-up
   `garmin-reenvio-unitario-remover-orfaos`. Ver Riscos no design.
