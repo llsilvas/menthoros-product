@@ -1,8 +1,10 @@
 # Tasks — coach-etapa-calculos-auxiliares
 
 Repo: `apps/menthoros-front`. Validação padrão de cada bloco: `npm run lint && npm run build &&
-npm run test:run`; E2E onde indicado. Branch já existente: `feat/coach-etapa-distancia-auto`
-(worktree `.worktrees/coach-etapa-distancia-auto`) — adotar em vez de criar outra.
+npm run test:run`; E2E onde indicado. Branch: `feat/coach-etapa-calculos-auxiliares` (worktree
+`.worktrees/front-coach-etapa-calculos-auxiliares`, base `efc127b`). O código parcial de 1.1–1.3
+está sem commit nessa árvore; a branch está atrás de `develop` — atualizar (rebase sobre
+`origin/develop`) depois do commit do bloco 1, antes do bloco 2.
 
 ## 1. Distância derivada de pace × duração
 
