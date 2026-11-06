@@ -2,7 +2,13 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-05 (**`fix-atleta-edit-data-nascimento` arquivada** — backend PR #203 e
+**Última atualização:** 2026-11-06 (**`editar-treino-aprovado-planos-dialog` arquivada** — backend PR
+#222 e front PR #198 (mergeados em `develop`). M · Full. 19/19 tasks. O coach edita treino de plano
+aprovado direto pelo PlanosDialog: lápis, cadeado com motivo e selo de editado após aprovação. Promoção
+para `main` aberta (backend #224, front #200). Arquivada em
+`changes/archive/2026-11/2026-11-06-editar-treino-aprovado-planos-dialog/`.)
+
+**Anterior:** 2026-11-05 (**`fix-atleta-edit-data-nascimento` arquivada** — backend PR #203 e
 front PR #196 (mergeados em `develop`). M · Full. 23/23 tasks. Edição de atleta abre com a data de
 nascimento (`AtletaOutputDto.dataNascimento`) e `AtletaDialog` redesenhado. O front saiu numa branch
 limpa: a local antiga misturava a troca de logo (`chore/logo-oficial-sidebar-coach`), que ficou de
@@ -1636,6 +1642,23 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 ---
 
 ## Changes concluídas (fora de sprint)
+
+### `editar-treino-aprovado-planos-dialog` ✅ **ARQUIVADA** — editar treino aprovado pelo PlanosDialog (2026-11-06)
+
+**Entregue:** `menthoros-backend` PR **#222** e `menthoros-front` PR **#198**, mergeados em `develop`.
+Arquivada em `changes/archive/2026-11/2026-11-06-editar-treino-aprovado-planos-dialog/`. M · Full,
+backend + front, sem migration.
+
+**O que faz:**
+- A listagem de semanas do coach expõe `editable`, `editRejection` e `editedAfterApprovalAt` por treino e
+  `conexaoCanal` por plano, resolvidos uma vez por requisição (+1 query) pelo helper
+  `ApprovedWorkoutEditContext`, a mesma regra do PATCH. O JSON do atleta não muda.
+- No PlanosDialog: lápis, cadeado com motivo e selo; o mesmo editor e o mesmo PATCH da aba Plano, com
+  aviso neutro quando o canal é desconhecido ou revogado.
+
+**Follow-up (QA, sem change aberta):** o helper acumula responsabilidades (2 Major do clean-code); união
+discriminada no `aviso`; extrair a orquestração de salvar para um hook; E2E da entrada do TECNICO pelo
+shell novo do coach.
 
 ### `coach-etapa-calculos-auxiliares` ✅ **ARQUIVADA** — o editor de etapas faz as contas pelo treinador (2026-11-05)
 

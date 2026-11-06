@@ -57,5 +57,8 @@
 
 ## 3. Ordem
 
-- [ ] 3.1 Merge do backend antes do front (o front sem os campos não mostra lápis, então a ordem inversa é segura, só inútil)
+- [x] 3.1 Merge do backend antes do front (o front sem os campos não mostra lápis, então a ordem inversa é segura, só inútil)
   - verify: PR do backend mergeado em `develop` antes de abrir o do front
+  - **Entregue 2026-11-06:** backend PR #222 e front PR #198 mergeados em `develop`. O front entrou 21 s antes
+    do backend (09:13:27Z × 09:13:48Z) — a ordem inversa prevista como segura; sem efeito.
+    Promoção para `main`: backend PR #224, front PR #200 (abertos).
