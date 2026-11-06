@@ -6,6 +6,9 @@ E2E onde indicado. Branches `feat/coach-alterar-data-treino` nos dois repos, em 
 
 ## 1. Backend — contrato e regra (`apps/menthoros-backend`)
 
+- [ ] 1.0 Baseline da métrica: nos logs do Railway (backend, últimas 4 semanas), contar sequências
+      `Excluindo treino` → `adicionarTreino` no mesmo plano em < 2 min; registrar o número no
+      proposal (Métrica de sucesso). verify: número anotado no proposal antes do PR do backend.
 - [ ] 1.1 `TreinoPlanejadoPatchDto.dataTreino` (`LocalDate`, opcional, `@Schema` dizendo "dentro
       da semana do plano"). Teste de controller: PATCH com `dataTreino` desserializa; propriedade
       desconhecida continua ignorada. verify: `./mvnw clean test -Dtest=CoachTreinoControllerTest`.
@@ -21,12 +24,16 @@ E2E onde indicado. Branches `feat/coach-alterar-data-treino` nos dois repos, em 
       que edição só de data conta como edição pós-aprovação e reinicia a sincronização. Testes CA6
       (passado; hoje com relógio; hoje sem relógio; futuro; só data marca edição; data igual não
       reinicia sincronização; servidor e atleta em dias diferentes).
+      Mais CA7b: `SINCRONIZANDO` em andamento → 409 mesmo com data igual (regra canônica mantida).
       verify: `./mvnw clean test -Dtest=PostApprovalEditCoordinatorTest`.
 - [ ] 1.5 `IntervalsIcuAdapter.buscarIdPorExternalId`: sem `eventId` gravado, listar eventos em
-      `[semanaInicio, semanaFim]` e casar pelo `externalId` (D7). Conferir o adapter Garmin no mesmo
-      cenário. Teste CA6b: criado → resposta perdida → data muda → reenvio mantém um evento.
-      verify: `./mvnw clean test -Dtest=IntervalsIcuAdapterTest`.
-- [ ] 1.6 Suite completa `./mvnw clean verify`; `/qa` backend; PR backend → `develop`.
+      `[semanaInicio, semanaFim]` e casar pelo `externalId` (D7). Teste CA6b: criado → resposta
+      perdida → data muda → reenvio mantém um evento. Garmin: sem mudança
+      (`garantirSchedule` já procura em ±14 dias); só teste de regressão no
+      `GarminTrainingAdapterTest` com schedule em outra data da semana → `atualizarSchedule`, não
+      `criarSchedule`. verify: `./mvnw clean test -Dtest='IntervalsIcuAdapterTest,GarminTrainingAdapterTest'`.
+- [ ] 1.6 Suite completa e gate: `./mvnw clean verify` verde; `/qa` backend sem achado crítico;
+      PR backend → `develop` com CI verde. verify: `gh pr checks` verde.
 
 ## 2. Frontend — dialog (`apps/menthoros-front`)
 
@@ -37,17 +44,26 @@ E2E onde indicado. Branches `feat/coach-alterar-data-treino` nos dois repos, em 
       `montarPatch` inclui `dataTreino` só se mudou (D6). Testes de componente: CA8 (seleciona e
       salva → patch com `dataTreino`; sem mudar → sem a chave), CA9 (marcação só com a prop).
       verify: `npx vitest run src/features/coach/components/TreinoEditDialog`.
-- [ ] 2.3 Chamadores passam `semana` (e `diasDisponiveis` onde o atleta está em mãos):
-      `CoachPlanReviewPage`, `CurrentWeekPlan`, `planosDialog`. `CurrentWeekPlan.toDialogTreino`
-      deriva `dataTreino` de `semana.inicio + diaSemana` (D6) — teste: salvar outro campo sem mudar
-      o dia não manda `dataTreino`. Após salvar, se a resposta vier com `dataTreino` diferente do
-      enviado, mostrar erro (front novo × backend antigo); em erro de transporte, recarregar o
-      treino antes de reenviar. verify: lint + build + testes das três telas.
-- [ ] 2.4 E2E: `plan-review-edicao.spec.ts` (mover em revisão: PATCH leva `dataTreino`, card muda
+- [ ] 2.3 `CoachPlanReviewPage` e `planosDialog` passam `semana` (e `diasDisponiveis` onde o
+      atleta está em mãos). Teste: dialog abre com o dia atual selecionado.
+      verify: `npx vitest run src/features/coach/pages/CoachPlanReviewPage src/components/features/planos`.
+- [ ] 2.4 `CurrentWeekPlan.toDialogTreino` deriva `dataTreino` de `semana.inicio + diaSemana` (D6)
+      e passa `semana`. Teste: salvar outro campo sem mudar o dia não manda `dataTreino`.
+      verify: `npx vitest run src/features/coach/components/CurrentWeekPlan`.
+- [ ] 2.5 Pós-salvar no hook de edição: resposta com `dataTreino` ≠ enviado → erro "não foi possível
+      mover o treino" (front novo × backend antigo); erro de transporte ou 409 → recarregar o
+      treino (GET) e, se a data já é a nova, tratar como aplicado sem reenviar (D3). Teste de hook
+      para os três casos.
+      verify: `npx vitest run src/features/coach/hooks`.
+- [ ] 2.6 E2E: `plan-review-edicao.spec.ts` (mover em revisão: PATCH leva `dataTreino`, card muda
       de coluna) e `editar-treino-aprovado.spec.ts` (mover em plano aprovado para dia futuro;
-      422 do backend aparece no dialog). verify: `npx playwright test plan-review-edicao editar-treino-aprovado`.
-- [ ] 2.5 Suite completa do front; `/qa` front; PR front → `develop` (só após o backend em `develop`).
+      destino passado → 422 aparece no dialog). CA9 (marcação) e backend antigo ficam em teste de
+      componente/hook: não há backend antigo no E2E. verify: `npx playwright test plan-review-edicao editar-treino-aprovado`.
+- [ ] 2.7 Suite completa e gate: `npm run lint && npm run build && npm run test:run` verde; `/qa`
+      front sem achado crítico; PR front → `develop` só após o backend em `develop`.
+      verify: `gh pr checks` verde e PR do backend mergeado.
 
 ## 3. Fechamento
 
 - [ ] 3.1 Spec delta `coach-approved-plan-edit` promovida; tasks marcadas; `/done`.
+      verify: `openspec validate` verde e change em `changes/archive/YYYY-MM/`.

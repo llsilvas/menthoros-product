@@ -62,8 +62,9 @@ fora da disponibilidade" não precisa de exceção nova: basta o PATCH aceitar a
 
 1. **Contrato** — Given PATCH com `dataTreino` dentro da semana do plano, Then o treino grava a
    nova data e `diaSemana` coerente; o GET devolve os dois.
-2. **Semana fechada** — Given `dataTreino` fora de `[semanaInicio, semanaFim]`, Then 400/422 com
-   mensagem "Data do treino fora do intervalo do plano" e nada muda.
+2. **Semana fechada** — Given `dataTreino` fora de `[semanaInicio, semanaFim]`, Then 422
+   (`DomainRuleViolationException`, mesmo handler da adição) com mensagem começando por "Data do
+   treino fora do intervalo do plano" e nada muda.
 3. **Disponibilidade não bloqueia** — Given atleta com `diasDisponiveis = [SEG, QUA, SEX]`, When o
    treino é movido para sábado, Then 200 e o treino fica no sábado.
 4. **Descanso do destino** — Given dia de destino marcado como descanso no plano, Then o descanso
@@ -77,9 +78,15 @@ fora da disponibilidade" não precisa de exceção nova: basta o PATCH aceitar a
    realizada continua recusada como hoje.
 6b. **Sem duplicata no relógio** — Given evento criado no intervals.icu mas sem `eventId` gravado
    (resposta perdida), When o treino é movido e reenviado, Then o adapter encontra o evento pelo
-   `externalId` na semana do plano e o atualiza; exatamente um evento no fim.
+   `externalId` na semana do plano e o atualiza; exatamente um evento no fim. Garmin já cobre
+   (`GarminTrainingAdapter.garantirSchedule` procura em ±14 dias e apaga o workout se o schedule
+   falhar) — só teste de regressão, sem mudança.
 7. **Patch sem data** — Given PATCH sem `dataTreino`, Then comportamento idêntico ao atual. Given
-   PATCH com `dataTreino` igual à atual, Then nada muda e a sincronização não reinicia.
+   PATCH **só** com `dataTreino` igual à atual, Then nada muda e a sincronização não reinicia;
+   com outros campos junto, segue o fluxo atual (edição marcada, sincronização reinicia).
+7b. **Retry na janela de push** — Given plano aprovado, treino `SINCRONIZANDO` com envio em
+   andamento, When chega PATCH (inclusive o retry de um já aplicado), Then 409 como hoje; o front
+   recarrega o treino e, se a data já é a nova, não reenvia.
 8. **Dialog** — Given o dialog aberto, Then o dia é um select com os sete dias da semana do plano,
    o atual selecionado; When o treinador escolhe outro e salva, Then o PATCH leva `dataTreino`
    (ISO `yyyy-MM-dd`); sem mudar o dia, `dataTreino` fica fora do PATCH.
@@ -93,10 +100,18 @@ fora da disponibilidade" não precisa de exceção nova: basta o PATCH aceitar a
 - Proxy mecânico: CA1–9 cobertos por teste; CA10 verde.
 - Rotina do treinador: mover um treino de dia é uma edição (um select + salvar) em vez de excluir
   e recriar. Baseline antes do deploy: exclusões de treino gerado pela IA seguidas de adição no
-  mesmo plano em < 2 min, por semana (log `Excluindo treino` + `adicionarTreino`). Meta: essa
-  sequência cai a zero e os PATCHes com `dataTreino` a substituem.
+  mesmo plano em < 2 min, por semana (log `Excluindo treino` + `adicionarTreino`), levantado nos
+  logs do Railway (task 1.0) antes do deploy. Meta: a sequência cai pelo menos 80% nas quatro
+  semanas seguintes e os PATCHes com `dataTreino` a substituem.
 - Sinal de aprendizado: mover o dia é discordância com a proposta da IA; conta no diff
   proposta × edição (`editadoPeloCoach` / edição pós-aprovação), como qualquer outro campo.
+
+## Rollback
+
+Reverter o PR do front (o select some, o dia volta a chip) e, se preciso, o do backend (o campo
+volta a ser ignorado). Sem migration e sem dado a desfazer: treinos já movidos ficam na data
+nova, válida em qualquer versão; eventos já reenviados ao relógio ficam na data nova e o próximo
+reenvio (se houver) os atualiza pelo `externalId`/`eventId` como hoje.
 
 ## Status
 
@@ -107,6 +122,10 @@ fora da disponibilidade" não precisa de exceção nova: basta o PATCH aceitar a
   ancorada em exclusões de treino da IA seguidas de recriação, com baseline antes do deploy;
   (3) atleta não é notificado do dia novo — segue o que a edição pós-aprovação já faz (sem
   notificação; o relógio recebe o evento novo); (4) fuso: ver pre-mortem.
+- DoR (2026-11-06, `/implement init`): `spec-reviewer` NOT READY (rollback, status fixo, cenários,
+  verify por task, split da 2.3) e Codex needs-attention (Garmin sem vínculo recuperável; retry
+  recebe 409 na janela de push) — todos conferidos no código e fechados (Rollback, CA2/7/7b, D3,
+  Riscos, tasks 1.0/1.5/2.3–2.7).
 - Pre-mortem Codex (2026-11-06): **needs-attention**, 4 achados, todos conferidos no código e
   absorvidos: (1) duplicata no intervals.icu após resposta perdida — D7 e CA6b; (2) a premissa de
   fuso estava errada, o coordinator já usa `AtletaHojeResolver` — D3 reescrito; (3)
@@ -126,6 +145,9 @@ fora da disponibilidade" não precisa de exceção nova: basta o PATCH aceitar a
   comportamento da edição pós-aprovação atual; o relógio recebe o evento na nova data. Notificar
   o atleta é change à parte.
 - **Aberto (produto):** pedido de treinador do piloto ou achado interno? Registrar antes do
-  `/implement init`.
-- **Aberto:** `contexto` do cabeçalho ("Bruno Dias · Ter 20/10") deve acompanhar o dia escolhido
-  ou ficar com o original até salvar? Proposta: fica com o original (é o contexto de abertura).
+  `/implement run`.
+- **Decisão (DoR, Codex):** duplicata no Garmin após persistência local perdida é gap do reenvio
+  unitário, pré-existente e sem vínculo recuperável (só `workoutId`); fora de escopo, follow-up
+  `garmin-reenvio-unitario-remover-orfaos`. Ver Riscos no design.
+- **Decisão:** `contexto` do cabeçalho ("Bruno Dias · Ter 20/10") fica com o original até salvar
+  — é o contexto de abertura; o select mostra o dia escolhido.

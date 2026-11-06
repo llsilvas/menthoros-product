@@ -20,11 +20,15 @@ o evento pelo identificador canônico em toda a semana do plano antes de criar o
 
 #### Scenario: Data fora da semana do plano
 - **WHEN** `dataTreino` é anterior a `semanaInicio` ou posterior a `semanaFim`
-- **THEN** a resposta é 4xx com "Data do treino fora do intervalo do plano" e o treino não muda
+- **THEN** a resposta é 422 com mensagem iniciando por "Data do treino fora do intervalo do plano" e o treino não muda
 
 #### Scenario: Destino marcado como descanso
 - **WHEN** o dia de destino está em `restDays` do plano
 - **THEN** o descanso daquele dia é removido e o treino é gravado no dia
+
+#### Scenario: Origem fica sem prescrição
+- **WHEN** o treino movido era o único do dia de origem e o dia não está em `restDays`
+- **THEN** a edição é aceita e o dia de origem é registrado como sem prescrição (log e contador `plano_dia_sem_prescricao`)
 
 #### Scenario: Plano aprovado, destino no passado
 - **WHEN** o plano está `APROVADO` e a nova data é anterior a hoje
@@ -43,6 +47,18 @@ o evento pelo identificador canônico em toda a semana do plano antes de criar o
 - **WHEN** o plano está `APROVADO`, o treino é editável e a nova data é hoje ou futura
 - **THEN** o treino muda de data, a edição é marcada como pós-aprovação e a sincronização com o
   relógio reinicia
+
+#### Scenario: Reenvio no Garmin sem identificador remoto
+- **WHEN** o treino movido já tem workout no Garmin e o schedule não foi gravado
+- **THEN** o reenvio reaproveita o workout e move o schedule, sem criar um segundo workout
+
+#### Scenario: Data igual à atual
+- **WHEN** o PATCH traz só `dataTreino`, igual à data gravada
+- **THEN** nada muda e, em plano aprovado, a sincronização com o relógio não reinicia
+
+#### Scenario: Retry durante o envio ao relógio
+- **WHEN** o treino está `SINCRONIZANDO` com envio em andamento e chega um PATCH, mesmo com a data já aplicada
+- **THEN** a resposta é 409, como em qualquer edição nessa janela
 
 #### Scenario: Patch sem data
 - **WHEN** o PATCH não traz `dataTreino`
