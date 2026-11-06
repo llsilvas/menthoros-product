@@ -26,6 +26,13 @@ revogada) e o `ConexaoCanalDto` (mesmo mapeamento do perfil, movido para o helpe
 "editável" ou a recusa. "Não se aplica" é distinto de "editável": o retorno não é
 `Optional<EditRejection>`.
 
+`PostApprovalEditCoordinator.hasWatch` permanece como está, para o PATCH (um treino por requisição);
+não delega ao helper. A query é a mesma, então a regra não diverge.
+
+Orçamento de queries da listagem: **+1** query de integração e **0** por plano ou por treino, além
+do que `listarSemanasDoAtleta` já faz hoje (`hoje` vem do atleta já carregado; `editedAfterApprovalAt`
+é coluna da entidade já carregada).
+
 O perfil passa a usar o mesmo helper sem mudar o JSON: plano em revisão continua com
 `editable = true` e `editRejection = null`, que é o que `recusaDeEdicao` devolve hoje (o front trata
 revisão por `isAguardando`). O `conexaoCanal` do perfil passa a vir do helper, com o mesmo
@@ -80,13 +87,18 @@ o `TreinoEditDialog`. O painel só emite `onEditar(treino, planoId)`.
 A proteção contra resposta obsoleta fica no dono do estado, `usePlanoSemanal.fetchPlanosPorAtleta`:
 um `useRef` com contador de requisição; só a última requisição grava `planos`, `error` e `loading`
 (as anteriores retornam sem tocar o estado). `fetchPlanosPorAtleta` passa a devolver
-`Promise<boolean>` (`true` = lista gravada, `false` = falha ou obsoleta), mantendo o `setError`
-atual para os outros consumidores (que ignoram o retorno). O handler de salvar:
+`Promise<'ok' | 'falha' | 'obsoleta'>`, mantendo o `setError` atual para os outros consumidores
+(que ignoram o retorno; o dialog chama o fetch em vários pontos, `planosDialog.tsx:117`, `:159`,
+`:166`, `:256`, `:265`, `:293`). "Obsoleta" não é falha: outra requisição mais nova vai gravar a
+lista. O handler de salvar:
 
 - PATCH falha → editor aberto, mensagem do backend (409/422) ou genérica, mesmo
   `mensagemDeErroAoSalvar` da aba Plano.
-- PATCH ok → fecha o editor e recarrega; reload `false` → aviso "Treino salvo; não foi possível
-  atualizar a lista".
+- PATCH ok → fecha o editor e recarrega; só `'falha'` mostra "Treino salvo; não foi possível
+  atualizar a lista". `'obsoleta'` não mostra nada.
+
+Os mocks existentes de `fetchPlanosPorAtleta` (ex.: `planosDialog.test.tsx:17`,
+`mockResolvedValue(undefined)`) passam a resolver `'ok'`.
 
 **D6. Aviso de canal.** O `PlanosDialog` deriva o canal com `buildWatchChannelFromConexao`
 (`ativo` obrigatório) do plano do treino. Canal → aviso com canal e "Salvar e reenviar". Sem canal
@@ -96,7 +108,7 @@ componente): `null` continua sendo "só no app" para a aba Plano, sem mudar aque
 PlanosDialog nunca passa `null`. Teste de regressão da aba Plano com `canal: null`.
 
 **D7. Ciclo de vida do editor.** O `PlanosDialog` é uma instância reusada para todos os atletas
-(`planosDialog.tsx:110`). O effect que já reseta geração ao fechar ou trocar de atleta também zera
+(`planosDialog.tsx:114-124`). O effect que já reseta geração ao fechar ou trocar de atleta também zera
 o estado do editor (alvo, `saveErrorMessage`, aviso pós-reload). PATCH em voo quando o dialog fecha
 ou troca de atleta: o resultado é ignorado se o `atletaId` capturado no alvo não for mais o atual
 (nem mensagem, nem reload); o PATCH em si não é cancelado (o backend é a autoridade e a edição vale).

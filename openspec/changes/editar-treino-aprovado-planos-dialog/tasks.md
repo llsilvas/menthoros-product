@@ -6,7 +6,7 @@
 - [ ] 1.4 Campos no DTO de treino e `conexaoCanal` (`AtletaPerfilCoachOutputDto.ConexaoCanalDto`) no DTO do plano (D3); mapper ignora os campos novos; enriquecimento só em `listarSemanasDoAtleta` (D2), casando treino do DTO com a entidade por `id`
 - [ ] 1.5 Teste de regressão: `GET /atletas/{id}/plano` com `ROLE_ATLETA` não contém nenhum campo novo
 - [ ] 1.6 Teste de integração do endpoint: serialização (`editedAfterApprovalAt` ISO), outro tenant sem acesso, `ROLE_ATLETA` recebe 403 na listagem, `conexaoCanal` ativa × revogada (`ativo: false`) × ausente
-- [ ] 1.7 Teste de queries: três semanas aprovadas em andamento com quantidades diferentes de treinos, contexto limpo; overhead desta change constante por requisição
+- [ ] 1.7 Teste de queries: três semanas aprovadas em andamento com quantidades diferentes de treinos, contexto limpo; overhead desta change = +1 query de integração por requisição, 0 por plano ou treino
 - [ ] 1.8 Validação: `./mvnw clean verify`
 
 ## 2. Frontend (`apps/menthoros-front`, branch `feat/editar-treino-aprovado-planos-dialog`)
@@ -15,10 +15,10 @@
 - [ ] 2.2 Teste primeiro: `toEditorTreino` (D4) com fixtures do JSON real da listagem preserva observação, TSS, alvos de etapa, `alvoPrimario`, descrições e repetições; converte `"01:05:00"` → `PT1H5M`, `"45:30"` → `PT46M`, texto inválido → `undefined`; enums objeto → `value`; sem `any`; fixa o caso de bloco com descrições diferentes (limitação herdada de `itensFromEtapas`)
 - [ ] 2.3 Teste primeiro: `TreinoCard` mostra lápis, cadeado (mesmos textos da aba Plano, incluindo `TODAY_ON_WATCH`), selo "Editado após aprovação", e nada sem os campos
 - [ ] 2.4 Teste primeiro: `TreinoEditDialog` com o estado neutro (D6) mostra "Se o atleta usa relógio, a versão nova será reenviada.", botão "Salvar", nunca "A mudança aparece só no app"; regressão: `canal: null` (aba Plano) segue "só no app"
-- [ ] 2.5 Teste primeiro: `usePlanoSemanal.fetchPlanosPorAtleta` devolve `true`/`false` e só a última requisição grava `planos`/`error`/`loading` (resposta atrasada de outro atleta descartada)
+- [ ] 2.5 Teste primeiro: `usePlanoSemanal.fetchPlanosPorAtleta` devolve `'ok'`/`'falha'`/`'obsoleta'` e só a última requisição grava `planos`/`error`/`loading` (resposta atrasada de outro atleta descartada, devolve `'obsoleta'`)
 - [ ] 2.5b Teste primeiro (PlanosDialog): lápis abre o editor com motivo; mudar só a duração manda PATCH para `planoId`/`treinoId` capturados com `duracaoMin` e `editReason`, sem observação/TSS/tipo/zona; reload em segundo plano e troca de semana não fecham o editor; canal Garmin ativo → "Salvar e reenviar"; revogada/ausente → texto neutro
-- [ ] 2.6 Teste primeiro: 422/409 mantém o editor aberto com a mensagem; PATCH ok + reload `false` fecha o editor e mostra "Treino salvo; não foi possível atualizar a lista"; fechar o dialog ou trocar de atleta fecha o editor, descarta a edição e ignora o resultado de PATCH em voo (D7)
-- [ ] 2.7 Implementar D4, D5, D6 e D7
+- [ ] 2.6 Teste primeiro: 422/409 mantém o editor aberto com a mensagem; PATCH ok + reload `'falha'` fecha o editor e mostra "Treino salvo; não foi possível atualizar a lista"; reload `'obsoleta'` (fetch concorrente, ex.: fim de geração) não mostra aviso; fechar o dialog ou trocar de atleta fecha o editor, descarta a edição e ignora o resultado de PATCH em voo (D7)
+- [ ] 2.7 Implementar D4, D5, D6 e D7; mocks existentes de `fetchPlanosPorAtleta` (`planosDialog.test.tsx:17`) passam a resolver `'ok'`
 - [ ] 2.8 E2E em `tests/e2e/coach/`: abrir PlanosDialog, editar treino pendente de plano aprovado de atleta com Garmin ("Salvar e reenviar"), ver o selo; treino passado com cadeado; plano concluído com selo e sem lápis
 - [ ] 2.9 Validação: `npm run lint && npm run build && npm run test:run`; `editar-treino-aprovado.spec.ts` segue verde
 
