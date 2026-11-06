@@ -100,9 +100,11 @@ fora da disponibilidade" não precisa de exceção nova: basta o PATCH aceitar a
 - Proxy mecânico: CA1–9 cobertos por teste; CA10 verde.
 - Rotina do treinador: mover um treino de dia é uma edição (um select + salvar) em vez de excluir
   e recriar. Baseline antes do deploy: exclusões de treino gerado pela IA seguidas de adição no
-  mesmo plano em < 2 min, por semana (log `Excluindo treino` + `adicionarTreino`), levantado nos
-  logs do Railway (task 1.0) antes do deploy. Meta: a sequência cai pelo menos 80% nas quatro
-  semanas seguintes e os PATCHes com `dataTreino` a substituem.
+  mesmo plano em < 2 min, por semana (log `Excluindo treino` + `Treino adicionado`).
+  **Baseline não mensurável retroativamente** (task 1.0, 2026-11-06): o Railway só expõe logs do
+  deployment atual, e não há histórico de 4 semanas. Meta ajustada: nas 4 semanas após o deploy,
+  PATCHes com `dataTreino` ≥ 80% dos "movimentos" (PATCH com data + sequências exclusão→adição no
+  mesmo plano em < 2 min), medidos nos logs do deploy enquanto ele durar.
 - Sinal de aprendizado: mover o dia é discordância com a proposta da IA; conta no diff
   proposta × edição (`editadoPeloCoach` / edição pós-aprovação), como qualquer outro campo.
 
