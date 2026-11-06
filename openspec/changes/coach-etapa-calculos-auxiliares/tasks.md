@@ -30,7 +30,9 @@ sobre `origin/develop` antes do bloco 2.
 
 ## 2. Zona sugerida no Personalizado
 
-- [ ] 2.1 `ZoneSelector`: com `value.zona === 'PERSONALIZADO'` e `zones`, mostrar a zona de
+- [x] 2.1 **Feito:** `sugestaoDeZona` em `zoneSelectorLogic.ts` (mesma leitura de `zonaPorValor`,
+      devolvendo o eixo) e texto `data-testid="zona-sugerida"` no `ZoneSelector`; 7 testes.
+      `ZoneSelector`: com `value.zona === 'PERSONALIZADO'` e `zones`, mostrar a zona de
       `zonaPorValor(fcAlvoEtapa, ritmoAlvo, alvoPrimario, zones)` como texto de apoio, nomeando o
       eixo de onde a zona veio ("Pace cai em Z5 para este atleta" / "FC cai em Z3"); nada quando
       `null`. O eixo exibido é o que `zonaPorValor` usou: com os dois eixos na mesma zona, o
