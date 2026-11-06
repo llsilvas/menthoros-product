@@ -37,7 +37,8 @@ O perfil passa a usar o mesmo helper sem mudar o JSON: plano em revisão continu
 `editable = true` e `editRejection = null`, que é o que `recusaDeEdicao` devolve hoje (o front trata
 revisão por `isAguardando`). O `conexaoCanal` do perfil passa a vir do helper, com o mesmo
 valor. A guarda de `CONCLUIDO` vale só para a listagem: para não mudar o perfil, o helper expõe
-também a recusa crua da policy (`recusa(treino)`, sem olhar o plano), e o perfil continua chamando
+também a recusa crua da policy com nome explícito (`recusaDaPolicySemGuardaDePlano(treino)`, só
+para o perfil; a listagem usa `avaliar(plano, treino)`), e o perfil continua chamando
 "revisão → editável; aprovado → policy", exatamente como `recusaDeEdicao` faz hoje. Testes explícitos
 do perfil em `AGUARDANDO_REVISAO` e em `APROVADO` + `CONCLUIDO` fixam o comportamento atual.
 
@@ -62,8 +63,10 @@ TreinoPlanejadoDto` em `src/components/features/planos/`, coberta por testes com
 real da listagem:
 
 - Duração: a listagem manda `duracaoMin` como texto `MM:SS` ou `HH:MM:SS` (`TreinoMapper.durationToString`);
-  o editor só entende ISO em minutos (`parseDuracaoMinutos` aceita `PT#H#M`). Converte para
-  `PT{h}H{m}M`, arredondando segundos ao minuto mais próximo (segundos ≠ 0 são raros na duração do
+  o editor só entende ISO em minutos (`parseDuracaoMinutos` aceita `PT#H#M`) e serializa sempre
+  `PT{n}M` (`toIso8601`, `TreinoEditDialog.tsx:43`). Converte para `PT{total de minutos}M` (não
+  `PT1H5M`: o editor compara texto ao montar o diff, e o formato diferente mandaria uma duração
+  falsa no PATCH quando só as etapas mudam), arredondando segundos ao minuto mais próximo (segundos ≠ 0 são raros na duração do
   treino; suporte real fica para `add-etapa-duracao-segundos`). Texto inválido → `undefined` (o
   editor já trata ausência).
 - Enums de etapa (`{ value, label }`) → `value`.
@@ -102,10 +105,11 @@ Os mocks existentes de `fetchPlanosPorAtleta` (ex.: `planosDialog.test.tsx:17`,
 
 **D6. Aviso de canal.** O `PlanosDialog` deriva o canal com `buildWatchChannelFromConexao`
 (`ativo` obrigatório) do plano do treino. Canal → aviso com canal e "Salvar e reenviar". Sem canal
-(revogada ou ausente) → texto neutro. A prop muda de `aviso?: { canal: WatchChannel | null }` para
-aceitar também `canal: 'DESCONHECIDO'` (ou `aviso.neutro: true`, o que der o menor diff no
-componente): `null` continua sendo "só no app" para a aba Plano, sem mudar aquele caminho; o
-PlanosDialog nunca passa `null`. Teste de regressão da aba Plano com `canal: null`.
+(revogada ou ausente) → texto neutro. **Decidido:** flag explícita na prop,
+`aviso?: { canal: WatchChannel | null; neutro?: boolean }`; `neutro: true` ignora `canal` e mostra
+o texto neutro com botão "Salvar". `canal` não ganha um terceiro valor. `null` sem `neutro` continua
+sendo "só no app" para a aba Plano, sem mudar aquele caminho; o PlanosDialog passa `neutro: true`
+quando não há canal. Teste de regressão da aba Plano com `canal: null`.
 
 **D7. Ciclo de vida do editor.** O `PlanosDialog` é uma instância reusada para todos os atletas
 (`planosDialog.tsx:114-124`). O effect que já reseta geração ao fechar ou trocar de atleta também zera
