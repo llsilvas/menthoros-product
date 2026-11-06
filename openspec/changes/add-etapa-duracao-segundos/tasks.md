@@ -33,8 +33,11 @@ Ordem: bloco 1 → 2 → PR backend; bloco 3 só depois do backend em `develop`;
       Confirmar que não há caminho entidade → `EtapaTreinoLlmDto` → entidade que perderia o
       segundo; se houver, excluir `duracaoSeg` explicitamente do schema em `LlmJsonSchemaBuilder`.
       Teste que afirma a ausência do campo no schema gerado. verify: `./mvnw clean test -Dtest=LlmJsonSchemaBuilderTest`.
-- [ ] 1.5 Suite completa: `./mvnw clean verify` — CA4 (nenhum teste dos leitores de `duracaoMin`
-      alterado).
+- [x] 1.5 Suite completa: `./mvnw clean verify` — 6475 testes, 1 falha fora da change
+      (`GarminClientImplTest.erro400SemSegredos`, 404 em vez de 400 após 10 s; isolado passa
+      45/45, flaky de rede). CA4: nenhum teste dos leitores de `duracaoMin` alterado. Uma primeira
+      rodada quebrou com `NoClassDefFoundError` por `./mvnw test` concorrente no mesmo `target/`
+      — erro de operação, não da change.
 
 ## 2. Backend — intervals.icu
 
