@@ -1643,6 +1643,34 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 
 ## Changes concluídas (fora de sprint)
 
+### `add-etapa-duracao-segundos` ✅ **ARQUIVADA** — duração da etapa em segundos, editor em m:ss (2026-11-06)
+
+**Entregue:** `menthoros-backend` PR **#223** (mergeado em `develop` e promovido a `main` pelo #224) e
+`menthoros-front` PR **#201** (`develop`, `faef224`), em 2026-11-06. Arquivada em
+`changes/archive/2026-11/2026-11-06-add-etapa-duracao-segundos/`; spec nova promovida para
+`specs/coach-workout-step-editing/`. M · Full, backend + front, migration `V112` aditiva.
+Destacada de `coach-etapa-calculos-auxiliares`.
+
+**O problema:** a duração da etapa era inteiro em minutos de ponta a ponta — 400 m a 4:00/km dá
+1,6 min e viraria 2; o tiro de 1 km a 4:10 chegava ao relógio como 4:00 ou 5:00.
+
+**O que faz:**
+- Backend: `duracaoSeg` no contrato e em `tb_etapa_treino` (nula, sem backfill); `duracaoMin` derivado
+  por round sem piso em `EtapaMapper` (ponto único); conversor do intervals.icu usa o segundo exato e
+  não agrupa 4:10 com 4:40; schema do LLM intacto (a IA segue em minutos).
+- Front: campo "Duração (m:ss)" (`4`, `4:10`, `1:30:00`), normalização no blur, inválido ou `0:00`
+  bloqueia o salvar; payload com `duracaoSeg` + `duracaoMin` derivado (omitido em 0);
+  `recalcularMedidas` fecha distância × duração × pace com "último editado manda"; a medida derivada
+  tem indicação visual e **fica fora do PATCH**; totais, cabeçalho da série e card em `m:ss`.
+
+**QA que valeu:** o Codex e o frontend-reviewer convergiram no `toEditorTreino` do PlanosDialog, que
+descartava `duracaoSeg` (reabriria 4:10 como 4:00 e regravaria 240 s); o Codex achou ainda que texto
+inválido na duração virava derivado ao mudar distância/pace.
+
+**Follow-ups (sem change):** `TssCalculatorService` e `WorkoutAnalysisPromptDataBuilder` em
+segundos (etapa abaixo de 30 s some desses leitores); `duracaoMin` sem `@Max`; totais do treino
+(`PT{n}M`) continuam em minuto inteiro.
+
 ### `coach-editar-treino-aprovado` ✅ **ARQUIVADA** — editar treino de plano aprovado (2026-11-06)
 
 **Entregue:** `menthoros-backend` PR **#221** e `menthoros-front` PR **#194**, mergeados em `develop` em

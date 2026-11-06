@@ -44,7 +44,7 @@ Ordem: bloco 1 → 2 → PR backend; bloco 3 só depois do backend em `develop`;
 - [x] 2.1 `IntervalsIcuWorkoutConverter`: duração do step de etapa usa `duracaoSeg ?? duracaoMin×60`;
       comparação de etapas iguais inclui `duracaoSeg`. Testes CA3 (segundos; só minutos; dois tiros
       4:10 e 4:40 não viram a mesma etapa). verify: `./mvnw clean test -Dtest=IntervalsIcuWorkoutConverterTest`.
-- [~] 2.2 `/qa` backend (2026-11-05): code-reviewer, security-reviewer e clean-code-reviewer sem
+- [x] 2.2 `/qa` backend (2026-11-05): code-reviewer, security-reviewer e clean-code-reviewer sem
       Critical; DeepSeek no lugar do Codex (sem cota). Convergência corrigida no commit de QA:
       derivação do minuto movida para `EtapaMapper.derivarDuracaoMin` (`@AfterMapping`, ponto único
       de todo `toEntity`, arredondamento inteiro `(seg + 30) / 60`), `CoachAthleteProfileServiceImpl.
@@ -52,8 +52,8 @@ Ordem: bloco 1 → 2 → PR backend; bloco 3 só depois do backend em `develop`;
       e 400 para `duracaoSeg` inválido. Rebatido: o achado do DeepSeek de que o bloco expandido
       pularia a derivação era falso (`expandirBloco` chama `buildEtapaSimples`), mas o mapper
       resolve de qualquer modo. Mantidos: `duracaoMin` sem `@Max` (pré-existente); sem `CHECK` no
-      banco (validação no DTO). → `/pr add-etapa-duracao-segundos` (backend). Deploy em develop
-      antes do front.
+      banco (validação no DTO). PR backend #223 mergeado em `develop` e promovido a `main` (#224)
+      em 2026-11-06, antes do front.
 
 ## 3. Frontend — contrato e editor (`apps/menthoros-front`)
 
@@ -87,7 +87,7 @@ Ordem: bloco 1 → 2 → PR backend; bloco 3 só depois do backend em `develop`;
       verify: `npx playwright test plano-zonas-editor plan-review-edicao` — 12 verdes (commit `f7684f1`:
       três specs novos: m:ss/0:10/reabre em 4:10; inválido bloqueia; distância + Z5 deriva 4:38 e fica
       fora do PATCH). `plan-review-edicao` só trocou o rótulo.
-- [~] 3.6 Suite completa do front: lint, build, 2833 unit e 155 E2E verdes. `/qa` (2026-11-06):
+- [x] 3.6 Suite completa do front: lint, build, 2833 unit e 155 E2E verdes. `/qa` (2026-11-06):
       frontend-reviewer e clean-code-reviewer sem Critical; Important corrigidos no commit de QA —
       `toEditorTreino` descartava `duracaoSeg` (PlanosDialog reabria 4:10 como 4:00 e regravava
       240 s), `0:00` passa a inválido, cabeçalho da série em `m:ss` quando há segundos
@@ -95,8 +95,12 @@ Ordem: bloco 1 → 2 → PR backend; bloco 3 só depois do backend em `develop`;
       `toEditorTreino` converge com o frontend-reviewer; o outro era real — texto inválido na duração
       ("4:") contava como derivável e mudar distância/pace o sobrescrevia, levantando o bloqueio.
       Corrigido: derivável é só vazio ou já derivado. Minor convergente (totais arredondavam para o
-      minuto): dialogs passam a `duracaoLegivel`. → `/pr` (front).
+      minuto): dialogs passam a `duracaoLegivel`. PR front #201 mergeado em `develop` (`faef224`)
+      em 2026-11-06.
 
 ## 4. Fechamento
 
-- [ ] 4.1 Spec `coach-workout-step-editing` promovida a `openspec/specs/`; tasks marcadas; `/done`.
+- [x] 4.1 Spec `coach-workout-step-editing` promovida a `openspec/specs/`; tasks marcadas; `/done`
+      em 2026-11-06. Follow-ups fora da change: usar `duracaoSeg` em `TssCalculatorService` e
+      `WorkoutAnalysisPromptDataBuilder`; `duracaoMin` sem `@Max`; totais do treino (`PT{n}M`)
+      seguem em minuto inteiro.
