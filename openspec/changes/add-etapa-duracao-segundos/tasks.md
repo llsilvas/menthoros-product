@@ -57,31 +57,45 @@ Ordem: bloco 1 → 2 → PR backend; bloco 3 só depois do backend em `develop`;
 
 ## 3. Frontend — contrato e editor (`apps/menthoros-front`)
 
-- [ ] 3.1 `types/PlanoReview.ts`: `duracaoSeg?: number` em `EtapaInputPayload` e `EtapaTreinoDto`.
-      Grep de `duracaoMin: '` em fixtures de teste e estimativa do ajuste; registrar aqui.
-      verify: `npm run build`.
-- [ ] 3.2 `etapaItem.ts`: `StepRow.duracao` em `m:ss` (+ `duracaoAuto`); `parseDuracao` (`m`,
+- [x] 3.1 `types/PlanoReview.ts`: `duracaoSeg?: number` em `EtapaInputPayload` e `EtapaTreinoDto`
+      (e em `TreinoPlanejado.EtapaTreino`, que o perfil lê). Grep de `duracaoMin: '` em fixtures:
+      24 arquivos, mas quase todos são o ISO do treino; só `etapaItem.test.ts` (7) e `input.test.ts`
+      (7) montavam `StepRow` — trocados para `duracao: 'm:00'`. verify: `npm run build` ok.
+- [x] 3.2 `etapaItem.ts`: `StepRow.duracao` em `m:ss` (+ `duracaoAuto`); `parseDuracao` (`m`,
       `m:ss`, `h:mm:ss`), `normalizarDuracao`, `formatarDuracao`; serialização envia `duracaoSeg` e
       `duracaoMin` derivado e **omite medida marcada `*Auto`**; hidratação `duracaoSeg ??
       duracaoMin×60` e recálculo do campo vazio como derivado; `totaisDeItens` em segundos;
       `VOCABULARIO_EDITOR.assinatura` inclui `duracaoSeg`. Testes CA5, CA8, derivado fora do payload
       e 4:10 ≠ 4:20 na inferência de série. verify: `npx vitest run src/features/coach/components/etapas/etapaItem.test.ts`.
-- [ ] 3.3 `recalcularMedidas(antes, depois, campoEditado)` substitui `recalcularDistancia` com a
+- [x] 3.3 `recalcularMedidas(antes, depois, campoEditado)` substitui `recalcularDistancia` com a
       tabela D5; testes CA6 e CA7 (duração derivada, distância derivada, pace com um derivado, pace
       sem derivado, digitar duração sobre distância digitada não muda a distância, pace incompleto).
       verify: vitest do arquivo.
-- [ ] 3.4 `EtapasEditor`/`BlocoCard`: campo "Duração" texto `m:ss` com normalização no blur;
+- [x] 3.4 `EtapasEditor`/`BlocoCard`: campo "Duração" texto `m:ss` com normalização no blur;
       inválido mostra erro e **bloqueia o salvar** nos dois dialogs; campo derivado com indicação
       visual ("calculado de pace × duração"); digitar distância ou duração chama o recálculo com o
       campo editado. Ajustar `workout/profile/input.ts` (`fromEtapaTreino`, `fromEtapaTreinoDto`,
       `minutosDe` → segundos), `selectWorkoutProfile.ts:249` e os totais dos dialogs
       (`formatDuration`). verify: lint + build + testes do editor e do perfil.
-- [ ] 3.5 E2E `tests/e2e/coach/plano-zonas-editor.spec.ts`: `1` km + Z5 preenche a duração e o
+      **Feito** (commit `d49c9e1`): rótulo "Duração (m:ss)"; `itensInvalidos` desabilita o salvar nos
+      dois dialogs; totais em segundos exibidos por `formatDuration` (65 min vira `1h05`);
+      `resumoSerie` do card lê `m:ss`. 2833 testes verdes.
+- [x] 3.5 E2E `tests/e2e/coach/plano-zonas-editor.spec.ts`: `1` km + Z5 preenche a duração e o
       PATCH leva `distanciaKm: 1` sem duração (derivada fora do payload); digitar `4:10` leva
       `duracaoSeg: 250` e `duracaoMin: 4`; `0:10` leva `duracaoSeg: 10` sem `duracaoMin`; etapa
       carregada com `duracaoSeg` abre em `4:10`.
-      verify: `npx playwright test plano-zonas-editor plan-review-edicao`.
-- [ ] 3.6 Suite completa do front + `/qa` → `/pr add-etapa-duracao-segundos` (front).
+      verify: `npx playwright test plano-zonas-editor plan-review-edicao` — 12 verdes (commit `f7684f1`:
+      três specs novos: m:ss/0:10/reabre em 4:10; inválido bloqueia; distância + Z5 deriva 4:38 e fica
+      fora do PATCH). `plan-review-edicao` só trocou o rótulo.
+- [~] 3.6 Suite completa do front: lint, build, 2833 unit e 155 E2E verdes. `/qa` (2026-11-06):
+      frontend-reviewer e clean-code-reviewer sem Critical; Important corrigidos no commit de QA —
+      `toEditorTreino` descartava `duracaoSeg` (PlanosDialog reabria 4:10 como 4:00 e regravava
+      240 s), `0:00` passa a inválido, cabeçalho da série em `m:ss` quando há segundos
+      (`duracaoLegivel`, compartilhada com o card). Codex REQUEST_CHANGES com 2 Important: o do
+      `toEditorTreino` converge com o frontend-reviewer; o outro era real — texto inválido na duração
+      ("4:") contava como derivável e mudar distância/pace o sobrescrevia, levantando o bloqueio.
+      Corrigido: derivável é só vazio ou já derivado. Minor convergente (totais arredondavam para o
+      minuto): dialogs passam a `duracaoLegivel`. → `/pr` (front).
 
 ## 4. Fechamento
 
