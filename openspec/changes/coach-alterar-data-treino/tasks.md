@@ -50,11 +50,12 @@ E2E onde indicado. Branches `feat/coach-alterar-data-treino` nos dois repos, em 
 - [ ] 2.4 `CurrentWeekPlan.toDialogTreino` deriva `dataTreino` de `semana.inicio + diaSemana` (D6)
       e passa `semana`. Teste: salvar outro campo sem mudar o dia não manda `dataTreino`.
       verify: `npx vitest run src/features/coach/components/CurrentWeekPlan`.
-- [ ] 2.5 Pós-salvar no hook de edição: resposta com `dataTreino` ≠ enviado → erro "não foi possível
+- [ ] 2.5 Pós-salvar em `src/hooks/useTreinoPlanejado.ts` (`editarTreino`, único ponto dos três
+      chamadores): resposta com `dataTreino` ≠ enviado → erro "não foi possível
       mover o treino" (front novo × backend antigo); erro de transporte ou 409 → recarregar o
       treino (GET) e, se a data já é a nova, tratar como aplicado sem reenviar (D3). Teste de hook
       para os três casos.
-      verify: `npx vitest run src/features/coach/hooks`.
+      verify: `npx vitest run src/hooks/useTreinoPlanejado`.
 - [ ] 2.6 E2E: `plan-review-edicao.spec.ts` (mover em revisão: PATCH leva `dataTreino`, card muda
       de coluna) e `editar-treino-aprovado.spec.ts` (mover em plano aprovado para dia futuro;
       destino passado → 422 aparece no dialog). CA9 (marcação) e backend antigo ficam em teste de
