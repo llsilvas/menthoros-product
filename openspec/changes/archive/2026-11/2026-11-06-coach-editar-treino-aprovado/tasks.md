@@ -21,6 +21,7 @@ relógio.
   na mesma data. Registrar aqui o resultado, com data e modelo do relógio.
   verify: relógio mostra a versão nova depois de um sync manual → R1 encerrado; não mostra → abrir
   change de follow-up para recriar o schedule no caminho de edição (era a 1.8a).
+  **Adiada no arquivamento (2026-11-06):** depende de deploy em produção (develop → main #224/#200 em 2026-11-06) e de relógio real; resultado vai para `menthoros-infra/docs` ou abre change de follow-up (1.8a).
 
 ## 1. Backend (worktree `.worktrees/backend-coach-editar-treino-aprovado`)
 

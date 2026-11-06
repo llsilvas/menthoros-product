@@ -1464,7 +1464,7 @@ Seam nova única: `GarminClient`. Estimativa ~20 dias úteis após revisão pony
 |:---:|---|:---:|:---:|---|---|
 | 1 | `garmin-connection` | **L · Full** | 32/32 — **arquivada 2026-11-01** (backend #192/#194, front #171, em produção) | OAuth2 PKCE, `userId`, permissões, refresh (24 h / 90 d rotativo), revogação pelo app e pelo Garmin (webhook), exclusividade de canal, `CanalIntegracao.GARMIN`, card de conexão generalizado. Zero migration. | ADR-0013; client ID no Developer Portal |
 | 2 | `garmin-training-push` | **M · Full** | 10/10 — **arquivada 2026-11-01** (backend #197/#198, em produção) | `GarminTrainingAdapter` (`WorkoutChannel`) + bean composto por plataforma; bpm absoluto e pace em m/s; `externalId = workoutId`; 412/429/401. Sem throttle, sem migration. | (1) |
-| 3 | `garmin-activity-ingestion` | **M · Full** | 0/16 — **ready-for-agent 2026-10-23** | Webhook `activityFiles` → `tb_garmin_ping` → download único em 24 h → `FitTreinoPersister` existente; atribuição "Garmin [modelo]" em toda tela e export (licença 6.4); remove a flag `garminHabilitado`. | (1); (2) independente |
+| 3 | `garmin-activity-ingestion` | **M · Full** | 14/16 — **arquivada 2026-11-06** (backend #216, front #189, em produção; 4.4 flag e 5.2 relógio real adiadas) | Webhook `activityFiles` → `tb_garmin_ping` → download único em 24 h → `FitTreinoPersister` existente; atribuição "Garmin [modelo]" em toda tela e export (licença 6.4); remove a flag `garminHabilitado`. | (1); (2) independente |
 
 > **Depois das três em produção:** change XS para o aviso e prazo de 30 dias dos atletas Garmin
 > que ainda estão no intervals.icu (número ainda não levantado — Q11 do grilling).
@@ -1642,6 +1642,67 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 ---
 
 ## Changes concluídas (fora de sprint)
+
+### `coach-editar-treino-aprovado` ✅ **ARQUIVADA** — editar treino de plano aprovado (2026-11-06)
+
+**Entregue:** `menthoros-backend` PR **#221** e `menthoros-front` PR **#194**, mergeados em `develop` em
+2026-11-05 e promovidos a `main` (#224, #200) em 2026-11-06. Arquivada em
+`changes/archive/2026-11/2026-11-06-coach-editar-treino-aprovado/`; spec promovida para
+`specs/coach-approved-plan-edit/`. M · Full, backend + front. Complementada por
+`editar-treino-aprovado-planos-dialog` (mesma entrada no PlanosDialog).
+
+**O que faz:** o treinador edita um treino de plano já aprovado pela aba Plano (perfil e Caixa de
+entrada) com o mesmo editor da revisão; o PATCH republica ao relógio e marca `editedAfterApprovalAt`.
+
+**Adiada (16/17):** 0.1 — Garmin real pós-deploy em produção (R1): editar um treino já no relógio e
+confirmar a versão nova depois do sync; se não aparecer, abrir change para recriar o schedule no
+caminho de edição.
+
+### `coach-ver-treino-realizado` ✅ **ARQUIVADA** — dialog "Ver realizado" no card do treino (2026-11-06)
+
+**Entregue:** `menthoros-backend` PR **#218** e `menthoros-front` PR **#191**, mergeados em `develop` e
+promovidos a `main` (#219, #192) em 2026-11-05; polling da análise da IA no front PR **#195**.
+Arquivada em `changes/archive/2026-11/2026-11-06-coach-ver-treino-realizado/`; spec promovida para
+`specs/coach-workout-execution-detail/`. L · Full, backend + front, migration `V111`.
+
+**O que faz:** banner da análise da IA, comparativo planejado × realizado × diferença, faixa de zonas
+com alvo, etapas com cabeçalho fixo e acordeão com os dados do relógio. O backend calcula tempo em
+zonas no import do `.fit` quando o atleta tem zonas confiáveis (CA10) e expõe velocidade máxima e
+temperaturas.
+
+**Adiadas (24/29), todas manuais ou de produto:** 0.4 pre-mortem pós-revisão; 0.8 cobertura de zonas
+confiáveis nos pilotos; 0.9 tolerâncias da diferença com treinador piloto (ajuste vira fix XS); 5.1
+`.fit` real contra o Garmin Connect; 5.2 consulta de cobertura e entrevista em 4 semanas.
+
+### `garmin-activity-ingestion` ✅ **ARQUIVADA** — realizado Garmin direto pelo webhook `activityFiles` (2026-11-06)
+
+**Entregue:** `menthoros-backend` PR **#216** e `menthoros-front` PR **#189**, mergeados em `develop` em
+2026-11-05 e promovidos a `main` em 2026-11-06. Arquivada em
+`changes/archive/2026-11/2026-11-06-garmin-activity-ingestion/`; specs promovidas para
+`specs/garmin-activity-ingestion/` (nova) e `specs/watch-connection-guide/` (delta; a spec principal
+ganhou a seção `## Purpose` que o `openspec archive` exige). M · Full, backend + front.
+
+**O que faz:** ping do Garmin → `tb_garmin_ping` → download único em 24 h → `FitTreinoPersister`;
+atribuição "Garmin [modelo]" em card, listas e detalhe; estado da conexão Garmin visível ao treinador.
+
+**Adiadas (14/16):** 5.2 validação com relógio real no ambiente de testes (registro em
+`menthoros-infra/docs`); 4.4 remover a flag `garminHabilitado` nos dois repos **depois** do gate 5.2
+— é código, vira change XS própria (`remove-garmin-flag`). Gates de go-live (aviso de 30 dias ao
+Garmin, confirmações 15.10/15.11) seguem com o founder.
+
+### `garmin-reenvio-plano` ✅ **ARQUIVADA** — "Reenviar ao relógio" para treino em `ERRO_PERMANENTE` (2026-11-06)
+
+**Entregue:** `menthoros-backend` PR **#213** e `menthoros-front` PR **#188**, mergeados em `develop` e
+promovidos a `main`. Arquivada em `changes/archive/2026-11/2026-11-06-garmin-reenvio-plano/`, sem
+spec delta. M · Full, backend + front, sem migration. Nasceu do incidente do primeiro envio real ao
+Garmin (2026-11-01).
+
+**O que faz:** `POST /coach/planos/{id}/reenviar-sincronizacao` zera as tentativas dos treinos em
+`ERRO_*` e republica o `PlanoAprovadoEvent`; botão no plano da semana, motivo legível do erro por
+tipo e chip de status ciente do canal.
+
+**Adiadas (14/16):** 3.1 teste manual com atleta Garmin conectado (testes e produção); 3.2 não se
+aplica.
 
 ### `editar-treino-aprovado-planos-dialog` ✅ **ARQUIVADA** — editar treino aprovado pelo PlanosDialog (2026-11-06)
 

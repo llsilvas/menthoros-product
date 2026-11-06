@@ -1,12 +1,8 @@
-# Spec Delta — garmin-activity-ingestion
+# garmin-activity-ingestion Specification
 
 ## Purpose
-Entrada do treino realizado do atleta Garmin: o Garmin avisa que há um arquivo de atividade, o
-sistema o baixa uma única vez dentro da janela, transforma no treino realizado pelo mesmo caminho
-do upload de FIT, e exibe a origem "Garmin [modelo]" em toda tela que mostra o treino.
-
-## ADDED Requirements
-
+TBD - created by archiving change garmin-activity-ingestion. Update Purpose after archive.
+## Requirements
 ### Requirement: Aviso de atividade registrado antes de processar
 Cada aviso de arquivo de atividade recebido do Garmin SHALL ser registrado de forma durável e
 respondido com sucesso antes de qualquer download ou processamento. Avisos repetidos para a mesma
@@ -105,11 +101,10 @@ enviado pelo Garmin e subido à mão SHALL produzir um único treino.
 - **THEN** o aviso fica em erro com motivo, sem nova tentativa, e nada é persistido
 
 ### Requirement: Atribuição de origem Garmin
-Todo lugar que mostra um treino realizado de fonte Garmin — card do treino de hoje (antes e depois
-do feedback), lista de
-treinos do atleta, lista de treinos recentes do treinador e detalhe do treino — SHALL exibir
-"Garmin [modelo]" junto ao título do treino, visível sem interação, ou "Garmin" quando o modelo é
-desconhecido. Treinos de outras fontes SHALL NOT exibir atribuição Garmin.
+Todo lugar que mostra um treino realizado de fonte Garmin SHALL exibir "Garmin [modelo]" junto ao
+título do treino, visível sem interação, ou "Garmin" quando o modelo é desconhecido: card do treino
+de hoje (antes e depois do feedback), lista de treinos do atleta, lista de treinos recentes do
+treinador e detalhe do treino. Treinos de outras fontes SHALL NOT exibir atribuição Garmin.
 
 #### Scenario: Card de hoje
 - **WHEN** o atleta vê o card do treino realizado de hoje vindo do Garmin
@@ -129,10 +124,11 @@ desconhecido. Treinos de outras fontes SHALL NOT exibir atribuição Garmin.
 - **THEN** não há atribuição Garmin
 
 ### Requirement: Melhores esforços indisponíveis no canal Garmin
-Enquanto o cálculo de melhores esforços depender do intervals.icu, o atleta de canal Garmin e o
-treinador SHALL ver o painel com a mensagem de indisponibilidade, sem chamada ao intervals.icu.
+O atleta de canal Garmin e o treinador SHALL ver o painel de melhores esforços com a mensagem de
+indisponibilidade, sem chamada ao intervals.icu, enquanto o cálculo depender do intervals.icu.
 
 #### Scenario: Atleta Garmin abre Esforços
 - **WHEN** um atleta com conexão Garmin ativa abre a aba de esforços
 - **THEN** vê "Indisponível para o canal Garmin por enquanto" e nenhuma requisição ao intervals.icu
   é feita, nem pelo atleta nem pelo treinador
+

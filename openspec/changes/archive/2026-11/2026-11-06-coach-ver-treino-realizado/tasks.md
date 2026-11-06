@@ -50,13 +50,16 @@ Sequência e dependências:
   mínima passa a usar o mesmo denominador (tempo em movimento, fallback `duracaoMin`): com
   elapsed, um treino com pausa longa cairia abaixo de 50 % sem falta de FC.
 - [ ] 0.4 Reexecutar o pre-mortem Codex sobre esta revisão (o DoR de 2026-11-05 cobriu parte).
+  **Adiada no arquivamento (2026-11-06):** código em produção; pre-mortem pós-merge não muda a entrega.
 - [ ] 0.8 Contar nos tenants piloto: atletas com zonas de FC confiáveis (D6) e fração dos treinos
   realizados das últimas 4 semanas por fonte (`.fit`/Garmin × Strava × intervals.icu × manual)
   (Q3). Aprovação: dono do produto. Se a cobertura esperada da faixa for baixa, entregar o dialog
   sem a faixa primeiro e as tasks 2.x num PR seguinte. Registrar aqui.
+  **Adiada no arquivamento (2026-11-06):** o dialog foi entregue com a faixa; a cobertura entra na consulta da 5.2.
 - [ ] 0.9 Validar as tolerâncias da diferença (A8) com 1 treinador piloto sobre 5 a 10 treinos
   reais, **antes do merge**: cor errada ensina o treinador a ignorar a tela. Reprovada → ajustar as
   constantes, sem mudar o desenho. Registrar aqui.
+  **Adiada no arquivamento (2026-11-06):** mergeado sem a validação com piloto; ajustar constantes vira fix XS se reprovar.
 - [x] 0.3 Fonte das zonas (R7), resolvida no DoR (2026-11-05): `ZonaTreinoService.zonasFC(atleta)`
   via `AthleteZones.de`, como o `ZoneResolver`; só zonas confiáveis contam (D6).
 - [x] 0.5 Confirmado no FIT SDK 21.205.0: `enhanced_max_speed`, `min_temperature`,
@@ -202,7 +205,9 @@ Revisores Claude (code, security, clean-code backend; frontend, clean-code front
 
 - [ ] 5.1 Importar um `.fit` real de corrida e conferir o dialog contra o Garmin Connect do mesmo
   treino, incluindo o tempo em zonas (com as zonas do atleta iguais às do relógio).
+  **Adiada no arquivamento (2026-11-06):** validação manual em produção; uso real em 2026-11-05 já exercitou o dialog (tempo em zonas nulo foi regra CA10, não bug).
 - [ ] 5.2 Quatro semanas após o deploy: consulta de cobertura (D7) e entrevista com os pilotos.
+  **Adiada no arquivamento (2026-11-06):** medição de produto, fora do ciclo da change.
 
 ## Follow-ups (fora desta change)
 

@@ -1,12 +1,12 @@
 # watch-connection-guide
 
+## Purpose
+
 Guia de conexão do relógio por marca: o atleta vê o passo a passo da sua marca, e o treinador vê qual
 relógio o atleta usa, sempre com texto condicional (nunca afirma chegada do treino ao relógio). O
 conteúdo da matriz vive em `watchCompatibility.ts` (front) com `verificadoEm` por marca; na entrega
 (2026-10) todas estão em `2026-10` e só o Garmin foi validado ponta a ponta (gate de 2026-07-14).
-
 ## Requirements
-
 ### Requirement: Marcas de relógio reconhecidas
 O sistema SHALL reconhecer em `DispositivoMarca` as marcas GARMIN, COROS, POLAR, SUUNTO, APPLE,
 AMAZFIT, SAMSUNG e OUTRO, aceitando qualquer uma delas no onboarding do atleta e rejeitando um
@@ -120,3 +120,22 @@ intervals.icu" (tooltip), sem nomear marca nem afirmar chegada ao relógio.
 #### Scenario: Status sincronizado
 - **WHEN** o status é `SINCRONIZADO` ou `SINCRONIZADO_PARCIAL`
 - **THEN** o rótulo é "No intervals.icu" e o tooltip é "Enviado ao intervals.icu"
+
+### Requirement: Estado da conexão Garmin visível ao treinador
+Para atleta de canal Garmin, a linha "Relógio" do treinador e o chip de sincronização SHALL
+mostrar o estado da conexão Garmin: ativa, revogada, ou sem permissão de exportar atividade,
+e a data da última atividade recebida. O texto SHALL permanecer neutro de marca no chip e SHALL
+NOT afirmar que um treino chegou ao relógio.
+
+#### Scenario: Conexão ativa com atividade recente
+- **WHEN** o treinador abre o perfil de um atleta Garmin que teve atividade ingerida ontem
+- **THEN** a linha "Relógio" mostra Garmin, canal direto, conexão ativa e "última atividade: ontem"
+
+#### Scenario: Sem permissão de exportar
+- **WHEN** o atleta não concedeu a permissão de exportar atividade
+- **THEN** a linha mostra "o atleta precisa autorizar o envio de atividades no Garmin Connect"
+
+#### Scenario: Conexão revogada
+- **WHEN** a conexão foi revogada pelo atleta ou pelo Garmin
+- **THEN** a linha mostra "conexão revogada" e o chip indica que não há sincronização
+

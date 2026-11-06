@@ -114,6 +114,7 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
   canal × marca do onboarding passa a valer sem flag.
   verify: `grep -ri "garmin.\?habilitado"` vazio nos dois repos; stack gate verde nos dois (CA10).
   Pós-deploy, manual: apagar `GARMIN_HABILITADO`/`VITE_GARMIN_HABILITADO` do Railway.
+  **Adiada no arquivamento (2026-11-06):** depende do gate 5.2; é código nos dois repos e vira change XS própria (`remove-garmin-flag`) quando o gate passar.
 
 ## 5. Integração
 
@@ -126,6 +127,7 @@ cliente); 4.4 por último, depois do gate 5.2. Worktrees: `backend-garmin-activi
   no portal) e registrar em `menthoros-infra/docs`: tempo ping → treino, `deviceName` real.
   verify: treino real aparece com "Garmin [modelo]" no card e na lista do treinador; registro
   commitado no `menthoros-infra`.
+  **Adiada no arquivamento (2026-11-06):** validação manual com relógio; registro em `menthoros-infra/docs` quando acontecer.
 
 ## Gates de go-live (não bloqueiam implementar)
 

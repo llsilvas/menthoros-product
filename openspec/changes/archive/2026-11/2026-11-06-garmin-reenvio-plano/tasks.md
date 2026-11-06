@@ -94,4 +94,6 @@ backend mergeado em `develop` (2.1 depende de 1.4 e 1.5).
   provocar um treino em `ERRO_*` (ex.: reenvio com Garmin desconectado), reconectar e reenviar pelo
   botão; repetir em produção depois do `develop → main`.
   verify: treino volta a `SINCRONIZADO` e aparece no relógio.
+  **Adiada no arquivamento (2026-11-06):** validação manual com atleta Garmin conectado, em testes e produção.
 - [ ] 3.2 Atualizar `garmin-training-push/tasks.md` só se esta change mudar algo lá (hoje não muda).
+  **Adiada no arquivamento (2026-11-06):** não se aplica: a change não mudou nada lá.
