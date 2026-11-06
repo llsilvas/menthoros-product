@@ -64,7 +64,16 @@ sobre `origin/develop` antes do bloco 2.
 
 ## 5. Fechamento
 
-- [ ] 5.1 Suíte completa: `npm run lint && npm run build && npm run test:run && npm run test:e2e`.
+- [x] 5.1 Suíte completa: lint, build, 2773 unitários e E2E 147/149 na primeira rodada — as duas
+      falhas (`workout-profile` AC-4 e `dashboard/visao-time`) foram timeout de 15,7 s sob carga e
+      passaram isoladas (20/20); nenhuma toca o editor.
+- [x] 5.1a `/qa` (2026-11-05): frontend-reviewer e clean-code-reviewer sem Critical; Codex APPROVE.
+      Convergência dos dois reviewers corrigida em `20c656e`: `zonaPorValor` e `sugestaoDeZona`
+      saem da mesma `eixoEZonaPorValor`; `distribuicaoDeZonas` guarda a faixa como `{de, ate}`,
+      mostra `<1%` em vez de `0%` e separa `percentuaisInteiros`. Mantidos: hidratação deriva a
+      distância vazia (decisão do proposal), distância apagada à mão volta a ser derivável (vazio é
+      "sem valor", documentado em teste), `fontFamily: 'monospace'` solto no total do
+      `TreinoEditDialog` (padrão dos vizinhos, pré-existente).
 - [~] 5.2 Delta em `specs/coach-athlete-zones/spec.md` da change (requisito "Zona como seletor"
       MODIFIED com o cenário "Zona sugerida no Personalizado") **feito**; a promoção para
       `openspec/specs/` acontece no `/done`. `/qa` → `/pr coach-etapa-calculos-auxiliares` → `/done`.
