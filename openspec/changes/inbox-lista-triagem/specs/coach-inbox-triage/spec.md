@@ -7,8 +7,9 @@
 Cada atleta na coluna da lista SHALL ocupar uma linha de no máximo 52px com avatar, nome, uma
 única linha de contexto e a aderência em número à direita. A linha SHALL NOT repetir a mesma
 informação em mais de um elemento (chip e texto, número e barra). A linha de contexto SHALL seguir
-a precedência: sinal da fila (motivo e recência), pausado, fase e último treino — usando só o
-que o resumo do roster traz (`status`, `fase`, `lastActivity`).
+a precedência: sinal da fila (motivo e recência), pausado, status do roster (`warning`/`danger`,
+com o mesmo tom na moldura), fase e último treino — usando só o que o resumo do roster traz
+(`status`, `fase`, `lastActivity`); `fase` ausente não é dita como "sem plano".
 
 #### Scenario: Atleta com sinal
 - **WHEN** o atleta está na fila com `INATIVIDADE` e o último treino foi há 6 dias
@@ -18,9 +19,13 @@ que o resumo do roster traz (`status`, `fase`, `lastActivity`).
 - **WHEN** o atleta está na fila por `SOBRECARGA` com alerta gerado há 2 dias
 - **THEN** a linha diz "Sobrecarga · sinal há 2 dias", nunca "dias sem treino"
 
+#### Scenario: Status do roster sem item na fila
+- **WHEN** o atleta não está na fila mas o roster o traz com `status: 'danger'` e último treino há 9 dias
+- **THEN** a linha diz "Alerta · último treino há 9 dias" e a moldura segue o tom de alerta
+
 #### Scenario: Atleta sem sinal
 - **WHEN** o atleta não está na fila, está na fase "Base" e treinou há 2 dias
-- **THEN** a linha de contexto é "Base · último treino há 2 dias"; sem aderência na janela, o número é "—"
+- **THEN** a linha de contexto é "Base · último treino há 2 dias"; sem `fase`, só "último treino há 2 dias"; sem aderência na janela, o número é "—"
 
 #### Scenario: Seis linhas em notebook
 - **WHEN** o viewport é 1366×625 e há 10 atletas no roster

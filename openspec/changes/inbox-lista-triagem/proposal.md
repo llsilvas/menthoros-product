@@ -32,11 +32,15 @@ Só `apps/menthoros-front`: `QueueRow`, `AttentionOnlyRow`, o header da coluna d
   severidade fica na moldura e na cor da linha de contexto. Contexto, nesta precedência, só com
   campos que o `CoachAtletaResumo` tem (`status`, `fase`, `lastActivity`; **não** há prova nem
   semanas no plano no roster — `weeksOnPlan` sai 0 e `raceCalendar` `[]` fora do perfil):
-  1. sinal: `INATIVIDADE` com `lastActivity` → "Inatividade · N dias sem treino"; demais motivos
-     → "{motivo} · sinal há N dias" (idade do alerta, dita como tal);
+  1. sinal da fila: `INATIVIDADE` com `lastActivity` → "Inatividade · N dias sem treino"; demais
+     motivos → "{motivo} · sinal há N dias" (idade do alerta, dita como tal);
   2. `status === 'paused'` → "Pausado";
-  3. senão "{fase} · último treino há N dias" (sem `fase`: "Sem plano"; sem `lastActivity`:
-     "sem treino registrado").
+  3. `status` `warning`/`danger` do roster (o backend o calcula sem passar pela fila; era o chip
+     colorido de antes) → "Atenção · último treino há N dias" / "Alerta · …", com o mesmo tom na
+     moldura;
+  4. senão "{fase} · último treino há N dias"; sem `fase` só o treino — `fase` ausente não quer
+     dizer "sem plano" (achado no uso real, 2026-11-07); sem `lastActivity`: "sem treino
+     registrado".
   Prova próxima na linha fica para quando o DTO do roster a trouxer.
 - **Filtro segmentado** no header da coluna: "Todos (T)", "Em atenção (M)", "Pausados". "Em
   atenção" mostra a fila de atenção **inteira** (não é paginada; roster só completa os dados de
@@ -79,8 +83,9 @@ Só `apps/menthoros-front`: `QueueRow`, `AttentionOnlyRow`, o header da coluna d
 2. **Sem redundância** — Given um atleta com sinal CRITICA/INATIVIDADE há 6 dias, Then a linha
    mostra "Inatividade · há 6 dias" uma vez, sem chip "Alerta", e a aderência uma vez.
 3. **Contexto sem sinal** — Given atleta sem sinal com `fase` "Base" e último treino há 2 dias,
-   Then a linha diz "Base · último treino há 2 dias"; pausado, "Pausado"; sem `fase`, "Sem plano
-   · …"; `aderenciaPercentual` ausente, "—" em vez de "0%".
+   Then a linha diz "Base · último treino há 2 dias"; pausado, "Pausado"; status `danger` sem
+   item na fila, "Alerta · último treino há N dias" com moldura vermelha; sem `fase`, só o
+   treino; `aderenciaPercentual` ausente, "—" em vez de "0%".
 4. **Em atenção** — Given 3 atletas na fila, 15 no roster e o coach na página 2, When escolhe
    "Em atenção", Then a lista mostra exatamente os 3, inclusive quem não está na página corrente,
    a URL diz `status=attention` e a paginação some; "Todos" volta à página 2. Given busca "ana"
