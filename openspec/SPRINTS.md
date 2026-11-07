@@ -2,7 +2,17 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-07 (**`inbox-barra-unica-sem-rodape` arquivada** — front PR #204
+**Última atualização:** 2026-11-07 (**`inbox-lista-triagem` arquivada** — front PR #205
+(mergeado em `develop` em 2026-11-07). S · Fast, só front. 9/9 tasks. Coluna da lista do inbox
+como ferramenta de triagem: linha de 46px (7 atletas visíveis em 1366×625, antes 2,5), uma linha
+de contexto (sinal da fila → pausado → status do roster → fase/último treino), filtro Todos · Em
+atenção · Pausados, busca na coluna, paginação em PT-BR. **Achado corrigido:** `useDashboardFilters`
+mantinha `page` em estado e URL com efeitos que brigavam (2 ↔ 0); a página passou a vir da URL.
+**Correção no uso real:** status `warning`/`danger` do roster voltou a dar moldura e rótulo; `fase`
+ausente não é "sem plano". Delta promovido a `specs/coach-inbox-triage/`. Arquivada em
+`changes/archive/2026-11/2026-11-07-inbox-lista-triagem/`.)
+
+**Anterior:** 2026-11-07 (**`inbox-barra-unica-sem-rodape` arquivada** — front PR #204
 (mergeado em `develop` em 2026-11-07). S · Fast, só front. 9/9 tasks. Os dois críticos da crítica
 de design do inbox: cabeçalho + faixa de KPIs (~136px) viram uma barra de 53px com resumo em linha
 ("em atenção" pela fila completa) e busca; o rodapé de ações simuladas sai e "Ajustar plano" sobe

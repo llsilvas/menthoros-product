@@ -57,5 +57,7 @@ indicado. Branch `feat/inbox-lista-triagem` em `apps/menthoros-front`, em worktr
 
 ## 4. Fechamento
 
-- [ ] 4.1 Tasks marcadas; `/done`. Ao retomar `coach-inbox-notebook-height`, marcar 5.1 e 5.2
-      como entregues aqui.
+- [x] 4.1 Tasks marcadas; `/done`. Ao retomar `coach-inbox-notebook-height`, marcar 5.1 e 5.2
+      como entregues aqui. Front llsilvas/menthoros-front#205 mergeado em `develop` em 2026-11-07;
+      arquivada em 2026-11-07. Correção pós-QA no uso real: status do roster como sinal, sem
+      "Sem plano" (`d329268`).
