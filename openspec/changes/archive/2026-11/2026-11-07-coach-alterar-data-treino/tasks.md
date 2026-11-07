@@ -76,6 +76,6 @@ E2E onde indicado. Branches `feat/coach-alterar-data-treino` nos dois repos, em 
 
 ## 3. Fechamento
 
-      Parcial: lint, build, 2843 unitários e E2E verdes; `/qa` front sem Critical (ajustes em commit próprio). Falta o PR front, após o merge do backend (PR 225).
-- [ ] 3.1 Spec delta `coach-approved-plan-edit` promovida; tasks marcadas; `/done`.
+- [x] 3.1 Spec delta `coach-approved-plan-edit` promovida; tasks marcadas; `/done`.
       verify: `openspec validate` verde e change em `changes/archive/YYYY-MM/`.
+      Backend llsilvas/menthoros-backend#225 e front llsilvas/menthoros-front#202 mergeados em `develop` em 2026-11-07. Arquivada em 2026-11-07.

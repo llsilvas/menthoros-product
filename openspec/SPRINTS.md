@@ -2,7 +2,17 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-06 (**`editar-treino-aprovado-planos-dialog` arquivada** — backend PR
+**Última atualização:** 2026-11-07 (**`coach-alterar-data-treino` arquivada** — backend PR
+#225 e front PR #202 (mergeados em `develop` em 2026-11-07). S · Full. 15/15 tasks. O treinador move
+um treino para qualquer dia da semana do plano, inclusive fora dos `diasDisponiveis` (pedido do
+piloto): `PATCH` aceita `dataTreino`, o `diaSemana` é derivado no servidor; select dos 7 dias no
+`TreinoEditDialog`. Em plano aprovado o destino passa pela `ApprovedWorkoutEditPolicy`. **Follow-ups:**
+`garmin-reenvio-unitario-remover-orfaos`; `diasDisponiveis` sem DTO no shell do coach (prop pronta, não
+ligada); reconciliação por GET de treino único não existe no backend. Delta promovido a
+`specs/coach-approved-plan-edit/`. Arquivada em
+`changes/archive/2026-11/2026-11-07-coach-alterar-data-treino/`.)
+
+**Anterior:** 2026-11-06 (**`editar-treino-aprovado-planos-dialog` arquivada** — backend PR
 #222 e front PR #198 (mergeados em `develop`). M · Full. 19/19 tasks. O coach edita treino de plano
 aprovado direto pelo PlanosDialog: lápis, cadeado com motivo e selo de editado após aprovação. Promoção
 para `main` aberta (backend #224, front #200). Arquivada em
