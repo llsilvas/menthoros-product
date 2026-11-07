@@ -32,11 +32,11 @@ Branch `feat/coach-reordenar-etapas-dnd` em `apps/menthoros-front`, em worktree.
       Gesto por `mouse.down/move/up` funcionou; o clique em Salvar logo após o drop morria no
       `stopPropagation` que o dnd-kit mantém no `document` por 50ms (`AbstractPointerSensor.detach`)
       — espera de 100ms no teste, usuário real não alcança esse intervalo.
-- [ ] 1.5 Suite completa; `/qa`; PR → `develop`.
+- [x] 1.5 Suite completa; `/qa`; PR → `develop`.
       Parcial (2026-11-07): lint, build, 2853 unitários e E2E completo verdes. `/qa` (frontend,
       clean-code, Codex) sem Critical; ajustes em commit próprio: setas via `reordenar`, guarda de
       destino desconhecido, Escape no arrasto não fecha o dialog (Modal do MUI consome a tecla
-      antes do dnd-kit), header com `flexWrap` em 360px, tokens no item em arrasto. Falta o PR.
+      antes do dnd-kit), header com `flexWrap` em 360px, tokens no item em arrasto. PR: llsilvas/menthoros-front#203.
 
 ## 2. Fechamento
 
