@@ -17,6 +17,18 @@ enviado no PATCH, sem campo de ordem explícito.
 - **WHEN** o treinador arrasta um bloco de séries
 - **THEN** o bloco muda de posição inteiro e suas sub-etapas permanecem dentro dele
 
+#### Scenario: Reordenar pelo teclado
+- **WHEN** o treinador foca a alça de uma etapa, pressiona Espaço, seta para baixo e Espaço
+- **THEN** a etapa desce uma posição, o mesmo resultado da seta "mover para baixo"
+
+#### Scenario: Setas e arrasto equivalem
+- **WHEN** o treinador move a mesma etapa pela seta e, noutro editor, por arrasto
+- **THEN** os dois produzem o mesmo array de etapas
+
+#### Scenario: Soltar sem mudança
+- **WHEN** o arrasto é cancelado ou a etapa é solta na mesma posição
+- **THEN** a lista não muda e o form não é marcado como alterado
+
 #### Scenario: Editor desabilitado
 - **WHEN** o dialog está salvando
 - **THEN** arrastar não tem efeito
