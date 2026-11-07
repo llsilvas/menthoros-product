@@ -14,7 +14,9 @@ Branch `feat/coach-reordenar-etapas-dnd` em `apps/menthoros-front`, em worktree.
       `PointerSensor` (`activationConstraint.distance`) + `KeyboardSensor` com
       `sortableKeyboardCoordinates`; `disabled` desliga os sensores. Soltar sem mudança
       (`over` nulo, `active.id === over.id`, `disabled`) não chama `onChange` (CA7). Setas
-      intactas. Testes de componente: CA1 (disparar `onDragEnd` e conferir o array), CA2 (bloco
+      intactas. Alça à esquerda do header (antes do quadradinho de cor), `cursor: grab`, área de
+      toque 44px abaixo de `sm`; `accessibility.announcements` + `screenReaderInstructions` em
+      PT-BR no `DndContext`; `transition` nula com `prefers-reduced-motion`. Testes de componente: CA1 (disparar `onDragEnd` e conferir o array), CA2 (bloco
       move inteiro), CA3 (setas e drag produzem o mesmo array), CA4 (foco na alça, Espaço, seta
       para baixo, Espaço → item desce uma posição), CA5, CA7 (zero chamadas a `onChange`).
       verify: `npx vitest run src/features/coach/components/etapas`.

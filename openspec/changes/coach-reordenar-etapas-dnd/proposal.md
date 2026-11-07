@@ -88,6 +88,16 @@ mudança só de front — o array já sai na ordem da tela.
 - **Dialog:** `DndContext` dentro de um MUI `Dialog` — scroll do conteúdo e foco preso pelo
   `FocusTrap`. O dnd-kit não abre portal por padrão, então o item arrastado fica dentro do
   dialog; conferir no E2E que o scroll do dialog não se move durante o arrasto.
+- **Leitor de tela:** os anúncios padrão do `DndContext` ("Picked up draggable item…") são em
+  inglês. Passar `accessibility.announcements` e `screenReaderInstructions` em PT-BR ("Etapa 3
+  pega. Posição 3 de 5."), na linha do `aria-label` das setas que já existe.
+- **Movimento reduzido:** a animação do sortable deve cair para `transition: none` com
+  `prefers-reduced-motion: reduce` (mesmo padrão de `src/landing/primitives.tsx`).
+- **Alvo de toque:** `IconButton size="small"` tem ~30px; a alça precisa de área de toque de 44px
+  no mobile (padding ou `minWidth/minHeight` abaixo de `sm`), sem crescer o header no desktop.
+- **Posição da alça:** à esquerda do header, antes do quadradinho de cor — o header já tem
+  select de tipo, contador de repetições e três ícones à direita; mais um ícone à direita vira
+  ruído e confunde com "mover para cima". `cursor: grab` / `grabbing`.
 - **Bundle:** três pacotes do dnd-kit (~40 KB min, ~13 KB gzip). Aceito; sem alternativa sem
   touch e teclado.
 - **Rollback:** reverter o PR. Sem contrato, sem migration, sem estado persistido novo.
