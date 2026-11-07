@@ -40,7 +40,7 @@ ordem: barra única → lista → fluxo).
       é lida pelo `data-inbox-linha`); o Dialog sai com transição, então a guarda do `N` o vê até
       desmontar; o mock do perfil precisa ecoar o `atletaId` da URL, senão a página o trata como
       perfil de outro atleta.
-- [ ] 3.2 Suite completa; `/qa`; PR → `develop`.
+- [x] 3.2 Suite completa; `/qa`; PR → `develop` — https://github.com/llsilvas/menthoros-front/pull/206.
       Parcial (2026-11-07): lint, build, unitários e E2E completo verdes. `/qa` (frontend,
       clean-code, Codex) sem Critical; ajustes em commit próprio: detalhe volta ao topo ao
       avançar (Codex), guarda do `N` por `aria-modal`/`menu`/`listbox`, `composedPath()`, setas
