@@ -68,9 +68,11 @@ E2E onde indicado. Branches `feat/coach-alterar-data-treino` nos dois repos, em 
       de coluna) e `editar-treino-aprovado.spec.ts` (mover em plano aprovado para dia futuro;
       destino passado → 422 aparece no dialog). CA9 (marcação) e backend antigo ficam em teste de
       componente/hook: não há backend antigo no E2E. verify: `npx playwright test plan-review-edicao editar-treino-aprovado`.
-- [ ] 2.7 Suite completa e gate: `npm run lint && npm run build && npm run test:run` verde; `/qa`
+- [x] 2.7 Suite completa e gate: `npm run lint && npm run build && npm run test:run` verde; `/qa`
       front sem achado crítico; PR front → `develop` só após o backend em `develop`.
       verify: `gh pr checks` verde e PR do backend mergeado.
+      Lint, build, 2843 unitários e E2E verdes; `/qa` front sem Critical (ajustes em `386542e`).
+      Backend mergeado (llsilvas/menthoros-backend#225). PR front: llsilvas/menthoros-front#202.
 
 ## 3. Fechamento
 
