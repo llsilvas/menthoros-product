@@ -2,7 +2,15 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-07 (**`coach-alterar-data-treino` arquivada** — backend PR
+**Última atualização:** 2026-11-07 (**`coach-reordenar-etapas-dnd` arquivada** — front PR #203
+(mergeado em `develop` em 2026-11-07). S · Fast, só front. 6/6 tasks. Reordenar etapas do nível
+raiz no `EtapasEditor` por arrastar e soltar (dnd-kit), alça à esquerda do header, setas continuam
+e usam a mesma regra (`reordenar`); soltar sem mudança não suja o form. **Adiado (decisão
+2026-11-07):** acessibilidade do DnD — `KeyboardSensor`, anúncios PT-BR, `prefers-reduced-motion`;
+teclado reordena pelas setas. Delta promovido a `specs/coach-workout-step-editing/`. Arquivada em
+`changes/archive/2026-11/2026-11-07-coach-reordenar-etapas-dnd/`.)
+
+**Anterior:** 2026-11-07 (**`coach-alterar-data-treino` arquivada** — backend PR
 #225 e front PR #202 (mergeados em `develop` em 2026-11-07). S · Full. 15/15 tasks. O treinador move
 um treino para qualquer dia da semana do plano, inclusive fora dos `diasDisponiveis` (pedido do
 piloto): `PATCH` aceita `dataTreino`, o `diaSemana` é derivado no servidor; select dos 7 dias no

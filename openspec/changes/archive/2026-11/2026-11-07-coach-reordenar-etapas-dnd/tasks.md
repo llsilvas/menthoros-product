@@ -40,4 +40,6 @@ Branch `feat/coach-reordenar-etapas-dnd` em `apps/menthoros-front`, em worktree.
 
 ## 2. Fechamento
 
-- [ ] 2.1 Spec delta promovida; tasks marcadas; `/done`.
+- [x] 2.1 Spec delta promovida; tasks marcadas; `/done`.
+      Front llsilvas/menthoros-front#203 mergeado em `develop` em 2026-11-07. Arquivada em 2026-11-07.
+      Adiado (decisão 2026-11-07): KeyboardSensor, anúncios PT-BR e reduced-motion — ver proposal "Adiado".
