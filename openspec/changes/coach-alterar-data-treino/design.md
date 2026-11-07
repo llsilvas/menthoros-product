@@ -42,7 +42,8 @@ pela **mesma política e o mesmo `hoje`**: data passada → `PAST_DAY`; hoje com
 idempotência — mover para hoje com relógio criaria um estado em que o PATCH repetido após
 resposta perdida recebe 422 sem o treinador saber que já aplicou (pre-mortem Codex, achado 4).
 Com o destino também bloqueado em hoje-com-relógio, repetir o PATCH só com a data já aplicada é
-no-op (data igual) e devolve 200 — **exceto na janela de push**: `checkBeforePatch` roda antes da
+no-op e devolve 200 (o no-op compara o snapshot inteiro do treino, então vale para qualquer
+patch sem mudança observável em plano aprovado, não só data igual) — **exceto na janela de push**: `checkBeforePatch` roda antes da
 mutação e recusa `SINCRONIZANDO` com 409 (`PostApprovalEditCoordinator`, regra canônica). Depois
 de um commit com resposta perdida o push já pode ter começado, então o retry pode receber 409. O
 front não reenvia às cegas: em erro de transporte ou 409 ele recarrega o treino (GET); se a data
