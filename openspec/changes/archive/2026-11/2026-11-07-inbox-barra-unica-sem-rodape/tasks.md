@@ -53,5 +53,5 @@ indicado. Branch `feat/inbox-barra-unica-sem-rodape` em `apps/menthoros-front`, 
 
 ## 4. Fechamento
 
-- [ ] 4.1 Tasks marcadas; `/done`. Ao retomar `coach-inbox-notebook-height`, marcar 3.1–3.3b e
+- [x] 4.1 Tasks marcadas; `/done`. Front llsilvas/menthoros-front#204 mergeado em `develop` em 2026-11-07; arquivada em 2026-11-07. Ao retomar `coach-inbox-notebook-height`, marcar 3.1–3.3b e
       4.2 como entregues aqui.

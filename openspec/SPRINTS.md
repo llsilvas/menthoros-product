@@ -2,7 +2,16 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-07 (**`coach-reordenar-etapas-dnd` arquivada** — front PR #203
+**Última atualização:** 2026-11-07 (**`inbox-barra-unica-sem-rodape` arquivada** — front PR #204
+(mergeado em `develop` em 2026-11-07). S · Fast, só front. 9/9 tasks. Os dois críticos da crítica
+de design do inbox: cabeçalho + faixa de KPIs (~136px) viram uma barra de 53px com resumo em linha
+("em atenção" pela fila completa) e busca; o rodapé de ações simuladas sai e "Ajustar plano" sobe
+para o cabeçalho do atleta. Detalhe rolável em 1366×625 de ~35% para ≥ 45%. Capability nova
+`specs/coach-inbox-triage/`. **Na sequência:** `inbox-lista-triagem` e `inbox-proximo-em-atencao`
+(propostas em 2026-11-07); ao retomar `coach-inbox-notebook-height`, marcar 3.x e 4.2 como
+entregues. Arquivada em `changes/archive/2026-11/2026-11-07-inbox-barra-unica-sem-rodape/`.)
+
+**Anterior:** 2026-11-07 (**`coach-reordenar-etapas-dnd` arquivada** — front PR #203
 (mergeado em `develop` em 2026-11-07). S · Fast, só front. 6/6 tasks. Reordenar etapas do nível
 raiz no `EtapasEditor` por arrastar e soltar (dnd-kit), alça à esquerda do header, setas continuam
 e usam a mesma regra (`reordenar`); soltar sem mudança não suja o form. **Adiado (decisão
