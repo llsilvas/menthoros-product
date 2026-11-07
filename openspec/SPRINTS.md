@@ -2,7 +2,17 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-07 (**`inbox-lista-triagem` arquivada** — front PR #205
+**Última atualização:** 2026-11-07 (**`inbox-proximo-em-atencao` arquivada** — front PR #206
+(mergeado em `develop` em 2026-11-07). S · Fast, só front. 10/10 tasks. Fluxo de triagem no inbox:
+"Próximo em atenção · {nome}" no fim do Diagnóstico (próximo com sinal entre as linhas visíveis;
+"Fim da fila de atenção" no último), tecla N com guardas (modificadores, campos de texto, overlay
+aberto), setas movem foco e seleção na lista, legenda de atalhos a partir de `lg`; bloco de prova
+só com prova cadastrada e perfil carregado. Delta promovido a `specs/coach-inbox-triage/`.
+**Na sequência:** `inbox-kpis-atleta-sem-dado` (achado #5 da crítica; DoR fechada em
+2026-11-07 — aviso só com `hasWindowData` falso e perfil carregado, CA6 ≥ 62%). Arquivada em
+`changes/archive/2026-11/2026-11-07-inbox-proximo-em-atencao/`.)
+
+**Anterior:** 2026-11-07 (**`inbox-lista-triagem` arquivada** — front PR #205
 (mergeado em `develop` em 2026-11-07). S · Fast, só front. 9/9 tasks. Coluna da lista do inbox
 como ferramenta de triagem: linha de 46px (7 atletas visíveis em 1366×625, antes 2,5), uma linha
 de contexto (sinal da fila → pausado → status do roster → fase/último treino), filtro Todos · Em
@@ -12,7 +22,7 @@ mantinha `page` em estado e URL com efeitos que brigavam (2 ↔ 0); a página pa
 ausente não é "sem plano". Delta promovido a `specs/coach-inbox-triage/`. Arquivada em
 `changes/archive/2026-11/2026-11-07-inbox-lista-triagem/`.)
 
-**Anterior:** 2026-11-07 (**`inbox-barra-unica-sem-rodape` arquivada** — front PR #204
+**Anterior (2):** 2026-11-07 (**`inbox-barra-unica-sem-rodape` arquivada** — front PR #204
 (mergeado em `develop` em 2026-11-07). S · Fast, só front. 9/9 tasks. Os dois críticos da crítica
 de design do inbox: cabeçalho + faixa de KPIs (~136px) viram uma barra de 53px com resumo em linha
 ("em atenção" pela fila completa) e busca; o rodapé de ações simuladas sai e "Ajustar plano" sobe

@@ -49,4 +49,4 @@ ordem: barra única → lista → fluxo).
 
 ## 4. Fechamento
 
-- [ ] 4.1 Tasks marcadas; `/done`.
+- [x] 4.1 Tasks marcadas; `/done` (PR 206 mergeado em `develop` em 2026-11-07).
