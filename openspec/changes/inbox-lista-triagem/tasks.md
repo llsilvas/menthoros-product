@@ -7,9 +7,10 @@ indicado. Branch `feat/inbox-lista-triagem` em `apps/menthoros-front`, em worktr
 
 ## 1. Linha densa
 
-- [ ] 1.1 `coachInboxAdapters.ts`: `contextoDaLinha(row, attention)` devolve `{ texto, tom }` na
-      precedência sinal → prova → pausado → disciplina/semanas; recência como "há N dias".
-      Teste de adapter (CA2, CA3). verify: `npx vitest run src/features/coach/adapters/coachInboxAdapters`.
+- [ ] 1.1 `coachInboxAdapters.ts`: `contextoDaLinha(resumo, attention, hoje)` devolve
+      `{ texto, tom }` na precedência sinal → pausado → fase/último treino, com os textos do
+      proposal; `buildRosterRowFromSummary` preserva `aderenciaPercentual` ausente
+      (`adherenceAvailable: false`, "—"). Teste de adapter (CA2, CA3), com ausência e 0% separados. verify: `npx vitest run src/features/coach/adapters/coachInboxAdapters`.
 - [ ] 1.2 `QueueRow` e `AttentionOnlyRow`: layout de uma linha (avatar, nome + contexto,
       aderência mono à direita com cor pelo valor, "—" sem dado); chip e barra saem; moldura e
       cor do contexto seguem o sinal; textos secundários em `surface-400`. Reescrever
@@ -19,9 +20,12 @@ indicado. Branch `feat/inbox-lista-triagem` em `apps/menthoros-front`, em worktr
 
 ## 2. Header da coluna
 
-- [ ] 2.1 `useDashboardFilters`: valor `attention` no filtro (só cliente; a API recebe `status`
-      vazio). `buildInboxQueue`: com `attention`, devolve só os fixados, sem `restante`, e
-      `hiddenAttentionCount = 0`. Testes (CA4).
+- [ ] 2.1 `useDashboardFilters`: `'attention'` em `DashboardStatusFilter`, aceito por
+      `parseDashboardStatus`, gravado como `?status=attention`, `status` ausente na query da
+      API, `dashboardPage` preservado ao entrar/sair de atenção, `resetFilters` → `all`.
+      `buildInboxQueue`: com `attention`, ignora o status do roster, aplica `q` por nome,
+      devolve só os fixados e conta em `hiddenAttentionCount` os escondidos pela busca.
+      Estado `vazio-atencao`. Testes (CA4).
       verify: `npx vitest run src/features/coach/adapters/coachInboxAdapters src/features/coach/hooks/useDashboardFilters`.
 - [ ] 2.2 `CoachInboxPage`: busca sai da barra do topo para o header da coluna; filtro segmentado
       (`ToggleButtonGroup` exclusivo: Todos (T) · Em atenção (M) · Pausados); ordenação em
@@ -33,10 +37,13 @@ indicado. Branch `feat/inbox-lista-triagem` em `apps/menthoros-front`, em worktr
 
 ## 3. E2E
 
-- [ ] 3.1 `tests/e2e/coach/inbox.spec.ts`: ≥ 6 linhas inteiras em 1366×625 e linha ≤ 52px (CA1);
-      "Em atenção" com 3 na fila e 15 no roster mostra os 3 e esconde a paginação (CA4); busca
-      no header da coluna (CA5); "1–10 de 23" e sem rodapé com 10 (CA7); o teste de 11px
-      continua verde. verify: `npx playwright test inbox`.
+- [ ] 3.1 `tests/e2e/coach/inbox.spec.ts`: fixture nova (3 na fila, 15 no roster, um deles
+      sem `aderenciaPercentual`); ≥ 6 linhas com bounding box inteiro dentro do contêiner da
+      lista em 1366×625 e cada linha ≤ 52px (CA1); "Em atenção" da página 2 mostra os 3, URL
+      `status=attention`, sem paginação, "Todos" volta à página 2 (CA4); busca no header da
+      coluna (CA5); "1–10 de 23" e sem rodapé com 10 (CA7). Migrar as asserções existentes:
+      `/\d+d/`, "of 15", menu "Atenção" (CA8); o teste de 11px continua.
+      verify: `npx playwright test inbox`.
 - [ ] 3.2 Suite completa; `/qa`; PR → `develop`.
 
 ## 4. Fechamento

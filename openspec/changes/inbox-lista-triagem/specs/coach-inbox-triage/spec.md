@@ -7,16 +7,20 @@
 Cada atleta na coluna da lista SHALL ocupar uma linha de no máximo 52px com avatar, nome, uma
 única linha de contexto e a aderência em número à direita. A linha SHALL NOT repetir a mesma
 informação em mais de um elemento (chip e texto, número e barra). A linha de contexto SHALL seguir
-a precedência: sinal da fila (motivo e recência), prova próxima, pausado, disciplina e semanas no
-plano.
+a precedência: sinal da fila (motivo e recência), pausado, fase e último treino — usando só o
+que o resumo do roster traz (`status`, `fase`, `lastActivity`).
 
 #### Scenario: Atleta com sinal
-- **WHEN** o atleta está na fila com `INATIVIDADE` há 6 dias
-- **THEN** a linha mostra "Inatividade · há 6 dias" uma vez, sem chip de severidade, e a severidade aparece na moldura e na cor do texto
+- **WHEN** o atleta está na fila com `INATIVIDADE` e o último treino foi há 6 dias
+- **THEN** a linha mostra "Inatividade · 6 dias sem treino" uma vez, sem chip de severidade, e a severidade aparece na moldura e na cor do texto
 
-#### Scenario: Atleta sem sinal com prova
-- **WHEN** o atleta não está na fila e tem prova em 22 dias
-- **THEN** a linha de contexto é o nome da prova e "22 dias"
+#### Scenario: Sinal sem dado de treino
+- **WHEN** o atleta está na fila por `SOBRECARGA` com alerta gerado há 2 dias
+- **THEN** a linha diz "Sobrecarga · sinal há 2 dias", nunca "dias sem treino"
+
+#### Scenario: Atleta sem sinal
+- **WHEN** o atleta não está na fila, está na fase "Base" e treinou há 2 dias
+- **THEN** a linha de contexto é "Base · último treino há 2 dias"; sem aderência na janela, o número é "—"
 
 #### Scenario: Seis linhas em notebook
 - **WHEN** o viewport é 1366×625 e há 10 atletas no roster
@@ -30,8 +34,8 @@ quem não está na página corrente do roster. O controle de ordenação SHALL s
 em forma e rótulo.
 
 #### Scenario: Em atenção
-- **WHEN** há 3 atletas na fila e 23 no roster e o treinador escolhe "Em atenção"
-- **THEN** a lista mostra exatamente os 3 e o rodapé de paginação some
+- **WHEN** há 3 atletas na fila e 23 no roster, o treinador está na página 2 e escolhe "Em atenção"
+- **THEN** a lista mostra exatamente os 3, a URL diz `status=attention`, o rodapé de paginação some e "Todos" devolve a página 2
 
 #### Scenario: Busca junto da lista
 - **WHEN** o inbox carrega

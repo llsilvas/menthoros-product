@@ -27,14 +27,28 @@ Só `apps/menthoros-front`: `QueueRow`, `AttentionOnlyRow`, o header da coluna d
 
 - **Linha de ~46px** em `QueueRow` e `AttentionOnlyRow`: avatar, nome, **uma** linha de contexto,
   aderência em número mono à direita (cor pelo valor: ≥ 85 success, ≥ 70 neutro, abaixo warning;
-  "—" sem dado). O chip de status e a barra saem; a severidade fica na moldura e na cor da linha
-  de contexto. Contexto, nesta precedência: sinal (motivo + recência, "Inatividade · há 6 dias");
-  prova próxima ("Maratona de SP · 22 dias"); pausado ("Pausado"); senão
-  "{disciplina} · {N} semanas no plano".
+  "—" quando `aderenciaPercentual` vem ausente — hoje o adapter o converte em 0 e marca
+  `adherenceAvailable: true`; passa a preservar a ausência). O chip de status e a barra saem; a
+  severidade fica na moldura e na cor da linha de contexto. Contexto, nesta precedência, só com
+  campos que o `CoachAtletaResumo` tem (`status`, `fase`, `lastActivity`; **não** há prova nem
+  semanas no plano no roster — `weeksOnPlan` sai 0 e `raceCalendar` `[]` fora do perfil):
+  1. sinal: `INATIVIDADE` com `lastActivity` → "Inatividade · N dias sem treino"; demais motivos
+     → "{motivo} · sinal há N dias" (idade do alerta, dita como tal);
+  2. `status === 'paused'` → "Pausado";
+  3. senão "{fase} · último treino há N dias" (sem `fase`: "Sem plano"; sem `lastActivity`:
+     "sem treino registrado").
+  Prova próxima na linha fica para quando o DTO do roster a trouxer.
 - **Filtro segmentado** no header da coluna: "Todos (T)", "Em atenção (M)", "Pausados". "Em
   atenção" mostra a fila de atenção **inteira** (não é paginada; roster só completa os dados de
   quem está na página) e esconde a paginação; "Pausados" é o status `paused` da API; "Todos" é o
-  de hoje. A ordenação vira `IconButton` com menu (mesmas opções), sem chip.
+  de hoje. A ordenação vira `IconButton` com menu (mesmas opções), sem chip. Contrato interno do
+  modo atenção: `DashboardStatusFilter` ganha `'attention'`; vai à URL como `?status=attention`
+  e `parseDashboardStatus` o aceita (F5 e link compartilhado preservam); a API recebe `status`
+  **ausente**; `buildInboxQueue` ignora o status do roster, `q` continua filtrando a fila por
+  nome e `hiddenAttentionCount` conta só os escondidos pela busca; `dashboardPage` **não** é
+  zerado ao entrar nem ao sair de atenção (voltar a "Todos" devolve a página anterior);
+  `resetFilters` volta a `all`; fila vazia nesse modo é o estado `vazio-atencao` ("Ninguém em
+  atenção agora"), distinto de `vazio-filtrado`.
 - **Busca na coluna**, acima do filtro, com o mesmo `q`. Sai da barra do topo.
 - **Contraste**: texto secundário da coluna em `surface-400`; `surface-500` só em "—" e ícones
   desabilitados. `TablePagination` com `labelDisplayedRows` em PT-BR ("1–10 de 23") e só com
@@ -64,18 +78,23 @@ Só `apps/menthoros-front`: `QueueRow`, `AttentionOnlyRow`, o header da coluna d
    menos 6 linhas de atleta aparecem inteiras sem rolar, e cada linha tem no máximo 52px.
 2. **Sem redundância** — Given um atleta com sinal CRITICA/INATIVIDADE há 6 dias, Then a linha
    mostra "Inatividade · há 6 dias" uma vez, sem chip "Alerta", e a aderência uma vez.
-3. **Contexto sem sinal** — Given atleta sem sinal com prova em 22 dias, Then a linha diz
-   "{prova} · 22 dias"; sem prova, "{disciplina} · {N} semanas no plano"; pausado, "Pausado".
-4. **Em atenção** — Given 3 atletas na fila e 23 no roster, When o coach escolhe "Em atenção",
-   Then a lista mostra exatamente os 3, inclusive quem não está na página corrente, e a paginação
-   some; "Todos" volta ao estado anterior.
+3. **Contexto sem sinal** — Given atleta sem sinal com `fase` "Base" e último treino há 2 dias,
+   Then a linha diz "Base · último treino há 2 dias"; pausado, "Pausado"; sem `fase`, "Sem plano
+   · …"; `aderenciaPercentual` ausente, "—" em vez de "0%".
+4. **Em atenção** — Given 3 atletas na fila, 15 no roster e o coach na página 2, When escolhe
+   "Em atenção", Then a lista mostra exatamente os 3, inclusive quem não está na página corrente,
+   a URL diz `status=attention` e a paginação some; "Todos" volta à página 2. Given busca "ana"
+   nesse modo, Then só os da fila com "ana" no nome, e o aviso "N em atenção fora do filtro"
+   conta os demais.
 5. **Busca na coluna** — Given a tela carregada, Then o campo "Buscar atleta" está no header da
    coluna da lista, não na barra do topo, e filtra por `q` como hoje.
 6. **Contraste** — Given os textos da coluna, Then nenhum texto legível usa `surface-500`
    (teste de componente por token; 4,5:1 conferido no DS).
 7. **Paginação PT-BR** — Given 23 atletas, Then o rodapé diz "1–10 de 23"; given 10 atletas,
    Then não há rodapé de paginação.
-8. **Regressão** — lint, build, `test:run`, E2E (`inbox.spec.ts`) verdes.
+8. **Regressão** — lint, build, `test:run`, E2E (`inbox.spec.ts`) verdes, com as asserções
+   migradas: `/\d+d/` → "N dias sem treino" / "sinal há N dias"; "of 15" → "de 15"; menu
+   "Atenção" do chip → segmento "Em atenção"; o teste de 11px continua.
 
 ## Métrica de sucesso
 
@@ -85,7 +104,8 @@ Só `apps/menthoros-front`: `QueueRow`, `AttentionOnlyRow`, o header da coluna d
 ## Riscos e mitigações
 
 - **"Em atenção" sem dados do roster** para quem está fora da página: a linha usa o
-  `AttentionOnlyRow` (nome, motivo, recência) como hoje; aderência "—".
+  `AttentionOnlyRow` (nome, motivo, recência) como hoje; aderência "—"; recência de
+  `INATIVIDADE` sem `lastActivity` é dita como "sinal há N dias", nunca como dias sem treino.
 - **Teste "nenhum texto abaixo de 11px"**: a linha de contexto fica em 11px (`0.6875rem`), no
   limite; o teste continua valendo.
 - **Testes existentes de `QueueRow`** afirmam chip e "Aderência N%": reescritos junto.
@@ -96,8 +116,10 @@ Só `apps/menthoros-front`: `QueueRow`, `AttentionOnlyRow`, o header da coluna d
 - **Premissa:** "Pausados" como terceiro segmento basta; `active`/`warning`/`danger` como filtros
   isolados não ajudam a triagem (atenção já cobre os dois últimos). Se o coach sentir falta,
   voltam no menu de ordenação como "filtrar por status".
-- **Premissa:** a barra sai (`weeksOnPlan`/prova no texto bastam); a cor do número de aderência
-  já diz o estado.
+- **Decidido:** a barra sai; a cor do número de aderência diz o estado. Dono: produto, na
+  crítica de 2026-11-07.
+- **Premissa:** sinal tem precedência sobre "Pausado" (um pausado em atenção ainda precisa de
+  ação).
 
 ## Status
 
