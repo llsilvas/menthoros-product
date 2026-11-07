@@ -49,11 +49,11 @@ indicado. Branch `feat/inbox-lista-triagem` em `apps/menthoros-front`, em worktr
       `/\d+d/`, "of 15", menu "Atenção" (CA8); o teste de 11px continua.
       verify: `npx playwright test inbox`.
       Medido em 1366×625: 7 linhas inteiras de 46px (CA1 pedia ≥ 6 e ≤ 52).
-- [ ] 3.2 Suite completa; `/qa`; PR → `develop`.
+- [x] 3.2 Suite completa; `/qa`; PR → `develop`.
       Parcial (2026-11-07): lint, build, 2872 unitários e E2E completo verdes. `/qa` (frontend,
       clean-code, Codex) sem Critical; ajustes em commit próprio: status legado na URL sem
       "Todos" marcado por cima, dias de calendário no último treino (Codex), página zerada ao
-      sair de atenção para status do roster, efeitos de `q` com ref, nomes em inglês. Falta o PR.
+      sair de atenção para status do roster, efeitos de `q` com ref, nomes em inglês. PR: llsilvas/menthoros-front#205.
 
 ## 4. Fechamento
 
