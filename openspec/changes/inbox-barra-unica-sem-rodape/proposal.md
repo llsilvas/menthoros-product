@@ -33,8 +33,9 @@ Só `apps/menthoros-front`, `CoachInboxPage` e testes.
   à direita. Saem: eyebrow, descrição, `KpiStrip` do resumo e o KPI "Atletas exibidos".
 - **Rodapé sai**, em qualquer altura. "Ajustar plano" vira botão secundário visível no cabeçalho do
   atleta, depois do CTA e do "Rejeitar". Saem "Enviar mensagem", "Marcar como prioridade", "Abrir
-  editor do plano", o `Menu` e seus estados. O toast de "Rascunho copiado" (contato assistido)
-  continua: é ação real.
+  editor do plano" e **só o `Menu` do rodapé** (`menuAnchor`, inclusive o `setMenuAnchor(null)`
+  residual em `openRejectDialog`); os `Menu` de status e ordenação da lista ficam. O toast de
+  "Rascunho copiado" (contato assistido) continua: é ação real (`navigator.clipboard.writeText`).
 
 ## Non-Goals
 
@@ -60,11 +61,14 @@ Só `apps/menthoros-front`, `CoachInboxPage` e testes.
 
 ## Critérios de aceite
 
-1. **Barra única** — Given o inbox carregado em qualquer viewport, When a tela renderiza, Then o
-   cabeçalho é uma barra de no máximo 56px com título, resumo em linha e busca; não existe faixa
-   `inbox-kpi-*` nem os textos "Assistente do Treinador" e "Revisão rápida, ajuste de plano…".
-2. **Resumo honesto** — Given `attentionQueue` com 3 itens e `resumo.emAtencao = 0`, Then a barra
-   mostra "3 em atenção".
+1. **Barra única** — Given o inbox carregado em viewport ≥ `md` (900px), When a tela renderiza,
+   Then o cabeçalho é uma barra de no máximo 56px com título, resumo em linha e busca; não existe
+   faixa `inbox-kpi-*` nem os textos "Assistente do Treinador" e "Revisão rápida, ajuste de
+   plano…". Abaixo de `md` a busca quebra para uma segunda linha (hoje já é `minWidth: 100%` em
+   `xs`) e o resumo pode omitir "treinos esta semana"; nada é cortado.
+2. **Resumo honesto** — Given `dashboard.attentionQueue` com 3 itens e `resumo.emAtencao = 0`,
+   Then a barra mostra "3 em atenção" (fonte: `dashboardAttentionQueue.length`, a fila completa,
+   não as linhas paginadas de `inboxQueue.rows`).
 3. **Rodapé fora** — Given um atleta selecionado, Then não há botão "Enviar mensagem", "Mais ações"
    nem "Marcar como prioridade"; "Ajustar plano" está no cabeçalho do atleta, visível sem rolar, e
    abre a aba Plano.
@@ -73,7 +77,10 @@ Só `apps/menthoros-front`, `CoachInboxPage` e testes.
 5. **Altura devolvida** — Given 1366×625 e um atleta selecionado, Then a área rolável do detalhe
    (`data-testid="inbox-detalhe-conteudo"`) ocupa ≥ 45% da altura da janela (hoje ~35%; a meta de
    55% é da change de altura, com os KPIs do atleta compactos).
-6. **Regressão** — lint, build, `test:run` e E2E (`inbox.spec.ts`, `notebook-viewport.spec.ts`)
+6. **Cabe em 1093×500** — Given 1093×500, plano aguardando revisão, nome de atleta e prova longos,
+   Then "Aprovar plano", "Rejeitar" e "Ajustar plano" estão inteiros na viewport e o detalhe rolável
+   tem ≥ 40% da altura.
+7. **Regressão** — lint, build, `test:run` e E2E (`inbox.spec.ts`, `notebook-viewport.spec.ts`)
    verdes; o teste "o nome do atleta é maior que o título da página" continua valendo.
 
 ## Métrica de sucesso
@@ -87,7 +94,8 @@ Só `apps/menthoros-front`, `CoachInboxPage` e testes.
 - **Teste de hierarquia** (`inbox-titulo` ≤ 17px e menor que o nome): o novo título fica em
   `1.0625rem` (17px); o nome do atleta já é 1,25–1,55rem.
 - **"Ajustar plano" + CTA + Rejeitar + próxima prova em 1093px**: o contêiner já tem
-  `flexWrap: 'wrap'`; a quebra custa uma linha de ~40px, menos que os 46px do rodapé que sai.
+  `flexWrap: 'wrap'` (cabeçalho e grupo de ações); a quebra custa uma linha de ~40px, menos que
+  os 46px do rodapé que sai. Não é estimativa aceita de fé: CA6 mede com fixture completa.
 - **Alerta de erro do dashboard** continua entre a barra e a grade; sem mudança.
 - **Rollback:** reverter o PR. Sem contrato, sem estado persistido.
 
