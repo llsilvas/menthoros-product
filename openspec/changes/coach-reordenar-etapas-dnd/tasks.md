@@ -5,9 +5,9 @@ Branch `feat/coach-reordenar-etapas-dnd` em `apps/menthoros-front`, em worktree.
 
 ## 1. Editor
 
-- [ ] 1.1 Instalar `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` com
+- [x] 1.1 Instalar `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` com
       `npm install --save-exact` (sem `^`). verify: `npm run build`; `package.json` sem caret.
-- [ ] 1.2 `EtapasEditor`: `DndContext` + `SortableContext` (`verticalListSortingStrategy`) no nível
+- [x] 1.2 `EtapasEditor`: `DndContext` + `SortableContext` (`verticalListSortingStrategy`) no nível
       raiz, ids = `item.id` dos itens raiz; cada item vira `useSortable` com alça `DragIndicator`
       em botão próprio (`aria-label="Arrastar etapa N"`, `touch-action: none` só nele);
       `onDragEnd` → `arrayMove` sobre `prev` via o `onChange` existente; sensor
@@ -18,7 +18,10 @@ Branch `feat/coach-reordenar-etapas-dnd` em `apps/menthoros-front`, em worktree.
       proposal "Adiado"). Testes de componente: CA1 (disparar `onDragEnd` e conferir o array), CA2 (bloco
       move inteiro), CA3 (setas e drag produzem o mesmo array), CA5, CA7 (zero chamadas a `onChange`).
       verify: `npx vitest run src/features/coach/components/etapas`.
-- [ ] 1.3 Estilo do item em arrasto em `etapasStyles.ts` (opacidade/sombra com tokens do tema;
+      `reordenar` vive em `etapaItem.ts` (helper puro; exportar do componente quebrava
+      `react-refresh/only-export-components`). Testes em `EtapasEditor.dnd.test.tsx` com o
+      `DndContext` substituido para expor `onDragEnd` — o gesto real fica no E2E (1.4).
+- [x] 1.3 Estilo do item em arrasto em `etapasStyles.ts` (opacidade/sombra com tokens do tema;
       `transform`/`transition` do `useSortable`). verify: lint.
 - [ ] 1.4 E2E em `plano-zonas-editor.spec.ts`: treino com avulsa, **bloco** e avulsa; arrastar a
       terceira para o topo pela alça com `page.mouse.down/move(…, { steps })/up` (a
