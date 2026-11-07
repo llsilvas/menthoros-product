@@ -5,7 +5,7 @@
 ### Requirement: Reordenação de etapas por arrastar e soltar
 
 O editor de etapas SHALL permitir reordenar os itens do nível raiz (etapa avulsa ou bloco) por
-arrastar e soltar, por ponteiro e por teclado, mantendo as setas de mover como alternativa. Um
+arrastar e soltar com ponteiro, mantendo as setas de mover como alternativa (e como via de teclado). Um
 bloco SHALL mover-se inteiro com suas sub-etapas. A ordem resultante SHALL ser a ordem do array
 enviado no PATCH, sem campo de ordem explícito.
 
@@ -16,10 +16,6 @@ enviado no PATCH, sem campo de ordem explícito.
 #### Scenario: Bloco arrastado
 - **WHEN** o treinador arrasta um bloco de séries
 - **THEN** o bloco muda de posição inteiro e suas sub-etapas permanecem dentro dele
-
-#### Scenario: Reordenar pelo teclado
-- **WHEN** o treinador foca a alça de uma etapa, pressiona Espaço, seta para baixo e Espaço
-- **THEN** a etapa desce uma posição, o mesmo resultado da seta "mover para baixo"
 
 #### Scenario: Setas e arrasto equivalem
 - **WHEN** o treinador move a mesma etapa pela seta e, noutro editor, por arrasto

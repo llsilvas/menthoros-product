@@ -53,8 +53,7 @@ mudança só de front — o array já sai na ordem da tela.
    com suas sub-etapas; sub-etapas não saem do bloco.
 3. **Setas continuam** — Given o editor, Then as setas funcionam como hoje e as duas vias produzem
    o mesmo array.
-4. **Teclado** — Given foco na alça, When Espaço + setas + Espaço, Then a etapa muda de posição
-   (sensor de teclado do dnd-kit).
+4. ~~**Teclado**~~ — adiado (ver "Adiado"); as setas continuam sendo a via de teclado.
 5. **Desabilitado** — Given `disabled` (salvando), Then não arrasta.
 6. **Regressão** — lint, build, `test:run` e E2E com um caso de arrastar afirmando a ordem no
    corpo do PATCH.
@@ -81,18 +80,12 @@ mudança só de front — o array já sai na ordem da tela.
 
 ## Riscos e mitigações
 
-- **Teclado:** o `KeyboardSensor` padrão anda 25px por tecla, não um item. Usar
-  `sortableKeyboardCoordinates`. Espaço na alça não pode vazar para os inputs do card: a alça é
-  um botão próprio, fora dos campos.
+- **Teclado:** adiado. As setas já cobrem reordenar por teclado; o `KeyboardSensor` entra depois
+  (ver "Adiado").
 - **Touch:** arrastar pode virar scroll da página. `touch-action: none` só na alça, nunca no card.
 - **Dialog:** `DndContext` dentro de um MUI `Dialog` — scroll do conteúdo e foco preso pelo
   `FocusTrap`. O dnd-kit não abre portal por padrão, então o item arrastado fica dentro do
   dialog; conferir no E2E que o scroll do dialog não se move durante o arrasto.
-- **Leitor de tela:** os anúncios padrão do `DndContext` ("Picked up draggable item…") são em
-  inglês. Passar `accessibility.announcements` e `screenReaderInstructions` em PT-BR ("Etapa 3
-  pega. Posição 3 de 5."), na linha do `aria-label` das setas que já existe.
-- **Movimento reduzido:** a animação do sortable deve cair para `transition: none` com
-  `prefers-reduced-motion: reduce` (mesmo padrão de `src/landing/primitives.tsx`).
 - **Alvo de toque:** `IconButton size="small"` tem ~30px; a alça precisa de área de toque de 44px
   no mobile (padding ou `minWidth/minHeight` abaixo de `sm`), sem crescer o header no desktop.
 - **Posição da alça:** à esquerda do header, antes do quadradinho de cor — o header já tem
@@ -101,3 +94,12 @@ mudança só de front — o array já sai na ordem da tela.
 - **Bundle:** três pacotes do dnd-kit (~40 KB min, ~13 KB gzip). Aceito; sem alternativa sem
   touch e teclado.
 - **Rollback:** reverter o PR. Sem contrato, sem migration, sem estado persistido novo.
+
+## Adiado (decisão 2026-11-07: acessibilidade do DnD fica para depois)
+
+Só a alça leva `aria-label` ("Arrastar etapa N"), por convenção dos ícones do editor. Fora desta change:
+- `KeyboardSensor` + `sortableKeyboardCoordinates` (Espaço, setas, Espaço na alça) — CA4.
+- `accessibility.announcements` e `screenReaderInstructions` em PT-BR no `DndContext` (o padrão
+  do dnd-kit anuncia em inglês com ids crus).
+- `transition` nula com `prefers-reduced-motion: reduce`.
+Enquanto isso, teclado reordena pelas setas, como hoje.
