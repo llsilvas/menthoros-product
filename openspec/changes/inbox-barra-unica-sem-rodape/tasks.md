@@ -44,12 +44,12 @@ indicado. Branch `feat/inbox-barra-unica-sem-rodape` em `apps/menthoros-front`, 
       `notebook-viewport.spec.ts` cobre as outras telas, como seu cabeçalho diz). O mock do
       spec não modela `summary.kpis`, então "ativos de total" não é afirmado no E2E — fica no
       teste de componente. Medido: barra 53px; detalhe 1366×625 e 1093×500 acima do gate.
-- [ ] 3.2 Suite completa; `/qa`; PR → `develop`.
+- [x] 3.2 Suite completa; `/qa`; PR → `develop`.
       Parcial (2026-11-07): lint, build, 2856 unitários e E2E completo verdes (o `smoke-tema` do
       atleta falhou uma vez por timeout de screenshot com o vitest rodando junto; isolado, passa).
       `/qa` (frontend, clean-code, Codex) sem Critical; ajustes em commit próprio: prefix/suffix
       no adapter, data inválida, "treinos" só a partir de `lg` com E2E em 900px (Codex P2
-      confirmado: 740px úteis em `md` não cabiam quatro segmentos e a busca). Falta o PR.
+      confirmado: 740px úteis em `md` não cabiam quatro segmentos e a busca). PR: llsilvas/menthoros-front#204.
 
 ## 4. Fechamento
 
