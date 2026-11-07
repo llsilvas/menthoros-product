@@ -37,8 +37,9 @@ E2E onde indicado. Branches `feat/coach-alterar-data-treino` nos dois repos, em 
       (`garantirSchedule` já procura em ±14 dias); só teste de regressão no
       `GarminTrainingAdapterTest` com schedule em outra data da semana → `atualizarSchedule`, não
       `criarSchedule` — já existia (`movePeloSchedule`, CA3 de coach-garmin), nada a adicionar. verify: `./mvnw clean test -Dtest='IntervalsIcuAdapterTest,GarminTrainingAdapterTest'`.
-- [ ] 1.6 Suite completa e gate: `./mvnw clean verify` verde; `/qa` backend sem achado crítico;
+- [x] 1.6 Suite completa e gate: `./mvnw clean verify` verde; `/qa` backend sem achado crítico;
       PR backend → `develop` com CI verde. verify: `gh pr checks` verde.
+      PR: https://github.com/llsilvas/menthoros-backend/pull/225 (CI pendente no momento da marcação).
 
 ## 2. Frontend — dialog (`apps/menthoros-front`)
 
