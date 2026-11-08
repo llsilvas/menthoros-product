@@ -36,13 +36,14 @@ Só `apps/menthoros-front`.
   trocar de atleta (mesmo gate de `nextRaceHeader`). Linha de 11–12px em `surface-400`, citando
   só as células sem dado: "Sem treinos sincronizados na janela: forma e ACWR aparecem com o
   primeiro treino." — ou "…: carga, forma e ACWR aparecem…" quando também não há km. Fecha com
-  "Confira a integração do atleta ou registre um treino manualmente." Com série na janela, nada:
+  o link **"Conferir integração"** (proposta da crítica) para `/coach/athletes`, onde o menu da
+  linha do atleta sincroniza o Strava — não há tela de integrações do lado do coach. Com série na
+  janela, nada:
   "Dado insuficiente" (ACWR sem ATL/CTL no último ponto) e "TSB não disponível" são fatos
   distintos, seguem no `title`/texto oculto da célula e não disparam o aviso.
 - **Banner do Diagnóstico sai** (`EmptyMetricState` que substitui a grade de métricas quando
   `quickStats.hasWindowData` é falso): a linha abaixo da faixa já disse. No lugar da grade, nada.
-  `EmptyMetricState.tsx` fica sem consumidor (era o único) — o componente e seu teste são
-  removidos.
+  `EmptyMetricState.tsx` fica sem consumidor (era o único) e é removido (não tinha teste próprio).
 - **Rótulo na aderência da lista** (`QueueRow`/`AttentionOnlyRow`): o número mono à direita da
   linha passa a "Ader. 78%" — rótulo em `surface-400`, número com a cor por faixa. Pedido do
   founder em 2026-11-07, a mesma dor: valor sem legenda.
@@ -73,8 +74,11 @@ Só `apps/menthoros-front`.
 
 ## Critérios de aceite
 
-1. **Faixa compacta** — Given um atleta selecionado em 1366×625, Then a faixa de KPIs do atleta
-   tem no máximo 40px e cada célula mostra rótulo e valor na mesma linha.
+1. **Faixa compacta** — Given um atleta selecionado em 1366×625 sem dado na janela, Then a faixa
+   de KPIs tem no máximo 40px e cada célula mostra rótulo e valor na mesma linha. Given valores
+   cheios ("Acumulando fadiga", selo "Baixa confiança"), Then rótulo e valor podem ficar em linhas
+   separadas (≤ 56px em 1366, ≤ 84px em 1024, célula de ~75px) e nenhuma célula vaza ou corta
+   texto (achado do QA/Codex; o valor denso é 14px).
 2. **Legenda acessível, não visível** — Given a célula Aderência com "Últimas 4 semanas", Then o
    texto não está visível, está no `title` da célula e num elemento visualmente oculto lido pelo
    leitor de tela.
@@ -98,7 +102,7 @@ Só `apps/menthoros-front`.
 
 ## Métrica de sucesso
 
-- 93px → ~34px na faixa; até 4 avisos → 1 quando não há dado.
+- 93px → ~34px na faixa sem dado (≤ 56px com valores cheios); até 4 avisos → 1 quando não há dado.
 - 1366×625: detalhe rolável de 57% para ≥ 62%.
 
 ## Riscos e mitigações
