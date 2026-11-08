@@ -47,4 +47,15 @@
 
 - [x] 5.1 `GpsTraceIT` (failsafe, Testcontainers): upload de `.fit` outdoor → `gps_trace` gravado → endpoint 200 com 2–400 pontos; outro atleta do mesmo tenant → 404; esteira sintética sem posição → `gps_trace` nulo e 404
 - [x] 5.2 `openspec/specs/garmin-activity-ingestion/spec.md`: requisito "Trajeto GPS do treino realizado" (6 cenários) e cenário "Modelo só no arquivo" na atribuição Garmin
-- [ ] 5.3 Validação final: `./mvnw clean test`
+- [x] 5.3 Validação final: `./mvnw clean verify` (unitários + integração) verde antes do QA (6444 + 311); rodado de novo após os ajustes do QA — ver 6.2
+
+## 6. QA gate
+
+- [x] 6.1 `code-reviewer` + `security-reviewer` + `clean-code-reviewer` em paralelo. Sem Crítico/Alto. Aplicados: projeção `findGpsTrace` com tenant e atleta no WHERE (sem carregar a entidade), JSON corrompido → log por id + 404, validação de lat/lng e de distância do record no coletor, teto estrito em arquivo hostil, `FAIL_ON_UNKNOWN_PROPERTIES=false`, `toIntExact`, Javadoc da interface, comentário honesto no mapper sobre o JSONB carregado no SELECT da entidade. Não aplicados (decisão registrada): remover o construtor de compatibilidade de `TreinoRealizadoOutputDto` (reviewers divergiram; há precedente em `FitSessionData`); unificar `GpsTraceOutputDto` com `GpsTracePayload` (contrato de API × formato persistido evoluem separados); mover `toJson` para fora do `GpsTraceCodec`.
+- [x] 6.2 `./mvnw clean verify` após os ajustes: surefire 6447 testes, 0 falhas, 1 erro flaky pré-existente fora do escopo (`StravaActivityPullTest.manualSemCursorNaoGravaHorizonte`, 404 de WireMock em porta dinâmica; passa isolado) — por causa dele o failsafe não rodou nessa rodada; `GpsTraceIT` rodado em separado contra a projeção nova, 2/2 verdes. Antes do QA, o `verify` completo tinha passado (6444 + 311). Os testes focados da change (coletor, codec, simplificador, persister, service, controller, mapper) passam.
+
+## Pendências para o `/pr`
+
+- Dois testes flaky pré-existentes fora do escopo apareceram em rodadas diferentes (`IntervalsIcuClientImplTest.BuscarAtividade.sucessoRetornaActivity`, `StravaActivityPullTest.manualSemCursorNaoGravaHorizonte`): ambos WireMock em porta dinâmica, ambos passam isolados. Vale change `fix/` própria.
+- Task 2.3 parcial: faltam 2 `.fit` reais (parque, trilha) para validar a tolerância de 10 m.
+- Cliente curado do front (`ManualTrainingService.getTrajeto`, tipo `GpsTrace`, `temTrajeto`) editado no checkout principal do front sem commit — entra em `athlete-share-cards`.
