@@ -41,7 +41,7 @@
   verify: `TreinoMapperGpsTraceTest`
 - [x] 4.3 Cliente curado do front: `ManualTrainingService.getTrajeto` e tipos `GpsTrace` / `TreinoRealizadoDto.temTrajeto` em `src/types/TreinoManual.ts` (editado no checkout principal do front, em `develop`, sem commit — vai na change `athlete-share-cards`, que é quem consome)
   verify: `tsc -b --noEmit` sem erros
-- [x] 4.4 Validação: `./mvnw clean test` verde; front `lint` + `build` verdes (lint só passou após remover o worktree vazio `coach-inbox-responsive-1368-18eb30` de outra sessão, que estava dentro de `apps/menthoros-front/.claude/worktrees/`)
+- [x] 4.4 Validação: `./mvnw clean test` — a 1ª rodada falhou com 4 erros em `AtletaWorkoutAnalysisControllerTest` (outro `@WebMvcTest` do mesmo controller sem o mock do `AtletaGpsTraceService`; caso da memória `verify-local-vs-ci-webmvctest`), corrigido e emendado em `2bf7a10`; 2ª rodada verde. Front `lint` + `build` verdes (lint só passou após remover o worktree vazio `coach-inbox-responsive-1368-18eb30` de outra sessão, que estava dentro de `apps/menthoros-front/.claude/worktrees/`)
 
 ## 5. Fechamento
 
