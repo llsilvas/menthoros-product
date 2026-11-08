@@ -63,9 +63,9 @@ Não existe endpoint de detalhe do treino realizado para o atleta (só `GET /me/
 inútil para a maioria das telas.
 
 Decisão: **`GET /api/v1/atletas/me/realizados/{id}/trajeto`** → `GpsTraceOutputDto` (o JSON de D2
-mais `deviceName`), `404` quando o treino não é do atleta ou não tem trajeto. Para o coach,
-`GET /api/v1/treinos-realizados/{id}/trajeto` com o mesmo DTO, no `TreinoRealizadoController`,
-sob o filtro de tenant existente.
+mais `deviceName`), `404` quando o treino não é do atleta ou não tem trajeto. **Sem endpoint para
+o coach** (product review): não há tela que o consuma; quando houver, a change da tela adiciona
+`GET /api/v1/treinos-realizados/{id}/trajeto` com o mesmo DTO.
 
 A lista `GET /me/treinos` ganha só um booleano `temTrajeto`, para o front saber se mostra o modelo
 de card com mapa sem baixar nada.
@@ -81,8 +81,8 @@ ser retido, o reprocessamento vira change própria.
 
 GPS/trajeto já é dado sensível declarado na Política (§ 2.1); esta change persiste o que o `.fit`
 já trazia, dentro do mesmo `tenant_id`. **Nenhuma exposição nova para fora da plataforma**: isso é
-`athlete-share-cards-mapa`, bloqueada por `lgpd-trajeto-cards-compartilhamento`. A visão do coach
-recebe o trajeto do próprio atleta dele, o que a Política § 6.1 já cobre.
+`athlete-share-cards-mapa`, bloqueada por `lgpd-trajeto-cards-compartilhamento`. Persistir antes
+da change legal fechar é aceitável porque não há exposição externa nesta change.
 
 ## Métricas (como medir)
 
@@ -90,5 +90,5 @@ recebe o trajeto do próprio atleta dele, o que a Política § 6.1 já cobre.
   `tb_treino_realizado` com `fonte_dados IN ('GARMIN','FIT_UPLOAD')` e `data >= deploy`; meta 100%
   nos outdoor (esteira/indoor contam como "sem GPS" esperado).
 - Tamanho: P95 de `pg_column_size(gps_trace)` ≤ 8 KB, medido em staging com os 3 arquivos de Q2.
-- Treinador: contagem de aberturas do endpoint de trajeto do coach nas 4 primeiras semanas
-  (métrica de uso; o benefício qualitativo é não precisar abrir o Garmin Connect).
+- Treinador: medido na trilha (`athlete-share-cards` instrumenta card gerado × assinatura ligada);
+  nada a medir nesta change além da cobertura do dado.

@@ -20,8 +20,10 @@ modelo do dispositivo.
 Sem isso, nenhum card pode desenhar o trajeto, e a atribuição exigida pela Garmin ("Garmin [device
 model]", API Brand Guidelines v6.30.2025, seção Visual and Social Media) fica genérica ("Garmin").
 
-Para o treinador, o trajeto é contexto de análise que hoje ele só vê abrindo o Garmin Connect ou o
-Strava: onde o atleta fez o longão, se o tiro foi em subida, se a volta foi a mesma de sempre.
+Esta change é **fundação de dado para os cards do atleta**, não uma feature do treinador. O valor
+para o treinador é indireto e é uma **hipótese de aquisição**: cada card publicado leva "Treinado
+por [treinador] · [assessoria]". Nenhuma tela do coach consome o trajeto nesta trilha; se um dia
+o review do treino realizado quiser mostrar o mapa, é change própria com a tela junto.
 
 ## Escopo
 
@@ -37,9 +39,10 @@ Strava: onde o atleta fez o longão, se o tiro foi em subida, se a volta foi a m
    **400 pontos**). Os pontos brutos **não** são persistidos (design D3).
 3. **Persistência** em `TreinoRealizado`: coluna `gps_trace JSONB NULL` com polyline codificada +
    arrays paralelos de tempo e FC (design D2). Migration `V113`, aditiva, sem backfill.
-4. **Contrato:** endpoint novo `GET /api/v1/atletas/me/realizados/{id}/trajeto` e o equivalente do
-   coach em `TreinoRealizadoController`; a lista `GET /me/treinos` ganha só `temTrajeto: boolean`
-   (design D4). `404` quando não há trajeto ou o treino não é do atleta/tenant.
+4. **Contrato:** endpoint novo `GET /api/v1/atletas/me/realizados/{id}/trajeto`; a lista
+   `GET /me/treinos` ganha só `temTrajeto: boolean` (design D4). `404` quando não há trajeto ou o
+   treino não é do atleta/tenant. **Sem endpoint para o coach**: não há tela que o consuma
+   (product review).
 5. **Sem reprocessamento:** o `.fit` não é retido após o parse (`GarminPingProcessorScheduler:174`
    e `FitUploadServiceImpl`), então treinos anteriores ao deploy ficam sem trajeto (design D5).
 
@@ -53,6 +56,7 @@ Strava: onde o atleta fez o longão, se o tiro foi em subida, se a volta foi a m
 - Mapa de fundo (ruas): não há serviço de tiles; só a linha.
 - Reprocessar treinos anteriores ao deploy: não há `.fit` retido para reprocessar.
 - Coluna `device_model`: o modelo entra no `deviceName` existente.
+- Endpoint ou tela de trajeto para o coach: só com a tela que o use, em change própria.
 
 ## Critérios de aceite
 
@@ -100,8 +104,9 @@ Strava: onde o atleta fez o longão, se o tiro foi em subida, se a volta foi a m
 
 - 100% dos treinos outdoor ingeridos após o deploy têm `gpsTrace` não nulo (query em `design.md`).
 - P95 de `pg_column_size(gps_trace)` ≤ 8 KB, medido em staging com os arquivos de Q2.
-- Para o treinador: uso do endpoint de trajeto do coach nas 4 primeiras semanas após o front
-  consumir (sinal de que ele parou de abrir o Garmin Connect para "ver onde foi").
+- Para o treinador (medido na trilha, instrumentado em `athlete-share-cards`, não aqui): cards
+  compartilhados por atleta ativo por semana; % de cards com assinatura "Treinado por" ligada.
+  Esta change só garante que o dado existe.
 
 ## Open Questions & Assumptions
 
@@ -113,6 +118,13 @@ Strava: onde o atleta fez o longão, se o tiro foi em subida, se a volta foi a m
   change futura se algum card pedir.
 - **Premissa:** `DeviceInfoMesg.getProductName()` vem preenchido nos relógios recentes; em arquivos
   antigos pode vir nulo e o `deviceName` fica nulo — aceito.
+- **Hipótese de produto (trilha inteira):** o valor para o treinador é divulgação orgânica via
+  assinatura nos cards. É aposta, não pedido de assessoria do pilot. **Critério de parada:** se,
+  8 semanas após `athlete-share-cards` em produção, menos de 10% dos atletas ativos tiverem gerado
+  ao menos um card, `athlete-share-cards-mapa` não entra e a trilha para.
+- **Pergunta ao founder:** esta trilha vem antes de algo que reduza minutos por revisão ou suba o
+  acceptance rate do WeekSuggestion? O product review levantou a prioridade; a decisão é de
+  roadmap, não desta spec.
 
 ## Rollback
 
@@ -133,4 +145,6 @@ simplesmente deixam de existir. Remover a coluna exige `DROP` e passa pelo gate 
   (design D3).
 - **DoR:** `spec-reviewer` em 2026-11-08 → READY COM AJUSTES; Codex adversarial → NOT READY sobre a
   versão anterior (formato sem tempo por ponto, memória sem teto, `deviceModel` duplicado). Os três
-  achados estão incorporados nesta revisão (D2, D3, D1). `product-reviewer` pendente (task 0.1).
+  achados estão incorporados nesta revisão (D2, D3, D1). `product-reviewer` → **Refine**: endpoint
+  do coach cortado, Why reescrito como fundação de card, métrica do coach trocada por funil na
+  trilha, hipótese e critério de parada declarados. Incorporado.

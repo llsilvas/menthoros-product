@@ -107,6 +107,9 @@ do treinador. É divulgação orgânica que o treinador não precisa produzir.
 - % de treinos realizados que geram ao menos um card nos 30 primeiros dias (meta inicial: 10%).
 - % de cards gerados com assinatura da assessoria ativa (meta: ≥ 80%; é o valor para o treinador).
 - Zero card com dado Garmin sem atribuição (verificável por teste de componente).
+- **Instrumentação obrigatória:** evento por card gerado (modelo, formato, assinatura ligada ou
+  não, destino). É o único sinal da hipótese de aquisição da trilha e o critério de parada de
+  `athlete-share-cards-mapa` (ver `add-activity-gps-trace`, Open Questions).
 
 ## Open Questions & Assumptions
 

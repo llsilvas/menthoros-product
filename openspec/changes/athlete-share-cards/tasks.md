@@ -40,6 +40,7 @@
 - [ ] 4.1 Adicionar a lib decidida em Q1 (aprovação de dependência) e `useShareImage`: aguarda `document.fonts.ready`, exporta em 1080 px, modo de exportação sem `backdrop-filter`/grão
 - [ ] 4.2 Destinos: Web Share API com `files` (Stories, WhatsApp, Mais) e download (Salvar); fallback para download quando `navigator.canShare` falhar
 - [ ] 4.3 Teste de componente: Salvar dispara download com dimensões corretas por formato
+- [ ] 4.3b Evento de instrumentação por card gerado (modelo, formato, assinatura, destino) pelo mecanismo de métricas existente ou log estruturado no backend; decidir o mecanismo no `design.md`
 - [ ] 4.4 Validação: `npm run lint && npm run build && npm run test:run`
 
 ## 5. Pontos de entrada e E2E
