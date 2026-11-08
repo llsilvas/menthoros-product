@@ -38,9 +38,11 @@ Renderizada pelo `ShareCardFrame`, logo abaixo do título de cada modelo.
 
 ## D5 — Exportação
 
-`html-to-image` `toBlob` sobre um nó oculto renderizado em 1080 px (não a prévia escalada), com
-`data-export="true"` que desliga `backdrop-filter` e o grão. Regera o blob ao mudar modelo, formato
-ou chave; os botões ficam desabilitados enquanto gera. Destinos:
+`html-to-image` `toBlob` sobre o próprio nó da prévia, com `pixelRatio: 3`: os cards são autorados em
+360 px de largura (alturas 640/450/360) e saem a 1080 px. A moldura já não usa `backdrop-filter` nem
+filtros SVG, então não há modo de exportação separado. (Revisado na seção 2: a versão anterior previa
+um nó oculto em 1080 px, que duplicaria a árvore.) Regera o blob ao mudar modelo, formato ou chave;
+os botões ficam desabilitados enquanto gera. Destinos:
 - **Compartilhar**: `navigator.share({ files: [file] })` só se `navigator.canShare({ files })`;
   `AbortError` = cancelamento silencioso; outro erro = mensagem do CA7.
 - **Salvar**: `URL.createObjectURL` + `<a download>`.

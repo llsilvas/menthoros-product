@@ -19,12 +19,12 @@
 
 ## 2. Componentes compartilhados
 
-- [ ] 2.1 Barlow Condensed no `index.html` + token `displayShare`
-- [ ] 2.2 `ShareCardFrame` (fundo, brilho lime, vidro por tokens, tamanhos 9:16/4:5/1:1, `data-export`) e `GarminAttribution`
-- [ ] 2.3 `ShareSignature` (sigla, nome, "Treinado por" condicional, modos)
-- [ ] 2.4 Controles: `ShareModelPicker` (radiogroup), `ShareFormatPicker`, `ShareOptionSwitch`; alvos ≥ 44 px (CA9)
-- [ ] 2.5 Testes de componente: CA3, CA4, CA9
-- [ ] 2.6 Validação: `npm run lint && npm run build && npm run test:run`
+- [x] 2.1 Barlow Condensed (ital 700/800) no `index.html` + `font.displayShare` em `theme.premium.ts`
+- [x] 2.2 `ShareCardFrame` (fundo navy + brilho lime por `alpha(primary[500])`, marca, rodapé, `role="img"` com `aria-label`) e `GarminAttribution`. **Ajuste do D5:** cards autorados em 360 px (alturas 640/450/360) e exportados com `pixelRatio: 3` → 1080 px; uma árvore só serve de prévia e de fonte da imagem, sem nó oculto duplicado. Sem `backdrop-filter` e sem grão já na moldura, então não há "modo de exportação"
+- [x] 2.3 `ShareSignature` (sigla + nome; sem "Treinado por", ver 0.2)
+- [x] 2.4 Controles `ShareModelPicker`/`ShareFormatPicker` (radiogroup, alvos ≥ 44 px) e `ShareOptionSwitch` (switch com rótulo); `ShareWorkoutView` com estado de modelo, formato (default por modelo), FC e assessoria
+- [x] 2.5 `shareComponents.test.tsx` (10): CA3, CA4, CA5, CA9
+- [x] 2.6 Validação: lint e build verdes; `test:run` 297 arquivos / 2921 testes, 0 erros
 
 ## 3. Modelos
 
