@@ -1,55 +1,50 @@
-# Tasks — athlete-share-cards
+# Tasks — athlete-share-cards (núcleo)
 
-## 0. Gates do Full track
+## 0. Gates
 
-- [ ] 0.1 Rodar `product-reviewer` sobre o `proposal.md` e incorporar o veredito
-- [ ] 0.2 Rodar o pre-mortem (`/codex:adversarial-review`) e incorporar em "Riscos e mitigações"
-- [ ] 0.3 Decidir Q1 (lib), Q2 (nota publicável), Q3 (tipografia) e Q4 (pontos de entrada); escrever o `design.md`
-- [ ] 0.4 Confirmar que `logoUrl`, nome da assessoria e nome do treinador chegam ao atleta pelo contrato atual; se não, abrir task de backend
+- [x] 0.1 DoR: spec-reviewer (READY COM AJUSTES) + Codex (NOT READY na versão L); recorte em 4 changes, Q1/Q3/Q4 decididas, `design.md` escrito
+- [ ] 0.2 Confirmar a fonte do nome do treinador para o atleta (`AthleteCoachPage`); se não houver no contrato atual, registrar no `proposal.md` que "Treinado por" vai para `extra`
+  verify: nota no proposal com `arquivo:linha` da fonte, ou a decisão de adiar
 
-## 1. Fundação da tela
+## 1. Fundação
 
-- [ ] 1.1 Rota `ATHLETE_SHARE_WORKOUT` em `constants/routes.ts` e página `features/athlete/pages/AthleteShareWorkoutPage.tsx`
-- [ ] 1.2 Hook `useShareWorkout(treinoId)`: carrega treino realizado, semana, melhores esforços, prova-alvo/PMC; expõe `loading`/`error`/dados
-- [ ] 1.3 Adapter `buildShareCardDataFromWorkout` (puro, testado): API → view model dos cards (aderência, tiros, zonas, assinatura, atribuição)
-- [ ] 1.4 Componentes de controle: `ShareModelPicker` (radiogroup), `ShareFormatPicker`, `ShareOptionSwitch`, `ShareDestinations`; alvos ≥ 44 px
-- [ ] 1.5 Testes de componente: estados loading/error/empty; modelos condicionais (CA2)
-- [ ] 1.6 Validação: `npm run lint && npm run build && npm run test:run`
+- [ ] 1.1 Tipos: `etapasRealizadas` e `tempoEmZonas` em `TreinoRealizadoDto`; trazer `GpsTrace`/`temTrajeto`/`getTrajeto` (já preparados em `develop` sem commit) para a branch
+  verify: `tsc -b`
+- [ ] 1.2 Adapter puro `buildShareCardData` (+ `availableModels`, `garminAttributionFor`, sigla) com testes
+  verify: `*.test.ts` cobre CA2, CA4, CA5 e sigla
+- [ ] 1.3 Hook `useShareWorkout(treinoId)`: lista recente + plano da semana + usuário; `loading`/`error`/`notFound`
+  verify: teste do hook com service mockado
+- [ ] 1.4 Rota `ATHLETE_SHARE_WORKOUT` e `AthleteShareWorkoutPage` com estados (CA8)
+  verify: teste com `createHashRouter` (não `MemoryRouter`)
+- [ ] 1.5 Validação: `npm run lint && npm run build && npm run test:run`
 
-## 2. Componentes compartilhados dos cards
+## 2. Componentes compartilhados
 
-- [ ] 2.1 `GarminAttribution`: "GARMIN {deviceModel}" / "GARMIN" / nada conforme `fonteDados`; variante com frase de dado derivado
-- [ ] 2.2 `ShareSignature`: logo (`logoUrl`) com sigla como fallback, nome, "Treinado por"; modos completa / só assessoria / nenhuma; tema escuro e lime
-- [ ] 2.3 `ShareCardFrame`: fundo `surface-900` com brilho lime, vidro por tokens `glass-*`, tamanhos 9:16 / 4:5 / 1:1
-- [ ] 2.4 Testes: CA3 e CA4
-- [ ] 2.5 Validação: `npm run lint && npm run build && npm run test:run`
+- [ ] 2.1 Barlow Condensed no `index.html` + token `displayShare`
+- [ ] 2.2 `ShareCardFrame` (fundo, brilho lime, vidro por tokens, tamanhos 9:16/4:5/1:1, `data-export`) e `GarminAttribution`
+- [ ] 2.3 `ShareSignature` (sigla, nome, "Treinado por" condicional, modos)
+- [ ] 2.4 Controles: `ShareModelPicker` (radiogroup), `ShareFormatPicker`, `ShareOptionSwitch`; alvos ≥ 44 px (CA9)
+- [ ] 2.5 Testes de componente: CA3, CA4, CA9
+- [ ] 2.6 Validação: `npm run lint && npm run build && npm run test:run`
 
 ## 3. Modelos
 
-- [ ] 3.1 `PlanVsActualCard` (story): manchete, perfil de etapas com pace por tiro, faixa de zonas em %
-- [ ] 3.2 `SplitsCard` (feed): barras por tiro, faixa-alvo, destaque do último
-- [ ] 3.3 `WeekCard` (quadrado): bento com km, barras por dia em `categorical-*` do tipo, fitness, treinos, tempo ou assinatura
-- [ ] 3.4 `CoachNoteCard` (story): condicionado a nota publicável (Q2)
-- [ ] 3.5 `BestEffortCard` (feed): condicionado a melhor esforço do treino
-- [ ] 3.6 `RaceCountdownCard` (story): dias para a prova, barra do ciclo, CTL, projeção
-- [ ] 3.7 Testes de componente por modelo com dados reais de fixture; nenhum `MOCK_*` restante
-- [ ] 3.8 Validação: `npm run lint && npm run build && npm run test:run`
+- [ ] 3.1 `PlanVsActualCard`
+- [ ] 3.2 `SplitsCard`
+- [ ] 3.3 `WeekCard` (atribuição agregada, CA5)
+- [ ] 3.4 Testes por modelo com fixtures reais; nenhum `MOCK_*`
+- [ ] 3.5 Validação: `npm run lint && npm run build && npm run test:run`
 
-## 4. Geração e destinos
+## 4. Exportação e destinos
 
-- [ ] 4.1 Adicionar a lib decidida em Q1 (aprovação de dependência) e `useShareImage`: aguarda `document.fonts.ready`, exporta em 1080 px, modo de exportação sem `backdrop-filter`/grão
-- [ ] 4.2 Destinos: Web Share API com `files` (Stories, WhatsApp, Mais) e download (Salvar); fallback para download quando `navigator.canShare` falhar
-- [ ] 4.3 Teste de componente: Salvar dispara download com dimensões corretas por formato
-- [ ] 4.3b Evento de instrumentação por card gerado (modelo, formato, assinatura, destino) pelo mecanismo de métricas existente ou log estruturado no backend; decidir o mecanismo no `design.md`
+- [ ] 4.1 Adicionar `html-to-image`; `useShareImage`: nó oculto em 1080 px, `document.fonts.ready`, blob pré-gerado, regeração ao mudar opção
+- [ ] 4.2 Destinos Compartilhar (canShare/share, AbortError silencioso, erro com mensagem) e Salvar (download) — CA6, CA7
+- [ ] 4.3 Testes de componente dos destinos com `navigator.share` mockado
 - [ ] 4.4 Validação: `npm run lint && npm run build && npm run test:run`
 
-## 5. Pontos de entrada e E2E
+## 5. Entradas e E2E
 
-- [ ] 5.1 Botão "Compartilhar" no detalhe do treino realizado e no card da semana (conforme Q4)
-- [ ] 5.2 E2E (atravessa contrato da API e dado do atleta): abrir treino → compartilhar → trocar modelo e formato → alternar assinatura → Salvar gera PNG; treino manual não mostra atribuição Garmin
-- [ ] 5.3 Validação: `npm run lint && npm run build && npm run test:run && npm run test:e2e`
-
-## 6. Backend (só se Q2 = por nota)
-
-- [ ] 6.1 Campo `publicavel` na nota do treinador + migration + toggle na tela do coach; default falso
-- [ ] 6.2 Validação: `./mvnw clean test`
+- [ ] 5.1 Botão "Compartilhar" no `WorkoutDetailDrawer` (dia com realizado) e no `TodayCompletedCard`
+- [ ] 5.2 E2E Playwright: realizado de hoje → Compartilhar → trocar modelo/formato → alternar assinatura → Salvar baixa PNG com as dimensões do formato; treino manual sem atribuição Garmin
+- [ ] 5.3 Verificação manual em iOS Safari, Android Chrome e desktop (PNG real, fontes, share sheet); registrar resultado aqui
+- [ ] 5.4 Validação: `npm run lint && npm run build && npm run test:run && npm run test:e2e`

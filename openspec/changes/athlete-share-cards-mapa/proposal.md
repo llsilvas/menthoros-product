@@ -6,9 +6,10 @@ change legal)
 **Criado:** 2026-11-08
 **Repos afetados:** `apps/menthoros-front`
 
-> Terceira de três changes. **Depende de:** `add-activity-gps-trace` (dado), `athlete-share-cards`
+> **Depende de:** `add-activity-gps-trace` (dado, mergeada 2026-11-08), `athlete-share-cards`
 > (tela, frame, assinatura, atribuição, exportação) e `lgpd-trajeto-cards-compartilhamento`
-> (Política + aviso). **Não lançar antes das três estarem em `develop`.**
+> (Política + aviso). **Não lançar antes das três estarem em `develop`.** Critério de parada: só
+> entra se `athlete-share-cards-extra` medir ≥ 10% de atletas ativos com card em 8 semanas.
 
 ## Why
 

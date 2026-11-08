@@ -1,143 +1,155 @@
-# athlete-share-cards — cards de compartilhamento do treino (sem mapa)
+# athlete-share-cards — cards de compartilhamento do treino (núcleo, sem mapa)
 
-**Tamanho:** L · **Trilha:** Full (fluxo novo no shell do atleta, geração de imagem, atribuição
+**Tamanho:** M · **Trilha:** Full (fluxo novo no shell do atleta, geração de imagem, atribuição
 obrigatória da Garmin, marca da assessoria exposta fora da plataforma)
-**Status:** proposta
-**Criado:** 2026-11-08
-**Repos afetados:** `apps/menthoros-front` (backend só se Q2 pedir campo novo)
+**Status:** proposta — DoR 2026-11-08 (fatiada)
+**Criado:** 2026-11-08 · **Revisado:** 2026-11-08 (recorte após DoR)
+**Repos afetados:** `apps/menthoros-front`
 
-> Segunda de três changes (ver `add-activity-gps-trace`). Esta entrega a tela de compartilhar e os
-> modelos que **não** dependem de GPS. O mapa fica em `athlete-share-cards-mapa`. Referência visual:
-> canvas "Compartilhar treino — cards sociais", linha **v2 · Kinetic**, nas cores do design system
-> Menthoros.
+> **Recorte (DoR 2026-11-08).** A versão L desta change prometia seis modelos. O `spec-reviewer`
+> (READY COM AJUSTES) e o Codex (NOT READY) convergiram que três dependem de dado que o atleta não
+> recebe — melhor esforço sem `treinoId` nem marca anterior (`src/types/AthleteProgress.ts:43-48`),
+> nota do treinador por treino inexistente no contrato, PMC sem proveniência de fonte — e o logo da
+> assessoria responde 403 ao atleta (`AssessoriaSettingsController.java:121`). Ficou assim:
+>
+> 1. **`athlete-share-cards`** (esta, M, só front): tela, Plano × realizado, Parciais, Semana,
+>    assinatura com sigla, atribuição Garmin. Não depende de backend novo.
+> 2. **`athlete-share-data`** (M, backend): logo para ATLETA, nome do treinador, nota publicável,
+>    melhor esforço com treino e marca anterior, endpoint de evento de compartilhamento.
+> 3. **`athlete-share-cards-extra`** (S, front, bloqueada por 2): Recorde, Nota do treinador, Rumo à
+>    prova, logo real na assinatura e instrumentação.
+> 4. **`athlete-share-cards-mapa`** (S, front): Rota e Stickers; bloqueada por
+>    `lgpd-trajeto-cards-compartilhamento`.
+>
+> Referência visual: canvas "Compartilhar treino — cards sociais", linha **v2 · Kinetic**, cores do
+> design system Menthoros.
 
 ## Why
 
-Strava e Garmin Connect deixam o atleta publicar o treino nas redes com um card bonito. O Menthoros
-não. O atleta que quer mostrar o treino vai gerar a imagem lá, e a assessoria some da história.
-
-O que só o Menthoros pode mostrar é o **plano versus o realizado**: "6 de 6 tiros no alvo", "5 de 5
-treinos da semana", a frase do treinador. Cada card publicado carrega a assinatura da assessoria e
-do treinador. É divulgação orgânica que o treinador não precisa produzir.
+Strava e Garmin Connect deixam o atleta publicar o treino com um card bonito; o Menthoros não. O
+que só o Menthoros mostra é o **plano versus o realizado** ("6 de 6 tiros no alvo", "5 de 5 treinos
+da semana"), assinado com o nome da assessoria e do treinador. É a hipótese de aquisição da trilha
+(ver `add-activity-gps-trace`, Open Questions): divulgação orgânica que o treinador não precisa
+produzir.
 
 ## Escopo
 
-1. **Tela "Compartilhar treino"** (`features/athlete/pages/AthleteShareWorkoutPage.tsx`), acessível
-   a partir do detalhe de um treino realizado e da semana no progresso:
-   - prévia ao vivo do card;
-   - seletor de **modelo**;
-   - seletor de **formato**: Story 9:16 (1080×1920), Feed 4:5 (1080×1350), Quadrado 1:1
-     (1080×1080);
-   - chaves: **Mostrar FC**, **Mostrar assessoria**, **Mostrar treinador**;
-   - destinos: **Stories**, **WhatsApp**, **Salvar**, **Mais** (Web Share API com `files`; fallback
-     para download quando não houver suporte).
-2. **Modelos desta change** (todos v2 Kinetic):
-   - **Plano × realizado** (story): manchete de aderência, perfil das etapas com pace por tiro,
-     tempo por zona;
-   - **Parciais** (feed): uma barra por tiro contra a faixa-alvo;
-   - **Semana** (quadrado, bento): km da semana, barras por dia na cor do tipo de treino, fitness,
-     treinos cumpridos, tempo;
-   - **Nota do treinador** (story): frase do treinador em destaque + resumo do treino. Só aparece
-     se existir nota do treinador no treino **e** ela estiver marcada como publicável (Q2);
-   - **Recorde** (feed): quando o treino gerou um melhor esforço (`GET /me/melhores-esforcos`),
-     o tempo em destaque com a diferença para o anterior;
-   - **Rumo à prova** (story): dias para a prova-alvo, semana do ciclo, curva de CTL
-     (`AthleteProgressService.getPmcHistorico`) e projeção (`RaceProjectionService`).
-3. **Assinatura** (`features/athlete/components/share/ShareSignature.tsx`): logo da assessoria
-   (`Assessoria.logoUrl`, com sigla como fallback), nome da assessoria e "Treinado por {nome}".
-   Modos: completa · só assessoria · nenhuma.
-4. **Atribuição Garmin** obrigatória em todo card cujo dado venha de dispositivo Garmin: texto
-   "GARMIN {deviceModel}" logo abaixo do título; "GARMIN" quando o modelo for nulo. Cards de dado
-   derivado (Semana, Prova, Recorde) trazem também a frase "derivado em parte de dados de
-   dispositivo Garmin". Base: Garmin API Brand Guidelines v6.30.2025, seções *Visual and Social
-   Media* e *Combined or Derived Data*. Treino sem fonte Garmin (manual, Strava, intervals.icu) não
-   leva a atribuição.
-5. **Geração da imagem** no cliente a partir do DOM da prévia, em 1080 px de largura, com fontes
-   embutidas. Lib a decidir (Q1).
-6. **Design system:** cores só por token (`surface-900`, `glass-*`, `primary-500` como acento de
-   marca, `semantic-success` para estado, `zone-*` nas zonas, `categorical-*` nos tipos de treino).
-   Família display para números dos cards: Q3.
+1. **Tela "Compartilhar treino"** (`features/athlete/pages/AthleteShareWorkoutPage.tsx`, rota
+   `ATHLETE_SHARE_WORKOUT` com `:treinoId`):
+   - prévia ao vivo; seletor de **modelo**; seletor de **formato** (Story 1080×1920, Feed 1080×1350,
+     Quadrado 1080×1080); chaves **Mostrar FC**, **Mostrar assessoria**, **Mostrar treinador**;
+   - destinos **Compartilhar** (Web Share API com `files`) e **Salvar** (download); o arquivo é
+     gerado **antes** do toque no destino, para o share não perder a ativação do gesto.
+2. **Pontos de entrada:** botão "Compartilhar" no `WorkoutDetailDrawer` (treino do plano já
+   realizado) e no `TodayCompletedCard` (realizado de hoje, **inclusive avulso sem planejado** —
+   a agenda nasce dos planejados, `buildWeekAgenda.ts:111`).
+3. **Modelos:**
+   - **Plano × realizado** (story) — só para treino vinculado a planejado com etapas;
+   - **Parciais** (feed) — só com ≥ 2 etapas de esforço realizadas;
+   - **Semana** (quadrado) — sempre disponível; km da semana, barras por dia na cor do tipo,
+     treinos cumpridos e tempo.
+   Modelo sem dado não aparece no seletor; o default é o primeiro disponível.
+4. **Assinatura** (`ShareSignature`): sigla da assessoria (sem logo nesta change), nome da
+   assessoria (`Usuario.assessoria.nome`) e "Treinado por {nome}" **só quando o nome do treinador
+   estiver disponível** no contrato atual (task 0.2); senão, modo só-assessoria.
+5. **Atribuição Garmin** (`GarminAttribution`), conforme API Brand Guidelines v6.30.2025:
+   - card de um treino com `fonteDados.value === 'GARMIN'`: "GARMIN {deviceName}" abaixo do título,
+     ou "GARMIN" com `deviceName` nulo;
+   - card **Semana** (dado agregado): atribuição quando **qualquer** treino da semana tem fonte
+     Garmin, com a frase "Inclui dados de dispositivo Garmin"; nenhum treino Garmin → nada.
+6. **Geração da imagem** com `html-to-image` (dependência nova, aprovada no DoR): DOM da prévia
+   renderizado em 1080 px, `document.fonts.ready` antes, fontes embutidas, modo de exportação sem
+   `backdrop-filter` nem grão (vidro opaco).
+7. **Tipografia:** Barlow Condensed (itálico 700/800) como token `display-share`, carregada no
+   `index.html`, usada só nos cards. Demais cores e tokens do design system.
 
 ## Fora do escopo
 
-- Modelos com mapa (Rota, Stickers sobre foto) — `athlete-share-cards-mapa`.
-- Postagem direta via API das redes. O atleta publica pelo share sheet do sistema.
-- Card gerado pelo coach ou em lote para a assessoria.
-- Internacionalização; copy PT-BR hardcoded como o resto do app.
+- Recorde, Nota do treinador, Rumo à prova, logo da assessoria na assinatura, instrumentação →
+  `athlete-share-cards-extra` (depois de `athlete-share-data`).
+- Rota e Stickers sobre foto → `athlete-share-cards-mapa`.
+- Postagem direta via API das redes; card gerado pelo coach.
+- Feature flag: o rollback é remover os dois botões de entrada (só front, sem migration).
 
 ## Critérios de aceite
 
-**CA1 — Acesso e prévia**
-> **Dado** um treino realizado do atleta
-> **Quando** ele toca em "Compartilhar"
-> **Então** a tela abre com o modelo Plano × realizado selecionado, formato Story, e a prévia reflete
-> os dados reais do treino (sem `MOCK_*`).
+**CA1 — Entrada e prévia**
+> **Dado** um treino realizado do atleta, vindo do plano ou avulso
+> **Quando** ele toca em "Compartilhar" no detalhe ou no card de hoje
+> **Então** a tela abre com o primeiro modelo disponível, formato Story, e a prévia mostra dados
+> reais do treino.
 
 **CA2 — Modelos condicionais**
-> **Dado** um treino sem nota publicável do treinador, sem melhor esforço e um atleta sem prova-alvo
+> **Dado** um treino avulso, sem planejado e sem etapas
 > **Quando** a tela abre
-> **Então** os modelos Nota do treinador, Recorde e Rumo à prova não aparecem no seletor.
+> **Então** só o modelo Semana aparece no seletor.
 
 **CA3 — Assinatura**
-> **Dado** as chaves "Mostrar assessoria" e "Mostrar treinador"
-> **Quando** o atleta as alterna
-> **Então** a prévia e a imagem gerada refletem o modo (completa / só assessoria / nenhuma), com
-> logo da assessoria quando `logoUrl` existir e sigla quando não.
+> **Dado** "Mostrar assessoria" ligado e "Mostrar treinador" desligado
+> **Quando** a prévia é exibida
+> **Então** aparece a sigla e o nome da assessoria, sem "Treinado por"; com "Mostrar assessoria"
+> desligado, nenhuma assinatura.
 
-**CA4 — Atribuição Garmin**
-> **Dado** um treino com `fonteDados = GARMIN` e `deviceModel = "Forerunner 265"`
-> **Quando** qualquer card é gerado
-> **Então** a imagem contém "GARMIN FORERUNNER 265" abaixo do título; com `deviceModel` nulo,
-> contém "GARMIN"; com fonte manual, não contém atribuição Garmin.
+**CA4 — Atribuição Garmin por treino**
+> **Dado** um treino com fonte Garmin e `deviceName = "Forerunner 265"`
+> **Quando** o card Plano × realizado ou Parciais é gerado
+> **Então** a imagem contém "GARMIN FORERUNNER 265" abaixo do título; com `deviceName` nulo,
+> "GARMIN"; com fonte manual, nenhuma atribuição Garmin.
 
-**CA5 — Imagem gerada**
-> **Dado** formato Story
+**CA5 — Atribuição Garmin agregada**
+> **Dado** uma semana com um treino Garmin e dois manuais
+> **Quando** o card Semana é gerado
+> **Então** a imagem contém a atribuição Garmin; numa semana só com treinos manuais, não contém.
+
+**CA6 — Salvar**
+> **Dado** o formato Story
 > **Quando** o atleta toca em Salvar
-> **Então** um PNG 1080×1920 é baixado, com as fontes corretas e sem elementos cortados; em
-> dispositivo com Web Share API, Stories/WhatsApp/Mais abrem o share sheet com o arquivo.
+> **Então** um PNG 1080×1920 é baixado, com Barlow Condensed nos números e nada cortado.
 
-**CA6 — Acessibilidade da tela**
+**CA7 — Compartilhar e falhas**
+> **Dado** um navegador com `navigator.canShare({ files })`
+> **Quando** o atleta toca em Compartilhar
+> **Então** o share sheet abre com o PNG; se o atleta cancelar, nada acontece e nenhuma mensagem de
+> erro aparece; se o share falhar, aparece "Não deu para compartilhar — use Salvar"; sem suporte a
+> share de arquivo, o botão Compartilhar não aparece.
+
+**CA8 — Estados**
+> **Dado** a tela de compartilhar
+> **Quando** os dados estão carregando, falham ou o treino não existe
+> **Então** aparece skeleton, mensagem de erro com "Tentar de novo", ou "Treino não encontrado"
+> com volta ao início, respectivamente.
+
+**CA9 — Acessibilidade**
 > **Dado** a tela de compartilhar
 > **Quando** navegada por teclado ou leitor de tela
-> **Então** seletores são `radiogroup`, chaves são `switch` com rótulo, alvos de toque ≥ 44 px, e a
-> prévia tem `aria-label` descrevendo o card.
+> **Então** seletores são `radiogroup`, chaves são `switch` com rótulo, alvos ≥ 44 px e a prévia
+> tem `aria-label` descrevendo o card.
 
 ## Métrica de sucesso
 
-- % de treinos realizados que geram ao menos um card nos 30 primeiros dias (meta inicial: 10%).
-- % de cards gerados com assinatura da assessoria ativa (meta: ≥ 80%; é o valor para o treinador).
-- Zero card com dado Garmin sem atribuição (verificável por teste de componente).
-- **Instrumentação obrigatória:** evento por card gerado (modelo, formato, assinatura ligada ou
-  não, destino). É o único sinal da hipótese de aquisição da trilha e o critério de parada de
-  `athlete-share-cards-mapa` (ver `add-activity-gps-trace`, Open Questions).
+Sem telemetria no front hoje (DoR, G6); a medição real chega em `athlete-share-cards-extra`, com o
+endpoint de evento de `athlete-share-data`. Nesta change: **zero card com dado Garmin sem
+atribuição** (garantido por teste de componente) e o fluxo validado em iOS Safari, Android Chrome e
+desktop (task 5.3).
 
 ## Open Questions & Assumptions
 
-- **Q1 — Lib de geração de imagem.** `html-to-image` (via `foreignObject`, preserva CSS moderno,
-  precisa embutir fontes) vs. render no servidor (Playwright). Recomendação: `html-to-image` no
-  cliente; sem `backdrop-filter` e sem o grão SVG no modo de exportação (fallback para vidro
-  opaco), porque não rasterizam de forma confiável. Dependência nova: precisa de aprovação.
-- **Q2 — Nota do treinador publicável.** O treinador precisa autorizar que a frase dele saia da
-  plataforma. Opções: campo `publicavel` por nota (backend, S) ou preferência global do treinador
-  "minhas notas podem aparecer nos cards". Recomendação: por nota, opt-in, default falso. Se
-  escolhida, vira task de backend nesta change.
-- **Q3 — Tipografia dos números.** O canvas usa Barlow Condensed itálico 800, fora do design
-  system (Space Grotesk). Decidir: adotar Barlow Condensed como token `display-share` (carregar
-  no `index.html`) ou usar Space Grotesk 700. Afeta só os cards.
-- **Q4 — Onde fica o botão Compartilhar.** Detalhe do treino realizado e card da semana no
-  progresso são os pontos óbvios; confirmar se o treino de hoje (após concluir) também mostra.
-- **Premissa:** `Assessoria.logoUrl` já existe e é servido ao atleta; se não estiver no DTO do
-  atleta, adicionar é uma task pequena de backend.
-- **Premissa:** os nomes de assessoria e treinador vêm do vínculo atual do atleta, não de
-  cadastro novo.
+- **Q1 — Lib de imagem.** Resolvida: `html-to-image` (dependência aprovada no DoR).
+- **Q2 — Nota do treinador.** Movida para `athlete-share-data` / `athlete-share-cards-extra`.
+- **Q3 — Tipografia.** Resolvida: Barlow Condensed como `display-share`.
+- **Q4 — Entrada.** Resolvida: `WorkoutDetailDrawer` + `TodayCompletedCard`.
+- **Premissa a confirmar na task 0.2:** o nome do treinador do atleta chega pelo contrato atual
+  (`AthleteCoachPage` mostra o treinador). Se não chegar, "Treinado por" fica para `extra`.
+- **Premissa:** `GET /me/treinos` já devolve `etapasRealizadas` e `tempoEmZonas` (o
+  `TreinoRealizadoOutputDto` do backend tem os dois); o tipo do front (`TreinoManual.ts`) só precisa
+  passar a declará-los.
 
 ## Riscos e mitigações
 
-- **Fontes não carregadas na exportação** → imagem com fallback feio. Mitigação: aguardar
-  `document.fonts.ready` e embutir as fontes como data URI na exportação.
-- **Dados Garmin sem atribuição** → risco de suspensão da API (Brand Guidelines). Mitigação: a
-  atribuição é componente único (`GarminAttribution`) renderizado pelo container, não por cada
-  modelo; teste de componente garante presença.
-- **Marca da assessoria exposta sem controle do tenant.** Mitigação: Q2 para a nota; a assinatura
-  usa só nome e logo já públicos no app do atleta.
-- **Pendências do Full track:** `product-reviewer` e pre-mortem não rodaram; task 0.
+- **Fontes não embutidas na exportação.** `document.fonts.ready` + embed via `html-to-image`;
+  teste de componente verifica o `fontEmbedCSS`.
+- **Share sem ativação de gesto em iOS.** Arquivo pré-gerado ao trocar modelo/formato.
+- **Dado Garmin sem atribuição** → suspensão da API. Atribuição é componente único renderizado pelo
+  frame, não por cada modelo; teste cobre CA4 e CA5.
+- **DoR:** spec-reviewer READY COM AJUSTES, Codex NOT READY na versão L; recorte e ajustes
+  incorporados nesta revisão.
