@@ -7,15 +7,15 @@
 
 ## 1. Fundação
 
-- [ ] 1.1 Tipos: `etapasRealizadas` e `tempoEmZonas` em `TreinoRealizadoDto`; trazer `GpsTrace`/`temTrajeto`/`getTrajeto` (já preparados em `develop` sem commit) para a branch
+- [x] 1.1 Tipos: `etapasRealizadas: EtapaRealizadaDetalhe[]` e `tempoEmZonas` em `TreinoRealizadoDto`; cliente do trajeto trazido do `develop` (`a64306d`)
   verify: `tsc -b`
-- [ ] 1.2 Adapter puro `buildShareCardData` (+ `availableModels`, `garminAttributionFor`, sigla) com testes
-  verify: `*.test.ts` cobre CA2, CA4, CA5 e sigla
-- [ ] 1.3 Hook `useShareWorkout(treinoId)`: lista recente + plano da semana + usuário; `loading`/`error`/`notFound`
-  verify: teste do hook com service mockado
-- [ ] 1.4 Rota `ATHLETE_SHARE_WORKOUT` e `AthleteShareWorkoutPage` com estados (CA8)
-  verify: teste com `createHashRouter` (não `MemoryRouter`)
-- [ ] 1.5 Validação: `npm run lint && npm run build && npm run test:run`
+- [x] 1.2 Adapter puro `buildShareCardData` (+ `availableModels`, `garminAttributionFor`, `siglaDe`) com 13 testes. **Desvio do canvas:** o card Plano × realizado não mostra "N de M tiros no alvo" — as voltas do `.fit` não trazem tipo de etapa nem há faixa-alvo parseável por repetição; mostra o perfil planejado e distância/duração/pace realizados. Parciais = voltas (≥ 2 com pace)
+  verify: `buildShareCardData.test.ts` cobre CA2, CA4, CA5 e sigla
+- [x] 1.3 Hook `useShareWorkout(treinoId)`: `getMe` + `listarRecentes(30)` em paralelo; planejado procurado em todos os planos por `treinoRealizadoId` (404 = sem planejado); `loading`/`error`/`notFound`
+  verify: `useShareWorkout.test.ts` (5)
+- [x] 1.4 Rota `/athlete/share/:treinoId` (`athleteShareWorkoutRoute`) e `AthleteShareWorkoutPage` com skeleton, erro com "Tentar de novo" e "Treino não encontrado" (CA8); conteúdo provisório até a seção 2
+  verify: `AthleteShareWorkoutPage.test.tsx` com `createHashRouter` (4)
+- [x] 1.5 Validação: lint e build verdes; `test:run` 296 arquivos / 2912 testes, 0 erros (a 1ª rodada teve 6 erros não tratados do meu teste da página — atribuir `location.hash` fazia routers antigos navegarem; corrigido com `history.replaceState` + `router.dispose()`)
 
 ## 2. Componentes compartilhados
 
