@@ -54,5 +54,5 @@ partir de `develop` **depois** do merge do PR 206 (`inbox-proximo-em-atencao` â€
 
 ## 4. Fechamento
 
-- [ ] 4.1 Tasks marcadas; `/done`. Ao retomar `coach-inbox-notebook-height`, marcar 4.1 como
+- [x] 4.1 Tasks marcadas; `/done` (PR 207 mergeado em `develop` em 2026-11-07). Ao retomar `coach-inbox-notebook-height`, marcar 4.1 como
       entregue aqui.

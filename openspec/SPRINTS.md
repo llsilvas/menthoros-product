@@ -2,7 +2,18 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-07 (**`inbox-proximo-em-atencao` arquivada** — front PR #206
+**Última atualização:** 2026-11-07 (**`inbox-kpis-atleta-sem-dado` arquivada** — front PR #207
+(mergeado em `develop` em 2026-11-07). S · Fast, só front. 10/10 tasks. Achado #5 da crítica de
+design: faixa de KPIs do atleta em uma linha (`KpiCell`/`KpiStrip` `dense`, linha de apoio no
+`title` e em texto de leitor de tela; 93px → ≤ 40px sem dado, ≤ 56px com valores cheios), ausência
+de dado dita uma vez abaixo da faixa com o link "Conferir integração" (só com perfil carregado),
+banner do Diagnóstico fora (`EmptyMetricState` removido), rótulo "Ader." na aderência da lista.
+Detalhe em 1366×625 de 57% para ≥ 62%. **DoR:** spec-reviewer e Codex deram NOT READY (aviso no
+roster fallback, `detail: null` vs. `string`, E2E de 11px conta `clip`, CA6 já alcançado) — spec
+corrigida antes do init. Ao retomar `coach-inbox-notebook-height`, marcar 4.1/D3 como entregues.
+Arquivada em `changes/archive/2026-11/2026-11-07-inbox-kpis-atleta-sem-dado/`.)
+
+**Anterior:** 2026-11-07 (**`inbox-proximo-em-atencao` arquivada** — front PR #206
 (mergeado em `develop` em 2026-11-07). S · Fast, só front. 10/10 tasks. Fluxo de triagem no inbox:
 "Próximo em atenção · {nome}" no fim do Diagnóstico (próximo com sinal entre as linhas visíveis;
 "Fim da fila de atenção" no último), tecla N com guardas (modificadores, campos de texto, overlay
@@ -12,7 +23,7 @@ só com prova cadastrada e perfil carregado. Delta promovido a `specs/coach-inbo
 2026-11-07 — aviso só com `hasWindowData` falso e perfil carregado, CA6 ≥ 62%). Arquivada em
 `changes/archive/2026-11/2026-11-07-inbox-proximo-em-atencao/`.)
 
-**Anterior:** 2026-11-07 (**`inbox-lista-triagem` arquivada** — front PR #205
+**Anterior (2):** 2026-11-07 (**`inbox-lista-triagem` arquivada** — front PR #205
 (mergeado em `develop` em 2026-11-07). S · Fast, só front. 9/9 tasks. Coluna da lista do inbox
 como ferramenta de triagem: linha de 46px (7 atletas visíveis em 1366×625, antes 2,5), uma linha
 de contexto (sinal da fila → pausado → status do roster → fase/último treino), filtro Todos · Em
@@ -22,7 +33,7 @@ mantinha `page` em estado e URL com efeitos que brigavam (2 ↔ 0); a página pa
 ausente não é "sem plano". Delta promovido a `specs/coach-inbox-triage/`. Arquivada em
 `changes/archive/2026-11/2026-11-07-inbox-lista-triagem/`.)
 
-**Anterior (2):** 2026-11-07 (**`inbox-barra-unica-sem-rodape` arquivada** — front PR #204
+**Anterior (3):** 2026-11-07 (**`inbox-barra-unica-sem-rodape` arquivada** — front PR #204
 (mergeado em `develop` em 2026-11-07). S · Fast, só front. 9/9 tasks. Os dois críticos da crítica
 de design do inbox: cabeçalho + faixa de KPIs (~136px) viram uma barra de 53px com resumo em linha
 ("em atenção" pela fila completa) e busca; o rodapé de ações simuladas sai e "Ajustar plano" sobe
