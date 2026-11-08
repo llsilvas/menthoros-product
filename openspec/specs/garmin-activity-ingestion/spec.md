@@ -100,6 +100,41 @@ enviado pelo Garmin e subido à mão SHALL produzir um único treino.
 - **WHEN** o arquivo baixado não é um FIT válido
 - **THEN** o aviso fica em erro com motivo, sem nova tentativa, e nada é persistido
 
+### Requirement: Trajeto GPS do treino realizado
+O pipeline FIT (Garmin e upload manual) SHALL extrair as coordenadas dos registros do arquivo,
+simplificá-las (no máximo 400 pontos) e persistir o trajeto no treino realizado como polyline
+codificada com tempo relativo e FC por ponto, sem reter os pontos brutos nem o arquivo. Um treino
+sem GPS SHALL ficar sem trajeto. O trajeto SHALL ser exposto ao atleta em endpoint próprio, e a
+listagem SHALL indicar apenas se ele existe. O trajeto SHALL ser completo, incluindo início e fim
+(a transparência ao titular fica em `lgpd-trajeto-cards-compartilhamento`). Treinos anteriores a
+esta capacidade SHALL ficar sem trajeto, porque o arquivo não é retido.
+
+#### Scenario: Corrida outdoor
+- **WHEN** um FIT com registros de posição é processado
+- **THEN** o treino tem trajeto com 2 a 400 pontos, cujos extremos são o primeiro e o último
+  registro válido do arquivo, e a listagem do atleta marca o treino como tendo trajeto
+
+#### Scenario: Esteira ou indoor
+- **WHEN** um FIT sem registros de posição é processado
+- **THEN** o treino é criado normalmente, sem trajeto, e a listagem o marca como sem trajeto
+
+#### Scenario: Coordenada inválida
+- **WHEN** alguns registros trazem posição nula ou a sentinela de inválido do formato
+- **THEN** esses registros são ignorados e os demais formam o trajeto
+
+#### Scenario: Consulta do trajeto
+- **WHEN** o atleta pede o trajeto de um treino seu que tem GPS
+- **THEN** recebe a polyline, o tempo relativo e a FC por ponto, mais o modelo do dispositivo
+
+#### Scenario: Trajeto de outro atleta, de outro tenant ou inexistente
+- **WHEN** o atleta pede o trajeto de um treino que não é seu, é de outro tenant ou não tem GPS
+- **THEN** a resposta é a mesma nos três casos: não encontrado, sem revelar que o treino existe
+
+#### Scenario: Atividade longa
+- **WHEN** um FIT de ultramaratona com dezenas de milhares de registros é processado
+- **THEN** o número de pontos mantidos em memória durante o processamento tem teto fixo e o
+  trajeto persistido respeita os 400 pontos
+
 ### Requirement: Atribuição de origem Garmin
 Todo lugar que mostra um treino realizado de fonte Garmin SHALL exibir "Garmin [modelo]" junto ao
 título do treino, visível sem interação, ou "Garmin" quando o modelo é desconhecido: card do treino
@@ -116,8 +151,14 @@ treinador e detalhe do treino. Treinos de outras fontes SHALL NOT exibir atribui
 - **THEN** cada linha traz a atribuição, ou o cabeçalho a traz uma vez para a lista inteira
 
 #### Scenario: Modelo desconhecido
-- **WHEN** o Garmin não informou o modelo do dispositivo
+- **WHEN** nem o aviso do Garmin nem o arquivo FIT informam o modelo do dispositivo
 - **THEN** o texto é "Garmin"
+
+#### Scenario: Modelo só no arquivo
+- **WHEN** o aviso do Garmin não informa o modelo, ou o arquivo foi subido à mão, mas o FIT traz o
+  nome do produto
+- **THEN** o modelo registrado é o do arquivo; quando o aviso informa um modelo, ele prevalece
+  sobre o do arquivo
 
 #### Scenario: Treino do intervals.icu
 - **WHEN** o treino tem fonte intervals.icu

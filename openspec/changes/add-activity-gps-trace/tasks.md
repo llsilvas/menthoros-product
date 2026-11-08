@@ -45,6 +45,6 @@
 
 ## 5. Fechamento
 
-- [ ] 5.1 Teste de integração ponta a ponta: ingestão por upload de `.fit` outdoor → `gps_trace` gravado → endpoint do atleta devolve; esteira → `temTrajeto=false` e 404 no trajeto
-- [ ] 5.2 Atualizar `openspec/specs/garmin-activity-ingestion/spec.md` (delta: trajeto e fallback do modelo)
+- [x] 5.1 `GpsTraceIT` (failsafe, Testcontainers): upload de `.fit` outdoor → `gps_trace` gravado → endpoint 200 com 2–400 pontos; outro atleta do mesmo tenant → 404; esteira sintética sem posição → `gps_trace` nulo e 404
+- [x] 5.2 `openspec/specs/garmin-activity-ingestion/spec.md`: requisito "Trajeto GPS do treino realizado" (6 cenários) e cenário "Modelo só no arquivo" na atribuição Garmin
 - [ ] 5.3 Validação final: `./mvnw clean test`
