@@ -28,11 +28,11 @@
 
 ## 3. Modelos
 
-- [ ] 3.1 `PlanVsActualCard`
-- [ ] 3.2 `SplitsCard`
-- [ ] 3.3 `WeekCard` (atribuição agregada, CA5)
-- [ ] 3.4 Testes por modelo com fixtures reais; nenhum `MOCK_*`
-- [ ] 3.5 Validação: `npm run lint && npm run build && npm run test:run`
+- [x] 3.1 `PlanVsActualCard`: título, atribuição abaixo do título, perfil do plano em blocos por estágio (`trainingStage`), km em Barlow, "de N km planejados", tempo/pace/FC (FC some com a chave desligada)
+- [x] 3.2 `SplitsCard`: uma barra por volta em `trainingStage.esforco`, mais rápida mais alta, melhor volta em opacidade cheia; lista acessível com os paces
+- [x] 3.3 `WeekCard`: km da semana, barras por dia na cor do tipo (`workoutTypeColor`), treinos e tempo; atribuição agregada (CA5)
+- [x] 3.4 `shareCards.test.tsx` (7) com fixtures no formato da API passadas pelo adapter; nenhum `MOCK_*`. `ShareStat` extraído para a linha de métricas
+- [x] 3.5 Validação: lint e build verdes; `test:run` 298 arquivos / 2929 testes, 0 erros
 
 ## 4. Exportação e destinos
 
