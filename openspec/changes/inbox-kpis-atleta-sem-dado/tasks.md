@@ -36,6 +36,12 @@ partir de `develop` **depois** do merge do PR 206 (`inbox-proximo-em-atencao` �
       e em erro) e `DiagnosisTabPanel.test.tsx` (CA3, CA4).
       verify: `npx vitest run src/features/coach/pages/CoachInboxPage src/features/coach/components/panels/DiagnosisTabPanel`.
 - [ ] 2.3 Validação: lint, build, test:run.
+- [ ] 2.4 `QueueRow` e `AttentionOnlyRow`: a célula `queue-row-aderencia` ganha o rótulo "Ader."
+      antes do número (`surface-400`, `0.6875rem`, sem mono); o número mantém a cor por faixa;
+      sem dado continua "Ader. —". `aria-label` inalterado. Testes em `QueueRow.test.tsx`
+      (ou o existente da linha). Decisão do founder em 2026-11-07: "a porcentagem no card ficou
+      solta sem sentido".
+      verify: `npx vitest run src/features/coach/components/QueueRow`.
 
 ## 3. E2E
 

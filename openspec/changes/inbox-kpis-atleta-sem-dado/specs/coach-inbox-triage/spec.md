@@ -37,3 +37,15 @@ dado, e SHALL NOT repetir a mesma ausência nas células (texto ou `title`) nem 
 #### Scenario: Selo de confiança
 - **WHEN** o ACWR é de baixa confiança
 - **THEN** o selo "Baixa confiança" continua visível ao lado do valor
+
+### Requirement: Aderência na linha da lista com rótulo
+
+Cada linha da lista do inbox SHALL mostrar a aderência com o rótulo "Ader." antes do valor.
+
+#### Scenario: Com aderência
+- **WHEN** a linha tem aderência disponível de 78%
+- **THEN** a célula lê "Ader. 78%", com o número na cor da faixa
+
+#### Scenario: Sem aderência
+- **WHEN** a linha não tem aderência disponível
+- **THEN** a célula lê "Ader. —"

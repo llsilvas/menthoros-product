@@ -43,6 +43,9 @@ Só `apps/menthoros-front`.
   `quickStats.hasWindowData` é falso): a linha abaixo da faixa já disse. No lugar da grade, nada.
   `EmptyMetricState.tsx` fica sem consumidor (era o único) — o componente e seu teste são
   removidos.
+- **Rótulo na aderência da lista** (`QueueRow`/`AttentionOnlyRow`): o número mono à direita da
+  linha passa a "Ader. 78%" — rótulo em `surface-400`, número com a cor por faixa. Pedido do
+  founder em 2026-11-07, a mesma dor: valor sem legenda.
 - O `KpiStrip` do resumo do Diagnóstico ("Carga aguda", "Monotonia", "Strain", "Forma
   prevista") continua no modo atual: ali a linha de apoio é evidência, não legenda.
 
@@ -63,6 +66,7 @@ Só `apps/menthoros-front`.
 - `src/features/coach/pages/CoachInboxPage.tsx` (aviso abaixo da faixa, com gate de perfil) e teste.
 - `src/features/coach/components/panels/DiagnosisTabPanel.tsx` (sem `EmptyMetricState` das
   métricas) e teste; `EmptyMetricState.tsx` e `EmptyMetricState.test.tsx` removidos.
+- `src/features/coach/components/QueueRow.tsx`, `AttentionOnlyRow.tsx` (rótulo "Ader.") e testes.
 - `tests/e2e/coach/inbox.spec.ts` (altura do detalhe em 1366×625 sobe; aviso único).
 - Depende do merge de `inbox-proximo-em-atencao` (mesmos `CoachInboxPage.tsx` e
   `DiagnosisTabPanel.tsx`).
@@ -87,7 +91,9 @@ Só `apps/menthoros-front`.
    máximo 40px (o aviso fica fora da faixa e não entra na conta) e `inbox-detalhe-conteudo` ocupa
    ≥ 62% da altura (medido em 2026-11-07: 57% hoje; −53px de faixa, +~16px de aviso ≈ +6%; o
    E2E atual só afirma ≥ 45%).
-7. **Regressão** — lint, build, `test:run`, E2E verdes; `AthleteKpiStrip.test.tsx` ("não corta a
+7. **Aderência com rótulo na lista** — Given uma linha da lista com aderência 78%, Then a célula
+   lê "Ader. 78%"; Given sem dado, Then "Ader. —".
+8. **Regressão** — lint, build, `test:run`, E2E verdes; `AthleteKpiStrip.test.tsx` ("não corta a
    linha de apoio em uma linha só") reescrito para o modo `dense`.
 
 ## Métrica de sucesso
