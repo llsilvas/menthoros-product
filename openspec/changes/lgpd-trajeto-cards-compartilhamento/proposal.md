@@ -47,8 +47,8 @@ sensível.
 
 ## Fora do escopo
 
-- Os cards de compartilhamento em si (mapa, modelos, tela de compartilhar). Ficam numa change
-  própria, ainda não criada; esta change é **pré-requisito do lançamento** dela.
+- Os cards de compartilhamento em si: `athlete-share-cards` (sem mapa) e
+  `athlete-share-cards-mapa` (com mapa). Esta change é **pré-requisito do lançamento** da segunda.
 - Ocultar ou cortar início e fim do trajeto. A decisão foi não ocultar.
 - Extrair e armazenar o traçado do `.fit`, que fica na change dos cards.
 - Um fluxo genérico de consentimento LGPD do atleta (modal bloqueante equivalente ao

@@ -6,7 +6,7 @@
 - [ ] 0.2 Rodar o pre-mortem (`/codex:adversarial-review`) e incorporar em "Riscos e mitigações"
 - [ ] 0.3 Resolver Q1 (onde guardar a confirmação), Q2 (base legal, com DPO/jurídico), Q3 (re-aceite dos coaches) e Q4 (controladora)
 - [ ] 0.4 Escrever o `design.md` com as decisões de 0.3
-- [ ] 0.5 Confirmar que a change dos cards de compartilhamento existe e declara esta como dependência bloqueante
+- [x] 0.5 Confirmar que a change dos cards com mapa (`athlete-share-cards-mapa`) declara esta como dependência bloqueante
 
 ## 1. Política de Privacidade (frontend)
 
