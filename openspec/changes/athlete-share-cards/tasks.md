@@ -36,10 +36,10 @@
 
 ## 4. Exportação e destinos
 
-- [ ] 4.1 Adicionar `html-to-image`; `useShareImage`: nó oculto em 1080 px, `document.fonts.ready`, blob pré-gerado, regeração ao mudar opção
-- [ ] 4.2 Destinos Compartilhar (canShare/share, AbortError silencioso, erro com mensagem) e Salvar (download) — CA6, CA7
-- [ ] 4.3 Testes de componente dos destinos com `navigator.share` mockado
-- [ ] 4.4 Validação: `npm run lint && npm run build && npm run test:run`
+- [x] 4.1 `html-to-image` 1.11.13 (exato); `useShareImage(ref, version)`: `document.fonts.ready` → `toBlob` do próprio `ShareCardFrame` com `pixelRatio: 3`; blob pré-gerado e regerado quando modelo/formato/chaves mudam, descartando resultado antigo. **Por que pré-gerar:** o Safari iOS só aceita `navigator.share` com ativação de usuário recente — rasterizar dentro do clique consome a janela
+- [x] 4.2 `ShareDestinations`: Compartilhar só aparece com `canShare({files})`; `AbortError` silencioso; outra falha mostra "Não deu para compartilhar — use Salvar"; Salvar baixa `menthoros-<modelo>-<formato>.png` (CA6, CA7). Botões desabilitados com "Gerando imagem…" enquanto o blob não existe; falha na rasterização vira alerta
+- [x] 4.3 `ShareDestinations.test.tsx` (7) com `navigator.share`/`canShare` mockados; `useShareImage.test.ts` (3: pixelRatio, regeração descartando resultado velho, erro); integração na `ShareWorkoutView` (Salvar habilita após gerar). `html-to-image` mockado nos testes de tela — jsdom não rasteriza
+- [x] 4.4 Validação: lint e build verdes; `test:run` 300 arquivos / 2940 testes, 0 erros. PNG real ainda não verificado num navegador (fica para 5.2/5.3)
 
 ## 5. Entradas e E2E
 
