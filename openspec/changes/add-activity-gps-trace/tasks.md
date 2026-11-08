@@ -8,21 +8,22 @@
 
 ## 1. Parser FIT
 
-- [ ] 1.1 Record `FitAmostraGps(long timestampSeg, double lat, double lng, @Nullable Integer fc)` em `dto/fit`; em `FitParseServiceImpl`, estender o `RecordMesgListener` para capturar `position_lat`/`position_long` (semicírculo → grau), descartando nulos e `0x7FFFFFFF`, com decimação on-line ≥ 5 m (`getDistance()` acumulada, fallback haversine) e teto `MAX_PONTOS_GPS = 20_000` que dobra o passo ao ser atingido
+- [x] 1.1 Record `FitGpsSample(long timestampSeg, double lat, double lng, @Nullable Integer fc)` em `dto/fit` (nome em inglês, ADR-0007) e coletor `services/helper/GpsSampleCollector`; em `FitParseServiceImpl`, estender o `RecordMesgListener` para capturar `position_lat`/`position_long` (semicírculo → grau), descartando nulos e `0x7FFFFFFF`, com decimação on-line ≥ 5 m (`getDistance()` acumulada, fallback haversine) e teto `MAX_PONTOS_GPS = 20_000` que dobra o passo ao ser atingido
   verify: fixture outdoor retorna lista decimada; esteira retorna lista vazia; ponto inválido é pulado; fixture sintética com 100k pontos a 6 m nunca passa de 20k em memória e preserva os extremos
-- [ ] 1.2 Ler `DeviceInfoMesg.getProductName()` (fallback `FileIdMesg.getProductName()`) e expor em `FitSessionData.deviceName`
+- [x] 1.2 Ler `DeviceInfoMesg.getProductName()` (fallback `FileIdMesg.getProductName()`) e expor em `FitSessionData.deviceName`
   verify: fixture FR265 → `"Forerunner 265"`; fixture sem a mensagem → nulo
-- [ ] 1.3 Validação: `./mvnw clean test`
+- [x] 1.3 Validação: `./mvnw clean test`
 
 ## 2. Simplificação e codificação
 
-- [ ] 2.1 `GpsTraceSimplifier` (`services/helper`): Douglas-Peucker com tolerância 10 m e teto 400 pontos (dobra a tolerância até caber); mantém primeiro e último ponto; `< 2` pontos → vazio
+- [x] 2.1 `GpsTraceSimplifier` (`services/helper`): Douglas-Peucker com tolerância 10 m e teto 400 pontos (dobra a tolerância até caber); mantém primeiro e último ponto; `< 2` pontos → vazio
   verify: testes unitários de preservação de extremos, teto e lista vazia
-- [ ] 2.2 `GpsTraceCodec`: codifica polyline (Google, precisão 5) + `tSeg` + `fc` no JSON `{v:1,n,polyline,tSeg,fc}`; decodifica para o teste de ida e volta
-  verify: ida e volta com erro ≤ 1e-5 grau
+- [x] 2.2 `GpsTraceCodec` + record `GpsTracePayload` (`dto/fit`): codifica polyline (Google, precisão 5) + `tSeg` + `fc` no JSON `{v:1,n,polyline,tSeg,fc}`; decodifica para o teste de ida e volta
+  verify: ida e volta com erro ≤ 1e-5 grau; bate com o exemplo de referência do Google
 - [ ] 2.3 Validar tolerância (Q2) com 3 `.fit` reais (parque, rua, trilha) em `src/test/resources/fit/`; registrar `pg_column_size` estimado no `design.md`
   verify: os 3 ficam ≤ 400 pontos e ≤ 8 KB; curvas de rua visíveis no SVG gerado pelo teste
-- [ ] 2.4 Validação: `./mvnw clean test`
+  **Parcial (2026-11-08):** só existe 1 fixture real (`corrida-15km-16laps.fit`, rua); ela cabe em 400 pontos e < 8 KB (teste `GpsTraceCodecTest.realFixtureFitsBudget`). Faltam parque e trilha — pedir 2 `.fit` reais ao founder; sem eles a tolerância de 10 m segue como premissa.
+- [x] 2.4 Validação: `./mvnw clean test` — 6434 testes, 0 falhas, 1 erro flaky pré-existente fora do escopo (`IntervalsIcuClientImplTest.BuscarAtividade.sucessoRetornaActivity`: stub WireMock de 403 vazado de outro teste; passa isolado)
 
 ## 3. Persistência
 
