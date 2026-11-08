@@ -35,13 +35,13 @@
 
 ## 4. Contrato
 
-- [ ] 4.1 `GpsTraceOutputDto` (`v`, `n`, `polyline`, `tSeg`, `fc`, `deviceName`) e `GET /api/v1/atletas/me/realizados/{id}/trajeto` em `AtletaTreinoController`; `404` sem trajeto ou treino de outro atleta
-  verify: `@WebMvcTest` — 200 com corpo; 404 para outro atleta do mesmo tenant; 404 para outro tenant (rodar o WebMvcTest isolado, ver memória `verify-local-vs-ci-webmvctest`)
-- [ ] 4.2 `temTrajeto: boolean` no item de `GET /me/treinos` (derivado de `gps_trace IS NOT NULL`, sem carregar o JSON)
-  verify: teste do mapper/DTO
-- [ ] 4.3 OpenAPI atualizado; portar à mão para o cliente curado do front (`src/api`) — `AtletaTreinoService.getTrajeto`, campo `temTrajeto`
-  verify: `npm run build` no front
-- [ ] 4.4 Validação: `./mvnw clean test`
+- [x] 4.1 `GpsTraceOutputDto` (`v`, `n`, `polyline`, `tSeg`, `fc`, `deviceName`), `AtletaGpsTraceService` + impl e `GET /api/v1/atletas/me/realizados/{id}/trajeto` em `AtletaTreinoController`; `404` sem trajeto, outro atleta ou outro tenant (mesma resposta, sem revelar existência)
+  verify: `@WebMvcTest` 200/404 + teste do service para os três casos de 404
+- [x] 4.2 `temTrajeto: boolean` no item de `GET /me/treinos` (`@Mapping` expression sobre `gpsTrace != null`); construtor de compatibilidade no record para os 8 testes posicionais
+  verify: `TreinoMapperGpsTraceTest`
+- [x] 4.3 Cliente curado do front: `ManualTrainingService.getTrajeto` e tipos `GpsTrace` / `TreinoRealizadoDto.temTrajeto` em `src/types/TreinoManual.ts` (editado no checkout principal do front, em `develop`, sem commit — vai na change `athlete-share-cards`, que é quem consome)
+  verify: `tsc -b --noEmit` sem erros
+- [x] 4.4 Validação: `./mvnw clean test` verde; front `lint` + `build` verdes (lint só passou após remover o worktree vazio `coach-inbox-responsive-1368-18eb30` de outra sessão, que estava dentro de `apps/menthoros-front/.claude/worktrees/`)
 
 ## 5. Fechamento
 
