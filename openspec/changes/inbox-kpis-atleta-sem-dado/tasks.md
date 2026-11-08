@@ -50,7 +50,7 @@ partir de `develop` **depois** do merge do PR 206 (`inbox-proximo-em-atencao` �
       ≥ 62% em 1366×625 (CA1, CA6 — hoje 57%, o teste afirma 45%); "Sem dado na janela" zero
       vezes e um `inbox-kpi-aviso` com `perfilDe(...)` (já vem com `pmc: []`) (CA3); o teste de
       11px continua. verify: `npx playwright test inbox`.
-- [ ] 3.2 Suite completa; `/qa`; PR → `develop`.
+- [x] 3.2 Suite completa; `/qa`; PR → `develop` — https://github.com/llsilvas/menthoros-front/pull/207.
 
 ## 4. Fechamento
 
