@@ -27,11 +27,11 @@
 
 ## 3. Persistência
 
-- [ ] 3.1 Migration `V113__Add_gps_trace_to_treino_realizado.sql`: `ALTER TABLE tb_treino_realizado ADD COLUMN IF NOT EXISTS gps_trace JSONB NULL` (aditiva, sem backfill)
-- [ ] 3.2 `TreinoRealizado.gpsTrace` com `@JdbcTypeCode(SqlTypes.JSON)` (padrão de `RaceProjectionSnapshot`)
-- [ ] 3.3 `FitTreinoPersister`: grava `gpsTrace` (simplificado + codificado) e usa `FitSessionData.deviceName` como fallback de `deviceName` apenas quando o valor atual é nulo (precedência ping → `.fit`)
+- [x] 3.1 Migration `V113__Add_gps_trace_to_treino_realizado.sql`: `ALTER TABLE tb_treino_realizado ADD COLUMN IF NOT EXISTS gps_trace JSONB NULL` (aditiva, sem backfill)
+- [x] 3.2 `TreinoRealizado.gpsTrace` (String JSON) com `@JdbcTypeCode(SqlTypes.JSON)` (padrão de `RaceProjectionSnapshot`)
+- [x] 3.3 `FitTreinoPersister`: grava `gpsTrace` via `GpsTraceCodec.toJson` (simplifica + codifica + serializa) e usa `FitSessionData.deviceName` como fallback de `deviceName` (precedência ping → `.fit`, também na duplicata)
   verify: teste do persister — ping com nome prevalece; upload manual preenche; duplicata não sobrescreve
-- [ ] 3.4 Validação: `./mvnw clean test`
+- [x] 3.4 Validação: `./mvnw clean test` — 6438 testes, 0 falhas, 0 erros
 
 ## 4. Contrato
 
