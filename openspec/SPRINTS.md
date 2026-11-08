@@ -2,7 +2,16 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-07 (**`inbox-kpis-atleta-sem-dado` arquivada** — front PR #207
+**Última atualização:** 2026-11-08 (**`add-activity-gps-trace` arquivada** — backend PR #227
+(squash `730fd13` em `develop`, 2026-11-08). M · Full, só backend, migration `V113` aditiva. Primeira
+das três changes dos cards de compartilhamento: parser FIT lê lat/long e `productName`, trajeto
+simplificado (≤ 400 pontos) em `gps_trace JSONB`, endpoint `GET /me/realizados/{id}/trajeto` e
+`temTrajeto` na listagem. Adiada: 2.3 (validar 10 m com `.fit` de parque e trilha). **Na sequência:**
+`athlete-share-cards` (front, já tem o cliente `getTrajeto` pronto no checkout de `develop`, sem
+commit); `athlete-share-cards-mapa` segue bloqueada por `lgpd-trajeto-cards-compartilhamento`.
+Arquivada em `changes/archive/2026-11/2026-11-08-add-activity-gps-trace/`.)
+
+**Anterior:** 2026-11-07 (**`inbox-kpis-atleta-sem-dado` arquivada** — front PR #207
 (mergeado em `develop` em 2026-11-07). S · Fast, só front. 10/10 tasks. Achado #5 da crítica de
 design: faixa de KPIs do atleta em uma linha (`KpiCell`/`KpiStrip` `dense`, linha de apoio no
 `title` e em texto de leitor de tela; 93px → ≤ 40px sem dado, ≤ 56px com valores cheios), ausência
@@ -1700,6 +1709,21 @@ A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 rest
 ---
 
 ## Changes concluídas (fora de sprint)
+
+### `add-activity-gps-trace` ✅ **ARQUIVADA** — trajeto GPS e modelo do relógio no treino realizado (2026-11-08)
+
+**Entregue:** `menthoros-backend` PR **#227** (squash `730fd13` em `develop`, 2026-11-08). Arquivada
+em `changes/archive/2026-11/2026-11-08-add-activity-gps-trace/`; delta "Trajeto GPS do treino
+realizado" em `specs/garmin-activity-ingestion/`. M · Full, só backend, migration `V113` aditiva.
+
+**O que faz:** `GpsSampleCollector` decima os records a 5 m com teto de 20k pontos em memória;
+Douglas-Peucker 10 m, teto 400; polyline Google + `tSeg` + `fc` em `gps_trace JSONB`;
+`deviceName` do `.fit` só como fallback do ping. Endpoint do atleta por projeção com tenant e atleta
+no WHERE, 404 único. Sem endpoint para o coach (product review) e sem reprocessamento (`.fit` não é
+retido).
+
+**Follow-ups (sem change):** 2.3 adiada (`.fit` de parque e trilha); flaky de WireMock em porta
+dinâmica em `IntervalsIcuClientImplTest` e `StravaActivityPullTest` — vale `fix/` própria.
 
 ### `add-etapa-duracao-segundos` ✅ **ARQUIVADA** — duração da etapa em segundos, editor em m:ss (2026-11-06)
 

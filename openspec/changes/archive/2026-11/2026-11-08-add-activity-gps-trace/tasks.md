@@ -20,7 +20,7 @@
   verify: testes unitários de preservação de extremos, teto e lista vazia
 - [x] 2.2 `GpsTraceCodec` + record `GpsTracePayload` (`dto/fit`): codifica polyline (Google, precisão 5) + `tSeg` + `fc` no JSON `{v:1,n,polyline,tSeg,fc}`; decodifica para o teste de ida e volta
   verify: ida e volta com erro ≤ 1e-5 grau; bate com o exemplo de referência do Google
-- [ ] 2.3 Validar tolerância (Q2) com 3 `.fit` reais (parque, rua, trilha) em `src/test/resources/fit/`; registrar `pg_column_size` estimado no `design.md`
+- [~] **Adiada** 2.3 Validar tolerância (Q2) com 3 `.fit` reais (parque, rua, trilha) em `src/test/resources/fit/`; registrar `pg_column_size` estimado no `design.md`
   verify: os 3 ficam ≤ 400 pontos e ≤ 8 KB; curvas de rua visíveis no SVG gerado pelo teste
   **Parcial (2026-11-08):** só existe 1 fixture real (`corrida-15km-16laps.fit`, rua); ela cabe em 400 pontos e < 8 KB (teste `GpsTraceCodecTest.realFixtureFitsBudget`). Faltam parque e trilha — pedir 2 `.fit` reais ao founder; sem eles a tolerância de 10 m segue como premissa.
 - [x] 2.4 Validação: `./mvnw clean test` — 6434 testes, 0 falhas, 1 erro flaky pré-existente fora do escopo (`IntervalsIcuClientImplTest.BuscarAtividade.sucessoRetornaActivity`: stub WireMock de 403 vazado de outro teste; passa isolado)
