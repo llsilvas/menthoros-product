@@ -28,21 +28,20 @@ Strava: onde o atleta fez o longão, se o tiro foi em subida, se a volta foi a m
 1. **Parser FIT** (`FitParseServiceImpl`):
    - ler `position_lat`/`position_long` por `RecordMesg`, converter semicírculo → grau
      (`× 180 / 2³¹`);
-   - guardar junto o `timestampSeg`, a `distance` acumulada e a FC do ponto (já lida), para que o
-     front pinte o trajeto por zona;
-   - ler o modelo do dispositivo pelo `DeviceInfoMesg` (`garminProduct`/`product`) ou `FileIdMesg`
-     e expor como texto (ex.: `Forerunner 265`); nulo quando não houver.
-2. **Simplificação** do trajeto antes de persistir (Douglas-Peucker, tolerância ~10 m, teto de
-   ~400 pontos). Os milhares de pontos brutos **não** são persistidos.
-3. **Persistência** em `TreinoRealizado`: coluna `gps_trace` (JSONB ou `TEXT` com polyline
-   codificada + array paralelo de FC) e `device_model` (`VARCHAR(80)`). Migration `V113`.
-4. **Contrato:** campos `gpsTrace` e `deviceModel` no DTO do treino realizado consumido pelo atleta
-   (`AtletaTreinoController`, `GET /me/treinos` e detalhe) e pelo coach
-   (`TreinoRealizadoController`). `gpsTrace` nulo quando a atividade não tem GPS (esteira, indoor,
-   manual).
-5. **Reprocessamento:** job ou endpoint administrativo para reprocessar os `.fit` já ingeridos
-   **se** o arquivo original ainda estiver acessível. Se não estiver, aceitar que treinos antigos
-   ficam sem trajeto e documentar.
+   - guardar junto o `timestampSeg` e a FC do ponto (já lida), para que o front pinte o trajeto
+     por zona; distância acumulada **não** é persistida (o front não precisa dela para os cards);
+   - ler o modelo do dispositivo (`DeviceInfoMesg.getProductName()`, fallback
+     `FileIdMesg.getProductName()`) e usar como **fallback** do campo `deviceName` já existente,
+     sem sobrescrever o valor vindo do ping Garmin (design D1). Não há coluna nova para isso.
+2. **Simplificação** em streaming (decimação ≥ 5 m no listener + Douglas-Peucker 10 m, teto de
+   **400 pontos**). Os pontos brutos **não** são persistidos (design D3).
+3. **Persistência** em `TreinoRealizado`: coluna `gps_trace JSONB NULL` com polyline codificada +
+   arrays paralelos de tempo e FC (design D2). Migration `V113`, aditiva, sem backfill.
+4. **Contrato:** endpoint novo `GET /api/v1/atletas/me/realizados/{id}/trajeto` e o equivalente do
+   coach em `TreinoRealizadoController`; a lista `GET /me/treinos` ganha só `temTrajeto: boolean`
+   (design D4). `404` quando não há trajeto ou o treino não é do atleta/tenant.
+5. **Sem reprocessamento:** o `.fit` não é retido após o parse (`GarminPingProcessorScheduler:174`
+   e `FitUploadServiceImpl`), então treinos anteriores ao deploy ficam sem trajeto (design D5).
 
 ## Fora do escopo
 
@@ -52,62 +51,86 @@ Strava: onde o atleta fez o longão, se o tiro foi em subida, se a volta foi a m
 - Trajeto vindo do Strava ou intervals.icu (polyline pronta): a change deixa o campo pronto para
   receber, mas a ingestão dessas fontes é outra change.
 - Mapa de fundo (ruas): não há serviço de tiles; só a linha.
+- Reprocessar treinos anteriores ao deploy: não há `.fit` retido para reprocessar.
+- Coluna `device_model`: o modelo entra no `deviceName` existente.
 
 ## Critérios de aceite
 
 **CA1 — Trajeto extraído e simplificado**
 > **Dado** um `.fit` de corrida outdoor com N registros com GPS
 > **Quando** ele é ingerido (Garmin ou upload)
-> **Então** `TreinoRealizado.gpsTrace` tem entre 2 e ~400 pontos, o primeiro e o último
-> coincidem com o primeiro e o último registro com GPS do arquivo, e cada ponto tem lat, lng,
+> **Então** `TreinoRealizado.gpsTrace` tem entre 2 e 400 pontos (inclusive), o primeiro e o último
+> coincidem com o primeiro e o último registro com GPS válido do arquivo, e cada ponto tem lat, lng,
 > tempo relativo e FC (ou nulo).
+
+**CA1b — Coordenada inválida não derruba a ingestão**
+> **Dado** um `.fit` com registros cujo `position_lat` é nulo ou `0x7FFFFFFF`
+> **Quando** ele é ingerido
+> **Então** esses pontos são descartados, os demais formam o trajeto e a ingestão termina com
+> sucesso.
 
 **CA2 — Sem GPS, sem trajeto**
 > **Dado** um `.fit` de esteira ou sem `position_lat`
 > **Quando** ele é ingerido
 > **Então** `gpsTrace` é nulo e a ingestão termina normalmente.
 
-**CA3 — Modelo do dispositivo**
-> **Dado** um `.fit` de um Forerunner 265
+**CA3 — Modelo do dispositivo como fallback**
+> **Dado** um upload manual de `.fit` de um Forerunner 265 (sem ping Garmin)
 > **Quando** ele é ingerido
-> **Então** `deviceModel = "Forerunner 265"`; para um arquivo sem a mensagem, `deviceModel` é nulo.
+> **Então** `deviceName = "Forerunner 265"`. **Dado** o mesmo arquivo chegando por ping com
+> `deviceName` próprio, o valor do ping prevalece. Sem `productName` no arquivo, `deviceName` fica
+> nulo.
 
-**CA4 — Contrato**
-> **Dado** o detalhe de um treino realizado com trajeto
-> **Quando** o atleta chama o endpoint de detalhe
-> **Então** a resposta traz `gpsTrace` e `deviceModel`; para outro tenant, 404 (isolamento mantido).
+**CA4 — Contrato e isolamento**
+> **Dado** um treino realizado com trajeto
+> **Quando** o atleta chama `GET /me/realizados/{id}/trajeto`
+> **Então** recebe o JSON do design D2 mais `deviceName`; para um treino de **outro atleta do mesmo
+> tenant** ou de **outro tenant**, 404; a lista `GET /me/treinos` traz `temTrajeto: true` para esse
+> treino.
 
-**CA5 — Limite de tamanho**
-> **Dado** um `.fit` de ultramaratona com 60 mil registros
+**CA5 — Limite de tamanho e memória**
+> **Dado** um `.fit` de ultramaratona com 60 mil registros com GPS
 > **Quando** ele é ingerido
-> **Então** o parser não estoura memória nem o teto de amostras atual (`MAX_AMOSTRAS`), e o
-> trajeto persistido respeita o teto de pontos.
+> **Então** a lista GPS em memória nunca passa de `MAX_PONTOS_GPS` (20.000) — com GPS ruidoso a
+> decimação dobra o passo em vez de crescer —, o trajeto persistido tem ≤ 400 pontos e
+> `pg_column_size(gps_trace)` ≤ 8 KB. Acima de `MAX_AMOSTRAS`
+> (200.000) o comportamento atual (`amostrasExcedidas`) se mantém e o trajeto fica nulo.
 
 ## Métrica de sucesso
 
-- 100% dos treinos com GPS ingeridos após o deploy têm `gpsTrace` não nulo.
-- Tamanho médio de `gps_trace` ≤ 8 KB por treino.
-- Para o treinador: o detalhe do treino na visão do coach passa a mostrar o trajeto (consumido pela
-  change de front), eliminando a ida ao Garmin Connect para "ver onde foi".
+- 100% dos treinos outdoor ingeridos após o deploy têm `gpsTrace` não nulo (query em `design.md`).
+- P95 de `pg_column_size(gps_trace)` ≤ 8 KB, medido em staging com os arquivos de Q2.
+- Para o treinador: uso do endpoint de trajeto do coach nas 4 primeiras semanas após o front
+  consumir (sinal de que ele parou de abrir o Garmin Connect para "ver onde foi").
 
 ## Open Questions & Assumptions
 
-- **Q1 — Formato de persistência.** JSONB (consultável, maior) ou polyline codificada do Google
-  (compacta, ~5 bytes/ponto) + array de FC. Recomendação: **polyline codificada** em `TEXT` mais
-  `gps_trace_fc` em `SMALLINT[]`. Decidir no `design.md`.
+- **Q1 — Formato.** Resolvida: JSONB com polyline codificada + arrays paralelos (design D2).
 - **Q2 — Precisão do Douglas-Peucker.** 10 m preserva curvas de rua em escala de card; validar com
-  3 arquivos reais (parque, rua, trilha).
-- **Q3 — Reprocessamento.** O `.fit` baixado do Garmin é retido? Se não, treinos anteriores ao
-  deploy não terão trajeto. Confirmar em `GarminPingProcessorScheduler`/`FitUploadServiceImpl`.
+  3 arquivos reais (parque, rua, trilha) na task 2.3.
+- **Q3 — Reprocessamento.** Resolvida: o `.fit` não é retido; sem reprocessamento (design D5).
 - **Premissa:** o front só precisa de lat/lng/FC/tempo; altitude e pace por ponto ficam para uma
   change futura se algum card pedir.
+- **Premissa:** `DeviceInfoMesg.getProductName()` vem preenchido nos relógios recentes; em arquivos
+  antigos pode vir nulo e o `deviceName` fica nulo — aceito.
+
+## Rollback
+
+Deploy reversível: a coluna `gps_trace` é nula e ignorada pela versão anterior; os endpoints novos
+simplesmente deixam de existir. Remover a coluna exige `DROP` e passa pelo gate de confirmação.
 
 ## Riscos e mitigações
 
 - **Dado sensível (localização) no banco.** Já é tratado como sensível na Política (§ 2.1); a
   change não cria finalidade nova sozinha. Isolamento por `tenant_id` segue o padrão das demais
   colunas de `tb_treino_realizado`.
-- **Memória no parser.** Acumular 60k pontos antes de simplificar pode pesar; simplificar em
-  streaming (janela) ou aplicar decimação prévia por distância (1 ponto a cada 5 m) antes do DP.
-- **Pendências do Full track:** `product-reviewer` e pre-mortem (`/codex:adversarial-review`) não
-  rodaram; estão na task 0.
+- **Memória no parser.** Decimação on-line (≥ 5 m) antes do Douglas-Peucker (design D3).
+- **Duas fontes de verdade para o modelo.** Evitado: sem coluna nova; `.fit` só preenche
+  `deviceName` quando nulo (design D1).
+- **Cardinalidade da lista GPS em memória.** Decimação por distância não limita o número de pontos
+  (ultra de 100 km ou GPS ruidoso). Mitigação: teto rígido `MAX_PONTOS_GPS = 20_000` no listener;
+  ao atingir, a lista é re-decimada com o passo dobrado (5 → 10 → 20 m) antes de continuar
+  (design D3).
+- **DoR:** `spec-reviewer` em 2026-11-08 → READY COM AJUSTES; Codex adversarial → NOT READY sobre a
+  versão anterior (formato sem tempo por ponto, memória sem teto, `deviceModel` duplicado). Os três
+  achados estão incorporados nesta revisão (D2, D3, D1). `product-reviewer` pendente (task 0.1).
