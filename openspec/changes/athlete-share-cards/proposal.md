@@ -37,7 +37,8 @@ produzir.
 1. **Tela "Compartilhar treino"** (`features/athlete/pages/AthleteShareWorkoutPage.tsx`, rota
    `ATHLETE_SHARE_WORKOUT` com `:treinoId`):
    - prévia ao vivo; seletor de **modelo**; seletor de **formato** (Story 1080×1920, Feed 1080×1350,
-     Quadrado 1080×1080); chaves **Mostrar FC**, **Mostrar assessoria**, **Mostrar treinador**;
+     Quadrado 1080×1080); chaves **Mostrar FC** e **Mostrar assessoria** ("Mostrar treinador" chega
+     em `athlete-share-cards-extra`: o nome do treinador não está no contrato do atleta, task 0.2);
    - destinos **Compartilhar** (Web Share API com `files`) e **Salvar** (download); o arquivo é
      gerado **antes** do toque no destino, para o share não perder a ativação do gesto.
 2. **Pontos de entrada:** botão "Compartilhar" no `WorkoutDetailDrawer` (treino do plano já
@@ -49,9 +50,8 @@ produzir.
    - **Semana** (quadrado) — sempre disponível; km da semana, barras por dia na cor do tipo,
      treinos cumpridos e tempo.
    Modelo sem dado não aparece no seletor; o default é o primeiro disponível.
-4. **Assinatura** (`ShareSignature`): sigla da assessoria (sem logo nesta change), nome da
-   assessoria (`Usuario.assessoria.nome`) e "Treinado por {nome}" **só quando o nome do treinador
-   estiver disponível** no contrato atual (task 0.2); senão, modo só-assessoria.
+4. **Assinatura** (`ShareSignature`): sigla e nome da assessoria (`Usuario.assessoria.nome`), sem
+   logo e sem "Treinado por" nesta change (ambos dependem de `athlete-share-data`).
 5. **Atribuição Garmin** (`GarminAttribution`), conforme API Brand Guidelines v6.30.2025:
    - card de um treino com `fonteDados.value === 'GARMIN'`: "GARMIN {deviceName}" abaixo do título,
      ou "GARMIN" com `deviceName` nulo;
@@ -85,10 +85,9 @@ produzir.
 > **Então** só o modelo Semana aparece no seletor.
 
 **CA3 — Assinatura**
-> **Dado** "Mostrar assessoria" ligado e "Mostrar treinador" desligado
+> **Dado** "Mostrar assessoria" ligado
 > **Quando** a prévia é exibida
-> **Então** aparece a sigla e o nome da assessoria, sem "Treinado por"; com "Mostrar assessoria"
-> desligado, nenhuma assinatura.
+> **Então** aparecem a sigla e o nome da assessoria; com a chave desligada, nenhuma assinatura.
 
 **CA4 — Atribuição Garmin por treino**
 > **Dado** um treino com fonte Garmin e `deviceName = "Forerunner 265"`

@@ -3,8 +3,7 @@
 ## 0. Gates
 
 - [x] 0.1 DoR: spec-reviewer (READY COM AJUSTES) + Codex (NOT READY na versão L); recorte em 4 changes, Q1/Q3/Q4 decididas, `design.md` escrito
-- [ ] 0.2 Confirmar a fonte do nome do treinador para o atleta (`AthleteCoachPage`); se não houver no contrato atual, registrar no `proposal.md` que "Treinado por" vai para `extra`
-  verify: nota no proposal com `arquivo:linha` da fonte, ou a decisão de adiar
+- [x] 0.2 Nome do treinador: **não chega ao atleta**. `AthleteCoachPage` é placeholder (mensageria inexistente, `AthleteCoachPage.tsx:7-9`); nenhum DTO do backend expõe nome de treinador; `Atleta` não tem vínculo de treinador. "Treinado por" sai desta change → `athlete-share-data` (contrato) e `athlete-share-cards-extra` (UI). Nesta change a assinatura é só da assessoria; a chave "Mostrar treinador" não existe ainda.
 
 ## 1. Fundação
 
