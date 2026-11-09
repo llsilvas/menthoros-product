@@ -11,14 +11,27 @@
 
 ## 1. Dados e card
 
-- [ ] 1.1 `esteira?: boolean` em `TreinoRealizadoDto`; `buildShareCardData` adiciona o modelo
-  `esteira` na ordem do escopo, com o view model do card (destaque, pace, blocos)
-  verify: testes de disponibilidade (CA1) e de dados ausentes (CA2) no adapter
-- [ ] 1.2 `TreadmillCard` (v2 I) com tokens do tema e SVG inline do ícone; `ShareModel`,
-  `SHARE_MODEL_DEFAULT_FORMAT` (story) e rótulo "Esteira"
-  verify: testes de componente de CA1, CA3 e CA4
-- [ ] 1.3 `ShareWorkoutView`: render do modelo; "Mostrar FC" entra na versão da imagem para `esteira`
-  verify: alternar FC regenera a imagem nesse modelo
+Sequência: 1.1 → 1.2 → 1.3 → 1.4. Arquivos em `src/features/athlete/`.
+
+- [ ] 1.1 Tipos e adapter: `esteira?: boolean` em `TreinoRealizadoDto` (`src/types/TreinoManual.ts`);
+  `ShareModel` ganha `'esteira'`, `TreadmillView` e `esteira: TreadmillView | null` em
+  `ShareCardData` (`types/ShareCard.ts`); `buildEsteira(input)` em `adapters/buildShareCardData.ts`
+  (mesma base de `buildRota`: `tipoTreinoLabel`, `dataLabel`, `formatarDuracao`, `paceDe`,
+  `garminAttributionFor`), disponível só com `realizado.esteira === true`; ordem
+  `plano, parciais, rota, stickers, esteira, semana`
+  verify: casos novos em `adapters/buildShareCardData.test.ts` — CA1 (`esteira: true` lista o
+  modelo; `false`/ausente não) e CA2 (sem `distanciaKm` → `destaque` é o tempo e `paceMedio`
+  ausente; sem `tssCalculado`/`fcMedia` → campos ausentes)
+- [ ] 1.2 `components/share/TreadmillCard.tsx` (v2 I): selo "ESTEIRA" com SVG inline, atribuição
+  Garmin (`GarminAttribution`), título, km em `displayNumberSx` (ou tempo, CA2), pace, blocos
+  `ShareStat` TEMPO / FC MÉD / TSS que somem quando ausentes; tokens de `shareCardStyle`, sem hex.
+  `SHARE_MODEL_DEFAULT_FORMAT.esteira = 'story'`; `MODEL_LABEL.esteira = 'Esteira'`
+  (`ShareControls.tsx`)
+  verify: `treadmillCard.test.tsx` — CA1 (selo, "10,0", "5:03", "GARMIN FORERUNNER 265"), CA3
+  (`mostrarFc=false` some FC MÉD), CA4 (fonte MANUAL sem atribuição), CA2 (sem distância)
+- [ ] 1.3 `ShareWorkoutView.tsx`: render de `model === 'esteira'`, `descricaoDoCard` ("Card Esteira:
+  …"), `mostrarFc` entra na `versao` também para `esteira`
+  verify: teste de componente — alternar "Mostrar FC" no modelo esteira chama `toBlob` de novo
 - [ ] 1.4 Validação: `npm run lint && npm run build && npm run test:run`
 
 ## 2. E2E e verificação
