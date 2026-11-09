@@ -2,7 +2,18 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-08 (**`add-activity-gps-trace` arquivada** — backend PR #227
+**Última atualização:** 2026-11-09 (**`lgpd-trajeto-cards-compartilhamento` arquivada** — backend
+#228 e front #212 em `develop`, promovidos a `main` em #229/#213 e em produção em 2026-11-09. M ·
+Full, dois repos, migration `V114` aditiva. Achado: o atleta nunca aceitava a Política no app, então o
+aviso no compartilhamento virou o consentimento específico (Art. 11, I), gravado como eventos
+`CONCEDIDO`/`REVOGADO` com versão apresentada e `409` se defasada; revogação em Perfil > Privacidade.
+Política `2026-11-09` alinhou front e backend, que divergiam (`2026-10-26` × `2026-08-03`, sem
+`LGPD_POLICY_VERSION` no Railway). Pendente: validação jurídica da base legal e o aviso de 15 dias do
+§ 13 — o founder promoveu sem esperar. Também em produção nesta janela: `athlete-share-cards` (#210)
+e `add-activity-gps-trace` (#227). **Na sequência:** `athlete-share-cards-mapa`, desbloqueada.
+Arquivada em `changes/archive/2026-11/2026-11-09-lgpd-trajeto-cards-compartilhamento/`.)
+
+**Anterior:** 2026-11-08 (**`add-activity-gps-trace` arquivada** — backend PR #227
 (squash `730fd13` em `develop`, 2026-11-08). M · Full, só backend, migration `V113` aditiva. Primeira
 das três changes dos cards de compartilhamento: parser FIT lê lat/long e `productName`, trajeto
 simplificado (≤ 400 pontos) em `gps_trace JSONB`, endpoint `GET /me/realizados/{id}/trajeto` e
@@ -11,7 +22,7 @@ simplificado (≤ 400 pontos) em `gps_trace JSONB`, endpoint `GET /me/realizados
 commit); `athlete-share-cards-mapa` segue bloqueada por `lgpd-trajeto-cards-compartilhamento`.
 Arquivada em `changes/archive/2026-11/2026-11-08-add-activity-gps-trace/`.)
 
-**Anterior:** 2026-11-07 (**`inbox-kpis-atleta-sem-dado` arquivada** — front PR #207
+**Antes:** 2026-11-07 (**`inbox-kpis-atleta-sem-dado` arquivada** — front PR #207
 (mergeado em `develop` em 2026-11-07). S · Fast, só front. 10/10 tasks. Achado #5 da crítica de
 design: faixa de KPIs do atleta em uma linha (`KpiCell`/`KpiStrip` `dense`, linha de apoio no
 `title` e em texto de leitor de tela; 93px → ≤ 40px sem dado, ≤ 56px com valores cheios), ausência

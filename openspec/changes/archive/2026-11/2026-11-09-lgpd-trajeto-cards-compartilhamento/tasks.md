@@ -32,11 +32,11 @@
 - [x] 3.2 `TrajectoryShareConsentDialog`: texto simples, link `RouterLink` para a § 6.4, "Entendi, compartilhar" e "Usar modelo sem mapa"
 - [x] 3.3 Seção "Privacidade" na `AthleteProfilePage` com a chave de revogação (D6, CA7)
 - [x] 3.3a Testes de componente para CA4, CA5, CA6 (409 pede recarregar) e CA7, e do hook
-- [ ] 3.4 E2E do fluxo (CA3–CA5): **movido para `athlete-share-cards-mapa`**, que é onde existe modelo com mapa para disparar o gate
+- [~] 3.4 E2E do fluxo (CA3–CA5) nos cards: **movido para `athlete-share-cards-mapa`**; o E2E do consentimento no perfil está em `consentimento-trajeto.spec.ts`, que é onde existe modelo com mapa para disparar o gate
 - [x] 3.5 Validação: lint, build e `test:run` verdes (301 arquivos / 2952 testes). Front `0784223`
 
 ## 4. Promoção
 
 - [x] 4.1 QA sem Critical. Corrigido: ordem do último evento pela sequência do banco (`seq`), não pelo relógio da JVM; `@Size(max=20)`; front separa erro de carga do de ação e não mostra a chave quando a carga falha; `noopener noreferrer`; E2E `consentimento-trajeto.spec.ts`
 - [x] 4.2 Mergeados em `develop`: backend #228, front #212
-- [ ] 4.3 Promoção `develop → main` aberta (backend #229, front #213), aguardando merge — **decisão do founder em 2026-11-08 de promover sem esperar a validação jurídica da base legal (Q2)**; a validação continua pendente
+- [x] 4.3 Em `main` e produção em 2026-11-09: backend #229 (`d823c97`), front #213 (`baab206`), deploys Railway SUCCESS. Antes foi preciso back-merge `main → develop` via branch `sync/` (#231/#215): `strict` nos dois lados travava o PR `main → develop` direto — **decisão do founder em 2026-11-08 de promover sem esperar a validação jurídica da base legal (Q2)**; a validação continua pendente
