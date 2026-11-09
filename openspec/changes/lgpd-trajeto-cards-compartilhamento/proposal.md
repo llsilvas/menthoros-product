@@ -51,6 +51,8 @@ sensível.
   `athlete-share-cards-mapa` (com mapa). Esta change é **pré-requisito do lançamento** da segunda.
 - Ocultar ou cortar início e fim do trajeto. A decisão foi não ocultar.
 - Extrair e armazenar o traçado do `.fit`, que fica na change dos cards.
+- Revogação de outros consentimentos do atleta além deste (a seção "Privacidade" nasce só com esta
+  chave).
 - Um fluxo genérico de consentimento LGPD do atleta (modal bloqueante equivalente ao
   `CoachConsentDialog`). Aqui o aviso vale só para a ação de compartilhar.
 
@@ -84,10 +86,37 @@ sensível.
 > **Quando** ele compartilha outro card com mapa
 > **Então** o aviso não aparece de novo.
 
+**CA6 — Versão apresentada é a gravada**
+> **Dado** a Política vigente no servidor mudou depois que o atleta abriu o aviso
+> **Quando** ele confirma
+> **Então** o servidor responde `409 CONSENT_VERSION_STALE`, nada é gravado e o aviso pede para
+> recarregar.
+
+**CA7 — Revogação**
+> **Dado** um atleta que concedeu
+> **Quando** ele desliga "Mostrar meu trajeto nos cards" no perfil
+> **Então** um evento `REVOGADO` é gravado, o histórico anterior é preservado e o próximo card com
+> mapa mostra o aviso de novo.
+
+**CA8 — Endpoint restrito ao atleta e ao tenant**
+> **Dado** um usuário `TECNICO`, ou um atleta de outro tenant
+> **Quando** ele chama o endpoint
+> **Então** o técnico recebe `403` e o atleta só vê e altera o próprio estado no próprio tenant.
+
+**CA9 — Idempotência**
+> **Dado** um atleta já concedido na versão vigente
+> **Quando** o `POST` chega de novo
+> **Então** a resposta é o estado atual, sem erro.
+
+**CA2 — verificação:** o `application.yml` (default) e `POLITICA_VERSAO` são conferidos por teste no
+backend que compara o default com a data registrada no `design.md` (D5); o valor efetivo no Railway
+(`LGPD_POLICY_VERSION`) é checagem manual do deploy, registrada no `tasks.md`.
+
 ## Métrica de sucesso
 
-- Zero card com trajeto gerado sem aviso confirmado. Verificável pelo registro da confirmação (ver
-  Q1).
+- Zero card com trajeto gerado sem aviso confirmado. O servidor não vê a geração, que é local. O
+  sinal é **estrutural**: o E2E de `athlete-share-cards-mapa` prova que nenhum PNG com mapa é gerado
+  antes do `POST`, e o registro de eventos mostra concessões e revogações por atleta.
 - Do lado do treinador, a assessoria divulga a marca nos cards (assinatura assessoria/treinador)
   **sem herdar risco de LGPD**. Nenhuma reclamação ou pedido de titular sobre exposição de
   localização via card nos primeiros 90 dias após o lançamento.
