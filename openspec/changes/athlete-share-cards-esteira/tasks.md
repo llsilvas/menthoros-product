@@ -39,11 +39,21 @@ Sequência: 1.1 → 1.2 → 1.3 → 1.4. Arquivos em `src/features/athlete/`.
   adesivo "esteira" com o selo, sem adesivo "trajeto"
 - [x] 1.5 Validação (2026-11-09): `npm run lint` limpo, `npm run build` ok, `npm run test:run` 2993 verdes
 
+## QA (2026-11-09)
+
+frontend-reviewer e clean-code-reviewer: nenhum Critical/Major. Corrigidos: discriminante
+`'pontos' in view` → `kind` em `RouteView`/`TreadmillView` (apontado pelos dois); esteira sem GPS
+abria na Foto sem imagem → `esteira` antes de `stickers`; spread com `as const` → `if` explícito;
+`(data.rota ?? data.esteira)!` → `viewFoto`. Registrado sem mudança: `segundosDe(...) ?? 0` segue o
+padrão de `buildRota` (DTO sempre traz `duracaoMin`); E2E não cobre esteira com GPS (coberto no
+teste do adapter).
+
 ## 2. E2E e verificação
 
-- [ ] 2.1 `tests/e2e/athlete/share-workout-esteira.spec.ts` (CA5)
+- [x] 2.1 `tests/e2e/athlete/share-workout-esteira.spec.ts` (CA5, CA7) — 3 verdes em 2026-11-09
   verify: `npm run test:e2e` com o spec visitando o modelo
-- [ ] 2.2 Verificação visual do PNG contra o artboard (fontes, corte)
+- [x] 2.2 Verificação visual (2026-11-09): PNGs do E2E conferidos contra `v2 I · Esteira` — selo,
+  atribuição, km, pace, blocos e assinatura no lugar; Foto com o selo no slot do trajeto
 - [ ] 2.3 Registrar a data do deploy em produção para o gate de 4 semanas
 - [ ] 2.4 Gate (4 semanas após 2.3): SQL da coorte (`esteira = true`, fonte GARMIN, por atleta),
   pergunta única do founder a cada atleta, tabela atleta → sim/não/sem resposta e % final aqui.

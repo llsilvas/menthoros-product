@@ -30,7 +30,8 @@ contrato).
 5. **Foto na esteira** (pedido do founder em 2026-11-09, revertendo o "fora do escopo" anterior): o
    modelo Foto fica disponível para treino `esteira = true` sem trajeto; o adesivo do trajeto vira o
    selo "ESTEIRA" e, sem mapa, o card não pede o consentimento de trajeto. Ordem com esteira sem GPS:
-   `plano, parciais, stickers, esteira, semana`.
+   `plano, parciais, esteira, stickers, semana` — o card pronto vem antes da Foto, porque o modelo
+   inicial é o primeiro da lista e a Foto abre sem imagem.
 
 ## Fora do escopo
 
