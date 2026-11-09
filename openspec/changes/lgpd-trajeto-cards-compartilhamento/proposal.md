@@ -1,8 +1,8 @@
 # lgpd-trajeto-cards-compartilhamento — trajeto GPS completo nos cards de compartilhamento
 
-**Tamanho:** S · **Trilha:** Full (risco legal/LGPD sobre dado sensível + toca dois repos: texto da
-Política no front, versão vigente em `app.lgpd.policy-version` no backend)
-**Status:** proposta — estacionada até existir a change dos cards de compartilhamento
+**Tamanho:** M · **Trilha:** Full (risco legal/LGPD sobre dado sensível; dois repos; schema e
+endpoint novos para o registro da confirmação)
+**Status:** proposta — decisões Q1–Q4 tomadas em 2026-11-08; aguardando DoR
 **Criado:** 2026-11-08
 **Repos afetados:** `apps/menthoros-front`, `apps/menthoros-backend` (config)
 
@@ -92,25 +92,29 @@ sensível.
   **sem herdar risco de LGPD**. Nenhuma reclamação ou pedido de titular sobre exposição de
   localização via card nos primeiros 90 dias após o lançamento.
 
-## Open Questions & Assumptions
+## Decisões (founder, 2026-11-08)
 
-- **Q1 — Onde guardar a confirmação do aviso?** Pode ficar só no `localStorage` (mais simples, mas
-  some ao trocar de aparelho e não vale como prova) ou ser registrada no backend com versão e
-  timestamp, no mesmo padrão append-only de `tb_usuario_lgpd_consent`. Como GPS é sensível pela
-  própria Política, a recomendação é **backend**. Isso muda o tamanho para M (schema + endpoint).
-- **Q2 — Base legal.** Premissa: consentimento específico e destacado do titular (Art. 11, I),
-  porque a ação é do próprio atleta e o dado é sensível. A tabela de bases legais do § 4 precisa de
-  uma linha nova. Validar com o DPO/jurídico.
-- **Q3 — Re-aceite dos coaches.** Mudar `app.lgpd.policy-version` reabre o `CoachConsentDialog`
-  para **todos os treinadores** (o enforcement compara a versão aceita com a vigente). Opções:
-  aceitar o re-aceite (a mudança também afeta a visibilidade da assessoria nos cards) ou separar a
-  versão da Política exibida ao coach. Decidir antes de implementar.
-- **Q4 — Controladora.** A assessoria é a controladora primária dos dados do atleta (§ 1). Premissa:
-  a funcionalidade de compartilhar entra como recurso da plataforma, coberta pelo contrato com a
-  assessoria. Confirmar se é preciso aviso à assessoria ou opção de desligar por tenant.
-- **Premissa:** a imagem é gerada no dispositivo do atleta ou retornada só a ele. A Menthoros não
-  publica nada em rede social em nome do atleta. Se isso mudar (postagem direta via API), o escopo
-  muda.
+- **Achado que mudou o escopo:** o atleta **nunca aceita a Política no app**. O aceite
+  (`CoachConsentDialog` + `LgpdConsentInterceptor`, guarda 3 "só TECNICO") é exclusivo do treinador.
+  Só atualizar o texto e subir a versão faria os treinadores re-aceitarem, enquanto o titular do GPS
+  (o atleta) não passaria por aceite nenhum. Por isso o aviso no compartilhamento é o
+  **consentimento específico** do atleta, não um extra de UX.
+- **Q1 — Onde guardar a confirmação:** **backend**, append-only, com versão da Política e data, no
+  padrão de `tb_usuario_lgpd_consent` (V73). Vale como prova e acompanha o atleta entre aparelhos.
+  Tamanho sobe para M.
+- **Q2 — Base legal:** consentimento específico e destacado do titular (Art. 11, I), colhido pelo
+  aviso. **Validação do DPO/jurídico pendente — bloqueia a promoção `develop → main`** dos cards com
+  mapa, não a implementação.
+- **Q3 — Re-aceite dos coaches:** aceito. Subir `app.lgpd.policy-version` reabre o
+  `CoachConsentDialog` para todos os treinadores, e eles aceitam o texto novo.
+- **Q4 — Controladora:** sem opção de desligar por tenant nesta change; a funcionalidade entra como
+  recurso da plataforma.
+- **Critério de parada de `athlete-share-cards-mapa`** (≥ 10% de adoção): dispensado pelo founder.
+- **Premissa mantida:** a imagem é gerada no dispositivo do atleta; a Menthoros não publica nada em
+  rede social em nome dele.
+- **Divergência pré-existente a corrigir aqui:** o front exibe `POLITICA_VERSAO = '2026-10-26'` e o
+  default do backend é `LGPD_POLICY_VERSION:2026-08-03` (`application.yml:242`). Conferir o valor da
+  variável no Railway antes do bump; a change termina com os dois iguais (CA2).
 
 ## Riscos e mitigações
 
