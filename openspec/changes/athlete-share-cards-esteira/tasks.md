@@ -2,7 +2,11 @@
 
 ## 0. Gates
 
-- [ ] 0.1 DoR: pre-mortem Codex e critérios testáveis (Fast track, em `/implement init`)
+- [x] 0.1 DoR (2026-11-09): Codex → NOT READY. Incorporado: CA1 passa a exigir a escolha de "Esteira"
+  (o modelo inicial é `availableModels[0]`, `ShareWorkoutView.tsx:38`); gate com coorte, ação
+  contável (Salvar/Compartilhar, não a prévia) e tratamento de não respondentes (task 2.4).
+  Conferido contra o código: `tssCalculado`, `fcMedia`, `distanciaKm`, `deviceName` existem em
+  `TreinoRealizadoDto`; "Mostrar FC" já existe e é ligado por modelo na `versao` da imagem.
 - [ ] 0.2 `add-activity-treadmill-flag` mergeada e em produção
 
 ## 1. Dados e card
@@ -23,3 +27,6 @@
   verify: `npm run test:e2e` com o spec visitando o modelo
 - [ ] 2.2 Verificação visual do PNG contra o artboard (fontes, corte)
 - [ ] 2.3 Registrar a data do deploy em produção para o gate de 4 semanas
+- [ ] 2.4 Gate (4 semanas após 2.3): SQL da coorte (`esteira = true`, fonte GARMIN, por atleta),
+  pergunta única do founder a cada atleta, tabela atleta → sim/não/sem resposta e % final aqui.
+  **Depende do founder**

@@ -38,9 +38,10 @@ contrato).
 
 **CA1 — Card Esteira**
 > **Dado** um realizado com `esteira: true`, 10,0 km, 50:30, FC média 146 e TSS 58
-> **Quando** o atleta abre Compartilhar
-> **Então** o picker mostra "Esteira"; o card mostra o selo "ESTEIRA", "10,0 KM", o pace "5:03 /KM",
-> tempo, FC média e TSS. Com `esteira: false` ou ausente, a opção não aparece.
+> **Quando** o atleta abre Compartilhar e escolhe "Esteira"
+> **Então** o picker lista "Esteira" na ordem do escopo (o modelo inicial segue a regra atual,
+> `availableModels[0]`), o formato muda para story e o card mostra o selo "ESTEIRA", "10,0 KM", o pace
+> "5:03 /KM", tempo, FC média e TSS. Com `esteira: false` ou ausente, a opção não aparece.
 
 **CA2 — Dados ausentes**
 > **Dado** um realizado de esteira sem `distanciaKm` (ou sem `tssCalculado`, ou sem `fcMedia`)
@@ -64,9 +65,13 @@ contrato).
 
 ## Métrica de sucesso
 
-- **Gate da Curva:** 4 semanas depois deste card em produção, pelo menos 30% dos atletas do pilot com
-  ≥ 1 treino `esteira = true` geraram ao menos um card Esteira. Contagem manual com o founder até a
-  instrumentação de `athlete-share-cards-extra` existir.
+- **Gate da Curva.** Coorte: atletas do pilot com ≥ 1 treino `esteira = true` de fonte Garmin nas 4
+  semanas após o deploy (SQL em `tb_treino_realizado`). Ação contada: clicar **Salvar** ou
+  **Compartilhar** com o modelo Esteira selecionado — a prévia renderiza sozinha
+  (`useShareImage`) e não conta. Sem instrumentação (`athlete-share-cards-extra`), a evidência é o
+  founder perguntar a cada atleta da coorte, uma vez, se salvou ou compartilhou um card Esteira;
+  quem não responde conta como não. Passa com ≥ 30% da coorte; abaixo disso, série e Curva não
+  entram. Registro em `tasks.md` 2.4.
 - Para o treinador: a hipótese de aquisição da trilha; critério de parada herdado de
   `add-activity-gps-trace`.
 
