@@ -1,21 +1,35 @@
-## 1. Conciliação do realizado Garmin/FIT
+## 1. Conciliação do realizado FIT (isolada da ingestão)
 
-- [ ] 1.1 Teste em `FitTreinoPersisterTest`: FIT novo chama `CandidateSelector.buscarCandidatos` e
-  `ReconciliationDecisionExecutor.executar` com o realizado salvo; duplicata não chama nenhum dos dois
-  - verify: teste vermelho antes da 1.2
-- [ ] 1.2 `FitTreinoPersister.persistir`: reconciliar quando `resultado.inserted()`
+- [ ] 1.1 Testes em `FitTreinoPersisterTest`: FIT novo de corrida publica `TreinoFitImportadoEvent(treinoId,
+  tenantId)`; duplicata não publica; `corrida = false` não publica (CA3, CA4)
+  - verify: testes vermelhos antes da 1.2
+- [ ] 1.2 `FitTreinoPersister.persistir`: publicar o evento quando `inserted() && dados.corrida()`
   - verify: `./mvnw test -Dtest=FitTreinoPersisterTest` verde
-- [ ] 1.3 `GarminActivityIngestionIT`: ping processado com planejado no dia sai com `reconciliationStatus` não
-  nulo e linha em `tb_treino_reconciliacao`; sem planejado sai `NAO_PLANEJADO`
+- [ ] 1.3 Testes unit: o bean transacional recarrega o realizado e chama `CandidateSelector` + `ReconciliationDecisionExecutor`;
+  o listener captura qualquer exceção do bean (inclusive `UnexpectedRollbackException`) e loga, sem propagar (CA5)
+  - verify: testes vermelhos antes da 1.4
+- [ ] 1.4 Dois componentes: bean `@Transactional(REQUIRES_NEW)` com a conciliação, e listener
+  `@TransactionalEventListener(AFTER_COMMIT)` **sem** `@Transactional`, com o `try/catch` em volta da chamada
+  (precedente: `IntervalsIcuPlanoDeletadoListener:49-50`). JavaDoc Idempotent/Side Effects/Tenant-aware, e nota de que
+  sob transação externa o evento só dispara no commit externo
+  - verify: teste da 1.3 verde
+- [ ] 1.5 `GarminActivityIngestionIT`: ping processado com planejado inequívoco no dia → `VINCULADO_AUTOMATICO`,
+  FK correta, planejado `REALIZADO`, linha em `tb_treino_reconciliacao` (CA1); sem planejado na janela ±1 dia →
+  `NAO_PLANEJADO` e visível em `findPendentesParaRevisao` (CA2); executor real falhando depois de mutar
+  (spy com `doCallRealMethod` + exceção após a mutação) → realizado gravado, status nulo, planejado intacto, sem
+  auditoria, ping `PROCESSADO` (CA5); `WorkoutAnalysisPromptDataBuilder.build` do realizado do CA1 traz `planned` preenchido (CA8)
   - verify: `./mvnw verify -Dit.test=GarminActivityIngestionIT` verde
 
 ## 2. Análise após o "Como foi?"
 
-- [ ] 2.1 Teste em `AtletaTreinoFeedbackServiceImplTest`: `registrarFeedback` publica `TreinoRegistradoEvent`
-  com id e tenant do realizado (ArgumentCaptor)
+- [ ] 2.1 Teste em `AtletaTreinoFeedbackServiceImplTest`: `registrarFeedback` publica `TreinoRegistradoEvent` com
+  id e tenant do realizado (ArgumentCaptor) (CA6)
   - verify: teste vermelho antes da 2.2
 - [ ] 2.2 `registrarFeedback` publica o evento após salvar; JavaDoc de Side Effects atualizado
   - verify: `./mvnw test -Dtest=AtletaTreinoFeedbackServiceImplTest` verde
+- [ ] 2.3 IT: realizado elegível sem RPE → `POST` do feedback (commit real) → `WorkoutAnalysisListener` grava a
+  análise com LLM simulado, esperando o `@Async` (Awaitility já usado em `SugestaoCoachConcurrentDecisionIT`) (CA7)
+  - verify: o IT novo verde em `./mvnw verify`
 
 ## 3. Validação
 
@@ -24,7 +38,8 @@
 
 ## 4. Pós-merge (operacional, com confirmação)
 
-- [ ] 4.1 Decidir e executar o backfill dos realizados já gravados (Open Questions) e pedir ao atleta que
-  reenvie o "Como foi?" do treino de 2026-11-09
-  - verify: leitura em produção — os 6 realizados com `reconciliation_status` não nulo; análise do
-    `477922c0…` existe
+- [ ] 4.1 Backfill: listar (leitura) os realizados `GARMIN` com `reconciliation_status` nulo, confirmar que são
+  corrida, e só nesses ids um SQL marca `NAO_PLANEJADO` / `BACKFILL_SEM_RECONCILIACAO` (Open Questions); pedir ao
+  atleta que reenvie o "Como foi?" do treino de 2026-11-09
+  - verify: leitura em produção — os ids revisados aparecem na fila do treinador; FIT de outro esporte segue nulo;
+    análise do `477922c0…` existe

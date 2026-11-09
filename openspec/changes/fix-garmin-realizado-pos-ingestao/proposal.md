@@ -28,45 +28,90 @@ sem a análise, ele perde o resumo pós-treino que economiza a leitura do arquiv
 
 ## What Changes
 
-- `FitTreinoPersister.persistir`: quando `registrar` **inseriu** o realizado, busca candidatos
-  (`CandidateSelector.buscarCandidatos`) e decide/persiste (`ReconciliationDecisionExecutor.executar`) na mesma
-  transação — mesmo padrão do `IntervalsIcuActivityPersister`. Na duplicata, não reconcilia de novo.
-- `AtletaTreinoFeedbackServiceImpl.registrarFeedback`: depois de gravar o RPE, publica
-  `TreinoRegistradoEvent`. O listener roda `AFTER_COMMIT` e já ignora treino com análise `COMPLETED`.
-- Backfill operacional pós-merge dos realizados já gravados (ver Open Questions).
+- **Conciliação do realizado FIT, isolada da ingestão.** `FitTreinoPersister.persistir`, quando `registrar`
+  **inseriu** o realizado **e** `dados.corrida()` é verdadeiro, publica um evento interno (ex.:
+  `TreinoFitImportadoEvent(treinoId, tenantId)`). Um listener síncrono `@TransactionalEventListener(AFTER_COMMIT)`,
+  **sem** `@Transactional`, envolve num `try/catch` a chamada a um bean transacional
+  (`@Transactional(REQUIRES_NEW)`) que recarrega o realizado e roda `CandidateSelector.buscarCandidatos` +
+  `ReconciliationDecisionExecutor.executar`. O `try/catch` fica **fora** da fronteira transacional: pega tanto a
+  exceção do método quanto a do commit (`UnexpectedRollbackException`, falha no flush), e uma falha no meio faz
+  rollback inteiro da conciliação (sem commit parcial). Erro logado como ERROR, com o id: **a ingestão já foi
+  commitada e nunca é revertida pela conciliação.**
+  - Por que não na mesma transação, como o `IntervalsIcuActivityPersister`: o link de download do Garmin vale
+    uma vez só (segundo download → 410 → ping `ERRO` sem retry). Uma falha da conciliação dentro de
+    `persistir` faria rollback do treino depois de consumir o link — o treino se perderia para sempre.
+  - Por que só corrida: o FIT de outro esporte vira `CONTINUO` (`FitTreinoPersister:143`), e a conciliação
+    vincularia ciclismo a um planejado de corrida. O ping Garmin já filtra corrida (`GarminPingServiceImpl:28`);
+    o upload manual de FIT (`FitUploadServiceImpl`), que usa o mesmo persister, não filtra.
+  - Duplicata (`inserted() == false`) não publica o evento.
+- **Análise após o "Como foi?".** `AtletaTreinoFeedbackServiceImpl.registrarFeedback` publica
+  `TreinoRegistradoEvent` depois de gravar o RPE. O `WorkoutAnalysisListener` (async, `AFTER_COMMIT`) já aplica a
+  elegibilidade (RPE presente, até `maxIdadeDias`) e pula análise `COMPLETED`.
+- **Backfill operacional pós-merge** (ver Open Questions).
 
 Fora de escopo: mudar o filtro do `DailyActivitySyncScheduler`; mostrar `reconciliation_status` nulo na fila
-manual; migrar `IntervalsIcuActivityPersister` para o seam `registrar`; Strava.
+manual; migrar `IntervalsIcuActivityPersister` para o mesmo isolamento; Strava; claim idempotente no
+`WorkoutAnalysisListener`.
 
 ## Critérios de aceite
 
-1. **Given** um ping Garmin processado cujo FIT gera um realizado novo e há planejado compatível no dia,
-   **When** `FitTreinoPersister.persistir` termina, **Then** o realizado tem `reconciliationStatus` não nulo
-   (decidido pelo `ReconciliationDecisionExecutor`) e há linha em `tb_treino_reconciliacao`.
-2. **Given** um FIT novo sem planejado no dia, **When** persiste, **Then** `reconciliationStatus = NAO_PLANEJADO`
-   e o realizado aparece na fila de pendentes do treinador.
-3. **Given** um FIT já importado (duplicata), **When** persiste de novo, **Then** a reconciliação não é chamada.
-4. **Given** um realizado sem RPE, **When** o atleta registra o "Como foi?" com RPE, **Then**
-   `TreinoRegistradoEvent` é publicado com o id e o tenant do realizado.
-5. **Given** o evento do item 4 após o commit, **When** o listener roda, **Then** é criada a análise do
-   realizado (verificado no IT de ingestão Garmin + feedback, com LLM simulado).
-6. A análise gerada depois da conciliação inclui o lado planejado (o realizado já está vinculado no commit
-   em que o evento é processado).
+1. **Given** um FIT novo de corrida com um planejado compatível e inequívoco no mesmo dia (mesmo atleta e
+   tenant, tipo `CONTINUO`, duração e distância próximas), **When** `persistir` commita, **Then** o realizado
+   fica `VINCULADO_AUTOMATICO`, com `treino_planejado_id` = esse planejado, o planejado fica `REALIZADO` e há
+   uma linha em `tb_treino_reconciliacao`.
+2. **Given** um FIT novo de corrida sem planejado na janela ±1 dia, **When** persiste, **Then**
+   `reconciliationStatus = NAO_PLANEJADO` e o realizado aparece em `findPendentesParaRevisao` com os status
+   padrão.
+3. **Given** um FIT já importado (duplicata), **When** persiste de novo, **Then** a conciliação não roda.
+4. **Given** um FIT de outro esporte (`corrida = false`), **When** persiste, **Then** a conciliação não roda e
+   `reconciliationStatus` fica nulo.
+5. **Given** a conciliação falha — exceção do `ReconciliationDecisionExecutor` depois de mutar entidades, ou falha
+   no commit/flush da transação dela — **When** `persistir` termina, **Then** o realizado
+   continua gravado (commit da ingestão preservado), sem mudança parcial da conciliação (status nulo, planejado
+   intacto, sem linha de auditoria), nenhuma exceção chega ao chamador e o erro é logado com o id do realizado.
+6. **Given** um realizado sem RPE, **When** o atleta registra o "Como foi?" com RPE, **Then** `registrarFeedback`
+   publica `TreinoRegistradoEvent` com o id e o tenant do realizado.
+7. **Given** um realizado elegível (RPE, dentro de `maxIdadeDias`), **When** o feedback commita, **Then** o
+   `WorkoutAnalysisListener` recebe o evento e grava a análise (IT com commit real e LLM simulado).
+8. **Given** o realizado do CA1 (`VINCULADO_AUTOMATICO`), **When** `WorkoutAnalysisPromptDataBuilder.build` monta
+   o prompt, **Then** o bloco `planned` vem preenchido (tipo, duração e distância do planejado vinculado). Não
+   se aplica a `AMBIGUO`/`NAO_PLANEJADO`, que não vinculam.
 
 ## Métrica de sucesso
 
-- % de realizados `GARMIN` criados após o deploy com `reconciliation_status` não nulo: alvo 100%.
-- % de realizados com RPE registrado após o deploy com análise `COMPLETED` ou `FAILED` em até 10 min: alvo
-  ≥ 95%. Hoje ambos são 0%.
+Medida por SQL de leitura em produção, 7 dias após o deploy, executada no `/done`:
+
+- % de realizados `GARMIN` de corrida criados após o deploy com `reconciliation_status` não nulo — alvo 100%.
+- % de realizados com `feedback_registrado_em` após o deploy e elegíveis (≤ `maxIdadeDias`) com linha em
+  `tb_analise_workout` (`COMPLETED` ou `FAILED`) — alvo ≥ 95%. Hoje os dois são 0%.
+
+## Rollback
+
+Reverter o PR. Sem schema nem contrato. Realizados conciliados enquanto esteve no ar continuam válidos; análises
+geradas também.
 
 ## Open Questions & Assumptions
 
-- **Backfill (decisão do usuário, pós-merge):** os 6 realizados já gravados não têm caminho automático — o
-  scheduler e a fila manual não os veem. Opções: (a) script SQL único que marca `reconciliation_status =
-  'PENDENTE'` para o treinador conciliar à mão, ou (b) endpoint/admin one-off que roda
-  `CandidateSelector` + `ReconciliationDecisionExecutor` neles. A análise do treino de 2026-11-09 sai
-  reenviando o "Como foi?" depois do deploy. Escrita em produção só com confirmação explícita.
-- **Assumido:** reenviar o feedback com análise `PENDING` em curso pode disparar uma segunda chamada de LLM
-  (o listener só pula `COMPLETED`). Raro (o atleta reenviaria em segundos); aceito.
-- **Assumido:** `ReconciliationDecisionExecutor` chamado dentro da transação de `persistir` é seguro — o
-  `IntervalsIcuActivityPersister` já faz o mesmo, e o evento de análise só é consumido após o commit.
+- **Backfill (pós-merge, escrita em produção só com confirmação explícita):** os realizados já gravados
+  não têm caminho automático. Plano: listar por leitura os realizados `GARMIN` com `reconciliation_status` nulo,
+  confirmar que são corrida (vieram de ping Garmin, que só aceita corrida, ou têm `descricao` sem esporte
+  anotado — `descricaoParaEsporte` marca os outros) e, só nesses **ids revisados**, um SQL marca
+  `reconciliation_status = 'NAO_PLANEJADO'` e `reconciliation_reason_code = 'BACKFILL_SEM_RECONCILIACAO'`.
+  `NAO_PLANEJADO` está nos status padrão da fila (`ReconciliacaoPendentesServiceImpl:55`), então o treinador os
+  vincula à mão (coach-in-the-loop). `PENDENTE` foi descartado: não aparece na fila padrão. FIT de outro esporte
+  continua nulo (CA4). A análise do treino de 2026-11-09 sai quando o atleta reenviar o "Como foi?" (está dentro
+  de `maxIdadeDias`).
+- **Aceito:** corrida entre o evento do insert (async) e o do feedback — se o atleta responder antes de o evento
+  do insert ser processado, os dois podem achar RPE e disparar duas chamadas de LLM (o listener só pula
+  `COMPLETED`). Exige resposta em segundos após a sincronização; custo máximo uma análise extra. Claim
+  idempotente fica fora de escopo.
+- **Aceito:** se a conciliação falhar (CA5), o realizado fica com status nulo, como hoje. O log ERROR com o id é o
+  sinal; o mesmo SQL do backfill o recupera.
+- **Aceito (atualização perdida):** `TreinoRealizado` não tem `@Version`, e o Hibernate grava todas as colunas
+  no UPDATE. Se a transação da conciliação e a do feedback carregassem o mesmo realizado ao mesmo tempo, a última
+  a commitar sobrescreveria o RPE ou o vínculo. A conciliação roda síncrona logo após o commit da ingestão
+  (milissegundos), e o feedback exige que o atleta abra o app e responda depois de ver o treino — a janela é
+  desprezível na prática. `@Version`/`@DynamicUpdate` em `TreinoRealizado` toca todos os caminhos de escrita da
+  entidade e fica fora desta change; se aparecer RPE ou vínculo perdido, abrir change própria.
+- **Assumido:** o `TenantContext` do `GarminPingProcessorScheduler` (`:109`) e do upload continua instalado no
+  `AFTER_COMMIT` síncrono (mesma thread); o listener ainda assim recebe o tenant pelo evento.
