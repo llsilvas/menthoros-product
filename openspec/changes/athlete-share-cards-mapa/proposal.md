@@ -4,7 +4,7 @@
 change legal)
 **Status:** desbloqueada em 2026-11-09 (três dependências em `develop` e `main`); DoR em andamento
 **Criado:** 2026-11-08
-**Repos afetados:** `apps/menthoros-front`, `apps/menthoros-backend` (endpoint de zonas de FC do atleta, D3)
+**Repos afetados:** `apps/menthoros-front` (só front: cor única na v1, decisão do founder 2026-11-09)
 
 > **Depende de:** `add-activity-gps-trace` (dado, mergeada 2026-11-08), `athlete-share-cards`
 > (tela, frame, assinatura, atribuição, exportação) e `lgpd-trajeto-cards-compartilhamento`
@@ -19,9 +19,8 @@ resolvida, faltam só os dois modelos.
 
 ## Escopo
 
-1. **Rota** (story): trajeto em tela cheia, cada trecho na cor da zona de FC do ponto (`zone-*`),
-   brilho na linha, número de km em destaque, três métricas em vidro, legenda de zonas **com
-   rótulo textual** (Z2–Z5), assinatura e atribuição Garmin.
+1. **Rota** (story): trajeto em tela cheia em cor única com brilho, início e fim marcados, km em
+   destaque, três métricas em vidro, assinatura e atribuição Garmin. Zonas de FC ficam para depois.
 2. **Stickers sobre foto** (story): foto do atleta (câmera ou galeria) com adesivos arrastáveis:
    distância, selo de aderência, trajeto em círculo de vidro e assinatura. A atribuição Garmin fica
    **dentro** do adesivo de dados, para não poder ser separada dele.
@@ -39,11 +38,12 @@ resolvida, faltam só os dois modelos.
 
 ## Critérios de aceite
 
-**CA1 — Rota por zona**
-> **Dado** um treino com `gpsTrace` e FC por ponto, e zonas cadastradas para o atleta
+**CA1 — Rota**
+> **Dado** um treino com `gpsTrace`
 > **Quando** o modelo Rota é gerado
-> **Então** cada segmento do trajeto tem a cor da zona da FC daquele ponto; pontos sem FC usam
-> `text-secondary`; a legenda lista as zonas presentes com rótulo Z1–Z5.
+> **Então** o trajeto aparece em cor única (`primary`), com início e fim marcados, km em destaque, três
+> métricas, assinatura e atribuição Garmin quando a fonte é Garmin. As zonas de FC ficam fora da v1,
+> por decisão do founder em 2026-11-09.
 
 **CA2 — Sem GPS**
 > **Dado** um treino com `gpsTrace` nulo
@@ -61,16 +61,29 @@ resolvida, faltam só os dois modelos.
 > **Então** o PNG contém a foto com os adesivos na posição final; o adesivo de dados contém a
 > atribuição Garmin quando a fonte é Garmin.
 
+**CA6 — Sem consentimento não há imagem com mapa**
+> **Dado** um atleta sem consentimento concedido, com Rota ou Stickers selecionado
+> **Quando** ele toca em Compartilhar ou Salvar
+> **Então** o aviso abre, nenhum PNG é capturado, e "Usar modelo sem mapa" troca para um modelo sem
+> trajeto. Trocar de modelo durante uma geração em andamento também não captura o mapa.
+
+**CA7 — Foto normalizada**
+> **Dado** uma foto de celular com orientação EXIF e 12 MP
+> **Quando** o atleta a escolhe para o Stickers
+> **Então** a prévia e o PNG saem na orientação correta, e a foto é reduzida a no máximo 2160 px no
+> lado maior antes de entrar no card.
+
 **CA5 — Fidelidade do trajeto**
 > **Dado** um `gpsTrace` com ~400 pontos
 > **Quando** a Rota é desenhada
-> **Então** o traçado cabe no card com margem, mantém a proporção (sem distorção lat/lng) e começa e
-> termina nos pontos reais do trajeto.
+> **Então** o traçado cabe no card com margem, mantém a proporção (tolerância de 1%) e começa e
+> termina nos pontos reais do trajeto. Pontos coincidentes ou trajeto reto não geram `NaN`.
 
 ## Métrica de sucesso
 
-- Rota e Stickers somados ≥ 40% dos cards gerados (é o que os apps do nicho mostram que o atleta
-  mais usa).
+- Rota e Stickers somados ≥ 40% dos cards gerados. **Sem fonte de dado hoje**: o evento de
+  compartilhamento está em `athlete-share-data`. Até lá, o sinal possível é a contagem de eventos
+  `CONCEDIDO` em `tb_usuario_trajeto_share_consent`. Revisão: 2026-12-15.
 - Zero reclamação de titular sobre localização nos 90 dias após o lançamento (mesma métrica da
   change legal).
 
