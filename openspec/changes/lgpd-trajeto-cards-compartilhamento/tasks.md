@@ -37,6 +37,6 @@
 
 ## 4. Promoção
 
-- [ ] 4.1 QA (code-reviewer, security-reviewer, frontend-reviewer)
-- [ ] 4.2 PRs para `develop` (front e backend)
-- [ ] 4.3 Promoção `develop → main` — **decisão do founder em 2026-11-08 de promover sem esperar a validação jurídica da base legal (Q2)**; a validação continua pendente
+- [x] 4.1 QA sem Critical. Corrigido: ordem do último evento pela sequência do banco (`seq`), não pelo relógio da JVM; `@Size(max=20)`; front separa erro de carga do de ação e não mostra a chave quando a carga falha; `noopener noreferrer`; E2E `consentimento-trajeto.spec.ts`
+- [x] 4.2 Mergeados em `develop`: backend #228, front #212
+- [ ] 4.3 Promoção `develop → main` aberta (backend #229, front #213), aguardando merge — **decisão do founder em 2026-11-08 de promover sem esperar a validação jurídica da base legal (Q2)**; a validação continua pendente
