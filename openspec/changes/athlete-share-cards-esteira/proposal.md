@@ -27,11 +27,14 @@ contrato).
 3. **"Mostrar FC"** passa a valer para `esteira` (esconde o bloco de FC média).
 4. **Dados ausentes:** sem distância, o destaque vira o tempo; sem TSS ou FC, o bloco some e os demais
    ocupam a linha.
+5. **Foto na esteira** (pedido do founder em 2026-11-09, revertendo o "fora do escopo" anterior): o
+   modelo Foto fica disponível para treino `esteira = true` sem trajeto; o adesivo do trajeto vira o
+   selo "ESTEIRA" e, sem mapa, o card não pede o consentimento de trajeto. Ordem com esteira sem GPS:
+   `plano, parciais, stickers, esteira, semana`.
 
 ## Fora do escopo
 
 - Card Curva — `athlete-share-cards-curva`.
-- Foto com adesivos sem trajeto (avaliado e não escolhido pelo founder).
 - Inclinação da esteira.
 
 ## Critérios de aceite
@@ -57,6 +60,12 @@ contrato).
 > **Dado** um realizado de esteira com fonte Garmin
 > **Quando** o card é gerado
 > **Então** mostra "GARMIN {deviceName}" como os demais cards; com fonte manual ou intervals.icu, não.
+
+**CA7 — Foto na esteira**
+> **Dado** um realizado com `esteira: true` e sem trajeto
+> **Quando** o atleta escolhe "Foto" e uma imagem do aparelho
+> **Então** os adesivos mostram distância e o selo "ESTEIRA" (sem adesivo de trajeto), o consentimento
+> de trajeto não é consultado e o PNG é gerado.
 
 **CA5 — E2E**
 > **Dado** um treino de esteira mockado no formato real da API

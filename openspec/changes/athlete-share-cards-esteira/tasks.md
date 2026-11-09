@@ -32,7 +32,12 @@ Sequência: 1.1 → 1.2 → 1.3 → 1.4. Arquivos em `src/features/athlete/`.
 - [ ] 1.3 `ShareWorkoutView.tsx`: render de `model === 'esteira'`, `descricaoDoCard` ("Card Esteira:
   …"), `mostrarFc` entra na `versao` também para `esteira`
   verify: teste de componente — alternar "Mostrar FC" no modelo esteira chama `toBlob` de novo
-- [ ] 1.4 Validação: `npm run lint && npm run build && npm run test:run`
+- [ ] 1.4 Foto na esteira (CA7): `PhotoStickersCard` aceita `RouteView | TreadmillView` e troca o
+  adesivo do trajeto pelo `TreadmillBadge`; adapter lista `stickers` para esteira sem GPS;
+  `ShareWorkoutView` só pede consentimento quando há trajeto
+  verify: teste de componente — Foto na esteira sem chamar `TrajetoShareConsentService.obter`,
+  adesivo "esteira" com o selo, sem adesivo "trajeto"
+- [ ] 1.5 Validação: `npm run lint && npm run build && npm run test:run`
 
 ## 2. E2E e verificação
 
