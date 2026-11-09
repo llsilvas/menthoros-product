@@ -49,6 +49,12 @@ em teste.
 - [ ] 2.1 CA6 — antes do PR: registrar aqui o `subSport` de 1 `.fit` real de esteira do pilot e o
   `type` de 1 payload real do intervals.icu de esteira. Sem arquivo, marcar a fonte como não validada
   no PR. **Depende do founder** (arquivos do pilot)
+  - **Garmin `.fit` — validado (2026-11-09).** Atividade `25018820341` (corrida de 09/11, 6,06 km,
+    42 min): `SessionMesg` `sport=RUNNING`, `subSport=TREADMILL`; `SportMesg` `name="Esteira"`;
+    2515 records, nenhum com posição. `FitParseServiceImpl.parse` no arquivo real: `esteira=true`,
+    `gpsSamples` vazio, 8 laps, `fcMedia=129`. O arquivo não traz TSS (calculado na ingestão) nem
+    `productName` (o modelo vem do ping). Arquivo não versionado: dado de saúde do pilot.
+  - **intervals.icu `type` — não validado.** Fonte marcada como não validada no PR e fora da métrica.
 - [x] 2.2 Handoff do contrato: `esteira` no cliente curado do front entra em
   `athlete-share-cards-esteira` 1.1
 - [ ] 2.3 Uma semana depois do deploy: SQL da métrica de sanidade (só `GARMIN`) e resultado aqui
