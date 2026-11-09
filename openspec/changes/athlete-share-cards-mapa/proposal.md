@@ -1,10 +1,10 @@
 # athlete-share-cards-mapa — modelos de card com trajeto GPS
 
-**Tamanho:** S · **Trilha:** Full (dado sensível de localização saindo da plataforma; depende de
+**Tamanho:** M · **Trilha:** Full (dado sensível de localização saindo da plataforma; depende de
 change legal)
-**Status:** proposta — bloqueada
+**Status:** desbloqueada em 2026-11-09 (três dependências em `develop` e `main`); DoR em andamento
 **Criado:** 2026-11-08
-**Repos afetados:** `apps/menthoros-front`
+**Repos afetados:** `apps/menthoros-front`, `apps/menthoros-backend` (endpoint de zonas de FC do atleta, D3)
 
 > **Depende de:** `add-activity-gps-trace` (dado, mergeada 2026-11-08), `athlete-share-cards`
 > (tela, frame, assinatura, atribuição, exportação) e `lgpd-trajeto-cards-compartilhamento`
