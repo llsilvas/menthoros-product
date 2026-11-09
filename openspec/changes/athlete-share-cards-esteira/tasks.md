@@ -13,7 +13,7 @@
 
 Sequência: 1.1 → 1.2 → 1.3 → 1.4. Arquivos em `src/features/athlete/`.
 
-- [ ] 1.1 Tipos e adapter: `esteira?: boolean` em `TreinoRealizadoDto` (`src/types/TreinoManual.ts`);
+- [x] 1.1 Tipos e adapter: `esteira?: boolean` em `TreinoRealizadoDto` (`src/types/TreinoManual.ts`);
   `ShareModel` ganha `'esteira'`, `TreadmillView` e `esteira: TreadmillView | null` em
   `ShareCardData` (`types/ShareCard.ts`); `buildEsteira(input)` em `adapters/buildShareCardData.ts`
   (mesma base de `buildRota`: `tipoTreinoLabel`, `dataLabel`, `formatarDuracao`, `paceDe`,
@@ -22,22 +22,22 @@ Sequência: 1.1 → 1.2 → 1.3 → 1.4. Arquivos em `src/features/athlete/`.
   verify: casos novos em `adapters/buildShareCardData.test.ts` — CA1 (`esteira: true` lista o
   modelo; `false`/ausente não) e CA2 (sem `distanciaKm` → `destaque` é o tempo e `paceMedio`
   ausente; sem `tssCalculado`/`fcMedia` → campos ausentes)
-- [ ] 1.2 `components/share/TreadmillCard.tsx` (v2 I): selo "ESTEIRA" com SVG inline, atribuição
+- [x] 1.2 `components/share/TreadmillCard.tsx` (v2 I): selo "ESTEIRA" com SVG inline, atribuição
   Garmin (`GarminAttribution`), título, km em `displayNumberSx` (ou tempo, CA2), pace, blocos
   `ShareStat` TEMPO / FC MÉD / TSS que somem quando ausentes; tokens de `shareCardStyle`, sem hex.
   `SHARE_MODEL_DEFAULT_FORMAT.esteira = 'story'`; `MODEL_LABEL.esteira = 'Esteira'`
   (`ShareControls.tsx`)
   verify: `treadmillCard.test.tsx` — CA1 (selo, "10,0", "5:03", "GARMIN FORERUNNER 265"), CA3
   (`mostrarFc=false` some FC MÉD), CA4 (fonte MANUAL sem atribuição), CA2 (sem distância)
-- [ ] 1.3 `ShareWorkoutView.tsx`: render de `model === 'esteira'`, `descricaoDoCard` ("Card Esteira:
+- [x] 1.3 `ShareWorkoutView.tsx`: render de `model === 'esteira'`, `descricaoDoCard` ("Card Esteira:
   …"), `mostrarFc` entra na `versao` também para `esteira`
   verify: teste de componente — alternar "Mostrar FC" no modelo esteira chama `toBlob` de novo
-- [ ] 1.4 Foto na esteira (CA7): `PhotoStickersCard` aceita `RouteView | TreadmillView` e troca o
+- [x] 1.4 Foto na esteira (CA7): `PhotoStickersCard` aceita `RouteView | TreadmillView` e troca o
   adesivo do trajeto pelo `TreadmillBadge`; adapter lista `stickers` para esteira sem GPS;
   `ShareWorkoutView` só pede consentimento quando há trajeto
   verify: teste de componente — Foto na esteira sem chamar `TrajetoShareConsentService.obter`,
   adesivo "esteira" com o selo, sem adesivo "trajeto"
-- [ ] 1.5 Validação: `npm run lint && npm run build && npm run test:run`
+- [x] 1.5 Validação (2026-11-09): `npm run lint` limpo, `npm run build` ok, `npm run test:run` 2993 verdes
 
 ## 2. E2E e verificação
 
