@@ -28,7 +28,18 @@ mede:
 ## Escopo (a detalhar no DoR)
 
 1. Liberar `GET /assessorias/me/logo` para `ATLETA` do mesmo tenant.
-2. Nome do treinador no contrato do atleta, se ainda não existir.
+2. Nome do treinador no contrato do atleta. **Decisão do founder (2026-11-08):** o treinador vem do
+   **cadastro da assessoria**, com **inclusão de técnico** feita ali — não de texto livre nem de
+   claim do token. Estado atual: técnico já é `Usuario` com `UserRole.TECNICO` no tenant (contado em
+   `AssessoriaSettingsServiceImpl.java:98`, limitado por `Assessoria.maxTecnicos`), mas não existe
+   tela para a assessoria incluir técnicos nem vínculo atleta → técnico. Escopo decorrente:
+   - inclusão/listagem de técnicos na tela de configurações da assessoria (respeitando
+     `maxTecnicos`);
+   - vínculo do atleta com o técnico responsável (a definir no DoR: campo no `Atleta` ou escolha no
+     convite);
+   - nome do técnico responsável no contrato do atleta (`GET /users/me` ou similar).
+   Pode ser grande o bastante para virar change própria (`assessoria-cadastro-tecnicos`) — avaliar
+   no DoR.
 3. Nota do treinador por treino realizado com `publicavel` (opt-in, default falso) e onde o
    treinador escreve/marca — **decisão de produto pendente**: reaproveitar algum campo existente do
    review ou criar campo novo.
