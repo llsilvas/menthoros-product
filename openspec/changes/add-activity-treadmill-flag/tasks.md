@@ -34,6 +34,16 @@ Sequência: 1.1 → 1.2 → 1.3 → 1.4 → 1.5 (1.3 depende de 1.1 e 1.2).
   `TreadmillFlagIT` (upload `.fit` TREADMILL/INDOOR_RUNNING → coluna V115 → `GET /me/treinos`);
   `AtletaTreinoControllerTest` (`@WebMvcTest`) isolado: 30 verdes
 
+## QA (2026-11-09)
+
+code-reviewer, security-reviewer e clean-code-reviewer: nenhum Critical/Major. Corrigidos: teste de
+CA5 tautológico (agora prova que a duplicata não reescreve o flag) e nomes qualificados nos testes.
+Limitação conhecida (D4): reenvio de `.fit` ou re-sync do intervals.icu sobre registro já existente
+não atualiza `esteira` (`FitTreinoPersister` e `IntervalsIcuActivityPersister` só gravam na
+inserção) — treino anterior à V115 fica `false`. Aceitos sem mudança: construtores de compatibilidade
+posicionais (padrão do repo; revisitar na próxima feature que somar campo) e `withEsteira` usado só
+em teste.
+
 ## 2. Evidência e handoff
 
 - [ ] 2.1 CA6 — antes do PR: registrar aqui o `subSport` de 1 `.fit` real de esteira do pilot e o
