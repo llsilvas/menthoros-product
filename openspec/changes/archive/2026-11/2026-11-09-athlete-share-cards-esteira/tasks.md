@@ -7,7 +7,8 @@
   contável (Salvar/Compartilhar, não a prévia) e tratamento de não respondentes (task 2.4).
   Conferido contra o código: `tssCalculado`, `fcMedia`, `distanciaKm`, `deviceName` existem em
   `TreinoRealizadoDto`; "Mostrar FC" já existe e é ligado por modelo na `versao` da imagem.
-- [ ] 0.2 `add-activity-treadmill-flag` mergeada e em produção
+- [x] 0.2 `add-activity-treadmill-flag` mergeada em `develop` (backend #233, 2026-11-09); produção
+  aguarda a promoção #234 (develop → main), aberta com CI verde
 
 ## 1. Dados e card
 
@@ -48,13 +49,19 @@ abria na Foto sem imagem → `esteira` antes de `stickers`; spread com `as const
 padrão de `buildRota` (DTO sempre traz `duracaoMin`); E2E não cobre esteira com GPS (coberto no
 teste do adapter).
 
+## Entrega (2026-11-09)
+
+Front #219 (`develop`) e #220 (`main`). Ajuste pós-merge #221: selo do adesivo da Foto em 28px, girado,
+com sombra, e nome do treino no adesivo de dados, alinhando ao artboard `v2 K · Foto · Esteira`.
+
 ## 2. E2E e verificação
 
 - [x] 2.1 `tests/e2e/athlete/share-workout-esteira.spec.ts` (CA5, CA7) — 3 verdes em 2026-11-09
   verify: `npm run test:e2e` com o spec visitando o modelo
 - [x] 2.2 Verificação visual (2026-11-09): PNGs do E2E conferidos contra `v2 I · Esteira` — selo,
   atribuição, km, pace, blocos e assinatura no lugar; Foto com o selo no slot do trajeto
-- [ ] 2.3 Registrar a data do deploy em produção para o gate de 4 semanas
-- [ ] 2.4 Gate (4 semanas após 2.3): SQL da coorte (`esteira = true`, fonte GARMIN, por atleta),
+- [ ] 2.3 **Adiada (pós-arquivamento):** registrar a data do deploy em produção para o gate de 4 semanas
+  — front promovido em #220 (2026-11-09); backend depende do merge de #234
+- [ ] 2.4 **Adiada (pós-arquivamento):** gate (4 semanas após 2.3): SQL da coorte (`esteira = true`, fonte GARMIN, por atleta),
   pergunta única do founder a cada atleta, tabela atleta → sim/não/sem resposta e % final aqui.
   **Depende do founder**

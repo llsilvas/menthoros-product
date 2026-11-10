@@ -44,9 +44,14 @@ inserção) — treino anterior à V115 fica `false`. Aceitos sem mudança: cons
 posicionais (padrão do repo; revisitar na próxima feature que somar campo) e `withEsteira` usado só
 em teste.
 
+## Entrega (2026-11-09)
+
+Backend #233 mergeado em `develop`; promoção #234 (develop → main) aberta com CI verde. Consumido por
+`athlete-share-cards-esteira` (front #219/#221).
+
 ## 2. Evidência e handoff
 
-- [ ] 2.1 CA6 — antes do PR: registrar aqui o `subSport` de 1 `.fit` real de esteira do pilot e o
+- [x] 2.1 CA6 — antes do PR: registrar aqui o `subSport` de 1 `.fit` real de esteira do pilot e o
   `type` de 1 payload real do intervals.icu de esteira. Sem arquivo, marcar a fonte como não validada
   no PR. **Depende do founder** (arquivos do pilot)
   - **Garmin `.fit` — validado (2026-11-09).** Atividade `25018820341` (corrida de 09/11, 6,06 km,
@@ -57,4 +62,4 @@ em teste.
   - **intervals.icu `type` — não validado.** Fonte marcada como não validada no PR e fora da métrica.
 - [x] 2.2 Handoff do contrato: `esteira` no cliente curado do front entra em
   `athlete-share-cards-esteira` 1.1
-- [ ] 2.3 Uma semana depois do deploy: SQL da métrica de sanidade (só `GARMIN`) e resultado aqui
+- [ ] 2.3 **Adiada (pós-arquivamento):** uma semana depois do deploy (#234, develop → main): SQL da métrica de sanidade (só `GARMIN`) e resultado aqui
