@@ -1,5 +1,8 @@
 **Tamanho:** L · **Trilha:** Full
 
+> **Resolvido em 2026-11-15:** supersedida e arquivada sem implementação em
+> `archive/2026-11/2026-11-15-add-macrociclo-structure/` (D1). O texto abaixo fica como histórico.
+>
 > **Relação com `add-macrociclo-structure` (backlog frio desde 2026-07-24).** Esta change cobre a
 > mesma capability e **propõe supersedê-la** — decisão do founder (Gate 3, ver "Decisões
 > pendentes" D1). A change anterior modela `Macrociclo` + `Mesociclo` com proporções fixas (BASE
@@ -126,7 +129,66 @@ menos porque o alvo da semana já reflete a intenção que ele aprovou uma vez p
 - % de macros aprovados com ao menos uma edição do coach — acompanhamento, não alvo: edição alta
   indica template ruim, edição zero indica que o coach não está revisando.
 
-## Decisões pendentes (antes do `/implement init`)
+## Decisões resolvidas (grilling de 2026-11-15)
+
+Todas seguem a recomendação registrada. Onde o texto acima ainda descreve a alternativa, vale esta seção.
+
+| # | Decisão | Resultado |
+|---|---|---|
+| D1 | `add-macrociclo-structure` | **Supersedida.** Recebe nota de supersessão e é arquivada sem implementação (task 0.2) |
+| D2 | `add-taper-guidance` | **Obsoleta.** O taper vive nas semanas da temporada, via `TaperStrategy`; a orientação ao atleta vira change pequena depois |
+| D3 | Quem gera | **Manual**, pelo treinador. Sem hook no `ProvaService` |
+| D4 | Fatia 6 (replanejamento) | **Sai desta change** e vira a change própria S10. O limite de desvio do gatilho é decidido lá |
+| Q4 | Semanas mínimas | **8/10/12/16** (`RacePreparationRule`). Fonte única para prova e temporada |
+| Q6 | Vocabulário | "Plano de temporada" e "Semana da temporada" no produto e na UI (já no `CONTEXT.md`). `PlanoTreino` e `SemanaPlanejada` ficam só no código |
+| Q7 | Template editável | **Só o default global** na primeira entrega. `tb_template_metodologia` nasce com `assessoria_id` nulo para o default; edição pela assessoria é change posterior |
+| Q8 | Modo planilha completa | **Fora do MVP.** Entra se a demanda aparecer no piloto |
+| Q9 | Atleta em calibração | **Espera a graduação.** A ação "Gerar temporada" fica desabilitada com o motivo visível; a proposta nasce quando o atleta gradua. Substitui "marcar como estimado em calibração" (task 2.6) e os estados de calibração do atleta (8.5, 8.6) |
+| Q10 | Ordem | **Backend primeiro**; a aba no perfil espera `redesign-coach-athlete-profile` chegar em `develop`. A change é quebrada em changes filhas (abaixo), cada uma fechando cenários testáveis |
+
+Premissa 0.4: `tb_plano_treino` tem 0 linhas e `tb_plano_semanal.plano_treino_id` 0 vínculos no banco do
+homelab (dev/testes, conferido em 2026-11-15). **Produção (Railway, `main`) não foi conferida** — rodar a
+mesma contagem antes de aplicar a V116 em `main`.
+
+Aberto por causa de Q9: o critério de "graduação" da calibração precisa ser lido do código (de onde o
+backend tira o estado de calibração do atleta) antes da S2; a mensagem da ação desabilitada depende dele.
+
+## Fatiamento em changes filhas
+
+Esta change vira o **épico**: guarda proposal, design e as decisões. Cada fatia abaixo é uma change
+própria (`add-season-plan-*`), com um `proposal.md` curto que aponta para cá, e é entregável e
+revertível sozinha. As tasks das seções 1 a 10 do `tasks.md` são distribuídas conforme a coluna
+"Tasks". Cada fatia só fecha quando seus cenários passam como teste.
+
+| Fatia | Change | Repo · Tam. · Trilha | Tasks | Cenários que fecham (testes) | Depende de | Flag |
+|---|---|---|---|---|---|---|
+| S1 | `add-season-plan-model-integrity` | backend · M · Full | 1.1–1.3a, 1.3c, 1.4, 1.6 (repo de semana), 1.7, 1.8, 1.11, 1.11a, 1.11b, 1.12 | Excluir prova com macro e planos semanais aprovados não apaga nenhuma linha. Segundo macro `ATIVO` do mesmo atleta é recusado pelo banco. Migrations aplicam em banco limpo e em banco com dados. Cancelar a prova-alvo arquiva o macro e preserva semanas | D1 (nota de supersessão) | nenhuma: a troca das FKs é correção de integridade |
+| S2 | `add-season-plan-generator` | backend · M · Full | 1.3b, 1.5, 1.6 (repo de template), 1.9, 2.1–2.12 | Mesma entrada produz as mesmas semanas, sempre. 20 semanas de prova geram 20 semanas com fase, `volumeAlvoKm`, `tssAlvo`, `longaoKm` e `descarga`. Janela menor que o mínimo comprime as fases e marca `preparacaoCurta`. Taper aplicado uma vez só. Atleta em calibração é recusado com motivo. Cada regra do `MacrocicloValidator` tem um caso que dispara e um que não | S1 · `TaperStrategy` · `RacePreparationRule` | nenhuma (domínio puro, sem endpoint) |
+| S3 | `add-season-plan-api-read-generate` | backend · S · Full | 4.1–4.3, 4.11, 4.12, 4.12a, 4.12b, 4.13, 4.14 | Treinador gera a proposta da prova-alvo e ela nasce `PROPOSTA`. Atleta com macro só em `PROPOSTA` recebe "sem plano". `ATLETA` recebe 403 nos endpoints do treinador. Tenant A não lê macro do tenant B. Calibração responde 422 com o motivo | S2 | `macrociclo.enabled=false` |
+| S4 | `add-season-plan-versioning-approval` | backend · M · Full | 3.1–3.10, 4.4–4.10, 4.14 | Aprovar a v2 sem motivo responde 422 e não cria versão. Na v2 aprovada na semana 7 de 18, as semanas 1 a 6 ficam idênticas. Soma de fases diferente do total responde 422. Semana concluída, em andamento e a da prova são somente leitura. Diff mostra campo e origem. Conflito de versão é tratado | S3 | `macrociclo.enabled` |
+| S5 | `add-season-plan-coach-view` | front · M · Full | 7.1–7.5, 7.7, 7.12, 7.13, 7.15, parte de 9 | Estados da aba: sem prova-alvo, prova sem macro, proposta, calibração (ação desabilitada com o motivo), carregando e erro. Mapa de fases, KPIs, tabela de semanas e marcos renderizam do endpoint | S3 · `redesign-coach-athlete-profile` em `develop` | `macrociclo.enabled` |
+| S6 | `add-season-plan-coach-adjust` | front · M · Full | 7.8–7.11, 7.14, 7.15, parte de 9 | Gerar, ajustar, aprovar e ver na aba Temporada (e2e). Campo alterado mostra o valor anterior. Aprovação bloqueada por soma de fases. Conflito de versão tratado. Travas de semana | S4 · S5 | `macrociclo.enabled` |
+| S7 | `add-season-plan-athlete-view` | front · S · Fast | 8.1–8.4, 8.7, parte de 9 | Bloco "Minha temporada" some sem macro `ATIVO`. Mostra prova-alvo, dias, fase e próximos marcos, com a nota de previsão. Sem estado de calibração: sem macro, não há bloco | S3 | `macrociclo.enabled` |
+| S8 | `add-season-plan-weekly-context` | backend · M · Full | 1.10, 5.1–5.5, 5.10, 5.10a, 5.12, 5.16, 5.17 | Com macro, o prompt tem o bloco de posição no ciclo e não tem o "TSS Alvo Semanal" nem a fase legados. Sem macro, o prompt é idêntico ao atual (regressão). `PlanoSemanal` guarda `semanaPlanejadaId` e `desvioAlvoPercentual`. Métrica de divergência de fase só conta com `planner-engine.shadow=true` | S4 · decisão da task 0.3 (`migrate-plan-prompt-to-skills`) | `macrociclo.enabled`; ligar o shadow no tenant do piloto |
+| S9 | `add-season-plan-load-enforcement` | backend · M · Full | 5.6–5.9, 5.11, 5.11a, 5.11b, 5.13–5.15, 10.4 | Semana pede 620 TSS e o teto é 540: resolve 540, o skeleton registra o motivo e a semana da temporada não muda. Taper com macro resolve o `tssAlvo`, sem segunda redução. Progressão reativa não passa do alvo. Semana perdida não é compensada. Lesão e pós-prova vencem o macro. Longão divergente marca revisão; volume fora da banda nasce com revisão obrigatória, sem 422. Enforcement desligado não muda nada | S8 · `planner-engine.enabled` | `macrociclo.enforcement.enabled` |
+| S10 | `add-season-plan-replanning` | backend + front · M · Full | 6.0–6.9, 7.6 | Três semanas abaixo do alvo, acumulando desvio acima do limite, geram a proposta e preservam o passado. Uma semana isolada dentro do limite não gera nada. Mudança de data da prova gera a proposta. Rejeição é registrada. **O limite e a medida do desvio (volume ou aderência) são decididos no grilling dessa change** | S9 rodando um ciclo no piloto | `macrociclo.replanejamento.enabled` |
+
+Fechamento transversal (seção 10), distribuído: 10.1 e 10.2 em cada fatia; 10.3 e 10.5 na última fatia
+entregue; 10.4 (ADR "macro como teto, não piso" e precedência segurança > macro > progressão) na S9; 10.6
+(rollout por tenant) ao ligar a S8 no piloto.
+
+**Caminho crítico:** S1 → S2 → S3 → S4 → S8 → S9. Em paralelo, depois da S3: S5 (assim que o redesenho do
+perfil estiver em `develop`) e S7. S6 depois de S4 e S5. S10 só depois de a S9 rodar um ciclo.
+
+**Valor por fatia:** o treinador só vê algo a partir da S5, mas as fatias 1 a 4 já deixam o modelo, o
+gerador e a aprovação testados por API. As fatias 1 a 7 entregam valor com o enforcement do `PlannerEngine`
+desligado; as fatias 8 e 9 é que fazem a temporada guiar a geração semanal.
+
+**Risco do fatiamento:** a S5 depende de uma change (`redesign-coach-athlete-profile`) que está em 0/49 com
+3 decisões abertas. Se ela atrasar, a S5 entra no layout de seções que existe hoje (task 7.1 já prevê isso),
+e a reorganização em abas fica por conta do redesenho.
+
+## Decisões pendentes — resolvidas (histórico, antes do `/implement init`)
 
 **D1. Supersedir `add-macrociclo-structure`?**
 - (a) Supersedir: esta change segue; a anterior recebe nota e é arquivada sem implementação.
