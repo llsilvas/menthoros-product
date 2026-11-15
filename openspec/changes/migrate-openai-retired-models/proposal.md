@@ -289,4 +289,94 @@ antes de chegar ao atleta.
 
 ## Decisão do gate 0
 
-_(preencher na task 0.1 — não começar código antes)_
+**Status: PARCIAL (2026-11-13).** Fontes oficiais lidas; **um item bloqueante segue não
+confirmado** (suporte a `json_schema` no Chat Completions) — nenhuma task de código começa antes
+de fechá-lo.
+
+Fontes (HTTP 200, lidas em 2026-11-13):
+- https://developers.openai.com/api/docs/deprecations
+- https://developers.openai.com/api/docs/guides/latest-model (seção GPT-6 migration quickstart)
+- https://developers.openai.com/api/docs/models/gpt-6-luna
+- https://developers.openai.com/api/docs/pricing
+
+**Confirmado**
+- Retirada em **2027-01-14** de `gpt-4o` (`gpt-4o-2024-08-06`, `gpt-4o-2024-11-20`), `gpt-4o-mini`
+  (`gpt-4o-mini-2024-07-18`), `gpt-4.1` (`gpt-4.1-2025-04-14`) e `gpt-4.1-mini`
+  (`gpt-4.1-mini-2025-04-14`). Aviso em 2026-10-14. Substituto recomendado nos quatro: `gpt-6-luna`.
+  Fine-tunes seguem o mesmo cronograma do modelo base.
+- Sucessor: `gpt-6-luna`, snapshot único `gpt-6-luna`. **Não há variante mini/nano do GPT-6** nas
+  páginas lidas — Open Question 2 se resolve com o próprio Luna na rota `simple`.
+- Reasoning: `reasoning_effort` (Chat Completions) aceita `none`, `low`, `medium` (**padrão**),
+  `high`, `xhigh`, `max`. Luna aceita `none`.
+- Com esforço ≠ `none`: remover `temperature`, `top_p`, `top_logprobs` e `logprobs` (confirma D1).
+- Chat Completions é endpoint suportado. Structured Outputs consta em "Supported features".
+- **Function calling no Chat Completions só com `reasoning_effort: none`**; a OpenAI recomenda
+  mover para a Responses API.
+- Preço Luna (USD/1M, standard, ≤ 272K): entrada 0,10 · cache 0,01 · saída 0,50. > 272K: 2x
+  entrada/cache e 1,5x saída. Batch/Flex 0,05 / 0,005 / 0,25. Contexto 1.050.000, saída máx 128.000.
+  Prêmio regional de 10%.
+
+**Não confirmado — fechar antes de qualquer código**
+> **Sonda real em 2026-11-14** (`gpt-6-luna`, Chat Completions, schema strict de 2 campos):
+> - **`json_schema` strict: HTTP 200 e JSON válido com `reasoning_effort` `none` e `medium`.**
+>   Itens 1 resolvido para o suporte; **não cobre** o schema real do plano (~12k tokens) — fica
+>   para o bake-off (task 3.x).
+> - `max_tokens` com reasoning: **400** ("Use 'max_completion_tokens' instead") — confirma D1.
+> - `temperature 0.2`: **200 com `none`; 400 com `medium`** ("Only the default (1) value is
+>   supported") — confirma a validação por esforço efetivo.
+> - `frequency_penalty 0.1`: **400 com `medium`**. Com `none` a chamada devolveu **500**
+>   (erro do servidor) **duas vezes seguidas** (2026-11-14, reproduzido): tratar como
+>   **não suportado** no Luna. As penalties saem do YAML global e não entram no perfil do Luna
+>   (já era a direção de D1); o `gpt-5.2` aceita com `none`, mas não há motivo para usar.
+> - Tokens de reasoning em `medium` na sonda: 20 (prompt trivial; não representa o plano).
+>
+> **Mesma sonda com `gpt-5.2`** (snapshot devolvido: `gpt-5.2-2025-12-11`): mesmo comportamento
+> do Luna — `json_schema` strict 200 com `none` e `medium`; `max_tokens` 400; `temperature` 200
+> com `none` e 400 com `medium`; `frequency_penalty` **200 com `none`** e 400 com `medium`.
+> Isso resolve o caso que ficou inconclusivo no Luna só para o `gpt-5.2`; no Luna o `none`
+> segue por repetir. O `gpt-5.2` é, portanto, candidato viável no bake-off, e o snapshot acima
+> entra no `llm-pricing.yml` (CA5).
+
+1. ~~`response_format: json_schema` no **Chat Completions** com Luna~~ (**resolvido para o suporte
+   em 2026-11-14**, ver sonda acima; o texto original segue como histórico): as páginas só listam
+   "structured_outputs" como feature, sem dizer por endpoint. A rota `plano` depende disso. Se só
+   valer na Responses API, é blocker (Non-goals): reescopo ou plano B. **Ação:** chamada real de
+   teste com o schema de `LlmJsonSchemaBuilder`.
+2. ~~`max_tokens` vs `max_completion_tokens` e `frequency_penalty`/`presence_penalty` com
+   reasoning~~ **Resolvido em 2026-11-14, exceto um caso:** `max_tokens` e `frequency_penalty`
+   rejeitados com `medium`. `frequency_penalty` com `none` no Luna deu 500 em 2 execuções:
+   não usar. `presence_penalty` e `top_p` não foram sondados; como o perfil novo não os envia
+   (D1), não bloqueia.
+3. ~~O backend usa function calling em alguma rota OpenAI?~~ **Resolvido em 2026-11-13: não.**
+   Grep em `apps/menthoros-backend/src/main` por `.tools(`, `toolCallbacks`, `.functions(`,
+   `@Tool`, `FunctionCallback`, `ToolCallback`, `defaultTools`, `tool_choice`, `toolNames` sem
+   ocorrência. Único achado: `ToolCallingManager` em `MultiModelConfig.java:17` (dependência do
+   construtor do `OpenAiChatModel` derivado, não uso). A restrição "function calling só com
+   `reasoning_effort: none`" não pesa; qualquer esforço é permitido. `src/test` não foi varrido.
+4. Tarefas 0.2 (variáveis do Railway) e 0.3 (fine-tunes na conta) seguem abertas — exigem acesso
+   do founder.
+
+**Alternativa GPT-5 avaliada em 2026-11-13 (preço standard, USD/1M, entrada / saída):** descartada
+como candidata principal. Fonte: https://developers.openai.com/api/docs/pricing e
+https://developers.openai.com/api/docs/deprecations (tabela lida inteira).
+
+| Modelo | Preço | Retirada |
+|---|---|---|
+| `gpt-4o` / `gpt-4o-mini` (hoje) | 2,50 / 10,00 · 0,15 / 0,60 | 2027-01-14 |
+| `gpt-5` · `gpt-5-mini` · `gpt-5-nano` | 1,25 / 10,00 · 0,25 / 2,00 · 0,05 / 0,40 | **2026-12-11** |
+| `gpt-5.1` · `gpt-5.4-nano` | 1,25 / 10,00 · 0,20 / 1,25 | 2027-04-01 |
+| `gpt-5.2` | 1,75 / 14,00 | sem data |
+| `gpt-5.4-mini` | 0,75 / 4,50 | sem data |
+| `gpt-5.6-luna` | 0,20 / 1,20 | sem data |
+| `gpt-6-luna` | 0,10 / 0,50 | sem data |
+
+Os GPT-5 mais baratos que o `gpt-4o` saem antes dele (ou em 2027-04-01), então só adiam a
+migração. Os sem data de retirada custam mais que o `gpt-6-luna`. **`gpt-5.2` fica como segundo
+candidato do bake-off** se o `json_schema` falhar no Luna (entrada abaixo do `gpt-4o`, saída
+acima). Para a família GPT-5 também **não confirmado:** reasoning padrão, parâmetros rejeitados e
+`json_schema` no Chat Completions (a página de Structured Outputs diz "gpt-4o-2024-08-06 and
+later", ambíguo) — a mesma chamada de teste do item 1 cobre os dois.
+
+**Efeito no prazo:** o proposal assume 1 semana em `develop` antes do `main` em 2026-11-15. Com o
+gate 0 aberto em 2026-11-13, essa janela não cabe; o prazo precisa ser renegociado (Open
+Question 10).
