@@ -34,7 +34,7 @@ Documento de priorização e ordem de execução dos changes ativos do projeto. 
 | 3 | Confiança no motor analítico | `add-zone-confidence-management`, `add-running-field-tests` | Pendente (nenhuma das duas iniciada) |
 | 4 | Experiência do treinador | `add-coach-attention-queue` ✅, `add-post-workout-debrief`, `add-weekly-athlete-review`, `add-recommendation-explainability` ✅ | **2/4 entregues** — `add-post-workout-debrief` e `add-weekly-athlete-review` seguem pendentes |
 | 5 | Arquitetura agêntica | `add-llm-tool-use`, `introduce-domain-skills-architecture` (✅ superada por `build-skills-core-foundation`), `llm-code-switching` | Rebaixada para bloco de engenharia agrupado (ver `SPRINTS.md`) — não bloqueia mais features visíveis |
-| 6 | Features de produto avançadas | `add-daily-readiness-checkin` ✅, `add-race-time-prediction` ✅, `add-taper-guidance`, `add-macrociclo-structure` | **2/4 entregues** — `add-taper-guidance` e `add-macrociclo-structure` seguem pendentes |
+| 6 | Features de produto avançadas | `add-daily-readiness-checkin` ✅, `add-race-time-prediction` ✅, ~~`add-taper-guidance`~~, ~~`add-macrociclo-structure`~~ | **2/4 entregues** — `add-taper-guidance` e `add-macrociclo-structure` supersedidas em 2026-11-15 pelo épico `add-season-plan-macrocycle` |
 
 **Fora do roadmap ativo:**
 - `fix-multi-tenancy-enforcement` — ✅ **Entregue** (arquivada em `archive/2026-06/2026-06-02-fix-multi-tenancy-enforcement/`); `tenant_id`/`TenantContext` já é o padrão consolidado em todo o backend.
@@ -168,13 +168,13 @@ Captura diária de prontidão subjetiva (sono, humor, dores, energia, estresse) 
 
 Predição de tempo por prova-alvo. Arquivada em `archive/2026-06/2026-06-01-add-race-time-prediction/`. Ganhou continuidade em `infer-thresholds-from-recent-workouts` ✅ e `infer-threshold-from-race-result` ✅ (2ª fonte de `paceLimiarEstimado` via prova real, 2026-07-17).
 
-### `add-taper-guidance` (10 seções, ~25 tasks) — pendente
+### `add-taper-guidance` (10 seções, ~25 tasks) — superseded (2026-11-15)
 
-Cálculo determinístico da janela de taper por prova-alvo com estratégias LINEAR, EXPONENCIAL ou STEP. Ainda não iniciada.
+Cálculo determinístico da janela de taper por prova-alvo com estratégias LINEAR, EXPONENCIAL ou STEP. Arquivada sem implementação em `archive/2026-11/2026-11-15-add-taper-guidance/`: o taper passa a viver nas semanas do plano de temporada via `TaperStrategy` (`add-season-plan-macrocycle`, D2).
 
-### `add-macrociclo-structure` (11 seções, ~35 tasks) — pendente
+### `add-macrociclo-structure` (11 seções, ~35 tasks) — superseded (2026-11-15)
 
-Estrutura explícita de macrociclo (12–24 semanas) com mesociclos determinísticos em fases BASE → ESPECIFICO → PICO → TAPER → TRANSICAO. Ainda não iniciada. Coordena com `add-taper-guidance` e `progressao-treinos` ✅ (documentado em `design.md`).
+Estrutura explícita de macrociclo (12–24 semanas) com mesociclos determinísticos em fases BASE → ESPECIFICO → PICO → TAPER → TRANSICAO. Arquivada sem implementação em `archive/2026-11/2026-11-15-add-macrociclo-structure/`, supersedida pelo épico `add-season-plan-macrocycle` (D1), fatiado em `add-season-plan-*` S1–S10.
 
 ---
 

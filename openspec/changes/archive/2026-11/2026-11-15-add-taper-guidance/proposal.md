@@ -1,3 +1,10 @@
+**Status:** arquivada como superseded, **sem implementação** (0/29 tasks) — **tornada obsoleta por
+`add-season-plan-macrocycle`** (decisão D2, grilling de 2026-11-15). Ela criaria uma terceira fonte de
+taper (`TaperService`, `tb_periodo_taper`, redução fixa 60/75/90%) ao lado da `TaperStrategy` em
+produção (curva exponencial, teto de 65%). O taper passa a viver nas semanas do plano de temporada, via
+`TaperStrategy`. Não implementar `TaperService` nem `tb_periodo_taper`. O que tinha de útil — orientação
+de taper ao atleta — vira change pequena depois da S7 (`add-season-plan-athlete-view`).
+
 ## Why
 
 O período final antes de uma prova-alvo (tapering) é determinante para o desempenho: reduzir volume sem perder qualidade, manter intensidade sob controle, dormir e recuperar. Hoje o Menthoros gera planos semanais iguais até o dia da prova — não há tratamento diferenciado para "duas semanas antes" ou "três dias antes", o que frustra atletas sérios e afeta resultado percebido no dia mais importante da periodização.
