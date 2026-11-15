@@ -1,8 +1,12 @@
 **Tamanho:** M · **Trilha:** Full
 
-> Fatia **S10** do épico `add-season-plan-macrocycle`, separada por D4 (o PRD põe o replanejamento em
-> "experimentar depois"). Proposal, design (Decisão 11) e decisões vivem lá; esta change só delimita o
-> escopo e os cenários que a fecham.
+> **Ticket 10** do épico `add-season-plan-macrocycle`, separado por D4 (o PRD põe o replanejamento em
+> "experimentar depois"). Proposal, design (Decisão 11) e decisões vivem no épico.
+
+## Status
+
+- ready-for-human (2026-11-15): bloqueado por `add-season-plan-load-enforcement` (ticket 9) rodando um
+  ciclo no piloto, e pelo grilling do limite de desvio (abaixo).
 
 ## Why
 
@@ -34,8 +38,11 @@ Tasks do épico: **6.0–6.9, 7.6**.
 - Limite de desvio acumulado: valor inicial, e se é medido por volume ou por aderência.
 - Gatilho por prova-teste só depois de `add-running-field-tests`.
 
+## Bloqueado por
+
+- `add-season-plan-load-enforcement` (ticket 9), mais um ciclo no piloto.
+
 ## Dependências e rollout
 
-- Depende de: `add-season-plan-load-enforcement` (S9) rodando um ciclo no piloto.
 - Flag: `macrociclo.replanejamento.enabled=false`.
 - Métrica de saúde: taxa de aceite das propostas ≥ 50%.

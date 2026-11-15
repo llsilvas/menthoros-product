@@ -1,7 +1,12 @@
 **Tamanho:** M · **Trilha:** Full
 
-> Fatia **S1** do épico `add-season-plan-macrocycle`. Proposal, design (Decisão 1) e decisões vivem lá;
-> esta change só delimita o escopo e os cenários que a fecham.
+> **Ticket 1** do épico `add-season-plan-macrocycle` — prefactor: deixa o modelo pronto e a integridade
+> garantida antes do tracer (ticket 2). Proposal, design (Decisão 1) e decisões vivem no épico.
+
+## Status
+
+- ready-for-agent (2026-11-15): sem bloqueio. Antes do merge em `main`, rodar a contagem da task 0.4 do
+  épico no banco de produção.
 
 ## Why
 
@@ -34,9 +39,20 @@ faltam no `CONTEXT.md`), 1.11a, 1.11b, 1.12 (só V116 e a de `tb_semana_planejad
   o comportamento atual não muda.
 - As migrations aplicam em banco limpo e em banco com dados.
 
+## Métrica de sucesso
+
+Zero linhas apagadas em cascata a partir da prova-alvo (teste de integração).
+
+## Open Questions & Assumptions
+
+- `tb_plano_treino` tem 0 linhas no homelab (2026-11-15); produção não conferida.
+
+## Bloqueado por
+
+- Nada (pode começar).
+
 ## Dependências e rollout
 
-- Depende de: nada além do gate 0 do épico (0.4: conferir `tb_plano_treino` em produção antes da
-  migration ir para `main`).
+- Gate 0.4 do épico: conferir `tb_plano_treino` em produção antes da migration ir para `main`.
 - Flag: nenhuma. A troca das FKs é correção de integridade e fica mesmo com a temporada desligada.
 - Numeração: V116+ — revalidar contra `develop` no PR (`add-pain-attention-signal` também cria migration).

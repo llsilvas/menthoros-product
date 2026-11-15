@@ -1,7 +1,12 @@
 **Tamanho:** M · **Trilha:** Full
 
-> Fatia **S8** do épico `add-season-plan-macrocycle`. Proposal, design (Decisões 5, 10, 10b, 10c) e
-> decisões vivem lá; esta change só delimita o escopo e os cenários que a fecham.
+> **Ticket 8** do épico `add-season-plan-macrocycle`. Proposal, design (Decisões 5, 10, 10b, 10c) e
+> decisões vivem no épico.
+
+## Status
+
+- ready-for-agent (2026-11-15): bloqueado por `add-season-plan-approve-athlete-view` (ticket 5). Não
+  depende dos tickets 6 e 7.
 
 ## Why
 
@@ -38,7 +43,14 @@ Task 0.3 do épico, resolvida em 2026-11-15: no `PeriodizacaoPromptFormatter`.
 `migrate-plan-prompt-to-skills` está em 0/37 e adiada para depois de F4; quando entrar, herda o bloco.
 Se ela for retomada antes desta fatia, reabrir esta decisão.
 
+## Métrica de sucesso
+
+Contagem de divergência de fase entre temporada e heurística no tenant do piloto (shadow).
+
+## Bloqueado por
+
+- `add-season-plan-approve-athlete-view` (ticket 5).
+
 ## Dependências e rollout
 
-- Depende de: `add-season-plan-versioning-approval` (S4).
 - Flag: `macrociclo.enabled`; ligar `planner-engine.shadow` no tenant do piloto (task 10.6).

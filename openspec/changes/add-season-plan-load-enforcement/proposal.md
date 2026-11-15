@@ -1,7 +1,11 @@
 **Tamanho:** M · **Trilha:** Full
 
-> Fatia **S9** do épico `add-season-plan-macrocycle`. Proposal, design (Decisões 5, 6, 7) e decisões
-> vivem lá; esta change só delimita o escopo e os cenários que a fecham.
+> **Ticket 9** do épico `add-season-plan-macrocycle`. Proposal, design (Decisões 5, 6, 7) e decisões
+> vivem no épico.
+
+## Status
+
+- ready-for-agent (2026-11-15): bloqueado por `add-season-plan-weekly-context` (ticket 8).
 
 ## Why
 
@@ -38,7 +42,16 @@ Tasks do épico: **5.6–5.9, 5.11, 5.11a, 5.11b, 5.13–5.15, 10.4**.
   **então** nasce com revisão obrigatória e a violação registrada, sem 422.
 - **Dado** `macrociclo.enforcement.enabled=false`, **então** nada muda em relação à S8.
 
+## Métrica de sucesso
+
+A primária do épico: queda relativa ≥ 20% na taxa de `consumedReviewOutcome = ADJUSTED` dos planos
+semanais de atletas com temporada ativa.
+
+## Bloqueado por
+
+- `add-season-plan-weekly-context` (ticket 8).
+
 ## Dependências e rollout
 
-- Depende de: `add-season-plan-weekly-context` (S8) e de `planner-engine.enabled=true` para ter efeito.
+- Só tem efeito com `planner-engine.enabled=true`.
 - Flag: `macrociclo.enforcement.enabled=false`.

@@ -1,11 +1,11 @@
-> **Épico desde 2026-11-15.** As seções 1 a 10 são implementadas pelas changes filhas S1–S10 (tabela
-> "Fatiamento em changes filhas" no `proposal.md`). Esta lista continua como inventário; cada task é
+> **Épico desde 2026-11-15.** As seções 1 a 10 são implementadas pelos 10 tickets verticais `add-season-plan-*`
+> (tabela "Tickets (changes filhas)" no `proposal.md`; refeito pelo `/to-tickets` em 2026-11-15). Esta lista continua como inventário; cada task é
 > marcada aqui quando a change filha que a contém for arquivada.
 
 ## 0. Gate antes do `/implement init`
 
 - [x] 0.1 Decidir D1–D4 do `proposal.md` (supersessão de `add-macrociclo-structure`, destino de `add-taper-guidance`, geração manual ou automática, fatia 6 no MVP) — resolvidas em 2026-11-15, todas pela recomendação; D4 tira a seção 6 para a S10
-- [x] 0.2a Criar as pastas das changes filhas S1–S10 com `proposal.md` curto apontando para este épico — feito em 2026-11-15 (`add-season-plan-*`); o `tasks.md` de cada uma nasce no `/implement init` a partir das tasks listadas no proposal
+- [x] 0.2a Criar as pastas das changes filhas S1–S10 com `proposal.md` curto apontando para este épico — feito em 2026-11-15 e refeito no mesmo dia pelo `/to-tickets` como 10 tickets verticais, cada um com `proposal.md` e `tasks.md`
 - [x] 0.2 Se D1 = supersedir: nota de supersessão em `add-macrociclo-structure/proposal.md` e arquivá-la sem implementação — feito em 2026-11-15, em `archive/2026-11/2026-11-15-add-macrociclo-structure/`
 - [x] 0.3 Combinar a ordem com `migrate-plan-prompt-to-skills` (quem implementa o bloco de posição no ciclo: formatter ou skill) — resolvida em 2026-11-15: aquela change está em 0/37, sem commit desde 2026-06-17 e adiada para depois de F4 no `SPRINTS.md`; a S8 implementa o bloco no `PeriodizacaoPromptFormatter` e `migrate-plan-prompt-to-skills` o herda quando entrar
 - [x] 0.5 D2: arquivar `add-taper-guidance` como superseded — feito em 2026-11-15, em `archive/2026-11/2026-11-15-add-taper-guidance/`
