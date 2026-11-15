@@ -32,12 +32,13 @@ Tasks do épico: **1.10, 5.1–5.5, 5.10, 5.10a, 5.12, 5.16, 5.17**.
   `desvioAlvoPercentual = (tss planejado − tssAlvo) / tssAlvo × 100`.
 - **Dado** `planner-engine.shadow=false`, **então** a métrica de divergência não é produzida.
 
-## Aberto antes de começar
+## Onde mora o bloco de posição
 
-- Task 0.3 do épico: combinar a ordem com `migrate-plan-prompt-to-skills` — o bloco de posição vai no
-  `PeriodizacaoPromptFormatter` ou na skill.
+Task 0.3 do épico, resolvida em 2026-11-15: no `PeriodizacaoPromptFormatter`.
+`migrate-plan-prompt-to-skills` está em 0/37 e adiada para depois de F4; quando entrar, herda o bloco.
+Se ela for retomada antes desta fatia, reabrir esta decisão.
 
 ## Dependências e rollout
 
-- Depende de: `add-season-plan-versioning-approval` (S4) e da task 0.3.
+- Depende de: `add-season-plan-versioning-approval` (S4).
 - Flag: `macrociclo.enabled`; ligar `planner-engine.shadow` no tenant do piloto (task 10.6).
