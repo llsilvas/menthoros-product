@@ -1,3 +1,11 @@
+**Status:** arquivada como superseded, **sem implementação** (0/36 tasks) — **supersedida por
+`add-season-plan-macrocycle`** (decisão D1, grilling de 2026-11-15). Aquela change cobre a mesma
+capability sobre o `PlanoTreino` existente, com alvo por semana, template, edição, versionamento e
+telas; esta modelava `Macrociclo` + `Mesociclo` com proporções fixas e parava na herança de fase. O que
+foi preservado daqui: a ancoragem temporal no prompt e o consumo de `RacePreparationRule`. Não
+implementar: `tb_macrociclo`, `tb_mesociclo` e `FaseMesociclo` não devem ser criados — a fase da semana
+usa `TrainingPhase`.
+
 ## Why
 
 Hoje o Menthoros gera planos semanais de forma contínua a partir do estado atual do atleta, mas não estrutura a progressão ao longo de um ciclo de 12 a 24 semanas com fases clássicas (base, específica, pico, taper, transição). O resultado é que a prescrição tende a ser "homogênea no tempo": cada semana parece derivar só da anterior, e o LLM não tem visibilidade de onde o atleta está dentro do macrociclo.

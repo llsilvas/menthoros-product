@@ -1,3 +1,6 @@
+> **Nenhuma task implementada.** Change arquivada em 2026-11-15 como superseded por
+> `add-season-plan-macrocycle` (ver `proposal.md`). As tasks abaixo ficam só como histórico.
+
 ## 1. Modelo de dados
 
 - [ ] 1.1 Criar enum `FaseMesociclo` com valores `BASE`, `ESPECIFICO`, `PICO`, `TAPER`, `TRANSICAO`
