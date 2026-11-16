@@ -26,8 +26,10 @@ Branch: `feat/consolidate-llm-on-openai`, em worktree.
       Verify: arquivo em `docs/ia/traducao-simple-vs-haiku-<data>.md`.
       Feito 2026-11-15: `docs/ia/traducao-simple-vs-haiku-2026-11-15.md` (backend #237); 0 campos
       vazios, 0 números perdidos; latência média 5,8 s (Haiku), 6,0 s (gpt-4o-mini), 6,9 s (gpt-6-luna none).
-- [ ] 3.2 Coach lê os pares (CA2). Bloqueia o merge.
+- [x] 3.2 Coach lê os pares (CA2). Bloqueia o merge.
       Verify: veredito anotado no mesmo arquivo.
+      Feito 2026-11-16: gpt-6-luna none melhor em 26/40 campos, pior em 3/40; Haiku 5/40 e 22/40.
+      Decisão: gpt-6-luna none na rota `simple`. Glossário e pós-processador numérico: ver proposal.
 
 ## 4. Fechamento
 
