@@ -62,6 +62,11 @@ Restrição de arquitetura que governa tudo abaixo: a periodização, o cálculo
 
 Detalhe do contrato no ticket `add-season-plan-model-integrity` (DoR de 2026-11-15).
 
+**Identificadores (2026-11-15).** Este design nomeia tudo em PT; no código e no schema vale o ADR-0007
+(inglês): `SeasonPlanStatus`, `WeekValueSource`, `SeasonWeek`/`tb_season_week` e colunas em inglês. A tabela
+de correspondência está no `tasks.md` de `add-season-plan-model-integrity`; os tickets seguintes usam os
+nomes de lá.
+
 **Alternativa rejeitada:** entidade nova com `PlanoTreino` em descontinuação — custo de migração e de linguagem sem ganho, dado que `PlanoTreino` está pouco usado e pode ser estendido.
 
 ---

@@ -2,15 +2,34 @@
 > Ordem: migrations antes da entidade, para que os testes de repositório (Testcontainers + Flyway)
 > rodem contra o schema real. Gate final é `./mvnw clean verify` — `clean test` não roda os `*IT`.
 
+> **Identificadores em inglês (ADR-0007, decisão de 2026-11-15 no `run`).** O spec do épico usa nomes em
+> PT; no código e no schema valem os nomes abaixo. Campos legados de `PlanoTreino` não são renomeados.
+>
+> | Spec (PT) | Código / schema |
+> |---|---|
+> | `MacrocicloStatus` (PROPOSTA, ATIVO, ARQUIVADO, CONCLUIDO) | `SeasonPlanStatus` (PROPOSED, ACTIVE, ARCHIVED, COMPLETED) |
+> | `OrigemValorSemana` (MOTOR, COACH, IA_ACEITA) | `WeekValueSource` (ENGINE, COACH, AI_ACCEPTED) |
+> | `SemanaPlanejada` / `tb_semana_planejada` | `SeasonWeek` / `tb_season_week` |
+> | `macrocicloStatus`, `totalSemanas`, `versao`, `motivoVersao` | `seasonStatus`, `totalWeeks`, `version`, `versionReason` |
+> | `ctlInicial`, `volumePicoKm`, `longaoMaximoKm`, `preparacaoCurta` | `initialCtl`, `peakVolumeKm`, `maxLongRunKm`, `shortPreparation` |
+> | `aprovadoPor`, `aprovadoEm` | `approvedBy`, `approvedAt` |
+> | semana: `ordem`, `semanaInicio`, `fase`, `volumeAlvoKm`, `tssAlvo` | `weekIndex`, `weekStart`, `phase`, `targetVolumeKm`, `targetTss` |
+> | semana: `longaoKm`, `descarga`, `sessoesChave`, `origemValor`, `marcoProvaId` | `longRunKm`, `deload`, `keySessions`, `valueSource`, `milestoneRaceId` |
+> | `SemanaPlanejadaRepository` | `SeasonWeekRepository` |
+>
+> O texto gravado em `versionReason` continua em PT ("prova cancelada") — é dado exibido, não identificador.
+
 ## 1. Migrations
 
-- [ ] 1.1 `V116__add_macrociclo_plano_treino.sql`: colunas novas em `tb_plano_treino` (todas nulas; sem
-  backfill de `macrociclo_status`), `prova_id` → `ON DELETE RESTRICT`, `tb_plano_semanal.plano_treino_id`
-  → `ON DELETE SET NULL`, índice único parcial `(atleta_id) WHERE macrociclo_status = 'ATIVO'` (épico 1.7)
-  - verify: Flyway aplica no Testcontainers do `./mvnw clean verify`; `\d tb_plano_treino` no homelab mostra
-    as FKs novas
-- [ ] 1.2 `V117__create_tb_semana_planejada.sql`: `tenant_id` NOT NULL, FK `plano_treino_id ON DELETE
-  CASCADE`, único (`plano_treino_id`, `ordem`) (épico 1.8)
+- [x] 1.1 `V116__add_season_plan_to_plano_treino.sql`: colunas novas em `tb_plano_treino` (todas nulas; sem
+  backfill de `season_status`), `prova_id` → `ON DELETE RESTRICT`, `tb_plano_semanal.plano_treino_id`
+  → `ON DELETE SET NULL`, índice único parcial `(atleta_id) WHERE season_status = 'ACTIVE'` (épico 1.7).
+  FKs da V1 sem nome: localizadas no `pg_constraint` por bloco `DO`.
+  - verify: Flyway aplica no Testcontainers (contexto do `AssinaturaRepositoryTest` sobe, 8/8 verdes);
+    homelab fica para o 4.2
+- [x] 1.2 `V117__create_tb_season_week.sql`: `tenant_id` NOT NULL (sem FK, padrão do módulo), FK
+  `season_plan_id ON DELETE CASCADE`, único (`season_plan_id`, `week_index`), índice
+  (`tenant_id`, `season_plan_id`) (épico 1.8)
   - verify: idem 1.1
 
 ## 2. Modelo
