@@ -52,17 +52,25 @@
 
 ## 3. Regra de prova
 
-- [ ] 3.1 `deletarProva` (ADMIN): prova referenciada por `prova_id` ou `prova_alvo_id` → 
-  `DomainRuleViolationException` (422) orientando a cancelar; sem referência → apaga como hoje (épico 1.11a)
-  - verify: `ProvaServiceImplTest` (unit) cobre os três casos
-- [ ] 3.2 Arquivamento: `cancelarProva`, `atualizarProva` com `CANCELADA` e troca de alvo em
-  `garantirAlvoUnica` levam as temporadas `ATIVO` e `PROPOSTA` da prova (`prova_id`) a `ARQUIVADO` com
-  `motivoVersao` = "prova cancelada"; idempotente; nunca `DELETE` (épico 1.11a)
-  - verify: `ProvaServiceImplTest` cobre os três caminhos e a repetição
-- [ ] 3.3 IT: excluir (ADMIN) e cancelar (treinador) prova com temporada, semanas e planos aprovados não
-  apaga nenhuma linha de `tb_plano_treino`, `tb_semana_planejada` ou `tb_plano_semanal`; ADMIN com
-  `prova_alvo_id` legado recebe 422, não 500 (épico 1.11b)
-  - verify: novo `*IT` passa no `./mvnw clean verify`
+- [x] 3.1 `deletarProva` (ADMIN): prova referenciada por `prova_id` ou `prova_alvo_id`
+  (`PlanoTreinoRepository.existsReferencingRace`) → `DomainRuleViolationException` (422) orientando a
+  cancelar; sem referência → apaga como hoje (épico 1.11a)
+  - verify: `ProvaServiceImplTest` ("temporada da prova") cobre recusa e exclusão sem referência;
+    `PlanoTreinoRepositoryTest` cobre `prova_id`, `prova_alvo_id`, sem referência e outro tenant
+- [x] 3.2 Arquivamento: `cancelarProva`, `atualizarProva` com `CANCELADA` e troca de alvo em
+  `garantirAlvoUnica` (vale também para `criarProva` com alvo nova) levam as temporadas `ACTIVE` e
+  `PROPOSED` da prova (`prova_id`) a `ARCHIVED` com `versionReason` = "prova cancelada", por um `UPDATE`
+  (`archiveOpenSeasons`); idempotente pelo filtro; nunca `DELETE` (épico 1.11a)
+  - verify: `ProvaServiceImplTest` cobre os três caminhos e o caso sem arquivamento;
+    `PlanoTreinoRepositoryTest` cobre o filtro (COMPLETED e legado intocados), a repetição e o tenant
+- [x] 3.3 `ProvaTemporadaIT`: excluir (ADMIN) e cancelar (treinador) prova com temporada, semanas e plano
+  aprovado não apaga nenhuma linha de `tb_plano_treino`, `tb_season_week` ou `tb_plano_semanal`; ADMIN
+  com `prova_alvo_id` legado recebe `DomainRuleViolationException`, não erro de constraint (épico 1.11b)
+  - verify: 3/3 no failsafe (`./mvnw verify -Dit.test=ProvaTemporadaIT`); gate completo no 4.2
+
+> Fora do escopo, registrado: desmarcar a prova-alvo sem pôr outra no lugar (edição com `provaAlvo = false`)
+> não arquiva a temporada — o spec cobre cancelar e trocar. Reavaliar no ticket 2, quando a temporada
+> passar a ser lida.
 
 ## 4. Fechamento
 
