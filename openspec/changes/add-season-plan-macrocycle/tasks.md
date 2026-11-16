@@ -9,7 +9,7 @@
 - [x] 0.2 Se D1 = supersedir: nota de supersessão em `add-macrociclo-structure/proposal.md` e arquivá-la sem implementação — feito em 2026-11-15, em `archive/2026-11/2026-11-15-add-macrociclo-structure/`
 - [x] 0.3 Combinar a ordem com `migrate-plan-prompt-to-skills` (quem implementa o bloco de posição no ciclo: formatter ou skill) — resolvida em 2026-11-15: aquela change está em 0/37, sem commit desde 2026-06-17 e adiada para depois de F4 no `SPRINTS.md`; a S8 implementa o bloco no `PeriodizacaoPromptFormatter` e `migrate-plan-prompt-to-skills` o herda quando entrar
 - [x] 0.5 D2: arquivar `add-taper-guidance` como superseded — feito em 2026-11-15, em `archive/2026-11/2026-11-15-add-taper-guidance/`
-- [ ] 0.4 Conferir se `tb_plano_treino` tem linhas em produção; se tiver, a migration 1.7 precisa preservá-las — homelab (dev) conferido em 2026-11-15: 0 linhas, 0 vínculos em `tb_plano_semanal`; falta produção (Railway)
+- [x] 0.4 Conferir se `tb_plano_treino` tem linhas em produção; se tiver, a migration 1.7 precisa preservá-las — homelab (dev) conferido em 2026-11-15: 0 linhas, 0 vínculos em `tb_plano_semanal`. Produção (Railway) conferida pelo usuário em 2026-11-16: Flyway em 115, 0 planos, 0 vínculos, nenhum tenant divergente entre plano e prova. As FKs originais já estão como `RESTRICT` (`tb_plano_treino_prova_id_fkey`) e `SET NULL` (`tb_plano_semanal_plano_treino_id_fkey`), e não como o `CASCADE` da V1: houve divergência manual, porque nenhuma migration mudou essas FKs. A V116 encontra uma FK por coluna, derruba e recria com o mesmo comportamento e nome explícito, então não há mudança efetiva em produção
 
 ## 1. Modelo e Migrations
 
