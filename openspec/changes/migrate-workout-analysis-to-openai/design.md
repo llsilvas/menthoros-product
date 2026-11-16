@@ -1,7 +1,8 @@
-# Design — consolidate-llm-on-openai
+# Design (rascunho) — migrate-workout-analysis-to-openai
 
-Escopo: rota `standard` + mecanismo de fallback. A rota `complex` fica na change irmã
-`migrate-workout-analysis-to-openai`, que reutiliza o mecanismo daqui.
+Escrito para `consolidate-llm-on-openai` e movido para cá em 2026-11-15, quando aquela change virou
+só a troca de rota de tradução e classificação para `simple`. Vale **se** o fallback for necessário
+para a rota `complex`. Antes de implementar, aplicar os cortes do review ponytail (seção final).
 
 ## D1. Fallback no `ModelRouter`, por função — não por decorador de `ChatClient`
 
@@ -19,9 +20,8 @@ schema; nunca opções de provider. O perfil de cada provider vive no `defaultOp
 as opções da Anthropic (incluindo `cacheOptions` do system prompt) sem o chamador saber.
 
 **Rotas e pares (propriedades novas em `app.llm.routing.<rota>.fallback`):**
-`standard`: primária `gpt-6-luna`, fallback `claude-haiku-4-5-20251001`. `complex` continua
-Anthropic nesta change; o par é decidido na change 2. As demais rotas não têm fallback (propriedade
-ausente = sem fallback, comportamento atual).
+`complex`: primária `gpt-6-luna`, fallback `claude-sonnet-4-6` (decidir no eval). As demais rotas
+não têm fallback (propriedade ausente = sem fallback, comportamento atual).
 
 **Risco aberto (verificar na task 2.1):** `RaceProjectionNarrativeGenerator` passa
 `AnthropicChatOptions` (temperatura 0.2, 1000 tokens) por chamada. Opções por chamada **substituem**
@@ -80,3 +80,19 @@ em `develop` antes de mergear em `main`.
 - **`Advisor` de fallback:** o advisor roda dentro da cadeia de uma requisição já montada com as
   opções do provider primário; reconstruir a requisição para o outro provider é pior que re-executar
   a função.
+
+## Cortes do review ponytail (2026-11-15) — aplicar antes de implementar
+
+- **Sem `llm_fallback_total` nem alerta (D4):** `tb_llm_call` já grava o modelo **retornado**
+  (`CostTrackingAdvisor.Medicao.model`, de `metadata.getModel()`) e `llm.*{model,route}` já existe.
+  A fatia de fallback sai de `SELECT route, model, count(*) FROM tb_llm_call GROUP BY 1, 2`.
+- **D3 resolvido:** a verificação "o ledger grava o modelo retornado" já é verdade no código.
+- **Sem validação de boot própria do fallback:** basta o modelo de fallback entrar na checagem do
+  `LlmPricingRegistry`, que já se recusa a subir com modelo roteado sem preço.
+- **Sem smoke test `eval-real` do fallback:** a chave Anthropic segue viva enquanto houver rota
+  Anthropic em produção (`standard` com a narrativa de projeção).
+- **Gatilho do ADR-0008 (lote em rajada):** pergunta, não task; responder numa frase aqui.
+- **Fallback só para `complex`**, não genérico por rota, até existir uma segunda rota que precise.
+- **Bug de spec:** o `RetryTemplate` de `LlmRetryConfig` retenta `TransientAiException` (5xx, 429)
+  até `spring.ai.retry.max-attempts` **antes** de a exceção chegar ao fallback. Testes não podem
+  esperar "1 chamada na primária" para 5xx/429; só para timeout (não retentado).
