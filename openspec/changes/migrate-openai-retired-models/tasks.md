@@ -64,23 +64,26 @@ semanas precisa caber na janela de rollback). Gate 0 fechado até **2026-10-31**
 
 ## 3. Bake-off OpenAI → OpenAI (design D3)
 
-- [ ] 3.1 `OpenAiSuccessorBakeoff` em `src/test` (tag `eval-real`, desligado no CI): N candidatos
+- [x] 3.1 `OpenAiSuccessorBakeoff` em `src/test` (tag `eval-real`, desligado no CI): N candidatos
       `(nome, OpenAiChatOptions)` + `ChatClient` do juiz; roda as fixtures de candidato; coleta
       grader, juiz, latência de parede, custo, `metadata.model`.
       Verify: teste unitário com `ChatClient` mocks (tag `eval`) gera o markdown com 1 linha por
       candidato e o juiz no cabeçalho (CA7 por nome).
-- [ ] 3.2 Rodar o bake-off real: baseline `gpt-4o` + sucessor em ≥ 2 níveis de reasoning (+
+- [x] 3.2 Rodar o bake-off real: baseline `gpt-4o` + sucessor em ≥ 2 níveis de reasoning (+
       `none`, se existir). Salvar `apps/menthoros-backend/docs/ia/bakeoff-openai-sucessor-<data>.md`.
       Verify: CA4 — grader ≥ baseline; custo marginal por atleta/mês (plano + simple + expert,
       tokens de reasoning incluídos) dentro de R$ 1,10; snapshots anotados.
-- [ ] 3.3 Registrar a decisão por rota (`plano`, `expert`, `simple`) e o modelo do juiz pós-retirada
+- [x] 3.3 Registrar a decisão por rota (`plano`, `expert`, `simple`) e o modelo do juiz pós-retirada
       (`EVAL_JUDGE_MODEL`) no `proposal.md`
       ("Decisão do gate 0" ganha subseção "Decisão do bake-off") e a Open Question 2.3 de
       `plan-llm-provider-bakeoff` como respondida (nota no proposal daquela change, sem reabri-la).
-- [ ] 3.4 `simple`: smoke de 3 chamadas reais do `AthleteMessageGenerator`; confirmar que a mensagem
+- [x] 3.4 `simple`: smoke de 3 chamadas reais do `AthleteMessageGenerator`; confirmar que a mensagem
       continua passando pela ação do coach antes do atleta (coach-in-the-loop). `expert`: conjunto
       fixo de 5–10 casos reais anonimizados em `src/test/resources/eval/expert/`, respostas do
       modelo novo e do `gpt-4o` revisadas por humano. Latências no relatório.
+      Feito 2026-11-16: smoke `simple` no relatório de 2026-11-16. O bloco do atleta vai direto ao
+      atleta (decisão de 2026-08-29), sem ação do coach. `expert`: sem chamador em `src/main`, conjunto
+      de casos cortado (ver "Decisão do bake-off").
 - [ ] 3.5 Revisão humana cega (CA4b): 5–10 planos do vencedor × `gpt-4o`, revisados pelo
       coach-fundador sem rótulo; resultado anexado ao relatório. Bloqueia 7.3.
 

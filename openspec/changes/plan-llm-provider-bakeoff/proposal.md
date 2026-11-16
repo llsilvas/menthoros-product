@@ -151,6 +151,8 @@ orquestrador em vez de amostragem manual.
 
 ## Open Questions & Assumptions
 
+- **Respondido em 2026-11-16 por `migrate-openai-retired-models` (sem reabrir esta change):** o
+  sucessor é `gpt-6-luna`; o juiz do eval passa a ser `gpt-5.2` depois da retirada do `gpt-4o`.
 - **Em aberto**: qual é exatamente "o sucessor atual da OpenAI na mesma faixa" — o roadmap não fixa
   um model ID. Decidir na implementação, com base no que estiver disponível/estável no momento de
   rodar o bake-off; se nenhum sucessor claro existir, o bake-off roda com 3 candidatos

@@ -380,3 +380,29 @@ later", ambíguo) — a mesma chamada de teste do item 1 cobre os dois.
 **Efeito no prazo:** o proposal assume 1 semana em `develop` antes do `main` em 2026-11-15. Com o
 gate 0 aberto em 2026-11-13, essa janela não cabe; o prazo precisa ser renegociado (Open
 Question 10).
+
+### Decisão do bake-off (2026-11-16, task 3.3)
+
+Relatórios em `apps/menthoros-backend/docs/ia/`: `bakeoff-openai-sucessor-2026-11-15.md` (juiz
+`gpt-4o`, 4 candidatos, custo do candidato separado do juiz), `-violacoes.md` (detalhe por caso) e
+`bakeoff-openai-sucessor-2026-11-16.md` (juiz `gpt-5.2` e smoke da rota `simple`).
+
+| rota | modelo | esforço | evidência |
+|---|---|---|---|
+| `plano` | `gpt-6-luna` | `medium` | 0–1 violação de qualidade contra 8–18 do `gpt-4o`; juiz `gpt-4o` 4,80 × 4,20; custo US$ 0,0029/plano × 0,040; latência 30–35 s, dentro do timeout de 120 s. Decisão do founder, aceitando a espera maior do coach. |
+| `simple` | `gpt-6-luna` | `none` | Revisão cega de 40 traduções pelo coach (`consolidate-llm-on-openai`): melhor em 26/40, pior em 3/40. Smoke do bloco do atleta: 2,0–2,2 s e sem afirmações que os dados não sustentam. |
+| `expert` | `gpt-6-luna` | `medium` | Sem chamador em `src/main` (`TaskComplexity.EXPERT`); troca só para tirar o `gpt-4o` da configuração (CA6). O conjunto de casos reais da task 3.4 deixa de se aplicar. |
+
+- **Snapshots:** `gpt-4o` serve `gpt-4o-2024-08-06`; `gpt-6-luna` responde sem sufixo datado (o
+  preço em `llm-pricing.yml` cobre o nome servido).
+- **Juiz pós-retirada (`EVAL_JUDGE_MODEL`):** `gpt-5.2`. Diferente do vencedor da rota `plano` (CA7),
+  0 falhas de schema. Baseline medido com ele antes da retirada: `gpt-4o` 3,00 e `gpt-6-luna:medium`
+  3,00 (as notas do juiz `gpt-5.2` não se comparam com as do juiz `gpt-4o`, que dava 4,20 e 4,80).
+- **CA4 — grader ≥ baseline:** atendido em qualidade. As 2 violações de compliance do Luna em
+  `low`/`medium` vêm de defeito da fixture `taper-semana-prova` (prompt pede TERÇA/QUINTA/SÁBADO,
+  atleta tem SEGUNDA/QUARTA/SEXTA/SÁBADO); o `gpt-4o` passa por acaso porque ignora os dias do prompt.
+- **CA4 — custo por atleta/mês (rotas OpenAI):** `plano` 4,33 × US$ 0,0029 ≈ US$ 0,013; `simple`
+  ≈ US$ 0,006 (tokens medidos no comparativo de tradução); `expert` 0. Total ≈ US$ 0,02 ≈ R$ 0,11,
+  dentro do teto de R$ 1,10 (hoje, com `gpt-4o`: ≈ R$ 1,00).
+- **Limites:** n = 5 casos por candidato; latência medida em rede doméstica; a revisão humana cega
+  dos planos (task 3.5) ainda não foi feita e bloqueia o rollout (7.3).
