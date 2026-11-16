@@ -34,19 +34,21 @@
 
 ## 2. Modelo
 
-- [ ] 2.1 Enums `MacrocicloStatus` e `OrigemValorSemana` (épico 1.1, 1.2)
+- [x] 2.1 Enums `SeasonPlanStatus` e `WeekValueSource` (épico 1.1, 1.2)
   - verify: compila; sem teste (enum sem comportamento)
-- [ ] 2.2 `PlanoTreino`: campos novos (épico 1.3); `@ManyToOne prova`; `tenant_id` mapeado;
-  `planoSemanalList` com `cascade = {PERSIST, MERGE}` e sem `orphanRemoval` (épico 1.3a)
-  - verify: teste de repositório — remover um `PlanoTreino` com planos semanais deixa os planos com
-    `plano_treino_id` nulo; legado lido com `macrocicloStatus` nulo
-- [ ] 2.3 `PlanoTreinoRepository` com consultas filtradas por `tenant_id` (épico 1.3c)
-  - verify: teste de repositório — temporada de outro tenant não aparece
-- [ ] 2.4 `SemanaPlanejada` e `SemanaPlanejadaRepository` filtrado por `tenant_id` (épico 1.4, 1.6)
-  - verify: teste de repositório — salva e lê semanas por temporada; outro tenant não aparece; `ordem`
-    repetida na mesma temporada é recusada
-- [ ] 2.5 Índice parcial: segunda `ATIVO` do mesmo atleta recusada; vários legados (nulo) aceitos
-  - verify: teste de repositório espera `DataIntegrityViolationException` só no caso `ATIVO`
+- [x] 2.2 `PlanoTreino`: campos novos (épico 1.3); `@ManyToOne prova`; `tenant_id` mapeado como
+  `Assessoria assessoria` (padrão de `PlanoSemanal`); `planoSemanalList` com `cascade = {PERSIST, MERGE}`
+  e sem `orphanRemoval` (épico 1.3a)
+  - verify: `PlanoTreinoRepositoryTest` — remover pelo JPA deixa o plano semanal com `planoTreino` nulo;
+    legado lido com `seasonStatus` nulo. Regressão: `PlanoServiceImplTest` (73), `PlanoServiceTenantTest`,
+    `BatchPlanProcessorTest`, `PlanoSemanalOrigemEncerramentoTest` verdes
+- [x] 2.3 `PlanoTreinoRepository.findByIdAndAssessoriaId` (épico 1.3c)
+  - verify: `PlanoTreinoRepositoryTest` — temporada de outro tenant não aparece
+- [x] 2.4 `SeasonWeek` (`tenant_id` como `UUID`, sem FK — padrão de tabela do módulo) e
+  `SeasonWeekRepository.findBySeasonPlanIdAndTenantIdOrderByWeekIndexAsc` (épico 1.4, 1.6)
+  - verify: `SeasonWeekRepositoryTest` (3) — ordem, outro tenant vazio, `week_index` repetido recusado
+- [x] 2.5 Índice parcial: segunda `ACTIVE` do mesmo atleta recusada; legados (nulo) e `PROPOSED` aceitos
+  - verify: `PlanoTreinoRepositoryTest` espera `DataIntegrityViolationException` só no caso `ACTIVE`
 
 ## 3. Regra de prova
 
