@@ -13,7 +13,7 @@ Repos: `apps/menthoros-backend` (quase tudo), `apps/menthoros-front` (bloco 5),
       dados). Registrar por rota: chamadas/semana, tokens in/out médios, custo.
       Verify: documento atualizado com a data e a fonte; premissas substituídas por medições onde
       houver dado, e as que continuarem premissa marcadas como tal (CA1).
-- [ ] 1.2 Se o ganho medido da rota `standard` for < R$ 0,05 por atleta/mês, parar e levar ao
+- [ ] 1.2 Se o ganho medido da rota `standard` for < R$ 0,15 por atleta/mês (a estimativa é ~R$ 0,29; o limiar é metade dela), parar e levar ao
       founder (a change pode não se pagar). Verify: decisão registrada no proposal.
 
 ## 2. Desacoplar a rota `standard` da Anthropic (design D1)
@@ -28,6 +28,10 @@ Repos: `apps/menthoros-backend` (quase tudo), `apps/menthoros-front` (bloco 5),
       Verify: `rg "AnthropicChatOptions" src/main/java` só em `MultiModelConfig` (CA5);
       teste 2.1 segue verde.
 - [ ] 2.3 `./mvnw clean test`.
+- [ ] 2.4 Rastrear o caminho de saída de `AthleteMessageClassifier` e `RaceProjectionNarrativeGenerator`
+      até o atleta: há passo de aprovação do coach? Verify: conclusão registrada no proposal
+      (substitui a afirmação de coach-in-the-loop da "Métrica de sucesso"); se a narrativa de
+      projeção chegar ao atleta sem ação do coach, tirar essa rota do escopo.
 
 ## 3. Mecanismo de fallback (design D1–D4)
 

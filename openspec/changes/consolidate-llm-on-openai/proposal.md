@@ -79,7 +79,8 @@ rotas não-`plano` vêm de estimativa. Medir em `tb_llm_call` é o primeiro pass
   `translationFailed` em `tb_analise_workout` dentro de ±1 p.p. da média das 4 semanas anteriores.
 - **Custo de LLM por atleta/mês cai** na rota `standard`, medido em `tb_llm_call` (não estimado).
 - Coach-in-the-loop preservado: a tradução e a classificação apenas apoiam o texto que o coach já
-  revisa; nenhuma saída nova chega ao atleta sem ação do coach.
+  revisa; a tradução apoia o texto que o coach já revisa. **A verificar (task 2.4):** o caminho até o
+  atleta do classificador e da narrativa de projeção; até lá não se afirma coach-in-the-loop para eles.
 
 ## Riscos e mitigações
 
@@ -103,6 +104,10 @@ rotas não-`plano` vêm de estimativa. Medir em `tb_llm_call` é o primeiro pass
   `plan-llm-provider-bakeoff` já discutiu e o plano B lá é reabrir o bake-off Claude.
 - **Aberto 3:** a Anthropic permanece como subprocessadora no DPA/política? Confirmar com o
   founder antes da task 5.
+- **Correção de unidade (review de produto, 2026-11-15):** o ganho esperado da rota `standard` é
+  ~US$ 0,05 ≈ **R$ 0,29** por atleta/mês, não R$ 0,05 (valores em dólar tinham sido lidos como reais).
+  Continua pequeno; o review recomendou fundir com a change 2. **Decisão do founder: manter as duas
+  changes** — a medição da task 1 e o limiar da task 1.2 decidem se a migração da `standard` segue.
 - **Correção de premissa:** a conversa que originou esta change dizia "não há fallback no código".
   Há um, dentro da Anthropic (`RaceProjectionNarrativeGenerator.callWithFallback`, Haiku → Sonnet).
   Ele é absorvido pelo mecanismo novo.
