@@ -74,8 +74,9 @@
 
 ## 4. Fechamento
 
-- [ ] 4.1 `CONTEXT.md`: Template de metodologia e Origem do valor (épico 1.11; Plano de temporada e Semana
+- [x] 4.1 `CONTEXT.md`: Template de metodologia e Origem do valor (épico 1.11; Plano de temporada e Semana
   da temporada já entraram no PR #23 do `menthoros-infra`)
-  - verify: termos presentes, sem detalhe de implementação
-- [ ] 4.2 Validar: `./mvnw clean verify` + aplicação sobe contra o homelab com dados (épico 1.12)
-  - verify: build verde; log do Flyway mostra V116 e V117 aplicadas no homelab
+  - verify: termos presentes, sem detalhe de implementação — PR #24 do `menthoros-infra`
+- [x] 4.2 Validar: `./mvnw clean verify` + aplicação sobe contra o homelab com dados (épico 1.12)
+  - verify: build verde (6620 unitários, 1 skip; 330 IT; 0 falhas). Homelab (`.env`, PostgreSQL 17.6):
+    Flyway de 115 para 117, "Successfully applied 2 migrations", e a aplicação sobe (`ddl-auto: validate`)
