@@ -1,175 +1,75 @@
-# add-etapa-pace-validator — validador de pace por etapa, análogo ao EtapaFcValidator
+# add-etapa-pace-validator — distância coerente com o ritmo em toda etapa, e eval sobre o plano normalizado
 
-**Tamanho:** M · **Trilha:** Full
-**Status:** proposta
+**Tamanho:** S · **Trilha:** Fast
+**Status:** proposta, reescrita em 2026-11-16 (escopo menor depois da medição)
 **Criado:** 2026-09-14
+**Bloqueia:** o rollout (7.3) de `migrate-openai-retired-models`.
 
-**Reaberta em 2026-11-16 com escopo ampliado — bloqueia o rollout (7.3) de `migrate-openai-retired-models`.**
+> Fast: correção num passo existente da normalização e ajuste do harness de eval, só no backend,
+> sem schema nem contrato. O nome da change ficou do escopo original; não há validador novo.
 
-## Reabertura (2026-11-16)
+## Por que
 
 A revisão cega de 15 pares de planos (`apps/menthoros-backend/docs/ia/revisao-cega-planos-2026-11-16.md`)
-reprovou o CA4b da migração por este mesmo bug, nos dois sentidos:
+reprovou o CA4b da migração por etapas com pace implícito absurdo (13 a 28 min/km) e distância 0,0 km.
+A medição sobre os mesmos 30 planos (`RevisaoCegaNormalizacaoMedicaoTest`) mostrou que:
 
-- **`gpt-6-luna` (sucessor escolhido):** ao cortar volume, reduz os km e mantém a duração do planner —
-  ritmos implícitos de 13 a 28 min/km (inexecutáveis; o coach barraria). Quando o planner manda só
-  duração, deixa a etapa com **distância 0,0 km**, que quebra volume, ACWR e CTL.
-- **`gpt-4o` (atual):** distância ÷ duração mais rápida que o ritmo prescrito — inclusive 4:00/km com
-  tendinite ativa, o pior erro da revisão. É o caso que originou esta change em 2026-09-14.
-- **O grader determinístico do eval não pega nenhum dos dois** (deu 0–1 violação ao Luna).
+- **A revisão viu a resposta bruta da LLM**, não o plano que o coach recebe: `EvalCandidateRunner` e
+  `RevisaoCegaPlanosRealTest` não passam por `NormalizacaoDeTreino`.
+- **A normalização já corrige o que o coach barrou:** 0 km cai de 31 para 0 etapas, e o pace incoerente
+  da PRINCIPAL zera (`distanciaPrincipalPorPace`, de `fix-etapas-continuos-pace`).
+- **Sobra um bug da própria normalização:** 50 etapas de AQUECIMENTO/DESAQUECIMENTO ficam incoerentes
+  porque `corrigirDistanciasEtapasTemporais` deriva a distância de `paceLimiar × 1,20` (Z2) ou `× 1,35`
+  (Z1) e ignora o `ritmoAlvo` que a etapa declara. Ex.: 10 min marcados 6:00–6:30/km saem com 2,38 km
+  (4:12/km).
 
-**Decisões do coach-fundador que resolvem as Open Questions 1 e 5:**
+**Decisão do coach-fundador (2026-11-16):** o `ritmoAlvo` declarado é a verdade; repara-se a distância.
 
-- **OQ1 — fonte da verdade:** o **`ritmoAlvo` prescrito é a verdade** (é a intenção fisiológica);
-  repara-se a **distância** a partir de `duracaoMin × ritmo médio da faixa`. Reescrever o `ritmoAlvo`
-  para o pace implícito (proposta original) transformaria "16:00/km" em prescrição — descartado.
-- **OQ5 — tolerância:** pace implícito dentro da faixa declarada **±10%**; fora disso, repara.
+## O que muda
 
-**Escopo ampliado:**
+1. **`TreinoNormalizador.corrigirEtapaTemporal`:** quando a etapa tem `ritmoAlvo` legível, a distância
+   vem de `duracaoMin ÷ pace médio do ritmoAlvo` (mesma regra de `distanciaPrincipalPorPace`, mesmo
+   `PaceValidator.calcularPaceMedia`). O fator sobre `paceLimiar` fica só como fallback para etapa sem
+   ritmo.
+2. **Eval sobre o plano normalizado:** `EvalCandidateRunner` (e com ele o bake-off e
+   `RevisaoCegaPlanosRealTest`) passa cada treino por `NormalizacaoDeTreino` antes de gradar e gravar.
+3. **Check no grader:** `EvalDeterministicGrader` ganha a violação de qualidade de pace implícito fora do
+   `ritmoAlvo` ±10% ou etapa sem distância (a regra de `RevisaoCegaNormalizacaoMedicaoTest.avaliar`).
+4. **Fixture `avancado-tsb-baixo`:** `paceLimiar` 3.50 está em decimal (3:30/km) e não bate com a
+   `velocidadeLimiar` 15,65 km/h (3:50/km); passa a 3.83.
+5. **Nova revisão cega** com os planos normalizados — fecha a 3.5 da migração.
 
-1. Coerência pace × distância × duração por etapa, nos dois sentidos, reparando a distância.
-2. Distância > 0 obrigatória em toda etapa com duração e `ritmoAlvo`: derivar quando vier 0 ou nula.
-3. Depois do reparo por etapa, `reconciliarDistanciaComEtapas` recalcula o total do treino (a ordem
-   dos passos na `caudaComum` garante isso).
-4. O mesmo check entra no `EvalDeterministicGrader` como violação de qualidade, para o eval medir o bug.
+## Fora de escopo
 
-**Fora (vai para changes próprias):** cobertura dos 7 dias (cada dia treino ou descanso explícito);
-regra de dor para tendinite no prompt; cruzar com a zona fisiológica (OQ2 continua aberta).
-
-## Why
-
-`EtapaFcValidator` já corrige a FC alvo de uma etapa quando ela cai fora da zona fisiológica esperada
-(ex.: AQUECIMENTO prescrito em 121-126 bpm, fora da Z1 esperada, corrigido para 110-118 bpm) — mas não
-existe o equivalente para pace. O `TreinoNormalizador`/`NormalizacaoDeTreino` reconciliam apenas a
-**distância total do treino** contra a soma das etapas (`reconciliarDistanciaComEtapas`); nada valida
-se a distância e a duração de uma etapa individual, combinadas, implicam um pace consistente com o
-`ritmoAlvo` que a própria etapa declara.
-
-Encontramos o caso real em produção local investigando o plano gerado para o atleta Leandro Silva
-(`d83c4c31-607b-4370-8bfe-de270ad33121`, treino FARTLEK de 14/09/2026): a etapa PRINCIPAL veio com
-`ritmoAlvo="6:30-7:00/km"`, mas `distanciaKm=3.5` e `duracaoMin=20` implicam pace real de **5:43/km**
-— mais rápido que o próprio limite declarado. Isso não é um erro de arredondamento: é a LLM escrevendo
-um texto de zona que não bate com os números que ela mesma gerou para a etapa.
-
-Cadastrar o `pace_limiar` do atleta (antes NULL) reduziu bastante o desvio numa nova geração — de
-~50-77s/km de diferença para ~20s/km — mas não eliminou: a etapa "fartlek livre" (PRINCIPAL) ainda saiu
-com pace real de 6:00/km contra uma zona declarada de 6:20-7:28/km. O `pace_limiar` ajuda a LLM a
-ancorar melhor as zonas no prompt, mas não substitui uma validação determinística pós-geração — o
-mesmo motivo pelo qual `EtapaFcValidator` existe apesar do prompt já pedir FC coerente.
-
-Um treinador que confia no `ritmoAlvo` mostrado no plano para orientar o atleta em campo está sendo
-mal informado: o atleta vai correr mais rápido do que o prescrito achando que está dentro da zona.
-
-## What Changes
-
-- **Novo `EtapaPaceValidator`** (`services/helper/`), no mesmo padrão do `EtapaFcValidator`:
-  - Extrai o range de pace do `ritmoAlvo` da etapa (formato `"M:SS-M:SS/km"`).
-  - Calcula o pace real implícito: `duracaoMin / distanciaKm` (quando ambos presentes e `distanciaKm > 0`).
-  - Compara o pace real contra o range declarado com a mesma lógica de sobreposição (`overlapPct`)
-    do validador de FC — mas aqui a checagem é *consistência interna* (pace real vs. zona que a
-    própria etapa declara), não pace real vs. zona fisiológica esperada por tipo — ver "Open
-    Questions" sobre estender para cruzar com `ZonaTreinoService.calcularZonasPace(paceLimiar)`.
-  - Em divergência: loga `WARN` no mesmo formato do `EtapaFcValidator` e corrige o `ritmoAlvo` da
-    etapa para refletir o pace real (nunca ajusta `distanciaKm`/`duracaoMin` — esses vêm de
-    `reconciliarDistanciaComEtapas`, que já tem sua própria autoridade).
-  - Nunca lança exceção — mesma garantia de manter o plano válido do `EtapaFcValidator`.
-- **Integração na receita de `NormalizacaoDeTreino`**: hoje só `EtapaFcValidator` roda dentro de
-  `caudaComum` (aplicado a todas as famílias). `EtapaPaceValidator` entra no mesmo ponto, para que
-  FARTLEK, INTERVALADO_TIRO e TRES_ETAPAS sejam cobertos — não só FARTLEK, que foi onde o bug
-  apareceu primeiro.
-- **Sem migration, sem mudança de contrato de API** — é uma correção determinística interna ao
-  pipeline de geração, como o validador de FC.
-
-## Capabilities
-
-### New Capabilities
-
-- Nenhuma capability nova de produto — é um refinamento de qualidade da capability existente de
-  geração de plano por IA.
-
-### Modified Capabilities
-
-- `plan-generation` (ou equivalente já registrada para `NormalizacaoDeTreino`): passa a garantir que
-  toda etapa persistida tenha `ritmoAlvo` consistente com `distanciaKm`/`duracaoMin`.
-
-## Impact
-
-**Código:**
-- Novo arquivo: `services/helper/EtapaPaceValidator.java`
-- Modificado: `services/helper/NormalizacaoDeTreino.java` (adicionar passo na `caudaComum`)
-- Novos testes: `EtapaPaceValidatorTest` seguindo os padrões de `EtapaFcValidatorTest` existente
-
-**Banco/API:** nenhuma mudança de schema ou contrato — validação interna, mesma superfície de
-`tb_etapa_treino.ritmo_alvo` já existente.
-
-**Risco:** baixo — mesma categoria de mudança que `EtapaFcValidator` (correção silenciosa,
-determinística, sem side effects, sem acesso a dados externos). O risco real é de design: decidir
-"quem tem razão" quando pace/distância/duração/ritmoAlvo divergem (ver Open Questions).
-
-## Open Questions & Assumptions
-
-1. **[RESOLVIDA 2026-11-16 — repara a distância, ver Reabertura] Fonte da verdade em caso de divergência**: quando `distanciaKm`/`duracaoMin` implicam
-   um pace fora do `ritmoAlvo` declarado, a correção deve reescrever o `ritmoAlvo` (assumido nesta
-   proposta, espelhando o `EtapaFcValidator`, que corrige o campo alvo e preserva duração/distância)
-   ou ajustar `duracaoMin`/`distanciaKm` para bater com o `ritmoAlvo` prescrito? Etapas do tipo
-   PRINCIPAL/FARTLEK livre têm duração/distância vindas da reconciliação já rodada antes deste
-   validador na receita — mexer nelas de novo poderia reabrir o desvio que `reconciliarDistancia`
-   acabou de fechar.
-2. **[ABERTA] Cruzar com zona fisiológica (`ZonaTreinoService.calcularZonasPace`) ou só validar
-   consistência interna?** `EtapaFcValidator` valida contra uma zona esperada por tipo de
-   etapa+treino (fisiológica). Esta proposta assume validação de *consistência interna* apenas
-   (pace real vs. o que a própria etapa declara) como escopo mínimo — cruzar também com a zona
-   fisiológica do atleta (via `pace_limiar`) é um endurecimento natural, mas amplia a superfície de
-   decisão (ex.: e se o `ritmoAlvo` declarado bate com os números da etapa mas a zona inteira está
-   errada para o tipo de treino?). Fica para uma change de acompanhamento se a métrica de sucesso
-   mostrar que consistência interna não é suficiente.
-3. **[ASSUMIDO] Etapas sem `ritmoAlvo` declarado (null) não são validadas** — sem texto para
-   comparar, não há divergência a detectar. Mesma postura do `EtapaFcValidator` quando `fcAlvoEtapa`
-   é null.
-4. **[ALTERADO 2026-11-16 — etapa com duração e `ritmoAlvo` mas sem distância passa a ter a distância derivada] Etapas sem `distanciaKm` ou `duracaoMin`** (ex.: etapas por tempo puro sem distância
-   prevista) não são validadas — pace não é computável.
-5. **[SUBSTITUÍDO 2026-11-16 — ±10% sobre a faixa, ver Reabertura] Tolerância de overlap = 50%**, igual ao `EtapaFcValidator`, para manter o mesmo
-   comportamento perceptível ao treinador nos dois validadores (evita FC "meio calibrado" e pace
-   "totalmente calibrado" ou vice-versa).
-
-## Métrica de sucesso
-
-**Antes:** 0% dos planos gerados têm garantia determinística de que `ritmoAlvo` da etapa bate com
-`distanciaKm`/`duracaoMin` (dependia só do prompt).
-**Depois:** 100% das etapas persistidas com `ritmoAlvo` + `distanciaKm` + `duracaoMin` preenchidos
-passam pela checagem de consistência; **0 correções por overlap < 50%** deve ser o estado estável em
-produção depois de ~2 semanas (medido via contagem de `WARN` de `EtapaPaceValidator` nos logs) — o
-validador existe para pegar o resíduo, não para corrigir a maioria das gerações.
+- **Calibrar `FATOR_PACE_Z2`/`FATOR_PACE_Z1`** (fallback para etapa sem ritmo): pela literatura, rodagem
+  leve de atleta treinado fica em ~1,25–1,40 × o pace de limiar, e 1,20 é rápido demais. Muda a
+  distância de todo aquecimento sem ritmo; vira change própria se o coach confirmar.
+- Cobertura dos 7 dias; regra de dor para tendinite; cruzar o `ritmoAlvo` com a zona fisiológica do
+  atleta (o ritmo declarado pode estar errado para o tipo de etapa — ver caso do sub-3h abaixo).
 
 ## Critérios de aceite
 
-- **CA1 (Given/When/Then):** Dado um `ritmoAlvo="6:20-7:28/km"` e `distanciaKm=4.0`/`duracaoMin=24`
-  (pace real 6:00/km, overlap < 50%), quando `EtapaPaceValidator.validarPaceEtapa` roda, então o
-  `ritmoAlvo` retornado reflete o pace real e um `WARN` é logado no formato
-  `"Pace fora da zona declarada: tipo='{}', prescrito='{}', pace real='{}/km', corrigindo para '{}'"`.
-- **CA2:** Dado um `ritmoAlvo` cujo overlap com o pace real é ≥ 50%, quando o validador roda, então a
-  etapa retorna inalterada (sem log de correção).
-- **CA3:** Dado `ritmoAlvo=null` ou `distanciaKm=null` ou `duracaoMin=null`, quando o validador roda,
-  então a etapa retorna inalterada, sem lançar exceção.
-- **CA4:** Dado um `ritmoAlvo` em formato não reconhecido (ex.: "moderado", sem `M:SS-M:SS/km`),
-  quando o validador roda, então a etapa retorna inalterada e um log de nível apropriado indica o
-  formato não reconhecido (mesmo padrão do `parseFcRange` no `EtapaFcValidator`).
-- **CA5:** `EtapaPaceValidator` está registrado na `caudaComum` de `NormalizacaoDeTreino` e roda para
-  as três famílias (`FARTLEK`, `INTERVALADO_TIRO`, `TRES_ETAPAS`) — teste de integração confirma que
-  um treino de cada família com pace inconsistente é corrigido.
+- **CA1** — GIVEN AQUECIMENTO `duracaoMin=10`, `ritmoAlvo="6:00-6:30/km"`, WHEN normalizado, THEN
+  `distanciaKm` = 1,60 (10 ÷ 6,25) e não a de `paceLimiar × 1,20`.
+- **CA2** — GIVEN AQUECIMENTO sem `ritmoAlvo` legível, THEN comportamento atual (fator sobre `paceLimiar`).
+- **CA3** — GIVEN os 30 planos de `target/revisao-cega/`, WHEN medidos depois da normalização, THEN 0
+  etapas com pace implícito fora do ritmo ±10% e 0 com 0 km.
+- **CA4** — GIVEN `EvalCandidateRunner`, THEN o JSON gradado e o gravado são os do plano normalizado.
+- **CA5** — GIVEN etapa incoerente, THEN `EvalDeterministicGrader` reporta a violação; coerente, não.
+- **CA6** — `NormalizacaoDeTreinoCaracterizacaoTest`: só mudam os esperados de etapas temporais com
+  `ritmoAlvo`, um por um, com o motivo no commit.
 
-### Critérios de aceite da reabertura (substituem CA1 e CA2 onde conflitam)
+## Métrica de sucesso
 
-- **CA6** — GIVEN etapa `ritmoAlvo="6:30-7:00/km"`, `duracaoMin=40`, `distanciaKm=2.5` (16:00/km), WHEN
-  validada, THEN `distanciaKm` ≈ 5,93 km (40 ÷ 6,75), `ritmoAlvo` e `duracaoMin` inalterados, e `WARN`
-  logado com o pace implícito antigo e a distância nova.
-- **CA7** — GIVEN `ritmoAlvo="5:38-6:00/km"`, `duracaoMin=30`, `distanciaKm=7.5` (4:00/km, rápido
-  demais), THEN `distanciaKm` ≈ 5,17 km.
-- **CA8** — GIVEN pace implícito dentro da faixa ±10%, THEN etapa inalterada, sem log.
-- **CA9** — GIVEN etapa com `duracaoMin` e `ritmoAlvo` e `distanciaKm` 0 ou nula, THEN distância
-  derivada; GIVEN sem `ritmoAlvo` parseável, THEN inalterada.
-- **CA10** — GIVEN o treino depois dos reparos, THEN `distanciaKm` do treino = soma das etapas.
-- **CA11** — GIVEN `EvalDeterministicGrader`, WHEN uma etapa viola CA6/CA7/CA9, THEN há violação de
-  qualidade `PACE_IMPLICITO_INCOERENTE` (nome a confirmar no código).
-- **CA12** — GIVEN os 15 pares da revisão cega regerados **depois** da normalização de produção, THEN
-  nenhum pace implícito fora da faixa ±10% e nenhuma etapa com 0 km.
+O coach recebe planos em que distância, duração e ritmo de cada etapa contam a mesma história; a nova
+revisão cega não tem caso barrado por ritmo implícito.
+
+## Open Questions & Assumptions
+
+- **Domínio (coach, 2026-11-16):** para o sub-3h, aquecimento de 6:00–6:30/km é lento e 4:12/km é ritmo
+  de maratona. Pela literatura (tabelas de Daniels para ~2h55–3h00; limiar ~3:50–4:00/km), rodagem
+  leve/aquecimento fica em ~4:50–5:30/km. Esta change torna a etapa coerente com o ritmo que a LLM
+  escreveu; se o ritmo escrito estiver lento demais, é problema do prompt/zonas, fora daqui.
+- **Assumido:** a medição usou contexto sem zonas de FC e sem teto/piso histórico; com eles, o passo
+  `corrigir-pace-teto-piso` pode mudar o `ritmoAlvo` antes do reparo. A ordem da receita resolve: o
+  reparo usa o ritmo que sair do passo.
