@@ -56,9 +56,11 @@ Restrição de arquitetura que governa tudo abaixo: a periodização, o cálculo
 
 **Proteção contra perda de dados.** Com as FKs atuais, excluir uma prova-alvo apaga em cascata o macro, as semanas planejadas e todos os planos semanais já aprovados — o histórico que a feature existe para preservar. A migration troca `tb_plano_treino.prova_id` para `ON DELETE RESTRICT` e `tb_plano_semanal.plano_treino_id` para `ON DELETE SET NULL`; `tb_semana_planejada.plano_treino_id` nasce com `CASCADE` (a semana não existe sem o macro, e o macro deixa de ser apagado por cascata). Na aplicação:
 
-- excluir prova com macro em qualquer status é recusado com 422, com mensagem orientando a cancelar;
-- cancelar ou trocar a prova-alvo arquiva o macro `ATIVO` (`ARQUIVADO`, `motivoVersao` = "prova cancelada"), descarta propostas e preserva semanas e planos semanais;
-- o `orphanRemoval` de `planoSemanalList` sai, porque remover o vínculo não pode apagar plano semanal aprovado.
+- excluir prova com macro em qualquer status é recusado com 422, com mensagem orientando a cancelar — só o ADMIN exclui de fato (`removerProva` manda treinador e atleta para cancelar), e a checagem cobre `prova_id` e `prova_alvo_id`;
+- cancelar (DELETE de não-ADMIN, edição para `CANCELADA`) ou trocar a prova-alvo arquiva o macro `ATIVO` e as propostas (`ARQUIVADO`, `motivoVersao` = "prova cancelada"), nunca com `DELETE`, e preserva as linhas de semanas e planos semanais; o efeito existente do `ProvaNoPlanoService` na semana continua;
+- `planoSemanalList` perde o `orphanRemoval` e o `REMOVE` da cascata (`cascade = {PERSIST, MERGE}`), porque remover o vínculo ou o macro não pode apagar plano semanal aprovado.
+
+Detalhe do contrato no ticket `add-season-plan-model-integrity` (DoR de 2026-11-15).
 
 **Alternativa rejeitada:** entidade nova com `PlanoTreino` em descontinuação — custo de migração e de linguagem sem ganho, dado que `PlanoTreino` está pouco usado e pode ser estendido.
 
