@@ -66,12 +66,12 @@ para ela reduz custo sem código novo. O ganho estimado é ~R$ 0,29 por atleta/m
 |---|---|
 | Modelo da `simple` traduz pior que Haiku | CA2 antes do merge; rollback = reverter o commit (2 linhas) |
 | 4 traduções seguidas estouram o timeout de 20 s da `simple` | Listener é `@Async`; cada chamada tem seu teto; medir latência no CA2 |
-| Atleta consentiu "análise pós-treino por IA (Anthropic)" | Open Question 1 — decisão do founder antes do CA3 |
+| Atleta consentiu "análise pós-treino por IA (Anthropic)" | Founder decidiu (2026-11-15): atualizar a política basta |
 
 ## Open Questions & Assumptions
 
-- **Aberto 1 (founder, LGPD):** trocar o subprocessador de parte da análise pós-treino exige só
-  atualizar a política, ou também avisar/reconsentir quem consentiu com "Anthropic"?
+- **Resolvido 1 (founder, 2026-11-15):** basta atualizar a política de privacidade; sem reaviso nem
+  reconsentimento.
 - **Assumido:** o sucessor da rota `simple` (decisão 3.3 de `migrate-openai-retired-models`) roda
   tradução e classificação SIM/NÃO sem reasoning.
 - **Histórico:** a versão anterior desta change (M · Full) criava fallback por rota, métricas,

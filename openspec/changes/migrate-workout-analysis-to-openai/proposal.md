@@ -52,7 +52,8 @@ Coach-in-the-loop: o coach continua revisando a análise antes de qualquer expos
 
 - **Aberto (founder, LGPD):** a política de privacidade atribui a análise pós-treino à Anthropic, e o
   consentimento do atleta cita a Anthropic. Migrar a análise para a OpenAI exige atualizar a política
-  e decidir se há reaviso ou reconsentimento (mesma pergunta de `consolidate-llm-on-openai`).
+  e decidir se há reaviso ou reconsentimento. **Decidido (founder, 2026-11-15, em
+  `consolidate-llm-on-openai`): basta atualizar a política.**
 
 - **Bloqueante:** o coach-fundador cura e anonimiza os casos reais; sem isso a change não passa do
   eval. Prazo: a definir com o founder.
