@@ -1,3 +1,7 @@
+> **Entregue em 2026-11-16:** backend PR #239 (squash `51cf493` em `develop`), 18/18 tasks. Glossário
+> (4.1) no PR #24 do `menthoros-infra`, ainda aberto. Adiados para o ticket 2: índice `(tenant_id, prova_id)`
+> e o caso "desmarcar a alvo sem substituta" (ver as notas das seções 3 e 5).
+>
 > Plano de execução refinado no `/implement init` (2026-11-15), depois do DoR (spec-reviewer + Codex).
 > Ordem: migrations antes da entidade, para que os testes de repositório (Testcontainers + Flyway)
 > rodem contra o schema real. Gate final é `./mvnw clean verify` — `clean test` não roda os `*IT`.
