@@ -4,6 +4,38 @@
 **Status:** proposta
 **Criado:** 2026-09-14
 
+**Reaberta em 2026-11-16 com escopo ampliado — bloqueia o rollout (7.3) de `migrate-openai-retired-models`.**
+
+## Reabertura (2026-11-16)
+
+A revisão cega de 15 pares de planos (`apps/menthoros-backend/docs/ia/revisao-cega-planos-2026-11-16.md`)
+reprovou o CA4b da migração por este mesmo bug, nos dois sentidos:
+
+- **`gpt-6-luna` (sucessor escolhido):** ao cortar volume, reduz os km e mantém a duração do planner —
+  ritmos implícitos de 13 a 28 min/km (inexecutáveis; o coach barraria). Quando o planner manda só
+  duração, deixa a etapa com **distância 0,0 km**, que quebra volume, ACWR e CTL.
+- **`gpt-4o` (atual):** distância ÷ duração mais rápida que o ritmo prescrito — inclusive 4:00/km com
+  tendinite ativa, o pior erro da revisão. É o caso que originou esta change em 2026-09-14.
+- **O grader determinístico do eval não pega nenhum dos dois** (deu 0–1 violação ao Luna).
+
+**Decisões do coach-fundador que resolvem as Open Questions 1 e 5:**
+
+- **OQ1 — fonte da verdade:** o **`ritmoAlvo` prescrito é a verdade** (é a intenção fisiológica);
+  repara-se a **distância** a partir de `duracaoMin × ritmo médio da faixa`. Reescrever o `ritmoAlvo`
+  para o pace implícito (proposta original) transformaria "16:00/km" em prescrição — descartado.
+- **OQ5 — tolerância:** pace implícito dentro da faixa declarada **±10%**; fora disso, repara.
+
+**Escopo ampliado:**
+
+1. Coerência pace × distância × duração por etapa, nos dois sentidos, reparando a distância.
+2. Distância > 0 obrigatória em toda etapa com duração e `ritmoAlvo`: derivar quando vier 0 ou nula.
+3. Depois do reparo por etapa, `reconciliarDistanciaComEtapas` recalcula o total do treino (a ordem
+   dos passos na `caudaComum` garante isso).
+4. O mesmo check entra no `EvalDeterministicGrader` como violação de qualidade, para o eval medir o bug.
+
+**Fora (vai para changes próprias):** cobertura dos 7 dias (cada dia treino ou descanso explícito);
+regra de dor para tendinite no prompt; cruzar com a zona fisiológica (OQ2 continua aberta).
+
 ## Why
 
 `EtapaFcValidator` já corrige a FC alvo de uma etapa quando ela cai fora da zona fisiológica esperada
@@ -76,7 +108,7 @@ determinística, sem side effects, sem acesso a dados externos). O risco real é
 
 ## Open Questions & Assumptions
 
-1. **[ABERTA] Fonte da verdade em caso de divergência**: quando `distanciaKm`/`duracaoMin` implicam
+1. **[RESOLVIDA 2026-11-16 — repara a distância, ver Reabertura] Fonte da verdade em caso de divergência**: quando `distanciaKm`/`duracaoMin` implicam
    um pace fora do `ritmoAlvo` declarado, a correção deve reescrever o `ritmoAlvo` (assumido nesta
    proposta, espelhando o `EtapaFcValidator`, que corrige o campo alvo e preserva duração/distância)
    ou ajustar `duracaoMin`/`distanciaKm` para bater com o `ritmoAlvo` prescrito? Etapas do tipo
@@ -94,9 +126,9 @@ determinística, sem side effects, sem acesso a dados externos). O risco real é
 3. **[ASSUMIDO] Etapas sem `ritmoAlvo` declarado (null) não são validadas** — sem texto para
    comparar, não há divergência a detectar. Mesma postura do `EtapaFcValidator` quando `fcAlvoEtapa`
    é null.
-4. **[ASSUMIDO] Etapas sem `distanciaKm` ou `duracaoMin`** (ex.: etapas por tempo puro sem distância
+4. **[ALTERADO 2026-11-16 — etapa com duração e `ritmoAlvo` mas sem distância passa a ter a distância derivada] Etapas sem `distanciaKm` ou `duracaoMin`** (ex.: etapas por tempo puro sem distância
    prevista) não são validadas — pace não é computável.
-5. **[ASSUMIDO] Tolerância de overlap = 50%**, igual ao `EtapaFcValidator`, para manter o mesmo
+5. **[SUBSTITUÍDO 2026-11-16 — ±10% sobre a faixa, ver Reabertura] Tolerância de overlap = 50%**, igual ao `EtapaFcValidator`, para manter o mesmo
    comportamento perceptível ao treinador nos dois validadores (evita FC "meio calibrado" e pace
    "totalmente calibrado" ou vice-versa).
 
@@ -125,3 +157,19 @@ validador existe para pegar o resíduo, não para corrigir a maioria das geraç�
 - **CA5:** `EtapaPaceValidator` está registrado na `caudaComum` de `NormalizacaoDeTreino` e roda para
   as três famílias (`FARTLEK`, `INTERVALADO_TIRO`, `TRES_ETAPAS`) — teste de integração confirma que
   um treino de cada família com pace inconsistente é corrigido.
+
+### Critérios de aceite da reabertura (substituem CA1 e CA2 onde conflitam)
+
+- **CA6** — GIVEN etapa `ritmoAlvo="6:30-7:00/km"`, `duracaoMin=40`, `distanciaKm=2.5` (16:00/km), WHEN
+  validada, THEN `distanciaKm` ≈ 5,93 km (40 ÷ 6,75), `ritmoAlvo` e `duracaoMin` inalterados, e `WARN`
+  logado com o pace implícito antigo e a distância nova.
+- **CA7** — GIVEN `ritmoAlvo="5:38-6:00/km"`, `duracaoMin=30`, `distanciaKm=7.5` (4:00/km, rápido
+  demais), THEN `distanciaKm` ≈ 5,17 km.
+- **CA8** — GIVEN pace implícito dentro da faixa ±10%, THEN etapa inalterada, sem log.
+- **CA9** — GIVEN etapa com `duracaoMin` e `ritmoAlvo` e `distanciaKm` 0 ou nula, THEN distância
+  derivada; GIVEN sem `ritmoAlvo` parseável, THEN inalterada.
+- **CA10** — GIVEN o treino depois dos reparos, THEN `distanciaKm` do treino = soma das etapas.
+- **CA11** — GIVEN `EvalDeterministicGrader`, WHEN uma etapa viola CA6/CA7/CA9, THEN há violação de
+  qualidade `PACE_IMPLICITO_INCOERENTE` (nome a confirmar no código).
+- **CA12** — GIVEN os 15 pares da revisão cega regerados **depois** da normalização de produção, THEN
+  nenhum pace implícito fora da faixa ±10% e nenhuma etapa com 0 km.

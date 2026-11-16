@@ -1,5 +1,9 @@
 # Design — add-etapa-pace-validator
 
+> **Reabertura 2026-11-16:** onde este design corrige o `ritmoAlvo` para o pace implícito, vale o
+> contrário — o `ritmoAlvo` é preservado e a **distância** é reparada (`duracaoMin ÷ pace médio da faixa`),
+> com tolerância de ±10% e derivação de distância 0/nula. Ver "Reabertura" no `proposal.md`.
+
 ## O problema de desenho, em uma frase
 
 Três campos da mesma etapa (`distanciaKm`, `duracaoMin`, `ritmoAlvo`) são escritos pela LLM sem
