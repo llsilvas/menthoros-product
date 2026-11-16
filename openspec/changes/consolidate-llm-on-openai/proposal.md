@@ -70,6 +70,13 @@ para ela reduz custo sem código novo. O ganho estimado é ~R$ 0,29 por atleta/m
 
 ## Open Questions & Assumptions
 
+- **Decidido (coach-fundador, 2026-11-16, CA2):** `gpt-6-luna` com `reasoning-effort: none` na rota
+  `simple` (melhor em 26/40 campos, pior em 3/40; Haiku 5/40 e 22/40). Registro em
+  `docs/ia/traducao-simple-vs-haiku-2026-11-15.md`. A configuração do modelo da `simple` é feita em
+  `migrate-openai-retired-models` (decisão 3.3 daquela change).
+- **Follow-up (decidido 2026-11-16):** glossário travado no prompt de tradução e pós-processador de
+  números e unidades vão na change `add-translation-glossary`; não bloqueiam esta.
+
 - **Resolvido 1 (founder, 2026-11-15):** basta atualizar a política de privacidade; sem reaviso nem
   reconsentimento.
 - **Assumido:** o sucessor da rota `simple` (decisão 3.3 de `migrate-openai-retired-models`) roda
