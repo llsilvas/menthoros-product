@@ -93,3 +93,13 @@ rodagem leve (deve cair para ≤ 4).
 - Exibir as zonas ao treinador — `coach-zonas-pace-fc-prescricao`.
 - Zonas de FC (já documentadas).
 - Zonas por potência ou por VDOT calculado de prova (outra discussão).
+
+## Adendo (2026-11-16) — evidência da revisão cega da migração OpenAI
+
+- **Mais um lugar com fator sem fonte:** `TreinoNormalizador.FATOR_PACE_Z2 = 1.20` e `FATOR_PACE_Z1 = 1.35`
+  (fallback de distância de aquecimento/desaquecimento/recuperação sem `ritmoAlvo` legível, e de contínuo
+  sem distância). Pela mesma leitura de Daniels, rodagem leve de atleta treinado fica em ~1,25–1,40 × o pace
+  de limiar; 1,20 é rápido demais. Incluir esses dois fatores na revalidação, junto dos de `ZonaTreinoService`.
+- **Caso concreto:** arquétipo sub-3h (`avancado-tsb-baixo`, limiar 3:50/km): as zonas do prompt dão Z1
+  4:24–4:47/km e o fallback dá 4:36/km de aquecimento; a literatura põe rodagem leve em ~4:50–5:30/km.
+  Fonte: `apps/menthoros-backend/docs/ia/revisao-cega-planos-2026-11-16.md` e `add-etapa-pace-validator`.
