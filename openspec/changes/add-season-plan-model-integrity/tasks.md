@@ -80,3 +80,37 @@
 - [x] 4.2 Validar: `./mvnw clean verify` + aplicação sobe contra o homelab com dados (épico 1.12)
   - verify: build verde (6620 unitários, 1 skip; 330 IT; 0 falhas). Homelab (`.env`, PostgreSQL 17.6):
     Flyway de 115 para 117, "Successfully applied 2 migrations", e a aplicação sobe (`ddl-auto: validate`)
+
+## 5. Ajustes do `/qa` (2026-11-16)
+
+Gate com code-reviewer, security-reviewer, clean-code-reviewer e Codex (review + adversarial). Nenhum
+Critical; os quatro Important abaixo foram confirmados no código e corrigidos com TDD.
+
+- [x] 5.1 Prova `CANCELADA` não disputa o alvo: `garantirAlvoUnica` sai cedo. Antes, reeditar uma prova
+  cancelada ainda marcada como alvo desmarcava a alvo atual e arquivava a temporada dela (Codex)
+  - verify: `ProvaServiceImplTest` (cancelada reeditada não rouba alvo; `@EnumSource` dos status não
+    cancelados troca e arquiva; duas alvos legadas arquivam cada uma); `ProvaTemporadaIT` com a sequência
+    cancelar A → B vira alvo com temporada → reeditar A como cancelada alvo: temporada de B segue `ACTIVE`
+- [x] 5.2 Quarto caminho de troca de alvo: `OnboardingServiceImpl.criarOuAtualizarProvaAlvo` desmarcava a
+  alvo anterior direto no repositório, sem arquivar. Agora arquiva com o mesmo motivo (Codex adversarial)
+  - verify: `OnboardingServiceTest` — troca arquiva a anterior e não a nova; mesma prova, primeira alvo e
+    legado com duas alvos (arquiva só a perdedora)
+- [x] 5.3 `archiveOpenSeasons` deixa de ser UPDATE em massa: carrega as temporadas abertas e altera as
+  entidades (`saveAllAndFlush`). O bulk deixava desatualizada uma temporada já carregada na transação, e
+  `clearAutomatically` destacaria a `Prova` que `atualizarProva` ainda usa depois do arquivamento (3
+  revisores Claude)
+  - verify: `PlanoTreinoRepositoryTest` — entidade carregada é relida `ARCHIVED`; alteração pendente não
+    se perde
+- [x] 5.4 Motivo da troca separado do cancelamento: "prova-alvo substituída" vs "prova cancelada"
+  (`PlanoTreinoRepository.REASON_*`), porque o texto chega ao treinador (clean-code)
+  - verify: testes de troca e de cancelamento afirmam cada motivo
+
+Registrado, sem correção neste ticket:
+
+- Índice `(tenant_id, prova_id)` em `tb_plano_treino` (padrão do módulo para tabela por tenant): a tabela
+  é pequena hoje; entra com a primeira migration do ticket 2.
+- O bloco `DO` da V116 pega uma FK que contenha a coluna; sem duplicata nas migrations versionadas, só
+  quebraria com drift de schema — já aplicada no homelab sem incidente.
+- `PlanoTreino.version` lê como `@Version` de lock otimista; o nome está decidido, vale a ressalva para
+  quem implementar o versionamento (ticket de aprovação).
+- Rollback: depois que houver temporada, só da aplicação (nota no `proposal.md`).

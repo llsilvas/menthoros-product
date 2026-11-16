@@ -95,5 +95,9 @@ treinador que excluir ou cancelar uma prova nunca leva junto o histórico de sem
 - Rollback: as migrations são forward-only. Desfazer é uma V nova que recria as FKs com `CASCADE`, remove
   o índice parcial, `tb_semana_planejada` e as colunas novas. Sem perda de dado legado, porque nenhuma
   coluna existente muda.
+  - **Depois que existir temporada, esse rollback de schema apaga dado** (as semanas, e o `CASCADE` volta a
+    permitir exclusão destrutiva). Daí em diante, o rollback padrão é só da aplicação (versão anterior do
+    backend sobre o schema novo, que é compatível: colunas nulas, tabela nova ignorada). Reverter o schema
+    exige exportar `tb_season_week` e as colunas de temporada antes. (QA de 2026-11-16, Codex.)
 - Se o gate 0.4 achar linhas em produção: a V116 continua válida (só adiciona colunas nulas e troca FKs);
   conferir antes se alguma prova referenciada já está marcada para exclusão.
