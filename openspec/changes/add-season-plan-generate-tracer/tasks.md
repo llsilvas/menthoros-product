@@ -43,34 +43,36 @@ Front (worktree `front-add-season-plan-generate-tracer`):
 
 ## 1. Backend
 
-- [ ] 1.1 V118 só com índices: `(tenant_id, prova_id)` em `tb_plano_treino` e único parcial
+- [x] 1.1 V118 só com índices: `(tenant_id, prova_id)` em `tb_plano_treino` e único parcial
   `(atleta_id) WHERE season_status = 'PROPOSED'`, no estilo do `uk_plano_treino_active_season` da V116
   - verify: `ProvaTemporadaIT`/`ddl validate` sobe; inserir 2 `PROPOSED` do mesmo atleta viola
-- [ ] 1.2 `SeasonPlanner` puro em `domain/planner` (sem Spring): template constante (D9/D14), horizonte
+- [x] 1.2 `SeasonPlanner` puro em `domain/planner` (sem Spring): template constante (D9/D14), horizonte
   (D3), corte condicionado ao CTL, curva (D10), arredondamento. Entrada: distância, data da prova,
   hoje, `S`, volume de partida. Constantes de `LoadTargetResolver` viram package-private
   - verify: testes parametrizados com os exemplos dos critérios de aceite (20 sem. KM_42 → 285/364/218/
     164; KM_21 curta com CTL ≥ 40 e < 40; KM_42 a 3 sem. com `n = 0`; limite de 2 sem.;
     `CUSTOMIZADA`); reprodutibilidade (mesma entrada → mesmas semanas)
-- [ ] 1.3 `SeasonPlanService`: bases de partida (D11, decaimento `e^(−dias/42)`, fallbacks, 422 por
+- [x] 1.3 `SeasonPlanService`: bases de partida (D11, decaimento `e^(−dias/42)`, fallbacks, 422 por
   base faltando), lock da prova + revalidação de alvo (D13), 200/409 ao gerar de novo (D2), grava
   `PlanoTreino` (`nome`/`descricao`/`objetivo` da prova — épico 1.3b; `totalWeeks`, `initialCtl`,
   `peakVolumeKm`, `shortPreparation`) e `SeasonWeek` com `ENGINE`; leitura `current`; flag (D5)
   - verify: teste unitário com mocks (bases, decaimento de 10 dias, 409, 200, 422s, flag off)
-- [ ] 1.4 `SeasonPlanController` (`POST`, `GET current`, 201/200/204) + `SeasonPlanResponseDto` (D1) +
+- [x] 1.4 `SeasonPlanController` (`POST`, `GET current`, 201/200/204) + `SeasonPlanResponseDto` (D1) +
   exceção/handler do 404 com `code: SEASON_PLAN_DISABLED` (D12); `season-plan.enabled` no
   `application.yml` (`SEASON_PLAN_ENABLED:false`) (épico 4.1, 4.2, 4.12, 4.12a, 4.13)
   - verify: `@WebMvcTest` 201/200/204/409/422/404 + corpo do 404 da flag + 403 do `ATLETA`
-- [ ] 1.5 D7 + D13 nos caminhos de alvo: `ProvaServiceImpl.atualizarProva` (alvo → não-alvo arquiva com
+- [x] 1.5 D7 + D13 nos caminhos de alvo: `ProvaServiceImpl.atualizarProva` (alvo → não-alvo arquiva com
   "prova deixou de ser alvo"), `cancelarProva`, `garantirAlvoUnica` e `OnboardingServiceImpl` carregam a
   prova com lock antes de `archiveOpenSeasons`
   - verify: testes unitários dos caminhos + casos no `ProvaTemporadaIT`
-- [ ] 1.6 `SeasonPlanIT`: POST → GET; `ATLETA` 403 com flag on/off; assessoria B 404; flag off 404 com
-  código; dois POST concorrentes → uma só `PROPOSED`; POST × desmarcar concorrentes → nenhuma temporada
-  aberta para prova não-alvo (épico 4.12b)
+- [x] 1.6 `SeasonPlanIT`: POST → GET; `ATLETA` 403; assessoria B 403 (`@RequireTenant`); flag off 404 com
+  código (no `SeasonPlanControllerTest`); dois POST concorrentes → uma só `PROPOSED`; POST × cancelar concorrentes → nenhuma temporada
+  aberta (épico 4.12b). Achou um furo: cancelar mantém `provaAlvo = true`, então a revalidação
+  pós-lock também recusa prova `CANCELADA` (`2ea6cab`)
   - verify: `*IT` verde
-- [ ] 1.7 Validar: `./mvnw clean verify` + OpenAPI com os dois endpoints (épico 4.14)
-  - verify: BUILD SUCCESS
+- [x] 1.7 Validar: `./mvnw clean verify` + OpenAPI com os dois endpoints (épico 4.14)
+  - verify: BUILD SUCCESS — 6689 unit (1 skipped) + 336 IT, 0 falhas (2026-11-16). OpenAPI pelas anotações
+    do controller; Swagger UI não aberto
 
 ## 2. Frontend
 

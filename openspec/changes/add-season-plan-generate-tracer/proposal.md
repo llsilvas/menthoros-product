@@ -148,7 +148,8 @@ a aba no inbox do treinador (D6).
 - **Dado** um usuário `ATLETA`, **quando** chama a geração ou a leitura, **então** recebe 403, com a flag
   ligada ou desligada.
 - **Dado** uma temporada da assessoria A, **quando** um treinador da assessoria B a consulta ou gera
-  para o mesmo `atletaId`, **então** recebe 404.
+  para o mesmo `atletaId`, **então** recebe 403 (`@RequireTenant`, padrão dos endpoints por atleta)
+  e nada é gravado.
 - **Dado** erro na consulta, **quando** abre a aba, **então** vê o erro com "Tentar de novo", nunca o
   estado vazio; durante a carga vê o skeleton.
 - **Dado** `season-plan.enabled=false`, **quando** um treinador chama qualquer endpoint, **então**
