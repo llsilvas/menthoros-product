@@ -1,52 +1,96 @@
+## 0. Reaproveitamento (levantado em 2026-11-16, não reescrever)
+
+Backend (worktree `backend-add-season-plan-generate-tracer`, `src/main/java/br/com/menthoros/backend/`):
+
+- Modelo do ticket 1 pronto: `PlanoTreino` já tem `seasonStatus`, `totalWeeks`, `version`,
+  `versionReason`, `initialCtl`, `peakVolumeKm`, `shortPreparation`, `nome`/`descricao`/`objetivo`;
+  `SeasonWeek` (`weekIndex`, `weekStart`, `phase`, `targetVolumeKm`, `targetTss`, `longRunKm`,
+  `deload`, `valueSource`) + `SeasonWeekRepository.findBySeasonPlanIdAndTenantIdOrderByWeekIndexAsc`;
+  `SeasonPlanStatus`; `TrainingPhase` (BASE, BUILD, PEAK, TAPER, RACE_WEEK); `WeekValueSource.ENGINE`.
+  Nenhuma entidade ou migration nova de tabela.
+- `RacePreparationRule.minimoSemanas` / `distanciaNominalKm` (faixa da `CUSTOMIZADA`).
+- `LoadTargetResolver.MAX_CTL_RAMP_PER_WEEK` e `TETO_CTL_COLD_START` são `private`: o `SeasonPlanner`
+  fica no mesmo pacote `domain/planner` e as constantes passam a package-private (sem duplicar valor).
+- Bases: `MetricasDiariasRepository.findLatestByAtletaId` + `findDataPrimeiraMetrica`;
+  `AthleteBaselineStateRepository.findByAtletaIdAndTenantId`;
+  `PerfilOnboardingAtletaRepository.findByAtletaIdAndTenantId`;
+  `TreinoRealizadoRepository.findByAtletaIdAndTenantIdAndDataTreinoBetween` + `contaNaCarga()`.
+- `Clock` bean existe (`ClockConfig`, zona do JVM): usar `LocalDate.now(clock.withZone(America/Sao_Paulo))`.
+- Flag: padrão `@Value("${...:false}")` de `PlanoServiceImpl` (`planner-engine.enabled`).
+- Erros: `DomainRuleViolationException` → 422, `DomainConflictException` → 409,
+  `ResourceNotFoundException` → 404 em `GlobalExceptionHandler`. Só falta o 404 com `code` (D12):
+  uma exceção + um handler, no padrão do `LGPD_CONSENT_REQUIRED`.
+- Controller: padrão de `RaceProjectionController` (`/api/v1/atletas/{atletaId}/...`,
+  `hasAnyRole('TECNICO','ADMIN')`, `TenantContext.getRequiredTenantId()`,
+  `AtletaRepository.findByIdAndTenantId`).
+- Lock: copiar `AthleteContractRepository.findByIdAndTenantIdForUpdate` para `ProvaRepository`.
+- Arquivamento: `PlanoTreinoRepository.archiveOpenSeasons` + constantes de motivo; falta só a constante
+  "prova deixou de ser alvo" e a chamada em `ProvaServiceImpl.atualizarProva` (alvo → não-alvo sem
+  cancelar hoje não arquiva).
+- Testes: `AbstractIntegrationTest`, `ProvaTemporadaIT`, `AuthWebMvcTestConfig` (exemplo
+  `IntervalsIcuConnectionControllerAuthTest`).
+
+Front (worktree `front-add-season-plan-generate-tracer`):
+
+- Abas: `TABS`/`TabKey` em `CoachInboxPage.tsx`; `selectedProfile.proximaProva` (`provaAlvo`);
+  `calcularDiasAteProva` em `coachInboxAdapters.ts`.
+- API: serviço à mão no estilo `CoachSemanaService` (`__request`), `ApiError.status`/`body.code`.
+- Hook no padrão `useCoachAthleteRaces` (useState/useCallback, sem React Query).
+- UI: `KpiStrip`, `Alert` com "Tentar de novo", `Skeleton`, MUI `Table size="small"`,
+  `formatarDataCurta`, `formatKm`. `PhaseIndicator` não tem PEAK/RACE_WEEK → mapa local de 5 rótulos.
+- Testes: Vitest + `vi.mock` do serviço (`useCoachAthleteRaces.test.ts`, `DiagnosisTabPanel.test.tsx`);
+  E2E em `tests/e2e/coach/inbox.spec.ts` (`autenticarComPkce` + `page.route`). Gerenciador: npm.
+
 ## 1. Backend
 
-- [ ] 1.1 V118: `tb_season_template` + seed default das 5 distâncias; índice `(tenant_id, prova_id)` em
-  `tb_plano_treino`; índice único parcial de uma `PROPOSED` por atleta. Entidade `SeasonTemplate` +
-  `SeasonTemplateRepository` (épico 1.5, 1.6, 1.9)
-  - verify: `ddl-auto=validate` sobe no IT; repositório devolve o template de cada distância
-- [ ] 1.2 Motor mínimo `SeasonPlannerService` com `Clock`: horizonte (D3), fases do seed + semanas
-  extras na Base + corte condicionado ao CTL (D9), curva (D10), bases de partida com decaimento e
-  fallbacks (D11), arredondamento (épico 2.1, 2.2, 2.3 sem descargas, 2.6 sem calibração)
-  - verify: testes parametrizados com os exemplos numéricos dos critérios de aceite (20 sem. KM_42,
-    KM_21 curta com CTL ≥ 40 e < 40, KM_42 a 3 sem. com `n = 0`, decaimento de 10 dias, limite de
-    2 sem., base faltando)
-- [ ] 1.3 `nome`, `descricao`, `objetivo` do `PlanoTreino` a partir da prova (épico 1.3b)
-  - verify: teste do service confere os três campos
-- [ ] 1.4 Reprodutibilidade: mesma entrada + `Clock` fixo → semanas idênticas
-  - verify: teste unitário compara duas gerações campo a campo
-- [ ] 1.5 Endpoints `POST /season-plans` e `GET /season-plans/current` (D1), `@PreAuthorize`
-  `TECNICO`/`ADMIN`, filtro por assessoria, flag `season-plan.enabled` (D5), 200/409 em gerar de novo
-  (D2), 422 dos casos de D3/D11, 404 com `code: SEASON_PLAN_DISABLED` (D12), lock da prova (D13)
-  (épico 4.1, 4.2, 4.12, 4.12a, 4.13)
-  - verify: testes de controller (`@WebMvcTest`) para 201/200/204/409/422/404 e o corpo do 404 da flag
-- [ ] 1.6 Desmarcar a alvo sem substituta arquiva a temporada aberta (D7) em `ProvaServiceImpl` e
-  `OnboardingServiceImpl`; os caminhos de desmarcar/cancelar/trocar carregam a prova com lock antes de
-  arquivar (D13)
-  - verify: teste unitário de cada caminho + caso no `ProvaTemporadaIT` + IT concorrente de duas
-    threads (POST × desmarcar)
-- [ ] 1.7 IT real: POST → GET; `ATLETA` 403 com flag on/off; assessoria B 404; flag off 404; POST
-  concorrente gera uma só `PROPOSED` (épico 4.12b)
-  - verify: `*IT` verde em `./mvnw clean verify`
-- [ ] 1.8 Validar: `./mvnw clean verify` + OpenAPI atualizado (épico 4.14)
-  - verify: BUILD SUCCESS; Swagger mostra os dois endpoints
+- [ ] 1.1 V118 só com índices: `(tenant_id, prova_id)` em `tb_plano_treino` e único parcial
+  `(atleta_id) WHERE season_status = 'PROPOSED'`, no estilo do `uk_plano_treino_active_season` da V116
+  - verify: `ProvaTemporadaIT`/`ddl validate` sobe; inserir 2 `PROPOSED` do mesmo atleta viola
+- [ ] 1.2 `SeasonPlanner` puro em `domain/planner` (sem Spring): template constante (D9/D14), horizonte
+  (D3), corte condicionado ao CTL, curva (D10), arredondamento. Entrada: distância, data da prova,
+  hoje, `S`, volume de partida. Constantes de `LoadTargetResolver` viram package-private
+  - verify: testes parametrizados com os exemplos dos critérios de aceite (20 sem. KM_42 → 285/364/218/
+    164; KM_21 curta com CTL ≥ 40 e < 40; KM_42 a 3 sem. com `n = 0`; limite de 2 sem.;
+    `CUSTOMIZADA`); reprodutibilidade (mesma entrada → mesmas semanas)
+- [ ] 1.3 `SeasonPlanService`: bases de partida (D11, decaimento `e^(−dias/42)`, fallbacks, 422 por
+  base faltando), lock da prova + revalidação de alvo (D13), 200/409 ao gerar de novo (D2), grava
+  `PlanoTreino` (`nome`/`descricao`/`objetivo` da prova — épico 1.3b; `totalWeeks`, `initialCtl`,
+  `peakVolumeKm`, `shortPreparation`) e `SeasonWeek` com `ENGINE`; leitura `current`; flag (D5)
+  - verify: teste unitário com mocks (bases, decaimento de 10 dias, 409, 200, 422s, flag off)
+- [ ] 1.4 `SeasonPlanController` (`POST`, `GET current`, 201/200/204) + `SeasonPlanResponseDto` (D1) +
+  exceção/handler do 404 com `code: SEASON_PLAN_DISABLED` (D12); `season-plan.enabled` no
+  `application.yml` (`SEASON_PLAN_ENABLED:false`) (épico 4.1, 4.2, 4.12, 4.12a, 4.13)
+  - verify: `@WebMvcTest` 201/200/204/409/422/404 + corpo do 404 da flag + 403 do `ATLETA`
+- [ ] 1.5 D7 + D13 nos caminhos de alvo: `ProvaServiceImpl.atualizarProva` (alvo → não-alvo arquiva com
+  "prova deixou de ser alvo"), `cancelarProva`, `garantirAlvoUnica` e `OnboardingServiceImpl` carregam a
+  prova com lock antes de `archiveOpenSeasons`
+  - verify: testes unitários dos caminhos + casos no `ProvaTemporadaIT`
+- [ ] 1.6 `SeasonPlanIT`: POST → GET; `ATLETA` 403 com flag on/off; assessoria B 404; flag off 404 com
+  código; dois POST concorrentes → uma só `PROPOSED`; POST × desmarcar concorrentes → nenhuma temporada
+  aberta para prova não-alvo (épico 4.12b)
+  - verify: `*IT` verde
+- [ ] 1.7 Validar: `./mvnw clean verify` + OpenAPI com os dois endpoints (épico 4.14)
+  - verify: BUILD SUCCESS
 
 ## 2. Frontend
 
-- [ ] 2.1 `src/api/seasonPlanService.ts` + tipos à mão; hook `useSeasonPlan(atletaId)` com gerar e ler;
-  204 → sem temporada; 404 com `code: SEASON_PLAN_DISABLED` → flag off; outro 404 → erro (D12;
+- [ ] 2.1 `src/api/services/SeasonPlanService.ts` (estilo `CoachSemanaService`) + `src/types/SeasonPlan.ts`;
+  hook `useSeasonPlan(atletaId)` no padrão `useCoachAthleteRaces`: ler, gerar, refetch; 204 → sem
+  temporada; 404 com `body.code === 'SEASON_PLAN_DISABLED'` → `disabled`; outro 404 → erro (D12;
   épico 7.12)
-  - verify: teste do hook cobre 200/204/404 da flag/404 comum/erro
-- [ ] 2.2 `SeasonTabPanel` em `features/coach/components/panels/`, aba **Temporada** entre Diagnóstico e
-  Plano no `CoachInboxPage`: faixa de proposta, KPIs, tabela (D6; épico 7.1, 7.3, 7.4)
+  - verify: teste do hook com `vi.mock` cobre 200/204/404 da flag/404 comum/erro/gerar
+- [ ] 2.2 `SeasonTabPanel` em `features/coach/components/panels/` e aba **Temporada** entre Diagnóstico e
+  Plano (some quando `disabled`): faixa de proposta (`Alert`), `KpiStrip` (semanas, dias até a prova
+  via `calcularDiasAteProva`, fase corrente, volume de pico), `Table` (Semana, Início, Fase, Volume,
+  TSS) com mapa local de fases (D6; épico 7.1, 7.3, 7.4)
   - verify: teste de componente renderiza KPIs e linhas
-- [ ] 2.3 Estados: sem prova, prova sem temporada com "Gerar temporada", proposta, carregando
-  (skeleton), erro com "Tentar de novo"; aba oculta com a flag off (épico 7.7)
+- [ ] 2.3 Estados: sem prova-alvo (`selectedProfile.proximaProva`), prova sem temporada com "Gerar
+  temporada", proposta, `Skeleton`, erro com "Tentar de novo" (épico 7.7) + contraste/alvos da seção 9
+  (épico 7.13)
   - verify: um teste por estado
-- [ ] 2.4 Testes de componente + contraste/alvos da seção 9 (épico 7.13)
-  - verify: `bun test:run` verde
-- [ ] 2.5 E2E Playwright (API interceptada): abrir inbox → aba Temporada → gerar → ver tabela
-  - verify: `bun test:e2e` verde
-- [ ] 2.6 Validar: `bun lint && bun run build && bun test:run` (épico 7.15)
+- [ ] 2.4 E2E Playwright em `tests/e2e/coach/` (API interceptada): inbox → aba Temporada → gerar → tabela
+  - verify: `npm run test:e2e` verde
+- [ ] 2.5 Validar: `npm run lint && npm run build && npm run test:run` (épico 7.15)
 
 ## 3. Métrica (D8)
 

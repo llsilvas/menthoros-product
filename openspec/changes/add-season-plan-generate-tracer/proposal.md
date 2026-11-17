@@ -18,17 +18,16 @@ funciona e já é testado de ponta a ponta.
 
 ## What Changes
 
-Tasks do épico: **1.3b, 1.5, 1.6 (repositório do template), 1.9, 2.1, 2.2, 2.3 (rampa, sem descargas),
+Tasks do épico: **1.3b, 2.1, 2.2, 2.3 (rampa, sem descargas),
 2.6 (sem o caso de calibração), 4.1, 4.2, 4.12, 4.12a, 4.12b, 4.13, 4.14, 7.1, 7.3, 7.4, 7.7, 7.12,
 7.13, 7.15**, e a parte da seção 9 que cabe à aba. Onde o épico diz "perfil do atleta", este ticket usa
 a aba no inbox do treinador (D6).
 
 - **Backend**
-  - V118: `tb_season_template` com o template default global das 5 distâncias (KM_5, KM_10, KM_21,
-    KM_42, CUSTOMIZADA); índice `(tenant_id, prova_id)` em `tb_plano_treino` (herdado do ticket 1);
-    índice único parcial de uma temporada `PROPOSED` por atleta (D2)
-  - `SeasonTemplate` + repositório; `SeasonPlannerService` (motor mínimo: fases + rampa, D3/D4), com
-    `Clock` injetado
+  - V118: só índices — `(tenant_id, prova_id)` em `tb_plano_treino` (herdado do ticket 1) e índice
+    único parcial de uma temporada `PROPOSED` por atleta (D2). Sem tabela de template (D14)
+  - `SeasonPlanner` puro em `domain/planner` (motor mínimo: fases + rampa, D3/D9–D11), com o template
+    default como constante (D14); `SeasonPlanService` orquestra repositórios, `Clock` e lock
   - `nome`, `descricao` e `objetivo` do `PlanoTreino` preenchidos a partir da prova (épico 1.3b)
   - Endpoints (D1) com guard de papel, filtro por assessoria e flag `season-plan.enabled` (D5)
   - Desmarcar a prova-alvo sem substituta arquiva a temporada aberta (D7)
@@ -43,9 +42,11 @@ a aba no inbox do treinador (D6).
     temporada.
   - `GET /api/v1/atletas/{atletaId}/season-plans/current` → **200** com a temporada `ACTIVE` ou, se não
     houver, a `PROPOSED` mais recente; **204** quando não há nenhuma.
-  - Resposta (`SeasonPlanResponseDto`): `id`, `status`, `provaId`, `provaNome`, `provaData`,
-    `shortPreparation`, `weeks[]` com `weekNumber`, `weekStart` (segunda-feira), `phase`,
-    `volumeAlvoKm`, `tssAlvo`, `deload` (sempre `false` aqui) e `longRunKm` (sempre `null` aqui).
+  - Resposta (`SeasonPlanResponseDto`), com os nomes das entidades do ticket 1: `id`, `seasonStatus`,
+    `provaId`, `provaNome`, `provaData`, `shortPreparation`, `totalWeeks`, `initialCtl`,
+    `peakVolumeKm`, `weeks[]` com `weekIndex`, `weekStart` (segunda-feira), `phase`, `targetVolumeKm`,
+    `targetTss`, `deload` (sempre `false` aqui), `longRunKm` (sempre `null` aqui) e `valueSource`
+    (sempre `ENGINE` aqui).
 - **D2 — Gerar de novo.** Já existe `PROPOSED` para a mesma prova → **200** com ela, sem criar outra.
   Já existe `ACTIVE` → **409** (gerar sobre ativa é replanejamento, ticket 10). Duplo clique concorrente:
   o índice único parcial da V118 garante uma só `PROPOSED`; a violação vira 409.
@@ -98,6 +99,13 @@ a aba no inbox do treinador (D6).
   `OnboardingServiceImpl`) carregam a prova com lock antes de `archiveOpenSeasons`. Quem chega depois
   vê o commit do outro: ou o `POST` recebe 422, ou o arquivamento encontra a proposta. Coberto por IT
   com duas threads.
+- **D14 — Template como constante, não tabela (2026-11-16, revisão de reaproveitamento).** O ticket só
+  usa o default global (Q7) e o seed é uma tabela fixa de 4 linhas (D9). Uma `tb_season_template` +
+  entidade + repositório + seed seria código sem leitor diferente do motor. O template vira constante
+  em `SeasonPlanner` (contagens de D9 + `peakGrowth`, fatores de Polimento e Semana da prova). Desvio
+  consciente da Decisão 9 do épico ("versionado no banco, por assessoria"): continua sendo dado, não
+  prompt, e a tabela entra quando o template por assessoria entrar. Tasks 1.5/1.6/1.9 do épico ficam
+  adiadas para esse ticket.
 - **D5 — Precedência e flag.** `@PreAuthorize` roda antes: `ATLETA` recebe **403** sempre. Para
   `TECNICO`/`ADMIN`, flag desligada → **404** lançado no service. Flag `season-plan.enabled`
   (`SEASON_PLAN_ENABLED`, default `false`). O front descobre a flag pelo 404 do GET e esconde a aba.
@@ -114,14 +122,14 @@ a aba no inbox do treinador (D6).
 
 - **Dado** um atleta com prova-alvo a 20 semanas e sem temporada, **quando** o treinador clica "Gerar
   temporada", **então** nasce uma temporada `PROPOSED` com 20 semanas, cada uma com fase,
-  `volumeAlvoKm` e `tssAlvo`, e a aba mostra KPIs, faixa de proposta e tabela.
+  `targetVolumeKm` e `targetTss`, e a aba mostra KPIs, faixa de proposta e tabela.
 - **Dado** o mesmo atleta, template, baseline e `Clock`, **quando** a geração roda duas vezes,
   **então** os valores são idênticos.
 - **Dado** prova-alvo KM_21 a 6 semanas (mínimo 12) e CTL de partida ≥ 40, **quando** gera, **então**
   nascem 6 semanas com `shortPreparation = true`: Construção 1, Pico 3, Polimento 1, Semana da prova 1;
   com CTL < 40: Base 4, Polimento 1, Semana da prova 1.
 - **Dado** CTL de partida 40 e prova KM_42 a 20 semanas (Base 10, Construção 4, Pico 3, Polimento 2,
-  Semana da prova 1), **quando** gera, **então** `tssAlvo` da semana 1 = 285, da última de Pico = 364,
+  Semana da prova 1), **quando** gera, **então** `targetTss` da semana 1 = 285, da última de Pico = 364,
   de cada semana de Polimento = 218 e da Semana da prova = 164.
 - **Dado** último `MetricasDiarias` com 10 dias de idade, **quando** gera, **então** o CTL usado é o
   projetado com `e^(−10/42)`.
@@ -161,8 +169,7 @@ assessoria; geração automática.
 ## Riscos e rollback
 
 - Flag desligada por padrão: em produção nada aparece até ligar `SEASON_PLAN_ENABLED`.
-- Rollback: desligar a flag. A V118 só cria tabela e índices; reverter o schema exige exportar
-  `tb_season_template` antes, e o índice único parcial pode ser removido sem perda.
+- Rollback: desligar a flag. A V118 só cria índices, removíveis sem perda de dado.
 - O motor mínimo gera alvos sem descargas; como a temporada fica `PROPOSED` e invisível ao atleta, não
   há impacto na prescrição até o ticket 5.
 
