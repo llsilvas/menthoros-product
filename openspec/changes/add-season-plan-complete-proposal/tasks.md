@@ -64,20 +64,25 @@ Seção 1 verificada em 2026-11-18. Notas:
 
 ## 2. Frontend
 
-- [ ] 2.1 Tipos e tabela: `SeasonPlan` ganha `milestones`/`validations`; a tabela ganha a coluna Longão
+- [x] 2.1 Tipos e tabela: `SeasonPlan` ganha `milestones`/`validations`; a tabela ganha a coluna Longão
   (`—` sem valor) e marca a descarga.
   - verify: `SeasonTabPanel.test.tsx` — longão formatado, `—` na RACE_WEEK, descarga indicada.
-- [ ] 2.2 Mapa (T8; épico 7.2, 9.3): `SeasonMapChart` com uma barra de volume planejado por semana,
+- [x] 2.2 Mapa (T8; épico 7.2, 9.3): `SeasonMapChart` com uma barra de volume planejado por semana,
   cor pela fase, descarga e semana atual destacadas, marco sinalizado; `role="img"` com `aria-label`
   resumido; a tabela é a alternativa textual.
   - verify: teste de componente (uma barra por semana; `aria-label` com semanas, pico e marcos).
-- [ ] 2.3 Marcos e validações no `SeasonTabPanel` (épico 7.5): duas listas em `SectionCard`; validações
+- [x] 2.3 Marcos e validações no `SeasonTabPanel` (épico 7.5): duas listas em `SectionCard`; validações
   com mensagem e semana; sem alertas, "Proposta dentro dos limites".
   - verify: testes do painel com marcos, com alertas e sem alertas.
-- [ ] 2.4 E2E e validação: o mock de `season-plan.spec.ts` ganha um marco e um alerta; o teste vê o mapa,
+- [x] 2.4 E2E e validação: o mock de `season-plan.spec.ts` ganha um marco e um alerta; o teste vê o mapa,
   o marco e o alerta.
   - verify: `npm run lint && npm run build && npm run test:run` e `npx playwright test
     tests/e2e/coach/season-plan.spec.ts` verdes.
+
+Seção 2 verificada em 2026-11-18: lint, build, 3015 unitários e o E2E `season-plan.spec.ts` (2). Notas:
+- 2.2: o jsdom não desenha o recharts, então o teste confere o resumo acessível (`role="img"`: semanas,
+  pico, descargas e marcos), como os outros gráficos do projeto; as barras ficam com o E2E.
+- 2.3: marcos e validações ficaram dentro do `SeasonTabPanel`, sem componente próprio.
 
 ## 3. Docs
 
