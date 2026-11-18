@@ -144,7 +144,10 @@ semanas precisa caber na janela de rollback). Gate 0 fechado até **2026-10-31**
       motivo e data, deploy, gerar 1 plano com `gpt-4o`; depois reaplicar. Os dois lados precisam
       funcionar. Registrar no proposal o procedimento exato (lista de propriedades, não "trocar o
       modelo").
-- [ ] 7.2 PR `<branch> → develop`; 1 semana de planos reais; comparar taxa de falha e p95 no
+      Parte local feita 2026-11-18: branch `chore/rollback-openai-para-gpt4o` (push feito, sem PR) com os
+      reverts de `2fc4c20` e `02ba482` + `@Disabled` no guard; `./mvnw clean verify` verde (6662 unitários,
+      337 integração). Falta o deploy em ambiente de teste e gerar um plano com gpt-4o.
+- [ ] 7.2 PR `<branch> → develop` (feito: #244, mergeado 2026-11-18); 1 semana de planos reais; comparar taxa de falha e p95 no
       ledger com a semana anterior (CA9).
 - [ ] 7.3 PR `develop → main` até 2026-11-15 (depende de 3.5). Registrar no proposal a data do
       merge e o procedimento de rollback (revert de 4.1, ensaiado em 7.1b), com a ressalva de que expira em
