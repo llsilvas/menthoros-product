@@ -91,8 +91,10 @@ a aba no inbox do treinador (D6).
     das 4 semanas completas antes da corrente ÷ 4; se a soma for 0, `PerfilOnboardingAtleta
     .volumeSemanalMax`, se > 0.
 - **D12 — 404 da flag com código.** O 404 da flag desligada leva `code: SEASON_PLAN_DISABLED` no corpo;
-  o front só esconde a aba com esse código. Outro 404 (atleta inexistente, outra assessoria) mostra o
-  estado de erro.
+  o front só esconde a aba com esse código. Qualquer outro erro mostra o estado de erro. Atleta
+  inexistente ou de outra assessoria responde **403**, não 404: o `@RequireTenant` barra o UUID antes do
+  service, como em todos os endpoints com recurso no path (QA 2026-11-18). Por isso esse caso também
+  não chega a revelar o estado da flag.
 - **D13 — Corrida entre desmarcar a alvo e gerar.** Os dois lados travam a linha da prova
   (`PESSIMISTIC_WRITE`) **no início** da transação, antes de qualquer consulta: o `POST` revalida
   `provaAlvo` depois do lock; os caminhos que desmarcam, cancelam ou trocam a alvo (`ProvaServiceImpl`,

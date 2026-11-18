@@ -112,3 +112,28 @@ group by a.tenant_id;
 ```
 
 Nomes de coluna conferidos na task 1.1 contra o schema real.
+
+## QA (2026-11-18)
+
+Revisores Claude (code, security, clean-code, frontend) e Codex (review no front, adversarial no
+backend). Nenhum Critical. Os dois Codex reprovaram; corrigido o que se confirmou no código:
+
+- Front (`3085845`): resposta atrasada do atleta anterior sobrescrevia o plano do atual (Claude +
+  Codex). Agora é descartada por número de requisição. Falha no GET virava "sem temporada" e
+  oferecia gerar; erros de leitura e geração separados. Skeleton com `role="status"`; o 404 da
+  flag não vaza mais entre testes do inbox.
+- Backend (`93634fd`): ao desmarcar a alvo, o lock por consulta devolvia a entidade já carregada sem
+  reler. Um cancelamento concorrente seria sobrescrito. Agora é `refresh` com `PESSIMISTIC_WRITE`, em
+  `ProvaServiceImpl` e `OnboardingServiceImpl`. Nome da temporada truncado em 100 (antes virava 409).
+  Média de volume que arredonda para 0,0 cai no `volumeSemanalMax`. Javadoc do lock voltou ao método.
+- Não corrigido, registrado:
+  - Atleta inexistente responde 403 (`@RequireTenant`), não 404. É o padrão do projeto; D12 ajustado.
+  - Dias até a prova e fase atual usam o fuso do navegador. Diverge do de São Paulo só perto da
+    meia-noite UTC de domingo; os coaches estão no Brasil.
+  - `findLatestByAtletaId`/`findDataPrimeiraMetrica` sem `tenantId`. O atleta já foi validado no
+    tenant antes, mas é defesa em profundidade a fechar quando essas queries forem tocadas.
+  - Lock sem timeout. Um travamento longo bloqueia editar a prova.
+  - Nenhum vínculo coach-atleta além de papel + tenant. Igual ao resto do produto.
+- Validação após as correções:
+  - Backend: `./mvnw clean verify` com 6691 unitários e 336 IT, todos verdes.
+  - Front: lint, build, 3011 unitários e o E2E `season-plan.spec.ts` (2), todos verdes.
