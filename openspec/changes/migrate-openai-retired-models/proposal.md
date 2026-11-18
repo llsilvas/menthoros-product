@@ -415,3 +415,38 @@ rodada 1 (resposta bruta da LLM) 9 × 6, não passou; rodada 2 (normalizada) 10 
 viabilizaram a rodada 3 eram de normalização e de eval, não do modelo (`add-etapa-pace-validator`,
 `fix-total-treino-soma-etapas`, `fix-etapas-sintetizadas-sessao-curta`). Follow-ups de qualidade em
 `garantir-cobertura-sete-dias-plano`, `ajustar-taper-pre-prova` e `ocultar-volume-alvo-vazio`.
+
+### Rollout — procedimento de rollback e consultas (2026-11-18, seção 7)
+
+**Merge em `develop`:** menthoros-backend#244, 2026-11-18 (`ab86883`). Docs: menthoros-infra#25.
+
+**Rollback (design D7), válido até 2027-01-14:** branch pronta `chore/rollback-openai-para-gpt4o`
+(a partir de `develop` depois do #244), com três commits:
+
+1. `git revert 2fc4c20` — IT de payload volta ao perfil do gpt-4o;
+2. `git revert 02ba482` — `application.yml` volta ao perfil completo antigo de cada rota (não só o
+   modelo): `plano` gpt-4o / temperature 0.2 / max-tokens 12000 / timeout 120s; `expert` gpt-4o /
+   temperature 0.2 / 8000 / 90s; `simple` gpt-4o-mini / temperature 0.3 / 1000 / 20s; default
+   `spring.ai.openai.chat.options.model` gpt-4o. Sem `reasoning-effort` em nenhuma rota — a validação de
+   boot recusa gpt-4o com esforço;
+3. `@Disabled` com motivo e data só no teste do guard que lê o YAML real.
+
+Para acionar: abrir PR da branch para `develop` (e depois `develop → main`). Variável de ambiente não é
+caminho de rollback: trocar só `APP_LLM_ROUTING_PLANO_MODEL` deixa `reasoning-effort` do YAML e o boot falha.
+
+**Consultas (Postgres do ambiente, `tb_llm_call`):**
+
+```sql
+-- CA9: taxa de falha e p95 da rota plano por semana e modelo servido
+SELECT date_trunc('week', created_at) AS semana, model,
+       count(*) AS chamadas,
+       round(100.0 * count(*) FILTER (WHERE result <> 'SUCCESS') / count(*), 1) AS pct_falha,
+       percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95_ms
+FROM tb_llm_call
+WHERE route = 'plano' AND created_at > now() - interval '35 days'
+GROUP BY 1, 2 ORDER BY 1 DESC, 2;
+```
+
+A taxa de aceite sem edição de volume (7.0/7.5) depende da definição ainda aberta em
+`eval-progression-adherence-rollout` (Open Question 1 daquela change); até lá, 7.5 usa a taxa de
+`REJEITADO` do coach por modelo (consulta 4 de `apps/menthoros-backend/docs/ia/consulta-validacao-ledger.sql`).
