@@ -97,22 +97,27 @@ semanas precisa caber na janela de rollback). Gate 0 fechado até **2026-10-31**
 
 ## 4. Troca de configuração + preço (design D4)
 
-- [ ] 4.1 `application.yml`: modelos vencedores em `simple`, `expert`, `plano` e no default;
+- [x] 4.1 `application.yml`: modelos vencedores em `simple`, `expert`, `plano` e no default;
       `reasoning-effort`/`temperature` conforme a decisão; `timeout` recalibrado pelo p95 medido
       (margem de 1,5×). **Commit isolado, só YAML** — é a unidade de rollback (design D7).
-- [ ] 4.2 `llm-pricing.yml`: alias + snapshots datados dos modelos novos (incluindo o do juiz),
+- [x] 4.2 `llm-pricing.yml`: alias + snapshots datados dos modelos novos (incluindo o do juiz),
       com os preços do gate 0; atualizar `vigencia`.
       Verify: CA5 — contexto sobe (`LlmPricingRegistry` valida as 5 rotas); teste do
       `EvalCostCalculator` com o snapshot real; relatório do bake-off falha se algum custo vier nulo.
-- [ ] 4.3 `./mvnw clean test`.
+- [x] 4.3 `./mvnw clean test`.
+      Feito 2026-11-18: `verify` verde (6659 unitários, 337 integração). Rollback da troca = reverter os
+      commits `02ba482` (YAML + teste da config) e `2fc4c20` (IT de payload) juntos. Timeouts mantidos (p95
+      medido ~35 s no plano, ~2 s no simple).
 
 ## 5. Guard de modelos retirados (design D5)
 
-- [ ] 5.1 `RetiredModelsGuardTest`: lê o `application.yml` real, falha se alguma rota ou o default
+- [x] 5.1 `RetiredModelsGuardTest`: lê o `application.yml` real, falha se alguma rota ou o default
       estiver em `{gpt-4o, gpt-4o-mini, gpt-4.1, gpt-4.1-mini}` ou snapshots.
       Verify: CA6 — verde com a config nova; vermelho com `@TestPropertySource` apontando `plano`
       para `gpt-4o`.
 
+      Feito 2026-11-18. O teste negativo usa a rota `standard` (sem `reasoning-effort`): nas rotas com
+      esforço a validação de boot de `LlmRoutingProperties` já recusa o gpt-4o antes do guard.
 ## 6. Pontas documentais e refactor de nomes
 
 - [ ] 6.1 Front: `politicaPrivacidadeConteudo.ts` sem "GPT-4o" (texto conforme Open Question 3).
