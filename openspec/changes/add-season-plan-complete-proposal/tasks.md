@@ -24,34 +24,43 @@ Decisões T1–T9 no `proposal.md`. Sem migration.
 
 ## 1. Backend
 
-- [ ] 1.1 Descargas 3:1 e longão no `SeasonPlanner` (T4; épico 2.3, 2.4). `WeekPlan` ganha `deload` e
+- [x] 1.1 Descargas 3:1 e longão no `SeasonPlanner` (T4; épico 2.3, 2.4). `WeekPlan` ganha `deload` e
   `longRunKm`; `novaSemana` grava os dois.
   - verify: `SeasonPlannerTest` — maratona 16 semanas, CTL 40: semanas 4 e 8 com `deload` e × 0,80 da
     rampa, 5 e 9 de volta à rampa; longão = min(0,28 × volume, 32), × 0,75 na descarga, `null` na
     RACE_WEEK; tetos 12/16/21 nas fronteiras de distância. Testes de D9 seguem verdes.
-- [ ] 1.2 Taper pela `TaperStrategy` (T5; épico 2.5): saem `TAPER_FACTOR`/`RACE_WEEK_FACTOR`.
+- [x] 1.2 Taper pela `TaperStrategy` (T5; épico 2.5): saem `TAPER_FACTOR`/`RACE_WEEK_FACTOR`.
   - verify: `SeasonPlannerTest` com os TSS exatos de TAPER/RACE_WEEK (maratona no domingo e prova no
     sábado); template sem TAPER ainda reduz a RACE_WEEK; os testes que fixavam 218/164 (planner e
     service) são atualizados para os novos valores.
-- [ ] 1.3 Provas preparatórias (T6; épico 2.7): o motor recebe as datas (e distâncias) das candidatas e
+- [x] 1.3 Provas preparatórias (T6; épico 2.7): o motor recebe as datas (e distâncias) das candidatas e
   devolve o marco por semana; a descarga desvia do marco (T4); o service filtra e grava
   `milestone_race_id`.
   - verify: `SeasonPlannerTest` (colisão → a mais longa; descarga desviada ou pulada) e
     `SeasonPlanServiceImplTest` (alvo, a menos de 7 dias da alvo e depois da alvo ficam de fora; lock da
     alvo antes de carregar as candidatas, via `InOrder`).
-- [ ] 1.4 `SeasonPlanValidator` em `domain/planner` (T3; épico 2.9, 2.11): classe estática pura, entrada
+- [x] 1.4 `SeasonPlanValidator` em `domain/planner` (T3; épico 2.9, 2.11): classe estática pura, entrada
   = semanas + data da prova, saída = lista de alertas.
   - verify: `SeasonPlanValidatorTest` — por regra, um caso que dispara e um no limite que não dispara;
     volume anterior zero não avalia `RAMP`; a proposta default de 16 semanas não dá `DELOAD_CADENCE`
     nem `TAPER_DEPTH`.
-- [ ] 1.5 Contrato e service (T2, T9): `milestones[]` e `validations[]` em `SeasonPlanResponseDto`
+- [x] 1.5 Contrato e service (T2, T9): `milestones[]` e `validations[]` em `SeasonPlanResponseDto`
   (records aninhados com `@Schema`, listas vazias); `toDto` monta os dois; log `season-plan.generated`
   com contagem por regra.
   - verify: `SeasonPlanServiceImplTest` (listas vazias; marco de prova cancelada some; validações
     recalculadas no GET) e o `@WebMvcTest` do controller com os campos novos no JSON.
-- [ ] 1.6 `SeasonPlanIT`: POST com prova preparatória → GET; `milestones[]` e `validations[]` iguais nos
+- [x] 1.6 `SeasonPlanIT`: POST com prova preparatória → GET; `milestones[]` e `validations[]` iguais nos
   dois (épico 2.10, 2.12).
   - verify: `./mvnw clean verify` verde (unitários + `*IT`).
+
+Seção 1 verificada em 2026-11-18. Notas:
+- 1.2: só `SeasonPlannerTest` fixava 218/164; o service não.
+- 1.3: candidatas via `findUpcomingByAtletaIdAndTenantId` filtradas no service; a regra de 7 dias e a de
+  "uma por semana" ficam no motor.
+- 1.5: `DistanciaProva` sai como objeto (`{value, label, short, order}`); a severidade é a constante
+  `WARN`. O GET só consulta provas quando há marco.
+- 1.6: no IT, `em.merge` do atleta destacado reescrevia a prova-alvo e a geração dava 422; o teste usa
+  `em.find`.
 
 ## 2. Frontend
 

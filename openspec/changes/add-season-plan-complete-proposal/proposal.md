@@ -34,7 +34,8 @@ Tasks do épico: **2.3 (descargas e pico antes do taper), 2.4, 2.5, 2.7, 2.8 (s�
   40) prevalece sobre a "compressão proporcional" do épico; a task vira teste de regressão e o texto do
   épico (`season-plan-macrocycle/spec.md`, "comprimidas proporcionalmente") é corrigido para D9.
 - **T2 — Contrato.** `SeasonPlanResponseDto` (GET `current` e POST) ganha:
-  - `milestones[]`: `{weekIndex, provaId, nome, data, distancia}`, ordenado por `weekIndex`.
+  - `milestones[]`: `{weekIndex, provaId, name, date, distance}` (`distance` no formato objeto de
+    `DistanciaProva`, como no resto da API), ordenado por `weekIndex`.
   - `validations[]`: `{rule, severity, weekIndex, measured, limit, message}`; `rule` ∈ `RAMP`,
     `LONG_RUN_SHARE`, `DELOAD_CADENCE`, `TAPER_DEPTH`; `severity` = `WARN`.
   - Listas vazias, nunca ausentes. Validações **recalculadas a cada leitura** a partir das semanas
