@@ -2,7 +2,18 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-16 (**`add-season-plan-model-integrity` arquivada** — ticket 1 do
+**Última atualização:** 2026-11-18 (**`add-season-plan-generate-tracer` arquivada** — ticket 2 do
+épico `add-season-plan-macrocycle`. Backend #245 (squash `7da1900`) e front #226 (squash `189a28e`) em
+`develop`. `POST /season-plans` e `GET /season-plans/current` atrás de `season-plan.enabled`
+(`SEASON_PLAN_ENABLED`, default `false`; desligada → 404 `SEASON_PLAN_DISABLED`), motor mínimo de fases e
+rampa a partir do CTL e do volume das últimas 4 semanas, lock da prova nos dois lados (D13), V118. Aba
+Temporada entre Diagnóstico e Plano em `/coach/inbox`, escondida com a flag desligada. `/qa` sem Critical;
+achados confirmados do Codex corrigidos (resposta de atleta anterior, erro de leitura oferecendo gerar,
+lock relendo a entidade, nome > 100, base 0,0). Para ligar: `SEASON_PLAN_ENABLED=true` no backend, depois
+do deploy do backend. **Na sequência:** ticket 3 `add-season-plan-complete-proposal`. Arquivada em
+`changes/archive/2026-11/2026-11-18-add-season-plan-generate-tracer/`.)
+
+**Anterior:** 2026-11-16 (**`add-season-plan-model-integrity` arquivada** — ticket 1 do
 épico `add-season-plan-macrocycle`. Backend PR #239 (squash `51cf493` em `develop`, 2026-11-16). M ·
 Full, só backend, migrations `V116` (colunas de temporada em `tb_plano_treino`, FKs `RESTRICT`/`SET NULL`,
 um `ACTIVE` por atleta) e `V117` (`tb_season_week`). Excluir prova referenciada dá 422; cancelar ou trocar
@@ -1722,7 +1733,7 @@ e `refactor-iaservice-decomposition` seguem aqui sem confirmação formal de pod
 A condição original ("quando houver uso real para baseline") só se confirmou parcialmente: o ledger (F0) existe, mas o ambiente disponível para extração tinha bem menos volume real do que os 40-60 casos assumidos — a fatia de auditoria fechou com 1 fixture, documentado como correção de escopo. A fatia de candidato (sintética, não depende de volume de produção) entregou o valor completo do harness.
 
 **Capabilities de produto avançadas:**
-`add-race-evaluation-skill` (77) · ~~`add-taper-guidance` (29)~~ · ~~`add-macrociclo-structure` (36)~~ — as duas supersedidas em 2026-11-15 pelo épico `add-season-plan-macrocycle` (fatias `add-season-plan-*` S1–S10). S1 `add-season-plan-model-integrity` ✅ arquivada em 2026-11-16 (backend #239).
+`add-race-evaluation-skill` (77) · ~~`add-taper-guidance` (29)~~ · ~~`add-macrociclo-structure` (36)~~ — as duas supersedidas em 2026-11-15 pelo épico `add-season-plan-macrocycle` (fatias `add-season-plan-*` S1–S10). S1 `add-season-plan-model-integrity` ✅ arquivada em 2026-11-16 (backend #239). S2 `add-season-plan-generate-tracer` ✅ arquivada em 2026-11-18 (backend #245, front #226).
 
 **Strava (deferido atrás de clareza legal):**
 A família `strava-*` — `strava-oauth` (20) · `strava-activity-sync` (12 restantes) · `strava-async-import` (88, backfill 90d) · `strava-webhooks` (23) · `strava-conditional-insights` (48) · `strava-risk-semaphore` (59) — **sai do caminho do MVP**. Só entra com (a) clareza legal sobre uso inference-only e (b) caminho de exibição por atleta que satisfaça a restrição do Strava (nov/2024). **Nunca** alimentar o ML acceptance predictor com dado da API do Strava.
