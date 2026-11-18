@@ -28,3 +28,8 @@ prova como "sem treino prescrito". O schema já tem `restDays` (`RestDayLlmDto`)
 ## Open Questions
 
 - O motivo "sem prescrição" aparece para o coach ou só no log? (Preferência: aparecer, para ele decidir.)
+
+## Evidência adicional (rodada 3 da revisão cega, 2026-11-18)
+
+Nos casos 1, 2 e 7 a 12 o gpt-6-luna lista só um descanso e deixa vários dias sem dizer se são treino ou
+descanso. Com o luna como modelo da rota `plano`, esta change sobe de prioridade.

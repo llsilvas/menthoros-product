@@ -84,11 +84,16 @@ semanas precisa caber na janela de rollback). Gate 0 fechado até **2026-10-31**
       Feito 2026-11-16: smoke `simple` no relatório de 2026-11-16. O bloco do atleta vai direto ao
       atleta (decisão de 2026-08-29), sem ação do coach. `expert`: sem chamador em `src/main`, conjunto
       de casos cortado (ver "Decisão do bake-off").
-- [ ] 3.5 Revisão humana cega (CA4b): 5–10 planos do vencedor × `gpt-4o`, revisados pelo
+- [x] 3.5 Revisão humana cega (CA4b): 5–10 planos do vencedor × `gpt-4o`, revisados pelo
       coach-fundador sem rótulo; resultado anexado ao relatório. Bloqueia 7.3.
       Rodada 1 (2026-11-16, 15 pares): **não passou** — Luna preferido 9 × 6, mas 3 planos barrados por
       ritmo implícito inexecutável e etapas com 0,0 km (`docs/ia/revisao-cega-planos-2026-11-16.md`).
       Fixture do taper corrigida. Refazer depois de `add-etapa-pace-validator` (reaberta, bloqueia 7.3).
+      Rodada 2 (2026-11-18): não passou — luna 10 × 5, barras no dia de prova e na apresentação (artefatos do
+      eval e da normalização). Corrigidos por `fix-total-treino-soma-etapas`, `fix-etapas-sintetizadas-sessao-curta`
+      e pelo eval passando a aplicar o PROVA e o volume do persist.
+      **Rodada 3 (2026-11-18): CA4b passa** — luna 12 × 3, nenhum item do luna barrado; gpt-4o com 🔴 em 8 de 15
+      (`docs/ia/revisao-cega-planos-2026-11-18-rodada3.md`).
 
 ## 4. Troca de configuração + preço (design D4)
 

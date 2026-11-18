@@ -406,3 +406,12 @@ Relatórios em `apps/menthoros-backend/docs/ia/`: `bakeoff-openai-sucessor-2026-
   dentro do teto de R$ 1,10 (hoje, com `gpt-4o`: ≈ R$ 1,00).
 - **Limites:** n = 5 casos por candidato; latência medida em rede doméstica; a revisão humana cega
   dos planos (task 3.5) ainda não foi feita e bloqueia o rollout (7.3).
+
+### CA4b — revisão humana cega (2026-11-18)
+
+Três rodadas de 15 pares (5 arquétipos × 3 repetições), lidas às cegas pelo coach-fundador:
+rodada 1 (resposta bruta da LLM) 9 × 6, não passou; rodada 2 (normalizada) 10 × 5, não passou;
+**rodada 3 (normalizada + persist) 12 × 3 para o gpt-6-luna, sem item barrado — passa.** As correções que
+viabilizaram a rodada 3 eram de normalização e de eval, não do modelo (`add-etapa-pace-validator`,
+`fix-total-treino-soma-etapas`, `fix-etapas-sintetizadas-sessao-curta`). Follow-ups de qualidade em
+`garantir-cobertura-sete-dias-plano`, `ajustar-taper-pre-prova` e `ocultar-volume-alvo-vazio`.
