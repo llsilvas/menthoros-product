@@ -1798,6 +1798,18 @@ entrada) com o mesmo editor da revisão; o PATCH republica ao relógio e marca `
 confirmar a versão nova depois do sync; se não aparecer, abrir change para recriar o schedule no
 caminho de edição.
 
+### Trilha da revisão cega da migração OpenAI ✅ **ARQUIVADAS** (2026-11-18)
+
+Correções de normalização achadas pela revisão cega dos planos de `migrate-openai-retired-models`
+(CA4b passou na rodada 3: gpt-6-luna 12 × 3, nenhum item barrado).
+
+- `add-etapa-pace-validator` — etapas temporais derivam a distância do `ritmoAlvo` declarado; eval e grader
+  avaliam o plano normalizado e acusam pace implícito incoerente (menthoros-backend#240).
+- `fix-total-treino-soma-etapas` — a distância do treino contínuo é a soma das etapas: PRINCIPAL sem ritmo usa o
+  do treino; com etapa sintetizada, a PRINCIPAL encaixa no total prescrito (#241).
+- `fix-etapas-sintetizadas-sessao-curta` — aquecimento sem ritmo nunca mais rápido que a PRINCIPAL; sessão curta
+  vira bloco único (#243).
+
 ### `coach-ver-treino-realizado` ✅ **ARQUIVADA** — dialog "Ver realizado" no card do treino (2026-11-06)
 
 **Entregue:** `menthoros-backend` PR **#218** e `menthoros-front` PR **#191**, mergeados em `develop` e

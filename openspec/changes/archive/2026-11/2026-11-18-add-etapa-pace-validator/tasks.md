@@ -22,9 +22,9 @@ de `develop`. Validação: `./mvnw clean test`; final `./mvnw clean verify`.
 ## 3. Verificação
 
 - [x] 3.1 `RevisaoCegaNormalizacaoMedicaoTest` sobre os 30 planos salvos: 0 fora e 0 zero (CA3).
-- [ ] 3.2 `./mvnw clean verify`; PR → `develop`.
+- [x] 3.2 `./mvnw clean verify`; PR → `develop`. Mergeado: menthoros-backend#240.
       `verify` verde em 2026-11-16 (6637 unitários, 331 integração); PR ainda não aberto.
-- [ ] 3.3 Regerar a revisão cega (`RevisaoCegaPlanosRealTest`, 5 arquétipos × 3) já normalizada e
+- [x] 3.3 Regerar a revisão cega (`RevisaoCegaPlanosRealTest`, 5 arquétipos × 3) já normalizada e
       entregar ao coach — fecha a 3.5 de `migrate-openai-retired-models`.
 
 ## Notas de entrega (2026-11-16)
@@ -35,3 +35,5 @@ de `develop`. Validação: `./mvnw clean test`; final `./mvnw clean verify`.
 - 3.1: com o código novo, os 30 planos salvos dão **0 etapas com pace fora e 0 com 0 km** depois da
   normalização (antes: 50 e 0). CA3 atendido.
 - Limite: o check só lê ritmo em faixa (`M:SS-M:SS/km`); ritmo único não é avaliado.
+
+- 3.3: rodadas 2 e 3 regeradas com o plano normalizado; CA4b passou na rodada 3 (2026-11-18).
