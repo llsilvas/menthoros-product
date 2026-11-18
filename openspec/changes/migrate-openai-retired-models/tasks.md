@@ -120,16 +120,20 @@ semanas precisa caber na janela de rollback). Gate 0 fechado até **2026-10-31**
       esforço a validação de boot de `LlmRoutingProperties` já recusa o gpt-4o antes do guard.
 ## 6. Pontas documentais e refactor de nomes
 
-- [ ] 6.1 Front: `politicaPrivacidadeConteudo.ts` sem "GPT-4o" (texto conforme Open Question 3).
+- [x] 6.1 Front: `politicaPrivacidadeConteudo.ts` sem "GPT-4o" (texto conforme Open Question 3).
       Verify: `npm run lint && npm run build`; `rg "GPT-4o" src` vazio (CA8).
-- [ ] 6.2 (cortável se o prazo apertar) Refactor D6: beans `simpleClient`/`expertClient`/`planoClient`, qualifiers do
+- [x] 6.2 (cortável se o prazo apertar) Refactor D6: beans `simpleClient`/`expertClient`/`planoClient`, qualifiers do
       `ModelRouter`; javadoc de `TaskComplexity`, `IaServiceImpl`, `AthleteMessageGenerator`,
       `MultiModelConfig` sem nome de modelo hardcoded.
       Verify: `rg -i "gpt-4o|gpt4o" src/main/java` vazio; `./mvnw clean test`.
-- [ ] 6.3 `menthoros-infra/docs/llm-pricing-guide.md` e
+- [x] 6.3 `menthoros-infra/docs/llm-pricing-guide.md` e
       `menthoros-product/knowledge/engineering/integrations.md` com os modelos novos e a data de
       retirada.
 
+      Feito 2026-11-18: 6.1 no front #225 (mergeado; `GPT-4o` ausente em `src`). 6.2 no backend `20e0f36`
+      (beans `simpleClient`/`expertClient`/`planoClient`; sobram menções históricas em comentários de
+      `TreinoNormalizador` e `EvalCostCalculator` e a lista de prefixos legados de `LlmRoutingProperties`).
+      6.3 no infra `4b132d1` (branch `docs/migrate-openai-retired-models`) e no product `2e279cd`.
 ## 7. Rollout (design D7)
 
 - [ ] 7.0 Congelar o baseline: taxa de aceite sem edição de volume e volume semanal de planos das
