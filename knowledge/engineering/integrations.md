@@ -36,10 +36,9 @@ Integrações externas do backend, por sistema:
 - **Keycloak resolve tenant via claim `organization`, não via Group.** Uma feature
   que precise de contexto de tenant deve ler esse claim — não inventar um mecanismo
   paralelo de multi-tenancy.
-- **Chamadas ao LLM (OpenAI/Anthropic) ainda não têm timeout de resposta nem
-  circuit breaker.** Uma feature que dependa de latência previsível do LLM (ex.
-  geração síncrona de plano em tela) herda esse risco até a change
-  `add-external-call-resilience` ser implementada.
+- **Chamadas ao LLM têm timeout por rota, mas não circuit breaker** (ADR-0008). A geração
+  de plano em `gpt-6-luna` com reasoning leva ~30–35 s — uma feature síncrona em tela herda
+  essa latência.
 
 ## Detalhes / modelo
 
@@ -53,8 +52,13 @@ Integrações externas do backend, por sistema:
 ### LLM (Spring AI)
 - Dependências: `spring-ai-starter-model-openai`, `spring-ai-starter-model-anthropic`.
 - `@EnableRetry` já configurado na camada de LLM.
-- Gap conhecido: sem timeout de resposta, sem circuit breaker (Resilience4j é
-  candidato, mas adoção formal está na change `add-external-call-resilience`).
+- **Modelos por rota (desde 2026-11, `migrate-openai-retired-models`):** `simple` em `gpt-6-luna`
+  (`reasoning-effort: none`), `expert` e `plano` em `gpt-6-luna` (`medium`); `standard` e `complex`
+  seguem na Anthropic (Haiku 4.5 e Sonnet 4.6). Modelo e esforço vivem em `app.llm.routing` no
+  `application.yml`; preços em `llm-pricing.yml`.
+- **A OpenAI desliga `gpt-4o`, `gpt-4o-mini`, `gpt-4.1` e `gpt-4.1-mini` em 2027-01-14.**
+  `RetiredModelsGuardTest` falha o build se algum voltar à configuração.
+- Timeout por rota (`app.llm.routing.*.timeout`), sem circuit breaker por decisão (ADR-0008 do backend).
 
 ### Strava (legado, ativo para atletas já conectados)
 - Endpoints ativos: `StravaAuthController`, `StravaActivityController`,
