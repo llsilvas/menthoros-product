@@ -38,3 +38,21 @@ Mudar os fatores das zonas (é `revalidar-fatores-pace-zonas`).
 
 - Qual zona é "esperada" para cada par (tipo de etapa, tipo de treino) — mesma tabela do `EtapaFcValidator`?
 - Tolerância antes de corrigir (o `EtapaFcValidator` usa sobreposição de 50%).
+
+## Decisão de escopo (coach-fundador, 2026-11-18)
+
+**Esta change faz só a sanidade das faixas de ritmo.** O cruzamento com a zona do atleta fica para
+depois de `revalidar-fatores-pace-zonas`: as zonas de pace atuais (Z1/Z2) estão 20–40 s/km mais rápidas que
+a literatura, e validar contra elas espalharia o erro para todas as etapas.
+
+Sanidade (antes de qualquer derivação de distância, no início de toda receita de `NormalizacaoDeTreino`,
+no ritmo do treino e no de cada etapa):
+
+- faixa invertida (`11:00-7:00`) → desinvertida (`7:00-11:00`, e aí cai na regra seguinte se absurda);
+- faixa zerada (`00:00-00:00`) ou absurda (mais rápida que 2:30/km ou mais lenta que 12:00/km) →
+  descartada (`null`), e a etapa passa a usar o ritmo do treino ou a zona (fallbacks já existentes);
+- ritmo único (`4:10`, do treino PROVA) e texto livre ficam como estão.
+
+**Critérios de aceite desta fatia:** S1 — `"11:00-7:00/km"` vira `"7:00-11:00/km"`; S2 — `"00:00-00:00/km"`,
+`"70:00-60:00/km"`, `"20:00-20:00/km"` viram `null`; S3 — `"6:30-7:00/km"` e `"4:10"` intactos; S4 — a etapa
+com ritmo descartado ganha distância pelo ritmo do treino (cadeia existente).
