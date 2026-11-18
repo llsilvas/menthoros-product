@@ -14,9 +14,11 @@ semanas precisa caber na janela de rollback). Gate 0 fechado até **2026-10-31**
       parâmetros rejeitados, suporte a `json_schema` no Chat Completions, preços.
       Verify: seção preenchida com link e data até 2026-10-31; se `json_schema` só na Responses
       API, parar, escalar ao founder no mesmo dia e voltar ao `/change` (non-goal).
-- [ ] 0.2 Confirmar no painel do Railway (dev, develop, production) que nenhuma variável
+- [x] 0.2 Confirmar no painel do Railway (dev, develop, production) que nenhuma variável
       `APP_LLM_ROUTING_*` ou `SPRING_AI_OPENAI_*` sobrescreve o YAML (Open Question 4).
       Verify: registrado no proposal.
+      Feito 2026-11-18 (coach-fundador): nenhuma `APP_LLM_ROUTING_*` nem `SPRING_AI_OPENAI_*` no Railway —
+      o `application.yml` vale em todos os ambientes.
 - [ ] 0.3 Confirmar que não há modelo fine-tunado na conta OpenAI (Open Question 5).
       Verify: registrado no proposal.
 
