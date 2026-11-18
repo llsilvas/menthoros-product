@@ -76,23 +76,26 @@ Front (worktree `front-add-season-plan-generate-tracer`):
 
 ## 2. Frontend
 
-- [ ] 2.1 `src/api/services/SeasonPlanService.ts` (estilo `CoachSemanaService`) + `src/types/SeasonPlan.ts`;
+- [x] 2.1 `src/api/services/SeasonPlanService.ts` (estilo `CoachSemanaService`) + `src/types/SeasonPlan.ts`;
   hook `useSeasonPlan(atletaId)` no padrão `useCoachAthleteRaces`: ler, gerar, refetch; 204 → sem
   temporada; 404 com `body.code === 'SEASON_PLAN_DISABLED'` → `disabled`; outro 404 → erro (D12;
   épico 7.12)
   - verify: teste do hook com `vi.mock` cobre 200/204/404 da flag/404 comum/erro/gerar
-- [ ] 2.2 `SeasonTabPanel` em `features/coach/components/panels/` e aba **Temporada** entre Diagnóstico e
+- [x] 2.2 `SeasonTabPanel` em `features/coach/components/panels/` e aba **Temporada** entre Diagnóstico e
   Plano (some quando `disabled`): faixa de proposta (`Alert`), `KpiStrip` (semanas, dias até a prova
   via `calcularDiasAteProva`, fase corrente, volume de pico), `Table` (Semana, Início, Fase, Volume,
   TSS) com mapa local de fases (D6; épico 7.1, 7.3, 7.4)
   - verify: teste de componente renderiza KPIs e linhas
-- [ ] 2.3 Estados: sem prova-alvo (`selectedProfile.proximaProva`), prova sem temporada com "Gerar
+- [x] 2.3 Estados: sem prova-alvo (`selectedProfile.proximaProva`), prova sem temporada com "Gerar
   temporada", proposta, `Skeleton`, erro com "Tentar de novo" (épico 7.7) + contraste/alvos da seção 9
   (épico 7.13)
   - verify: um teste por estado
-- [ ] 2.4 E2E Playwright em `tests/e2e/coach/` (API interceptada): inbox → aba Temporada → gerar → tabela
+- [x] 2.4 E2E Playwright em `tests/e2e/coach/` (API interceptada): inbox → aba Temporada → gerar → tabela
   - verify: `npm run test:e2e` verde
-- [ ] 2.5 Validar: `npm run lint && npm run build && npm run test:run` (épico 7.15)
+- [x] 2.5 Validar: `npm run lint && npm run build && npm run test:run` (épico 7.15)
+  - verify: lint limpo, build ok, 3010 unit verdes, 188 E2E verdes (2026-11-18). Front em `b94d006`/`1d2d054`.
+    Dias até a prova vêm de `provaData` da temporada, não de `calcularDiasAteProva` (que usa a próxima
+    prova do perfil, nem sempre a alvo). "Tentar de novo" recarrega o GET; gerar de novo é o próprio botão
 
 ## 3. Métrica (D8)
 
