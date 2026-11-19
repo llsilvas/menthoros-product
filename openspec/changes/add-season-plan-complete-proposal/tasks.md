@@ -94,3 +94,29 @@ Seção 3 verificada em 2026-11-19. O requirement e o cenário de preparação c
 citar o corte de D9, e a task 2.8 do épico também. As tasks do épico (2.3–2.5, 2.7–2.12, 7.2, 7.5) só
 serão marcadas no `/done`, porque o cabeçalho do `tasks.md` do épico manda marcar quando a filha for
 arquivada.
+
+## QA (2026-11-19)
+
+Revisores Claude (code, security, clean-code, frontend) e Codex (backend e front). Sem Critical. Corrigido:
+
+- Backend (`746ad4d`):
+  - `TAPER_DEPTH` alerta polimento fora da janela da distância (Codex; decidido com o usuário).
+  - Igualdade no limite do taper não dispara mais por erro de ponto flutuante (Codex).
+  - Marcos lidos por `findByIdInAndAssessoriaId`, no lugar de `findAllById` com filtro em memória
+    (code-reviewer e security-reviewer convergiram).
+  - Marco cuja prova foi remarcada para outra semana sai da lista (Codex; decidido com o usuário).
+  - Limites e mensagens derivados das constantes.
+  - `distanciaEfetivaKm` num helper só.
+  - `./mvnw clean verify`: 6749 unitários e 343 IT.
+- Front (`84c3ce5`):
+  - O SVG do recharts não recebe mais foco dentro do `aria-hidden` (Codex, reproduzido).
+  - O resumo acessível do mapa cita a semana atual.
+  - `distance` do marco passou a ser obrigatório.
+  - Lint, build, 3015 unitários e o E2E (2).
+
+Ficaram de fora, conscientemente:
+- Preparação curta só com TAPER/RACE_WEEK não tem pico de referência, então a profundidade do taper não
+  é avaliada. A janela ainda é.
+- `severity` continua `String`.
+- Legenda de cor por fase: a tabela já mostra a fase em texto.
+- `parseISO` sem guarda: o backend sempre manda um `LocalDate` válido.

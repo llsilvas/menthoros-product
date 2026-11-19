@@ -46,7 +46,8 @@ Tasks do épico: **2.3 (descargas e pico antes do taper), 2.4, 2.5, 2.7, 2.8 (s�
   - `LONG_RUN_SHARE`: `longRunKm` > 0,30 × volume da semana.
   - `DELOAD_CADENCE`: mais de 4 semanas seguidas de BASE/BUILD sem `deload`; alerta na 5ª.
   - `TAPER_DEPTH`: em semana TAPER/RACE_WEEK, a redução sobre o pico difere em mais de 10 p.p. da que a
-    `TaperStrategy` dá para a segunda-feira daquela semana.
+    `TaperStrategy` dá para a segunda-feira daquela semana; também dispara quando uma semana TAPER começa
+    antes da janela da distância (7/14/21 dias, `TaperStrategy`) — acrescentado no `/qa` de 2026-11-19.
   - Igualdade no limite não dispara; volume anterior zero não avalia `RAMP`.
 - **T4 — Descarga e longão no motor.**
   - Descarga 3:1: a 4ª, 8ª, … semana contada dentro de BASE+BUILD tem TSS e volume × 0,80 sobre o valor
