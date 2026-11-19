@@ -12,7 +12,7 @@ A geração SHALL ser determinística e reprodutível: a mesma prova, o mesmo te
 
 As entradas SHALL ser: a prova (data, distância, meta), o `TemplateMetodologia` da assessoria (ou o default global), o baseline do atleta (`AthleteBaselineState` ou PMC) e os dias disponíveis do atleta.
 
-O número de semanas SHALL ser derivado da data da prova; quando a janela disponível é menor que o mínimo de `RacePreparationRule`, o macro SHALL ser gerado com `preparacaoCurta = true` e com as fases comprimidas proporcionalmente.
+O número de semanas SHALL ser derivado da data da prova; quando a janela disponível é menor que o mínimo de `RacePreparationRule`, o macro SHALL ser gerado com `preparacaoCurta = true` e com as fases cortadas na ordem de D9 do ticket `add-season-plan-generate-tracer`: CTL de partida ≥ 40 corta Base → Construção → Pico; abaixo de 40, Construção → Pico → Base. O Polimento só é cortado quando o resto acabou; a Semana da prova nunca é cortada (decisão T1 de `add-season-plan-complete-proposal`).
 
 #### Scenario: Prova-alvo com janela suficiente
 - **WHEN** o coach gera a proposta para uma maratona a 20 semanas de distância, para um atleta com PMC confiável
@@ -21,7 +21,7 @@ O número de semanas SHALL ser derivado da data da prova; quando a janela dispon
 
 #### Scenario: Preparação curta
 - **WHEN** o coach gera a proposta para uma maratona a 9 semanas de distância
-- **THEN** o macro é gerado com `preparacaoCurta = true` e as fases comprimidas
+- **THEN** o macro é gerado com `preparacaoCurta = true` e as fases cortadas na ordem de D9
 - **THEN** o alerta de preparação insuficiente é retornado junto da proposta
 
 #### Scenario: Prova cadastrada pelo atleta

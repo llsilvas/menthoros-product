@@ -86,6 +86,11 @@ Seção 2 verificada em 2026-11-18: lint, build, 3015 unitários e o E2E `season
 
 ## 3. Docs
 
-- [ ] 3.1 Épico: corrigir "comprimidas proporcionalmente" em `specs/season-plan-macrocycle/spec.md` para o
+- [x] 3.1 Épico: corrigir "comprimidas proporcionalmente" em `specs/season-plan-macrocycle/spec.md` para o
   corte de D9 (T1) e marcar as tasks do épico cobertas aqui.
   - verify: `rtk proxy grep -n proporcional` no spec do épico não acha mais a regra antiga.
+
+Seção 3 verificada em 2026-11-19. O requirement e o cenário de preparação curta do spec do épico passam a
+citar o corte de D9, e a task 2.8 do épico também. As tasks do épico (2.3–2.5, 2.7–2.12, 7.2, 7.5) só
+serão marcadas no `/done`, porque o cabeçalho do `tasks.md` do épico manda marcar quando a filha for
+arquivada.

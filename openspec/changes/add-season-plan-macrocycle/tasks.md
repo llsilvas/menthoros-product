@@ -40,7 +40,7 @@
 - [ ] 2.5 Aplicar `TaperStrategy` nas semanas finais, derivando a janela pela distância da prova; o `tssAlvo` gravado é o alvo final da semana (taper e descarga embutidos), e a integração semanal não reaplica taper nem step-back sobre ele (5.7)
 - [ ] 2.6 Derivar `tssAlvo` a partir do `volumeAlvoKm` e do baseline do atleta; marcar como estimado em calibração
 - [ ] 2.7 Ancorar provas preparatórias como marcos nas semanas correspondentes
-- [ ] 2.8 Implementar compressão proporcional das fases quando a janela é menor que o mínimo (`preparacaoCurta = true`)
+- [ ] 2.8 Implementar o corte ordenado de fases de D9 (por CTL, não proporcional; T1 de `add-season-plan-complete-proposal`) quando a janela é menor que o mínimo (`preparacaoCurta = true`)
 - [ ] 2.9 Criar `MacrocicloValidator` com as quatro regras da spec (rampa, longão/volume, cadência de descarga, taper) e severidade por alerta; distribuição de intensidade fica fora do MVP
 - [ ] 2.10 Testes de `MacrocicloPlannerService`: reprodutibilidade, janela suficiente, preparação curta, atleta em calibração
 - [ ] 2.11 Testes de `MacrocicloValidator`: um caso por regra, mais caso sem alerta
