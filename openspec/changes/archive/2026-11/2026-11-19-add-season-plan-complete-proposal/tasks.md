@@ -120,3 +120,8 @@ Ficaram de fora, conscientemente:
 - `severity` continua `String`.
 - Legenda de cor por fase: a tabela já mostra a fase em texto.
 - `parseISO` sem guarda: o backend sempre manda um `LocalDate` válido.
+
+## Entrega (2026-11-19)
+
+Mergeado em `develop`: backend #250 e front #227. O front entrou alguns minutos antes do backend. Todas as
+tasks entregues, nenhuma adiada. Tasks do épico marcadas: 2.3–2.5, 2.7–2.12, 7.2 e 7.5.

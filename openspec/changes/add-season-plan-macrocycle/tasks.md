@@ -35,16 +35,16 @@
 
 - [ ] 2.1 Criar pacote `domain/macrociclo/` com `MacrocicloPlannerService` (determinístico, sem Spring AI)
 - [ ] 2.2 Implementar distribuição de fases a partir do `TemplateMetodologia` e do total de semanas, reusando `RacePreparationRule`
-- [ ] 2.3 Implementar curva de volume com rampa limitada, descargas na cadência do template e pico antes do taper
-- [ ] 2.4 Implementar progressão de longão com teto por fração do volume da semana
-- [ ] 2.5 Aplicar `TaperStrategy` nas semanas finais, derivando a janela pela distância da prova; o `tssAlvo` gravado é o alvo final da semana (taper e descarga embutidos), e a integração semanal não reaplica taper nem step-back sobre ele (5.7)
+- [x] 2.3 Implementar curva de volume com rampa limitada, descargas na cadência do template e pico antes do taper — rampa em `add-season-plan-generate-tracer`; descargas 3:1 e pico antes do taper em `add-season-plan-complete-proposal` (2026-11-19)
+- [x] 2.4 Implementar progressão de longão com teto por fração do volume da semana — `add-season-plan-complete-proposal` (2026-11-19)
+- [x] 2.5 Aplicar `TaperStrategy` nas semanas finais, derivando a janela pela distância da prova; o `tssAlvo` gravado é o alvo final da semana (taper e descarga embutidos), e a integração semanal não reaplica taper nem step-back sobre ele (5.7) — `add-season-plan-complete-proposal` (2026-11-19)
 - [ ] 2.6 Derivar `tssAlvo` a partir do `volumeAlvoKm` e do baseline do atleta; marcar como estimado em calibração
-- [ ] 2.7 Ancorar provas preparatórias como marcos nas semanas correspondentes
-- [ ] 2.8 Implementar o corte ordenado de fases de D9 (por CTL, não proporcional; T1 de `add-season-plan-complete-proposal`) quando a janela é menor que o mínimo (`preparacaoCurta = true`)
-- [ ] 2.9 Criar `MacrocicloValidator` com as quatro regras da spec (rampa, longão/volume, cadência de descarga, taper) e severidade por alerta; distribuição de intensidade fica fora do MVP
-- [ ] 2.10 Testes de `MacrocicloPlannerService`: reprodutibilidade, janela suficiente, preparação curta, atleta em calibração
-- [ ] 2.11 Testes de `MacrocicloValidator`: um caso por regra, mais caso sem alerta
-- [ ] 2.12 Validar: `./mvnw clean test`
+- [x] 2.7 Ancorar provas preparatórias como marcos nas semanas correspondentes — `add-season-plan-complete-proposal` (2026-11-19)
+- [x] 2.8 Implementar o corte ordenado de fases de D9 (por CTL, não proporcional; T1 de `add-season-plan-complete-proposal`) quando a janela é menor que o mínimo (`preparacaoCurta = true`) — `add-season-plan-complete-proposal` (2026-11-19)
+- [x] 2.9 Criar `MacrocicloValidator` com as quatro regras da spec (rampa, longão/volume, cadência de descarga, taper) e severidade por alerta; distribuição de intensidade fica fora do MVP — `add-season-plan-complete-proposal` (2026-11-19)
+- [x] 2.10 Testes de `MacrocicloPlannerService`: reprodutibilidade, janela suficiente, preparação curta, atleta em calibração — `add-season-plan-complete-proposal` (2026-11-19), menos o caso de calibração (`add-season-plan-calibration-gate`)
+- [x] 2.11 Testes de `MacrocicloValidator`: um caso por regra, mais caso sem alerta — `add-season-plan-complete-proposal` (2026-11-19)
+- [x] 2.12 Validar: `./mvnw clean test` — `add-season-plan-complete-proposal` (2026-11-19)
 
 
 ## 3. Versionamento, Rascunho e Aprovação
@@ -122,10 +122,10 @@
 ## 7. Frontend — Coach
 
 - [ ] 7.1 Criar a seção `Temporada` em `CoachAthleteProfilePage`, no layout que estiver em `develop` (hoje `SectionCard`s, sem abas; `redesign-coach-athlete-profile` propõe abas Visão geral · Financeiro · Histórico — encaixar conforme o que tiver entrado)
-- [ ] 7.2 Criar `SeasonMapChart` (faixa de fases + volume por semana, com realizado, planejado e previsto)
+- [x] 7.2 Criar `SeasonMapChart` (faixa de fases + volume por semana, com realizado, planejado e previsto) — escopo reduzido em `add-season-plan-complete-proposal` (2026-11-19): fases, volume planejado, semana atual, descargas e marcos; realizado e previsto ficam para a integração semanal
 - [ ] 7.3 Criar `SeasonKpiStrip` reusando `MetricTile`
 - [ ] 7.4 Criar `SeasonWeeksTable` com nível de detalhe por semana
-- [ ] 7.5 Criar `SeasonMilestonesPanel` e `SeasonValidationsPanel`
+- [x] 7.5 Criar `SeasonMilestonesPanel` e `SeasonValidationsPanel` — feito em `add-season-plan-complete-proposal` (2026-11-19) como listas dentro do `SeasonTabPanel`, sem componentes próprios
 - [ ] 7.6 Criar `SeasonReplanProposalCard` com `ai-highlight` e as ações aceitar, editar e rejeitar
 - [ ] 7.7 Implementar os estados: sem prova-alvo, prova sem macro, macro em proposta, calibração, carregando, erro
 - [ ] 7.8 Criar `CoachSeasonAdjustPage` com parâmetros, fases, tabela editável, alterações, validações e motivo
