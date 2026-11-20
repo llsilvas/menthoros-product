@@ -13,23 +13,23 @@
 
 ## 1. Modelo e Migrations
 
-- [ ] 1.1 Criar enum `MacrocicloStatus` (PROPOSTA, ATIVO, ARQUIVADO, CONCLUIDO) em `enums/`
-- [ ] 1.2 Criar enum `OrigemValorSemana` (MOTOR, COACH, IA_ACEITA) em `enums/`
-- [ ] 1.3 Estender `PlanoTreino` com `totalSemanas`, `versao`, `macrocicloStatus` (nulo no legado; `status`/`PlanoStatus` existente fica intocado e não é lido pelo macro), `motivoVersao`, `ctlInicial`, `volumePicoKm`, `longaoMaximoKm`, `preparacaoCurta`, `aprovadoPor`, `aprovadoEm`
-- [ ] 1.3a Remapear `PlanoTreino`: `prova` de `@OneToOne` para `@ManyToOne`; mapear `tenant_id` (NOT NULL desde a V45); tirar `orphanRemoval` de `planoSemanalList`
+- [x] 1.1 Criar enum `MacrocicloStatus` (PROPOSTA, ATIVO, ARQUIVADO, CONCLUIDO) em `enums/` — `add-season-plan-model-integrity` (2026-11-16), como `SeasonPlanStatus`
+- [x] 1.2 Criar enum `OrigemValorSemana` (MOTOR, COACH, IA_ACEITA) em `enums/` — `add-season-plan-model-integrity` (2026-11-16), como `WeekValueSource`
+- [x] 1.3 Estender `PlanoTreino` com `totalSemanas`, `versao`, `macrocicloStatus` (nulo no legado; `status`/`PlanoStatus` existente fica intocado e não é lido pelo macro), `motivoVersao`, `ctlInicial`, `volumePicoKm`, `longaoMaximoKm`, `preparacaoCurta`, `aprovadoPor`, `aprovadoEm` — `add-season-plan-model-integrity` (2026-11-16)
+- [x] 1.3a Remapear `PlanoTreino`: `prova` de `@OneToOne` para `@ManyToOne`; mapear `tenant_id` (NOT NULL desde a V45); tirar `orphanRemoval` de `planoSemanalList` — `add-season-plan-model-integrity` (2026-11-16)
 - [x] 1.3b Preencher `nome`, `descricao` e `objetivo` (NOT NULL) a partir da prova na geração do macro — `add-season-plan-generate-tracer` (2026-11-18)
-- [ ] 1.3c Criar `PlanoTreinoRepository` (não existe) com consultas filtradas por `tenant_id`
-- [ ] 1.4 Criar entidade `SemanaPlanejada` em `entity/` (`ordem`, `semanaInicio`, `fase` como `TrainingPhase` restrito a BASE/BUILD/PEAK/TAPER/RACE_WEEK, `volumeAlvoKm`, `tssAlvo`, `longaoKm`, `descarga`, `sessoesChave`, `origemValor`, `marcoProvaId`)
+- [x] 1.3c Criar `PlanoTreinoRepository` (não existe) com consultas filtradas por `tenant_id` — `add-season-plan-model-integrity` (2026-11-16)
+- [x] 1.4 Criar entidade `SemanaPlanejada` em `entity/` (`ordem`, `semanaInicio`, `fase` como `TrainingPhase` restrito a BASE/BUILD/PEAK/TAPER/RACE_WEEK, `volumeAlvoKm`, `tssAlvo`, `longaoKm`, `descarga`, `sessoesChave`, `origemValor`, `marcoProvaId`) — `add-season-plan-model-integrity` (2026-11-16), como `SeasonWeek`
 - [ ] 1.5 Criar entidade `TemplateMetodologia` em `entity/` com escopo de assessoria, `versao` e flag de default global
-- [ ] 1.6 Criar repositórios `SemanaPlanejadaRepository` e `TemplateMetodologiaRepository`
-- [ ] 1.7 Criar migration `V116__add_macrociclo_plano_treino.sql`: colunas novas em `tb_plano_treino` (não há UNIQUE em `prova_id` no banco; o `@OneToOne` era só no mapeamento); trocar `tb_plano_treino.prova_id` para `ON DELETE RESTRICT` e `tb_plano_semanal.plano_treino_id` para `ON DELETE SET NULL`; índice único parcial `(atleta_id) WHERE macrociclo_status = 'ATIVO'`
-- [ ] 1.8 Criar migration `V117__create_tb_semana_planejada.sql` com `tenant_id` NOT NULL, FK `plano_treino_id ON DELETE CASCADE` e índice único por (`plano_treino_id`, `ordem`)
+- [ ] 1.6 Criar repositórios `SemanaPlanejadaRepository` e `TemplateMetodologiaRepository` — parcial: `add-season-plan-model-integrity` (2026-11-16) criou o repositório de `SeasonWeek`; falta o de `TemplateMetodologia`
+- [x] 1.7 Criar migration `V116__add_macrociclo_plano_treino.sql`: colunas novas em `tb_plano_treino` (não há UNIQUE em `prova_id` no banco; o `@OneToOne` era só no mapeamento); trocar `tb_plano_treino.prova_id` para `ON DELETE RESTRICT` e `tb_plano_semanal.plano_treino_id` para `ON DELETE SET NULL`; índice único parcial `(atleta_id) WHERE macrociclo_status = 'ATIVO'` — `add-season-plan-model-integrity` (2026-11-16), como `V116__add_season_plan_to_plano_treino.sql`
+- [x] 1.8 Criar migration `V117__create_tb_semana_planejada.sql` com `tenant_id` NOT NULL, FK `plano_treino_id ON DELETE CASCADE` e índice único por (`plano_treino_id`, `ordem`) — `add-season-plan-model-integrity` (2026-11-16), como `V117__create_tb_season_week.sql`
 - [ ] 1.9 Criar migration `V118__create_tb_template_metodologia.sql` + seed do default global de maratona
 - [ ] 1.10 Criar migration `V119__add_semana_planejada_to_tb_plano_semanal.sql` (`semana_planejada_id`, `desvio_alvo_percentual`)
-- [ ] 1.11 Atualizar `CONTEXT.md` com os termos novos (Macrociclo, Semana Planejada, Template de Metodologia, Origem do Valor) e o que evitar
-- [ ] 1.11a Regra de prova com macro no `ProvaServiceImpl`: excluir prova referenciada por `PlanoTreino` responde 422 orientando a cancelar; cancelar ou trocar a prova-alvo arquiva o macro `ATIVO` (`motivoVersao` = "prova cancelada"), descarta as propostas e preserva semanas e planos semanais
-- [ ] 1.11b Teste de integração: excluir prova com macro e planos semanais aprovados não apaga nenhuma linha de `tb_plano_treino`, `tb_semana_planejada` ou `tb_plano_semanal`
-- [ ] 1.12 Validar: `./mvnw clean test` + subir a aplicação e conferir que as migrations V116–V119 aplicam em banco limpo e em banco com dados (revalidar a numeração contra `develop` no PR)
+- [x] 1.11 Atualizar `CONTEXT.md` com os termos novos (Macrociclo, Semana Planejada, Template de Metodologia, Origem do Valor) e o que evitar — `add-season-plan-model-integrity` (2026-11-16)
+- [x] 1.11a Regra de prova com macro no `ProvaServiceImpl`: excluir prova referenciada por `PlanoTreino` responde 422 orientando a cancelar; cancelar ou trocar a prova-alvo arquiva o macro `ATIVO` (`motivoVersao` = "prova cancelada"), descarta as propostas e preserva semanas e planos semanais — `add-season-plan-model-integrity` (2026-11-16)
+- [x] 1.11b Teste de integração: excluir prova com macro e planos semanais aprovados não apaga nenhuma linha de `tb_plano_treino`, `tb_semana_planejada` ou `tb_plano_semanal` — `add-season-plan-model-integrity` (2026-11-16) (`ProvaTemporadaIT`)
+- [ ] 1.12 Validar: `./mvnw clean test` + subir a aplicação e conferir que as migrations V116–V119 aplicam em banco limpo e em banco com dados (revalidar a numeração contra `develop` no PR) — parcial: `add-season-plan-model-integrity` (2026-11-16) validou V116 e V117; a V118 virou índices em `add-season-plan-generate-tracer` e a V119 é da S8
 
 ## 2. Motor de Geração do Macrociclo
 
