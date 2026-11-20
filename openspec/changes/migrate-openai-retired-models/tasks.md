@@ -158,3 +158,9 @@ semanas precisa caber na janela de rollback). Gate 0 fechado até **2026-10-31**
 - [ ] 7.5 Pós-merge (4 semanas, até 2026-12-15): medir aceite vs baseline (n ≥ 20). Queda > 5 p.p.
       → revert do commit 4.1 (procedimento de 7.1b) e abrir o plano B (`plan-llm-provider-bakeoff`). Registrar
       o resultado no proposal antes de arquivar.
+
+## Adendo (2026-11-19) — default do eval
+
+- [x] `EvalRunnerTest` (modo candidato) passa a usar por padrão `gpt-6-luna` com effort `medium`, o perfil da
+  rota `plano`; antes era `gpt-4o`, que sai do ar em 2027-01-14 e fazia o gate avaliar o modelo antigo
+  quando rodado sem `EVAL_MODEL`. PR menthoros-backend#251.
