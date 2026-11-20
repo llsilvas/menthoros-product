@@ -124,4 +124,5 @@ Ficaram de fora, conscientemente:
 ## Entrega (2026-11-19)
 
 Mergeado em `develop`: backend #250 e front #227. O front entrou alguns minutos antes do backend. Todas as
-tasks entregues, nenhuma adiada. Tasks do épico marcadas: 2.3–2.5, 2.7–2.12, 7.2 e 7.5.
+tasks entregues, nenhuma adiada. Tasks do épico marcadas: 2.3–2.5, 2.7–2.9, 2.11, 2.12 e 7.5; 2.10 e 7.2 ficaram
+anotadas como parciais (calibração; realizado e previsto no mapa).

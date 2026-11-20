@@ -17,7 +17,7 @@
 - [ ] 1.2 Criar enum `OrigemValorSemana` (MOTOR, COACH, IA_ACEITA) em `enums/`
 - [ ] 1.3 Estender `PlanoTreino` com `totalSemanas`, `versao`, `macrocicloStatus` (nulo no legado; `status`/`PlanoStatus` existente fica intocado e não é lido pelo macro), `motivoVersao`, `ctlInicial`, `volumePicoKm`, `longaoMaximoKm`, `preparacaoCurta`, `aprovadoPor`, `aprovadoEm`
 - [ ] 1.3a Remapear `PlanoTreino`: `prova` de `@OneToOne` para `@ManyToOne`; mapear `tenant_id` (NOT NULL desde a V45); tirar `orphanRemoval` de `planoSemanalList`
-- [ ] 1.3b Preencher `nome`, `descricao` e `objetivo` (NOT NULL) a partir da prova na geração do macro
+- [x] 1.3b Preencher `nome`, `descricao` e `objetivo` (NOT NULL) a partir da prova na geração do macro — `add-season-plan-generate-tracer` (2026-11-18)
 - [ ] 1.3c Criar `PlanoTreinoRepository` (não existe) com consultas filtradas por `tenant_id`
 - [ ] 1.4 Criar entidade `SemanaPlanejada` em `entity/` (`ordem`, `semanaInicio`, `fase` como `TrainingPhase` restrito a BASE/BUILD/PEAK/TAPER/RACE_WEEK, `volumeAlvoKm`, `tssAlvo`, `longaoKm`, `descarga`, `sessoesChave`, `origemValor`, `marcoProvaId`)
 - [ ] 1.5 Criar entidade `TemplateMetodologia` em `entity/` com escopo de assessoria, `versao` e flag de default global
@@ -33,16 +33,16 @@
 
 ## 2. Motor de Geração do Macrociclo
 
-- [ ] 2.1 Criar pacote `domain/macrociclo/` com `MacrocicloPlannerService` (determinístico, sem Spring AI)
-- [ ] 2.2 Implementar distribuição de fases a partir do `TemplateMetodologia` e do total de semanas, reusando `RacePreparationRule`
+- [x] 2.1 Criar pacote `domain/macrociclo/` com `MacrocicloPlannerService` (determinístico, sem Spring AI) — `add-season-plan-generate-tracer` (2026-11-18), como `SeasonPlanner` estático em `domain/planner`
+- [x] 2.2 Implementar distribuição de fases a partir do `TemplateMetodologia` e do total de semanas, reusando `RacePreparationRule` — `add-season-plan-generate-tracer` (2026-11-18), com template constante (D14); `TemplateMetodologia` não foi criado
 - [x] 2.3 Implementar curva de volume com rampa limitada, descargas na cadência do template e pico antes do taper — rampa em `add-season-plan-generate-tracer`; descargas 3:1 e pico antes do taper em `add-season-plan-complete-proposal` (2026-11-19)
 - [x] 2.4 Implementar progressão de longão com teto por fração do volume da semana — `add-season-plan-complete-proposal` (2026-11-19)
 - [x] 2.5 Aplicar `TaperStrategy` nas semanas finais, derivando a janela pela distância da prova; o `tssAlvo` gravado é o alvo final da semana (taper e descarga embutidos), e a integração semanal não reaplica taper nem step-back sobre ele (5.7) — `add-season-plan-complete-proposal` (2026-11-19)
-- [ ] 2.6 Derivar `tssAlvo` a partir do `volumeAlvoKm` e do baseline do atleta; marcar como estimado em calibração
+- [ ] 2.6 Derivar `tssAlvo` a partir do `volumeAlvoKm` e do baseline do atleta; marcar como estimado em calibração — parcial: `add-season-plan-generate-tracer` (2026-11-18) sem o caso de calibração (`add-season-plan-calibration-gate`)
 - [x] 2.7 Ancorar provas preparatórias como marcos nas semanas correspondentes — `add-season-plan-complete-proposal` (2026-11-19)
 - [x] 2.8 Implementar o corte ordenado de fases de D9 (por CTL, não proporcional; T1 de `add-season-plan-complete-proposal`) quando a janela é menor que o mínimo (`preparacaoCurta = true`) — `add-season-plan-complete-proposal` (2026-11-19)
 - [x] 2.9 Criar `MacrocicloValidator` com as quatro regras da spec (rampa, longão/volume, cadência de descarga, taper) e severidade por alerta; distribuição de intensidade fica fora do MVP — `add-season-plan-complete-proposal` (2026-11-19)
-- [x] 2.10 Testes de `MacrocicloPlannerService`: reprodutibilidade, janela suficiente, preparação curta, atleta em calibração — `add-season-plan-complete-proposal` (2026-11-19), menos o caso de calibração (`add-season-plan-calibration-gate`)
+- [ ] 2.10 Testes de `MacrocicloPlannerService`: reprodutibilidade, janela suficiente, preparação curta, atleta em calibração — parcial: `add-season-plan-complete-proposal` (2026-11-19), sem o caso de calibração (`add-season-plan-calibration-gate`)
 - [x] 2.11 Testes de `MacrocicloValidator`: um caso por regra, mais caso sem alerta — `add-season-plan-complete-proposal` (2026-11-19)
 - [x] 2.12 Validar: `./mvnw clean test` — `add-season-plan-complete-proposal` (2026-11-19)
 
@@ -63,8 +63,8 @@
 
 ## 4. API
 
-- [ ] 4.1 `POST /api/v1/atletas/{atletaId}/macrociclo` — gerar proposta a partir da prova-alvo (ação manual do coach; sem hook no `ProvaService`, proposal D3)
-- [ ] 4.2 `GET /api/v1/atletas/{atletaId}/macrociclo/ativo` — macro ativo com semanas, marcos e validações
+- [x] 4.1 `POST /api/v1/atletas/{atletaId}/macrociclo` — gerar proposta a partir da prova-alvo (ação manual do coach; sem hook no `ProvaService`, proposal D3) — `add-season-plan-generate-tracer` (2026-11-18), como `POST /season-plans`
+- [x] 4.2 `GET /api/v1/atletas/{atletaId}/macrociclo/ativo` — macro ativo com semanas, marcos e validações — `add-season-plan-generate-tracer` (2026-11-18), como `GET /season-plans/current`; marcos e validações em `add-season-plan-complete-proposal`
 - [ ] 4.3 `GET /api/v1/atletas/{atletaId}/macrociclo/semana-atual` — semana planejada corrente
 - [ ] 4.4 `POST /api/v1/macrociclo/{id}/rascunho` — criar rascunho a partir da versão ativa
 - [ ] 4.5 `PATCH /api/v1/macrociclo/{id}/semanas/{ordem}` — editar uma semana do rascunho
@@ -74,11 +74,11 @@
 - [ ] 4.9 `GET /api/v1/macrociclo/{id}/diff?versao=N` — diff entre versões
 - [ ] 4.10 `POST /api/v1/macrociclo/{id}/aprovar` — aprovar o rascunho
 - [ ] 4.11 `GET /api/v1/atletas/me/temporada` — visão do atleta, apenas com macro `ATIVO`
-- [ ] 4.12 Garantir isolamento por `TenantContext` em todos os endpoints e teste de vazamento entre tenants
-- [ ] 4.12a Guard de papel: endpoints 4.1–4.10 com `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")` (padrão do `CoachSugestaoController`); 4.11 só para o atleta autenticado e só com `macrocicloStatus = ATIVO`
-- [ ] 4.12b Testes de autorização: `ATLETA` recebe 403 em 4.1–4.10; atleta com macro só em `PROPOSTA` recebe "sem plano" em 4.11
-- [ ] 4.13 Adicionar flag `macrociclo.enabled` em `application.yml` (default `false`)
-- [ ] 4.14 Validar: `./mvnw clean test` + conferir os endpoints novos no OpenAPI (`docs/api/openapi.json`)
+- [x] 4.12 Garantir isolamento por `TenantContext` em todos os endpoints e teste de vazamento entre tenants — `add-season-plan-generate-tracer` (2026-11-18)
+- [x] 4.12a Guard de papel: endpoints 4.1–4.10 com `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")` (padrão do `CoachSugestaoController`); 4.11 só para o atleta autenticado e só com `macrocicloStatus = ATIVO` — `add-season-plan-generate-tracer` (2026-11-18) para 4.1 e 4.2; os demais endpoints entram com os tickets que os criam
+- [ ] 4.12b Testes de autorização: `ATLETA` recebe 403 em 4.1–4.10; atleta com macro só em `PROPOSTA` recebe "sem plano" em 4.11 — parcial: `add-season-plan-generate-tracer` (2026-11-18) cobre o 403 de `ATLETA` em 4.1 e 4.2; falta o caso de 4.11
+- [x] 4.13 Adicionar flag `macrociclo.enabled` em `application.yml` (default `false`) — `add-season-plan-generate-tracer` (2026-11-18), como `season-plan.enabled`
+- [x] 4.14 Validar: `./mvnw clean test` + conferir os endpoints novos no OpenAPI (`docs/api/openapi.json`) — `add-season-plan-generate-tracer` (2026-11-18)
 
 
 ## 5. Integração com a Geração Semanal
@@ -121,21 +121,21 @@
 
 ## 7. Frontend — Coach
 
-- [ ] 7.1 Criar a seção `Temporada` em `CoachAthleteProfilePage`, no layout que estiver em `develop` (hoje `SectionCard`s, sem abas; `redesign-coach-athlete-profile` propõe abas Visão geral · Financeiro · Histórico — encaixar conforme o que tiver entrado)
-- [x] 7.2 Criar `SeasonMapChart` (faixa de fases + volume por semana, com realizado, planejado e previsto) — escopo reduzido em `add-season-plan-complete-proposal` (2026-11-19): fases, volume planejado, semana atual, descargas e marcos; realizado e previsto ficam para a integração semanal
-- [ ] 7.3 Criar `SeasonKpiStrip` reusando `MetricTile`
-- [ ] 7.4 Criar `SeasonWeeksTable` com nível de detalhe por semana
+- [x] 7.1 Criar a seção `Temporada` em `CoachAthleteProfilePage`, no layout que estiver em `develop` (hoje `SectionCard`s, sem abas; `redesign-coach-athlete-profile` propõe abas Visão geral · Financeiro · Histórico — encaixar conforme o que tiver entrado) — `add-season-plan-generate-tracer` (2026-11-18), como aba Temporada no inbox do treinador (D6), não no perfil
+- [ ] 7.2 Criar `SeasonMapChart` (faixa de fases + volume por semana, com realizado, planejado e previsto) — parcial: escopo reduzido em `add-season-plan-complete-proposal` (2026-11-19): fases, volume planejado, semana atual, descargas e marcos; realizado e previsto ficam para a integração semanal
+- [x] 7.3 Criar `SeasonKpiStrip` reusando `MetricTile` — `add-season-plan-generate-tracer` (2026-11-18), com `KpiStrip`
+- [x] 7.4 Criar `SeasonWeeksTable` com nível de detalhe por semana — `add-season-plan-generate-tracer` (2026-11-18), dentro do `SeasonTabPanel`
 - [x] 7.5 Criar `SeasonMilestonesPanel` e `SeasonValidationsPanel` — feito em `add-season-plan-complete-proposal` (2026-11-19) como listas dentro do `SeasonTabPanel`, sem componentes próprios
 - [ ] 7.6 Criar `SeasonReplanProposalCard` com `ai-highlight` e as ações aceitar, editar e rejeitar
-- [ ] 7.7 Implementar os estados: sem prova-alvo, prova sem macro, macro em proposta, calibração, carregando, erro
+- [ ] 7.7 Implementar os estados: sem prova-alvo, prova sem macro, macro em proposta, calibração, carregando, erro — parcial: `add-season-plan-generate-tracer` (2026-11-18) sem o estado de calibração
 - [ ] 7.8 Criar `CoachSeasonAdjustPage` com parâmetros, fases, tabela editável, alterações, validações e motivo
 - [ ] 7.9 Implementar marcação de campo alterado com valor anterior e bloco de diff com origem
 - [ ] 7.10 Implementar travas de semana (concluída, em andamento, prova) e confirmação de recálculo
 - [ ] 7.11 Implementar bloqueio de aprovação por soma de fases e tratamento de conflito de versão
-- [ ] 7.12 Consumir os endpoints pelo cliente curado em `src/api` (service + tipos escritos à mão, `generate:api` só como referência — `apps/menthoros-front/CLAUDE.md`), via hook
-- [ ] 7.13 Testes de componente para o mapa, a tabela editável e o card de proposta
+- [x] 7.12 Consumir os endpoints pelo cliente curado em `src/api` (service + tipos escritos à mão, `generate:api` só como referência — `apps/menthoros-front/CLAUDE.md`), via hook — `add-season-plan-generate-tracer` (2026-11-18)
+- [ ] 7.13 Testes de componente para o mapa, a tabela editável e o card de proposta — parcial: `add-season-plan-generate-tracer` (2026-11-18) (tabela e estados) e `add-season-plan-complete-proposal` (resumo acessível do mapa); faltam tabela editável e card de proposta
 - [ ] 7.14 Teste e2e do fluxo: gerar proposta, ajustar, aprovar, ver na seção Temporada
-- [ ] 7.15 Validar: `bun lint && bun run build && bun test:run`
+- [x] 7.15 Validar: `bun lint && bun run build && bun test:run` — `add-season-plan-generate-tracer` (2026-11-18)
 
 
 ## 8. Frontend — Atleta
