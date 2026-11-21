@@ -19,6 +19,7 @@ Validação: subir `quay.io/keycloak/keycloak:26.7.0` local com o tema montado e
 ## 3. Verificação
 
 - [ ] 3.1 Keycloak local com o tema: login, erro de credencial, celular (CA1–CA5).
-      Feito em 11-21 no realm `master` (1440 e 375): layout, erro de credencial, sem rolagem
-      horizontal, alvos de 44px. **Pendente:** autofill real com senha salva (CA3) e conferencia
-      no realm `menthoros` em PT-BR (link "Esqueceu sua senha?", seletor de idioma).
+      Feito em 11-21 no realm `master`, PT-BR, em 1440 e 375, Chromium e WebKit (Playwright):
+      layout, erro de credencial, sem rolagem horizontal, alvos de 44px, autofill por simulacao
+      (fundo claro forcado + declaracoes da regra). **Pendente:** autofill real com senha salva
+      (CA3), Firefox (o do Playwright nao sobe nesta maquina) e o realm `menthoros`.
