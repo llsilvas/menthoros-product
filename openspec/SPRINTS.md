@@ -1830,6 +1830,18 @@ Correções de normalização achadas pela revisão cega dos planos de `migrate-
 - `fix-etapas-sintetizadas-sessao-curta` — aquecimento sem ritmo nunca mais rápido que a PRINCIPAL; sessão curta
   vira bloco único (#243).
 
+### `migrate-openai-retired-models` ✅ **ARQUIVADA** (2026-11-20) → rollout em `rollout-gpt-6-luna-producao`
+
+Rotas `plano`/`expert`/`simple` trocadas para `gpt-6-luna` em `develop` (#244, mais #251 no eval). Os passos de
+ambiente (smoke, ensaio do rollback, baseline, promoção para `main`, medição de 4 semanas) seguem em
+**`rollout-gpt-6-luna-producao`** — ⚠️ `main` precisa da troca **antes de 2027-01-14**, quando a OpenAI desliga o
+`gpt-4o` que produção ainda usa.
+
+Correções derivadas da revisão cega, todas arquivadas em 2026-11-20: `fix-fit-import-athlete-timezone` (#246),
+`garantir-cobertura-sete-dias-plano` (#247), `revalidar-fatores-pace-zonas` (#249, zonas de pace de Friel),
+`ajustar-taper-pre-prova` (#252). `validar-ritmo-etapa-contra-zona` segue aberta: sanidade das faixas entregue
+(#248), cruzamento com a zona pendente.
+
 ### `coach-ver-treino-realizado` ✅ **ARQUIVADA** — dialog "Ver realizado" no card do treino (2026-11-06)
 
 **Entregue:** `menthoros-backend` PR **#218** e `menthoros-front` PR **#191**, mergeados em `develop` e

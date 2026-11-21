@@ -5,7 +5,7 @@
 > suporta), toca dois repositórios (texto da política de privacidade no front) e tem **prazo
 > externo fixo**: a OpenAI desliga os modelos em **2027-01-14**.
 
-**Status:** proposta (2026-10-15, `/change`)
+**Status:** código entregue e arquivada (2026-11-20); rollout em `rollout-gpt-6-luna-producao`
 **Criado:** 2026-10-15
 **Prazo externo:** 2027-01-14 (retirada de `gpt-4o`, `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini` da API)
 

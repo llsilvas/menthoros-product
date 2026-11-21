@@ -9,7 +9,7 @@ semanas precisa caber na janela de rollback). Gate 0 fechado até **2026-10-31**
 
 ## 0. Gate 0 — fonte oficial (bloqueante, sem código)
 
-- [ ] 0.1 Ler a página de deprecações da OpenAI e o guia de migração do aviso. Preencher "Decisão
+- [x] 0.1 Ler a página de deprecações da OpenAI e o guia de migração do aviso. Preencher "Decisão
       do gate 0" no `proposal.md`: sucessor, snapshots, reasoning padrão e valores aceitos,
       parâmetros rejeitados, suporte a `json_schema` no Chat Completions, preços.
       Verify: seção preenchida com link e data até 2026-10-31; se `json_schema` só na Responses
@@ -19,50 +19,50 @@ semanas precisa caber na janela de rollback). Gate 0 fechado até **2026-10-31**
       Verify: registrado no proposal.
       Feito 2026-11-18 (coach-fundador): nenhuma `APP_LLM_ROUTING_*` nem `SPRING_AI_OPENAI_*` no Railway —
       o `application.yml` vale em todos os ambientes.
-- [ ] 0.3 Confirmar que não há modelo fine-tunado na conta OpenAI (Open Question 5).
+- [→] 0.3 Confirmar que não há modelo fine-tunado na conta OpenAI (Open Question 5).
       Verify: registrado no proposal.
 
 ## 1. Contrato de opções por rota (design D1)
 
-- [ ] 1.1 `LlmRoutingProperties.RotaLlm`: `temperature` opcional; novos `topP`, `reasoningEffort`,
+- [x] 1.1 `LlmRoutingProperties.RotaLlm`: `temperature` opcional; novos `topP`, `reasoningEffort`,
       `verbosity` opcionais; validação por **esforço efetivo** (design D1): `none`/ausente permite
       amostragem; `low|medium|high` proíbe `temperature` e `topP`; modelo legado proíbe
       `reasoningEffort`/`verbosity`. Falha no boot nomeando rota e campo.
       Verify: teste de binding com os casos (a) `none` + temperatura sobe, (b) `low` + `topP`
       falha, (c) legado + reasoning falha (CA2).
-- [ ] 1.2 `MultiModelConfig.opcoesOpenAi`: `maxCompletionTokens` no lugar de `maxTokens`; só envia
+- [x] 1.2 `MultiModelConfig.opcoesOpenAi`: `maxCompletionTokens` no lugar de `maxTokens`; só envia
       o que a rota define.
       Verify: teste unitário — rota com reasoning produz opções sem `temperature`/`topP`/
       penalties/`maxTokens`; rota clássica produz `temperature` e sem `reasoningEffort`.
-- [ ] 1.2b `modeloOpenAiComTimeout` instala `defaultOptions(opcoesOpenAi(rota))` no modelo
+- [x] 1.2b `modeloOpenAiComTimeout` instala `defaultOptions(opcoesOpenAi(rota))` no modelo
       derivado (design D1.1) — substitui o default do auto-config em vez de herdar. Registrar no
       javadoc que hoje a rota `plano` roda no default global por coincidência.
       Verify: teste com `RestClient` interceptado — `IaServiceImpl.chamarLlm` com
       `.options(schema)` envia o `model` e o `max_completion_tokens` da rota, não do default.
-- [ ] 1.3 `./mvnw clean test` — rotas atuais (`gpt-4o`, `gpt-4o-mini`) seguem funcionando com
+- [x] 1.3 `./mvnw clean test` — rotas atuais (`gpt-4o`, `gpt-4o-mini`) seguem funcionando com
       `maxCompletionTokens`.
 
 ## 2. Default global fora do YAML (design D2)
 
-- [ ] 2.1 `application.yml`: `spring.ai.openai.chat.options` fica só com `model` e
+- [x] 2.1 `application.yml`: `spring.ai.openai.chat.options` fica só com `model` e
       `max-completion-tokens`; `temperature`, `top-p`, `frequency-penalty`, `presence-penalty`
       saem.
-- [ ] 2.2 Remover `ChatClientConfig.chatClient` (`@Primary`, sem consumidor — `IaServiceImpl` usa
+- [x] 2.2 Remover `ChatClientConfig.chatClient` (`@Primary`, sem consumidor — `IaServiceImpl` usa
       o `ModelRouter`). Se o contexto acusar ponto de injeção, reconstruir com
       `opcoesOpenAi(props.getSimple())` e registrar o consumidor no design.
       Verify: `./mvnw clean test` sobe o contexto; `rg "ChatClient chatClient" src/main/java`
       só em assinaturas de método privado.
-- [ ] 2.3 `EvalRunnerTest.construirChatClientReal` passa a montar as opções via
+- [x] 2.3 `EvalRunnerTest.construirChatClientReal` passa a montar as opções via
       `MultiModelConfig.opcoesOpenAi(RotaLlm)` (sem `temperature(0.2)`/`maxTokens` fixos);
       juiz lê `EVAL_JUDGE_MODEL` (default `gpt-4o` até o gate 0), candidato lê `EVAL_MODEL`.
       Verify: teste `@Tag("eval")` com mocks continua verde; os dois env vars documentados no
       javadoc da classe.
-- [ ] 2.4 Teste CA3 pelo **payload HTTP**: contexto real com `temperature 0.7` deixada de
+- [x] 2.4 Teste CA3 pelo **payload HTTP**: contexto real com `temperature 0.7` deixada de
       propósito no default global e `RestClient` interceptado; três caminhos (`IaServiceImpl` com
       schema, `EvalCandidateRunner`, `EvalLlmJudge`); assere `model`, `max_completion_tokens`,
       `response_format`, `reasoning_effort` da rota e ausência de `temperature`/`top_p` quando o
       esforço não é `none`.
-- [ ] 2.5 `./mvnw clean test`.
+- [x] 2.5 `./mvnw clean test`.
 
 ## 3. Bake-off OpenAI → OpenAI (design D3)
 
@@ -138,24 +138,24 @@ semanas precisa caber na janela de rollback). Gate 0 fechado até **2026-10-31**
       6.3 no infra `4b132d1` (branch `docs/migrate-openai-retired-models`) e no product `2e279cd`.
 ## 7. Rollout (design D7)
 
-- [ ] 7.0 Congelar o baseline: taxa de aceite sem edição de volume e volume semanal de planos das
+- [→] 7.0 Congelar o baseline: taxa de aceite sem edição de volume e volume semanal de planos das
       4 semanas anteriores (consulta do ledger, mesma de `eval-progression-adherence-rollout`);
       registrar no proposal com a data de corte do modelo.
-- [ ] 7.1 Smoke no Railway dev: gerar 1 plano real por arquétipo, 1 chamada `simple`, 1 `expert`.
-- [ ] 7.1b Ensaio do rollback no Railway dev: revert do commit 4.1 + `@Disabled` no guard (5.1) com
+- [→] 7.1 Smoke no Railway dev: gerar 1 plano real por arquétipo, 1 chamada `simple`, 1 `expert`.
+- [→] 7.1b Ensaio do rollback no Railway dev: revert do commit 4.1 + `@Disabled` no guard (5.1) com
       motivo e data, deploy, gerar 1 plano com `gpt-4o`; depois reaplicar. Os dois lados precisam
       funcionar. Registrar no proposal o procedimento exato (lista de propriedades, não "trocar o
       modelo").
       Parte local feita 2026-11-18: branch `chore/rollback-openai-para-gpt4o` (push feito, sem PR) com os
       reverts de `2fc4c20` e `02ba482` + `@Disabled` no guard; `./mvnw clean verify` verde (6662 unitários,
       337 integração). Falta o deploy em ambiente de teste e gerar um plano com gpt-4o.
-- [ ] 7.2 PR `<branch> → develop` (feito: #244, mergeado 2026-11-18); 1 semana de planos reais; comparar taxa de falha e p95 no
+- [→] 7.2 PR `<branch> → develop` (feito: #244, mergeado 2026-11-18); 1 semana de planos reais; comparar taxa de falha e p95 no
       ledger com a semana anterior (CA9).
-- [ ] 7.3 PR `develop → main` até 2026-11-15 (depende de 3.5). Registrar no proposal a data do
+- [→] 7.3 PR `develop → main` até 2026-11-15 (depende de 3.5). Registrar no proposal a data do
       merge e o procedimento de rollback (revert de 4.1, ensaiado em 7.1b), com a ressalva de que expira em
       2027-01-14. Avisar as assessorias do pilot conforme a Open Question 7.
-- [ ] 7.4 `./mvnw clean verify` no bloco final.
-- [ ] 7.5 Pós-merge (4 semanas, até 2026-12-15): medir aceite vs baseline (n ≥ 20). Queda > 5 p.p.
+- [x] 7.4 `./mvnw clean verify` no bloco final.
+- [→] 7.5 Pós-merge (4 semanas, até 2026-12-15): medir aceite vs baseline (n ≥ 20). Queda > 5 p.p.
       → revert do commit 4.1 (procedimento de 7.1b) e abrir o plano B (`plan-llm-provider-bakeoff`). Registrar
       o resultado no proposal antes de arquivar.
 
@@ -164,3 +164,13 @@ semanas precisa caber na janela de rollback). Gate 0 fechado até **2026-10-31**
 - [x] `EvalRunnerTest` (modo candidato) passa a usar por padrão `gpt-6-luna` com effort `medium`, o perfil da
   rota `plano`; antes era `gpt-4o`, que sai do ar em 2027-01-14 e fazia o gate avaliar o modelo antigo
   quando rodado sem `EVAL_MODEL`. PR menthoros-backend#251.
+
+## Fechamento (2026-11-20)
+
+- 0.1: confirmado na prática — a API serve `gpt-6-luna` com `response_format: json_schema` no Chat Completions
+  (bake-off 2026-11-15/16, eval e revisão cega); preços em `llm-pricing.yml`.
+- 1.1–2.5: entregues no #244 (perfil por rota, `maxCompletionTokens`, `ChatClientConfig` removido, ITs de payload
+  `LlmPerfilDaRotaPayloadIT` e `LlmPerfilReasoningPayloadIT`); 7.4: `verify` verde no #244 e nos PRs seguintes.
+- [→] 0.3 e 7.0–7.5 (ambiente, medição e promoção para `main`) movidas para a change
+  **`rollout-gpt-6-luna-producao`**, por decisão do coach-fundador: o código está todo em `develop`. Prazo
+  duro mantido lá: `main` com a troca antes de 2027-01-14.
