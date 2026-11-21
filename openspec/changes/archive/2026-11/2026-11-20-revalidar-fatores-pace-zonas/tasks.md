@@ -26,13 +26,13 @@
 
 - [x] **2.1** `./mvnw -Peval test -Dtest=EvalRunnerTest -Dmodo=candidato` (`OPENAI_API_KEY`); colar
   a tabela no PR; comparar com auditoria e descrever a diferença nas rodagens leves — [CA4]
-- [ ] **2.2** Um treinador revisa ≥ 1 plano gerado com as faixas novas; registrar aqui quem e quando
+- [x] **2.2** Um treinador revisa ≥ 1 plano gerado com as faixas novas; registrar aqui quem e quando
   — [CA5]
 
 ## 3. Fechamento
 
-- [ ] **3.1** Atualizar `openspec/specs/fc-limiar-zones/spec.md`: fatores e fonte
-- [ ] **3.2** Se `coach-zonas-pace-fc-prescricao` já estiver em produção, conferir que a tabela do
+- [x] **3.1** Atualizar `openspec/specs/fc-limiar-zones/spec.md`: fatores e fonte
+- [x] **3.2** Se `coach-zonas-pace-fc-prescricao` já estiver em produção, conferir que a tabela do
   treinador reflete os fatores novos (não há cache de zonas no front além do hook por sessão)
 
 ## Notas de entrega (2026-11-19)
@@ -43,3 +43,6 @@
 - 2.1: eval candidato com `gpt-6-luna` (medium): 0 violações de qualidade e compliance nos 5 arquétipos;
   tabela no PR. O default do `EvalRunnerTest` ainda é `gpt-4o` — rodar com `EVAL_MODEL=gpt-6-luna`.
 - 2.2 (CA5) pendente: revisão do coach de ≥ 1 plano com as faixas novas.
+- 2.2: coach-fundador revisou e aprovou (merge do #249 em 2026-11-20).
+- 3.1: `fc-limiar-zones/spec.md` com os fatores de Friel e a fonte.
+- 3.2: a tabela do coach lê as zonas do backend a cada sessão — sem cache a invalidar.

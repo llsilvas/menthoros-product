@@ -42,3 +42,4 @@ também com `TZ=UTC`. Branch: `fix/fix-fit-import-athlete-timezone`, em worktree
 - 3.1: `TZ=UTC ./mvnw clean verify` verde (6664 + 337), fora da janela 00–03h UTC; a prova da correção são os
   testes com instante fixo. Os ITs não precisaram de instante fixo.
 - 4.1: PR menthoros-backend#246. 4.2 (medir o histórico) pendente — precisa do banco.
+- 4.2 adiada (consulta no banco de produção, a cargo do usuário); código mergeado no #246.

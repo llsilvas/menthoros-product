@@ -52,13 +52,16 @@ O sistema SHALL verificar, após o retorno do LLM, se o `fcAlvoEtapa` de cada et
 
 ### Requirement: Zonas de pace contíguas sobre o pace de limiar
 O sistema SHALL calcular as 6 zonas de pace multiplicando `paceLimiar` pelos fatores
-Z1 = 1,15–1,25 · Z2 = 1,05–1,15 · Z3 = 1,00–1,05 · Z4 = 0,95–1,00 · Z5 = 0,90–0,95 · Z6 = 0,82–0,90,
+Z1 = 1,29–1,40 · Z2 = 1,13–1,29 · Z3 = 1,05–1,13 · Z4 = 0,99–1,05 · Z5 = 0,90–0,99 · Z6 = 0,82–0,90,
 de modo que `paceMin(Zn) == paceMax(Zn+1)` para toda zona adjacente — sem sobreposição e sem buraco.
-(Antes: Z3 = 0,98–1,05 e Z5 = 0,90–0,97, que se sobrepunham a Z4.)
+Fonte: tabela de pace de corrida de Friel ("Joe Friel's Quick Guide to Setting Zones", TrainingPeaks,
+© 2009), com Z1 fechada em 1,40, Z5 = Z5a + Z5b e Z6 = Z5c (revalidar-fatores-pace-zonas, 2026-11).
+(Antes: 1,15–1,25 · 1,05–1,15 · 1,00–1,05 · 0,95–1,00 · 0,90–0,95 · 0,82–0,90, sem fonte declarada.)
 
 #### Scenario: Faixas contíguas
 - **WHEN** `calcularZonasPace(5.00)` é chamado
-- **THEN** Z3 = 5:00–5:15, Z4 = 4:45–5:00, Z5 = 4:30–4:45, e para n = 1..5
+- **THEN** Z1 = 6:27–7:00, Z2 = 5:39–6:27, Z3 = 5:15–5:39, Z4 = 4:57–5:15, Z5 = 4:30–4:57,
+  Z6 = 4:06–4:30, e para n = 1..5
   `paceMin(Zn) == paceMax(Zn+1)`
 
 #### Scenario: Pace de limiar ausente é sentinela, não zona

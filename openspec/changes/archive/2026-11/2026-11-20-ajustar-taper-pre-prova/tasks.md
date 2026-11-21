@@ -3,7 +3,7 @@
 - [x] 0.1 Ler o prompt e o skeleton da fase SEMANA_PROVA; registrar as faixas de pace enviadas (CA2).
 - [x] 0.2 Coach define a ativação por nível (CA1).
 - [x] 1.1 Implementar (planner ou prompt) com teste.
-- [ ] 2.1 Eval candidato + rodada da revisão cega só com o arquétipo taper (CA3).
+- [x] 2.1 Eval candidato + rodada da revisão cega só com o arquétipo taper (CA3).
 
 ## Notas de entrega (2026-11-20)
 
@@ -15,3 +15,4 @@
   Calculadas; fixture do taper com histórico coerente. Verify verde (6764 + 343). PR menthoros-backend#252.
 - 2.1: eval candidato `gpt-6-luna` sem violação; 3 planos do taper com ativação no sábado e ritmo dentro das
   zonas (tabela no PR). Falta a leitura do coach (CA3) — com um só candidato, sem par cego.
+- 2.1: leitura do coach feita; #252 mergeado em 2026-11-20.

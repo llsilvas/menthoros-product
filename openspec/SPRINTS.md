@@ -135,7 +135,7 @@ fora em `wip/fix-atleta-com-logo`. 0 de 3 atletas sem data no banco de testes. A
 **Anterior:** 2026-11-05 (**`coach-zonas-pace-fc-prescricao` arquivada** — backend PR #193 e
 front PR #173 (mergeados em `develop`). M · Full. 41/44 tasks. **Adiado:** 0.2 (medição dos formatos
 canônicos no banco de dev), 8.4 (validação ponta a ponta com conta real no intervals.icu). **Follow-up:**
-8.3 — `revalidar-fatores-pace-zonas` já aberta; distribuição de intensidade semanal + CTL/ATL e prompt
+8.3 — `revalidar-fatores-pace-zonas` concluída e arquivada (2026-11-20); distribuição de intensidade semanal + CTL/ATL e prompt
 v2 com `alvoPrimario` ainda sem change. Arquivada em
 `changes/archive/2026-11/2026-11-05-coach-zonas-pace-fc-prescricao/`.)
 
