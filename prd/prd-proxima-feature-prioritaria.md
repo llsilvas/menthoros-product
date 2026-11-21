@@ -1,12 +1,100 @@
-# PRD — Próxima Feature Prioritária: Tool Calling para Prescrição com Dados sob Demanda
+# PRD — Tool Calling para prescrição com dados sob demanda
 
 | Campo | Valor |
 |---|---|
 | **Projeto** | Menthoros |
-| **Feature sugerida** | `add-llm-tool-use` — Tool Calling para prescrição com dados sob demanda |
-| **Status** | Draft resumido |
-| **Base de decisão** | `/workspace/PROJECT.md` e `/workspace/WORKSPACE.md` |
-| **Data de referência** | 01/07/2026 |
+| **Change** | `add-llm-tool-use` (0/35, parada desde 2026-09-21; DoR de 2026-09-18 = NOT READY) |
+| **Status** | Draft — **rebaixado em 2026-11-20: "Não fazer agora"** |
+| **Compass fit** | Enabler fraco (não desbloqueia nenhum Core em andamento) |
+| **Revisão anterior** | 2026-07-01, com o título "Próxima feature prioritária" |
+
+> O nome do arquivo (`prd-proxima-feature-prioritaria.md`) é mantido para não quebrar links. O
+> conteúdo deixou de ser "a próxima feature prioritária".
+
+---
+
+## 0. Revisão de 2026-11-20
+
+### 0.1 O que mudou desde julho
+
+As três razões que faziam deste PRD a prioridade nº 1 em julho foram resolvidas por outro caminho
+ou deixaram de valer:
+
+| Premissa de julho | O que aconteceu |
+|---|---|
+| Tool calling é pré-requisito da geração em lote | `coach-batch-plan-generation` foi entregue em 2026-07-06 sem tool calling |
+| O prompt monolítico é o gargalo de qualidade | A qualidade passou a ser tratada na camada determinística: `deterministic-planner-engine` (07-19), `planner-engine-enforcement`, `system-user-prompt-split`, `semantic-session-schema` e `plan-generation-repair-turn` (09-13 a 09-15) |
+| Falta rastreabilidade do que a IA usou | `add-plan-generation-ledger` (09-13) e `plan-generation-eval-set` (09-16) existem; o coach já recebe a justificativa (`add-recommendation-explainability`) |
+
+E surgiram duas restrições que este PRD não previa:
+
+- **Prazo externo.** A OpenAI retira `gpt-4o`, `gpt-4o-mini`, `gpt-4.1` e `gpt-4.1-mini` em
+  2027-01-14. A trilha `migrate-openai-retired-models` (sucessor `gpt-6-luna`) é o trabalho de IA
+  que não pode esperar, e a janela de quatro semanas de medição de qualidade precisa caber antes
+  do corte. Trocar o modelo e a arquitetura de chamada ao mesmo tempo impede de saber qual dos
+  dois mexeu na qualidade.
+- **Teto de custo.** O custo de IA documentado é de R$ 1,10 por atleta por mês. Um loop com
+  ferramentas faz mais de uma chamada por geração; o efeito no custo não foi medido.
+
+### 0.2 ROI
+
+`ROI = impacto (1–5) × confiança (0–100%) ÷ esforço (1–5)`
+
+| Item | Impacto | Confiança | Esforço | ROI | Bucket | Compass |
+|---|---|---|---|---|---|---|
+| Tool calling na geração do plano (`add-llm-tool-use`) | 2 | 40% | 4 | 0,20 | Não fazer agora | Enabler |
+| Motor RAG + tools (`rag-tool-calling-prescription-engine`, 0/64 desde 2026-06-10) | 3 | 25% | 5 | 0,15 | Não fazer agora | Enabler |
+| Proposta nova — "Dados considerados" sem loop agêntico (§0.4) | 3 | 60% | 2 | 0,90 | Fazer em seguida | Core (direção 2) |
+
+**Evidência por trás da confiança:**
+
+- 40% no tool calling: não há falha de plano medida que seja atribuível a "faltou contexto". O
+  eval set existe e pode responder a isso; ninguém rodou essa pergunta. Impacto 2 porque o coach
+  não vê diferença direta — o ganho é interno — e nenhuma métrica do North Star (minutos de revisão
+  por atleta, aderência) tem relação demonstrada com a troca.
+- 25% no motor RAG: depende do item acima e de uma base de metodologia que não existe.
+- 60% na proposta nova: reusa o `PlanningContext`, que já é a entrada única do planner; o que não
+  está verificado é quanto disso o `add-recommendation-explainability` já mostra.
+
+### 0.3 Quando reabrir
+
+Qualquer uma destas condições reabre o PRD:
+
+1. A migração de modelos está em `main` e a janela de quatro semanas de qualidade fechou.
+2. O eval de plano mostra uma classe de erro que só dado sob demanda resolve.
+3. Um item Core passa a precisar de consulta sob demanda — o candidato conhecido é a edição do
+   plano de temporada por linguagem natural (`prd-plano-temporada.md` §6).
+
+### 0.4 Proposta nova — "Dados considerados" sem loop agêntico
+
+**O que é.** Mostrar ao coach, em cada sugestão, quais blocos do `PlanningContext` entraram na
+geração (carga recente, zonas e sua origem, prova-alvo, readiness, dor relatada) e quais estavam
+ausentes. É a parte deste PRD que o coach enxerga — "em que a IA se baseou" — entregue de forma
+determinística, sem mudar a forma de chamar o modelo.
+
+**Por que.** Sugestão com dado faltando é o caso em que o coach mais gasta tempo conferindo. Dizer
+"gerado sem zona de pace confirmada" antes de ele abrir o perfil ataca os minutos de revisão por
+atleta, e cumpre o guardrail da bússola de que toda sugestão carrega um porquê legível.
+
+**Esforço.** 2 (S): leitura de um contexto que já existe e um bloco na tela de revisão.
+
+**Risco.** Sobreposição com `add-recommendation-explainability` e com `inbox-kpis-atleta-sem-dado`
+— conferir antes de virar change.
+
+**Gate.** Draft. Não entra no roadmap sem decisão do founder.
+
+### 0.5 Decisões que precisam do founder
+
+1. Mover `add-llm-tool-use` e `rag-tool-calling-prescription-engine` para o backlog frio (ou
+   arquivar como adiadas), para saírem da contagem de changes ativas.
+2. Aprovar, adiar ou descartar a proposta de §0.4.
+
+---
+
+> A partir daqui, o texto é o PRD original de 2026-07-01. O escopo do MVP (§6), as regras de
+> negócio (§8) e os critérios de aceite (§10) continuam sendo o desenho válido **se** o PRD for
+> reaberto. A seção 1 ("Decisão de prioridade") e a seção 13 ("ROI resumido") estão superadas
+> pelo §0.
 
 ---
 

@@ -1,11 +1,109 @@
 # PRD — Retention Loop 90d para atletas
 
 **Produto:** Menthoros  
-**Change ID sugerido:** `add-athlete-retention-loop-90d`  
-**Status:** discovery concluído; pronto para OpenSpec  
-**Data:** 2026-07-01  
+**Change ID sugerido:** `add-athlete-retention-loop-90d` (nunca criada)  
+**Status:** parcialmente entregue; **escopo revisto em 2026-11-20** — o restante aguarda coorte de atletas e Gate 3  
+**Data original:** 2026-07-01 · **Última revisão:** 2026-11-20  
 **Owner sugerido:** Produto  
 **Personas:** coach primário; atleta secundário
+
+---
+
+## 0. Revisão de 2026-11-20
+
+### 0.1 O que já foi entregue
+
+| Solução proposta (§6) | Estado | Onde |
+|---|---|---|
+| 1. Retention Radar 90d | **Parcial** | A fila de atenção cobre os sinais de risco (`add-coach-attention-queue`, 2026-06-18; auditoria da bússola de 2026-09-23). O motivo `RISCO_RETENCAO` e as fases D1–D120 estão em `add-retention-radar-lite` — 1/28, parada desde 2026-07-24 |
+| 2. Cards de risco na fila | **Parcial** | A fila e o card existem; falta o motivo de retenção |
+| 3. Next Best Action com template | **Não entregue** | Depende de `add-athlete-coach-messaging` — 0/23, parada desde 2026-06-10 |
+| 4. Jornada 0-30-60-90 | **Não entregue** | — |
+| 5. Micro-check-ins | **Parcial** | Check-in diário de prontidão (`add-daily-readiness-checkin`, 2026-07-03). Check-in de barreira não existe |
+| 6. Marcos de progresso | **Parcial, por outro caminho** | Streak e próxima prova (`add-athlete-engagement-signals`), feedback pós-treino (`add-athlete-retention-quick-wins`, ambos 2026-07-04), kudos (08-27), análise do treino para o atleta (08-31), cards de compartilhamento (2026-11) |
+| RF9 — instrumentação analítica | **Não entregue** | Nenhum dos eventos do §14 existe |
+
+### 0.2 O que mudou
+
+- **Não há coorte para medir D90.** Em 2026-11-19 a produção tinha 5 atletas de fora; 3 não
+  voltaram depois do cadastro. Regras de risco sobre cinco atletas produzem ruído, e nenhum
+  experimento do §12 é executável.
+- **O gargalo saiu do atleta e foi para o coach.** Dos 3 treinadores de fora, nenhum estava ativo
+  em 2026-11-19; em 2026-11-10, 8 de 10 atletas não tinham treino realizado ingerido. Sem coach
+  ativado, não existe atleta para reter.
+- **O canal de mensagem segue indefinido** (pergunta aberta 2 do §13). Tudo que depende de mensagem
+  do coach ao atleta — Next Best Action, jornada, micro-check-in de barreira — continua bloqueado.
+- **O roadmap por sprints (26–32) está superado** (`roadmap-retencao-atletas-90d.md`).
+- **O plano de temporada passou a carregar os marcos.** Os marcos do macro (prova-teste, prova-alvo)
+  já estão no banco; a proposta de transformá-los em evento de engajamento está em
+  `prd-plano-temporada.md` §14.1.
+
+### 0.3 Sequência revista, com ROI
+
+`ROI = impacto (1–5) × confiança (0–100%) ÷ esforço (1–5)`
+
+| # | Item | Impacto | Confiança | Esforço | ROI | Bucket | Compass |
+|---|---|---|---|---|---|---|---|
+| N | **Proposta nova — Radar de ativação da assessoria (§0.4)** | 5 | 70% | 2 | 1,75 | Fazer agora | Enabler (de todas as direções) |
+| B | Instrumentação mínima: eventos de ativação e de retenção (RF9 reduzido) | 4 | 70% | 2 | 1,40 | Fazer agora | Enabler (métrica do North Star) |
+| E | Marco do macro como evento de engajamento (`prd-plano-temporada.md` §14.1) | 4 | 55% | 1 | 2,20 | Fazer agora, junto do épico de temporada | Core (direção 4) |
+| A | Radar lite — `RISCO_RETENCAO` com os 5 sinais prontos | 3 | 50% | 3 | 0,50 | Experimentar depois | Core (direção 1) |
+| D | Jornada 0-30-60-90 (lembretes ao coach) | 3 | 40% | 3 | 0,40 | Experimentar depois | Core (direção 1) |
+| C | Next Best Action + templates | 3 | 40% | 4 | 0,30 | Não fazer agora | Core (direção 2) |
+
+**Evidência por trás da confiança:**
+
+- 70% em N e B: o problema foi observado duas vezes em produção (2026-11-10 e 2026-11-19) e, nas
+  duas, o levantamento foi feito à mão. A pendência nº 1 do founder em 2026-11-19 é exatamente
+  esse levantamento ("atletas vinculados, Garmin conectado, última atividade e propostas
+  revisadas, por assessoria").
+- 55% em E: mesma nota do PRD de temporada — o dado existe, o efeito em retenção é hipótese.
+- 50% em A: os 5 sinais têm dado pronto (auditoria de código de 2026-07-24), mas não há atletas
+  suficientes para calibrar falso positivo. Impacto 3 hoje; sobe quando houver coorte.
+- 40% em C e D: dependem de canal de mensagem não decidido; a taxa de resposta do coach a lembrete
+  é desconhecida.
+
+A ordem antiga (radar → next best action → jornada → barreiras → marcos → dashboard) fica
+substituída por: **N + B agora; E junto do ticket 5 do épico de temporada; A quando houver ao
+menos uma assessoria fundadora com 10 atletas ativos por 30 dias; C e D só depois da decisão de
+canal.**
+
+### 0.4 Proposta nova — Radar de ativação da assessoria
+
+**O que é.** O mesmo padrão deste PRD — regras explicáveis, motivo legível, próxima ação — apontado
+para o coach durante os 60 dias de teste. Por assessoria: atletas convidados, convites aceitos,
+relógio conectado, primeiro treino ingerido, primeira proposta gerada, primeira proposta revisada,
+dias desde o último acesso do coach. Duas saídas: uma visão para o founder (quem travou e em que
+passo) e um checklist para o próprio coach ("faltam 3 atletas conectarem o relógio").
+
+**Por que.** É a métrica de fase do North Star (`knowledge/product/north-star.md`: ≥ 5 atletas
+conectados na semana 1 e primeira proposta revisada em 7 dias) tornada visível. Hoje ela não é
+medida: a leitura de 2026-11-19 saiu de uma lista montada à mão, e o teste de 60 dias de três
+treinadores vence por volta de 2026-12-02 sem que ninguém tenha sido avisado de que travaram.
+
+**Esforço.** 2 (S): agregação sobre tabelas que existem (convite, conexão, treino realizado,
+sugestão com `reviewedAt`). Sem LLM.
+
+**Risco.** Sobreposição parcial com `add-sync-health-signal`,
+`add-attention-reason-sem-sincronizacao` e `add-waitlist-funnel-endpoint` — reaproveitar, não
+duplicar. "Último acesso" mede login e o Garmin sincroniza sem login; o indicador confiável é
+treino ingerido e proposta revisada.
+
+**Gate.** Draft. Não entra no roadmap sem decisão do founder.
+
+### 0.5 Decisões que precisam do founder
+
+1. Aprovar a troca de ordem: ativação da assessoria antes de retenção do atleta.
+2. Destino de `add-retention-radar-lite` (1/28, 114 dias sem movimento): manter em espera com o
+   gatilho do §0.3 ou arquivar como adiada.
+3. Canal de mensagem coach → atleta (pergunta aberta 2), que destrava C e D.
+4. Definição comercial de "atleta retido" (pergunta aberta 1) — sem ela o D90 não é mensurável.
+
+---
+
+> A partir daqui, o texto é o PRD original de 2026-07-01. Os requisitos funcionais, as histórias e
+> os critérios de aceite continuam sendo o desenho válido para os itens A, C e D quando forem
+> retomados. O §10 ("MVP scope") e o §12 ("Rollout") estão superados pelo §0.
 
 ---
 

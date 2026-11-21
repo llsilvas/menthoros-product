@@ -1,5 +1,10 @@
 # Roadmap atualizado — Retenção de atletas após 90 dias
 
+> **Superado em 2026-11-20.** A numeração de sprints abaixo (26–32) não vale mais: o sprint
+> corrente não é declarado desde setembro e o bloco nunca entrou no `SPRINTS.md`. A sequência
+> revista, com ROI, está em `prd-retention-loop-90d.md` §0. Este arquivo fica como registro do
+> desenho de 2026-07-01.
+
 **Produto:** Menthoros  
 **Data:** 2026-07-01  
 **Bloco novo:** Retention Loop 90d  

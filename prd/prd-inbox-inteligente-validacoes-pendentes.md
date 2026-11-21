@@ -5,9 +5,33 @@
 | **Projeto** | Menthoros |
 | **Feature** | Inbox Inteligente de Validações Pendentes |
 | **Versão do documento** | 1.0 |
-| **Status** | Draft |
+| **Status** | Arquivado em 2026-11-20 — não promover |
 | **Data** | 01/07/2026 |
 | **Autor** | Equipe de Produto Menthoros |
+
+---
+
+## 0. Por que foi arquivado (2026-11-20)
+
+Este documento descreve uma central genérica de aprovações ("revisores, supervisores, gestores",
+"módulos de origem", delegação por nível de autorização). Nada nele é específico do Menthoros: não
+cita coach, atleta, treino nem zona, e nunca gerou change.
+
+O problema que a nota do vault atribuía a ele — dado do atleta inconsistente, desatualizado ou
+ausente (zonas, limiares, sincronização) — é real, mas foi atacado por outro caminho:
+
+| Necessidade | Onde está |
+|---|---|
+| Zonas e âncoras corrigidas pelo coach | `coach-cadastro-ancoras-zonas`, `coach-zonas-manuais` (2026-11-04), `coach-zonas-pace-fc-prescricao` (2026-11-05); spec `coach-athlete-zones` |
+| Limiar inferido de treino e de prova | `infer-thresholds-from-recent-workouts` (2026-06-23), `infer-threshold-from-race-result` (2026-07-17), `use-best-effort-for-threshold-inference` (2026-09-20) |
+| Atleta sem dado sinalizado no inbox | `inbox-kpis-atleta-sem-dado` (2026-11-07) |
+| Confiança da zona | `add-zone-confidence-management` — 0/12, parada desde 2026-04-30 |
+| Saúde da sincronização | `add-sync-health-signal` (0/9) e `add-attention-reason-sem-sincronizacao`, aguardando deploy desde 2026-09-30 |
+
+Se a dor de qualidade de dado voltar, ela entra pelo Problem Backlog como **sinal na fila de
+atenção** que já existe, não como um segundo inbox.
+
+O texto abaixo é o original de 2026-07-01, mantido só como registro.
 
 ---
 

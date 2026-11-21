@@ -2,9 +2,38 @@
 
 Change-id: add-season-plan-macrocycle
 Owner: Product / CPO (draft)
-Status: Draft — aguardando Gate 3 (founder)
+Status: Aprovado no Gate 3 (2026-11-15) — em implementação (tickets 1–3 de 10 arquivados)
 Tamanho estimado: L
 Persona: coach (primário), atleta (secundário)
+
+## 0. Estado real (2026-11-20)
+
+O Gate 3 foi fechado na sessão de 2026-11-15 e o épico `add-season-plan-macrocycle` foi fatiado em
+10 tickets verticais (as seis fatias do §5 continuam valendo como desenho; a execução segue os
+tickets).
+
+| Ticket | Change | Estado |
+|---|---|---|
+| 1 | `add-season-plan-model-integrity` | Arquivada 2026-11-16 (backend #239, V116/V117) |
+| 2 | `add-season-plan-generate-tracer` | Arquivada 2026-11-18 (backend #245, front #226, V118) |
+| 3 | `add-season-plan-complete-proposal` | Arquivada 2026-11-19 (backend #250, front #227) |
+| 4 | `add-season-plan-calibration-gate` | A fazer — 0/6 |
+| 5 | `add-season-plan-approve-athlete-view` | Em andamento desde 2026-11-20 |
+| 6 | `add-season-plan-adjust-v2` | A fazer — 0/14 |
+| 7 | `add-season-plan-version-diff` | A fazer — 0/9 |
+| 8 | `add-season-plan-weekly-context` | A fazer — 0/10 |
+| 9 | `add-season-plan-load-enforcement` | A fazer — 0/12 |
+| 10 | `add-season-plan-replanning` | A fazer — 0/9 (limite de desvio aguarda o founder) |
+
+**O coach ainda não vê nada disso em produção:** os tickets 1–3 estão em `develop`, atrás de
+`season-plan.enabled` (`SEASON_PLAN_ENABLED`, default `false`). Faltam a promoção a `main` e ligar
+a flag.
+
+**Relação com o North Star** (`knowledge/product/north-star.md`, métrica ratificada em
+2026-11-20): a hipótese (b) do §3 — queda da taxa de modificação do plano semanal — é a aposta
+deste épico nos minutos de revisão por atleta. Ela só começa a ser testada no ticket 8.
+
+**Terminologia:** onde este documento diz "Design Partner Program", leia-se turma fundadora.
 
 ## 1. Problema
 
@@ -299,10 +328,21 @@ status da prova.
 5. Posição no `SPRINTS.md` e relação com o rollout do enforcement do `PlannerEngine`.
 6. Aprovar ou arquivar a proposta nova de §14.1.
 
+**Resultado do Gate 3 (2026-11-15):**
+
+| # | Decisão | Resultado |
+|---|---|---|
+| 1 | Supersedir `add-macrociclo-structure` | **Sim** — arquivada sem implementação em 2026-11-15, junto com `add-taper-guidance` |
+| 2 | Evoluir `PlanoTreino` em vez de `tb_macrociclo` | **Sim** — V116 adicionou as colunas de temporada em `tb_plano_treino`; V117 criou `tb_season_week` |
+| 3 | Tabela de semanas mínimas | **8/10/12/16** (`RacePreparationRule`) |
+| 4 | Macro nasce como proposta | **Sim** — geração manual pelo coach, visível ao atleta só depois da aprovação |
+| 5 | Posição no `SPRINTS.md` | **Em aberto** — o épico não tem linha de sprint; replanejamento virou change própria (ticket 10) |
+| 6 | Proposta nova de §14.1 (marco como evento de engajamento) | **Em aberto** — sem registro de decisão |
+
 **Depois do gate:** a change já está escrita como rascunho em
 `openspec/changes/add-season-plan-macrocycle/` (proposal, design, tasks e três specs). Falta apenas
 a decisão de promoção e a posição no `SPRINTS.md`.
 
 ---
 
-Last reviewed: 2026-11-12
+Last reviewed: 2026-11-20

@@ -118,15 +118,16 @@ Additional rules:
 - When auditing a sprint or backlog, report the **Core / Enabler / Parity / Off-compass
   mix**. A sprint with no Core item is a finding.
 
-## 7. Compass metric (candidate — pending founder ratification)
+## 7. Compass metric (ratified by the founder on 2026-11-20)
 
 **Coach review minutes per athlete per week, at equal or better athlete adherence.**
 
 Supporting signals: % of `WeekSuggestion`s accepted without edit (trend up), athlete
 90-day retention, athletes per coach.
 
-Do not treat this as the ratified North Star until the founder confirms it in
-`knowledge/product/`. Until then, use it as a lens, not a gate.
+Ratified as the North Star metric on 2026-11-20 — see `knowledge/product/north-star.md`, which
+is now the source of truth for the metric, its guardrail and the founding-cohort phase metric
+(activation). It is a gate, not a lens. Review-time instrumentation does not exist yet.
 
 ## 8. Keeping the compass current
 
