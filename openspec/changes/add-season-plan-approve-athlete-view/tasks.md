@@ -51,3 +51,32 @@ Seção 2 verificada em 2026-11-20: lint, build, 3026 unitários e os E2E `seaso
   de `useKudosRecentes`). A falha de leitura entra no aviso agregado da home ("temporada"), além de o
   card sumir (A7). Mostra até 3 marcos.
 - 2.3: o E2E do atleta é na `home.spec.ts` (o `mockarHome` passa a responder 204 para `me/season-plan`).
+
+## QA (2026-11-20)
+
+Revisores Claude (code, security, clean-code, frontend) e Codex (backend e front). Sem Critical. Corrigido:
+
+- Backend (`0f630d2`):
+  - Aprovar temporada arquivada pelo cancelamento ou pela troca da prova respondia 422; agora o status é
+    decidido antes da prova e dá 409, como pede A1 (Codex e code-reviewer convergiram).
+  - O IT de isolamento não provava nada (o atleta A não tinha temporada); agora A e B têm uma ACTIVE cada e
+    cada um recebe a própria (code-reviewer).
+  - IT determinístico de cancelar e depois aprovar (409); o concorrente confere que a prova ficou CANCELADA.
+  - `./mvnw clean verify`: 6786 unitários e 348 IT.
+- Front (`33bf77e`):
+  - Aprovação superada por troca de atleta (A → B → A) deixava a proposta na tela; agora relê a temporada
+    de A (Codex, reproduzido no hook).
+  - Nomes de fase num `TRAINING_PHASE_LABEL` só (clean-code).
+  - E2E: a aprovação exige POST; o 204 do atleta espera a resposta e confere que não há aviso (Codex).
+  - Lint, build, 3027 unitários e os E2E tocados (9).
+
+Descartado depois de conferir no código:
+- `approving` preso quando a geração supera a aprovação (frontend-reviewer): "Gerar" só aparece sem
+  temporada e "Aprovar" só com proposta, então uma não supera a outra.
+
+Ficaram de fora, conscientemente:
+- Extrair a visão do atleta do `SeasonPlanServiceImpl` (~470 linhas) e um resolver comum de `Usuario.id`
+  (repetido em ~10 serviços): refactor próprio.
+- Skeleton do card durante a carga: o card é ausente por design até haver temporada aprovada.
+- `plural` importado de `features/coach/adapters` no card do atleta: há precedente; mover para `shared` é
+  limpeza à parte.
