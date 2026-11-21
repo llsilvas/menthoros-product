@@ -3,7 +3,7 @@
 - [x] 0.1 Ler `EtapaFcValidator` e a tabela de zona esperada por tipo; decidir a equivalente para pace (Open Questions).
 - [x] 1.1 Validador de pace por tipo de etapa (TDD), CA1–CA3.
 - [x] 1.2 Passo na receita de `NormalizacaoDeTreino` antes do reparo de distância; caracterização atualizada.
-- [ ] 2.1 Eval candidato + leitura do coach (CA4). `./mvnw clean verify`; PR → `develop`.
+- [x] 2.1 Eval candidato + leitura do coach (CA4). `./mvnw clean verify`; PR → `develop`.
 
 ## Entrega da fatia de sanidade (2026-11-18)
 
@@ -22,3 +22,4 @@ As tasks 0.1–2.1 acima (cruzamento com a zona) ficam para depois de `revalidar
 - 2.1: eval em 3 rodadas, nenhuma violação vinda do passo; falta a leitura do coach (CA4).
 - Follow-ups achados no eval: (a) o prompt mostra o teto arredondado para baixo e o checker usa o valor exato;
   (b) a ativação em ritmo de prova de `ajustar-taper-pre-prova` colide com o teto de contínuo do histórico.
+- 2.1/CA4: #255 mergeado em 2026-11-21 após a leitura do coach.
