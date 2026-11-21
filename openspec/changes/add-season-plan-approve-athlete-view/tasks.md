@@ -4,21 +4,30 @@ Decisões A1–A9 no `proposal.md`. Sem migration.
 
 ## 1. Backend
 
-- [ ] 1.1 Aprovar (A1, A3, A5; épico 3.1, 4.10): `SeasonPlanService.approve(atletaId, seasonPlanId)` com
+- [x] 1.1 Aprovar (A1, A3, A5; épico 3.1, 4.10): `SeasonPlanService.approve(atletaId, seasonPlanId)` com
   lock da prova, releitura, 200/409/422 e idempotência; `approvedBy` pelo `sub` do JWT; endpoint
   `POST .../season-plans/{id}/approve`; `approvedAt` no `SeasonPlanResponseDto`.
   - verify: `SeasonPlanServiceImplTest` (PROPOSED → ACTIVE com `approvedBy`/`approvedAt`; ACTIVE de novo
     sem reescrever; ARCHIVED → 409; outra ACTIVE → 409; prova cancelada após lock → 422; lock antes da
     releitura, via `InOrder`) e `@WebMvcTest` (200, 404, 404 da flag, 409, 422, 403 do `ATLETA`).
-- [ ] 1.2 Leitura do atleta (A2, A6; épico 4.11): `GET /api/v1/atletas/me/season-plan` +
+- [x] 1.2 Leitura do atleta (A2, A6; épico 4.11): `GET /api/v1/atletas/me/season-plan` +
   `AthleteSeasonPlanDto`; atleta pelo `AuthenticatedAtletaResolver`; 204 fora de `ACTIVE`, depois da
   prova e com a flag desligada.
   - verify: `SeasonPlanServiceImplTest` (fase atual pela semana corrente, nula fora do horizonte; só marcos
     futuros; 204 nos casos de A2) e `@WebMvcTest` (200 sem `validations` no JSON, 204, 403 do `TECNICO`).
-- [ ] 1.3 `SeasonPlanIT` (épico 4.12b): POST → approve → GET do atleta; atleta com só `PROPOSED` recebe
+- [x] 1.3 `SeasonPlanIT` (épico 4.12b): POST → approve → GET do atleta; atleta com só `PROPOSED` recebe
   204; atleta A não vê a de B (mesmo tenant e outro tenant); aprovar × aprovar e aprovar × cancelar a
   prova concorrentes.
   - verify: `./mvnw clean verify` verde (unitários + `*IT`) e os dois endpoints novos no OpenAPI.
+
+Seção 1 verificada em 2026-11-20: `./mvnw clean verify` com 6785 unitários e 347 IT. Notas:
+- 1.1: a temporada é lida por `findRaceIdBySeasonPlan` (só o id da prova) antes do lock, para a entidade
+  não ficar em cache velho (D13); o `saveAndFlush` faz o índice de uma ACTIVE responder dentro do método.
+- 1.2: controller próprio, `AtletaSeasonPlanController` (`/api/v1/atletas/me/season-plan`), no padrão do
+  `AtletaKudosController`.
+- 1.3: no IT o `AuthenticatedAtletaResolver` é mock (como no ticket 2); o isolamento é provado pela
+  consulta escopada no atleta resolvido e no tenant do JWT. O `docs/api/openapi.json` versionado já não
+  tinha `season-plans` desde o ticket 2; o OpenAPI vale pelas anotações.
 
 ## 2. Frontend
 
