@@ -80,3 +80,16 @@ Ficaram de fora, conscientemente:
 - Skeleton do card durante a carga: o card é ausente por design até haver temporada aprovada.
 - `plural` importado de `features/coach/adapters` no card do atleta: há precedente; mover para `shared` é
   limpeza à parte.
+
+## Merge
+
+Backend #254 (squash `f087267`) e front #229 (squash `6786c63`) em `develop` em 2026-11-21. Correções
+feitas depois do `/qa`, pelo CI:
+
+- Backend (`7def781`): `approvedAt` truncado em microssegundos. No Linux o `Clock` tem nanossegundos e o
+  Postgres guarda microssegundos, então a resposta da aprovação diferia da releitura (aprovação
+  idempotente, GET) e dois `SeasonPlanIT` falhavam no CI. No macOS passava.
+- Front (`045ae18`): `training-loop.spec.ts` e `onboarding-fluxo.spec.ts` respondem 204 a
+  `/atletas/me/season-plan`; o coringa `**/api/**` devolvia `[]` e a home do atleta caía.
+- Front (`04ef650`): o `SeasonCard` some quando a resposta não tem `raceName`, `raceDate` e
+  `upcomingMilestones`, em vez de derrubar a home.

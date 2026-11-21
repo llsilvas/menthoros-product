@@ -49,10 +49,10 @@
 
 ## 3. Versionamento, Rascunho e Aprovação
 
-- [ ] 3.1 Criar `MacrocicloVersionService` com criar rascunho a partir da versão ativa, salvar, aprovar e arquivar
+- [ ] 3.1 Criar `MacrocicloVersionService` com criar rascunho a partir da versão ativa, salvar, aprovar e arquivar — parcial: `add-season-plan-approve-athlete-view` (2026-11-21) só aprova a proposta (PROPOSED → ACTIVE); rascunho, salvar e arquivar ficam para `add-season-plan-adjust-v2`
 - [ ] 3.2 Implementar cópia imutável das semanas de ordem anterior à semana corrente
 - [ ] 3.3 Implementar gate de `motivoVersao` obrigatório a partir da versão 2 (422 sem motivo)
-- [ ] 3.4 Implementar unicidade de macro `ATIVO` por atleta (índice parcial da 1.7 + arquivamento do anterior na mesma transação da aprovação)
+- [ ] 3.4 Implementar unicidade de macro `ATIVO` por atleta (índice parcial da 1.7 + arquivamento do anterior na mesma transação da aprovação) — parcial: `add-season-plan-approve-athlete-view` (2026-11-21) garante uma ACTIVE por atleta (409 se houver outra); arquivar a anterior fica para a v2 (decisão A4)
 - [ ] 3.5 Implementar recálculo que preserva semanas passadas e valores com `origemValor = COACH`
 - [ ] 3.6 Implementar validação de soma de fases igual ao total de semanas (422 na aprovação)
 - [ ] 3.7 Implementar serviço de diff entre duas versões, por semana e por campo, com origem
@@ -72,11 +72,11 @@
 - [ ] 4.7 `POST /api/v1/macrociclo/{id}/recalcular` — recalcular semanas futuras do rascunho
 - [ ] 4.8 `GET /api/v1/macrociclo/{id}/validacoes` — validações do rascunho
 - [ ] 4.9 `GET /api/v1/macrociclo/{id}/diff?versao=N` — diff entre versões
-- [ ] 4.10 `POST /api/v1/macrociclo/{id}/aprovar` — aprovar o rascunho
-- [ ] 4.11 `GET /api/v1/atletas/me/temporada` — visão do atleta, apenas com macro `ATIVO`
+- [x] 4.10 `POST /api/v1/macrociclo/{id}/aprovar` — aprovar o rascunho — `add-season-plan-approve-athlete-view` (2026-11-21), como `POST /season-plans/{id}/approve` sobre a proposta (v1, sem rascunho)
+- [x] 4.11 `GET /api/v1/atletas/me/temporada` — visão do atleta, apenas com macro `ATIVO` — `add-season-plan-approve-athlete-view` (2026-11-21), como `GET /atletas/me/season-plan` (204 sem temporada ativa)
 - [x] 4.12 Garantir isolamento por `TenantContext` em todos os endpoints e teste de vazamento entre tenants — `add-season-plan-generate-tracer` (2026-11-18)
 - [x] 4.12a Guard de papel: endpoints 4.1–4.10 com `@PreAuthorize("hasAnyRole('TECNICO', 'ADMIN')")` (padrão do `CoachSugestaoController`); 4.11 só para o atleta autenticado e só com `macrocicloStatus = ATIVO` — `add-season-plan-generate-tracer` (2026-11-18) para 4.1 e 4.2; os demais endpoints entram com os tickets que os criam
-- [ ] 4.12b Testes de autorização: `ATLETA` recebe 403 em 4.1–4.10; atleta com macro só em `PROPOSTA` recebe "sem plano" em 4.11 — parcial: `add-season-plan-generate-tracer` (2026-11-18) cobre o 403 de `ATLETA` em 4.1 e 4.2; falta o caso de 4.11
+- [ ] 4.12b Testes de autorização: `ATLETA` recebe 403 em 4.1–4.10; atleta com macro só em `PROPOSTA` recebe "sem plano" em 4.11 — parcial: `add-season-plan-generate-tracer` (2026-11-18) cobre o 403 de `ATLETA` em 4.1 e 4.2; `add-season-plan-approve-athlete-view` (2026-11-21) cobre o 403 em 4.10 e o "sem plano" (204) de 4.11; faltam 4.3–4.9, que ainda não existem
 - [x] 4.13 Adicionar flag `macrociclo.enabled` em `application.yml` (default `false`) — `add-season-plan-generate-tracer` (2026-11-18), como `season-plan.enabled`
 - [x] 4.14 Validar: `./mvnw clean test` + conferir os endpoints novos no OpenAPI (`docs/api/openapi.json`) — `add-season-plan-generate-tracer` (2026-11-18)
 
@@ -140,13 +140,13 @@
 
 ## 8. Frontend — Atleta
 
-- [ ] 8.1 Criar bloco `Minha temporada` na área do atleta, oculto sem macro `ATIVO`
-- [ ] 8.2 Implementar prova-alvo com contagem de dias, fase atual segmentada e volume por semana
+- [x] 8.1 Criar bloco `Minha temporada` na área do atleta, oculto sem macro `ATIVO` — `add-season-plan-approve-athlete-view` (2026-11-21)
+- [ ] 8.2 Implementar prova-alvo com contagem de dias, fase atual segmentada e volume por semana — parcial: `add-season-plan-approve-athlete-view` (2026-11-21) mostra prova, dias e fase atual; volume por semana fica para o ticket 8 (A7)
 - [ ] 8.3 Implementar resumo da semana com CTA para os treinos da semana
-- [ ] 8.4 Implementar próximos marcos com a explicação do efeito
-- [ ] 8.5 Incluir a nota permanente de previsão e o estado de calibração
-- [ ] 8.6 Testes de componente cobrindo ausência de macro e estado de calibração
-- [ ] 8.7 Validar: `bun lint && bun run build && bun test:run`
+- [ ] 8.4 Implementar próximos marcos com a explicação do efeito — parcial: `add-season-plan-approve-athlete-view` (2026-11-21) lista até 3 próximos marcos com data, sem a explicação do efeito
+- [ ] 8.5 Incluir a nota permanente de previsão e o estado de calibração — parcial: `add-season-plan-approve-athlete-view` (2026-11-21) tem a nota de previsão; o estado de calibração é do ticket 4
+- [ ] 8.6 Testes de componente cobrindo ausência de macro e estado de calibração — parcial: `add-season-plan-approve-athlete-view` (2026-11-21) cobre a ausência de temporada; calibração com o ticket 4
+- [x] 8.7 Validar: `bun lint && bun run build && bun test:run` — `add-season-plan-approve-athlete-view` (2026-11-21)
 
 
 ## 9. Acessibilidade e Qualidade Visual
