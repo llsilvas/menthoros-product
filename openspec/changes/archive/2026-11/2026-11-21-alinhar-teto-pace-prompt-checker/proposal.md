@@ -1,7 +1,7 @@
 # alinhar-teto-pace-prompt-checker — prompt e checker usam o mesmo teto; ativação em ritmo de prova sem violar o teto
 
 **Tamanho:** XS · **Trilha:** Fast (backend; prompt muda uma linha → eval candidato)
-**Status:** em implementação (2026-11-21)
+**Status:** entregue e arquivada (2026-11-21, menthoros-backend#257)
 **Origem:** eval de `validar-ritmo-etapa-contra-zona` (#255), 3 rodadas.
 
 ## Por que
