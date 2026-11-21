@@ -31,15 +31,23 @@ Seção 1 verificada em 2026-11-20: `./mvnw clean verify` com 6785 unitários e 
 
 ## 2. Frontend
 
-- [ ] 2.1 Ação "Aprovar temporada" no `SeasonTabPanel` (só em `PROPOSED`): `SeasonPlanService.approve` +
+- [x] 2.1 Ação "Aprovar temporada" no `SeasonTabPanel` (só em `PROPOSED`): `SeasonPlanService.approve` +
   `useSeasonPlan` ganha `approve`; erro de aprovar aparece na aba; depois de aprovar, a faixa de proposta
   sai e o botão some.
   - verify: teste do hook (approve atualiza o plano) e do painel (botão só em `PROPOSED`, some após
     aprovar, erro exibido).
-- [ ] 2.2 Card "Minha temporada" no `AthleteHomePage` (A7; épico 8.1, 8.4): service + tipo
+- [x] 2.2 Card "Minha temporada" no `AthleteHomePage` (A7; épico 8.1, 8.4): service + tipo
   `AthleteSeasonPlan` + hook; prova, dias, fase, próximos marcos e nota de previsão; 204 ou erro → card
   ausente.
   - verify: testes do card/home: ausente com 204, ausente com erro, completo com `ACTIVE`, sem marcos.
-- [ ] 2.3 E2E e validação (épico 8.7): `season-plan.spec.ts` ganha "treinador aprova"; um spec do atleta
+- [x] 2.3 E2E e validação (épico 8.7): `season-plan.spec.ts` ganha "treinador aprova"; um spec do atleta
   vê o card com a API interceptada.
   - verify: `npm run lint && npm run build && npm run test:run` e os E2E tocados verdes.
+
+Seção 2 verificada em 2026-11-20: lint, build, 3026 unitários e os E2E `season-plan.spec.ts` e
+`athlete/home.spec.ts` (9). Notas:
+- 2.1: o botão fica na faixa da proposta; o erro de aprovar aparece acima dela, e o botão continua.
+- 2.2: card `SeasonCard` em `features/athlete/components`, hook `useAthleteSeasonPlan` em `src/hooks` (padrão
+  de `useKudosRecentes`). A falha de leitura entra no aviso agregado da home ("temporada"), além de o
+  card sumir (A7). Mostra até 3 marcos.
+- 2.3: o E2E do atleta é na `home.spec.ts` (o `mockarHome` passa a responder 204 para `me/season-plan`).
