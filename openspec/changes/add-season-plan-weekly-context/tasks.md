@@ -1,6 +1,6 @@
 ## 0. Baseline
 
-- [ ] 0.1 Golden do prompt com skeleton (motor ligado) gravado **antes** de qualquer mudança, ao lado do `PlanoTreinoPromptBuilderGoldenTest`
+- [x] 0.1 Golden do prompt com skeleton (motor ligado) gravado **antes** de qualquer mudança, ao lado do `PlanoTreinoPromptBuilderGoldenTest`
   - verify: passa em `develop` sem nenhuma alteração de código de produção
 
 ## 1. Modelo
