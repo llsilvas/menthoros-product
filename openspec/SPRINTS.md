@@ -2,7 +2,15 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-21 (**`add-season-plan-approve-athlete-view` arquivada** — ticket 5 do
+**Última atualização:** 2026-11-22 (**`add-season-plan-calibration-gate` arquivada** — ticket 4 do
+épico `add-season-plan-macrocycle` (Q9: atleta em calibração espera a graduação). Backend #259 (squash
+`2e75d0a`) e front #232 (squash `4671050`) em `develop`. Gerar e aprovar a temporada respondem 422 com o
+atleta em calibração (`calibracaoIniciadaEm` preenchida), antes do retorno idempotente; o gate só vale com
+`planner-engine.shadow` ligado, porque sem ele a graduação não é avaliada. Aba Temporada desabilita "Gerar
+temporada" com o motivo e a semana de calibração. Sem migration. Arquivada em
+`changes/archive/2026-11/2026-11-22-add-season-plan-calibration-gate/`.)
+
+**Anterior:** 2026-11-21 (**`add-season-plan-approve-athlete-view` arquivada** — ticket 5 do
 épico `add-season-plan-macrocycle`. Backend #254 (squash `f087267`) e front #229 (squash `6786c63`) em
 `develop`. `POST /season-plans/{id}/approve` leva a proposta a ACTIVE com `approvedBy`/`approvedAt`
 (idempotente; 409 para arquivada ou outra ACTIVE; 422 com a prova cancelada ou trocada; lock da prova,
