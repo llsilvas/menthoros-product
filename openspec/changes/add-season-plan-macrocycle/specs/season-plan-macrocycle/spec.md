@@ -32,10 +32,10 @@ O número de semanas SHALL ser derivado da data da prova; quando a janela dispon
 - **WHEN** a geração roda duas vezes para a mesma prova, template e baseline
 - **THEN** as duas execuções produzem os mesmos valores em todas as semanas
 
-#### Scenario: Atleta sem baseline confiável
-- **WHEN** o atleta está em `CALIBRATION` sem PMC confiável
-- **THEN** o macro é gerado com fases, longões e sessões-chave, e o volume de cada semana é marcado como estimado
-- **THEN** a proposta registra que o volume será revisto ao fim da calibração
+#### Scenario: Atleta em calibração
+- **WHEN** o atleta está em calibração (`calibracaoIniciadaEm` preenchida) e `planner-engine.shadow` está ligado
+- **THEN** gerar e aprovar a temporada respondem 422 com o motivo, e nenhuma temporada é criada nem ativada
+- **THEN** a temporada fica disponível quando o atleta conclui a calibração (Q9; `add-season-plan-calibration-gate`)
 
 ---
 
