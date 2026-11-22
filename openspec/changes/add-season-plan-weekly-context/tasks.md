@@ -5,8 +5,8 @@
 
 ## 1. Modelo
 
-- [ ] 1.1 Migration `V119__add_season_week_to_plano_semanal.sql`: `season_week_id` (FK `tb_season_week(id)` `ON DELETE SET NULL`, nullable) e `target_deviation_pct NUMERIC(6,1)` nullable em `tb_plano_semanal`, índice em `season_week_id`; campos `seasonWeekId` e `targetDeviationPct` em `PlanoSemanal` (épico 1.10)
-  - verify: o IT de contexto sobe com Flyway em Postgres limpo; excluir a `SeasonWeek` zera `season_week_id` sem apagar o plano
+- [x] 1.1 Migration `V119__add_season_week_to_plano_semanal.sql`: `season_week_id` (FK `tb_season_week(id)` `ON DELETE SET NULL`, nullable) e `target_deviation_pct NUMERIC(6,1)` nullable em `tb_plano_semanal`, índice em `season_week_id`; campos `seasonWeekId` e `targetDeviationPct` em `PlanoSemanal` (épico 1.10)
+  - verify: o IT de contexto sobe com Flyway em Postgres limpo (feito, `SeasonPlanIT` 11/11); o `ON DELETE SET NULL` é afirmado no IT da 4.1, onde há plano semanal persistido
 
 ## 2. Contexto e fase
 
