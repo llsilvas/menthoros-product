@@ -24,6 +24,11 @@ Tasks do épico: **2.6 (caso de calibração, substituído por recusa), 2.10 (te
   nunca passou pelo onboarding). Os estágios são OBSERVATION (semana 1), CALIBRATION (semana 2) e
   STABILIZATION (semana 3 em diante, **sem teto** — o atleta preso depois da semana 4 continua em
   STABILIZATION, `CalibrationServiceImpl.java:54`)
+- **O gate só vale com a avaliação de calibração ativa** (`planner-engine.shadow || planner-engine.enabled`;
+  confirmado pelo founder em 2026-11-21). A graduação só é avaliada na geração semanal com skeleton do
+  planner (`PlanGenerationPersister.java:202-205`); com os dois flags em `false` (default) ninguém gradua,
+  e um gate incondicional bloquearia a temporada para sempre. Com o planner desligado, a geração segue
+  como hoje
 - O gate lê `calibracaoIniciadaEm` pelo `AthleteBaselineStateRepository`, já injetado no
   `SeasonPlanServiceImpl`; não chama `OnboardingService` (evita a validação de posse e a dependência
   entre serviços)
@@ -50,6 +55,8 @@ Pré-condição comum aos cenários da aba: atleta com prova-alvo e sem temporad
   422 e a proposta continua `PROPOSED`.
 - **Dado** um atleta sem linha de baseline, ou com `calibracaoIniciadaEm` nula, **quando** o treinador gera,
   **então** a geração segue o fluxo atual.
+- **Dado** um atleta em calibração e `planner-engine.shadow` e `planner-engine.enabled` em `false`,
+  **quando** o treinador gera, **então** a geração segue o fluxo atual.
 - **Dado** um atleta em calibração, **quando** o treinador abre a aba, **então** a ação "Gerar temporada"
   está desabilitada e o motivo é visível, com a semana de calibração.
 - **Dado** um atleta fora de calibração (204), **quando** o treinador abre a aba, **então** a ação está
@@ -75,6 +82,10 @@ consulta em `tb_plano_treino` × `tb_athlete_baseline_state` no tenant do Design
 - **Corrida entre o gate e o início da calibração:** a calibração só começa no primeiro cálculo de baseline
   do atleta (`OnboardingServiceImpl.java:523`), e a geração exige baseline ou PMC. A janela é estreita e o
   gate da aprovação cobre o resultado; risco aceito, sem lock adicional.
+- **Front e backend podem divergir com o planner desligado:** o front não conhece os flags do planner e
+  desabilita a ação sempre que o status de calibração responde 200, enquanto o backend, com o planner
+  desligado, aceitaria a geração. Limitação aceita: desabilitar é o lado conservador, e o atleta preso
+  nesse estado é o mesmo que já não gradua.
 - Rollback: revert do PR. Sem migration.
 
 ## Open Questions & Assumptions
