@@ -37,3 +37,11 @@
 - [x] 4.5 e2e: recalcular preservando a semana editada e ver o diff antes de aprovar
   - verify: `tests/e2e/coach/season-plan.spec.ts`
 - [x] 4.6 Validar: `npm run lint && npm run build && npm run test:run` + e2e do coach
+
+## Adiado (achados da QA, não bloqueantes)
+
+- Hook `useSeasonAdjustment`: extrair o esqueleto comum das ações e quebrar `recalculate` no serviço
+- `@Valid` na rota de recálculo (hoje o serviço revalida, como `updateWeek`)
+- Tipagem de `before`/`after` do diff no OpenAPI (hoje `object`)
+- `restart` não tolera 404 no descarte (rascunho apagado por outra sessão)
+- Aviso de quais semanas do treinador foram preservadas no recálculo

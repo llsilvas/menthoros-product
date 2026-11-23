@@ -2,7 +2,17 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-23 (**`add-season-plan-adjust-v2` arquivada** — ticket 6 do épico
+**Última atualização:** 2026-11-23 (**`add-season-plan-version-diff` arquivada** — ticket 7 do épico
+`add-season-plan-macrocycle`. Backend #262 (squash `919fe43`) e front #235 (squash `6a91565`) em `develop`.
+`POST /season-plans/{id}/recalculate` regenera o rascunho por semanas por fase e volume de partida (V121
+`initial_volume_km`), preservando semanas travadas e editadas pelo treinador (teto de 104 semanas por fase);
+`GET /season-plans/{id}/diff` lista as alterações contra a ativa com a origem; log `season-plan.version-approved`
+com `changedWeeks` e `coachWeeks`. Tela de ajuste ganha "Parâmetros", "Alterações", valor anterior riscado e,
+no 409 da aprovação, "Descartar e recomeçar" com confirmação. Adiados no `tasks.md`: refactor do hook, `@Valid`,
+tipagem do diff no OpenAPI, 404 no descarte do recomeço, aviso das semanas preservadas. Arquivada em
+`changes/archive/2026-11/2026-11-23-add-season-plan-version-diff/`.)
+
+**Anterior:** 2026-11-23 (**`add-season-plan-adjust-v2` arquivada** — ticket 6 do épico
 `add-season-plan-macrocycle`. Backend #261 (squash `ba54006`) e front #234 (squash `310bb02`) em `develop`.
 O treinador ajusta a temporada ACTIVE como nova versão: rascunho PROPOSED com `version + 1` e
 `baseSeasonPlanId` (V120), edição por semana (fase, volume, longão, TSS, descarga, sessões-chave), semanas
