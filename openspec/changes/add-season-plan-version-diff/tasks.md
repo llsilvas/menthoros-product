@@ -7,11 +7,11 @@
 
 ## 2. Backend — recálculo (épico 3.5, 3.6, 4.6, 4.7)
 
-- [ ] 2.1 `SeasonPlanAdjustmentService.recalculate` + `SeasonPlanRecalculateInputDto` + `POST /{id}/recalculate`: lock da prova, só rascunho (409), travadas e `COACH` intactas, demais `ENGINE`, `keySessions` preservado, `initial_volume_km` e picos atualizados
+- [x] 2.1 `SeasonPlanAdjustmentService.recalculate` + `SeasonPlanRecalculateInputDto` + `POST /{id}/recalculate`: lock da prova, só rascunho (409), travadas e `COACH` intactas, demais `ENGINE`, `keySessions` preservado, `initial_volume_km` e picos atualizados
   - verify: `SeasonPlanAdjustmentServiceImplTest` (`Recalculate`) — o cenário de 12 semanas do critério de aceite; semana `COACH` intacta; `keySessions` preservado; marcos do rascunho reusados (`milestoneRaceId` igual, descarga adiada por marco passado continua adiada); recalcular duas vezes com a mesma entrada dá as mesmas semanas
-- [ ] 2.2 422 do recálculo: soma de fases + 1 ≠ total; fase negativa; `startVolumeKm` ausente, ≤ 0, > 500 ou com mais de uma casa; `initialCtl` nulo ou ≤ 0; fase divergente em semana travada; total de semanas diferente (prova remarcada)
+- [x] 2.2 422 do recálculo: soma de fases + 1 ≠ total; fase negativa; `startVolumeKm` ausente, ≤ 0, > 500 ou com mais de uma casa; `initialCtl` nulo ou ≤ 0; fase divergente em semana travada; total de semanas diferente (prova remarcada)
   - verify: testes parametrizados por regra, nada persistido em cada 422
-- [ ] 2.3 Controller: `@PreAuthorize`, `@RequireTenant`, `@Operation`/`@ApiResponses` (200, 403, 404, 409, 422)
+- [x] 2.3 Controller: `@PreAuthorize`, `@RequireTenant`, `@Operation`/`@ApiResponses` (200, 403, 404, 409, 422)
   - verify: `SeasonPlanControllerTest` (`Recalculate`)
 
 ## 3. Backend — diff e métrica (épico 3.7, 4.9)
