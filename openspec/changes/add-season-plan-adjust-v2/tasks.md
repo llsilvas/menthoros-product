@@ -24,15 +24,16 @@
 
 ## 3. Frontend
 
-- [ ] 3.1 Tipos e cliente: `SeasonPlan` com `version`, `baseSeasonPlanId`, `openDraftId`, `locked`/`lockReason`; `SeasonPlanService` com `criarAjuste`, `buscarPorId`, `atualizarSemana`, `aprovar(reason)`, `descartar`
+- [x] 3.1 Tipos e cliente: `SeasonPlan` com `version`, `baseSeasonPlanId`, `openDraftId`, `locked`/`lockReason`; `SeasonPlanService` com `criarAjuste`, `buscarPorId`, `atualizarSemana`, `aprovar(reason)`, `descartar`
   - verify: `bun run build`
-- [ ] 3.2 Aba Temporada: "Ajustar temporada" / "Continuar ajuste" na ACTIVE, navegando para a página de ajuste
+- [x] 3.2 Aba Temporada: "Ajustar temporada" / "Continuar ajuste" na ACTIVE, navegando para a página de ajuste
   - verify: teste de componente do `SeasonTabPanel`
-- [ ] 3.3 `CoachSeasonAdjustPage` (épico 7.8, 7.10): tabela com travas e motivo, edição por linha, alertas, motivo obrigatório, confirmação de aprovação, descartar, erros 409/422
+- [x] 3.3 `CoachSeasonAdjustPage` (épico 7.8, 7.10): tabela com travas e motivo, edição por linha, alertas, motivo obrigatório, confirmação de aprovação, descartar, erros 409/422
   - verify: teste de componente da tabela editável (travada não editável, salvar linha, aprovar bloqueado sem motivo)
-- [ ] 3.4 E2E (épico 7.14): abrir o ajuste, editar uma semana futura, aprovar com motivo e ver a v2 na aba (rotas mockadas, como `tests/e2e/coach/season-plan.spec.ts`)
+- [x] 3.4 E2E (épico 7.14): abrir o ajuste, editar uma semana futura, aprovar com motivo e ver a v2 na aba (rotas mockadas, como `tests/e2e/coach/season-plan.spec.ts`)
   - verify: Playwright verde
-- [ ] 3.5 Validar: `bun lint && bun run build && bun test:run`
+- [x] 3.5 Validar: `bun lint && bun run build && bun test:run`
+  - verify: feito com os comandos do `CLAUDE.md` do front (`npm run lint`, `build`, `test:run`): 3058 testes; e2e do coach 115/115
 
 ## 4. Fechamento
 
