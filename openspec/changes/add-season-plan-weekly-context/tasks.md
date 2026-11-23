@@ -21,10 +21,10 @@
 
 ## 3. Prompt
 
-- [ ] 3.1 `PeriodizacaoPromptFormatter`: bloco de posição no ciclo e alvo de TSS com base `targetTss` + reduções de `calcularTssAlvoAjustado`; com lesão ativa ou pós-prova na semana anterior, o bloco declara que essa fase prevalece. `PlanoTreinoPromptBuilder` usa o bloco no lugar da seção "PERIODIZAÇÃO E FASE ATUAL" e o alvo da temporada no "TSS Alvo Semanal" (épico 5.10)
+- [x] 3.1 `PeriodizacaoPromptFormatter`: bloco de posição no ciclo e alvo de TSS com base `targetTss` + reduções de `calcularTssAlvoAjustado`; com lesão ativa ou pós-prova na semana anterior, o bloco declara que essa fase prevalece. `PlanoTreinoPromptBuilder` usa o bloco no lugar da seção "PERIODIZAÇÃO E FASE ATUAL" e o alvo da temporada no "TSS Alvo Semanal" (épico 5.10)
   - verify: teste do formatter: bloco completo, sem marco, com pós-prova (prova no sábado), com lesão; alvo ×0,75 (fadiga moderada) e ×0,55 (sobrecarga ou progressão contínua)
-- [ ] 3.2 Testes do prompt: com temporada, não há a seção legada nem `ctlAlvo * 7`; sem temporada / flag off / semana fora, os dois goldens (sem skeleton e o da 0.1, com skeleton) byte a byte iguais (épico 5.10a, 5.16)
-  - verify: os dois goldens passam sem regravar
+- [x] 3.2 Testes do prompt: com temporada, não há a seção legada nem `ctlAlvo * 7`; sem temporada / flag off / semana fora, os dois goldens (sem skeleton e o da 0.1, com skeleton) byte a byte iguais (épico 5.10a, 5.16)
+  - verify: os dois goldens passam sem regravar (feito); com temporada, `PlanoTreinoPromptBuilderTemporadaTest`. Flag off / semana fora chegam ao builder como semana nula (gate no `SeasonWeekContextResolver`), o mesmo caminho dos goldens
 
 ## 4. Persistência
 
