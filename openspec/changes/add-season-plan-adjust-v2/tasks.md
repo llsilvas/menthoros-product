@@ -37,4 +37,5 @@
 
 ## 4. Fechamento
 
-- [ ] 4.1 Validar backend: `./mvnw clean verify`
+- [x] 4.1 Validar backend: `./mvnw clean verify`
+  - verify: 6897 unitários + 359 ITs, BUILD SUCCESS, sobre o código do commit `03cc23e` (sem mudança de backend depois)
