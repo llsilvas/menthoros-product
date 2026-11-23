@@ -72,9 +72,10 @@ Editar semana travada → **422** com o motivo; na tela a linha não é editáve
 `PATCH .../{seasonPlanId}/weeks/{weekIndex}` num `PROPOSED` (rascunho ou proposta v1), campos opcionais:
 `phase` (só `BASE`, `BUILD`, `PEAK`, `TAPER` — `RACE_WEEK` é só da semana da prova, travada), `targetTss`,
 `targetVolumeKm`, `longRunKm` (≥ 0), `deload`, `keySessions` (≤ 500 caracteres; string vazia limpa).
-Campo ausente (nulo) não muda. Formato inválido (negativo, tamanho) → **400** com `fields`, o contrato do
-`GlobalExceptionHandler` para Bean Validation; regra de domínio (semana travada, fase não permitida,
-`RACE_WEEK`) → **422** com `message`. A semana editada passa a `valueSource = COACH` (granularidade por
+Campo ausente (nulo) não muda. Formato inválido (negativo, tamanho), semana travada, fase não permitida e
+`RACE_WEEK` → **422** com `message`. Sem `@Valid` na rota: com `spring.mvc.problemdetails` ligado, o 400 do
+Bean Validation sai sem `message` nem `fields` (precedente `CoachAthleteZonesController`); o serviço valida
+tudo. A semana editada passa a `valueSource = COACH` (granularidade por
 semana: a origem por valor fica para o diff do ticket 7), e `peakVolumeKm`/`maxLongRunKm` do rascunho são
 recalculados. Responde o DTO completo, com as validações brandas recalculadas (épico 4.8, já existentes
 na leitura). O DTO de semana passa a expor `keySessions`, para a tela reabrir o que salvou.
@@ -100,8 +101,8 @@ reescrita. As gerações seguintes leem a ACTIVE (v2) pelo `SeasonWeekContextRes
 ### Segurança
 
 Todas as rotas novas: `hasAnyRole('TECNICO','ADMIN')`, flag desligada → 404 `SEASON_PLAN_DISABLED`,
-consultas por `tenant_id`; temporada de outro tenant ou de outro atleta → 404; `weekIndex` fora da
-temporada → 404; papel ATLETA → 403.
+consultas por `tenant_id`; atleta de outra assessoria → 403 (`@RequireTenant`); temporada de outro atleta
+→ 404; `weekIndex` fora da temporada → 404; papel ATLETA → 403.
 
 ### Front
 
@@ -151,8 +152,9 @@ temporada → 404; papel ATLETA → 403.
 
 ## Métrica de sucesso
 
-Temporadas ACTIVE com ao menos uma v2 por ciclo e tempo entre criar o ajuste e aprovar, por tenant (log
-`season-plan.version-approved` com `version` e o intervalo) — acompanhamento, não alvo.
+Temporadas ACTIVE com ao menos uma v2 por ciclo e dias desde a aprovação anterior, por tenant (log
+`season-plan.version-approved` com `version` e `daysSincePreviousApproval`; `PlanoTreino` não guarda a
+criação do rascunho) — acompanhamento, não alvo.
 
 ## Riscos e rollback
 
