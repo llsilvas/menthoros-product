@@ -1,8 +1,8 @@
 ## 1. Backend — volume de partida e motor com fases explícitas
 
-- [ ] 1.1 V121: `tb_plano_treino.initial_volume_km NUMERIC(6,1)` nulo; `PlanoTreino.initialVolumeKm`; a geração grava o volume resolvido (escala 1); `criarRascunho` copia da ativa; `SeasonPlanResponseDto.initialVolumeKm`
+- [x] 1.1 V121: `tb_plano_treino.initial_volume_km NUMERIC(6,1)` nulo; `PlanoTreino.initialVolumeKm`; a geração grava o volume resolvido (escala 1); `criarRascunho` copia da ativa; `SeasonPlanResponseDto.initialVolumeKm`
   - verify: `SeasonPlanServiceImplTest` (geração grava o volume) + `SeasonPlanAdjustIT` (geração → aprovação → rascunho mantém `initialVolumeKm`)
-- [ ] 1.2 `SeasonPlanner.plan` com semanas por fase explícitas (sem `ajustar`), mesma curva de TSS, descarga, longão e marcos
+- [x] 1.2 `SeasonPlanner.plan` com semanas por fase explícitas (sem `ajustar`), mesma curva de TSS, descarga, longão e marcos
   - verify: `SeasonPlannerTest` — fases explícitas respeitadas; com as fases do template, mesmas semanas que a sobrecarga atual
 
 ## 2. Backend — recálculo (épico 3.5, 3.6, 4.6, 4.7)
