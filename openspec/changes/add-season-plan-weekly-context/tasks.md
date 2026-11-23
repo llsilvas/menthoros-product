@@ -28,6 +28,7 @@
 
 ## 4. Persistência
 
-- [ ] 4.1 `PlanGenerationPersister` grava `seasonWeekId` e `targetDeviationPct` (Σ `tssPlanejado` dos treinos persistidos, depois das transformações; nulo como 0; `targetTss` nulo/≤0 → nulo; uma casa) (épico 5.12)
-  - verify: teste unitário da fórmula (normal, alvo nulo, treino sem TSS) + IT que gera com LLM mockado e lê a linha
-- [ ] 4.2 Validar: `./mvnw clean verify` (épico 5.17)
+- [x] 4.1 `PlanGenerationPersister` grava `seasonWeekId` e `targetDeviationPct` (Σ `tssPlanejado` dos treinos persistidos, depois das transformações; nulo como 0; `targetTss` nulo/≤0 → nulo; uma casa) (épico 5.12)
+  - verify: teste unitário da fórmula (normal, alvo nulo, treino sem TSS) + IT que gera com LLM mockado e lê a linha (feito: `PlanGenerationPersisterTemporadaTest` e `PlanoSemanaTemporadaIT`, que também afirma o `ON DELETE SET NULL`)
+- [x] 4.2 Validar: `./mvnw clean verify` (épico 5.17)
+  - verify: 6849 unitários + 354 ITs, BUILD SUCCESS. A 1ª rodada teve 1 falha flaky em `GarminClientImplTest.erroComStatus` (fora do escopo; passou 3/3 isolado e na 2ª rodada completa)
