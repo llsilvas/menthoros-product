@@ -26,14 +26,14 @@
 
 ## 4. Frontend (épico 7.9, 7.10, 7.11)
 
-- [ ] 4.1 Tipos e serviço: `initialVolumeKm`, `SeasonPlanDiffEntry`, `recalcular`, `buscarDiff`; hook `useSeasonAdjustment` carrega o diff com o rascunho e o recarrega depois de salvar semana e recalcular
+- [x] 4.1 Tipos e serviço: `initialVolumeKm`, `SeasonPlanDiffEntry`, `recalcular`, `buscarDiff`; hook `useSeasonAdjustment` carrega o diff com o rascunho e o recarrega depois de salvar semana e recalcular
   - verify: testes do hook (carrega, recarrega, guard de rota trocada)
-- [ ] 4.2 Bloco "Parâmetros": semanas por fase com soma ao vivo, volume de partida pré-preenchido, "Recalcular" desabilitado com soma divergente; diálogo de confirmação com as semanas a regenerar
+- [x] 4.2 Bloco "Parâmetros": semanas por fase com soma ao vivo, volume de partida pré-preenchido, "Recalcular" desabilitado com soma divergente; diálogo de confirmação com as semanas a regenerar
   - verify: teste de componente (soma, desabilitado, lista de semanas na confirmação, 422 com mensagem)
-- [ ] 4.3 Tabela: valor anterior riscado e origem nas células alteradas; bloco "Alterações" com o diff
+- [x] 4.3 Tabela: valor anterior riscado e origem nas células alteradas; bloco "Alterações" com o diff
   - verify: teste de componente do diff (vazio, um campo, origem)
-- [ ] 4.4 409 na aprovação: mensagem de conflito, motivo mantido, "Descartar e recomeçar" (descarta e cria rascunho da ativa nova)
+- [x] 4.4 409 na aprovação: mensagem de conflito, motivo mantido, "Descartar e recomeçar" (descarta e cria rascunho da ativa nova)
   - verify: teste da página (409 mantém o motivo; ação navega para o rascunho novo)
-- [ ] 4.5 e2e: recalcular preservando a semana editada e ver o diff antes de aprovar
+- [x] 4.5 e2e: recalcular preservando a semana editada e ver o diff antes de aprovar
   - verify: `tests/e2e/coach/season-plan.spec.ts`
-- [ ] 4.6 Validar: `npm run lint && npm run build && npm run test:run` + e2e do coach
+- [x] 4.6 Validar: `npm run lint && npm run build && npm run test:run` + e2e do coach
