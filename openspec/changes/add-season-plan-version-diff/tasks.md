@@ -16,13 +16,13 @@
 
 ## 3. Backend — diff e métrica (épico 3.7, 4.9)
 
-- [ ] 3.1 `GET /{id}/diff` → `List<SeasonPlanDiffDto>` (`weekIndex`, `field`, `before`, `after`, `source`), só para rascunho (409), por `weekIndex`, campos `phase`, `targetVolumeKm`, `targetTss`, `longRunKm`, `deload`, `keySessions`
+- [x] 3.1 `GET /{id}/diff` → `List<SeasonPlanDiffDto>` (`weekIndex`, `field`, `before`, `after`, `source`), só para rascunho (409), por `weekIndex`, campos `phase`, `targetVolumeKm`, `targetTss`, `longRunKm`, `deload`, `keySessions`
   - verify: teste unitário do diff (lista vazia; um campo; vários campos numa semana; `BigDecimal` com escalas diferentes não gera falso positivo) + `SeasonPlanControllerTest`
-- [ ] 3.2 Log `season-plan.version-approved` com `changedWeeks` e `coachWeeks`
+- [x] 3.2 Log `season-plan.version-approved` com `changedWeeks` e `coachWeeks`
   - verify: teste do `SeasonPlanVersioning`/serviço com captura de log ou contagem exposta
-- [ ] 3.3 IT: recálculo + diff + aprovação ponta a ponta; outra assessoria 403; recálculo na ACTIVE 409
+- [x] 3.3 IT: recálculo + diff + aprovação ponta a ponta; outra assessoria 403; recálculo na ACTIVE 409
   - verify: `SeasonPlanAdjustIT`
-- [ ] 3.4 Validar: `./mvnw clean verify` + OpenAPI com os dois endpoints novos
+- [x] 3.4 Validar: `./mvnw clean verify` + OpenAPI com os dois endpoints novos
 
 ## 4. Frontend (épico 7.9, 7.10, 7.11)
 
