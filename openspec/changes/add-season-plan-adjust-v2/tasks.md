@@ -1,7 +1,7 @@
 ## 1. Modelo
 
-- [ ] 1.1 Migration `V120__add_base_season_plan_to_plano_treino.sql`: `base_season_plan_id UUID NULL` com FK para `tb_plano_treino(id) ON DELETE SET NULL` e índice; `PlanoTreino.baseSeasonPlanId`
-  - verify: o IT de temporada sobe com Flyway em Postgres limpo
+- [x] 1.1 Migration `V120__add_base_season_plan_to_plano_treino.sql`: `base_season_plan_id UUID NULL` com FK para `tb_plano_treino(id) ON DELETE SET NULL` e índice; `PlanoTreino.baseSeasonPlanId`
+  - verify: o IT de temporada sobe com Flyway em Postgres limpo (feito, `SeasonPlanIT` 11/11)
 
 ## 2. Backend — rascunho, edição, aprovação
 
