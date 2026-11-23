@@ -2,7 +2,17 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-22 (**`add-season-plan-weekly-context` arquivada** — ticket 8 do épico
+**Última atualização:** 2026-11-23 (**`add-season-plan-adjust-v2` arquivada** — ticket 6 do épico
+`add-season-plan-macrocycle`. Backend #261 (squash `ba54006`) e front #234 (squash `310bb02`) em `develop`.
+O treinador ajusta a temporada ACTIVE como nova versão: rascunho PROPOSED com `version + 1` e
+`baseSeasonPlanId` (V120), edição por semana (fase, volume, longão, TSS, descarga, sessões-chave), semanas
+concluídas, em andamento e da prova travadas; aprovar exige motivo, arquiva a anterior e recopia da ativa o que
+virou passado; concorrência serializada pelo lock da prova, base trocada responde 409. Planos semanais já
+gerados ficam na v1. Desvios: formato inválido no PATCH dá 422, outra assessoria dá 403. Dívida registrada no
+PR: descarte sem autor, `weekStart` de prova remarcada, lock sem timeout. Arquivada em
+`changes/archive/2026-11/2026-11-23-add-season-plan-adjust-v2/`.)
+
+**Anterior:** 2026-11-22 (**`add-season-plan-weekly-context` arquivada** — ticket 8 do épico
 `add-season-plan-macrocycle`. Backend #260 (squash `789fdb3`) em `develop`. Com `season-plan.enabled` e temporada
 `ACTIVE` cuja semana coincide com a do plano, a geração lê um `SeasonWeekSnapshot`: o prompt troca
 "PERIODIZAÇÃO E FASE ATUAL" pelo bloco de posição no ciclo e usa o `targetTss` como base do "TSS Alvo
