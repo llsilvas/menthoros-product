@@ -2,7 +2,18 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-22 (**`add-season-plan-calibration-gate` arquivada** — ticket 4 do
+**Última atualização:** 2026-11-22 (**`add-season-plan-weekly-context` arquivada** — ticket 8 do épico
+`add-season-plan-macrocycle`. Backend #260 (squash `789fdb3`) em `develop`. Com `season-plan.enabled` e temporada
+`ACTIVE` cuja semana coincide com a do plano, a geração lê um `SeasonWeekSnapshot`: o prompt troca
+"PERIODIZAÇÃO E FASE ATUAL" pelo bloco de posição no ciclo e usa o `targetTss` como base do "TSS Alvo
+Semanal" (reduções por fadiga por cima); motor e prompt resolvem a fase por lesão > pós-prova > temporada >
+heurística (`PlannerEngine.fasePrevalente`); métrica `season-plan.phase.divergence.count` (tag `tenant`)
+só com shadow; V119 grava `season_week_id` e `target_deviation_pct` em `tb_plano_semanal`. Sem temporada,
+os dois goldens do prompt seguem byte a byte. Dívida registrada no PR: mapeamento Atleta→snapshot repetido no
+builder, construtores secundários só para teste, `geraPlanoSemanalAvancado` com 9 parâmetros. Arquivada em
+`changes/archive/2026-11/2026-11-22-add-season-plan-weekly-context/`.)
+
+**Anterior:** 2026-11-22 (**`add-season-plan-calibration-gate` arquivada** — ticket 4 do
 épico `add-season-plan-macrocycle` (Q9: atleta em calibração espera a graduação). Backend #259 (squash
 `2e75d0a`) e front #232 (squash `4671050`) em `develop`. Gerar e aprovar a temporada respondem 422 com o
 atleta em calibração (`calibracaoIniciadaEm` preenchida), antes do retorno idempotente; o gate só vale com

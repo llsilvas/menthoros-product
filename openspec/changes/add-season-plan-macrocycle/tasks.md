@@ -25,7 +25,7 @@
 - [x] 1.7 Criar migration `V116__add_macrociclo_plano_treino.sql`: colunas novas em `tb_plano_treino` (não há UNIQUE em `prova_id` no banco; o `@OneToOne` era só no mapeamento); trocar `tb_plano_treino.prova_id` para `ON DELETE RESTRICT` e `tb_plano_semanal.plano_treino_id` para `ON DELETE SET NULL`; índice único parcial `(atleta_id) WHERE macrociclo_status = 'ATIVO'` — `add-season-plan-model-integrity` (2026-11-16), como `V116__add_season_plan_to_plano_treino.sql`
 - [x] 1.8 Criar migration `V117__create_tb_semana_planejada.sql` com `tenant_id` NOT NULL, FK `plano_treino_id ON DELETE CASCADE` e índice único por (`plano_treino_id`, `ordem`) — `add-season-plan-model-integrity` (2026-11-16), como `V117__create_tb_season_week.sql`
 - [ ] 1.9 Criar migration `V118__create_tb_template_metodologia.sql` + seed do default global de maratona
-- [ ] 1.10 Criar migration `V119__add_semana_planejada_to_tb_plano_semanal.sql` (`semana_planejada_id`, `desvio_alvo_percentual`)
+- [x] 1.10 Criar migration `V119__add_semana_planejada_to_tb_plano_semanal.sql` (`semana_planejada_id`, `desvio_alvo_percentual`) (feito em `add-season-plan-weekly-context`, backend #260)
 - [x] 1.11 Atualizar `CONTEXT.md` com os termos novos (Macrociclo, Semana Planejada, Template de Metodologia, Origem do Valor) e o que evitar — `add-season-plan-model-integrity` (2026-11-16)
 - [x] 1.11a Regra de prova com macro no `ProvaServiceImpl`: excluir prova referenciada por `PlanoTreino` responde 422 orientando a cancelar; cancelar ou trocar a prova-alvo arquiva o macro `ATIVO` (`motivoVersao` = "prova cancelada"), descarta as propostas e preserva semanas e planos semanais — `add-season-plan-model-integrity` (2026-11-16)
 - [x] 1.11b Teste de integração: excluir prova com macro e planos semanais aprovados não apaga nenhuma linha de `tb_plano_treino`, `tb_semana_planejada` ou `tb_plano_semanal` — `add-season-plan-model-integrity` (2026-11-16) (`ProvaTemporadaIT`)
@@ -83,26 +83,26 @@
 
 ## 5. Integração com a Geração Semanal
 
-- [ ] 5.1 Criar `SemanaPlanejadaSnapshot` em `domain/planner/`
-- [ ] 5.2 Carregar a semana planejada no `PlanGenerationContextLoader` e expor no `PlanGenerationContext`
-- [ ] 5.3 Adicionar o snapshot ao `PlannerInputSnapshot` em `PlannerShadowService.mapToSnapshot`
-- [ ] 5.4 `PeriodizationPlanner`/`PlannerEngine`: fase pela ordem lesão > pós-prova > macro > heurística; manter o fallback atual sem macro
-- [ ] 5.5 Adicionar métrica `macrociclo.phase.divergence.count` comparando macro e heurística (só com `planner-engine.shadow=true`, default `false`; ligar no tenant do Design Partner)
+- [x] 5.1 Criar `SemanaPlanejadaSnapshot` em `domain/planner/` (feito em `add-season-plan-weekly-context`, backend #260)
+- [x] 5.2 Carregar a semana planejada no `PlanGenerationContextLoader` e expor no `PlanGenerationContext` (feito em `add-season-plan-weekly-context`, backend #260)
+- [x] 5.3 Adicionar o snapshot ao `PlannerInputSnapshot` em `PlannerShadowService.mapToSnapshot` (feito em `add-season-plan-weekly-context`, backend #260)
+- [x] 5.4 `PeriodizationPlanner`/`PlannerEngine`: fase pela ordem lesão > pós-prova > macro > heurística; manter o fallback atual sem macro (feito em `add-season-plan-weekly-context`, backend #260)
+- [x] 5.5 Adicionar métrica `macrociclo.phase.divergence.count` comparando macro e heurística (só com `planner-engine.shadow=true`, default `false`; ligar no tenant do Design Partner) (feito em `add-season-plan-weekly-context`, backend #260)
 - [ ] 5.6 `SessionCompositionResolver`: receber sessões-chave e longão da semana planejada
 - [ ] 5.7 `LoadTargetResolver`: usar `tssAlvo` como baseline e não aplicar step-back quando a fase vem do macro; preservar teto de rampa e cold-start; `PlannerEngine` não chama `aplicarTaperSeAplicavel` quando a fase vem do macro; com fase de lesão ou pós-prova, comportamento atual sobre o baseline do macro
 - [ ] 5.8 Registrar desvio e motivo no `WeekPlanSkeleton` quando uma proteção corta o alvo do macro
 - [ ] 5.9 Garantir que o alvo resolvido nunca excede o `tssAlvo` do macro
-- [ ] 5.10 Estender o `PeriodizacaoPromptFormatter` existente (ou a skill, conforme 0.3): com macro, o bloco de posição no ciclo substitui a fase legada e o "TSS Alvo Semanal" (`ctlAlvo * 7`) impresso pelo `PlanoTreinoPromptBuilder`; sem macro, prompt idêntico
-- [ ] 5.10a Teste do prompt: com macro, não contém o "TSS Alvo Semanal" legado nem a fase por semanas faltando; sem macro, snapshot igual ao atual
+- [x] 5.10 Estender o `PeriodizacaoPromptFormatter` existente (ou a skill, conforme 0.3): com macro, o bloco de posição no ciclo substitui a fase legada e o "TSS Alvo Semanal" (`ctlAlvo * 7`) impresso pelo `PlanoTreinoPromptBuilder`; sem macro, prompt idêntico (feito em `add-season-plan-weekly-context`, backend #260)
+- [x] 5.10a Teste do prompt: com macro, não contém o "TSS Alvo Semanal" legado nem a fase por semanas faltando; sem macro, snapshot igual ao atual (feito em `add-season-plan-weekly-context`, backend #260)
 - [ ] 5.11 Compliance atrás de `planner-engine.enabled` e `macrociclo.enforcement.enabled`: volume reaproveita `TSS_FORA_DA_FAIXA` com faixa centrada no `tssAlvo`; nova chave `LONGAO_DIVERGENTE_DO_MACRO` em km; suspender `LONGO_ACIMA_TETO` quando o longão está dentro da tolerância do previsto
 - [ ] 5.11a Adicionar `distanciaKm` ao `GeneratedSessionSnapshot` e ao mapper que o monta a partir do `TreinoPlanejadoLlmDto`
 - [ ] 5.11b Adicionar flag `macrociclo.enforcement.enabled` em `application.yml` (default `false`)
-- [ ] 5.12 Preencher `semanaPlanejadaId` e `desvioAlvoPercentual` no `PlanoSemanal` ao persistir (`(tss planejado − tssAlvo) / tssAlvo × 100`, design 10c)
+- [x] 5.12 Preencher `semanaPlanejadaId` e `desvioAlvoPercentual` no `PlanoSemanal` ao persistir (`(tss planejado − tssAlvo) / tssAlvo × 100`, design 10c) (feito em `add-season-plan-weekly-context`, backend #260)
 - [ ] 5.13 Registrar o delta entre o alvo do macro e o plano aprovado pelo coach
 - [ ] 5.14 Testes do `LoadTargetResolver`/`PlannerEngine`: alvo dentro dos tetos, proteção cortando, progressão acima do macro, calibração, semana perdida, semana de taper sem dupla redução, semana de descarga sem step-back extra, lesão e pós-prova sobrepondo o macro
 - [ ] 5.15 Testes de compliance: volume fora da banda, longão divergente, longão concentrado previsto pelo macro sem `LONGO_ACIMA_TETO`, invariante de segurança, enforcement desligado
-- [ ] 5.16 Teste de regressão: atleta sem macro gera plano idêntico ao comportamento atual
-- [ ] 5.17 Validar: `./mvnw clean test`, com atenção ao teste de regressão 5.16
+- [x] 5.16 Teste de regressão: atleta sem macro gera plano idêntico ao comportamento atual (feito em `add-season-plan-weekly-context`, backend #260)
+- [x] 5.17 Validar: `./mvnw clean test`, com atenção ao teste de regressão 5.16 (feito em `add-season-plan-weekly-context`, backend #260)
 
 
 ## 6. Replanejamento
