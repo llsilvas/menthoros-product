@@ -45,7 +45,15 @@ Só `apps/menthoros-backend`, em `TreinoNormalizador.encaixarPrincipalNoTotal`:
 3. A duração do cabeçalho se alinha sem mudança extra: com o bloco único, a soma das etapas (~14 min)
    fica mais perto de ritmo × distância do que os 25 min da LLM, e `recalcular-duracao` adota a soma.
 
-Sem contrato de API, sem migration, sem front.
+4. **Matriz de cenários com a invariante "card = editor".** O mesmo sintoma já apareceu outras vezes
+   (relato do treinador, 2026-11-24) e cada fix anterior cobriu um caso pontual
+   (`fix-total-treino-soma-etapas`, `fix-etapas-sintetizadas-sessao-curta`). Um teste parametrizado
+   pela interface `NormalizacaoDeTreino#normalizar` varre tipo × total × estrutura × ritmo × limiar ×
+   duração da LLM e exige, em todo cenário aceito, soma das etapas a até 10% do total do treino, em
+   distância e em duração. A matriz roda **antes** do fix, para catalogar todas as causas; só a causa
+   "sobra ≤ 0" é corrigida aqui, as demais viram exceções nomeadas na matriz e follow-ups.
+
+Sem contrato de API, sem migration, sem front, sem dependência nova (JUnit `@ParameterizedTest`).
 
 ## Fora de escopo
 
@@ -67,6 +75,9 @@ Sem contrato de API, sem migration, sem front.
 - **CA4** — GIVEN sobra positiva (casos de `fix-total-treino-soma-etapas` e da sessão curta), THEN nada
   muda: os testes existentes de encaixe passam sem alteração.
 - **CA5** — Esperados de caracterização/golden que mudarem são alterados um a um, com o motivo.
+- **CA6** — GIVEN a matriz de cenários (tasks 0.1), WHEN a normalização aceita o treino, THEN a soma
+  das etapas fica a até 10% de `distanciaKm` e de `duracaoMin`; cada exceção está listada por nome, com
+  motivo e follow-up, e a lista não cresce sem decisão.
 
 ## Métrica de sucesso
 
@@ -87,6 +98,12 @@ Sem contrato de API, sem migration, sem front.
 - **A2** — O treino relatado passou por esse caminho (reparo + sobra negativa). Inferido dos números
   (25 + 10 = 35 min; 1,43 + 0,74 > 2,0 km) e da marca "(gerado pelo sistema)" no aquecimento; não
   conferido no banco.
+- **A4 — escopo.** Tamanho segue S porque o fix é só a sobra ≤ 0; se a matriz achar causas que
+  exijam mudar a decisão de 22/09 ou mexer em mais de um passo da receita, elas saem desta change. Se
+  a lista de exceções passar de ~5 causas distintas, reclassificar antes de seguir.
+- **A5 — tolerância.** 10% em distância e duração, o limiar já usado pelo contador de divergência;
+  arredondamento de minutos em sessões curtas (< 15 min) pode exigir tolerância absoluta de 1 min —
+  decidir na 0.1 com os dados.
 - **A3** — Os prints mostravam QUA 25/11 no card e SÁB 28/11 no editor; assumido que são dois treinos
   iguais (o de sábado "repete" o de quarta), não o lápis abrindo outro treino — o vínculo por id foi
   conferido em `PlanoDetalhePanel.tsx:619`.
