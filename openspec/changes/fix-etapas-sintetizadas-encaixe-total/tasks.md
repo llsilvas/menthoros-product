@@ -144,3 +144,20 @@ Outros candidatos da simulação:
 - `tssPlanejado` não recalculado quando a normalização muda a duração (A7).
 - `ritmoAlvo` do treino diverge do ritmo da etapa corrigido pela zona (card 5:00–5:30, etapa 5:59–6:40).
 - Tolerância de duração em sessão curta: diferença de 2 min nos 8 casos de TEMPO_RUN (A5).
+
+## QA (2026-11-24)
+
+`code-reviewer`, `security-reviewer` e `clean-code-reviewer`: nada Critical/High. Corrigido (`3a9edfe`):
+
+- Matriz: exceções abortavam qualquer violação dos cenários cobertos. Agora cada uma tolera só as
+  violações da sua causa, e um teste congela o inventário por causa (504 / 252 / 1.004).
+- Encaixe grava a duração do treino só com todas as etapas com duração (soma com etapa sem duração é piso).
+- Bloco único só com aquecimento/desaquecimento nas demais etapas e PRINCIPAL sem repetição.
+- Formatação da duração (`formatarDuracao`) num ponto só; comentário de por que FACIL fica fora.
+
+Não corrigido: extrair `tentarBlocoUnico` (refactor fora do escopo); teto para duração extrema vinda da
+LLM (Low — `int` satura, sem exceção; candidato a follow-up de validação de entrada).
+
+Gate: `./mvnw clean verify` verde — 11.999 unitários (1.761 pulados: 1.760 da matriz + 1 pré-existente) e
+363 de integração. Uma execução intermediária falhou em `IntervalsIcuCallbackIT` e `GarminTrainingPushIT`
+(listener assíncrono, 15 s); isolados e na execução seguinte passaram — instabilidade, sem relação com a change.
