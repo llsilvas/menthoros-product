@@ -2,7 +2,16 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-24 (**`coach-ciente-prova-na-inbox` arquivada** — S · Fast, só front.
+**Última atualização:** 2026-11-24 (**`fix-etapas-sintetizadas-encaixe-total` arquivada** — S · Fast, só
+backend. Backend #265 (squash `7fdac74`) em `develop`. Card e editor da revisão divergiam em treino curto com
+aquecimento sintetizado (2 km / 25 min no card, 5,1 km / 35 min nas etapas): com sobra ≤ 0 o treino vira bloco
+único com o total prescrito (REGENERATIVO, CONTINUO, LONGO; TEMPO_RUN fica), e o encaixe grava a duração do
+treino como soma das etapas. Matriz `NormalizacaoDeTreinoInvarianteTotalTest` (5.042 cenários, 2% / 0,05 km /
+1 min): divergências de 2.882 para 1.760, o resto em três exceções com inventário congelado e follow-up
+(estrutura completa reconciliada pela soma 1.004, sem pace 504, TEMPO_RUN sintetizado 252). Sem backfill.
+Arquivada em `changes/archive/2026-11/2026-11-24-fix-etapas-sintetizadas-encaixe-total/`.)
+
+**Anterior:** 2026-11-24 (**`coach-ciente-prova-na-inbox` arquivada** — S · Fast, só front.
 Front #237 (squash `f5641f7`) em `develop`. O treinador dá "Ciente" na prova do atleta dentro da inbox, na aba
 "Provas & sugestões" (mesmo `AthleteRacesPanel` do perfil); a inbox abre nessa aba quando o motivo é
 `PROVA_ATLETA`, recarrega o dashboard e o badge após a ciência e mantém o atleta selecionado mesmo saindo da

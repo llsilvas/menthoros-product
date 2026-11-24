@@ -161,3 +161,10 @@ LLM (Low — `int` satura, sem exceção; candidato a follow-up de validação d
 Gate: `./mvnw clean verify` verde — 11.999 unitários (1.761 pulados: 1.760 da matriz + 1 pré-existente) e
 363 de integração. Uma execução intermediária falhou em `IntervalsIcuCallbackIT` e `GarminTrainingPushIT`
 (listener assíncrono, 15 s); isolados e na execução seguinte passaram — instabilidade, sem relação com a change.
+
+## Entrega (2026-11-24)
+
+Backend #265 (squash `7fdac74`) em `develop`. Tasks 0.1–2.2 entregues, incluindo a 1.2c acrescentada na
+execução. Nada adiado dentro do escopo. Fora dele, ficam os follow-ups acima (total = prescrito com
+estrutura completa, PRINCIPAL sem pace, TEMPO_RUN sintetizado, `tssPlanejado`, teto de duração) e os
+planos já gerados, que seguem divergentes (sem backfill). Pendente: promover a `main`.
