@@ -22,3 +22,15 @@ Repo: `apps/menthoros-front`. Validação: `bun lint && bun run build && bun tes
 - [x] 3.1 `tests/e2e/auth/login.spec.ts`: rota protegida sem sessão vai ao endpoint de autorização sem
       `prompt=none` e volta na rota aberta (CA3); ajustar specs que paravam na tela com botão.
 - [x] 3.2 `bun lint && bun run build && bun test:run` + E2E de autenticação/PWA (CA8).
+
+## 4. Follow-up pós-merge (PR #233)
+
+- [x] 4.1 Segunda visita a `#/auth/login` na mesma aba caía no botão: a marca anti-laço sobrava no
+      `sessionStorage`. Fallback manual passa a exigir marca **e** navegação `back_forward`
+      (`voltouPeloHistorico`). Testes de componente + 2 E2E (segunda visita, voltar do provedor).
+      Branch `fix/login-redirect-segunda-visita`.
+
+## Adiado
+
+- Voltar do Keycloak com restauração por bfcache pode mostrar o spinner "Redirecionando" em vez do
+  botão. Pré-existente; não tratado.
