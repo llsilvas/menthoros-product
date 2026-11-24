@@ -11,6 +11,11 @@ aquecimento. Hoje esse caso cai fora da regra e o treino é gravado com card e e
 
 - draft (2026-11-24): aberta a partir de relato do treinador na revisão de plano (atleta do piloto, semana
   23/11): card do regenerativo com 2 km / 25 min, editor com 5,1 km / 35 min.
+- simulada (2026-11-24): fix aplicado atrás de flag num worktree descartável e rodado contra
+  `NormalizacaoDeTreino#normalizar` de `develop` (`ca69ed3`), com zonas de pace como em produção — 15
+  cenários de treinador e a grade de 3.024 da task 0.1. CA1–CA3 confirmados; os achados ajustaram o
+  escopo (item 1 restrito por tipo, segunda invariante no item 4) e abriram A6–A9. Números em
+  `tasks.md`, "Achados da matriz". A suíte existente não foi rodada com o fix (CA4 por verificar).
 
 ## Why
 
@@ -40,6 +45,9 @@ Só `apps/menthoros-backend`, em `TreinoNormalizador.encaixarPrincipalNoTotal`:
 1. **Sobra ≤ 0 com pace derivável → bloco único.** O treino passa a ter só a PRINCIPAL, com
    `distanciaKm` = total prescrito e duração pelo pace — o mesmo ramo da sessão curta
    (`TreinoNormalizador.java:366-373`), agora também quando não sobra distância.
+   **Só em REGENERATIVO, CONTINUO e LONGO**, onde a PRINCIPAL é ritmo leve. Em TEMPO_RUN a PRINCIPAL é
+   ritmo de limiar: o bloco único seria limiar sem aquecimento, então o ramo novo não se aplica e o
+   comportamento atual fica (encaixe vazio, divergência contada) — ver A6.
 2. **Sem pace derivável** o comportamento atual fica (encaixe vazio, divergência contada): não há como
    dar duração ao bloco sem inventar ritmo.
 3. A duração do cabeçalho se alinha sem mudança extra: com o bloco único, a soma das etapas (~14 min)
@@ -52,6 +60,10 @@ Só `apps/menthoros-backend`, em `TreinoNormalizador.encaixarPrincipalNoTotal`:
    duração da LLM e exige, em todo cenário aceito, soma das etapas a até 10% do total do treino, em
    distância e em duração. A matriz roda **antes** do fix, para catalogar todas as causas; só a causa
    "sobra ≤ 0" é corrigida aqui, as demais viram exceções nomeadas na matriz e follow-ups.
+   **Segunda invariante, "total = prescrito":** `distanciaKm` final a até 10% do total que a LLM
+   prescreveu. "Card = editor" sozinha não vê o volume inflado: REGENERATIVO de 2 km com as três
+   etapas escritas pela LLM (10 + 15 + 5 min) sai com card **e** editor em 4,44 km — coerentes entre
+   si e 2,2× o prescrito. Esta change não corrige essa causa; a matriz a nomeia e a congela.
 
 Sem contrato de API, sem migration, sem front, sem dependência nova (JUnit `@ParameterizedTest`).
 
@@ -61,6 +73,12 @@ Sem contrato de API, sem migration, sem front, sem dependência nova (JUnit `@Pa
 - Sobra positiva com PRINCIPAL ≥ aquecimento (já encaixa hoje).
 - PRINCIPAL sem ritmo (`principal-sem-ritmo`) e a decisão de 22/09 de não inflar o volume.
 - Card ou editor exibirem outra fonte de total.
+- Total reconciliado pela soma das etapas quando a estrutura veio completa da LLM (`adotarSomaDasEtapas`):
+  infla ou encolhe o volume prescrito sem etapa sintetizada. Exceção nomeada na matriz + follow-up.
+- Bloco único de TEMPO_RUN no ramo que já existe (sobra positiva, PRINCIPAL menor que o aquecimento):
+  hoje já produz limiar sem aquecimento. Não muda aqui (CA4); follow-up.
+- `tssPlanejado` quando a duração do treino muda na normalização (A7).
+- `ritmoAlvo` do treino divergente do ritmo da etapa corrigido pela zona.
 
 ## Critérios de aceite
 
@@ -76,8 +94,11 @@ Sem contrato de API, sem migration, sem front, sem dependência nova (JUnit `@Pa
   muda: os testes existentes de encaixe passam sem alteração.
 - **CA5** — Esperados de caracterização/golden que mudarem são alterados um a um, com o motivo.
 - **CA6** — GIVEN a matriz de cenários (tasks 0.1), WHEN a normalização aceita o treino, THEN a soma
-  das etapas fica a até 10% de `distanciaKm` e de `duracaoMin`; cada exceção está listada por nome, com
-  motivo e follow-up, e a lista não cresce sem decisão.
+  das etapas fica a até 10% de `distanciaKm` e de `duracaoMin`, e `distanciaKm` fica a até 10% do total
+  prescrito pela LLM; cada exceção está listada por nome, com motivo e follow-up, e a lista não cresce
+  sem decisão.
+- **CA7** — GIVEN TEMPO_RUN com sobra ≤ 0 e pace derivável, THEN o encaixe continua vazio e a
+  divergência continua contada: o treino não vira bloco único em ritmo de limiar.
 
 ## Métrica de sucesso
 
@@ -95,15 +116,31 @@ Sem contrato de API, sem migration, sem front, sem dependência nova (JUnit `@Pa
 
 - **A1** — O bloco único é aceitável para o coach também quando a sobra é ≤ 0: é a mesma decisão da
   sessão curta ("juntar tudo num bloco contínuo leve"), aplicada a um total ainda menor.
+  **A confirmar com o treinador:** o fix elege a distância como verdade e corta o tempo — no caso
+  relatado, 25 min viram 14; num "30 min, 2 km", também 14. Para atleta com lesão é o lado seguro, mas
+  2 km em 25 min (12:30/km) pode ter sido caminhada + trote, e aí a verdade era o tempo.
 - **A2** — O treino relatado passou por esse caminho (reparo + sobra negativa). Inferido dos números
   (25 + 10 = 35 min; 1,43 + 0,74 > 2,0 km) e da marca "(gerado pelo sistema)" no aquecimento; não
-  conferido no banco.
+  conferido no banco. A simulação com ritmo 6:30–7:00 reproduz o mecanismo com 5,18 km / 35 min
+  (aquecimento de 1,48 km); 1,43 km indica ritmo médio de 7:00 no treino real.
 - **A4 — escopo.** Tamanho segue S porque o fix é só a sobra ≤ 0; se a matriz achar causas que
   exijam mudar a decisão de 22/09 ou mexer em mais de um passo da receita, elas saem desta change. Se
   a lista de exceções passar de ~5 causas distintas, reclassificar antes de seguir.
 - **A5 — tolerância.** 10% em distância e duração, o limiar já usado pelo contador de divergência;
   arredondamento de minutos em sessões curtas (< 15 min) pode exigir tolerância absoluta de 1 min —
-  decidir na 0.1 com os dados.
+  decidir na 0.1 com os dados. Dado da simulação: os 8 casos de duração que sobram (TEMPO_RUN curto,
+  estrutura completa) diferem em 2 min (18 no card, 20 nas etapas) — 1 min absoluto não os cobre.
+- **A6 — TEMPO_RUN.** Assumido que limiar sem aquecimento é pior que card e editor divergentes, por
+  isso o ramo novo exclui TEMPO_RUN. A alternativa — rejeitar com `LLMException` e deixar o turno de
+  reparo pedir a estrutura completa — resolve os dois, mas mexe no ramo existente e sai desta change.
+- **A7 — TSS.** `tssPlanejado` fica o da LLM (25 no caso relatado) com a sessão caindo de 25 para
+  14 min. Assumido tolerável num regenerativo curto; recalcular é outro passo da receita (follow-up).
+- **A8 — aquecimento da própria LLM.** Com aquecimento prescrito pela LLM (10 min, 1,5 km) e só o
+  desaquecimento sintetizado, o bloco único apaga os dois. É o que o ramo da sessão curta já faz;
+  assumido aceitável, já que o total prescrito não comporta nem o aquecimento.
+- **A9 — sem pace.** As causas "sem pace derivável" somam 492 cenários na grade, mais que a causa
+  corrigida (486). Frequência em produção desconhecida — depende de o schema exigir `ritmoAlvo`.
+  Medir pelo contador `plano_etapas_total_divergente{motivo=principal-sem-ritmo}` antes de priorizar.
 - **A3** — Os prints mostravam QUA 25/11 no card e SÁB 28/11 no editor; assumido que são dois treinos
   iguais (o de sábado "repete" o de quarta), não o lápis abrindo outro treino — o vínculo por id foi
   conferido em `PlanoDetalhePanel.tsx:619`.
