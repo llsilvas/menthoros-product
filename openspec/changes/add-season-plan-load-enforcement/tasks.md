@@ -1,8 +1,8 @@
 ## 1. Flag e contexto
 
-- [ ] 1.1 Flag `season-plan.enforcement.enabled` (default `false`, env `SEASON_PLAN_ENFORCEMENT_ENABLED`) e `season-plan.enforcement.long-run-tolerance-pct` (default `15`) no `application.yml`; a flag chega ao `PlannerEngine` por campo novo do `PlannerInputSnapshot`, com construtor compatível para os testes existentes (épico 5.11b)
+- [x] 1.1 Flag `season-plan.enforcement.enabled` (default `false`, env `SEASON_PLAN_ENFORCEMENT_ENABLED`) e `season-plan.enforcement.long-run-tolerance-pct` (default `15`) no `application.yml`; a flag chega ao `PlannerEngine` por campo novo do `PlannerInputSnapshot`, com construtor compatível para os testes existentes (épico 5.11b)
   - verify: teste do `PlannerShadowService.mapToSnapshot` com a flag ligada e desligada
-- [ ] 1.2 `keySessions` no `SeasonWeekSnapshot` (preenchido pelo `SeasonWeekContextResolver`) e linha "Sessões-chave" no bloco de posição no ciclo do `PeriodizacaoPromptFormatter` (épico 5.6, reduzido)
+- [x] 1.2 `keySessions` no `SeasonWeekSnapshot` (preenchido pelo `SeasonWeekContextResolver`) e linha "Sessões-chave" no bloco de posição no ciclo do `PeriodizacaoPromptFormatter` (épico 5.6, reduzido)
   - verify: `SeasonWeekContextResolverTest` + `PeriodizacaoPromptFormatterTest` (com e sem sessões-chave); golden do prompt atualizado só nessa linha
 
 ## 2. Alvo de carga
