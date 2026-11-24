@@ -59,5 +59,14 @@ Sequência: 1 → 2 → 3 → 4 (o painel da 2 depende do hook isolado; a 3 depe
       "Ciente" chama o PATCH mockado, a fila é recarregada e o atleta continua selecionado; PATCH 500
       mostra erro sem derrubar a tela.
       verify: `npm run test:e2e -- tests/e2e/coach/inbox.spec.ts` verde.
-- [ ] 4.2 Verificação manual local: atleta cadastra prova, aviso aparece na inbox, inbox abre na aba
+- [ ] 4.2 **Adiada (não registrada até o arquivamento em 2026-11-24).** Verificação manual local: atleta cadastra prova, aviso aparece na inbox, inbox abre na aba
       de provas, "Ciente" resolve sem sair da tela e sem trocar o atleta selecionado.
+
+## Entrega (2026-11-24)
+
+Front #237 (squash `f5641f7`) em `develop`. Tasks 1.1–4.1 entregues; 4.2 adiada — a verificação manual
+não foi registrada antes do arquivamento, fazer em `develop` com dados reais. Code review (padrões + spec)
+corrigido no PR: `marcarCiente` descarta resposta de atleta anterior e o atleta retido é solto ao trocar de
+seleção. Não corrigido, por escolha: nomes novos em PT (`retido`, `handleCienteRegistrado`) seguindo o
+arquivo; resumo sintético do atleta retido repete o do atleta fixado pela fila; aba inicial aplicada em
+efeito (um render com a aba anterior). Débito herdado: ciência sem versão (`ProvaServiceImpl.java:357`).

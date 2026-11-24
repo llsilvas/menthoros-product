@@ -2,7 +2,14 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-23 (**`add-season-plan-version-diff` arquivada** — ticket 7 do épico
+**Última atualização:** 2026-11-24 (**`coach-ciente-prova-na-inbox` arquivada** — S · Fast, só front.
+Front #237 (squash `f5641f7`) em `develop`. O treinador dá "Ciente" na prova do atleta dentro da inbox, na aba
+"Provas & sugestões" (mesmo `AthleteRacesPanel` do perfil); a inbox abre nessa aba quando o motivo é
+`PROVA_ATLETA`, recarrega o dashboard e o badge após a ciência e mantém o atleta selecionado mesmo saindo da
+fila. `useCoachAthleteRaces` isolado por atleta. Adiada a 4.2 (verificação manual em `develop`). Débito
+herdado: ciência sem versão. Arquivada em `changes/archive/2026-11/2026-11-24-coach-ciente-prova-na-inbox/`.)
+
+**Anterior:** 2026-11-23 (**`add-season-plan-version-diff` arquivada** — ticket 7 do épico
 `add-season-plan-macrocycle`. Backend #262 (squash `919fe43`) e front #235 (squash `6a91565`) em `develop`.
 `POST /season-plans/{id}/recalculate` regenera o rascunho por semanas por fase e volume de partida (V121
 `initial_volume_km`), preservando semanas travadas e editadas pelo treinador (teto de 104 semanas por fase);
