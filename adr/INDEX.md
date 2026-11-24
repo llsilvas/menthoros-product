@@ -28,6 +28,7 @@ This index tracks all Architecture Decision Records (ADRs) for Menthoros, their 
 | [ADR-0011-composicao-deterministica-de-sessoes-por-fase.md](./ADR-0011-composicao-deterministica-de-sessoes-por-fase.md) | Composicao deterministica de sessoes por fase do planner | Aceito | 2026-09-09 | - | - |
 | [ADR-0012-modelo-de-carga-cold-start-e-recuperacao.md](./ADR-0012-modelo-de-carga-cold-start-e-recuperacao.md) | Modelo de carga do cold-start e reducao de RECOVERY no planner | Aceito | 2026-09-12 | - | - |
 | [ADR-0013-garmin-direto-como-canal-dos-atletas-garmin.md](./ADR-0013-garmin-direto-como-canal-dos-atletas-garmin.md) | Garmin Connect direto como canal dos atletas Garmin, intervals.icu para os demais | Aceito | 2026-10-23 | - | - |
+| [ADR-0014-temporada-como-teto-da-carga-semanal.md](./ADR-0014-temporada-como-teto-da-carga-semanal.md) | Temporada como teto da carga semanal, não piso | Aceito | 2026-11-24 | - | - |
 
 ## Update Checklist
 
