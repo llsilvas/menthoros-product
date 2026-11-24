@@ -18,11 +18,11 @@
 
 ## 3. Compliance
 
-- [ ] 3.1 `distanciaKm` no `GeneratedSessionSnapshot` e nos dois mappers do `PlannerShadowService` (DTO do LLM e `TreinoPlanejado`) (épico 5.11a)
+- [x] 3.1 `distanciaKm` no `GeneratedSessionSnapshot` e nos dois mappers do `PlannerShadowService` (DTO do LLM e `TreinoPlanejado`) (épico 5.11a)
   - verify: teste dos dois mappers com e sem distância
-- [ ] 3.2 `ComplianceContext` com `Optional<SeasonWeekSnapshot>` e tolerância; `PlannerShadowService.checkPostRedistribution` recebe `Optional<SeasonWeekSnapshot>` (persister passa `ctx.seasonWeek()`), e o `executar` do shadow monta o contexto igual. Chave `LONGAO_DIVERGENTE_DA_TEMPORADA` (comparação em `BigDecimal` sem divisão) e suspensão do `LONGO_ACIMA_TETO` no `checkPostRedistribution`, ativas só quando `loadTarget.seasonTargetTss() != null` (épico 5.11)
+- [x] 3.2 `ComplianceContext` com `Optional<SeasonWeekSnapshot>` e tolerância; `PlannerShadowService.checkPostRedistribution` recebe `Optional<SeasonWeekSnapshot>` (persister passa `ctx.seasonWeek()`), e o `executar` do shadow monta o contexto igual. Chave `LONGAO_DIVERGENTE_DA_TEMPORADA` (comparação em `BigDecimal` sem divisão) e suspensão do `LONGO_ACIMA_TETO` no `checkPostRedistribution`, ativas só quando `loadTarget.seasonTargetTss() != null` (épico 5.11)
   - verify: `SkeletonComplianceCheckerTest` — 24 km vs 20 (viola), 23 km (passa, limite), nenhum `LONGO` com longão previsto (viola), vários `LONGO` (o de maior distância), `LONGO` sem distância (não avalia, teto de 40% avaliado), longão previsto acima de 40% do alvo sem `LONGO_ACIMA_TETO`, 30 km com as duas violações, flag desligada sem a chave nova
-- [ ] 3.3 Estágio 2 do `PlanGenerationPersister`: `planner.compliance.violation.count` com tag `key` e log `INFO` das violações, independente do shadow (épico 5.11)
+- [x] 3.3 Estágio 2 do `PlanGenerationPersister`: `planner.compliance.violation.count` com tag `key` e log `INFO` das violações, independente do shadow (épico 5.11)
   - verify: teste do persister com `SimpleMeterRegistry` e `planner-engine.shadow=false` — plano fora da banda nasce `FAILED` + revisão, sem 422, e o contador da chave sobe
 
 ## 4. Delta da aprovação
