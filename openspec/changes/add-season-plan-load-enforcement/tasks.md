@@ -34,8 +34,8 @@
 
 ## 5. Integração e fechamento
 
-- [ ] 5.1 IT da geração com temporada ativa e `planner-engine.enabled=true`: flag ligada (alvo cortado pela rampa, `TaperStrategy` ausente, violação de longão persistida em revisão) e flag desligada (igual ao ticket 8); com `planner-engine.enabled=false` e `shadow=true`, violação nova vira `VIOLATIONS_DETECTED` e veta a auto-aprovação (épico 5.14, 5.15)
+- [x] 5.1 IT da geração com temporada ativa e `planner-engine.enabled=true`: flag ligada (alvo cortado pela rampa, `TaperStrategy` ausente, violação de longão persistida em revisão) e flag desligada (igual ao ticket 8); com `planner-engine.enabled=false` e `shadow=true`, violação nova vira `VIOLATIONS_DETECTED` e veta a auto-aprovação (épico 5.14, 5.15)
   - verify: IT novo ou extensão do `PlanoSemanaTemporadaIT`
-- [ ] 5.2 `ADR-0014` "Temporada como teto da carga semanal, não piso" em `menthoros-product/adr/` e entrada no `INDEX.md` (épico 10.4)
+- [x] 5.2 `ADR-0014` "Temporada como teto da carga semanal, não piso" em `menthoros-product/adr/` e entrada no `INDEX.md` (épico 10.4)
   - verify: ADR referencia ADR-0011 e ADR-0012; ordem dos 6 passos igual à da proposal
-- [ ] 5.3 Validar: `./mvnw clean verify`
+- [x] 5.3 Validar: `./mvnw clean verify`
