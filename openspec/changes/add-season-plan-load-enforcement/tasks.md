@@ -7,13 +7,13 @@
 
 ## 2. Alvo de carga
 
-- [ ] 2.1 `WeeklyLoadTarget` com `seasonTargetTss` e `seasonCutReason` nulos, mantendo os construtores atuais (épico 5.8)
+- [x] 2.1 `WeeklyLoadTarget` com `seasonTargetTss` e `seasonCutReason` nulos, mantendo os construtores atuais (épico 5.8)
   - verify: compila sem mudar os testes existentes do planner
-- [ ] 2.2 `LoadTargetResolver`: caminho da temporada com os 6 passos da proposal (base, redução por fase, `REDUZIR`, rampa, cold-start, teto da temporada), banda ±10%/±25% sobre o alvo resolvido e `seasonCutReason` do passo mais restritivo (épico 5.7, 5.9)
+- [x] 2.2 `LoadTargetResolver`: caminho da temporada com os 6 passos da proposal (base, redução por fase, `REDUZIR`, rampa, cold-start, teto da temporada), banda ±10%/±25% sobre o alvo resolvido e `seasonCutReason` do passo mais restritivo (épico 5.7, 5.9)
   - verify: `LoadTargetResolverTest` com os casos dos critérios de aceite: corte por rampa 620→546, progressão acima da temporada, semana perdida, `RECOVERY`/`POST_RACE` sobre a base, `REDUZIR`, cold-start com piso acima da temporada (CTL de PMC 0, rampa não aplicada), cold-start cortando (`COLD_START`), descarga sem step-back, alvo nunca acima do `targetTss`
-- [ ] 2.3 `PlannerEngine`: com a flag e a semana elegível, usa o caminho da temporada e não chama `aplicarTaperSeAplicavel`; sem temporada ou com a flag desligada, caminho legado intacto (épico 5.7)
+- [x] 2.3 `PlannerEngine`: com a flag e a semana elegível, usa o caminho da temporada e não chama `aplicarTaperSeAplicavel`; sem temporada ou com a flag desligada, caminho legado intacto (épico 5.7)
   - verify: `PlannerEngineTest` — taper da temporada sem segunda redução; flag desligada igual ao comportamento atual; atleta sem temporada idêntico (regressão 5.16)
-- [ ] 2.4 `PlanoTreinoPromptBuilder`: com skeleton no caminho novo (`seasonTargetTss != null`), o "TSS Alvo" do bloco de posição no ciclo é o `targetTss` resolvido, sem as reduções por fadiga por cima; senão, conta do ticket 8
+- [x] 2.4 `PlanoTreinoPromptBuilder`: com skeleton no caminho novo (`seasonTargetTss != null`), o "TSS Alvo" do bloco de posição no ciclo é o `targetTss` resolvido, sem as reduções por fadiga por cima; senão, conta do ticket 8
   - verify: `PlanoTreinoPromptBuilderTemporadaTest` — skeleton 620→546 imprime 546; sem skeleton imprime a conta atual; golden sem temporada inalterado
 
 ## 3. Compliance
