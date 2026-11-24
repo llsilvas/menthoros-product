@@ -28,14 +28,18 @@ Flag nova `season-plan.enforcement.enabled` (env `SEASON_PLAN_ENFORCEMENT_ENABLE
 | `season-plan.enforcement.enabled` | `planner-engine.enabled` | Efeito |
 |---|---|---|
 | `false` | qualquer | Idêntico ao ticket 8: fase da temporada, bloco do prompt, `season_week_id` e `target_deviation_pct` continuam; resolver e compliance legados |
-| `true` | `false` | Nenhum efeito no plano. Com `planner-engine.shadow=true`, o skeleton auditado (`planner_metadata_json`) já usa o alvo novo |
-| `true` | `true` | Alvo novo guia o skeleton pré-prompt; compliance do estágio 2 com as checagens novas |
+| `true` | `false` | Sem skeleton pré-prompt, sem estágio 2. Com `planner-engine.shadow=true`, o skeleton auditado (`planner_metadata_json`) usa o alvo e as checagens novas; `VIOLATIONS_DETECTED` do shadow já veta a auto-aprovação hoje (`PlanGenerationPersister:307`) e passa a vetar também pelas checagens novas. Aceito: é o tenant do Design Partner em auditoria, e vetar auto-aprovação é o lado conservador |
+| `true` | `true` | Alvo novo guia o skeleton pré-prompt e o "TSS Alvo" do prompt; compliance do estágio 2 com as checagens novas |
+| `true` | `true`, planner falhou antes do LLM | Como hoje: `fail-open=true` grava `FALLBACK`, pula o estágio 2 e o plano não é auto-aprovado (`:308`), então vai para revisão; `fail-open=false` responde 422 |
 
 - Só vale para semana com `SeasonWeekSnapshot` presente e `targetTss > 0`. Sem temporada, sem semana
   coincidente ou com `targetTss` nulo, tudo segue o caminho legado, com qualquer valor da flag.
 - `planner-engine.fail-open` mantém o significado de hoje: `true` (default) persiste o plano com violação
   como `FAILED` + revisão obrigatória; `false` responde 422. Os critérios abaixo assumem `fail-open=true`.
 - A flag controla resolver, composição (taper) e compliance juntos. O contexto do ticket 8 não depende dela.
+- A flag chega ao `PlannerEngine` por um campo novo do `PlannerInputSnapshot`, com construtor compatível
+  (como foi feito com `seasonWeek`). O compliance não lê a flag: as checagens novas rodam quando
+  `loadTarget.seasonTargetTss() != null`, que só acontece no caminho novo.
 
 ### Alvo de carga (`LoadTargetResolver` + `PlannerEngine`)
 
@@ -50,10 +54,12 @@ progressão reativa):
 3. **Estado `REDUZIR` da progressão:** `alvo = min(alvo, ctl × 7 × (1 + ajuste))`, com `ajuste ≤ 0`.
 4. **Teto de rampa:** `alvo = min(alvo, 7 × (ctl + 8))`, sempre (hoje só se aplica quando a progressão
    permite aumento).
-5. **Cold-start:** com `calibrationStage` presente, `alvo = min(alvo, alvoColdStart)`, onde `alvoColdStart`
-   é o cálculo atual (CTL baseline capado em 40, rampa por estágio, piso 120). O piso de 120 não sobe o alvo
-   acima do passo 6. O gate do ticket 4 impede gerar ou aprovar temporada em calibração, então este caso
-   só ocorre se a calibração recomeçar com temporada ativa.
+5. **Cold-start:** com `calibrationStage` presente, os passos 3 e 4 **não** se aplicam (o CTL de PMC não é
+   confiável em calibração; é o mesmo motivo do retorno antecipado de hoje) e
+   `alvo = min(alvo, alvoColdStart)`, onde `alvoColdStart` é o cálculo atual (CTL baseline capado em 40,
+   rampa por estágio, redução por fase, piso 120). O piso de 120 não sobe o alvo acima do passo 6. O gate do
+   ticket 4 impede gerar ou aprovar temporada em calibração, então este caso só ocorre se a calibração
+   recomeçar com temporada ativa.
 6. **Teto da temporada:** `alvo = min(alvo, base)`. O alvo resolvido nunca passa do `targetTss`.
 
 - **Taper:** com a flag ligada e a semana elegível, o `PlannerEngine` não chama `aplicarTaperSeAplicavel`.
@@ -65,6 +71,10 @@ progressão reativa):
   que tirou o alvo da base: `REDUCAO_FASE`, `PROGRESSAO_REDUZIR`, `TETO_RAMPA` ou `COLD_START`; nulo quando
   `alvo == base`. Os construtores atuais continuam (sem quebrar testes existentes). O desvio é
   `alvo − seasonTargetTss`, derivado.
+- **Prompt:** com o skeleton no caminho novo (`seasonTargetTss != null`), o "TSS Alvo" do bloco de posição
+  no ciclo é o `targetTss` **resolvido** do skeleton, sem as reduções por fadiga do
+  `PlanoTreinoPromptBuilder` por cima (o resolver já é a autoridade; sem isso o prompt anunciaria 620
+  enquanto os slots somam 546). Sem skeleton ou fora do caminho novo, a conta do ticket 8 continua.
 - **Semana perdida:** a semana anterior realizada abaixo do alvo não altera a base. O CTL mais baixo pode
   reduzir o teto de rampa (passo 4), mas não há acréscimo compensatório.
 - A semana da temporada nunca é alterada pelo planner.
@@ -91,8 +101,12 @@ Só com a flag e `planner-engine.enabled` ligados e a semana elegível.
   - nenhuma sessão `LONGO` no plano → violação;
   - várias sessões `LONGO` → avalia a de maior `distanciaKm`;
   - sessão `LONGO` sem `distanciaKm` → não avalia (sem violação);
-  - violação quando `|distanciaKm − longRunKm| / longRunKm > tolerância`. Tolerância em
+  - violação quando `|distanciaKm − longRunKm| × 100 > tolerância × longRunKm`, em `BigDecimal` (sem
+    divisão, para o limite não depender de ponto flutuante). Tolerância em
     `season-plan.enforcement.long-run-tolerance-pct`, default `15` (limite inclusivo: 15% exatos passa).
+- **Transporte:** `ComplianceContext` ganha `Optional<SeasonWeekSnapshot> seasonWeek` e a tolerância;
+  `PlannerShadowService.checkPostRedistribution` passa a receber `Optional<SeasonWeekSnapshot>` (o persister
+  já tem `ctx.seasonWeek()`), e o `executar` do shadow monta o contexto com eles.
 - **`LONGO_ACIMA_TETO`** é suspenso para a sessão `LONGO` cuja distância está dentro da tolerância do
   `longRunKm`. Fora da tolerância, ou sem distância, a checagem de hoje (40% do alvo) continua. O longão da
   temporada já passou pela validação `LONG_RUN_SHARE` do ticket 3 na aprovação da temporada.
@@ -106,9 +120,15 @@ Só com a flag e `planner-engine.enabled` ligados e a semana elegível.
 - Na transição para `APROVADO` (`PlanoReviewServiceImpl.aprovarTransicao`), se o plano tem
   `season_week_id` e a semana tem `targetTss > 0`: `deltaPct = (TSS planejado aprovado − targetTss) /
   targetTss × 100`, com treino sem `tssPlanejado` contando 0 (a mesma regra do `target_deviation_pct`).
-- Registrado como `DistributionSummary` `season-plan.approved.deviation.pct` (tag `origem` =
-  `COACH` | `AUTO_CONFIANCA_ALTA`) e log `season-plan.week-approved` com `deltaPct`, o
-  `target_deviation_pct` da geração e a origem. Sem migration e sem coluna nova.
+- Registrado como `DistributionSummary` `season-plan.approved.deviation.abs.pct` com o **módulo** do delta
+  (o `DistributionSummary` do Micrometer descarta valores negativos) e tags `origem` = `COACH` |
+  `AUTO_CONFIANCA_ALTA` e `direcao` = `ACIMA` | `ABAIXO` | `NO_ALVO` (`NO_ALVO` quando `deltaPct == 0`), e
+  log `season-plan.week-approved` com `deltaPct` com sinal, o `target_deviation_pct` da geração e a origem.
+  Sem migration e sem coluna nova.
+- **Ordem no persister:** hoje a auto-aprovação (`PlanGenerationPersister:202`) roda antes de
+  `registrarSemanaDaTemporada` (`:216`), então o plano auto-aprovado ainda não tem `season_week_id`.
+  `registrarSemanaDaTemporada` passa para antes da auto-aprovação; continua depois de todas as
+  transformações dos treinos (redistribuição, prova garantida e estágio 2 ficam antes).
 - O `target_deviation_pct` da geração não muda. Edições depois da aprovação (`editedAfterApprovalAt`) não
   são medidas.
 - Vale com a flag desligada também, para formar o baseline da métrica de sucesso antes de ligá-la.
@@ -127,16 +147,21 @@ da temporada com `targetTss > 0`, salvo onde indicado.
 - **Dado** uma semana com `targetTss` 620 e CTL 70 (teto de rampa 7 × 78 = 546), **quando** o alvo é
   resolvido, **então** `targetTss` = 546, banda [491,4; 600,6], `seasonTargetTss` = 620 e
   `seasonCutReason` = `TETO_RAMPA`; a semana da temporada continua com 620.
-- **Dado** uma semana de fase `TAPER` da temporada com `targetTss` 300, dentro da janela de taper da prova
-  e sem corte, **quando** o alvo é resolvido, **então** `targetTss` = 300 e a `TaperStrategy` não é aplicada.
+- **Dado** uma semana de fase `TAPER` da temporada com `targetTss` 300, CTL 50 (teto 406), progressão
+  `MANTER` e dentro da janela de taper da prova, **quando** o alvo é resolvido, **então** `targetTss` = 300 e a `TaperStrategy` não é aplicada.
 - **Dado** `targetTss` 400, CTL 60 e progressão `AUMENTAR` com ajuste +10%, **quando** o alvo é resolvido,
   **então** `targetTss` = 400 e `seasonCutReason` nulo.
 - **Dado** a semana anterior realizada a 40% do alvo, `targetTss` 400 e CTL 60 (teto 476), **quando** a
   semana é gerada, **então** o alvo é 400.
 - **Dado** lesão ativa (fase `RECOVERY`), `targetTss` 400 e CTL 60, **quando** o alvo é resolvido, **então**
   `targetTss` = 200 e `seasonCutReason` = `REDUCAO_FASE`.
-- **Dado** cold-start com `alvoColdStart` 120 (piso) e `targetTss` 100, **quando** o alvo é resolvido,
-  **então** `targetTss` = 100.
+- **Dado** cold-start (`calibrationStage` presente, CTL de PMC 0) com `alvoColdStart` 120 (piso) e
+  `targetTss` 100, **quando** o alvo é resolvido, **então** `targetTss` = 100 (o teto de rampa do passo 4,
+  56, não se aplica em cold-start) e `seasonCutReason` nulo.
+- **Dado** cold-start com `alvoColdStart` 150 e `targetTss` 300, **quando** o alvo é resolvido, **então**
+  `targetTss` = 150, banda ±25% e `seasonCutReason` = `COLD_START`.
+- **Dado** o exemplo 620 → 546, **quando** o prompt é montado com o skeleton, **então** o "TSS Alvo" do bloco
+  de posição no ciclo é 546.
 - **Dado** um plano com TSS total fora da banda do alvo resolvido, **quando** é persistido, **então**
   nasce `FAILED` com revisão obrigatória, sem 422, e `planner.compliance.violation.count{key=TSS_FORA_DA_FAIXA}`
   é incrementado com `planner-engine.shadow=false`.
@@ -151,7 +176,9 @@ da temporada com `targetTss > 0`, salvo onde indicado.
   não aparece.
 - **Dado** um plano com `season_week_id` (`targetTss` 400 e treinos somando 360) aprovado pelo treinador,
   **quando** a transição para `APROVADO` ocorre (qualquer valor da flag), **então**
-  `season-plan.approved.deviation.pct{origem=COACH}` registra −10.
+  `season-plan.approved.deviation.abs.pct{origem=COACH,direcao=ABAIXO}` registra 10 e o log traz −10.
+- **Dado** um plano auto-aprovado na geração com semana da temporada, **quando** é persistido, **então** já
+  tem `season_week_id` e a métrica registra com `origem=AUTO_CONFIANCA_ALTA`.
 - **Dado** `season-plan.enforcement.enabled=false`, **quando** o plano é gerado, **então** alvo, banda,
   taper e compliance são os de hoje, e o golden do prompt do ticket 8 só muda pela linha de sessões-chave.
 - **Dado** um atleta sem temporada, com a flag ligada, **então** o plano é idêntico ao de hoje (regressão
@@ -169,7 +196,7 @@ da temporada com `targetTss > 0`, salvo onde indicado.
 A primária do épico: queda relativa ≥ 20% na taxa de `consumedReviewOutcome = ADJUSTED` dos planos
 semanais com `season_week_id`. Baseline: 4 semanas com a flag desligada; comparação: 4 semanas com a flag
 ligada no tenant do Design Partner; mínimo de 20 planos em cada janela, senão o resultado é inconclusivo.
-Secundária: mediana de `|season-plan.approved.deviation.pct|` com `origem=COACH`.
+Secundária: mediana de `season-plan.approved.deviation.abs.pct` com `origem=COACH`.
 
 ## Riscos e mitigações
 
