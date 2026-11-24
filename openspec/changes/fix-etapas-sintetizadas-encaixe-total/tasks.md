@@ -59,7 +59,7 @@ todos os cenários divergentes, não só o relatado.
       curta.
 - [x] 1.2c **Acrescentada na execução.** O encaixe com sobra positiva também grava `duracaoMin` = soma
       das etapas (com pace derivável). A matriz mostrou o mesmo desempate do cabeçalho fora do bloco
-      único: 207 cenários de tipo leve com etapa sintetizada e ritmo ficavam card≠editor só na duração
+      único: 234 cenários de tipo leve com etapa sintetizada e ritmo ficavam card≠editor só na duração
       (cabeçalho divergente, ou ritmo só no cabeçalho com aquecimento mais rápido que a PRINCIPAL).
       Mesma causa e mesmo método da 1.2b; teste `encaixeNormalAlinhaDuracaoDoTreino`.
 - [x] 1.4 Validação: `./mvnw clean test`; esperados de caracterização alterados listados em
