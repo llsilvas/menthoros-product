@@ -35,6 +35,7 @@ Restrição de arquitetura que governa tudo abaixo: a periodização, o cálculo
 - Calibração automática do template a partir do delta acumulado — o dado é capturado aqui, o aprendizado não
 - Geração do macro por LLM — o motor calcula; o LLM só redige narrativa e justificativa
 - Multiesporte
+- Temporada sem prova-alvo (ciclo de desenvolvimento ou manutenção) — toda temporada deste épico é ancorada em uma prova; decisão D5 de 2026-11-22, tratada em `add-season-plan-development-cycle`
 - Mudar o gate de revisão do plano semanal, a `RevisaoSemanal` congelada ou o ledger
 
 ## Decisions

@@ -99,6 +99,8 @@ Tela do atleta entra na fatia 2 como leitura do mapa, sem sessões futuras.
 - Calibração automática do template da assessoria a partir do delta acumulado — o dado passa a
   ser capturado aqui, mas o aprendizado é outra change.
 - Compartilhamento ou exportação do plano de temporada em PDF.
+- Temporada sem prova-alvo (ciclo de desenvolvimento ou manutenção) — fora do MVP por decisão de
+  2026-11-22; tratada na change `add-season-plan-development-cycle`.
 - Mudança no gate de aprovação do plano semanal e na `RevisaoSemanal` congelada (ADR-0006).
 
 ## 7. Fluxo principal

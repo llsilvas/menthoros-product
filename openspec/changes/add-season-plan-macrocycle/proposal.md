@@ -218,6 +218,16 @@ decisões abertas. Se o redesenho não estiver em `develop`, a aba entra como se
 **Recomendação:** manter as tasks, mas a fatia 6 só entra no Design Partner depois de a fatia 5
 rodar um ciclo; se o founder seguir o PRD, a seção 6 de `tasks.md` sai para uma change própria.
 
+**D5. Temporada sem prova-alvo? (2026-11-22)**
+- No épico, toda temporada é ancorada em uma prova: `PlanoTreino.prova` é obrigatória e a duração vem da
+  data da prova. Atleta sem prova fica com o plano semanal atual e vê o estado vazio na aba.
+- (a) Fora do MVP: o épico segue só com temporada de prova; o ciclo sem prova vira change posterior.
+- (b) Dentro do épico: `prova` opcional e template por objetivo já nos tickets 1 a 3.
+- **Decisão do founder: (a).** O atleta pode ter temporada sem prova, como ciclo de desenvolvimento
+  (objetivo, duração curta, fases BASE e BUILD, teste opcional no fim), mas em
+  `add-season-plan-development-cycle`, depois dos tickets 2, 3 e 5. (b) reabriria o modelo e a migration
+  do ticket 1 sem evidência de adoção.
+
 ## Open Questions & Assumptions
 
 **Premissas assumidas:**
