@@ -90,7 +90,10 @@ progressão reativa):
 
 ### Compliance (estágio 2, pós-redistribuição)
 
-Só com a flag e `planner-engine.enabled` ligados e a semana elegível.
+As checagens novas rodam sempre que o skeleton está no caminho novo (`seasonTargetTss != null`), em dois
+lugares: **enforcement** no estágio 2 do persister (`planner-engine.enabled=true`; `FAILED` + revisão ou
+422 pelo `fail-open`) e **auditoria** no shadow (`planner-engine.shadow=true`; `VIOLATIONS_DETECTED`, que
+veta a auto-aprovação como hoje). O checker é o mesmo; só o chamador muda.
 
 - **`distanciaKm`** entra no `GeneratedSessionSnapshot`, nos **dois** mappers do `PlannerShadowService`: o do
   `TreinoPlanejadoLlmDto` (pré-redistribuição) e o de `TreinoPlanejado` (pós-redistribuição, usado pelo
@@ -216,5 +219,6 @@ linha de sessões-chave no prompt e a métrica do delta da aprovação ficam (s�
 ## Dependências e rollout
 
 - Tickets 6, 7 e 8 em `develop`.
-- Efeito no plano só com `planner-engine.enabled=true`. Ligar no tenant do Design Partner depois de 4
+- Alvo e compliance enforçados só com `planner-engine.enabled=true`. Com só `planner-engine.shadow=true`, o
+  efeito é a auditoria e o veto da auto-aprovação (matriz acima). Ligar no tenant do Design Partner depois de 4
   semanas de baseline da métrica do delta.
