@@ -27,9 +27,9 @@
 
 ## 4. Delta da aprovação
 
-- [ ] 4.1 `PlanGenerationPersister`: `registrarSemanaDaTemporada` antes da auto-aprovação, ainda depois de redistribuição, prova garantida e estágio 2
+- [x] 4.1 `PlanGenerationPersister`: `registrarSemanaDaTemporada` antes da auto-aprovação, ainda depois de redistribuição, prova garantida e estágio 2
   - verify: teste do persister — plano auto-aprovado com semana da temporada sai com `season_week_id` e `target_deviation_pct`; golden/ITs existentes do persister continuam verdes
-- [ ] 4.2 `PlanoReviewServiceImpl.aprovarTransicao`: com `season_week_id` e `targetTss > 0`, registra `season-plan.approved.deviation.abs.pct` (módulo; tags `origem` e `direcao`) e log `season-plan.week-approved` com o delta com sinal e o `target_deviation_pct`; sem migration; independente da flag (épico 5.13)
+- [x] 4.2 `PlanoReviewServiceImpl.aprovarTransicao`: com `season_week_id` e `targetTss > 0`, registra `season-plan.approved.deviation.abs.pct` (módulo; tags `origem` e `direcao`) e log `season-plan.week-approved` com o delta com sinal e o `target_deviation_pct`; sem migration; independente da flag (épico 5.13)
   - verify: teste do serviço com `SimpleMeterRegistry` — 400 alvo e 360 aprovado registra 10 com `origem=COACH,direcao=ABAIXO`; delta 0 com `NO_ALVO`; sem semana da temporada não registra; teste atravessando o persister para a auto-aprovação com `AUTO_CONFIANCA_ALTA`
 
 ## 5. Integração e fechamento
