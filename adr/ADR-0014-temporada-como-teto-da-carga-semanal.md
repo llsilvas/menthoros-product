@@ -56,6 +56,10 @@ Decisões derivadas:
   `long-run-tolerance-pct`, default 15%). O `LONGO_ACIMA_TETO` (40% do alvo) é suspenso para o longão que
   segue o previsto, que já passou pelo `LONG_RUN_SHARE` na aprovação da temporada; fora da tolerância ou
   sem distância, volta.
+- **Contenção de prova:** em `TAPER` e `RACE_WEEK`, fora de cold-start, o alvo também não passa de
+  `ctl × 7` (motivo `CONTENCAO_PROVA`), como no caminho legado.
+- **Semana cortada por segurança** (`REDUCAO_FASE`, `PROGRESSAO_REDUZIR`, `COLD_START`,
+  `CONTENCAO_PROVA`): o longão da temporada não é cobrado e o `LONGO_ACIMA_TETO` não é suspenso.
 - A semana da temporada nunca é alterada pelo planner. Replanejar por desvio acumulado é o ticket 10.
 
 ## Consequências

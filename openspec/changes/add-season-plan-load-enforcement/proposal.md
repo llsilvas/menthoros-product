@@ -142,6 +142,21 @@ veta a auto-aprovação como hoje). O checker é o mesmo; só o chamador muda.
 reativa, a ordem dos 6 passos, sem compensação de semana perdida, e a suspensão do `LONGO_ACIMA_TETO`.
 Referencia o ADR-0011 (composição) e o ADR-0012 (cold-start e recuperação), que ficam válidos.
 
+### Decisões do QA (2026-11-24)
+
+Casos que a spec não cobria, decididos depois da revisão de código:
+
+- **Semana cortada por segurança:** com `seasonCutReason` `REDUCAO_FASE`, `PROGRESSAO_REDUZIR`, `COLD_START`
+  ou `CONTENCAO_PROVA`, `LONGAO_DIVERGENTE_DA_TEMPORADA` não é avaliada e o `LONGO_ACIMA_TETO` não é
+  suspenso (vale o teto de 40% do alvo cortado). Sem isso, o plano que encurta o longão na semana de lesão
+  ia para revisão, e o longão cheio escapava do teto justo nela. `TETO_RAMPA` mantém a regra.
+- **Contenção em taper/semana de prova:** no passo 4, fora de cold-start, `TAPER` e `RACE_WEEK` também
+  aplicam `alvo = min(alvo, ctl × 7)`, como o legado, com o motivo novo `CONTENCAO_PROVA`.
+- **Delta só na primeira aprovação:** reaprovação de plano reaberto (`origemAprovacao` já preenchida) não
+  registra outra amostra de `season-plan.approved.deviation.abs.pct`.
+- **Sessões-chave como dado:** a linha do prompt vira `Sessões-chave (texto do treinador): "<texto>"`,
+  truncada em 500 caracteres (o limite da edição), com aspas do texto trocadas por apóstrofo.
+
 ## Critérios de aceite
 
 Todos com `season-plan.enforcement.enabled=true`, `planner-engine.enabled=true`, `fail-open=true` e semana
