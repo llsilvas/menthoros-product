@@ -37,10 +37,14 @@ retroativas, treinos novos).
 
 `SeasonPlanAdjustmentServiceImpl.recalculate`:
 - Guarda (`:167`): aceita rascunho (como hoje) **ou** `PROPOSED && version == 1 && baseSeasonPlanId == null`.
-- Trava: na v1, só `Reason.COMPLETED` trava; `IN_PROGRESS` e `RACE_WEEK` são recalculáveis. No rascunho,
-  regra de hoje.
-- `SeasonPlanRecalculateInputDto` ganha `startLongRunKm` opcional (`@Positive`, até 42,2); nulo → o
-  persistido. Passa para `planWithPhases`.
+- Trava: regra única num helper novo, `SeasonWeekLock.forPlan(plano, weekStart, hoje, dataProva)`: na v1
+  PROPOSED sem base, só `COMPLETED` trava; em todo o resto, a regra de hoje (`of`). Usado nos três
+  lugares que hoje chamam `of` para uma temporada: `recalculate`, `updateWeek` e o
+  `SeasonPlanResponseMapper` (`:94`, flag `locked` da semana). Assim tela, edição e recálculo concordam.
+- `SeasonPlanRecalculateInputDto` ganha `startLongRunKm` opcional; nulo → o persistido. A rota não usa
+  `@Valid` (`SeasonPlanController.java:180`): o service valida, como já faz com `startVolumeKm` em
+  `validarRecalculo` — positivo, até 42,2, uma casa decimal; inválido → 422 com mensagem. Passa para
+  `planWithPhases`.
 - Semanas `COACH` preservadas por inteiro (já é assim em `:208`), inclusive `longRunKm`.
 - Grava `initial_volume_km`, `initial_long_run_km` e `initial_volume_source = COACH`; não toca
   `proposed_volume_km` nem o histórico.
@@ -55,7 +59,9 @@ retroativas, treinos novos).
 
 Front (`apps/menthoros-front`): tipos em `src/types/SeasonPlan.ts`; `SeasonTabPanel` no estado PROPOSED
 v1 mostra os quatro e o botão "Ajustar volume e fases", que abre o `SeasonParametersForm` (componente
-existente) num dialog, com o campo novo de longão; `useSeasonPlan` ganha `recalculate`. Texto do alerta
+existente) num dialog, com o campo novo de longão; `useSeasonPlan` ganha `recalculate`. O texto fixo do
+formulário ("Semanas concluídas, em andamento e a da prova não mudam", `SeasonParametersForm.tsx:39`)
+passa a sair das semanas com `locked` da resposta, que já refletem a regra da v1. Texto do alerta
 `LONG_RUN_SHARE` ajustado.
 
 ## Riscos

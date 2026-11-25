@@ -91,8 +91,13 @@ Causa, em três partes:
    7 semanas atrás entra no volume mas não no `L0`.
 5. **Dado** `L0` = 7,4 km, partida 20,8 km, **quando** gera, **então** o longão de cada semana é
    `L0 × volume / partida` (≈ 7,5 km na semana 1), com descarga × 0,75 e teto da distância.
-6. **Dado** `L0` abaixo de 28% do volume, **então** vale 28%. **Dado** `L0` acima de 50% do volume,
+6. **Dado** o longão escalado (`L0 × volume / partida`) abaixo de 28% do volume da semana, **então** vale
+   28% (ex.: partida 20, `L0` 4, semana 26 → escalado 5,2 < 7,28 → 7,3). **Dado** escalado acima de 50%,
    **então** vale 50%. **Dado** só treinos `PROVA` na janela, **então** `L0` é nulo e vale 28%.
+6b. **Dado** `startLongRunKm` de 0, negativo, acima de 42,2 ou com duas casas, **quando** recalcula,
+   **então** 422 com mensagem e nada muda.
+6c. **Dado** uma v1 PROPOSED, **então** a semana corrente vem com `locked = false` na resposta e pode ser
+   editada (`updateWeek`); no rascunho de ajuste continua `locked = true`.
 7. **Dado** PROPOSED v1 gerada hoje, **quando** o treinador recalcula com `startVolumeKm = 30` e
    `startLongRunKm = 10`, **então** todas as semanas não `COMPLETED` e não `COACH` são refeitas
    (inclusive a semana 1), a origem vira `COACH`, `proposedVolumeKm` não muda, e a temporada continua

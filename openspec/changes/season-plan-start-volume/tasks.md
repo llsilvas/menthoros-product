@@ -26,8 +26,10 @@ Repos: `apps/menthoros-backend` (branch `fix/season-plan-start-volume`, worktree
 
 ## 3. Backend — recálculo da v1 (D4)
 
-- [ ] 3.1 `SeasonPlanAdjustmentServiceImplTest`: critérios 7, 8 e 9. verify: vermelho antes.
-- [ ] 3.2 Guarda, trava só COMPLETED na v1, `startLongRunKm` no DTO, gravação da origem `COACH`.
+- [ ] 3.1 `SeasonWeekLockTest` para `forPlan`; `SeasonPlanAdjustmentServiceImplTest`: critérios 6b, 6c, 7,
+      8 e 9. verify: vermelho antes.
+- [ ] 3.2 Guarda, `SeasonWeekLock.forPlan` em `recalculate`, `updateWeek` e `SeasonPlanResponseMapper`,
+      `startLongRunKm` no DTO validado no service, gravação da origem `COACH`.
 - [ ] 3.3 `@ApiResponses` do `recalculate` no `SeasonPlanController`.
 
 ## 4. Backend — resposta (D5)
@@ -40,7 +42,8 @@ Repos: `apps/menthoros-backend` (branch `fix/season-plan-start-volume`, worktree
 - [ ] 5.1 Worktree `front-season-plan-start-volume` a partir de `origin/develop`, `npm ci`.
 - [ ] 5.2 Tipos em `src/types/SeasonPlan.ts` e `recalculate` no `useSeasonPlan` (teste do hook).
 - [ ] 5.3 `SeasonTabPanel`: evidência da partida e dialog com `SeasonParametersForm` + campo de longão
-      (teste de componente, critério 11); texto do alerta `LONG_RUN_SHARE`.
+      (teste de componente, critério 11); texto do alerta `LONG_RUN_SHARE`; nota de semanas preservadas do
+      `SeasonParametersForm` derivada de `locked`.
 - [ ] 5.4 E2E `tests/e2e/coach/season-plan.spec.ts`: recalcular a v1.
 
 ## 6. Validação
