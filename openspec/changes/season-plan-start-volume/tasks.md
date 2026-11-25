@@ -48,6 +48,8 @@ Repos: `apps/menthoros-backend` (branch `fix/season-plan-start-volume`, worktree
 
 ## 6. Validação
 
-- [ ] 6.1 Dev: regenerar a temporada do Leandro (arquivar a PROPOSED atual desmarcando e remarcando a
+- [x] 6.1 Dev: regenerar a temporada do Leandro (arquivar a PROPOSED atual desmarcando e remarcando a
       prova-alvo; `generate` devolve a PROPOSED existente) e conferir partida 20,8 km, `L0` 7,4 km, origem `MEDIAN`.
-- [ ] 6.2 Registrar a query da métrica (baseline) no proposal ou num `notes.md` da change.
+      Feito por query de leitura (`notes.md`): mediana 20,8 e `L0` 7,4 conferem. **Adiado:** a regeneração
+      pela tela espera o deploy da branch no dev (a temporada da conta está ACTIVE; `generate` dá 409).
+- [x] 6.2 Registrar a query da métrica (baseline) no proposal ou num `notes.md` da change.
