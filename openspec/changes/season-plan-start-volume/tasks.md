@@ -40,11 +40,11 @@ Repos: `apps/menthoros-backend` (branch `fix/season-plan-start-volume`, worktree
 ## 5. Front (D5)
 
 - [x] 5.1 Worktree `front-season-plan-start-volume` a partir de `origin/develop`, `npm ci`.
-- [ ] 5.2 Tipos em `src/types/SeasonPlan.ts` e `recalculate` no `useSeasonPlan` (teste do hook).
-- [ ] 5.3 `SeasonTabPanel`: evidência da partida e dialog com `SeasonParametersForm` + campo de longão
+- [x] 5.2 Tipos em `src/types/SeasonPlan.ts` e `recalculate` no `useSeasonPlan` (teste do hook).
+- [x] 5.3 `SeasonTabPanel`: evidência da partida e dialog com `SeasonParametersForm` + campo de longão
       (teste de componente, critério 11); texto do alerta `LONG_RUN_SHARE`; nota de semanas preservadas do
       `SeasonParametersForm` derivada de `locked`.
-- [ ] 5.4 E2E `tests/e2e/coach/season-plan.spec.ts`: recalcular a v1.
+- [x] 5.4 E2E `tests/e2e/coach/season-plan.spec.ts`: recalcular a v1.
 
 ## 6. Validação
 
