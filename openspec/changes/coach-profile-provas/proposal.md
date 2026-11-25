@@ -34,6 +34,18 @@ para a lista inteira, e hoje mostra uma prova só.
 - Prova-alvo com data passada continua sem temporada (o filtro de provas futuras é intencional).
 - Regenerar o client OpenAPI do front: o tipo `AtletaPerfilCoachDto` é escrito à mão e já tem
   `provas?: Prova[]`.
+- **Falso "Sem prova-alvo" enquanto o perfil carrega ou falha** (achado do Codex, 2026-11-24): a aba
+  Temporada só olha `season.loading`; com `selectedProfile` nulo, `hasTargetRace` vira falso. É front,
+  transitório e independente deste bug. Follow-up: change de front que distinga carregando/erro de
+  ausência.
+- **E2E do front** (achado do Codex): `tests/e2e/coach/season-plan.spec.ts` usa a prova-alvo também
+  como `proximaProva`, então não pegaria esta regressão. Follow-up na mesma change de front: cenário
+  com preparatória antes do alvo.
+
+## Status
+
+- 2026-11-24: DoR com Codex: **NOT READY**, três achados. Gate trocado para `clean verify` (aceito);
+  os dois de front ficaram como follow-up acima.
 
 ## Critérios de aceite
 

@@ -1,13 +1,13 @@
 # Tasks — coach-profile-provas
 
-Repo: `apps/menthoros-backend`, branch `fix/coach-profile-provas`. Validação: `./mvnw clean test`.
+Repo: `apps/menthoros-backend`, branch `fix/coach-profile-provas`. Validação: `./mvnw clean verify`.
 
 ## 1. Backend
 
-- [ ] 1.1 Teste (vermelho) em `CoachAthleteProfileServiceImplTest`: preparatória antes da prova-alvo
+- [x] 1.1 Teste (vermelho) em `CoachAthleteProfileServiceImplTest`: preparatória antes da prova-alvo
       → `provas` com as duas em ordem e `proximaProva` = preparatória; sem provas → `provas` vazio.
       verify: o teste falha por falta do campo.
-- [ ] 1.2 `AtletaPerfilCoachOutputDto.provas` logo depois de `proximaProva`; o service passa a lista
+- [x] 1.2 `AtletaPerfilCoachOutputDto.provas` logo depois de `proximaProva`; o service passa a lista
       de `buscarProvas`; `@Schema` de `proximaProva` corrigido; construtores dos testes de controller
       ajustados. verify: `./mvnw clean test` verde.
 
