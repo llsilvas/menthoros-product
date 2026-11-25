@@ -37,7 +37,9 @@ A matriz `NormalizacaoDeTreinoInvarianteTotalTest` (5.042 cenários) tem 1.004 n
 Só `apps/menthoros-backend`:
 
 1. **`TreinoNormalizador.adotarSomaDasEtapas` grava também a duração** do treino = soma das durações das
-   etapas (`formatarDuracao`), quando todas têm duração. Sem duração em alguma etapa, a soma é piso e a
+   etapas (`formatarDuracao`), quando todas têm duração. Inclusive no retorno antecipado de hoje
+   (distância já igual à soma, `TreinoNormalizador.java:326`): a LLM pode acertar o total e ainda assim
+   declarar uma duração pelo ritmo do cabeçalho divergente. Sem duração em alguma etapa, a soma é piso e a
    cauda decide, como hoje.
 2. **Matriz:** na estrutura completa com pace derivável, a segunda invariante passa a ser
    "total = soma das etapas" (a regra de 16/11) em vez de "total = prescrito"; a exceção
@@ -54,11 +56,17 @@ Sem contrato de API, sem migration, sem front, sem dependência nova.
 
 ## Critérios de aceite
 
-- **CA1** — GIVEN LONGO de 12 km com aquecimento 10 min, PRINCIPAL 12 km a 5:36–5:54/km e desaquecimento
-  5 min, ritmo do cabeçalho 8:00/km e duração da LLM 96 min, WHEN normalizado, THEN `distanciaKm` = soma
-  das etapas e `duracaoMin` = soma das durações das etapas.
-- **CA2** — GIVEN o mesmo treino com uma etapa sem duração, THEN a duração do treino não é gravada por
-  `adotarSomaDasEtapas` (a cauda decide, comportamento atual).
+- **CA1** — GIVEN atleta com limiar 5:00/km e zonas de pace, LONGO de 12 km da LLM com aquecimento 10 min
+  e 0 km, PRINCIPAL 69 min e 12 km a `5:36-5:54/km`, desaquecimento 5 min e 0 km, `ritmoAlvo` do cabeçalho
+  `8:00-8:00/km` e duração `96:00`, WHEN normalizado pela receita completa, THEN `distanciaKm` = soma das
+  etapas (≈ 14,5 km) e `duracaoMin` = `84:00` (soma das etapas; hoje fica `96:00`, "DURAÇÃO MANTIDA").
+  O ritmo do cabeçalho tem de estar em faixa: `8:00/km` sozinho não é lido pelo parser, a cauda não acha
+  duração esperada e já adota a soma — não reproduz o defeito.
+- **CA1b** — GIVEN o mesmo treino com `distanciaKm` declarada já igual à soma das etapas (retorno
+  antecipado de `adotarSomaDasEtapas`), THEN `duracaoMin` = soma das etapas.
+- **CA2** — GIVEN aquecimento com distância e sem duração (o caso alcançável: sem duração na PRINCIPAL o
+  treino nem chega a `adotarSomaDasEtapas`, porque `paceDerivavel` exige duração), THEN a duração do
+  treino não é gravada por `adotarSomaDasEtapas` (a cauda decide, comportamento atual).
 - **CA3** — GIVEN a matriz, THEN nenhum cenário de estrutura completa com pace derivável viola
   "card = editor" (distância e duração) nem "total = soma das etapas"; `EXCECOES` e `INVENTARIO` ficam só
   com `sem-pace` (504) e `tempo-run-sintetizado` (252).
@@ -78,7 +86,9 @@ Sem contrato de API, sem migration, sem front, sem dependência nova.
 
 ## Open Questions & Assumptions
 
-- **A1** — O desempate de `recalcular-duracao` continua igual para os caminhos que não passam pelo encaixe
-  nem por `adotarSomaDasEtapas` (ex.: PRINCIPAL sem pace). Assumido; esses casos estão na exceção `sem-pace`.
+- **A1** — O desempate de `recalcular-duracao` continua igual para os caminhos que não gravam a duração:
+  PRINCIPAL sem pace derivável (sem ritmo ou sem duração; exceção `sem-pace` da matriz), etapa com
+  distância ≤ 0 ou nula (`adotarSomaDasEtapas` devolve o treino intacto) e etapa sem duração (CA2).
+  Assumido aceitável: nos dois últimos a soma não é confiável.
 - **A2** — Os números da matriz vêm de um modelo de entrada (total concentrado na PRINCIPAL, aquecimento
   e desaquecimento com 0 km); a frequência real desse formato nos planos não foi medida.
