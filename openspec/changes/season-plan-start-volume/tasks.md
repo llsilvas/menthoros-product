@@ -26,11 +26,11 @@ Repos: `apps/menthoros-backend` (branch `fix/season-plan-start-volume`, worktree
 
 ## 3. Backend — recálculo da v1 (D4)
 
-- [ ] 3.1 `SeasonWeekLockTest` para `forPlan`; `SeasonPlanAdjustmentServiceImplTest`: critérios 6b, 6c, 7,
+- [x] 3.1 `SeasonWeekLockTest` para `forPlan`; `SeasonPlanAdjustmentServiceImplTest`: critérios 6b, 6c, 7,
       8 e 9. verify: vermelho antes.
-- [ ] 3.2 Guarda, `SeasonWeekLock.forPlan` em `recalculate`, `updateWeek` e `SeasonPlanResponseMapper`,
+- [x] 3.2 Guarda, `SeasonWeekLock.forPlan` em `recalculate`, `updateWeek` e `SeasonPlanResponseMapper`,
       `startLongRunKm` no DTO validado no service, gravação da origem `COACH`.
-- [ ] 3.3 `@ApiResponses` do `recalculate` no `SeasonPlanController`.
+- [x] 3.3 `@ApiResponses` do `recalculate` no `SeasonPlanController`.
 
 ## 4. Backend — resposta (D5)
 
