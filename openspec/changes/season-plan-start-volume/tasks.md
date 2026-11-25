@@ -12,9 +12,9 @@ Repos: `apps/menthoros-backend` (branch `fix/season-plan-start-volume`, worktree
 
 ## 1. Backend — persistência (D3)
 
-- [ ] 1.1 V122: quatro colunas nulas em `tb_plano_treino` + CHECK da origem; campos na entidade
+- [x] 1.1 V122: quatro colunas nulas em `tb_plano_treino` + CHECK da origem; campos na entidade
       `PlanoTreino` e enum `StartVolumeSource`. verify: `./mvnw clean verify` (Flyway sobe no IT).
-- [ ] 1.2 `SeasonPlanVersioning` copia as quatro no rascunho. verify: teste do versioning (critério 10).
+- [x] 1.2 `SeasonPlanVersioning` copia as quatro no rascunho. verify: teste do versioning (critério 10).
 
 ## 2. Backend — volume e longão de partida (D1, D2)
 
