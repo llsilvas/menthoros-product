@@ -4,52 +4,65 @@
 
 `SeasonPlanServiceImpl.resolverVolume` hoje soma os km de `[segunda − 4 semanas, segunda − 1 dia]` e
 divide por 4. Passa a buscar `[segunda − 8 semanas, segunda − 1 dia]` numa consulta só, agrupar por
-semana (segunda a domingo, semanas sem treino = 0) e tirar a mediana (8 valores: média do 4º e 5º).
-Mediana igual a 0 → fallback do onboarding → 422 sem ele, como hoje.
-
-Por que mediana: ignora semana atípica nos dois sentidos (folga ou pico isolado), que é o que o treinador
-faz de olho. Por que 8: volume de 3 meses atrás não representa a forma atual, e 4 é pouco para a
-mediana ter efeito.
-
-As 8 somas semanais saem do mesmo cálculo e vão para a resposta (D4).
+semana (segunda a domingo, semana sem treino = 0) e tirar a mediana (média do 4º e 5º valores). Devolve
+um record `StartVolume(km, source, history)`; mediana 0 → onboarding (`ONBOARDING`) → 422 sem ele.
 
 ## D2 — Longão de partida
 
-Novo dado de entrada do `SeasonPlanner`: `L0` (nullable) = maior `distanciaKm` de treino com
-`contaNaCarga` em `[segunda − 6 semanas, segunda − 1 dia]`. `SeasonPlanner.longao` passa a ser:
+`L0` = maior `distanciaKm` de treino com `contaNaCarga` e `tipoTreino != PROVA` em
+`[segunda − 6 semanas, segunda − 1 dia]`, da mesma consulta de D1. `SeasonPlanner.plan` e
+`planWithPhases` ganham o parâmetro `@Nullable BigDecimal startLongRunKm`; `longao(...)` passa a ser:
 
 ```
-base = max(volume × 0,28, L0 × volume / volumePartida)   // só o primeiro termo se L0 nulo
-longao = min(base, tetoLongao(distância)); descarga → × 0,75; RACE_WEEK → nulo
+base  = L0 == null ? volume × 0,28 : max(volume × 0,28, L0 × volume / partida)
+longao = min(base, volume × 0,50, tetoLongao(distância)); descarga → × 0,75; RACE_WEEK → nulo
 ```
 
-A proporção ao volume faz o longão seguir a mesma curva (rampa, descargas, polimento) sem regra nova.
-O `SeasonPlanValidator` não muda: o alerta `LONG_RUN_SHARE` (30%) dispara quando o longão recente
-pesa demais no volume, e isso é sinal útil ao treinador.
+A proporção ao volume faz o longão seguir a curva (rampa, descargas, polimento) sem regra nova. O
+`SeasonPlanValidator` não muda (alerta de 30%); o texto do alerta na tela é que muda (front).
 
-`L0` é persistido no `PlanoTreino` (coluna nova, nullable, migration aditiva) para o recálculo
-reutilizar (A3) e para a resposta.
+## D3 — Persistência (V122)
 
-## D3 — Recálculo da v1
+`tb_plano_treino`, colunas nulas, sem backfill:
+- `initial_long_run_km NUMERIC(4,1)` — `L0` (ou o informado no recálculo).
+- `proposed_volume_km NUMERIC(4,1)` — volume que o motor propôs; nunca muda depois da geração.
+- `initial_volume_source VARCHAR(16)` com `CHECK IN ('MEDIAN','ONBOARDING','COACH')`.
+- `initial_volume_history JSONB` — `[{"weekStart":"2026-09-28","km":29.2}, ...]`, 8 itens.
 
-`SeasonPlanAdjustmentServiceImpl.recalculate` recusa hoje `baseSeasonPlanId == null`. Passa a aceitar
-`PROPOSED` com `version == 1` e sem base. As outras guardas valem igual: soma das fases = semanas,
-número de semanas batendo com a data da prova, semanas travadas (`SeasonWeekLock`) preservadas.
-Rascunho de ajuste continua como hoje; ACTIVE continua 409. O recálculo usa o `L0` persistido.
+`SeasonPlanVersioning.criarRascunho` (cópia campo a campo, `SeasonPlanVersioning.java:80-95`) copia as
+quatro. Persistir a evidência evita que a tela mostre uma janela diferente da usada (importações
+retroativas, treinos novos).
 
-## D4 — Resposta e front
+## D4 — Recálculo da v1
 
-`SeasonPlanResponseDto` ganha `initialVolumeKm`, `initialLongRunKm` e `volumeHistory` (lista de
-`{weekStart, km}` das 8 semanas, calculada na leitura, não persistida). Campos aditivos.
+`SeasonPlanAdjustmentServiceImpl.recalculate`:
+- Guarda (`:167`): aceita rascunho (como hoje) **ou** `PROPOSED && version == 1 && baseSeasonPlanId == null`.
+- Trava: na v1, só `Reason.COMPLETED` trava; `IN_PROGRESS` e `RACE_WEEK` são recalculáveis. No rascunho,
+  regra de hoje.
+- `SeasonPlanRecalculateInputDto` ganha `startLongRunKm` opcional (`@Positive`, até 42,2); nulo → o
+  persistido. Passa para `planWithPhases`.
+- Semanas `COACH` preservadas por inteiro (já é assim em `:208`), inclusive `longRunKm`.
+- Grava `initial_volume_km`, `initial_long_run_km` e `initial_volume_source = COACH`; não toca
+  `proposed_volume_km` nem o histórico.
+- `diff` e `discard` (`:228`, `:245`) inalterados: exclusivos do rascunho.
+- Controller: `@ApiResponses` do `recalculate` atualizado (200 também para a v1; 409 "não é proposta v1
+  nem ajuste em aberto").
 
-`SeasonTabPanel`, estado PROPOSED v1: mostra os três e um botão que abre o mesmo formulário de
-recálculo da `CoachSeasonAdjustPage` (volume + semanas por fase). Sem tela nova.
+## D5 — Resposta e front
+
+`SeasonPlanResponseDto` ganha `initialLongRunKm`, `proposedVolumeKm`, `initialVolumeSource`,
+`volumeHistory` (lido das colunas; nulos em temporada legada).
+
+Front (`apps/menthoros-front`): tipos em `src/types/SeasonPlan.ts`; `SeasonTabPanel` no estado PROPOSED
+v1 mostra os quatro e o botão "Ajustar volume e fases", que abre o `SeasonParametersForm` (componente
+existente) num dialog, com o campo novo de longão; `useSeasonPlan` ganha `recalculate`. Texto do alerta
+`LONG_RUN_SHARE` ajustado.
 
 ## Riscos
 
-- Mediana superestima a partida de quem parou de vez há 3–4 semanas (lesão): 4 semanas zeradas de 8
-  ainda dão mediana alta. Mitigação: o TSS vem do CTL, que já caiu; o teto de rampa do enforcement
-  (ADR-0014) corta a carga semanal; o treinador vê as 8 semanas e recalcula.
-- `L0` vindo de uma prova recente (ex.: meia maratona) puxa o longão para cima. Mitigação: o alerta de
-  30% e o teto por distância; avaliar excluir treinos do tipo PROVA na implementação.
-- Migration nova em `tb_plano_treino` (coluna nullable, sem backfill).
+- Parada longa recente (lesão): a mediana ainda pode sair alta (ex.: 3 semanas zeradas de 8). O CTL não
+  protege os km (volume proporcional à razão de TSS). Mitigação: as 8 semanas visíveis e o recálculo.
+- Onboarding antigo como fallback: origem `ONBOARDING` visível na tela.
+- `L0` de treino atípico longo que não é PROVA: teto de 50% do volume e alerta de 30%.
+- Destravar a semana corrente na v1: seguro porque a v1 nunca aprovada não alimenta a geração semanal
+  (`SeasonWeekContextResolver` lê só ACTIVE).
