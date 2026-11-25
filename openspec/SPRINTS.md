@@ -2,7 +2,15 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-25 (**`fix-duracao-treino-estrutura-completa` arquivada** — S · Fast, só
+**Última atualização:** 2026-11-25 (**`add-season-plan-load-enforcement` arquivada** — ticket 9 do épico
+`add-season-plan-macrocycle`. Backend #266 (squash `b4c2607`) em `develop`. Com a flag
+`season-plan.enforcement.enabled`, a temporada ACTIVE passa a ser base e teto da carga semanal: alvo em 6 passos
+(base `targetTss`, redução por fase, `REDUZIR`, rampa, cold-start, teto da temporada), sem segundo taper,
+`LONGAO_DIVERGENTE_DA_TEMPORADA` a ±15% e delta da aprovação em métrica, sem migration. ADR-0014. 9 de 10 tickets
+do épico entregues; resta o 10 (`add-season-plan-replanning`), que depende de 1 ciclo no piloto com a flag
+ligada. Arquivada em `changes/archive/2026-11/2026-11-25-add-season-plan-load-enforcement/`.)
+
+**Anterior:** 2026-11-25 (**`fix-duracao-treino-estrutura-completa` arquivada** — S · Fast, só
 backend, follow-up da anterior. Backend #268 (squash `185d27e`) em `develop`. Decisão de produto (24/11): com
 a estrutura completa escrita pela LLM, o volume prescrito é a soma das etapas (regra de 16/11 mantida; "não
 inflar" de 22/09 vale só para etapas sintetizadas). `adotarSomaDasEtapas` passa a gravar a duração do treino

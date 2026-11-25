@@ -39,3 +39,13 @@
 - [x] 5.2 `ADR-0014` "Temporada como teto da carga semanal, não piso" em `menthoros-product/adr/` e entrada no `INDEX.md` (épico 10.4)
   - verify: ADR referencia ADR-0011 e ADR-0012; ordem dos 6 passos igual à da proposal
 - [x] 5.3 Validar: `./mvnw clean verify`
+
+## Entrega (2026-11-25)
+
+Backend #266 (squash `b4c2607`) em `develop` em 2026-11-25. Tasks 1–5 entregues; nada adiado. Código conferido
+em `develop` no arquivamento: flag `season-plan.enforcement.enabled`, `seasonTargetTss`,
+`LONGAO_DIVERGENTE_DA_TEMPORADA`, `planner.compliance.violation` e `LoadTargetResolver.resolveSeason` —
+o ADR-0014 descreve contrato implementado. Registro: as tasks foram marcadas em 11-23/24 antes do código
+chegar ao remoto (alerta de governança de 11-24, fechado em 11-25). Pendente: promover a `main`; ligar
+`season-plan.enforcement.enabled` no piloto; ticket 10 (`add-season-plan-replanning`) depende de 1 ciclo
+no piloto com a flag ligada.
