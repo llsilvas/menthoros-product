@@ -55,3 +55,9 @@ duração absurda da LLM (Low, mesmo follow-up de teto de duração da change an
 Gate: `./mvnw clean verify` verde — 12.048 unitários (757 pulados) e 366 de integração. Uma execução
 intermediária falhou em `GarminClientImplTest.criaWorkout` (404 do mock HTTP); isolado e na execução
 seguinte passou — instabilidade, sem relação com a change.
+
+## Entrega (2026-11-25)
+
+Backend #268 (squash `185d27e`) em `develop`. Tasks 1.1–2.2 entregues, nada adiado dentro do escopo. Fora
+dele seguem os follow-ups herdados (PRINCIPAL sem pace, TEMPO_RUN sintetizado, `tssPlanejado`, teto de
+duração) e os planos já gerados sem backfill. Pendente: promover a `main`.

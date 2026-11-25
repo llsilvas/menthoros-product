@@ -2,7 +2,16 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-24 (**`fix-etapas-sintetizadas-encaixe-total` arquivada** — S · Fast, só
+**Última atualização:** 2026-11-25 (**`fix-duracao-treino-estrutura-completa` arquivada** — S · Fast, só
+backend, follow-up da anterior. Backend #268 (squash `185d27e`) em `develop`. Decisão de produto (24/11): com
+a estrutura completa escrita pela LLM, o volume prescrito é a soma das etapas (regra de 16/11 mantida; "não
+inflar" de 22/09 vale só para etapas sintetizadas). `adotarSomaDasEtapas` passa a gravar a duração do treino
+como soma das etapas, inclusive com o total já igual à soma — longão de 96 min na LLM e 84 nas etapas sai
+com 84 no card. Critério "todas as etapas com duração" num helper só (`comDuracaoDaSoma`). Matriz: exceção
+`estrutura-completa` (1.004) sai; restam 756 (sem pace 504, TEMPO_RUN sintetizado 252). Arquivada em
+`changes/archive/2026-11/2026-11-25-fix-duracao-treino-estrutura-completa/`.)
+
+**Anterior:** 2026-11-24 (**`fix-etapas-sintetizadas-encaixe-total` arquivada** — S · Fast, só
 backend. Backend #265 (squash `7fdac74`) em `develop`. Card e editor da revisão divergiam em treino curto com
 aquecimento sintetizado (2 km / 25 min no card, 5,1 km / 35 min nas etapas): com sobra ≤ 0 o treino vira bloco
 único com o total prescrito (REGENERATIVO, CONTINUO, LONGO; TEMPO_RUN fica), e o encaixe grava a duração do
