@@ -34,8 +34,8 @@ Repos: `apps/menthoros-backend` (branch `fix/season-plan-start-volume`, worktree
 
 ## 4. Backend — resposta (D5)
 
-- [ ] 4.1 `SeasonPlanResponseDto` + mapper com os quatro campos (teste do mapper; legado nulo).
-- [ ] 4.2 IT: gerar → recalcular a v1 → aprovar, contra Postgres. verify: `./mvnw clean verify`.
+- [x] 4.1 `SeasonPlanResponseDto` + mapper com os quatro campos (teste do mapper; legado nulo).
+- [x] 4.2 IT: gerar → recalcular a v1 → aprovar, contra Postgres. verify: `./mvnw clean verify`.
 
 ## 5. Front (D5)
 
