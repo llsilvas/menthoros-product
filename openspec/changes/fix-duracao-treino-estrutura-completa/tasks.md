@@ -40,3 +40,18 @@ Repo: `apps/menthoros-backend`. Validação: `./mvnw clean verify`.
   e verde com ele (`84:00`).
 - `./mvnw clean verify`: 12.048 unitários (757 pulados: 756 da matriz + 1 pré-existente) e 366 de
   integração, verde.
+
+## QA (2026-11-25)
+
+`code-reviewer`, `security-reviewer` e `clean-code-reviewer`: nada Critical/High/Medium. Corrigido (`6b9e067`):
+critério "todas as etapas com duração" num helper só (`comDuracaoDaSoma`), usado pelo encaixe e por
+`adotarSomaDasEtapas`; comentário sem o id da change; `soOTotalMuda` afirma a duração (`40:00`); import do
+`offset`.
+
+Não corrigido: "total ≈ soma" na fatia da estrutura completa (já é a invariante card = editor de
+distância); `somarDuracoesMin` ignora `repeticoes` (pré-existente, raro em contínuo); estouro de `int` com
+duração absurda da LLM (Low, mesmo follow-up de teto de duração da change anterior).
+
+Gate: `./mvnw clean verify` verde — 12.048 unitários (757 pulados) e 366 de integração. Uma execução
+intermediária falhou em `GarminClientImplTest.criaWorkout` (404 do mock HTTP); isolado e na execução
+seguinte passou — instabilidade, sem relação com a change.
