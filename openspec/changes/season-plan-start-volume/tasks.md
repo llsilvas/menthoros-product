@@ -18,11 +18,11 @@ Repos: `apps/menthoros-backend` (branch `fix/season-plan-start-volume`, worktree
 
 ## 2. Backend — volume e longão de partida (D1, D2)
 
-- [ ] 2.1 `SeasonPlannerTest`: longão proporcional, piso 28%, teto 50%, teto da distância, descarga, sem
+- [x] 2.1 `SeasonPlannerTest`: longão proporcional, piso 28%, teto 50%, teto da distância, descarga, sem
       `L0` (critérios 5 e 6). verify: vermelho antes, verde depois.
-- [ ] 2.2 `SeasonPlanner.plan`/`planWithPhases` com `startLongRunKm`; callers atualizados.
-- [ ] 2.3 `SeasonPlanServiceImplTest`: critérios 1–4 e `L0` sem PROVA. verify: idem.
-- [ ] 2.4 `resolverVolume` → `StartVolume` (mediana, origem, histórico) e `L0`; grava as colunas.
+- [x] 2.2 `SeasonPlanner.plan`/`planWithPhases` com `startLongRunKm`; callers atualizados.
+- [x] 2.3 `SeasonPlanServiceImplTest`: critérios 1–4 e `L0` sem PROVA. verify: idem.
+- [x] 2.4 `resolverVolume` → `StartVolume` (mediana, origem, histórico) e `L0`; grava as colunas.
 
 ## 3. Backend — recálculo da v1 (D4)
 
