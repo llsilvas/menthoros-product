@@ -2,7 +2,17 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-25 (**`add-season-plan-load-enforcement` arquivada** — ticket 9 do épico
+**Última atualização:** 2026-11-26 (**`season-plan-start-volume` arquivada** — fix da partida da proposta v1
+da temporada. Backend #269 (squash `f9cdf72`) e front #238 (squash `732d7b6`) em `develop`. Volume de partida
+vira a mediana das 8 semanas completas (fallback no onboarding) e o longão parte do maior treino das últimas 6
+semanas sem PROVA (`L0`, proporcional ao volume, teto 50% e da distância); V122 grava volume proposto, origem,
+`L0` e histórico; `recalculate` passa a valer na v1 PROPOSED (origem `COACH`, só semanas COMPLETED travadas). A
+aba Temporada mostra a partida e abre "Ajustar volume e fases" com o campo de longão. Adiado: regenerar pela tela
+a temporada da conta de referência depois do deploy (dados conferidos por query: 20,8 km e `L0` 7,4) e extrair
+um `StartVolumeCalculator`. Baseline da métrica em `notes.md`. Arquivada em
+`changes/archive/2026-11/2026-11-26-season-plan-start-volume/`.)
+
+**Anterior:** 2026-11-25 (**`add-season-plan-load-enforcement` arquivada** — ticket 9 do épico
 `add-season-plan-macrocycle`. Backend #266 (squash `b4c2607`) em `develop`. Com a flag
 `season-plan.enforcement.enabled`, a temporada ACTIVE passa a ser base e teto da carga semanal: alvo em 6 passos
 (base `targetTss`, redução por fase, `REDUZIR`, rampa, cold-start, teto da temporada), sem segundo taper,
