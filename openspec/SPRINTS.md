@@ -2,7 +2,16 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-26 (**`season-plan-start-volume` arquivada** — fix da partida da proposta v1
+**Última atualização:** 2026-11-27 (**cinco changes mergeadas arquivadas em lote**, por auditoria do Kanban.
+`fix-distancia-treino-soma-etapas` (backend #272 em `develop`, 6/6): PRINCIPAL sem ritmo dos tipos leves usa o
+pace Z2 e o total do treino vira a soma das etapas; exceção `sem-pace` da matriz 504 → 165, só TEMPO_RUN.
+`redesign-keycloak-login-photo-layout` (infra #27 em `main`, 5/6). `athlete-share-cards` (front #210, 26/28),
+`athlete-share-cards-mapa` (front #216, 17/19) e `fix-garmin-realizado-pos-ingestao` (backend #235/#236, 9/10)
+estavam em produção havia 8 dias. Adiados, marcados nos `tasks.md`: verificações manuais em aparelho real
+(cards e mapa), follow-ups não bloqueantes, autofill real/Firefox/realm `menthoros` no login e o backfill dos
+realizados `GARMIN` sem reconciliação. Arquivadas em `changes/archive/2026-11/2026-11-27-*/`.)
+
+**Anterior:** 2026-11-26 (**`season-plan-start-volume` arquivada** — fix da partida da proposta v1
 da temporada. Backend #269 (squash `f9cdf72`) e front #238 (squash `732d7b6`) em `develop`. Volume de partida
 vira a mediana das 8 semanas completas (fallback no onboarding) e o longão parte do maior treino das últimas 6
 semanas sem PROVA (`L0`, proporcional ao volume, teto 50% e da distância); V122 grava volume proposto, origem,

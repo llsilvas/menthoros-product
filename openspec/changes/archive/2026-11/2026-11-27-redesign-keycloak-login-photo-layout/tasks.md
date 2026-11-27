@@ -18,7 +18,7 @@ Validação: subir `quay.io/keycloak/keycloak:26.7.0` local com o tema montado e
 
 ## 3. Verificação
 
-- [ ] 3.1 Keycloak local com o tema: login, erro de credencial, celular (CA1–CA5).
+- [ ] 3.1 **Adiada (2026-11-27, arquivamento):** Keycloak local com o tema: login, erro de credencial, celular (CA1–CA5).
       Feito em 11-21 no realm `master`, PT-BR, em 1440 e 375, Chromium e WebKit (Playwright):
       layout, erro de credencial, sem rolagem horizontal, alvos de 44px, autofill por simulacao
       (fundo claro forcado + declaracoes da regra). **Pendente:** autofill real com senha salva

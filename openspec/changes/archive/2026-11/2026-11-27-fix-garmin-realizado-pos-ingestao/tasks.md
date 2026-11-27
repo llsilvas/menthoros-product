@@ -42,7 +42,7 @@
 
 ## 4. Pós-merge (operacional, com confirmação)
 
-- [ ] 4.1 Backfill: listar (leitura) os realizados `GARMIN` com `reconciliation_status` nulo, confirmar que são
+- [ ] 4.1 **Adiada (2026-11-27, arquivamento):** Backfill: listar (leitura) os realizados `GARMIN` com `reconciliation_status` nulo, confirmar que são
   corrida, e só nesses ids um SQL marca `NAO_PLANEJADO` / `BACKFILL_SEM_RECONCILIACAO` (Open Questions); pedir ao
   atleta que reenvie o "Como foi?" do treino de 2026-11-09
   - verify: leitura em produção — os ids revisados aparecem na fila do treinador; FIT de outro esporte segue nulo;

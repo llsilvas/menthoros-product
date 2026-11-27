@@ -36,6 +36,6 @@
 - Validação: lint e build passaram; `test:run` 304 arquivos / 2982 testes. E2E: 182 de 183 na suíte completa; a falha foi `coach/plano-zonas-editor.spec.ts`, fora desta change, que passa 14/14 isolado (instável sob carga paralela). Os 9 E2E de compartilhamento passaram depois do QA.
 - PNGs reais em 1080×1920 conferidos (Rota e Foto) em `test-results/`.
 - QA: frontend-reviewer não encontrou caminho que gere PNG com mapa sem consentimento. Corrigido: imagem regerada só ao soltar o adesivo; consentimento carregando ou com erro não abre o aviso; fundo antes do JPEG; ordem de duas fotos. Também corrigido: `limitar` do adesivo dividia por zero com o pai sem tamanho.
-- [ ] 4.1 Verificação manual em iPhone e Android reais: share sheet, foto grande de câmera (EXIF e memória), arrastar com o dedo. Conferir também se o contorno de foco do adesivo (teclado) aparece no PNG
-- [ ] 4.2 Follow-ups não bloqueantes: extrair `useShareGate`/`buildShareImageVersion` da `ShareWorkoutView` (clean-code); `role="slider"` com `aria-valuetext` nos adesivos; revogação em outro aparelho não invalida blob já gerado até recarregar; avisos de `act` em `mapCards.test.tsx`
+- [ ] 4.1 **Adiada (2026-11-27, arquivamento):** Verificação manual em iPhone e Android reais: share sheet, foto grande de câmera (EXIF e memória), arrastar com o dedo. Conferir também se o contorno de foco do adesivo (teclado) aparece no PNG
+- [ ] 4.2 **Adiada (2026-11-27, arquivamento):** Follow-ups não bloqueantes: extrair `useShareGate`/`buildShareImageVersion` da `ShareWorkoutView` (clean-code); `role="slider"` com `aria-valuetext` nos adesivos; revogação em outro aparelho não invalida blob já gerado até recarregar; avisos de `act` em `mapCards.test.tsx`
 

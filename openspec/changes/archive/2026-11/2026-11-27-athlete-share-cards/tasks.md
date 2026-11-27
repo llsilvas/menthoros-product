@@ -45,10 +45,10 @@
 
 - [x] 5.1 `ShareWorkoutButton` (link via `RouterLink` para `athleteShareWorkoutRoute`) no `WorkoutDetailDrawer` (só com `treinoRealizadoId` de treino concluído; fecha o drawer) e no `TodayCompletedCard`. Testes com `createHashRouter` conferem `href="#/athlete/share/<id>"`
 - [x] 5.2 `tests/e2e/athlete/share-workout.spec.ts` (2): Plano → drawer → Compartilhar → Semana/Feed → desliga assinatura → Salvar baixa `menthoros-semana-feed.png` com **1080×1350 lidos do cabeçalho do PNG**; treino manual sem atribuição Garmin. O PNG real fica em `test-results/` — Barlow Condensed embutida e sem cortes, conferido visualmente. **Achado do E2E:** o endpoint de planos devolve objeto único, não lista; `useShareWorkout` quebrava e passou a aceitar os dois (+1 teste)
-- [ ] 5.3 Verificação manual em iOS Safari, Android Chrome e desktop (PNG real, fontes, share sheet). **Pendente — precisa de aparelho**; o E2E roda Chromium desktop sem `navigator.share`, então o share sheet nativo não está coberto por automação
+- [ ] 5.3 **Adiada (2026-11-27, arquivamento):** Verificação manual em iOS Safari, Android Chrome e desktop (PNG real, fontes, share sheet). **Pendente — precisa de aparelho**; o E2E roda Chromium desktop sem `navigator.share`, então o share sheet nativo não está coberto por automação
 - [x] 5.4 Validação: lint e build verdes; `test:run` 300 arquivos / 2943 testes; `test:e2e` 176 passaram
 
 ## 6. QA
 
 - [x] 6.1 frontend-reviewer + clean-code-reviewer: sem Critical. Corrigido: revoke do object URL adiado (Safari), `canShare` sondado com arquivo não vazio, erro explícito com card não montado (antes ficava "Gerando…" para sempre), `AbortError` checado por tipo, FC não regera imagem fora do card Plano, `formatPace` reaproveitado. **Descartado:** "PNG sem Barlow por CORS" — o PNG real do E2E mostra a fonte embutida
-- [ ] 6.2 Follow-ups não bloqueantes: botão "Tentar de novo" quando a rasterização falha (hoje o alerta pede para mudar uma opção); `ToggleButton` com `role="radio"` não navega por setas; card Semana com um só dispositivo poderia dizer "GARMIN FORERUNNER 265" em vez de "GARMIN" + "Inclui dados de dispositivo Garmin"
+- [ ] 6.2 **Adiada (2026-11-27, arquivamento):** Follow-ups não bloqueantes: botão "Tentar de novo" quando a rasterização falha (hoje o alerta pede para mudar uma opção); `ToggleButton` com `role="radio"` não navega por setas; card Semana com um só dispositivo poderia dizer "GARMIN FORERUNNER 265" em vez de "GARMIN" + "Inclui dados de dispositivo Garmin"
