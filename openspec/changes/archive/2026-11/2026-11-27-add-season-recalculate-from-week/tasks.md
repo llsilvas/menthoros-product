@@ -53,5 +53,5 @@ só começa com o backend em `develop` (Dependências e rollout).
 
 ## 3. Fechamento
 
-- [ ] 3.1 Conferir no homelab: no ajuste do atleta do caso real, editar a próxima semana com recálculo
+- [ ] 3.1 **Adiada (2026-11-27, arquivamento):** Conferir no homelab: no ajuste do atleta do caso real, editar a próxima semana com recálculo
       das seguintes e pico de 30 km, e ler as semanas no banco

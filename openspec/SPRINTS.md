@@ -2,7 +2,14 @@
 
 Ordem de execução das changes ativas, organizada por sprint. **Prioridade: base de IA primeiro**, com features visíveis do treinador intercaladas para preservar time-to-value.
 
-**Última atualização:** 2026-11-27 (**cinco changes mergeadas arquivadas em lote**, por auditoria do Kanban.
+**Última atualização:** 2026-11-27 (**`add-season-recalculate-from-week` arquivada** — posterior ao épico
+`add-season-plan-macrocycle`. Backend #271 e front #240 em `develop`. Editar uma semana da temporada passa a
+poder recalcular as seguintes por uma rampa ancorada até um pico informado (`followingPeakVolumeKm` em
+`updateWeek`), em vez do pico fixo em início × 1,30; o TSS da semana editada acompanha o volume. Adiada a 3.1
+(conferir no homelab, no caso real, a próxima semana com recálculo e pico de 30 km). Arquivada em
+`changes/archive/2026-11/2026-11-27-add-season-recalculate-from-week/`.)
+
+**Anterior:** 2026-11-27 (**cinco changes mergeadas arquivadas em lote**, por auditoria do Kanban.
 `fix-distancia-treino-soma-etapas` (backend #272 em `develop`, 6/6): PRINCIPAL sem ritmo dos tipos leves usa o
 pace Z2 e o total do treino vira a soma das etapas; exceção `sem-pace` da matriz 504 → 165, só TEMPO_RUN.
 `redesign-keycloak-login-photo-layout` (infra #27 em `main`, 5/6). `athlete-share-cards` (front #210, 26/28),
