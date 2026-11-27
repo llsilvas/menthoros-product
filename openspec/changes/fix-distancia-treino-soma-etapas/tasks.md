@@ -72,3 +72,9 @@ Testes novos: `semRitmoUsaPaceZ2` (limiar nulo/5,0/4,0), `semRitmoSemDuracaoPres
 - `./mvnw clean verify` (2026-11-27): 13.803 testes (Surefire, 490 abortados — exceções catalogadas da matriz)
   e 367 `*IT` (Failsafe), 0 falhas.
 - Exceção `sem-pace` da matriz: 504 → 165 cenários, só TEMPO_RUN (métrica de sucesso atingida).
+- `/qa` (code-reviewer, security-reviewer, clean-code-reviewer): nada Critical/High. Corrigido em `3ca334f`:
+  limiar <= 0 no fallback (distância infinita/negativa; agora fica a distância da LLM, como no aquecimento),
+  `tipoTreino` nulo (NPE no `Set.of`) e o set reusado renomeado para `TIPOS_RITMO_LEVE`. Verify depois do
+  fix: 13.806 + 367 IT, 0 falhas.
+- Fica de fora (fora de escopo): `garantirDistanciaContinuo` ainda duplica a fórmula do Z2; se aparecer a
+  8ª correção da série, revisitar um ponto único de derivação de pace por tipo (clean-code-reviewer).
