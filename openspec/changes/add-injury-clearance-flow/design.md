@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS tb_injury_event (
     author_user_id UUID NOT NULL,
     signal VARCHAR(20) CHECK (signal IN ('SEM_DOR','LIBERADO_MEDICO')),
     text VARCHAR(500),
-    request_status VARCHAR(20) CHECK (request_status IN ('PENDING','CONFIRMED','DECLINED')),
+    request_status VARCHAR(20) CHECK (request_status IN ('PENDING','CONFIRMED','DECLINED','CANCELLED')),
     resolved_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -40,14 +40,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_injury_event_pending
 ```
 
 `request_status` só existe em `CLEARANCE_REQUESTED`; é a única coluna que muda depois do insert
-(`PENDING → CONFIRMED | DECLINED`). O índice parcial garante um pendente por atleta; um segundo
-pedido com pendente aberto responde `409`.
+(`PENDING → CONFIRMED | DECLINED | CANCELLED`; `CANCELLED` quando o atleta reporta dor com o pedido
+aberto). O índice parcial garante um pendente por atleta; um segundo pedido com pendente aberto
+responde `409`. `text` guarda a descrição do `REPORTED` e a observação do coach no `CLEARED` /
+`CLEARANCE_DECLINED`; o sinal do atleta não tem texto.
 
 ### D2 — Sinais da fila derivados dos eventos
 
 - `LESAO_REPORTADA`: existe `REPORTED` de autor `ATHLETE` sem `ACKNOWLEDGED`, `CLEARED` ou
   `CLEARANCE_DECLINED` posterior do coach, e `temLesao = true`.
 - `LIBERACAO_SOLICITADA`: existe pedido `PENDING`.
+
+**Evidência de dor (design):** sem tabela nova. Vem de duas fontes que já existem, nos últimos 28 dias:
+o `doresMusculares` do `CheckinProntidao` (0 = sem dor; 1–3 leve; 4–6 moderada; 7–10 forte) e o
+`Sensacao.DOR` dos `TreinoRealizado`. Daí saem "dias seguidos sem dor", "treinos sem dor desde a
+última dor", "última dor relatada" e a tabela semanal (check-ins, com dor, maior dor), calculados
+numa função pura. A query de realizados com `DOR` é a mesma que `add-pain-attention-signal` cria; quem
+mergear depois reusa.
 
 **Episódio:** os sinais olham só os eventos depois do `CLEARED` mais recente do atleta. Assim, um
 `REPORTED` de uma lesão já encerrada não contamina a fila da lesão seguinte.

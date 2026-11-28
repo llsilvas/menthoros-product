@@ -42,19 +42,27 @@ Pré-requisito: `add-injury-clearance-coach` mergeada em `develop`.
 - [ ] 3.2 `montarItem` com os dois sinais e evidências (CA2, CA3, CA6, CA8, CA17), só com eventos do
       episódio aberto (D2). Conferir
       `MOTIVOS_IGNORADOS`/`MOTIVO_TIPO` do `SugestaoCoachGeneratorJob`. verify: `./mvnw clean verify`.
-- [ ] 3.3 CA13: teste de que o comentário do pedido não aparece no prompt. verify: teste do
+- [ ] 3.3 CA13: teste de que a observação do coach não aparece no prompt. verify: teste do
       `AlertasPromptFormatter`/builder.
+- [ ] 3.4 Evidência de dor (design.md, D2): função pura sobre check-ins e realizados dos últimos 28
+      dias; endpoint ou campo no perfil para a tela de decisão (histórico semanal). CA6.
+      verify: testes da função + `./mvnw clean verify`.
 
 ## 4. Frontend
 
 - [ ] 4.1 `src/api` (à mão) + tipos: endpoints novos, motivos novos em `types/Coach.ts`.
       verify: `npm run build`.
-- [ ] 4.2 Home do atleta: card "Como está a lesão?" / "Reportar lesão", estado do pedido.
+- [ ] 4.0 Ajustar o design (v7) nos pontos de "Divergências do design" do proposal antes do front.
+      verify: nova versão do artifact citada no proposal.
+- [ ] 4.2 Atleta: bloco de lesão no check-in (escala de 4 níveis sobre `doresMusculares`, dois sinais,
+      botão vermelho) e tela de espera, com o resultado e a observação do coach.
       verify: teste Vitest + `npm run lint && npm run build && npm run test:run`.
-- [ ] 4.3 Coach: `REASON_LABEL`/`MOTIVO_TEXTO`, ações "Liberar retorno" / "Manter recuperação" /
-      "Ciente" na fila e no perfil, ajuda no `AtletaDialog`. O `AtletaDialog` devolve `lesaoVistaEm`
-      e trata `409 LESAO_REPORTADA_DEPOIS` (recarrega o atleta e avisa). verify: testes + gate do front.
-- [ ] 4.4 E2E: atleta pede liberação → coach confirma → home do atleta sem lesão.
+- [ ] 4.3 Coach: `REASON_LABEL`/`MOTIVO_TEXTO`, bloco "Sinal de atenção" no inbox, tela "Liberação de
+      lesão" (sinal, histórico de 4 semanas, "Sua decisão" só leitura com observação, confirmação,
+      link "Ajustar temporada"), "Ciente" na dor reportada, ajuda no `AtletaDialog`. O
+      `AtletaDialog` devolve `lesaoVistaEm` e trata `409 LESAO_REPORTADA_DEPOIS` (recarrega o atleta
+      e avisa). verify: testes + gate do front.
+- [ ] 4.4 E2E: atleta pede liberação → coach confirma → check-in do atleta sem lesão.
       verify: `E2E (Playwright)` verde.
 
 ## 5. Validação

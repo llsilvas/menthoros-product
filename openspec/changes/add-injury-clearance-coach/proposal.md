@@ -2,6 +2,11 @@
 
 # add-injury-clearance-coach — desmarcar a lesão abre a volta aos treinos
 
+**Design:** https://claude.ai/artifact/5Y2fzou7t87vH7V9YQAyc5#play-fad9a36280da (versão 7,
+`1795863599-622a`). Esta change não tem tela; ela é a regra que o painel "Sua decisão" descreve ("a
+lesão fica no histórico com a data de hoje como fim", "volta aos treinos por 30 dias"). As telas são
+da `add-injury-clearance-flow`.
+
 ## Why
 
 Hoje só o coach desmarca a lesão, pelo `AtletaDialog` (`PUT /api/v1/atletas/{id}`, `TECNICO`/`ADMIN`).

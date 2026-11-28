@@ -2,6 +2,10 @@
 
 # add-injury-clearance-flow — atleta sinaliza a lesão, coach decide a liberação
 
+**Design:** https://claude.ai/artifact/5Y2fzou7t87vH7V9YQAyc5#play-fad9a36280da (versão 7,
+`1795863599-622a`): check-in do atleta com sinal, atleta aguardando, inbox do coach, decisão de
+liberação. O que a spec corta ou muda do design está em "Divergências do design".
+
 ## Why
 
 Lesão hoje é dado só do coach depois do onboarding: o atleta informa no passo de saúde e, concluído o
@@ -26,38 +30,61 @@ plano. Isso é churn. Lesão vista no dia, e retorno decidido com dados, é rete
 
 **Atleta (`ATLETA`, resolve o atleta do token, sem id na URL):**
 
-1. **Reportar lesão nova** — `POST /api/v1/atletas/me/lesao` com `descricao` (obrigatória, até 500).
-   Efeito imediato: `temLesao = true`, `descricaoLesao = descricao`. A semana já gerada ou aprovada
-   **não** é reaberta (decisão de 28/11): quem mexe nela é o coach. Com lesão já ativa, responde `409`.
+1. **Reportar dor ou lesão nova** — `POST /api/v1/atletas/me/lesao` com `descricao` (até 500). Um
+   endpoint só para os botões vermelhos do design ("Senti dor ou lesão nova" no check-in, "A dor
+   voltou" na tela de espera):
+   - **sem lesão ativa:** `descricao` obrigatória; `temLesao = true`, `descricaoLesao = descricao`;
+   - **com lesão ativa:** `descricao` opcional; a lesão não muda, o pedido pendente (se houver) vira
+     `CANCELLED`, e `LESAO_REPORTADA` volta à fila. É o "cancela o pedido na hora e mantém o modo
+     seguro" do design, sem endpoint de cancelamento à parte.
+
+   A semana já gerada ou aprovada **não** é reaberta (decisão de 28/11): quem mexe nela é o coach.
 2. **Sinalizar melhora** — `POST /api/v1/atletas/me/lesao/sinal-liberacao` com
-   `tipo ∈ {SEM_DOR, LIBERADO_MEDICO}` e `comentario` opcional (até 500). **Não** muda `temLesao`.
-   Sem lesão ativa → `409`; com pedido pendente → `409` (revisão de produto: sem estado
-   `SUPERSEDED`; o atleta espera a decisão do coach).
-3. **Home do atleta:** com lesão ativa, card "Como está a lesão?" com os dois sinais e o estado do
-   pedido ("aguardando o treinador"); sem lesão, ação "Reportar lesão". Texto neutro, sem conselho
-   clínico.
+   `tipo ∈ {SEM_DOR, LIBERADO_MEDICO}`, sem texto (o design não tem campo; menos dado sensível).
+   **Não** muda `temLesao`. Sem lesão ativa → `409`; com pedido pendente → `409` (revisão de
+   produto: sem estado `SUPERSEDED`; o atleta espera a decisão do coach).
+3. **Telas do atleta (design: check-in e espera):** no check-in de prontidão, com lesão ativa, o
+   bloco "Lesão em acompanhamento · MODO SEGURO" com o volume da semana, a pergunta "Como está a dor
+   hoje?", os dois sinais e o botão vermelho. Com pedido pendente, a tela de espera (sinal → coach
+   revisa → coach libera) e "Nada muda no seu plano até o coach confirmar". Depois da decisão, o
+   atleta vê o resultado e a observação do coach. Sem lesão, só o botão vermelho. Texto neutro, sem
+   conselho clínico.
+   - **"Como está a dor hoje?" reusa `doresMusculares` (0–10) do check-in**, sem campo novo: Sem dor
+     = 0, Leve = 1–3, Moderada = 4–6, Forte = 7–10. Ver Open Questions.
 
 **Coach (`TECNICO`/`ADMIN`, `@RequireTenant`):**
 
 4. **Fila de atenção:** dois motivos novos em `MotivoAtencao`:
    - `LESAO_REPORTADA` (peso 60, severidade `CRITICA`): lesão reportada pelo atleta ainda não vista
      pelo coach. Evidência: data e descrição.
-   - `LIBERACAO_SOLICITADA` (peso 15, severidade `MEDIA`): pedido pendente. Evidência: tipo, data,
-     comentário, dias desde o reporte da lesão e km realizado nas 2 últimas semanas.
+   - `LIBERACAO_SOLICITADA` (peso 15, severidade `MEDIA`): pedido pendente. Evidência (a do design):
+     tipo e data do sinal, dias seguidos sem dor, treinos feitos sem dor desde a última dor, última
+     dor relatada (data e nível) e lesão registrada.
+   - **Fonte da dor:** o `doresMusculares` do check-in e o `Sensacao.DOR` do feedback pós-treino, que
+     já existem. "Com dor" = `doresMusculares ≥ 1` ou `DOR` no realizado.
 5. **Confirmar liberação** — `POST /api/v1/atletas/{id}/lesao/liberacao`: aplica a regra da
    `add-injury-clearance-coach` (`dataUltimaLesao = hoje`, descrição para o histórico, `temLesao =
    false`), resolve o pedido pendente como `CONFIRMED` e grava quem liberou. Funciona com ou sem
-   pedido do atleta.
-6. **Recusar pedido** — `POST /api/v1/atletas/{id}/lesao/sinal-liberacao/recusa` com `motivo`
-   opcional: pedido vira `DECLINED`; o atleta vê "o treinador manteve a recuperação".
+   pedido do atleta. Aceita `observacao` opcional (até 500), mostrada ao atleta.
+6. **Recusar pedido** ("Manter restrição" no design) —
+   `POST /api/v1/atletas/{id}/lesao/sinal-liberacao/recusa` com a mesma `observacao` opcional:
+   pedido vira `DECLINED`; o atleta vê "o treinador manteve a recuperação" e a observação.
 7. **Ciência da lesão reportada** — `POST /api/v1/atletas/{id}/lesao/ciencia`: tira
    `LESAO_REPORTADA` da fila. Não muda a lesão. Mantido apesar da sugestão de corte da revisão de
    produto: sem ciência explícita, um item `CRITICA` só sairia da fila se o coach editasse o plano ou
    liberasse. O caso comum ("vi, a recuperação gerada está certa, não preciso mexer") ficaria preso
    no topo da fila.
-8. **Front do coach:** rótulos dos motivos novos (`REASON_LABEL`, `MOTIVO_TEXTO`), ação "Liberar
-   retorno" e "Manter recuperação" no item da fila e no perfil do atleta, e texto de ajuda no
-   `AtletaDialog`: "Desmarcar libera o retorno: 30 dias em volta aos treinos."
+8. **Front do coach (design: inbox e decisão):**
+   - Inbox: rótulos "Liberação de lesão" e "Dor reportada" (`REASON_LABEL`, `MOTIVO_TEXTO`), o bloco
+     "Sinal de atenção" com a evidência do item 4, e "Revisar liberação" abrindo a tela de decisão.
+   - Tela "Liberação de lesão": sinal do atleta, "em modo seguro desde" (primeiro `REPORTED` do
+     episódio; lesão antiga sem evento mostra "—"), histórico de dor das últimas 4 semanas (por
+     semana: check-ins, com dor, maior dor) e o painel "Sua decisão".
+   - "Sua decisão": o que acontece se liberar, **só leitura** ("volta aos treinos por 30 dias, até
+     <data>"; "a lesão fica no histórico com a data de hoje como fim"), a observação opcional,
+     "Manter restrição" / "Liberar…" e o passo de confirmação ("a decisão fica registrada no seu
+     nome"). Link "Ajustar temporada" para o ajuste que já existe.
+   - Texto de ajuda no `AtletaDialog`: "Desmarcar libera o retorno: 30 dias em volta aos treinos."
 
 **Persistência:** tabela `tb_injury_event` (append-only) com os eventos `REPORTED`,
 `CLEARANCE_REQUESTED`, `CLEARED`, `CLEARANCE_DECLINED`, `ACKNOWLEDGED`, autor (`ATHLETE`/`COACH`,
@@ -80,6 +107,27 @@ tabela é trilha e fonte da fila.
 Fora de escopo: reabrir a semana atual; reancorar a temporada; ler o texto do atleta com LLM; inferir
 região ou gravidade; notificação push; o sinal de dor recorrente do pós-treino
 (`add-pain-attention-signal`).
+
+## Divergências do design
+
+O que o design (v7) mostra e a spec não faz, com o motivo. O design precisa ser ajustado nestes pontos
+antes do front.
+
+- **Volume e longão editáveis na liberação (cortados).** O design deixa o coach digitar a carga
+  (default 20 km / longão 8 km). Não há mecanismo para isso, e ele seria novo: a carga do próximo
+  plano vem da fase de volta aos treinos (`RETURN_TO_TRAINING`). Quem quer outra carga usa o ajuste
+  da temporada, que já existe. O painel fica só leitura, com link.
+- **Checkbox "Reancorar a temporada a partir desta semana" (cortado).** O founder decidiu em 28/11
+  que liberar não mexe na temporada. O link "Ajustar temporada" cobre o caso com o recálculo que já
+  existe (`add-season-recalculate-from-week`).
+- **Texto "a carga sobe de 9 km para 20 km" (errado).** Liberar põe o atleta em volta aos treinos
+  por 30 dias; ele não pula para a meta da temporada. O próprio design diz "sem pular para a meta da
+  temporada" no painel. Trocar por "entra em volta aos treinos: carga gradual por 30 dias".
+- **Escala de dor de 4 níveis.** O check-in hoje tem `doresMusculares` de 0 a 10. A spec reusa o
+  campo, mapeando os 4 botões, em vez de criar outro. Ver Open Questions.
+- **Sem ação de ciência para "Dor reportada".** O design só desenha o detalhe da liberação. A spec
+  mantém "Ciente" (item 7); o design precisa do botão no detalhe da dor reportada.
+- **Tela de lesão nova sem lesão ativa não está desenhada** (onde o atleta escreve a descrição).
 
 ## Capabilities
 
@@ -129,25 +177,28 @@ front quebra o build se faltar rótulo — é o aviso desejado.
   da fila e a lesão continua ativa.
 - **CA4** — **Dado** CA1 e um plano semanal já aprovado, **quando** o atleta reporta, **então** o plano
   não muda (status, treinos e `review_status` iguais).
-- **CA5** — **Dado** lesão ativa, **quando** o atleta chama `POST /me/lesao`, **então** `409` e nada é
-  gravado.
-- **CA6** — **Dado** lesão ativa, **quando** o atleta sinaliza `SEM_DOR`, **então** `temLesao` segue
-  `true`, existe pedido `PENDING`, e a fila mostra `LIBERACAO_SOLICITADA` com tipo, comentário, dias
-  desde o reporte e km das 2 últimas semanas.
+- **CA5** — **Dado** lesão ativa e pedido `PENDING`, **quando** o atleta chama `POST /me/lesao` ("a dor
+  voltou"), **então** o pedido vira `CANCELLED`, `temLesao` e `descricaoLesao` não mudam, existe
+  evento `REPORTED`, e a fila mostra `LESAO_REPORTADA`.
+- **CA6** — **Dado** lesão ativa, check-ins com `doresMusculares` 3 em 19/11 e 0 de 20/11 a 28/11, e 4
+  realizados sem `DOR` depois de 19/11, **quando** o atleta sinaliza `SEM_DOR` em 28/11, **então**
+  `temLesao` segue `true`, existe pedido `PENDING`, e a fila mostra `LIBERACAO_SOLICITADA` com
+  "9 dias seguidos sem dor", "4 treinos sem dor" e "última dor 19/11 · leve".
 - **CA7** — **Dado** pedido pendente, **quando** o atleta sinaliza `LIBERADO_MEDICO`, **então** `409`
   e o pedido pendente continua o mesmo.
 - **CA8** — **Dado** pedido pendente, **quando** o coach confirma em 28/11, **então** a regra da
   `add-injury-clearance-coach` é aplicada, o pedido vira `CONFIRMED`, o evento `CLEARED` tem o
   `user_id` do coach, e o motivo sai da fila.
-- **CA9** — **Dado** pedido pendente, **quando** o coach recusa, **então** o pedido vira `DECLINED`,
-  a lesão continua ativa e a home do atleta mostra "o treinador manteve a recuperação".
+- **CA9** — **Dado** pedido pendente, **quando** o coach recusa com a observação "mais uma semana",
+  **então** o pedido vira `DECLINED`, a lesão continua ativa e o check-in do atleta mostra "o
+  treinador manteve a recuperação" e "mais uma semana".
 - **CA10** — **Dado** atleta sem lesão, **quando** sinaliza melhora, **então** `409`.
 - **CA11** — **Dado** coach de outro tenant, **quando** chama qualquer `/{id}/lesao/*`, **então**
   `404`, sem efeito.
 - **CA12** — **Dado** atleta autenticado, **quando** chama os endpoints `/me`, **então** só o próprio
   atleta é afetado (não existe parâmetro de id).
-- **CA13** — **Dado** o comentário do atleta, **quando** um plano é gerado, **então** o texto do
-  pedido não entra no prompt (só `descricaoLesao` e `historicoLesoes`, como hoje).
+- **CA13** — **Dado** a observação do coach numa decisão, **quando** um plano é gerado, **então** o
+  texto não entra no prompt (só `descricaoLesao` e `historicoLesoes`, como hoje).
 - **CA14** — **Dado** onboarding `COMPLETO` e lesão ativa, **quando** o atleta salva um rascunho com
   `temLesao = false` e conclui de novo, **então** `temLesao`, `descricaoLesao`, `dataUltimaLesao` e
   `historicoLesoes` não mudam.
@@ -177,6 +228,10 @@ só a mediana.
 - **Decidido (28/11):** reportar não reabre a semana atual; liberar não mexe na temporada. Com isso,
   depois de um reporte o coach age a partir do item `CRITICA` na fila (editar a semana, ou dar
   ciência).
+- **Aberto (decisão do founder):** reusar `doresMusculares` como "dor da lesão" no check-in. Prós: sem
+  campo, sem migration, o readiness já reage. Contra: mistura dor muscular com dor da lesão para o
+  atleta lesionado. Alternativa: campo novo `injuryPain` só no check-in com lesão ativa. A spec segue
+  com o reuso até decisão.
 - **Ordem com `add-pain-attention-signal`:** as duas tocam os mesmos quatro pontos. Proposta: esta
   entra primeiro (a fatia 1 da outra ainda não começou) e a outra faz o rebase.
 - **Premissa:** lesão reportada pelo atleta é sempre segura de aplicar sem o coach, porque só reduz
